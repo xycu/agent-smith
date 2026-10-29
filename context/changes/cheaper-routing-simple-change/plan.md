@@ -253,9 +253,9 @@ None. Nothing uses agent-smith yet (PRD, Constraints). Existing `run.jsonl` entr
 
 #### Automated
 
-- [x] 3.1 `SKILL.md` documents the rule and still names no models
-- [x] 3.2 `README.md` routing bullets mention the simple-change reduction
+- [x] 3.1 `SKILL.md` documents the rule and still names no models — 60b70b2
+- [x] 3.2 `README.md` routing bullets mention the simple-change reduction — 60b70b2
 
 #### Manual
 
-- [x] 3.3 The numbers in `SKILL.md` and `README.md` (1 phase, 6 rows, -1 tier) match `policy.json`
+- [x] 3.3 The numbers in `SKILL.md` and `README.md` (1 phase, 6 rows, -1 tier) match `policy.json` — 60b70b2

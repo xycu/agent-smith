@@ -1,7 +1,7 @@
 ---
 change_id: cheaper-routing-simple-change
 title: Cheaper routing for a simple change
-status: implementing
+status: implemented
 created: 2026-10-30
 updated: 2026-10-30
 archived_at: null
