@@ -91,6 +91,7 @@ Timeline: user can ship this in three weeks of after-hours work and wants it ASA
 3. Which artifacts does the router score (code, intent MD files, others), and who produces the score: a review step, or the router itself? Owner: user.
 4. Is usage or cost data available to the router at all, and from where? (User named usage/cost metrics as a rubric input in Phase 1.) Owner: user.
 5. Is OpenSpec (FR-006) out of scope for this delivery? User called it nice-to-have but did not list it as a non-goal. Owner: user.
+6. The user expects the router to be cheap to run, like Haiku-5.5 (added after the quality check). Today `route.mjs` is a plain script with no LLM. Does the router become an LLM-run step on a cheap model that reads and judges artifacts, or does it stay a script and only read structured rubric output? This affects Open Questions 3 and 4 and the FR-001 note "reading costs tokens". Owner: user.
 
 ## Functional Requirements
 
@@ -148,6 +149,7 @@ Change type: modifies the existing rule (assumed from the user's answer; not sta
 ## Non-Functional Requirements
 
 - Usage consumption of a full pipeline run drops compared with a full run on Sonnet-5.5 at high effort, measured by A/B test. Target percentage not set (see Open Questions 1).
+- The router's own run is cheap: user expects it to run on a Haiku-5.5-class model (user, 2026-10-29, after Phase 6). Its cost counts toward the A/B usage comparison.
 - The model and effort used by each step are visible to the user before the change is archived (FR-004).
 
 ## Non-Goals
