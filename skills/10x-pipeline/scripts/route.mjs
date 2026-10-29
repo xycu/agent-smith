@@ -257,7 +257,19 @@ function decide(p, log, policy, meta) {
   };
 }
 
-function tierFor(d, log, policy, plan) {
+// A change is simple when the plan stays small and nothing has failed yet.
+// Any failed step ends the discount for the rest of the run.
+function simpleSignal(d, plan, log, meta, policy) {
+  if (d.step === "plan") {
+    return d.template === "plan" && meta.size === "s" ? { simple: true, why: "--size s" } : { simple: false };
+  }
+  const S = policy.complexity.simple;
+  const simple = plan.hasProgress && plan.phases >= 1 && plan.phases <= S.maxPhases &&
+    plan.rows <= S.maxRows && meta.size !== "l" && !log.some((e) => e.ok === false);
+  return simple ? { simple, why: `${plan.phases} phase, ${plan.rows} rows` } : { simple: false };
+}
+
+function tierFor(d, log, policy, plan, meta) {
   const s = policy.steps[d.step];
   const C = policy.complexity;
   let tier = s.baseTier;
@@ -269,13 +281,16 @@ function tierFor(d, log, policy, plan) {
   if (d.bump) { tier += d.bump; parts.push(`${d.bump > 0 ? "+" : ""}${d.bump} from results`); }
   const fails = trailingFailures(log, d.step);
   if (fails) { tier += fails * policy.escalation.perFailure; parts.push(`+${fails * policy.escalation.perFailure} for ${fails} failed attempt(s)`); }
+  const { simple, why } = simpleSignal(d, plan, log, meta, policy);
+  const discount = simple ? C.simple.discount[d.step] ?? 0 : 0;
+  if (discount > 0) { tier -= discount; parts.push(`-${discount} simple change (${why})`); }
   if (d.floorTier !== undefined && tier < d.floorTier + (d.bump || 0)) {
     tier = d.floorTier + (d.bump || 0);
     parts.push(`floor at last code tier ${d.floorTier}`);
   }
   const clamped = Math.max(s.minTier ?? 0, Math.min(s.maxTier ?? policy.ladder.length - 1, tier, policy.ladder.length - 1));
   if (clamped !== tier) parts.push(`clamped to ${clamped}`);
-  return { tier: clamped, fails, tierWhy: parts.join(", ") };
+  return { tier: clamped, fails, simple, tierWhy: parts.join(", ") };
 }
 
 function render(tpl, vars) {
@@ -303,7 +318,7 @@ function next(id, policy) {
   }
 
   const plan = readPlan(p.plan);
-  const { tier, fails, tierWhy } = tierFor(d, log, policy, plan);
+  const { tier, fails, simple, tierWhy } = tierFor(d, log, policy, plan, meta);
   if (fails >= policy.escalation.maxAttemptsPerStep) {
     writeLog(p.log, log);
     return out({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${log[log.length - 1]?.result?.note ?? "none"}` });
@@ -323,6 +338,7 @@ function next(id, policy) {
     effort,
     reason: d.reason,
     tierWhy,
+    simple,
     startedAt: Date.now(),
     before: { autoDone: plan.autoDone },
   };
@@ -346,7 +362,7 @@ function status(id) {
   out({
     change: id,
     steps: log.map((e) => ({
-      n: e.n, step: e.step, model: e.model, effort: e.effort,
+      n: e.n, step: e.step, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
     })),
   });

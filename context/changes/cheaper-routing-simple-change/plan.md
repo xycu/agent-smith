@@ -224,30 +224,30 @@ None. Nothing uses agent-smith yet (PRD, Constraints). Existing `run.jsonl` entr
 
 #### Automated
 
-- [x] 1.1 Policy is valid JSON with the new keys
-- [x] 1.2 Router still runs and prints valid JSON with unchanged tiers
+- [x] 1.1 Policy is valid JSON with the new keys — e3f4658
+- [x] 1.2 Router still runs and prints valid JSON with unchanged tiers — e3f4658
 
 #### Manual
 
-- [x] 1.3 `git diff` shows only `complexity.simple`, the two `minTier` values and the `rows` counter changed
+- [x] 1.3 `git diff` shows only `complexity.simple`, the two `minTier` values and the `rows` counter changed — e3f4658
 
 ### Phase 2: Router discount and visibility
 
 #### Automated
 
-- [ ] 2.1 1 phase, 3 rows, no review yet: `init` returns `plan-review` on sonnet/low and the reason contains `simple change`
-- [ ] 2.2 2 phases, 6 rows: `plan-review` returns sonnet/medium and the reason has no `simple change`
-- [ ] 2.3 1 phase, 7 rows: `plan-review` returns sonnet/medium and the reason has no `simple change`
-- [ ] 2.4 `init --size s` with no `plan.md` returns `plan` on sonnet/medium; `init --size m` returns `plan` on opus/high
-- [ ] 2.5 1-phase 3-row plan with a clean `SOUND` plan review: `implement` returns sonnet/medium and, after all rows are checked, `impl-review` returns sonnet/medium
-- [ ] 2.6 A reported failed step (`last-result.json` with `"status":"failed"`) removes the discount on the following step
-- [ ] 2.7 `init --size l` with a 1-phase 3-row plan: `plan-review` returns sonnet/medium
-- [ ] 2.8 `status` prints valid JSON with a `simple` value for every step
-- [ ] 2.9 A `context/foundation/agent-smith-policy.json` override setting every `discount` value to 0 reproduces today's tiers on the 1-phase 3-row plan
+- [x] 2.1 1 phase, 3 rows, no review yet: `init` returns `plan-review` on sonnet/low and the reason contains `simple change`
+- [x] 2.2 2 phases, 6 rows: `plan-review` returns sonnet/medium and the reason has no `simple change`
+- [x] 2.3 1 phase, 7 rows: `plan-review` returns sonnet/medium and the reason has no `simple change`
+- [x] 2.4 `init --size s` with no `plan.md` returns `plan` on sonnet/medium; `init --size m` returns `plan` on opus/high
+- [x] 2.5 1-phase 3-row plan with a clean `SOUND` plan review: `implement` returns sonnet/medium and, after all rows are checked, `impl-review` returns sonnet/medium
+- [x] 2.6 A reported failed step (`last-result.json` with `"status":"failed"`) removes the discount on the following step
+- [x] 2.7 `init --size l` with a 1-phase 3-row plan: `plan-review` returns sonnet/medium
+- [x] 2.8 `status` prints valid JSON with a `simple` value for every step
+- [x] 2.9 A `context/foundation/agent-smith-policy.json` override setting every `discount` value to 0 reproduces today's tiers on the 1-phase 3-row plan
 
 #### Manual
 
-- [ ] 2.10 The `tierWhy` text for a simple run reads clearly (for example `base 2, -1 simple change (1 phase, 3 rows)`)
+- [x] 2.10 The `tierWhy` text for a simple run reads clearly (for example `base 2, -1 simple change (1 phase, 3 rows)`)
 
 ### Phase 3: Docs sync
 
