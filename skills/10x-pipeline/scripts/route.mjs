@@ -59,7 +59,7 @@ function mtime(file) {
 // ---- disk readers ---------------------------------------------------------
 
 function readPlan(file) {
-  const res = { exists: false, hasProgress: false, phases: 0, autoDone: 0, autoPending: 0, manualPending: [], mtime: 0 };
+  const res = { exists: false, hasProgress: false, phases: 0, rows: 0, autoDone: 0, autoPending: 0, manualPending: [], mtime: 0 };
   if (!fs.existsSync(file)) return res;
   res.exists = true;
   res.mtime = mtime(file);
@@ -74,6 +74,7 @@ function readPlan(file) {
     if (/^#### Manual/.test(line)) { section = "manual"; continue; }
     const m = line.match(/^- \[( |x|X)\] (.*)$/);
     if (!m) continue;
+    res.rows++;
     const done = m[1] !== " ";
     if (section === "manual") { if (!done) res.manualPending.push(m[2].trim()); }
     else if (done) res.autoDone++;

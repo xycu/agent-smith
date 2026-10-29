@@ -9,8 +9,8 @@
     { "model": "opus",   "effort": "max" }
   ],
   "steps": {
-    "plan":        { "skill": "10x-plan",           "baseTier": 4, "minTier": 3, "maxTier": 6 },
-    "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 2, "maxTier": 5 },
+    "plan":        { "skill": "10x-plan",           "baseTier": 4, "minTier": 2, "maxTier": 6 },
+    "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 1, "maxTier": 5 },
     "implement":   { "skill": "10x-goal-implement", "baseTier": 3, "minTier": 2, "maxTier": 6 },
     "impl-review": { "skill": "10x-impl-review",    "baseTier": 3, "minTier": 2, "maxTier": 5 },
     "fix":         { "skill": null,                 "baseTier": 3, "minTier": 2, "maxTier": 6 }
@@ -18,7 +18,12 @@
   "complexity": {
     "phaseThresholds": [3, 6],
     "appliesTo": ["plan-review", "implement", "impl-review", "fix"],
-    "sizeBump": { "s": -1, "m": 0, "l": 1 }
+    "sizeBump": { "s": -1, "m": 0, "l": 1 },
+    "simple": {
+      "maxPhases": 1,
+      "maxRows": 6,
+      "discount": { "plan": 1, "plan-review": 1, "implement": 1, "impl-review": 1, "fix": 0 }
+    }
   },
   "escalation": {
     "perFailure": 1,
