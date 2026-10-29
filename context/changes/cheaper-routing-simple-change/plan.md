@@ -235,27 +235,27 @@ None. Nothing uses agent-smith yet (PRD, Constraints). Existing `run.jsonl` entr
 
 #### Automated
 
-- [x] 2.1 1 phase, 3 rows, no review yet: `init` returns `plan-review` on sonnet/low and the reason contains `simple change`
-- [x] 2.2 2 phases, 6 rows: `plan-review` returns sonnet/medium and the reason has no `simple change`
-- [x] 2.3 1 phase, 7 rows: `plan-review` returns sonnet/medium and the reason has no `simple change`
-- [x] 2.4 `init --size s` with no `plan.md` returns `plan` on sonnet/medium; `init --size m` returns `plan` on opus/high
-- [x] 2.5 1-phase 3-row plan with a clean `SOUND` plan review: `implement` returns sonnet/medium and, after all rows are checked, `impl-review` returns sonnet/medium
-- [x] 2.6 A reported failed step (`last-result.json` with `"status":"failed"`) removes the discount on the following step
-- [x] 2.7 `init --size l` with a 1-phase 3-row plan: `plan-review` returns sonnet/medium
-- [x] 2.8 `status` prints valid JSON with a `simple` value for every step
-- [x] 2.9 A `context/foundation/agent-smith-policy.json` override setting every `discount` value to 0 reproduces today's tiers on the 1-phase 3-row plan
+- [x] 2.1 1 phase, 3 rows, no review yet: `init` returns `plan-review` on sonnet/low and the reason contains `simple change` — 7add63f
+- [x] 2.2 2 phases, 6 rows: `plan-review` returns sonnet/medium and the reason has no `simple change` — 7add63f
+- [x] 2.3 1 phase, 7 rows: `plan-review` returns sonnet/medium and the reason has no `simple change` — 7add63f
+- [x] 2.4 `init --size s` with no `plan.md` returns `plan` on sonnet/medium; `init --size m` returns `plan` on opus/high — 7add63f
+- [x] 2.5 1-phase 3-row plan with a clean `SOUND` plan review: `implement` returns sonnet/medium and, after all rows are checked, `impl-review` returns sonnet/medium — 7add63f
+- [x] 2.6 A reported failed step (`last-result.json` with `"status":"failed"`) removes the discount on the following step — 7add63f
+- [x] 2.7 `init --size l` with a 1-phase 3-row plan: `plan-review` returns sonnet/medium — 7add63f
+- [x] 2.8 `status` prints valid JSON with a `simple` value for every step — 7add63f
+- [x] 2.9 A `context/foundation/agent-smith-policy.json` override setting every `discount` value to 0 reproduces today's tiers on the 1-phase 3-row plan — 7add63f
 
 #### Manual
 
-- [x] 2.10 The `tierWhy` text for a simple run reads clearly (for example `base 2, -1 simple change (1 phase, 3 rows)`)
+- [x] 2.10 The `tierWhy` text for a simple run reads clearly (for example `base 2, -1 simple change (1 phase, 3 rows)`) — 7add63f
 
 ### Phase 3: Docs sync
 
 #### Automated
 
-- [ ] 3.1 `SKILL.md` documents the rule and still names no models
-- [ ] 3.2 `README.md` routing bullets mention the simple-change reduction
+- [x] 3.1 `SKILL.md` documents the rule and still names no models
+- [x] 3.2 `README.md` routing bullets mention the simple-change reduction
 
 #### Manual
 
-- [ ] 3.3 The numbers in `SKILL.md` and `README.md` (1 phase, 6 rows, -1 tier) match `policy.json`
+- [x] 3.3 The numbers in `SKILL.md` and `README.md` (1 phase, 6 rows, -1 tier) match `policy.json`

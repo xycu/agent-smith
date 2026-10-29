@@ -29,7 +29,7 @@ How routing works:
 
 - `skills/10x-pipeline/policy.json` defines a ladder of model/effort tiers, a base tier per step, and escalation rules.
 - `skills/10x-pipeline/scripts/route.mjs` reads `plan.md` (`## Progress`) and `reviews/*.md` (verdict, finding counts) after every step and returns the next step, model, effort and prompt.
-- The tier goes up for large plans, `RETHINK`/`REVISE`/`REJECTED` verdicts and failed attempts. It goes down after a clean review.
+- The tier goes up for large plans, `RETHINK`/`REVISE`/`REJECTED` verdicts and failed attempts. It goes down after a clean review and for a simple change (a small plan or `--size s`).
 - A step counts as failed when the subagent does not report `done` or the expected file did not change.
 - The run halts for a human after repeated failures, too many plan revisions or fix loops, or when the step budget is spent.
 
