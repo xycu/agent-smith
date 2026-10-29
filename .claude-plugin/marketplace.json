@@ -1,0 +1,11 @@
+{
+  "name": "agent-smith",
+  "owner": { "name": "xycu" },
+  "plugins": [
+    {
+      "name": "agent-smith",
+      "source": "./",
+      "description": "Orchestrates AI SDLC skill chains with dynamic model and effort routing"
+    }
+  ]
+}

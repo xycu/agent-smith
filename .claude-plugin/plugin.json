@@ -1,0 +1,10 @@
+{
+  "name": "agent-smith",
+  "displayName": "Agent Smith",
+  "version": "0.1.0",
+  "description": "Orchestrates AI SDLC skill chains (10xDevs) and routes each step to a model and effort level based on the results of earlier steps",
+  "author": { "name": "xycu" },
+  "repository": "https://github.com/xycu/agent-smith",
+  "license": "Unlicense",
+  "keywords": ["orchestration", "sdlc", "10xdevs", "model-routing", "subagents"]
+}
