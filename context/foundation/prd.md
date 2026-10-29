@@ -51,6 +51,7 @@ The gap: today the router picks model and effort from review verdicts, finding c
 ### Secondary
 
 - OpenSpec support through a second pipeline skill. Nice-to-have, built after dynamic routing works.
+- Routing quality is judged by the cost of successfully delivered changes, not token price alone: first-pass acceptance rate, retry count, human correction rate and cost per completed change (ADR-001, `docs/ADR/ADR-001-phased-complexity-routing.md`).
 
 ### Guardrails
 
@@ -100,6 +101,12 @@ The gap: today the router picks model and effort from review verdicts, finding c
 - [preserved] FR-008: The pipeline keeps run state in `context/changes/<change-id>/agent-smith/`. Priority: must-have
   > Socrates: Counter-argument considered: "committed run logs cause git noise." Resolution: kept; git handling (gitignore or commit policy) is decided downstream.
 
+Added from ADR-001 (not yet challenged in a Socrates round; see Open Questions 10):
+
+- [new] FR-009: The pipeline can record usage per step (model, effort, and token or cost figures where available) in run state, so runs can be compared against a full run on Sonnet-5.5 at high effort. Priority: must-have
+- [new] FR-010: The router can mark a change as elevated risk from configurable path rules, and for elevated risk always runs plan-review and implementation review and halts for a human at the highest level. Priority: must-have. Constrains FR-002: plan-review is skipped only when the change is not elevated risk.
+- [new] FR-011: The pipeline can score change complexity with an LLM on a cheap model and store the scores with evidence and unknowns in a machine-readable file. Priority: nice-to-have. Deferred: built only if measurements show deterministic signals are not enough (ADR-001, Phase 2).
+
 ## Constraints & Compatibility
 
 - **Backward compatibility:** not required. Nobody uses the current command, so it may change freely.
@@ -113,7 +120,8 @@ The gap: today the router picks model and effort from review verdicts, finding c
 The router chooses model and effort for each step by task effort and complexity so that the agentic pipeline is money efficient.
 
 - **Current rule:** the router derives the next step, model and effort from review verdicts, finding counts, plan size (phase count), the size flag and failed attempts.
-- **Change:** the decision also uses a new scored rubric and usage or cost metrics, and may choose plan-review or implement as the next step (US-01). Whether this modifies or replaces the existing rule was assumed, not stated; see Open Questions.
+- **Change:** the decision also uses a new scored rubric and usage or cost metrics, and may choose plan-review or implement as the next step (US-01).
+- **Phasing (ADR-001, proposed):** Phase 1 routes on deterministic signals the script can read without an LLM (phase count, size flag, files changed, review verdicts, finding counts, failed attempts) and adds a separate risk axis set by path rules. Scored complexity (cognitive and execution complexity, risk and confidence, each factor 0 to 3) is deferred to Phase 2 and only built if the Phase 1 measurements show the signals are not enough. Details: `docs/ADR/ADR-001-phased-complexity-routing.md`.
 
 ## Access Control Changes
 
@@ -127,10 +135,12 @@ No access control changes — current model preserved. There is no auth and no r
 
 1. **What usage drop counts as success?** — Baseline is known (a full run on Sonnet-5.5 at high effort, compared by A/B test), but the target percentage is not set. Owner: user.
 2. **What does "a dep for other models" mean?** — The user said the pipeline is a dependency for other models (meaning unclear: other modules or projects that depend on it?). Which ones, and what must stay stable for them? Owner: user.
-3. **Which artifacts does the router score, and who produces the score?** — Code, intent MD files, others; a review step, or the router itself? Owner: user.
+3. **Which artifacts does the router score, and who produces the score?** — Code, intent MD files, others; a review step, or the router itself? ADR-001 Phase 1 needs no scorer: the script reads artifacts and diff stats. An LLM scorer is deferred to Phase 2; confirm. Owner: user.
 4. **Is usage or cost data available to the router, and from where?** — The user named usage and cost metrics as a rubric input. Owner: user.
 5. **Is OpenSpec (FR-006) out of scope for this delivery?** — The user called it nice-to-have but did not list it as a non-goal. Owner: user.
-6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — The user expects the router to be cheap to run, like Haiku-5.5. Today `route.mjs` is a plain script with no LLM. Does the router read and judge artifacts on a cheap model, or only read structured rubric output? This affects questions 3 and 4 and the FR-001 note "reading costs tokens". Owner: user.
+6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — The user expects the router to be cheap to run, like Haiku-5.5. Today `route.mjs` is a plain script with no LLM. Does the router read and judge artifacts on a cheap model, or only read structured rubric output? This affects questions 3 and 4 and the FR-001 note "reading costs tokens". ADR-001 Phase 1 keeps the router a script; a cheap-model scorer only appears in Phase 2. Owner: user.
 7. **What are the expected target_scale.qps and target_scale.data_volume?** — Not captured during shaping. Owner: user.
 8. **Why now, and what is the current workaround and its cost?** — Not captured during shaping. Owner: user.
 9. **Confirm two assumptions.** — (a) The change modifies the existing routing rule rather than replacing it. (b) There are no existing runs or data to carry over. Owner: user.
+10. **Confirm the ADR-001 additions.** — FR-009 to FR-011 and their priorities come from a proposed ADR and were not challenged in a Socrates round. Owner: user.
+11. **Which path rules and levels define elevated risk, and what does the pipeline do at the highest level?** — ADR-001 says the pipeline halts for a human, because subagents cannot ask questions. Owner: user.

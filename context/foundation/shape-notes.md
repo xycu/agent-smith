@@ -169,3 +169,9 @@ Change type: modifies the existing rule (assumed from the user's answer; not sta
 ## Quality cross-check
 
 All six elements present (Access Control, Business Logic, Project artifacts, Timeline-cost ack, Non-Goals, Preserved behavior). No gaps. Five open questions carry over to `/10x-prd` (see `## Open Questions (running)`).
+
+## Forward: ADR-001 (added after the PRD)
+
+- On 2026-10-29 the user asked for a complexity-routing proposal to be recorded as `docs/ADR/ADR-001-phased-complexity-routing.md` (status: Proposed) and folded into `context/`. After review the user agreed to narrow it to a phased approach.
+- Phase 1: measure usage per step, route on deterministic signals the script can read, and add a separate risk axis set by path rules. Scored LLM complexity is deferred to Phase 2, only if the data demands it.
+- PRD impact: FR-009 to FR-011, a phasing paragraph under Business Logic Changes, a calibration metric under Success Criteria, and Open Questions 10 and 11. These were added directly to `prd.md` and were not part of the shaping session or a Socrates round.
