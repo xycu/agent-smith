@@ -101,11 +101,14 @@ The gap: today the router picks model and effort from review verdicts, finding c
 - [preserved] FR-008: The pipeline keeps run state in `context/changes/<change-id>/agent-smith/`. Priority: must-have
   > Socrates: Counter-argument considered: "committed run logs cause git noise." Resolution: kept; git handling (gitignore or commit policy) is decided downstream.
 
-Added from ADR-001 (not yet challenged in a Socrates round; see Open Questions 10):
+Added from ADR-001 (challenged in a Socrates round on 2026-10-30):
 
 - [new] FR-009: The pipeline can record usage per step (model, effort, and token or cost figures where available) in run state, so runs can be compared against a full run on Sonnet-5.5 at high effort. Priority: must-have
+  > Socrates: Counter-argument considered: "usage figures may not be readable by the script." Resolution: kept; record model and effort now, add token or cost figures once a readable source is found (Open Question 4). Finding that source is the first task.
 - [new] FR-010: The router can mark a change as elevated risk from configurable path rules, and for elevated risk always runs plan-review and implementation review and halts for a human at the highest level. Priority: must-have. Constrains FR-002: plan-review is skipped only when the change is not elevated risk.
+  > Socrates: Counter-argument considered: "path rules misjudge risk, missing risky changes and over-flagging harmless ones." Resolution: kept; start with a small set of path rules and review them after the first runs.
 - [new] FR-011: The pipeline can score change complexity with an LLM on a cheap model and store the scores with evidence and unknowns in a machine-readable file. Priority: nice-to-have. Deferred: built only if measurements show deterministic signals are not enough (ADR-001, Phase 2).
+  > Socrates: Counter-argument considered: "a deferred FR invites early building." Resolution: kept as nice-to-have and listed as a non-goal for this delivery.
 
 ## Constraints & Compatibility
 
@@ -130,6 +133,7 @@ No access control changes — current model preserved. There is no auth and no r
 ## Non-Goals
 
 - Changing or forking the 10x toolkit skills, or OpenSpec. agent-smith is an add-on and never edits them.
+- Scoring change complexity with an LLM (FR-011) in this delivery. It is built only if the Phase 1 measurements show that deterministic signals are not enough (ADR-001).
 
 ## Open Questions
 
@@ -142,5 +146,5 @@ No access control changes — current model preserved. There is no auth and no r
 7. **What are the expected target_scale.qps and target_scale.data_volume?** — Not captured during shaping. Owner: user.
 8. **Why now, and what is the current workaround and its cost?** — Not captured during shaping. Owner: user.
 9. **Confirm two assumptions.** — (a) The change modifies the existing routing rule rather than replacing it. (b) There are no existing runs or data to carry over. Owner: user.
-10. **Confirm the ADR-001 additions.** — FR-009 to FR-011 and their priorities come from a proposed ADR and were not challenged in a Socrates round. Owner: user.
+10. **Confirm the priorities of FR-009 to FR-011.** — They come from a proposed ADR. The Socrates round on 2026-10-30 challenged them, but the priorities themselves were set from the ADR, not by you. Owner: user.
 11. **Which path rules and levels define elevated risk, and what does the pipeline do at the highest level?** — ADR-001 says the pipeline halts for a human, because subagents cannot ask questions. Owner: user.
