@@ -558,8 +558,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 3.1 Churn tests pass: `node --test skills/10x-pipeline/test/churn.test.mjs`
-- [x] 3.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.1 Churn tests pass: `node --test skills/10x-pipeline/test/churn.test.mjs` — e36f95f
+- [x] 3.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — e36f95f
 
 #### Manual
 
@@ -570,8 +570,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [ ] 4.1 Skip and interplay tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [ ] 4.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 4.1 Skip and interplay tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
+- [x] 4.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 

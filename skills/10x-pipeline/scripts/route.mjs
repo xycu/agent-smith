@@ -130,6 +130,12 @@ function readLog(file) {
   });
 }
 
+// A skip entry records a step the router decided not to run. It has no n, template, ok or result.
+// Every count, streak and freshness check reads the executed entries only.
+function executed(log) {
+  return log.filter((e) => !e.skipped);
+}
+
 // meta.json must be a plain object; anything else falls back.
 function readMeta(file, fallback) {
   const m = readJson(file, null);
@@ -142,8 +148,10 @@ function writeLog(file, entries) {
 
 // ---- report ---------------------------------------------------------------
 
-function buildReport(id, meta, log) {
+function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+  const log = executed(fullLog);
+  const skips = fullLog.filter((e) => e.skipped);
   const o = meta.outcome;
   const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
   const tokens = (e) => (typeof e.usage?.totalTokens === "number" ? e.usage.totalTokens : null);
@@ -165,8 +173,16 @@ function buildReport(id, meta, log) {
     "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ...rows,
     "",
-    `Steps: ${log.length} · Tokens: ${withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)`,
+    `Steps: ${log.length} · Tokens: ${withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
     "",
+    ...(skips.length ? [
+      "## Skipped steps",
+      "",
+      "| After step | Step | Reason | Rigor |",
+      "| --- | --- | --- | --- |",
+      ...skips.map((e) => `| ${e.afterN} | ${e.step} | ${oneLine(e.reason).replace(/\|/g, "/")} | ${e.rigor ?? "-"} |`),
+      "",
+    ] : []),
   ].join("\n");
 }
 
@@ -202,7 +218,8 @@ function cleanUsage(raw) {
 }
 
 function attachResult(p, log) {
-  const last = log[log.length - 1];
+  const ran = executed(log);
+  const last = ran[ran.length - 1];
   if (!last || last.result) return;
   if (!fs.existsSync(p.result)) {
     out({ action: "halt", reason: `Step ${last.n} (${last.step}) has no result. Write ${path.relative(ROOT, p.result)} first.` }, 1);
@@ -456,11 +473,12 @@ function measureRisk(p, meta, log, policy) {
   return { source: set.source, hot: [...set.hot].sort(), planPaths: planned.length, planHits, diffHits: [...new Set(diffHits)].sort(), hits, level };
 }
 
-function decide(p, log, policy, meta) {
+function decide(p, fullLog, policy, meta, ctx) {
   const E = policy.escalation;
   const L = policy.limits;
+  const log = executed(fullLog);
   const plan = readPlan(p.plan);
-  const pr = readReview(p.planReview);
+  let pr = readReview(p.planReview);
   const ir = readReview(p.implReview);
   const count = (step) => log.filter((e) => e.step === step).length;
 
@@ -485,7 +503,32 @@ function decide(p, log, policy, meta) {
   const prFresh = lp >= 0 || lpr >= 0
     ? pr.exists && lpr > lp
     : pr.exists && (plan.autoDone > 0 || pr.mtime >= plan.mtime);
-  if (!prFresh) return { step: "plan-review", bump: 0, reason: "plan changed since last review" };
+  if (!prFresh) {
+    // A plan-review skip written after the last successful plan step counts as handled.
+    // It holds while the level can still skip, and for good once implement or fix has run.
+    const skipAt = fullLog.map((e, i) => (e.skipped && e.step === "plan-review" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+    const planAt = fullLog.map((e, i) => (!e.skipped && e.step === "plan" && e.ok ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
+    const skippable = (policy.rigor.skipPlanReviewAt ?? []).includes(ctx.level);
+    const codeRan = log.some((e) => e.step === "implement" || e.step === "fix");
+    if (skipAt > planAt && (skippable || codeRan)) {
+      pr = { exists: false, verdict: null, critical: 0, warnings: 0, mtime: 0 }; // absent after a skip
+    } else {
+      const source = ctx.risk?.source ?? "unavailable";
+      const planPathCount = ctx.risk?.planPaths ?? 0;
+      const measured = source !== "unavailable" && planPathCount >= 1;
+      if (skippable && !codeRan && plan.autoDone === 0 && measured) {
+        return {
+          skip: {
+            step: "plan-review",
+            reason: `rigor ${ctx.level}: plan-review skipped (churn ${source}, ${planPathCount} plan paths, none hot)`,
+            risk: { source, planPaths: planPathCount },
+          },
+        };
+      }
+      const why = skippable && !measured ? `plan changed since last review; risk not measured (${source}, ${planPathCount} plan paths)` : "plan changed since last review";
+      return { step: "plan-review", bump: 0, reason: why };
+    }
+  }
 
   const needsReplan =
     pr.verdict === "RETHINK" ||
@@ -627,21 +670,40 @@ function next(id, policy) {
   if (changed) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
-  if (log.length >= budget) {
+  if (executed(log).length >= budget) {
     return endRun(p, id, meta, log, { action: "halt", reason: `Step budget ${budget} spent.` });
   }
 
-  const d = decide(p, log, policy, meta);
+  // decide() may skip a step: log the skip and ask again, at most three times in one call.
+  let d;
+  for (let asked = 1; ; asked++) {
+    d = decide(p, log, policy, meta, { level, risk });
+    if (!d.skip) break;
+    if (asked >= 3) {
+      return endRun(p, id, meta, log, { action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
+    }
+    log.push({
+      skipped: true,
+      step: d.skip.step,
+      reason: d.skip.reason,
+      rigor: level,
+      risk: d.skip.risk,
+      afterN: executed(log).length,
+      at: Date.now(),
+    });
+    writeLog(p.log, log);
+  }
+  const ran = executed(log);
   if (d.halt || d.done) {
     return endRun(p, id, meta, log, d.done
-      ? { action: "done", reason: d.reason, manualPending: d.manualPending, steps: log.length }
-      : { action: "halt", reason: d.halt, steps: log.length });
+      ? { action: "done", reason: d.reason, manualPending: d.manualPending, steps: ran.length }
+      : { action: "halt", reason: d.halt, steps: ran.length });
   }
 
   const plan = readPlan(p.plan);
-  const { tier, fails, simple, tierWhy } = tierFor(d, log, policy, plan, meta, level);
+  const { tier, fails, simple, tierWhy } = tierFor(d, ran, policy, plan, meta, level);
   if (fails >= policy.escalation.maxAttemptsPerStep) {
-    return endRun(p, id, meta, log, { action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${log[log.length - 1]?.result?.note ?? "none"}` });
+    return endRun(p, id, meta, log, { action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}` });
   }
 
   // A continued run must not keep the outcome of an earlier end.
@@ -655,7 +717,7 @@ function next(id, policy) {
   const prompt = render(policy.prompts[template], { id, goal: meta.goal, verdict: d.verdict ?? "" }).trim() +
     "\n\n" + policy.prompts.suffix;
   const entry = {
-    n: log.length + 1,
+    n: ran.length + 1,
     step: d.step,
     template,
     skill: policy.steps[d.step].skill,
@@ -697,7 +759,7 @@ function status(id, flags) {
   const res = {
     change: id,
     rigor: readMeta(p.meta, {}).rigor?.level ?? null,
-    steps: log.map((e) => ({
+    steps: log.map((e) => e.skipped ? { skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null } : ({
       n: e.n, step: e.step, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
