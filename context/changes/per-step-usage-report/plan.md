@@ -238,12 +238,12 @@ None. The report is built once per run end from a log of at most `maxTotalSteps`
 
 #### Automated
 
-- [x] 3.1 `SKILL.md` mentions `usage` and `report.md`: `grep -n "usage\|report.md" skills/10x-pipeline/SKILL.md`
-- [x] 3.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing
-- [x] 3.3 `README.md` mentions `report.md` and `--report`: `grep -n "report.md\|--report" README.md`
-- [x] 3.4 Manifests untouched: `git diff --stat .claude-plugin` is empty
+- [x] 3.1 `SKILL.md` mentions `usage` and `report.md`: `grep -n "usage\|report.md" skills/10x-pipeline/SKILL.md` — c17cab8
+- [x] 3.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing — c17cab8
+- [x] 3.3 `README.md` mentions `report.md` and `--report`: `grep -n "report.md\|--report" README.md` — c17cab8
+- [x] 3.4 Manifests untouched: `git diff --stat .claude-plugin` is empty — c17cab8
 
 #### Manual
 
-- [x] 3.5 `SKILL.md`, `README.md` and `route.mjs` describe the same report, file path and command
-- [x] 3.6 One real run through the skill on a scratch change (no hand-written result files) leaves `usage` on at least one `run.jsonl` entry and a number in the `Tokens` column of `report.md`
+- [x] 3.5 `SKILL.md`, `README.md` and `route.mjs` describe the same report, file path and command — c17cab8
+- [x] 3.6 One real run through the skill on a scratch change (no hand-written result files) leaves `usage` on at least one `run.jsonl` entry and a number in the `Tokens` column of `report.md` — c17cab8
