@@ -507,14 +507,14 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Automated
 
-- [x] 4.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 4.2 The adapter is documented in all places: `for f in skills/10x-pipeline/SKILL.md README.md AGENTS.md docs/ADR/ADR-003-rigor-gated-routing.md; do grep -q "verify-archive" "$f" || exit 1; done`
-- [x] 4.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md`
-- [x] 4.4 `SKILL.md` documents the flag and the action: `grep -q -- "--archive" skills/10x-pipeline/SKILL.md && grep -q '`archive`' skills/10x-pipeline/SKILL.md`
-- [x] 4.5 PRD FR-008 carries the note: `sed -n '/FR-008:/,/^- \[/p' context/foundation/prd.md | grep -q "archive-adapter"`
-- [x] 4.6 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0`
-- [x] 4.7 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0`
-- [x] 4.14 No document says the router never uses git: `! grep -nE "never touches git|does not use git|no git access|never uses git" docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md README.md AGENTS.md skills/10x-pipeline/SKILL.md`
+- [x] 4.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 35f085e
+- [x] 4.2 The adapter is documented in all places: `for f in skills/10x-pipeline/SKILL.md README.md AGENTS.md docs/ADR/ADR-003-rigor-gated-routing.md; do grep -q "verify-archive" "$f" || exit 1; done` — 35f085e
+- [x] 4.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md` — 35f085e
+- [x] 4.4 `SKILL.md` documents the flag and the action: `grep -q -- "--archive" skills/10x-pipeline/SKILL.md && grep -q '`archive`' skills/10x-pipeline/SKILL.md` — 35f085e
+- [x] 4.5 PRD FR-008 carries the note: `sed -n '/FR-008:/,/^- \[/p' context/foundation/prd.md | grep -q "archive-adapter"` — 35f085e
+- [x] 4.6 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0` — 35f085e
+- [x] 4.7 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0` — 35f085e
+- [x] 4.14 No document says the router never uses git: `! grep -nE "never touches git|does not use git|no git access|never uses git" docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md README.md AGENTS.md skills/10x-pipeline/SKILL.md` — 35f085e
 
 #### Manual
 
