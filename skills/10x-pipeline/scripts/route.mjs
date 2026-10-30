@@ -455,6 +455,17 @@ function hotSet(policy, rev) {
   return { source, hot, exclude: cfg.exclude };
 }
 
+// One plan token, normalized: trailing note, :line, leading ./ and an absolute path under the project root.
+function normalizePlanPath(raw) {
+  let token = raw.trim().replace(/\s+\([^)]*\)$/, "").replace(/:\d+(-\d+)?$/, "").replace(/^\.\//, "");
+  if (token.startsWith("/")) {
+    for (const base of new Set([ROOT, fs.realpathSync(ROOT)])) {
+      if (token === base || token.startsWith(base + "/")) { token = path.posix.relative(base, token) || "."; break; }
+    }
+  }
+  return token;
+}
+
 // Paths named on the **File**: and **Files**: lines of the plan (backtick tokens, else comma-split text).
 function planPaths(file) {
   if (!fs.existsSync(file)) return [];
@@ -464,20 +475,44 @@ function planPaths(file) {
     if (!m) continue;
     const quoted = [...m[1].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
     const tokens = quoted.length ? quoted : m[1].split(",");
-    for (let token of tokens) {
-      token = token.trim().replace(/^\.\//, "").replace(/:\d+(-\d+)?$/, "");
+    for (const raw of tokens) {
+      const token = normalizePlanPath(raw);
       if (token) found.add(token);
     }
   }
   return [...found].sort();
 }
 
+// The hot paths one plan token names: the path itself, a directory above hot files, or a glob. Case is ignored.
+// Returns null when the token cannot be classified (spaces, outside the project root), so nothing is claimed about it.
+function matchPlanPath(token, hot) {
+  if (/\s/.test(token) || token.startsWith("/") || token.startsWith("~") || /(^|\/)\.\.(\/|$)/.test(token)) return null;
+  const clean = path.posix.normalize(token).replace(/\/+$/, "");
+  if (clean === "." || clean === "") return [...hot];
+  if (/[*?]/.test(clean)) {
+    const glob = globToRegex(clean);
+    const re = new RegExp(glob.source, "i");
+    return [...hot].filter((f) => re.test(f));
+  }
+  const key = clean.toLowerCase();
+  return [...hot].filter((f) => f.toLowerCase() === key || f.toLowerCase().startsWith(key + "/"));
+}
+
 // What churn says about this change: hot paths named by the plan and touched by the diff, and the level they raise to.
 function measureRisk(p, meta, log, policy) {
   const rev = typeof meta.baseSha === "string" && SHA_RE.test(meta.baseSha) ? meta.baseSha : meta.baseSha === undefined ? "HEAD" : null;
   const set = rev === null ? { source: "unavailable", hot: new Set(), exclude: [] } : hotSet(policy, rev);
-  const planned = planPaths(p.plan);
-  const planHits = planned.filter((f) => set.hot.has(f));
+  // Only a token that was matched against the hot set counts as a measured plan path.
+  const checked = [];
+  const unclassified = [];
+  const planHitSet = new Set();
+  for (const token of planPaths(p.plan)) {
+    const matched = matchPlanPath(token, set.hot);
+    if (matched === null) { unclassified.push(token); continue; }
+    checked.push(token);
+    for (const f of matched) planHitSet.add(f);
+  }
+  const planHits = [...planHitSet].sort();
   let diffHits = [];
   const coded = log.some((e) => !e.skipped && (e.step === "implement" || e.step === "fix"));
   if (coded && rev !== null && rev !== "HEAD" && set.source !== "unavailable") {
@@ -492,7 +527,7 @@ function measureRisk(p, meta, log, policy) {
   for (const rule of Array.isArray(policy.risk?.raise) ? policy.risk.raise : []) {
     if (isObject(rule) && hits.length >= rule.minHot && levels.includes(rule.level)) level = level === null ? rule.level : maxLevel(levels, level, rule.level);
   }
-  return { source: set.source, hot: [...set.hot].sort(), planPaths: planned.length, planHits, diffHits: [...new Set(diffHits)].sort(), hits, level };
+  return { source: set.source, hot: [...set.hot].sort(), planPaths: checked.length, unclassified, planHits, diffHits: [...new Set(diffHits)].sort(), hits, level };
 }
 
 function decide(p, fullLog, policy, meta, ctx) {
@@ -537,7 +572,8 @@ function decide(p, fullLog, policy, meta, ctx) {
     } else {
       const source = ctx.risk?.source ?? "unavailable";
       const planPathCount = ctx.risk?.planPaths ?? 0;
-      const measured = source !== "unavailable" && planPathCount >= 1;
+      const unclassified = ctx.risk?.unclassified?.length ?? 0;
+      const measured = source !== "unavailable" && planPathCount >= 1 && unclassified === 0;
       if (skippable && !codeRan && plan.autoDone === 0 && measured) {
         return {
           skip: {
@@ -547,7 +583,7 @@ function decide(p, fullLog, policy, meta, ctx) {
           },
         };
       }
-      const why = skippable && !measured ? `plan changed since last review; risk not measured (${source}, ${planPathCount} plan paths)` : "plan changed since last review";
+      const why = skippable && !measured ? `plan changed since last review; risk not measured (${source}, ${planPathCount} plan paths${unclassified ? `, ${unclassified} unclassified` : ""})` : "plan changed since last review";
       return { step: "plan-review", bump: 0, reason: why };
     }
   }
@@ -784,7 +820,7 @@ function riskCommand(id, policy) {
   const p = paths(id);
   const meta = readMeta(p.meta, { id, goal: "" });
   const r = measureRisk(p, meta, readLog(p.log), policy);
-  out({ source: r.source, hot: r.hot, planPaths: r.planPaths, planHits: r.planHits, diffHits: r.diffHits, level: r.level });
+  out({ source: r.source, hot: r.hot, planPaths: r.planPaths, unclassified: r.unclassified, planHits: r.planHits, diffHits: r.diffHits, level: r.level });
 }
 
 function status(id, flags) {
