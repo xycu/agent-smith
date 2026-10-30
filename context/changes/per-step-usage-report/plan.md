@@ -219,31 +219,31 @@ None. The report is built once per run end from a log of at most `maxTotalSteps`
 
 #### Automated
 
-- [x] 2.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs`
-- [x] 2.2 A scratch run that reaches `done` leaves `agent-smith/report.md` with one table row per `run.jsonl` entry
-- [x] 2.3 A scratch run that halts (three failed attempts of one step) also leaves `report.md`, with the halt reason in the outcome line
-- [x] 2.4 A run where only some steps carry `usage` prints `-` for the others and a totals line with the right `K of N`
-- [x] 2.5 A run with no usage anywhere still writes the report with every `Tokens` cell `-`
-- [x] 2.6 `status <id> --report` rewrites the file and keeps the stored outcome; plain `status` does not touch it
-- [x] 2.7 `init` on an existing log leaves `meta.json` without `outcome`
-- [x] 2.8 After a halt, raising the limit in the override file and calling `next` (which returns `run`) leaves `meta.json` without `outcome`
-- [x] 2.9 A scratch run with `limits.maxTotalSteps` set to 1 in `context/foundation/agent-smith-policy.json` halts on the step budget and still leaves `report.md`
-- [x] 2.10 `git diff --stat` shows no change to `skills/10x-pipeline/policy.json`
+- [x] 2.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs` — 704f72a
+- [x] 2.2 A scratch run that reaches `done` leaves `agent-smith/report.md` with one table row per `run.jsonl` entry — 704f72a
+- [x] 2.3 A scratch run that halts (three failed attempts of one step) also leaves `report.md`, with the halt reason in the outcome line — 704f72a
+- [x] 2.4 A run where only some steps carry `usage` prints `-` for the others and a totals line with the right `K of N` — 704f72a
+- [x] 2.5 A run with no usage anywhere still writes the report with every `Tokens` cell `-` — 704f72a
+- [x] 2.6 `status <id> --report` rewrites the file and keeps the stored outcome; plain `status` does not touch it — 704f72a
+- [x] 2.7 `init` on an existing log leaves `meta.json` without `outcome` — 704f72a
+- [x] 2.8 After a halt, raising the limit in the override file and calling `next` (which returns `run`) leaves `meta.json` without `outcome` — 704f72a
+- [x] 2.9 A scratch run with `limits.maxTotalSteps` set to 1 in `context/foundation/agent-smith-policy.json` halts on the step budget and still leaves `report.md` — 704f72a
+- [x] 2.10 `git diff --stat` shows no change to `skills/10x-pipeline/policy.json` — 704f72a
 
 #### Manual
 
-- [x] 2.11 The generated `report.md` reads clearly as a table in a Markdown viewer
+- [x] 2.11 The generated `report.md` reads clearly as a table in a Markdown viewer — 704f72a
 
 ### Phase 3: Docs sync
 
 #### Automated
 
-- [ ] 3.1 `SKILL.md` mentions `usage` and `report.md`: `grep -n "usage\|report.md" skills/10x-pipeline/SKILL.md`
-- [ ] 3.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing
-- [ ] 3.3 `README.md` mentions `report.md` and `--report`: `grep -n "report.md\|--report" README.md`
-- [ ] 3.4 Manifests untouched: `git diff --stat .claude-plugin` is empty
+- [x] 3.1 `SKILL.md` mentions `usage` and `report.md`: `grep -n "usage\|report.md" skills/10x-pipeline/SKILL.md`
+- [x] 3.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing
+- [x] 3.3 `README.md` mentions `report.md` and `--report`: `grep -n "report.md\|--report" README.md`
+- [x] 3.4 Manifests untouched: `git diff --stat .claude-plugin` is empty
 
 #### Manual
 
-- [ ] 3.5 `SKILL.md`, `README.md` and `route.mjs` describe the same report, file path and command
-- [ ] 3.6 One real run through the skill on a scratch change (no hand-written result files) leaves `usage` on at least one `run.jsonl` entry and a number in the `Tokens` column of `report.md`
+- [x] 3.5 `SKILL.md`, `README.md` and `route.mjs` describe the same report, file path and command
+- [x] 3.6 One real run through the skill on a scratch change (no hand-written result files) leaves `usage` on at least one `run.jsonl` entry and a number in the `Tokens` column of `report.md`

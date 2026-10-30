@@ -37,10 +37,10 @@ The router prints one JSON object. Act on `action`:
   1. Print one line: `Step <n>: <step> on <model>/<effort>. <reason>`.
   2. Call the Agent tool with `subagent_type: general-purpose`, `model: <model>`, `effort: <effort>`, `run_in_background: false`, and `prompt` set to the router's `prompt`, copied verbatim.
   3. Find the last line of the subagent's reply that starts with `RESULT:`. Parse the JSON after it. If there is none, or it does not parse, use `{"status":"unknown","note":"no RESULT line"}`.
-  4. Write that JSON to the router's `resultFile` with the Write tool.
+  4. If the Agent result reports usage (total tokens, tool uses and duration), add `"usage":{"totalTokens":N,"toolUses":N,"durationMs":N}` to that JSON, with the figures copied exactly. Omit the key when no figure is reported. Write the JSON to the router's `resultFile` with the Write tool.
   5. Run `node $ROUTER next <change-id>` and repeat the loop with its output.
-- **`done`**: report the final verdict, the number of steps, and every entry in `manualPending` as a checklist for the human. Then run `node $ROUTER status <change-id>` and show the model/effort used per step as a short list.
-- **`halt`**: report `reason` and the status output. STOP. Do not try to recover on your own.
+- **`done`**: report the final verdict, the number of steps, and every entry in `manualPending` as a checklist for the human. Then run `node $ROUTER status <change-id>` and show the model/effort used per step as a short list. Point the user to the router's `report` path (`report.md`).
+- **`halt`**: report `reason` and the status output. Point the user to the router's `report` path (`report.md`) when present. STOP. Do not try to recover on your own.
 
 ## Rules
 

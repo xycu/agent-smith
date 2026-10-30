@@ -35,6 +35,13 @@ How routing works:
 
 Override any policy key per project in `context/foundation/agent-smith-policy.json`. Run state lives in `context/changes/<change-id>/agent-smith/`.
 
+Usage report:
+
+- When a run ends (`done` or `halt`, including a spent step budget or repeated failures), the router writes `context/changes/<change-id>/agent-smith/report.md` and adds its path to the output as `report`.
+- The report has the goal, size and outcome, then one table row per step: model, effort, tier, simple-change flag, result and tokens. A totals line sums the tokens.
+- Token figures are optional. The orchestrator passes along the total tokens, tool uses and duration of a step when the Agent result reports them. A step without a figure shows `-`, and the totals line says how many steps it covers.
+- `node skills/10x-pipeline/scripts/route.mjs status <change-id> --report` rewrites the report on demand. For a run in progress it prints `Outcome: not ended`. Plain `status` stays read-only.
+
 Limits:
 
 - Subagents cannot use `AskUserQuestion`. Interactive skills choose their recommended option and list their assumptions.
