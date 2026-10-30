@@ -1,8 +1,9 @@
 ---
 change_id: per-step-usage-report
 title: Per-step usage report
-status: impl_reviewed
+status: archived
 created: 2026-10-30
+archived_at: 2026-10-30T00:38:22Z
 updated: 2026-10-30
 ---
 
