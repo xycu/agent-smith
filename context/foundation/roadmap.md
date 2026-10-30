@@ -42,7 +42,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | ID   | Change ID                    | Outcome (user can …)                                                                  | Prerequisites | PRD refs                          | Status   |
 | ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------- | --------------------------------- | -------- |
 | S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | done |
-| S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | ready    |
+| S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | in-progress |
 | S-03 | risk-gated-review            | have changes touching risky paths always get both reviews, and a halt at the top level | S-01          | FR-010                            | proposed |
 | S-04 | plan-review-skip-on-clean-plan | have a clean plan go straight to implementation, other plans still get plan-review  | S-01, S-03    | US-01, FR-002                     | blocked  |
 | S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | proposed |
@@ -101,7 +101,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
   - Where can token or cost figures be read from (PRD Open Question 4)? Record model and effort now and add figures once a source is found; finding the source is the first task. — Owner: user. Block: no.
   - Which moment counts as "before archive", given the 10x toolkit cannot be changed? — Owner: user. Block: no.
 - **Risk:** The usage figures may not be readable, leaving the report with model and effort only. It is still useful for the baseline comparison, so it goes early.
-- **Status:** ready
+- **Status:** in-progress
 
 ### S-03: Risk-gated review
 
