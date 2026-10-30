@@ -22,7 +22,7 @@ Scope:
 - Rule format: copy life-to-lore ADR-012 (GIVEN/WHEN/THEN with one bold RFC 2119 keyword) as an agent-smith ADR. Add a `node:test` check for the rule form in `policy.json` prompts and `skills/10x-pipeline/prompts/*.md`.
 - Update `SKILL.md` "How the tier moves" and the README routing bullets.
 
-Next: `pre-plan-steps`, then `phase-executors`, then `archive-and-lessons`, one after another because all of them edit `decide()` in `route.mjs`.
+Next: `pre-plan-steps`, then `phase-executors`, then `lesson-candidates`, one after another because all of them edit `decide()` in `route.mjs`. `archive-adapter` needs only this change and may start its research and plan in parallel.
 
 Original scope of `rigor-gated-routing`, kept for reference (decisions in research.md supersede parts of it):
 
