@@ -444,3 +444,115 @@ test("init on a log with a skip resumes cleanly", { skip: noGit }, () => {
   assert.equal(res.status, 0, res.stdout);
   assert.equal(res.json.action, "run");
 });
+
+// ---- signals -----------------------------------------------------------------
+
+// A plan step that finished cleanly, with `signals` in the RESULT.
+function planWithSignals(signals, goal = "fix typo") {
+  const project = makeProject();
+  init(project, goal);
+  writePlan(project, planText());
+  const later = new Date(Date.now() + 5000);
+  fs.utimesSync(project.planFile, later, later);
+  writeResult(project, { status: "done", note: "planned", ...(signals === undefined ? {} : { signals }) });
+  return project;
+}
+
+test("signals keep known keys and drop the rest", () => {
+  const project = planWithSignals({ foo: 1, rigor: "thorough", needsHuman: "  two\n words  " });
+  const res = next(project);
+  assert.equal(res.status, 0);
+  const first = readLogEntries(project)[0];
+  assert.deepEqual(first.signals, { rigor: "thorough", needsHuman: "two words" });
+});
+
+test("bad signal values are dropped or cut", () => {
+  const cases = [
+    [{ rigor: 3 }, undefined],
+    [{ rigor: "extreme" }, undefined],
+    [["rigor", "thorough"], undefined],
+    ["thorough", undefined],
+    [{ needsHuman: "" }, undefined],
+    [{ needsHuman: false }, undefined],
+    [{ needsHuman: { text: "x" } }, undefined],
+  ];
+  for (const [signals] of cases) {
+    const project = planWithSignals(signals);
+    const res = next(project);
+    assert.equal(res.status, 0, JSON.stringify(signals));
+    assert.equal(readLogEntries(project)[0].signals, undefined, JSON.stringify(signals));
+    assert.equal(readMetaFile(project).rigor.level, "lean", JSON.stringify(signals));
+  }
+  // An oversized needsHuman is cut, and true becomes a generic text.
+  const long = planWithSignals({ needsHuman: "x".repeat(2000) });
+  next(long);
+  const text = readLogEntries(long)[0].signals.needsHuman;
+  assert.ok(text.length > 0 && text.length <= 300);
+  const flag = planWithSignals({ needsHuman: true });
+  next(flag);
+  assert.match(readLogEntries(flag)[0].signals.needsHuman, /asked for a human/);
+});
+
+test("run.jsonl holds no raw signals", () => {
+  const project = planWithSignals({ foo: "bar", rigor: "standard" });
+  next(project);
+  const first = readLogEntries(project)[0];
+  assert.equal(first.result.signals, undefined);
+  assert.equal(fs.readFileSync(path.join(project.agentDir, "run.jsonl"), "utf8").includes('"foo"'), false);
+});
+
+test("signals.rigor raises the level; a lower value changes nothing", () => {
+  const up = planWithSignals({ rigor: "thorough" });
+  next(up);
+  assert.equal(readMetaFile(up).rigor.level, "thorough");
+  assert.match(readMetaFile(up).rigor.by, /signals/);
+
+  const same = planWithSignals({ rigor: "lean" }, PLAIN_GOAL);
+  next(same);
+  assert.equal(readMetaFile(same).rigor.level, "standard");
+});
+
+test("signals.needsHuman halts once with a report and the ack lives on the log entry", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  writeResult(project, { status: "blocked", note: "no evidence", signals: { needsHuman: "Which database?" } });
+  const halt = next(project);
+  assert.equal(halt.status, 0);
+  assert.equal(halt.json.action, "halt");
+  assert.match(halt.json.reason, /needs a human: Which database\?/);
+  assert.equal(halt.json.report, path.relative(project.root, path.join(project.agentDir, "report.md")));
+  assert.match(readReportFile(project), /needs a human/);
+  const first = readLogEntries(project)[0];
+  assert.equal(first.needsHumanAck, true);
+  assert.equal("needsHumanAck" in readMetaFile(project), false);
+
+  // The same entry does not halt again; the blocked step counted as a failed attempt.
+  const resumed = run(project, ["init", project.id]);
+  assert.equal(resumed.json.action, "run");
+  assert.equal(resumed.json.step, "plan");
+  assert.equal(resumed.json.n, 2);
+  assert.match(resumed.json.reason, /1 failed attempt/);
+});
+
+test("a RESULT without signals behaves as before", () => {
+  const project = planWithSignals(undefined);
+  const res = next(project);
+  assert.equal(res.json.action, "run");
+  assert.equal(readLogEntries(project)[0].signals, undefined);
+  assert.equal(readLogEntries(project)[0].needsHumanAck, undefined);
+});
+
+test("the plan prompt carries the three rules and the RESULT line with signals", () => {
+  const project = makeProject();
+  const res = init(project, "fix typo");
+  const prompt = res.json.prompt;
+  const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
+  assert.equal(rules.length, 3);
+  assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
+  assert.match(rules[1], /`signals\.needsHuman`/);
+  assert.match(rules[2], /\*\*MAY\*\* add `signals\.rigor`/);
+  const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
+  assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
+  assert.match(prompt, /`signals` object is optional/);
+  assert.doesNotMatch(prompt, /most conservative option/);
+});

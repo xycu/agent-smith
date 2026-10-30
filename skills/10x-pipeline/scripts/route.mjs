@@ -217,7 +217,22 @@ function cleanUsage(raw) {
   return Object.keys(clean).length ? clean : null;
 }
 
-function attachResult(p, log) {
+// Keep only known signal keys with valid types: rigor (a level) and needsHuman (a short text).
+// Anything else is dropped. Returns null when nothing survives.
+const NEEDS_HUMAN_MAX = 300;
+function cleanSignals(raw, policy) {
+  if (!isObject(raw)) return null;
+  const clean = {};
+  if (typeof raw.rigor === "string" && rigorLevels(policy).includes(raw.rigor)) clean.rigor = raw.rigor;
+  if (raw.needsHuman === true) clean.needsHuman = "The subagent asked for a human (no reason given).";
+  else if (typeof raw.needsHuman === "string") {
+    const text = raw.needsHuman.replace(/\s+/g, " ").trim().slice(0, NEEDS_HUMAN_MAX);
+    if (text) clean.needsHuman = text;
+  }
+  return Object.keys(clean).length ? clean : null;
+}
+
+function attachResult(p, log, policy) {
   const ran = executed(log);
   const last = ran[ran.length - 1];
   if (!last || last.result) return;
@@ -237,9 +252,13 @@ function attachResult(p, log) {
     case "implement": verified = plan.autoDone > (last.before?.autoDone ?? 0); break;
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
-  last.result = result;
+  // The raw signals object never reaches run.jsonl; only the cleaned one does.
+  const { signals: rawSignals, ...stored } = result;
+  last.result = stored;
   const usage = cleanUsage(result.usage);
   if (usage) last.usage = usage;
+  const signals = cleanSignals(rawSignals, policy);
+  if (signals) last.signals = signals;
   last.verified = verified;
   last.ok = result.status === "done" && verified;
   last.finishedAt = Date.now();
@@ -325,6 +344,9 @@ function rigorInputs(meta, log, policy, plan, risk) {
     if (isObject(rule) && failed >= rule.minFailed) add(rule.level, `failed steps ${failed}`);
   }
 
+  for (const e of log) {
+    if (!e.skipped && isObject(e.signals) && typeof e.signals.rigor === "string") add(e.signals.rigor, "signals");
+  }
   if (risk && risk.level) {
     const names = risk.hits.slice(0, 3).join(", ");
     add(risk.level, `hot paths ${names}${risk.hits.length > 3 ? ` +${risk.hits.length - 3}` : ""}`);
@@ -662,12 +684,24 @@ function next(id, policy) {
   fs.mkdirSync(p.dir, { recursive: true });
   const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
-  attachResult(p, log);
+  attachResult(p, log, policy);
 
   const planNow = readPlan(p.plan);
   const risk = planNow.exists ? measureRisk(p, meta, log, policy) : null;
   const { level, changed } = resolveRigor(meta, log, policy, planNow, risk);
   if (changed) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+
+  // A subagent that cannot decide from evidence stops the run once. The ack lives on the log entry.
+  const ranNow = executed(log);
+  const lastRan = ranNow[ranNow.length - 1];
+  if (lastRan?.signals?.needsHuman && !lastRan.needsHumanAck) {
+    lastRan.needsHumanAck = true;
+    return endRun(p, id, meta, log, {
+      action: "halt",
+      reason: `Step ${lastRan.n} (${lastRan.step}) needs a human: ${lastRan.signals.needsHuman}`,
+      steps: ranNow.length,
+    });
+  }
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
   if (executed(log).length >= budget) {

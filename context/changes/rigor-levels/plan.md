@@ -570,8 +570,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 4.1 Skip and interplay tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [x] 4.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 4.1 Skip and interplay tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — d59a8a3
+- [x] 4.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — d59a8a3
 
 #### Manual
 
@@ -581,9 +581,9 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [ ] 5.1 Signal tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [ ] 5.2 Rule-form test passes on the new suffix: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 5.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 5.1 Signal tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
+- [x] 5.2 Rule-form test passes on the new suffix: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 5.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 
