@@ -672,6 +672,22 @@ test("kind C: a failing pre-commit hook halts with its output, nothing staged, o
   assert.match(readReportFile(project), /^Archive: requested/m);
 });
 
+test("kind C: a report.md that cannot be written halts before git add; nothing staged, no commit", { skip: noGit }, () => {
+  const project = archiveProject();
+  // A directory where the report goes makes writeFileSync fail.
+  fs.mkdirSync(path.join(project.agentDir, "report.md"), { recursive: true });
+  const res = runNext(project);
+  assert.equal(res.status, 0);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /report\.md was not written: .*(EISDIR|directory)/i);
+  assert.match(res.json.reason, /Nothing was committed/);
+  assert.equal(res.json.committed, false);
+  assert.equal(res.json.archive, "skipped: pre-archive commit failed");
+  assert.equal(commitCount(project), 1);
+  git(project, ["diff", "--cached", "--quiet"]);
+  assert.equal(metaOutcome(project).action, "done");
+});
+
 test("kind D: a post-commit hook that dirties the folder halts, names the path, writes nothing, and a repeat passes", { skip: noGit }, () => {
   const project = archiveProject();
   writeHook(project, "post-commit", `touch ${relDir(project)}/stray.txt`);

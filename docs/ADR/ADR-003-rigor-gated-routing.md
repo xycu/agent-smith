@@ -95,7 +95,7 @@ Halts. A halt carries `archive: "skipped: ..."` and `committed` when the `done` 
 | --- | --- | --- | --- | --- |
 | A | Pre-check fails and the folder is not committed and clean; any other halt of the run (budget, failed steps, loop limits, `needsHuman`) | log, `meta.json` outcome, `report.md` | `false` | `skipped: run halted` |
 | B | Pre-check fails on a resume and the folder is already committed and clean | none | `true` | `skipped: pre-archive commit exists; run not archived` |
-| C | `git add` or `git commit` fails (the router unstages its own add) | none (the final report and the outcome `done` were written before the commit) | `false` | `skipped: pre-archive commit failed` |
+| C | `report.md` could not be written (checked before `git add`), or `git add` or `git commit` fails (the router unstages its own add) | none (the outcome `done` and the final report were written before the commit; a failed report write leaves no report) | `false` | `skipped: pre-archive commit failed` |
 | D | A post-commit check fails | none | `true` | `skipped: pre-archive commit exists; run not archived` |
 
 Halts printed elsewhere carry neither field: a missing result file (`Step N has no result`), the guard halts for an archived or half-archived change, usage and flag errors, halts at `init` (not a work tree, an ignored probe file), an unknown command and `Router error:`. The rule behind the table: while the folder is not committed, a halt may write the run's end state; once the commit exists, a halt only prints, because a rewrite would dirty the committed folder.
