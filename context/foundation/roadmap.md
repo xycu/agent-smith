@@ -44,7 +44,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------- | --------------------------------- | -------- |
 | S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | done     |
 | S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | done     |
-| S-03 | rigor-levels                 | have each change get a rigor level, with lean changes skipping plan-review and changes on often-changed paths always getting both reviews | S-01          | US-01, FR-002, FR-003, FR-010     | in-progress |
+| S-03 | rigor-levels                 | have each change get a rigor level, with lean changes skipping plan-review and changes on often-changed paths always getting both reviews | S-01          | US-01, FR-002, FR-003, FR-010     | done |
 | S-04 | (merged into S-03)           | —                                                                                     | —             | —                                 | merged   |
 | S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | proposed |
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
@@ -123,7 +123,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
   - What does a halt look like in an unattended run? Resolved 2026-10-30: a subagent that cannot make an evidence-backed call reports `blocked` with `signals.needsHuman`, and the router halts. — Owner: user. Block: no.
   - Are the churn thresholds right? Uncalibrated until real runs exist (S-06). — Owner: user. Block: no.
 - **Risk:** Churn can miss a risky file that rarely changes and flag a harmless busy one. Absorbs former S-04 (plan-review skip on a clean plan), which is why FR-002 moves here.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-04: Skip plan-review on a clean plan (merged into S-03)
 
@@ -257,3 +257,4 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 
 - **S-01: user can run the pipeline on a simple change and see its steps routed to a cheaper model and effort than a complex change gets.** — Archived 2026-10-30 → `context/archive/2026-10-30-cheaper-routing-simple-change/`. Lesson: —.
 - **S-02: user can see, for a finished run, a report of which model and effort ran each step, with usage figures where readable, written before the change is archived.** — Archived 2026-10-30 → `context/archive/2026-10-30-per-step-usage-report/`. Lesson: —.
+- **S-03: user can have each change get a rigor level (`lean`, `standard`, `thorough`) that only rises during a run. A `lean` change skips plan-review. A change that touches often-changed paths always gets plan-review and implementation review. The report shows every skipped step with its reason.** — Archived 2026-10-30 → `context/archive/2026-10-30-rigor-levels/`. Lesson: —.
