@@ -246,16 +246,20 @@ function trailingFailures(log, step) {
 
 // Classifies the goal text for the first plan step: short, plain or hard.
 // A hard keyword wins over a short goal. Words match by prefix, so "Refactoring" hits "refactor".
+// Leading punctuation is ignored, and a word with no letter or digit does not count, so "..." is no goal.
+// A malformed override (no keyword list, non-numeric limit) never throws: no keywords match, no goal is short.
 function goalClass(goal, policy) {
-  const F = policy.complexity.firstPlan;
-  const words = typeof goal === "string" ? goal.split(/\s+/).filter(Boolean) : [];
+  const F = policy.complexity.firstPlan ?? {};
+  const keywords = Array.isArray(F.hardKeywords) ? F.hardKeywords.filter((k) => typeof k === "string" && k) : [];
+  const words = (typeof goal === "string" ? goal.split(/\s+/) : [])
+    .map((word) => word.toLowerCase().replace(/^[^\p{L}\p{N}]+/u, ""))
+    .filter(Boolean);
   if (!words.length) return { kind: "plain" };
   for (const word of words) {
-    const w = word.toLowerCase().replace(/^[^\p{L}\p{N}]+/u, "");
-    const keyword = F.hardKeywords.find((k) => w.startsWith(k.toLowerCase()));
+    const keyword = keywords.find((k) => word.startsWith(k.toLowerCase()));
     if (keyword) return { kind: "hard", keyword };
   }
-  return { kind: words.length <= F.maxWords ? "short" : "plain" };
+  return { kind: Number.isFinite(F.maxWords) && words.length <= F.maxWords ? "short" : "plain" };
 }
 
 function decide(p, log, policy, meta) {
@@ -271,7 +275,7 @@ function decide(p, log, policy, meta) {
   }
   if (!plan.exists || !plan.hasProgress) {
     const { kind, keyword } = goalClass(meta.goal, policy);
-    const B = policy.complexity.firstPlan.bump;
+    const B = policy.complexity.firstPlan?.bump ?? {};
     return {
       step: "plan",
       template: "plan",
@@ -489,7 +493,7 @@ if (cmd === "init") {
   fs.mkdirSync(p.dir, { recursive: true });
   const prev = readMeta(p.meta, {});
   // An empty, blank or valueless --goal keeps the stored goal.
-  const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : prev.goal ?? "";
+  const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
   fs.writeFileSync(p.meta, JSON.stringify({ id, goal }, null, 2) + "\n");
   next(id, policy);
 } else if (cmd === "next") {

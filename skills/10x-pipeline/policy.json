@@ -20,7 +20,7 @@
     "appliesTo": ["plan-review", "implement", "impl-review", "fix"],
     "firstPlan": {
       "maxWords": 25,
-      "hardKeywords": ["refactor", "migrate", "migration", "rewrite", "redesign", "architecture", "security", "authentication", "schema"],
+      "hardKeywords": ["refactor", "migrat", "rewrit", "redesign", "architectur", "securit", "authenticat", "schema"],
       "bump": { "plain": -1, "hard": 0 }
     },
     "simple": {
