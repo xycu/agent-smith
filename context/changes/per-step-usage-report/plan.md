@@ -206,33 +206,33 @@ None. The report is built once per run end from a log of at most `maxTotalSteps`
 
 #### Automated
 
-- [x] 1.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs`
-- [x] 1.2 Scratch run with `usage` in `last-result.json` puts `usage.totalTokens` on the `run.jsonl` entry and in `status` output
-- [x] 1.3 Scratch run with a string or negative `usage` field stores no such field and the step is still `ok`
-- [x] 1.4 A fresh scratch change with `--size m` still routes to the `plan` step on opus/high (`baseTier` 4 in `policy.json`), as before this phase
+- [x] 1.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs` — cbf40cf
+- [x] 1.2 Scratch run with `usage` in `last-result.json` puts `usage.totalTokens` on the `run.jsonl` entry and in `status` output — cbf40cf
+- [x] 1.3 Scratch run with a string or negative `usage` field stores no such field and the step is still `ok` — cbf40cf
+- [x] 1.4 A fresh scratch change with `--size m` still routes to the `plan` step on opus/high (`baseTier` 4 in `policy.json`), as before this phase — cbf40cf
 
 #### Manual
 
-- [x] 1.5 `status` output stays readable with and without usage
+- [x] 1.5 `status` output stays readable with and without usage — cbf40cf
 
 ### Phase 2: Report writer
 
 #### Automated
 
-- [ ] 2.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs`
-- [ ] 2.2 A scratch run that reaches `done` leaves `agent-smith/report.md` with one table row per `run.jsonl` entry
-- [ ] 2.3 A scratch run that halts (three failed attempts of one step) also leaves `report.md`, with the halt reason in the outcome line
-- [ ] 2.4 A run where only some steps carry `usage` prints `-` for the others and a totals line with the right `K of N`
-- [ ] 2.5 A run with no usage anywhere still writes the report with every `Tokens` cell `-`
-- [ ] 2.6 `status <id> --report` rewrites the file and keeps the stored outcome; plain `status` does not touch it
-- [ ] 2.7 `init` on an existing log leaves `meta.json` without `outcome`
-- [ ] 2.8 After a halt, raising the limit in the override file and calling `next` (which returns `run`) leaves `meta.json` without `outcome`
-- [ ] 2.9 A scratch run with `limits.maxTotalSteps` set to 1 in `context/foundation/agent-smith-policy.json` halts on the step budget and still leaves `report.md`
-- [ ] 2.10 `git diff --stat` shows no change to `skills/10x-pipeline/policy.json`
+- [x] 2.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs`
+- [x] 2.2 A scratch run that reaches `done` leaves `agent-smith/report.md` with one table row per `run.jsonl` entry
+- [x] 2.3 A scratch run that halts (three failed attempts of one step) also leaves `report.md`, with the halt reason in the outcome line
+- [x] 2.4 A run where only some steps carry `usage` prints `-` for the others and a totals line with the right `K of N`
+- [x] 2.5 A run with no usage anywhere still writes the report with every `Tokens` cell `-`
+- [x] 2.6 `status <id> --report` rewrites the file and keeps the stored outcome; plain `status` does not touch it
+- [x] 2.7 `init` on an existing log leaves `meta.json` without `outcome`
+- [x] 2.8 After a halt, raising the limit in the override file and calling `next` (which returns `run`) leaves `meta.json` without `outcome`
+- [x] 2.9 A scratch run with `limits.maxTotalSteps` set to 1 in `context/foundation/agent-smith-policy.json` halts on the step budget and still leaves `report.md`
+- [x] 2.10 `git diff --stat` shows no change to `skills/10x-pipeline/policy.json`
 
 #### Manual
 
-- [ ] 2.11 The generated `report.md` reads clearly as a table in a Markdown viewer
+- [x] 2.11 The generated `report.md` reads clearly as a table in a Markdown viewer
 
 ### Phase 3: Docs sync
 

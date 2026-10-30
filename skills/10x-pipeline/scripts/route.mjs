@@ -6,7 +6,7 @@
 // Usage (run from the project root):
 //   node route.mjs init   <change-id> [--goal "<text>"] [--size s|m|l]
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
-//   node route.mjs status <change-id>
+//   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
 import fs from "node:fs";
@@ -111,6 +111,7 @@ function paths(id) {
     meta: path.join(dir, "meta.json"),
     log: path.join(dir, "run.jsonl"),
     result: path.join(dir, "last-result.json"),
+    report: path.join(dir, "report.md"),
     plan: path.join(change, "plan.md"),
     planReview: path.join(change, "reviews/plan-review.md"),
     implReview: path.join(change, "reviews/impl-review.md"),
@@ -124,6 +125,52 @@ function readLog(file) {
 
 function writeLog(file, entries) {
   fs.writeFileSync(file, entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
+}
+
+// ---- report ---------------------------------------------------------------
+
+function buildReport(id, meta, log) {
+  const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+  const o = meta.outcome;
+  const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
+  const tokens = (e) => (typeof e.usage?.totalTokens === "number" ? e.usage.totalTokens : null);
+  const rows = log.map((e) => {
+    const result = e.result ? (e.ok ? "ok" : "failed") : "-";
+    const t = tokens(e);
+    return `| ${e.n} | ${e.step} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |`;
+  });
+  const withTokens = log.filter((e) => tokens(e) !== null);
+  const total = withTokens.reduce((sum, e) => sum + tokens(e), 0);
+  return [
+    `# Run report: ${id}`,
+    "",
+    `Goal: ${oneLine(meta.goal) || "-"}`,
+    `Size: ${meta.size ?? "-"}`,
+    `Outcome: ${outcome}`,
+    "",
+    "| # | Step | Model | Effort | Tier | Simple | Result | Tokens |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    ...rows,
+    "",
+    `Steps: ${log.length} · Tokens: ${withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)`,
+    "",
+  ].join("\n");
+}
+
+// Returns the report path relative to the project root.
+function writeReport(p, id, meta, log) {
+  fs.mkdirSync(p.dir, { recursive: true });
+  fs.writeFileSync(p.report, buildReport(id, meta, log));
+  return path.relative(ROOT, p.report);
+}
+
+// Every end of run goes through here so no branch can skip the report.
+function endRun(p, id, meta, log, result) {
+  writeLog(p.log, log);
+  meta.outcome = { action: result.action, reason: result.reason };
+  fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  const report = writeReport(p, id, meta, log);
+  return out({ ...result, report });
 }
 
 // ---- result intake + verification ---------------------------------------
@@ -321,14 +368,12 @@ function next(id, policy) {
   attachResult(p, log);
 
   if (log.length >= policy.limits.maxTotalSteps) {
-    writeLog(p.log, log);
-    return out({ action: "halt", reason: `Step budget ${policy.limits.maxTotalSteps} spent.` });
+    return endRun(p, id, meta, log, { action: "halt", reason: `Step budget ${policy.limits.maxTotalSteps} spent.` });
   }
 
   const d = decide(p, log, policy, meta);
   if (d.halt || d.done) {
-    writeLog(p.log, log);
-    return out(d.done
+    return endRun(p, id, meta, log, d.done
       ? { action: "done", reason: d.reason, manualPending: d.manualPending, steps: log.length }
       : { action: "halt", reason: d.halt, steps: log.length });
   }
@@ -336,8 +381,13 @@ function next(id, policy) {
   const plan = readPlan(p.plan);
   const { tier, fails, simple, tierWhy } = tierFor(d, log, policy, plan, meta);
   if (fails >= policy.escalation.maxAttemptsPerStep) {
-    writeLog(p.log, log);
-    return out({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${log[log.length - 1]?.result?.note ?? "none"}` });
+    return endRun(p, id, meta, log, { action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${log[log.length - 1]?.result?.note ?? "none"}` });
+  }
+
+  // A continued run must not keep the outcome of an earlier end.
+  if (meta.outcome) {
+    delete meta.outcome;
+    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
 
   const { model, effort } = policy.ladder[tier];
@@ -372,24 +422,29 @@ function next(id, policy) {
   });
 }
 
-function status(id) {
+function status(id, flags) {
   const p = paths(id);
   const log = readLog(p.log);
-  out({
+  const res = {
     change: id,
     steps: log.map((e) => ({
       n: e.n, step: e.step, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
     })),
-  });
+  };
+  if (flags.report) {
+    const meta = readJson(p.meta, { id, goal: "", sizeBump: 0 });
+    res.report = writeReport(p, id, meta, log);
+  }
+  out(res);
 }
 
 // ---- main -----------------------------------------------------------------
 
 const [cmd, id, ...rest] = process.argv.slice(2);
 if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-  out({ action: "halt", reason: "Usage: route.mjs init|next|status <change-id> [--goal text] [--size s|m|l]" }, 1);
+  out({ action: "halt", reason: "Usage: route.mjs init|next|status <change-id> [--goal text] [--size s|m|l] [--report]" }, 1);
 }
 const policy = loadPolicy();
 const flags = parseFlags(rest);
@@ -409,7 +464,7 @@ if (cmd === "init") {
 } else if (cmd === "next") {
   next(id, policy);
 } else if (cmd === "status") {
-  status(id);
+  status(id, flags);
 } else {
   out({ action: "halt", reason: `Unknown command ${cmd}` }, 1);
 }
