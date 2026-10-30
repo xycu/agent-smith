@@ -5,11 +5,11 @@
 
 ## What & Why
 
-Give each pipeline run a rigor level (`lean`, `standard`, `thorough`) that the router derives from cheap signals and only ever raises. `lean` skips plan-review, which saves usage on simple changes. A change that touches paths which change very often in git history never runs at `lean` (FR-010). Skipped steps are logged with a reason, so the report stays honest.
+Give each pipeline run a rigor level (`lean`, `standard`, `thorough`) that the router derives from cheap signals and only ever raises. `lean` skips plan-review, which saves usage on simple changes, but only when the churn risk could be measured. A change that touches paths which change very often in git history never runs at `lean` (FR-010). Skipped steps are logged with a reason, so the report stays honest.
 
 ## Starting Point
 
-`decide()` in `route.mjs` is a linear chain with no skip path. `init` rewrites `meta.json` and drops any stored state. The step budget is one fixed number. Effort floors are static per step. The router has no git access and the repo has no tests.
+`decide()` in `route.mjs` is a linear chain with no skip path. `init` rewrites `meta.json` to `{ id, goal }` and drops any stored state. The step budget is one fixed number. Effort floors are static per step. The router has no git access and the repo has no tests.
 
 ## Desired End State
 
@@ -21,7 +21,9 @@ Give each pipeline run a rigor level (`lean`, `standard`, `thorough`) that the r
 | --- | --- | --- | --- |
 | Plan-review at `lean` | Skipped; elevated risk never runs at `lean` | Owner decision, replaces the "clean plan" definition | Research |
 | Risk paths | Churn from git history, counted up to the run's start commit | No LLM, fits ADR-001 Phase 1; own commits must not make files hot | Research / Plan |
-| Skip logging | Entry in `run.jsonl` with no `n`, `ok` or `result` | Keeps budget, numbering, streaks and freshness correct | Research |
+| Skip logging | Entry in `run.jsonl` with no `n`, `ok` or `result`, plus the churn source | Keeps budget, numbering, streaks and freshness correct | Research |
+| Skip needs measured risk | No skip when git history is missing, short or unreachable, or the plan names no path | FR-010: "could not measure" must not read as "not hot" | Plan review |
+| Persistence | `init` keeps all of `meta.json`; the `needsHuman` ack lives on the log entry | A field whitelist drops every new field; the log survives `init` | Plan review |
 | Effort floor | Effort names per level, applied last in `tierFor` | Survives a custom ladder; floor wins over discounts | Research / Plan |
 | Rule form | Copy life-to-lore ADR-012; `node:test` check | Test can enforce the form without npm dependencies | Research |
 | ADR numbers | ADR-003 rigor design, ADR-004 rule form | change.md names ADR-003 as the shared design | Plan |
@@ -57,10 +59,11 @@ Rigor is resolved at the top of `next()` from stored level, goal class, phase co
 
 - The effort floor is a deliberate cost increase at `standard` (plan-review and impl-review move up one tier); `lean` keeps today's tiers.
 - All thresholds (phases 3/6, failures 1/3, budget deltas, churn numbers) are uncalibrated; no real run data exists.
-- Plan-review is skipped only before implementation starts; a rise after code exists does not bring it back.
+- Plan-review is skipped only before implementation starts; once any `implement` or `fix` entry exists (even a failed one) a rigor rise does not bring it back.
+- At `lean` in a repo with no usable history (under 10 commits, no git) plan-review still runs: the saving needs a measured risk. This is a plan decision, not an owner one.
 - Churn is blind to a risky file that rarely changes, and to a young repo with fewer than 10 commits.
-- Tests were not run on Node 18 (this machine has Node 24).
-- Research ends at Follow-up 3; a "Follow-up 4" named in the task does not exist in the file.
+- Node 18 is not available on this machine (Node 24); the plan bans Node 20+ APIs and adds a manual Node 18 run.
+- Research Follow-up 4 (archive adapter split) belongs to a later change; this plan uses Follow-ups 1 to 3.
 
 ## Success Criteria (Summary)
 

@@ -16,7 +16,7 @@ This is change 1 of 4 (split from `rigor-gated-routing`). It writes the ADR-003 
 - Effort floors are static per step: `plan` `minTier` 2, `plan-review` 1, `impl-review` 2 (`policy.json:11-17`). The owner decided that all three ask questions, so they get an effort floor that depends on rigor (research.md, Follow-up 2, decision 1).
 - `route.mjs` imports only `node:fs`, `node:path`, `node:url` (`:12-14`). It has no git access. `node:child_process` is a `node:` built-in and passes the AGENTS.md no-dependency rule.
 - There is no test setup. AGENTS.md (Testing) says to exercise the router by hand. The `prompts/*.md` files (85 rules, all valid) are committed but not read by the router.
-- The PRD still says plan-review is skipped "only on a clean rubric" (`context/foundation/prd.md:89`) and elevated risk comes from "configurable path rules" (`:108`). The roadmap already carries S-03 `rigor-levels` (ready) and S-04 merged into S-03 (`context/foundation/roadmap.md:46-47`).
+- The PRD still says plan-review is skipped "only on a clean rubric" (`context/foundation/prd.md:89`) and elevated risk comes from "configurable path rules" (`:108`). The roadmap already carries S-03 `rigor-levels` (ready) and S-04 merged into S-03 (`context/foundation/roadmap.md:47-48`).
 
 ## Desired End State
 
@@ -31,7 +31,7 @@ Verify with the test suite, then one scratch-folder run (AGENTS.md, Testing).
 
 ### Key Discoveries:
 
-- Rigor must survive `init`, so `init` keeps the stored `rigor` and `baseSha` fields instead of rewriting `meta.json` to `{ id, goal }` (`route.mjs:494-497`).
+- Rigor must survive `init`, so `init` writes `{ ...prev, id, goal }` instead of `{ id, goal }` (`route.mjs:497`). It keeps every stored field (`rigor`, `baseSha`, and whatever changes 2 to 4 add) instead of a whitelist; `next()` already deletes `outcome` when a run continues (`route.mjs:414-418`).
 - A skip entry has no `result`, no `ok`, no `n` and no `template`. That keeps `simpleSignal` (`:363`, `:369`, which tests `e.ok === false`) and the `plan-revise` count (`:300`) correct without edits. Every other helper must filter skip entries or accept them as fresh (table in Phase 4).
 - The effort floor can be written in effort names, not tier numbers, so it survives a project's own `ladder` override. The router converts a name to the lowest ladder index with at least that effort.
 - Churn must be counted up to the commit the run started from (`meta.baseSha`), or the run's own commits would make the files it touches look hot.
@@ -68,8 +68,8 @@ Details the research left open, decided here and listed in the brief:
 - Phase count 3 or more is at least `standard`; 6 or more is `thorough`. One failed step is at least `standard`; 3 or more is `thorough`.
 - Budget deltas on `limits.maxTotalSteps`: `lean` -4, `standard` 0, `thorough` +4.
 - At `lean`, impl-review gets one more tier off (floor still applies).
-- Plan-review is skipped only before implementation starts. A rise after code exists does not bring it back; impl-review covers that change.
-- When git history is missing or too short, churn flags nothing and the run records "churn unavailable".
+- Plan-review is skipped only before implementation starts. The skip is frozen once any `implement` or `fix` entry exists in the log, even a failed one: a later rigor rise does not bring plan-review back (it would review a half-built change, and a `REVISE` verdict could re-plan over existing code). impl-review covers that change.
+- A skip needs a measured risk: the churn source is `window` or `all-history` and the plan names at least one path. When git history is missing, too short or unreachable, or the plan yields no path, churn flags nothing, the run records "churn unavailable" and plan-review runs (rigor stays as resolved). This keeps FR-010 (elevated risk never runs at `lean`): a risk that could not be measured is not read as "not hot".
 
 ## Phase 1: Rule form — ADR-004 and `node:test` check
 
@@ -85,15 +85,15 @@ Record the rule format as an ADR and enforce it with a test, before any prompt t
 
 **Intent**: Copy the decision of life-to-lore ADR-012 into an agent-smith ADR in the house style of ADR-001 and ADR-002 (bullet header with Status, Date, Deciders, Origin). State the form, the five keywords, the `MUST` scarcity rule and the test. Name what differs from the source: no rule ids, no `PROMPT_VERSION`, and the checked files are `policy.json` prompts and `skills/10x-pipeline/prompts/*.md`.
 
-**Contract**: Sections Context, Decision, Alternatives considered, Consequences, Sources. Attribute `ADR-012` and `CLAUDE.md:28` of life-to-lore. The rule form is one line: `**GIVEN** <context> **WHEN** <trigger> **THEN** <behavior>` with exactly one of `**MUST**`, `**MUST NOT**`, `**SHOULD**`, `**SHOULD NOT**`, `**MAY**`. `SHALL`, `REQUIRED`, `RECOMMENDED`, `OPTIONAL` are never used. Persona or prose lines carry no keyword.
+**Contract**: Sections Context, Decision, Alternatives considered, Consequences, Sources. Attribute `ADR-012` and `CLAUDE.md:28` of life-to-lore. The rule form is one line: `**GIVEN** <context> **WHEN** <trigger> **THEN** <behavior>` with exactly one of `**MUST**`, `**MUST NOT**`, `**SHOULD**`, `**SHOULD NOT**`, `**MAY**`. `SHALL`, `REQUIRED`, `RECOMMENDED`, `OPTIONAL` are never used. Persona or prose lines carry no keyword. Bad-rule examples in ADR-004 sit in a fenced code block, so the checker skips them; the negative fixtures stay in the test file.
 
 #### 2. Rule-form test
 
 **File**: `skills/10x-pipeline/test/rules.test.mjs`
 
-**Intent**: One test per source checks every rule line of `policy.json` `prompts` (each string, split by newline) and every `skills/10x-pipeline/prompts/*.md` except `README.md`. A rule line is any line that contains `**GIVEN**`. For `policy.json` prompts and `prompts/*.md` also fail any line that holds a bold RFC keyword but no `**GIVEN**`, and any bare `SHALL|REQUIRED|RECOMMENDED|OPTIONAL`. For `docs/ADR/ADR-003-*.md` and `ADR-004-*.md` (when they exist) check only the lines that contain `**GIVEN**`, because ADR prose may discuss the keywords. Include negative fixtures that prove the checker rejects a missing `WHEN`, two keywords, no keyword, an unbolded `MUST`, wrong order and `SHALL`.
+**Intent**: One test per source checks every rule line of `policy.json` `prompts` (each string, split by newline) and every `skills/10x-pipeline/prompts/*.md` except `README.md`. A rule line is any line that contains `**GIVEN**`. For `policy.json` prompts and `prompts/*.md` also fail any line that holds a bold RFC keyword but no `**GIVEN**`, and any bare `SHALL|REQUIRED|RECOMMENDED|OPTIONAL`. For `docs/ADR/ADR-003-*.md` and `ADR-004-*.md` (when they exist) check only the lines that contain `**GIVEN**` outside fenced code blocks (a line between triple-backtick fences is skipped), because ADR prose may discuss the keywords and ADR-004 must show bad-rule examples. Include negative fixtures that prove the checker rejects a missing `WHEN`, two keywords, no keyword, an unbolded `MUST`, wrong order and `SHALL`.
 
-**Contract**: An exported-in-file `ruleProblems(line)` returning an array of problem strings, empty when valid. Uses only `node:test`, `node:assert/strict`, `node:fs`, `node:path`. Run with `node --test skills/10x-pipeline/test/*.test.mjs` (shell glob, so it works on Node 18 and later without the directory-argument differences).
+**Contract**: An exported-in-file `ruleProblems(line)` returning an array of problem strings, empty when valid. Uses only `node:test`, `node:assert/strict`, `node:fs`, `node:path`. Run with `node --test skills/10x-pipeline/test/*.test.mjs` (shell glob, so it works on Node 18 and later without the directory-argument differences). The test code follows the Node 18 rules listed in Phase 2, change 2.
 
 ### Success Criteria:
 
@@ -130,7 +130,7 @@ Add the rigor level and the places it takes effect, except the plan-review skip 
 "rigor": {
   "levels": ["lean", "standard", "thorough"],
   "fromGoal": { "short": "lean", "plain": "standard", "hard": "standard" },
-  "fromPhases": [{ "minPhases": 3, "level": "standard" }, { "minPhases": 6, "level": "thorough" }],
+  "fromPhases": ["standard", "thorough"],
   "fromFailures": [{ "minFailed": 1, "level": "standard" }, { "minFailed": 3, "level": "thorough" }],
   "skipPlanReviewAt": ["lean"],
   "budgetDelta": { "lean": -4, "standard": 0, "thorough": 4 },
@@ -140,23 +140,23 @@ Add the rigor level and the places it takes effect, except the plan-review skip 
 }
 ```
 
-`steps.plan`, `steps.plan-review` and `steps.impl-review` get `"interactive": true`. `skipPlanReviewAt` is read in Phase 4. Keys are camelCase, level values lowercase.
+`steps.plan`, `steps.plan-review` and `steps.impl-review` get `"interactive": true`. `skipPlanReviewAt` is read in Phase 4. Keys are camelCase, level values lowercase. `fromPhases` has no thresholds of its own: entry *i* is the level reached when the plan has at least `complexity.phaseThresholds[i]` phases (3 and 6 today), so one override cannot drift from the other.
 
 #### 2. Rigor resolution and persistence
 
 **File**: `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: Resolve the level at the top of `next()`, after `attachResult` and before the budget check. The level is the highest of: the stored level, the start level (`--rigor` value if given, else the goal class), the phase-count level, the failure level. Store it in `meta.rigor`, write `meta.json` only when it changed, and put `rigor` on every executed log entry. `init` keeps `meta.rigor` (and, from Phase 3, `meta.baseSha`) when it rewrites `meta.json`, validates `--rigor` before writing anything, and halts with JSON on an invalid or valueless flag. On resume a `--rigor` value can raise the stored level and request but never lower them.
+**Intent**: Resolve the level at the top of `next()`, after `attachResult` and before the budget check. The level is the highest of: the stored level, the start level (`--rigor` value if given, else the goal class), the phase-count level, the failure level. Store it in `meta.rigor`, write `meta.json` only when it changed, and put `rigor` on every executed log entry. `init` writes `{ ...prev, id, goal }`, so `meta.rigor` and (from Phase 3) `meta.baseSha` survive and so does any field a later change adds; it validates `--rigor` before writing anything, and halts with JSON on an invalid or valueless flag. On resume a `--rigor` value can raise the stored level and request but never lower them.
 
-**Contract**: `meta.rigor = { level, requested, by }`. `by` names the inputs that set the current level (for example `goal short`, `phases 3`, `failed steps 1`) and changes only when the level rises. Level order comes from `policy.rigor.levels`. `next()` budget is `limits.maxTotalSteps + (rigor.budgetDelta[level] ?? 0)`. A malformed `rigor` policy block never throws a stack trace: wrap the command dispatch in one `try/catch` that prints `{ "action": "halt", "reason": "Router error: …" }` and exits 1.
+**Contract**: `meta.rigor = { level, requested, by }`. `by` names the inputs that set the current level (for example `goal short`, `phases 3`, `failed steps 1`) and changes only when the level rises. Level order comes from `policy.rigor.levels`. `next()` budget is `limits.maxTotalSteps + (rigor.budgetDelta[level] ?? 0)`. Node 18 ban list for all new router and test code (this machine runs Node 24, where these work silently and crash on 18): no `toSorted`/`toReversed`, `Object.groupBy`, `Set` methods such as `intersection`, `import.meta.dirname`/`import.meta.filename` (use `fileURLToPath`), regex `v` flag; in tests no `assert.partialDeepStrictEqual` and no `mock.timers`. Sort with `[...a].sort()` and intersect with a plain loop over a `Set`. A malformed `rigor` policy block never throws a stack trace: wrap the command dispatch in one `try/catch` that prints `{ "action": "halt", "reason": "Router error: …" }` and exits 1.
 
 #### 3. Effort floor and lean offset in `tierFor`
 
 **File**: `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: `tierFor` takes the rigor level. After the existing bumps and discounts, apply `rigor.tierOffset[level][step]`. After the existing `minTier`/`maxTier` clamp, if the step is `interactive`, raise the tier to the lowest ladder index whose effort is at least `rigor.minEffort[level]` in `effortOrder`. The floor is applied last so it wins over `maxTier` and over every discount. Add the reason to `tierWhy`.
+**Intent**: `tierFor` takes the rigor level. After the existing bumps and discounts, apply `rigor.tierOffset[level][step]`. After the existing `minTier`/`maxTier` clamp, if the step is `interactive`, raise the tier to the lowest ladder index whose effort is at least `rigor.minEffort[level]` in `effortOrder`. The floor is applied last so it wins over `maxTier` and over every discount. For an interactive step `tierWhy` always names the floor (for example `floor medium (tier 2)`), also when it changes nothing, so the reason text is stable.
 
-**Contract**: Helper that maps an effort name to a ladder index (first index with `effortOrder.indexOf(entry.effort) >= effortOrder.indexOf(name)`; top index when none; unknown names ignored). With the shipped ladder this gives floor tier 2 at `lean` and 3 at `standard`/`thorough`. `plan` at `lean` stays reachable at tier 2 (base 4, minus 1 plain-goal bump, minus 1 simple discount).
+**Contract**: Helper that maps an effort name to a ladder index (first index with `effortOrder.indexOf(entry.effort) >= effortOrder.indexOf(name)`; top index when none; unknown names ignored). With the shipped ladder this gives floor tier 2 at `lean` and 3 at `standard`/`thorough`. `plan` at `lean` stays reachable at tier 2 (base 4, minus 1 plain-goal bump, minus 1 simple discount), which equals the floor, so the floor changes nothing there. The returned `simple` flag (the report column) is true only when the discount survived the floor: where the floor raised the tier back over the discounted value (for example `plan-review` at `standard`: base 2, minus 1, floor 3) `simple` is false, so `report.md` never claims a saving that did not happen.
 
 #### 4. Report and status show the level
 
@@ -170,9 +170,9 @@ Add the rigor level and the places it takes effect, except the plan-review skip 
 
 **Files**: `skills/10x-pipeline/test/helpers.mjs`, `skills/10x-pipeline/test/route.test.mjs`
 
-**Intent**: `helpers.mjs` builds a scratch project in `os.tmpdir()` (change folder with `change.md`, optional `plan.md`, optional policy override), runs `route.mjs` through `spawnSync(process.execPath, …, { cwd })`, parses the JSON, and writes `last-result.json`. `route.test.mjs` starts with the rigor cases.
+**Intent**: `helpers.mjs` builds a scratch project in `os.tmpdir()` (change folder with `change.md`, optional `plan.md`, optional policy override), runs `route.mjs` through `spawnSync(process.execPath, …, { cwd })`, parses the JSON, and writes `last-result.json`. It is the one place that owns log fixtures: `writeLog(project, entries)` writes `run.jsonl` directly in the router's schema (scratch projects only; AGENTS.md forbids hand edits of real runs, and a fixture pins the schema in one file), and tests that need N prior steps call it instead of looping `next`. It also owns the git environment for churn tests (`gitEnv()`, used in Phase 3). `route.test.mjs` starts with the rigor cases.
 
-**Contract**: Cases: short goal starts `lean`; plain and hard-keyword goals start `standard`; `--rigor` sets the start; `--rigor foo` and a bare `--rigor` halt with JSON and write nothing; a second `init` without the flag keeps the level; `--rigor lean` on resume does not lower `standard`; a 3-phase plan raises to `standard`, 6 phases to `thorough`; one failed step raises to `standard`; budget differs per level (`halt` reason cites 10, 14, 18 spent); effort floor: `plan-review` and `impl-review` never below tier 3 at `standard` and never below tier 2 at `lean`, `implement` unaffected; lean impl-review offset still respects the floor; a `meta.json` that is not an object and a non-array `rigor.levels` override give a JSON `halt`.
+**Contract**: Cases: short goal starts `lean`; plain and hard-keyword goals start `standard`; `--rigor` sets the start; `--rigor foo` and a bare `--rigor` halt with JSON and write nothing; a second `init` without the flag keeps the level; `--rigor lean` on resume does not lower `standard`; a 3-phase plan raises to `standard`, 6 phases to `thorough`; one failed step raises to `standard`; budget differs per level (`halt` reason cites 10, 14, 18 spent, using a `writeLog` fixture of that many entries); effort floor: `plan-review` and `impl-review` never below tier 3 at `standard` and never below tier 2 at `lean`, `implement` unaffected; lean impl-review offset still respects the floor; `tierWhy` names the floor for `plan` on `init demo --goal "fix typo"` even though it changes nothing; `simple` is false for `plan-review` at `standard` when the floor undid the discount and true where it survived; a `meta.json` that is not an object and a non-array `rigor.levels` override give a JSON `halt`.
 
 ### Success Criteria:
 
@@ -185,6 +185,7 @@ Add the rigor level and the places it takes effect, except the plan-review skip 
 #### Manual Verification:
 
 - In a scratch change folder, `init <id> --goal "fix typo"` returns a `run` for `plan` and the tier text mentions the effort floor; `status` shows the rigor level and `meta.json` holds `rigor`
+- The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (`npx` fetches a run-time Node, not a repo dependency). If Node 18 cannot be run, record the status as unverified in the PR
 
 **Implementation Note**: After this phase and its automated checks pass, pause for manual confirmation before Phase 3.
 
@@ -224,23 +225,23 @@ Measure churn from git history and raise rigor when the plan, then the diff, tou
 
 **File**: `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: Add a small git layer (`node:child_process` `execFileSync`, no shell) and a glob matcher without dependencies. Compute the hot-path set from `git log --no-merges --since=<since> -n <maxCommits> --format=@@ --name-only <rev>`, where `<rev>` is `meta.baseSha` (HEAD when unset). Count commits per path, drop `exclude` matches, take the `hotPercentile` value (nearest rank, `ceil(p/100 * N)` of the ascending non-zero counts) and keep paths whose count is at least that value and at least `hotMinCommits`. If the window holds fewer than `minCommitsInWindow` commits, repeat without `--since`; if that is still fewer, report no hot paths. Any git failure yields "unavailable" and no flag, never an exception.
+**Intent**: Add a small git layer (`node:child_process` `execFileSync`, no shell) and a glob matcher without dependencies. Compute the hot-path set from `git log --no-merges --relative --since=<since> -n <maxCommits> --format=tformat:@@ --name-only <rev>`, where `<rev>` is `meta.baseSha` (HEAD when unset). The format must be `tformat:@@`: a bare `--format=@@` has no `%` placeholder, git reads it as a named format and fails with `fatal: invalid --pretty format: @@` (checked on this repo), which the "any git failure is unavailable" rule would swallow and leave every run reading "unavailable". `--relative` makes the printed paths relative to the project root (the router's working directory), so they match the plan's project-relative `**File**:` paths even when the project is a subdirectory of the git repo. Count commits per path, drop `exclude` matches, take the `hotPercentile` value (nearest rank, `ceil(p/100 * N)` of the ascending non-zero counts) and keep paths whose count is at least that value and at least `hotMinCommits`. If the window holds fewer than `minCommitsInWindow` commits, repeat without `--since`; if that is still fewer, report no hot paths. Any git failure yields "unavailable" and no flag, never an exception. `since` is validated before it reaches git (digits plus `.day|.days|.week|.weeks|.month|.months|.year|.years`, or `YYYY-MM-DD`); anything else, such as a typo like `bogus` that git accepts silently, gives "unavailable" instead of quietly using all history. An unreachable `baseSha` (for example after a rebase) also gives "unavailable".
 
-**Contract**: Glob: `**/` matches zero or more directories, `**` matches anything, `*` matches non-slash characters, `?` one non-slash character, everything else literal. `meta.baseSha` is set once, from `git rev-parse HEAD`, at the first `init` that finds none; `init` keeps it afterwards. `risk.raise` picks the highest level whose `minHot` is at most the number of distinct hot paths touched. Rigor only rises.
+**Contract**: Hot-set math uses plain arrays and `Map`/`Set` loops (Node 18 ban list, Phase 2). Glob: `**/` matches zero or more directories, `**` matches anything, `*` matches non-slash characters, `?` one non-slash character, everything else literal. `meta.baseSha` is set once, from `git rev-parse HEAD`, at the first `init` that finds none; `init` keeps it afterwards. `risk.raise` picks the highest level whose `minHot` is at most the number of distinct hot paths touched. Rigor only rises.
 
 #### 3. Plan-path and diff-path inputs
 
 **File**: `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: Two inputs to the rigor level. After the plan exists: paths from `**File**:` lines of `plan.md` (take backtick-quoted tokens on the line; fall back to the comma-split text; strip a leading `./`). After at least one implement or fix step has run: `git diff --name-only <baseSha> HEAD`, filtered by `exclude`. Both are intersected with the hot set. Add the hit names to `meta.rigor.by` when they raise the level.
+**Intent**: Two inputs to the rigor level. After the plan exists: paths from `**File**:` lines of `plan.md` (take backtick-quoted tokens on the line; fall back to the comma-split text; strip a leading `./`). After at least one implement or fix step has run: `git diff --name-only --relative <baseSha> HEAD`, filtered by `exclude`. Both are intersected with the hot set. Add the hit names to `meta.rigor.by` when they raise the level.
 
-**Contract**: The diff input runs only when `baseSha` is set and the log has an executed `implement` or `fix`. A plan with no `**File**:` lines contributes nothing.
+**Contract**: The diff input runs only when `baseSha` is set and the log has an executed `implement` or `fix`. A plan with no `**File**:` lines contributes nothing and reports `planPaths` 0, which stops the `lean` skip (Phase 4).
 
 #### 4. `risk` subcommand
 
 **File**: `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: `route.mjs risk <change-id>` prints JSON `{ source, hot, planHits, diffHits, level }` and writes nothing. It makes churn testable through the CLI and lets the owner inspect thresholds on a real repo.
+**Intent**: `route.mjs risk <change-id>` prints JSON `{ source, hot, planPaths, planHits, diffHits, level }` and writes nothing (`planPaths` is the number of paths read from the plan). It makes churn testable through the CLI and lets the owner inspect thresholds on a real repo.
 
 **Contract**: `source` is `window`, `all-history` or `unavailable`. Usage text in the halt message lists the new command.
 
@@ -248,9 +249,9 @@ Measure churn from git history and raise rigor when the plan, then the diff, tou
 
 **File**: `skills/10x-pipeline/test/churn.test.mjs`
 
-**Intent**: Build scratch git repos (`git init`, local `user.name`/`user.email`, commits via `execFileSync`) and assert through `risk` and `next`. Skip the file's tests with a clear message when `git` is missing.
+**Intent**: Build scratch git repos and assert through `risk` and `next`. Skip the file's tests with a clear message when `git` is missing. Fixtures are hermetic: every git call goes through `gitEnv()` from `helpers.mjs`, which sets `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` to a null file, `GIT_CEILING_DIRECTORIES` to the scratch parent, fixed `GIT_AUTHOR_*`/`GIT_COMMITTER_*` names, and passes `-c commit.gpgsign=false -c init.defaultBranch=main`, so the developer's global config, hooks or a `TMPDIR` inside another repo cannot change a result. Old commits for the window-fallback cases are made with `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` set to a date older than the window (`--since` reads the committer date).
 
-**Contract**: Cases: counts `[1,1,1,1,4,9]` give threshold 4 and two hot paths (the research dry run); `hotMinCommits` blocks a young repo; excluded globs (`context/**`, `**/*.md`, `package-lock.json`) never count; fewer than `minCommitsInWindow` commits falls back to all history; still fewer gives no hot paths; a plan naming one hot file raises rigor to `standard` and three raise it to `thorough`; commits made after `baseSha` do not change the hot set; a diff hit after implement raises rigor; a directory that is not a git repo gives `unavailable`, no flag, no exception; an `exclude` override that is not an array is ignored without a stack trace.
+**Contract**: Cases: a repo with 10 or more recent commits reports `source` `window` (so a swallowed git error cannot pass as "no hot paths"); counts `[1,1,1,1,4,9]` give threshold 4 and two hot paths (the research dry run); `hotMinCommits` blocks a young repo; excluded globs (`context/**`, `**/*.md`, `package-lock.json`) never count; fewer than `minCommitsInWindow` commits in the window (old-dated commits) falls back to all history and reports `all-history`; still fewer gives no hot paths and `unavailable`; a project root that is a subdirectory of the git repo still matches plan paths (`--relative`); a mistyped `risk.churn.since` gives `unavailable`; an unreachable `baseSha` gives `unavailable`; a plan naming one hot file raises rigor to `standard` and three raise it to `thorough`; commits made after `baseSha` do not change the hot set; a diff hit after implement raises rigor; a directory that is not a git repo gives `unavailable`, no flag, no exception; an `exclude` override that is not an array is ignored without a stack trace.
 
 ### Success Criteria:
 
@@ -262,6 +263,7 @@ Measure churn from git history and raise rigor when the plan, then the diff, tou
 #### Manual Verification:
 
 - `node skills/10x-pipeline/scripts/route.mjs risk rigor-levels` on this repo lists `route.mjs` and `policy.json` among the hot paths and no `context/**` or `*.md` path (counts differ from the research dry run because the history moved)
+- The churn tests pass on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/churn.test.mjs` (unverified status goes into the PR if Node 18 cannot be run)
 
 **Implementation Note**: After this phase and its automated checks pass, pause for manual confirmation before Phase 4.
 
@@ -292,15 +294,15 @@ Add skip entries to `run.jsonl`, make every count and the report correct for the
 | `simpleSignal` | Unchanged: skip entries have no `ok`, so `e.ok === false` stays false. |
 | `buildReport`, `status`, `endRun` result | Rows, `Steps: N` and `steps` count executed entries only. Skips get their own listing. |
 
-**Contract**: Entry shape `{ "skipped": true, "step": "plan-review", "reason": "...", "rigor": "lean", "afterN": <executed steps before it>, "at": <ms> }`. No `n`, `template`, `ok` or `result`. `decide()` may return `{ skip: { step, reason } }`; `next()` appends the entry, writes the log, and calls `decide()` again, at most three times in one `next` so a bug cannot loop. A new resume-safe helper returns the executed entries.
+**Contract**: Entry shape `{ "skipped": true, "step": "plan-review", "reason": "...", "rigor": "lean", "afterN": <executed steps before it>, "at": <ms> }`. No `n`, `template`, `ok` or `result`. `decide()` may return `{ skip: { step, reason } }`; `next()` appends the entry, writes the log, and calls `decide()` again, at most three times in one `next` so a bug cannot loop; if the third call still returns a skip, `next()` halts with `Router error: skip loop` and writes the report. A new resume-safe helper returns the executed entries.
 
 #### 2. `lean` skips plan-review
 
 **File**: `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: In `decide()`, when plan-review is not fresh and the current level is in `rigor.skipPlanReviewAt`, return a skip instead of `plan-review`. A skip entry written after the last successful plan step makes plan-review count as handled, but only while the level is still skippable or `plan.autoDone > 0`. If rigor rises while no automated row is done yet, the handled flag lapses and plan-review runs. Downstream code (`needsReplan`, noisy-warning bump, clean-review drop) treats the review as absent after a skip. A fresh review file that already exists is used as before; nothing is skipped over it.
+**Intent**: In `decide()`, when plan-review is not fresh and the current level is in `rigor.skipPlanReviewAt`, return a skip instead of `plan-review`, but only when risk was measured: the churn source is `window` or `all-history` and the plan yielded at least one path (`planPaths` of Phase 3). Otherwise (git missing, short or unreachable history, no `**File**:` lines) plan-review runs with the reason `plan changed since last review; risk not measured (<source>, <N> plan paths)`, so a failure to measure is never read as "not hot". A skip entry written after the last successful plan step makes plan-review count as handled while the level is still skippable, or once any executed `implement` or `fix` entry exists after the skip (frozen, even a failed one). If rigor rises before any `implement` or `fix` entry exists, the handled flag lapses and plan-review runs; after one exists it does not. Downstream code (`needsReplan`, noisy-warning bump, clean-review drop) treats the review as absent after a skip. A fresh review file that already exists is used as before; nothing is skipped over it.
 
-**Contract**: Reason text `rigor lean: plan-review skipped`. impl-review is never skipped. The `plan-revise` path cannot fire after a skip because no verdict exists.
+**Contract**: Reason text `rigor lean: plan-review skipped (churn <source>, <N> plan paths, none hot)`; the skip entry also carries `risk: { source, planPaths }` so `report.md` and `status` show how the decision was made (`meta.rigor.by` is left alone: it names only what raised the level). impl-review is never skipped. The `plan-revise` path cannot fire after a skip because no verdict exists.
 
 #### 3. Report and status
 
@@ -316,7 +318,7 @@ Add skip entries to `run.jsonl`, make every count and the report correct for the
 
 **Intent**: Extend the suite with skip and interplay cases.
 
-**Contract**: Cases: lean plus a fresh plan returns `implement` and logs one skip entry with `afterN` and a reason; the next executed entry has `n` 2 (not 3); skips do not use budget; two failed implement runs with a skip between them still trip `maxAttemptsPerStep`; `next` after a skip does not halt with "has no result"; no skip loop (plan-review is not asked for again); `standard` still returns `plan-review`; a plan whose `**File**:` names a hot path never skips; a rigor rise before any automated row is done brings plan-review back; a rise after rows are done does not; `report.md` shows the `Skipped steps` section, `Steps:` equals the executed count, and `Skipped: 1`; `status` flags the skip; `init` on a log with a skip resumes cleanly; `simple` discount still applies when a skip is in the log.
+**Contract**: Cases: lean plus a fresh plan returns `implement` and logs one skip entry with `afterN` and a reason; the next executed entry has `n` 2 (not 3); skips do not use budget; two failed implement runs with a skip between them still trip `maxAttemptsPerStep`; `next` after a skip does not halt with "has no result"; no skip loop (plan-review is not asked for again); `standard` still returns `plan-review`; a plan whose `**File**:` names a hot path never skips; a rigor rise before any `implement` or `fix` entry exists brings plan-review back; a failed `implement` after a skip (no row checked) followed by a rigor rise does not bring plan-review back and no `plan-revise` follows; lean with unmeasured risk (not a git repo, or a plan with no `**File**:` lines) runs plan-review and logs no skip; `report.md` shows the `Skipped steps` section, `Steps:` equals the executed count, and `Skipped: 1`; `status` flags the skip; `init` on a log with a skip resumes cleanly; `simple` discount still applies when a skip is in the log.
 
 ### Success Criteria:
 
@@ -345,9 +347,9 @@ Sanitize an optional `signals` object, let it raise rigor or stop the run, and r
 
 **File**: `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: Add `cleanSignals(raw, policy)` next to `cleanUsage`. It keeps only known keys with valid types and drops the rest: `rigor` (a level from `rigor.levels`) and `needsHuman` (a non-empty string cut to a fixed length with whitespace squashed; `true` becomes a generic text). `attachResult` stores the clean object as `entry.signals` and removes the raw `signals` from the stored `result`. The rigor resolution (Phase 2) reads `signals.rigor` from executed entries as one more raising input. `next()` checks the last executed entry after `attachResult`: when it carries `signals.needsHuman` and no `needsHumanAck`, set the ack, end the run with a `halt` that quotes the text, and write the report.
+**Intent**: Add `cleanSignals(raw, policy)` next to `cleanUsage`. It keeps only known keys with valid types and drops the rest: `rigor` (a level from `rigor.levels`) and `needsHuman` (a non-empty string cut to a fixed length with whitespace squashed; `true` becomes a generic text). `attachResult` stores the clean object as `entry.signals` and removes the raw `signals` from the stored `result`. The rigor resolution (Phase 2) reads `signals.rigor` from executed entries as one more raising input. `next()` checks the last executed entry after `attachResult`: when it carries `signals.needsHuman` and no `needsHumanAck`, set `needsHumanAck: true` on that log entry, write the log, end the run with a `halt` that quotes the text, and write the report. The ack lives on the log entry, which is router-owned and survives `init`; it is not stored in `meta.json`.
 
-**Contract**: Signals can raise rigor or stop the run. They cannot lower rigor, remove a step or add a skip. The ack lets a resumed `init` continue past a human-handled halt; the blocked step itself counts as a failed attempt as before. Unknown keys are ignored without error.
+**Contract**: Signals can raise rigor or stop the run. They cannot lower rigor, remove a step or add a skip. The ack lets a resumed `init` (which keeps all of `meta.json` and never touches the log) continue past a human-handled halt; the blocked step itself counts as a failed attempt as before. Unknown keys are ignored without error.
 
 #### 2. Prompt suffix as rules
 
@@ -369,7 +371,7 @@ The RESULT line becomes `RESULT: {"status":"done|blocked|failed","note":"<one se
 
 **Intent**: Cover the sanitizer and the halt through the CLI.
 
-**Contract**: Cases: unknown keys, a numeric `rigor`, an unknown level, an array in place of the object and an oversized `needsHuman` are dropped or cut; `run.jsonl` holds no raw `signals`; `signals.rigor: "thorough"` raises the level and `"lean"` after `standard` changes nothing; `needsHuman` halts once with a report path, and a following `init` does not halt again for the same entry; a RESULT without `signals` behaves as before; the `plan` prompt returned by `next` contains the three rule lines and the RESULT line. The Phase 1 rule-form test must pass on the new suffix.
+**Contract**: Cases: unknown keys, a numeric `rigor`, an unknown level, an array in place of the object and an oversized `needsHuman` are dropped or cut; `run.jsonl` holds no raw `signals`; `signals.rigor: "thorough"` raises the level and `"lean"` after `standard` changes nothing; `needsHuman` halts once with a report path and sets `needsHumanAck` on the log entry (not in `meta.json`), and a following `init` does not halt again for the same entry; a RESULT without `signals` behaves as before; the `plan` prompt returned by `next` contains the three rule lines and the RESULT line. The Phase 1 rule-form test must pass on the new suffix.
 
 ### Success Criteria:
 
@@ -431,7 +433,7 @@ Write ADR-003, update `SKILL.md`, `README.md`, `AGENTS.md` and the PRD, and chec
 
 **File**: `context/foundation/prd.md`
 
-**Intent**: Bring FR-002 and FR-010 in line with the owner decisions: FR-002 skips plan-review when the change's rigor is `lean` (keep the `Was:` text and add a dated Socrates-style note); FR-010 defines elevated risk as paths that change often in git history, configured in `policy.json`, and never runs at `lean`. Mark Open Question 11 resolved with the date, as the roadmap already does.
+**Intent**: Bring FR-002 and FR-010 in line with the owner decisions: FR-002 skips plan-review when the change's rigor is `lean` (keep the `Was:` text and add a dated Socrates-style note); FR-010 defines elevated risk as paths that change often in git history, configured in `policy.json`, and never runs at `lean`. Mark Open Question 11 resolved with the date, as the roadmap already does. FR-010's tail, "halts for a human at the highest level", is kept as a recorded deferral (a dated note: out of scope for `rigor-levels`, only the generic `signals.needsHuman` halt exists), not deleted.
 
 **Contract**: Edit those three entries only.
 
@@ -443,13 +445,21 @@ Write ADR-003, update `SKILL.md`, `README.md`, `AGENTS.md` and the PRD, and chec
 
 **Contract**: If a mismatch is found, fix only the S-03/S-04 text.
 
+#### 7. `change.md` scope line
+
+**File**: `context/changes/rigor-levels/change.md`
+
+**Intent**: The scope bullet says "Signals only add steps or raise rigor", but this change adds the `signals.needsHuman` stop. Reword it in the same change that ships the stop.
+
+**Contract**: New wording: signals can raise rigor or stop the run (`needsHuman`); they never lower rigor, remove a step or add a skip. No other line of `change.md` changes.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
 - Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 - Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done`
-- `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]" skills/10x-pipeline/SKILL.md`
+- `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md`
 - `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md`
 - Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0`
 - Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0`
@@ -459,6 +469,9 @@ Write ADR-003, update `SKILL.md`, `README.md`, `AGENTS.md` and the PRD, and chec
 - `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same rules (inputs, levels, skip, floor, budget)
 - ADR-003 is readable as a skeleton: change 1 complete, changes 2 to 4 only listed
 - PRD FR-002, FR-010 and Open Question 11 read consistently with the roadmap's S-03 text
+- The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (or the PR states it is unverified)
+- The `change.md` scope bullet on signals matches the shipped `needsHuman` stop
+- PRD FR-010 keeps its "halts for a human at the highest level" tail as a dated deferral
 
 **Implementation Note**: After this phase and its automated checks pass, pause for manual confirmation. The change then goes to plan review and implementation review.
 
@@ -473,8 +486,8 @@ Write ADR-003, update `SKILL.md`, `README.md`, `AGENTS.md` and the PRD, and chec
 
 ### Integration Tests:
 
-- `route.test.mjs`: scratch project per test (`os.tmpdir()`), real `route.mjs` through `spawnSync`. Rigor, budget, effort floor, skips and their interplay, signals, and malformed input (bad flag, bad `meta.json`, bad override) always ending in JSON.
-- `churn.test.mjs`: scratch git repos; hot-path math, exclusions, fallback, `baseSha` stability, plan and diff inputs, no-git case.
+- `route.test.mjs`: scratch project per test (`os.tmpdir()`), real `route.mjs` through `spawnSync`; `helpers.mjs` owns the `run.jsonl` fixtures and the hermetic git environment. Rigor, budget, effort floor, skips and their interplay, signals, and malformed input (bad flag, bad `meta.json`, bad override) always ending in JSON.
+- `churn.test.mjs`: hermetic scratch git repos (null global/system config, ceiling dir, dated commits); hot-path math, `source` assertions, exclusions, fallback, subdirectory root, `baseSha` stability, plan and diff inputs, no-git case.
 
 ### Manual Testing Steps:
 
@@ -482,7 +495,7 @@ Write ADR-003, update `SKILL.md`, `README.md`, `AGENTS.md` and the PRD, and chec
 2. Repeat with a plan whose `**File**:` line names `skills/10x-pipeline/scripts/route.mjs`: expect `plan-review` at an effort of high or above.
 3. Run `route.mjs risk rigor-levels` on this repo and read the hot list.
 
-Node 18 is the supported floor (AGENTS.md); this machine has Node 24. The suite uses only `node:test` features present in 18 (`test`, `node:assert/strict`), but it was not run on 18.
+Node 18 is the supported floor (AGENTS.md); this machine has Node 24. The suite uses only `node:test` features present in 18 (`test`, `node:assert/strict`), and router and test code follow the Node 18 ban list in Phase 2. Manual criteria 2.5, 3.4 and 6.10 run it on Node 18 with `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (a run-time tool, not a repo dependency); if that cannot be run, the PR states Node 18 as unverified.
 
 ## Performance Considerations
 
@@ -490,7 +503,19 @@ One `git log` per `next` once a plan exists (at most 500 commits, output a few K
 
 ## Migration Notes
 
-Existing `meta.json` files have no `rigor`. The first `next` after upgrade resolves one from the goal, the plan and the log, so an in-flight run resumes with a valid level. The effort floor raises `plan-review` and `impl-review` from medium to high effort at `standard` (a deliberate cost increase, owner decision 1); `lean` keeps the current cheap tiers.
+Existing `meta.json` files have no `rigor`. The first `next` after upgrade resolves one from the goal, the plan and the log, so an in-flight run resumes with a valid level. The effort floor raises `plan-review` and `impl-review` from medium to high effort at `standard` (a deliberate cost increase, owner decision 1); `lean` keeps the current cheap tiers. A run in flight when the router is upgraded gets `baseSha` = HEAD at the first `init` after the upgrade, so the diff input and the churn cut-off miss commits made earlier in that run; such a run is only partly measured. A project that overrides `complexity.phaseThresholds` moves the rigor phase levels with it (one source).
+
+## Revision Notes
+
+Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All findings were checked against `route.mjs`, `policy.json` and git before acting.
+
+- F1 confirmed (`git log --format=@@` fails here with `invalid --pretty format`): `--format=tformat:@@`, plus a test that `source` is `window`.
+- F2 accepted with one change: the skip needs `source` of `window`/`all-history` and at least one plan path; paths use `--relative`; `since` is validated. The reason and a `risk` field go on the skip entry, not into `meta.rigor.by`, because `by` names only what raised the level. Assumption: running plan-review at `lean` when risk is unmeasured is the conservative reading of FR-010 (the research only said "do not flag").
+- F3 accepted as Fix A: the skip freezes once any `implement` or `fix` entry exists.
+- F4 accepted: `init` writes `{ ...prev, id, goal }`; the `needsHuman` ack lives on the log entry.
+- F5, F6, F7 accepted as written in Phases 2 to 4.
+- F8 accepted: items 1 to 6 are in Phase 4, Phase 2 (`fromPhases` now reads `complexity.phaseThresholds`), Migration Notes, Phase 6 (PRD deferral, `change.md` scope line) and the brief. `change.md` is edited at implementation time, not in this revision.
+- F9 accepted: the 6.3 grep also catches effort words; ADR-004 shows bad rules inside fenced blocks and the rule-form test skips fences in ADRs.
 
 ## References
 
@@ -527,6 +552,7 @@ Existing `meta.json` files have no `rigor`. The first `next` after upgrade resol
 #### Manual
 
 - [ ] 2.4 In a scratch change folder, `init <id> --goal "fix typo"` returns a `run` for `plan` and the tier text mentions the effort floor; `status` shows the rigor level and `meta.json` holds `rigor`
+- [ ] 2.5 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (`npx` fetches a run-time Node, not a repo dependency). If Node 18 cannot be run, record the status as unverified in the PR
 
 ### Phase 3: Churn risk paths
 
@@ -538,6 +564,7 @@ Existing `meta.json` files have no `rigor`. The first `next` after upgrade resol
 #### Manual
 
 - [ ] 3.3 `node skills/10x-pipeline/scripts/route.mjs risk rigor-levels` on this repo lists `route.mjs` and `policy.json` among the hot paths and no `context/**` or `*.md` path (counts differ from the research dry run because the history moved)
+- [ ] 3.4 The churn tests pass on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/churn.test.mjs` (unverified status goes into the PR if Node 18 cannot be run)
 
 ### Phase 4: Skip entries and the `lean` plan-review skip
 
@@ -568,7 +595,7 @@ Existing `meta.json` files have no `rigor`. The first `next` after upgrade resol
 
 - [ ] 6.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 - [ ] 6.2 Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done`
-- [ ] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]" skills/10x-pipeline/SKILL.md`
+- [ ] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md`
 - [ ] 6.4 `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md`
 - [ ] 6.5 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0`
 - [ ] 6.6 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0`
@@ -578,3 +605,6 @@ Existing `meta.json` files have no `rigor`. The first `next` after upgrade resol
 - [ ] 6.7 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same rules (inputs, levels, skip, floor, budget)
 - [ ] 6.8 ADR-003 is readable as a skeleton: change 1 complete, changes 2 to 4 only listed
 - [ ] 6.9 PRD FR-002, FR-010 and Open Question 11 read consistently with the roadmap's S-03 text
+- [ ] 6.10 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (or the PR states it is unverified)
+- [ ] 6.11 The `change.md` scope bullet on signals matches the shipped `needsHuman` stop
+- [ ] 6.12 PRD FR-010 keeps its "halts for a human at the highest level" tail as a dated deferral
