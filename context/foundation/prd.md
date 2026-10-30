@@ -101,6 +101,7 @@ The gap: today the router picks model and effort from review verdicts, finding c
   > Socrates: Counter-argument considered: "every subagent reloads context." Resolution: kept; isolation is what enables a model and effort per step.
 - [preserved] FR-008: The pipeline keeps run state in `context/changes/<change-id>/agent-smith/`. Priority: must-have
   > Socrates: Counter-argument considered: "committed run logs cause git noise." Resolution: kept; git handling (gitignore or commit policy) is decided downstream.
+  > Note (2026-10-30, from `archive-adapter`): git handling is resolved: with `--archive` the router commits the change folder, including `agent-smith/`, before archive; without the flag it writes nothing to git (it only reads history, for churn risk).
 
 Added from ADR-001 (challenged in a Socrates round on 2026-10-30):
 
