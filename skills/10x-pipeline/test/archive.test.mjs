@@ -178,6 +178,18 @@ test("verify-archive reports null report and null archivedAt when absent", () =>
   assert.equal(res.json.report, null);
 });
 
+test("verify-archive maps a literal archived_at: null to JSON null", () => {
+  const project = archivedOnly(`${DAY}-demo`, { archivedAt: "null" });
+  const res = verify(project);
+  assert.equal(res.status, 0);
+  assert.strictEqual(res.json.archivedAt, null);
+});
+
+test("verify-archive keeps a real archived_at as a string", () => {
+  const project = archivedOnly(`${DAY}-demo`, { archivedAt: "\"2026-10-31\"" });
+  assert.strictEqual(verify(project).json.archivedAt, "2026-10-31");
+});
+
 test("verify-archive strips quotes from status", () => {
   const project = archivedOnly(`${DAY}-demo`, { status: "\"archived\"" });
   assert.equal(verify(project).json.archived, true);
@@ -241,6 +253,7 @@ test("verify-archive: two archive folders (reused id) are listed and need --path
   assert.match(res.json.reason, /context\/archive\/2026-10-30-demo/);
   assert.match(res.json.reason, /context\/archive\/2026-11-02-demo/);
   assert.match(res.json.reason, /--path/);
+  assert.deepEqual(res.json.ambiguous, ["context/archive/2026-10-30-demo", "context/archive/2026-11-02-demo"]);
 });
 
 test("verify-archive --path picks one of two folders", () => {
