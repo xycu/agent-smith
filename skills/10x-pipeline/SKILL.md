@@ -6,7 +6,7 @@ description: >
   model and effort from the previous results: review verdicts, finding counts,
   plan size, failed attempts. Use when the user wants an orchestrated or adaptive
   10x run, "run the whole chain", "pipeline this change", or dynamic model routing.
-argument-hint: <change-id> [goal text] [--size s|m|l]
+argument-hint: <change-id> [goal text]
 allowed-tools:
   - Agent
   - Bash
@@ -25,9 +25,9 @@ Router: `ROUTER=<this skill's base directory>/scripts/route.mjs`. Run it with `n
 
 ## Start
 
-1. Parse the arguments: `<change-id>` (required, kebab-case), optional goal text, optional `--size s|m|l` (default `m`).
+1. Parse the arguments: `<change-id>` (required, kebab-case), and optional goal text.
 2. If `context/changes/<change-id>/change.md` is missing, tell the user to run `/10x-new <change-id>` and STOP. If the 10x skills (`10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`) are not available in this project, tell the user to install the 10x toolkit first and STOP.
-3. Run `node $ROUTER init <change-id> --goal "<goal text>" --size <size>`. Quote the goal safely for the shell. Re-running `init` on a change with an existing log resumes it: the router reads the disk state and continues from there.
+3. Run `node $ROUTER init <change-id> --goal "<goal text>"`. Quote the goal safely for the shell. Re-running `init` on a change with an existing log resumes it: the router reads the disk state and continues from there.
 
 ## Loop
 
@@ -60,8 +60,8 @@ Routing lives in data, not in this file:
 How the tier moves (see `scripts/route.mjs`, `tierFor` and `decide`):
 
 - Plan size: +1 tier per `phaseThresholds` entry reached by the phase count in `## Progress`.
-- `--size`: `s` = -1, `l` = +1 for the first plan.
-- A simple change (at most 1 phase and 6 `## Progress` rows) = -1 on plan review, implement and implementation review. `--size s` on the first plan = a further -1 on plan, on top of the `--size` bullet. The step's `minTier` can absorb the discount, for example implement after a clean `SOUND` review. The discount is withheld after any failed step or with `--size l`, so the first retry of a discounted step moves up 2 tiers (the lost discount plus the failure).
+- First plan, from the goal text (changes relative to the plan step's base): a short goal (at most `firstPlan.maxWords` words, no hard keyword) = -1 plus the simple-change discount. A goal with a hard keyword from `firstPlan.hardKeywords` = no reduction, whatever its length. Any other goal, including an empty one = -1.
+- A simple change (at most 1 phase and 6 `## Progress` rows) = -1 on plan review, implement and implementation review. The step's `minTier` can absorb the discount, for example implement after a clean `SOUND` review. The discount is withheld after any failed step, so the first retry of a discounted step moves up 2 tiers (the lost discount plus the failure).
 - Plan review `RETHINK` = re-plan at +2. `REVISE` with criticals or too many warnings = re-plan at +1.
 - A noisy plan review (3+ warnings) = implement at +1. A clean `SOUND` = implement at -1.
 - Each failed or unverified attempt of the same step = +1, capped by `maxAttemptsPerStep`.

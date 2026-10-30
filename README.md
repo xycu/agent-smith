@@ -15,7 +15,7 @@ A Claude Code plugin. Each step of a skill chain runs in its own subagent. A rou
 
 ## Skills
 
-### `/agent-smith:10x-pipeline <change-id> [goal] [--size s|m|l]`
+### `/agent-smith:10x-pipeline <change-id> [goal]`
 
 Runs a 10xDevs change end to end: plan, plan review, implement, implementation review, fix.
 
@@ -29,7 +29,8 @@ How routing works:
 
 - `skills/10x-pipeline/policy.json` defines a ladder of model/effort tiers, a base tier per step, and escalation rules.
 - `skills/10x-pipeline/scripts/route.mjs` reads `plan.md` (`## Progress`) and `reviews/*.md` (verdict, finding counts) after every step and returns the next step, model, effort and prompt.
-- The tier goes up for large plans, `RETHINK`/`REVISE`/`REJECTED` verdicts and failed attempts. It goes down after a clean review and for a simple change (a small plan or `--size s`).
+- The tier goes up for large plans, `RETHINK`/`REVISE`/`REJECTED` verdicts and failed attempts. It goes down after a clean review and for a simple change (a small plan or a short goal). A hard keyword in the goal, such as `refactor` or `security`, keeps the first plan at the plan step's base tier.
+- The first plan reads the goal text. A brief goal (at most 25 words, no hard keyword) lowers the plan tier by 1 and earns the simple-change discount. Any other goal lowers it by 1, and a goal with a hard keyword lowers it by nothing. The word limit and the keyword list sit under `complexity.firstPlan` in `policy.json` and can be overridden per project.
 - A step counts as failed when the subagent does not report `done` or the expected file did not change.
 - The run halts for a human after repeated failures, too many plan revisions or fix loops, or when the step budget is spent.
 
@@ -38,7 +39,7 @@ Override any policy key per project in `context/foundation/agent-smith-policy.js
 Usage report:
 
 - When a run ends (`done` or `halt`, including a spent step budget or repeated failures), the router writes `context/changes/<change-id>/agent-smith/report.md` and adds its path to the output as `report`.
-- The report has the goal, size and outcome, then one table row per step: model, effort, tier, simple-change flag, result and tokens. A totals line sums the tokens.
+- The report has the goal and outcome, then one table row per step: model, effort, tier, simple-change flag, result and tokens. A totals line sums the tokens.
 - Token figures are optional. The orchestrator passes along the total tokens, tool uses and duration of a step when the Agent result reports them. A step without a figure shows `-`, and the totals line says how many steps it covers.
 - `node skills/10x-pipeline/scripts/route.mjs status <change-id> --report` rewrites the report on demand. For a run in progress it prints `Outcome: not ended`. Plain `status` stays read-only.
 - A halt for a missing result file writes no report. A run that continues after a halt keeps the old `report.md` until it ends again or you run `status --report`.

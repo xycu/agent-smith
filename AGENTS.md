@@ -22,7 +22,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 
 There is no build, lint or test setup. Exercise the router from a project root that has `context/changes/<id>/change.md`:
 
-- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>" --size m` — start or resume a run.
+- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>"` — start or resume a run.
 - `node skills/10x-pipeline/scripts/route.mjs next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `node skills/10x-pipeline/scripts/route.mjs status <id>` — print the per-step model and effort log.
 

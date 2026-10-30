@@ -7,7 +7,7 @@
 
 ## Context
 
-agent-smith routes each pipeline step to a model and effort level. Today `skills/10x-pipeline/scripts/route.mjs` picks one tier from `skills/10x-pipeline/policy.json`, using review verdicts, finding counts, phase count, the `--size` flag and failed attempts. The product goal (see `context/foundation/prd.md`) is to cut Claude usage, mostly the weekly limit, by choosing cheaper models and effort when a change is simple, with a router that is itself cheap to run.
+agent-smith routes each pipeline step to a model and effort level. Today `skills/10x-pipeline/scripts/route.mjs` picks one tier from `skills/10x-pipeline/policy.json`, using review verdicts, finding counts, phase count, the goal text and failed attempts. The product goal (see `context/foundation/prd.md`) is to cut Claude usage, mostly the weekly limit, by choosing cheaper models and effort when a change is simple, with a router that is itself cheap to run.
 
 A single "small, medium, large" label is a poor basis for that choice. A 500-line mechanical refactor can run on a cheap model, and a five-line change to authentication logic can need strict verification.
 
@@ -37,7 +37,7 @@ Adopt a phased approach.
 ### Phase 1 (this delivery)
 
 1. **Measure first.** Record usage per step in the run state and compare full runs against a baseline of a full run on Sonnet-5.5 at high effort. Report the model and effort per step (PRD FR-004, FR-005).
-2. **Route on deterministic signals.** The script chooses the tier from signals it can read without an LLM: phase count, the size flag, files changed in the diff, review verdicts, finding counts and failed attempts. The existing single ladder of model and effort pairs stays. Splitting model and effort into separate axes waits for measurements that show their effects separately.
+2. **Route on deterministic signals.** The script chooses the tier from signals it can read without an LLM: phase count, the goal text, files changed in the diff, review verdicts, finding counts and failed attempts. The existing single ladder of model and effort pairs stays. Splitting model and effort into separate axes waits for measurements that show their effects separately.
 3. **Treat risk as a separate axis, set by path rules.** Configurable path patterns in `policy.json` (for example authentication, data migrations, public API files) mark a change as elevated risk. Elevated risk means plan-review always runs, the implementation review runs at a minimum tier, and no step is skipped on a clean rubric. At the highest level the pipeline halts for a human instead of asking, because subagents cannot ask. The exact levels and patterns are policy data decided during implementation.
 4. **Keep escalation on failure.** The current per-failure escalation stays as the correction for a change that was misjudged as simple.
 

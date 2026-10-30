@@ -224,36 +224,36 @@ None: one string split and a short keyword scan per `next` call.
 
 #### Automated
 
-- [x] 1.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs`
-- [x] 1.2 `policy.json` parses, keeps `steps.plan.baseTier` at 4 and has no `sizeBump`: `node -e "const p=JSON.parse(require('fs').readFileSync('skills/10x-pipeline/policy.json','utf8'));console.log(p.steps.plan.baseTier, p.complexity.sizeBump)"` prints `4 undefined`
-- [x] 1.3 No size code remains: `grep -nE "sizeBump|meta\.size|flags\.size|--size|Size:" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/policy.json` prints nothing
-- [x] 1.4 A scratch change with `init scratch` and no goal returns `plan` on sonnet/high
-- [x] 1.5 A scratch change with goal `fix a typo in the readme` returns `plan` on sonnet/medium, and `status scratch` shows `simple: true`
-- [x] 1.6 A scratch change with goal `refactor the router` returns `plan` on opus/high, and `status scratch` shows `simple: false`
-- [x] 1.7 A 25-word goal with no hard keyword returns `plan` on sonnet/medium and a 26-word goal returns sonnet/high
-- [x] 1.8 Keywords match the start of a word, ignoring case and leading punctuation: goals `Refactoring the router` and `(refactor) the router` each return `plan` on opus/high
-- [x] 1.9 A leftover `--size s` does nothing: `init scratch --goal "refactor the router" --size s` returns `plan` on opus/high and the resulting `meta.json` has no `size` key
-- [x] 1.10 Re-plan tiers are unchanged: a scratch change with a `plan.md` that has `## Progress` and a newer `reviews/plan-review.md` holding `- **Verdict**: RETHINK` returns `plan-revise` on opus/max
-- [x] 1.11 A scratch override `context/foundation/agent-smith-policy.json` setting `complexity.firstPlan.maxWords` to 2 makes goal `fix a typo in the readme` return `plan` on sonnet/high
-- [x] 1.12 `status scratch --report` writes a `report.md` without a `Size:` line: `grep -c "^Size:" context/changes/scratch/agent-smith/report.md` prints `0`
-- [x] 1.13 A resumed `init` with an empty goal keeps the stored goal: `init scratch --goal "refactor the router"` then `init scratch --goal ""` returns `plan` on opus/high and `meta.json` still holds `refactor the router`
+- [x] 1.1 Script parses: `node --check skills/10x-pipeline/scripts/route.mjs` — bdc7f91
+- [x] 1.2 `policy.json` parses, keeps `steps.plan.baseTier` at 4 and has no `sizeBump`: `node -e "const p=JSON.parse(require('fs').readFileSync('skills/10x-pipeline/policy.json','utf8'));console.log(p.steps.plan.baseTier, p.complexity.sizeBump)"` prints `4 undefined` — bdc7f91
+- [x] 1.3 No size code remains: `grep -nE "sizeBump|meta\.size|flags\.size|--size|Size:" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/policy.json` prints nothing — bdc7f91
+- [x] 1.4 A scratch change with `init scratch` and no goal returns `plan` on sonnet/high — bdc7f91
+- [x] 1.5 A scratch change with goal `fix a typo in the readme` returns `plan` on sonnet/medium, and `status scratch` shows `simple: true` — bdc7f91
+- [x] 1.6 A scratch change with goal `refactor the router` returns `plan` on opus/high, and `status scratch` shows `simple: false` — bdc7f91
+- [x] 1.7 A 25-word goal with no hard keyword returns `plan` on sonnet/medium and a 26-word goal returns sonnet/high — bdc7f91
+- [x] 1.8 Keywords match the start of a word, ignoring case and leading punctuation: goals `Refactoring the router` and `(refactor) the router` each return `plan` on opus/high — bdc7f91
+- [x] 1.9 A leftover `--size s` does nothing: `init scratch --goal "refactor the router" --size s` returns `plan` on opus/high and the resulting `meta.json` has no `size` key — bdc7f91
+- [x] 1.10 Re-plan tiers are unchanged: a scratch change with a `plan.md` that has `## Progress` and a newer `reviews/plan-review.md` holding `- **Verdict**: RETHINK` returns `plan-revise` on opus/max — bdc7f91
+- [x] 1.11 A scratch override `context/foundation/agent-smith-policy.json` setting `complexity.firstPlan.maxWords` to 2 makes goal `fix a typo in the readme` return `plan` on sonnet/high — bdc7f91
+- [x] 1.12 `status scratch --report` writes a `report.md` without a `Size:` line: `grep -c "^Size:" context/changes/scratch/agent-smith/report.md` prints `0` — bdc7f91
+- [x] 1.13 A resumed `init` with an empty goal keeps the stored goal: `init scratch --goal "refactor the router"` then `init scratch --goal ""` returns `plan` on opus/high and `meta.json` still holds `refactor the router` — bdc7f91
 
 #### Manual
 
-- [x] 1.14 The `reason` and `tierWhy` of the first plan step name the goal class in wording a reader follows
+- [x] 1.14 The `reason` and `tierWhy` of the first plan step name the goal class in wording a reader follows — bdc7f91
 
 ### Phase 2: Docs sync
 
 #### Automated
 
-- [ ] 2.1 No flag in the docs: `grep -rnE "\-\-size|sizeBump|size flag" skills README.md AGENTS.md context/foundation/prd.md docs/ADR/ADR-001-phased-complexity-routing.md` prints nothing
-- [ ] 2.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing
-- [ ] 2.3 The goal rule is documented in both places: `grep -n "short goal" skills/10x-pipeline/SKILL.md README.md` prints one line from each file
-- [ ] 2.4 The argument hint has no size: `grep -n "^argument-hint" skills/10x-pipeline/SKILL.md` prints `argument-hint: <change-id> [goal text]`
-- [ ] 2.5 Manifests untouched: `git diff --stat .claude-plugin` is empty
-- [ ] 2.6 Raw shaping notes untouched: `git diff --stat context/foundation/shape-notes.md` is empty
+- [x] 2.1 No flag in the docs: `grep -rnE "\-\-size|sizeBump|size flag" skills README.md AGENTS.md context/foundation/prd.md docs/ADR/ADR-001-phased-complexity-routing.md` prints nothing
+- [x] 2.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing
+- [x] 2.3 The goal rule is documented in both places: `grep -n "short goal" skills/10x-pipeline/SKILL.md README.md` prints one line from each file
+- [x] 2.4 The argument hint has no size: `grep -n "^argument-hint" skills/10x-pipeline/SKILL.md` prints `argument-hint: <change-id> [goal text]`
+- [x] 2.5 Manifests untouched: `git diff --stat .claude-plugin` is empty
+- [x] 2.6 Raw shaping notes untouched: `git diff --stat context/foundation/shape-notes.md` is empty
 
 #### Manual
 
-- [ ] 2.7 `SKILL.md`, `README.md` and `route.mjs` describe the same rule: the word limit, the hard keywords and the three first-plan reductions (`SKILL.md` as deltas only, with no absolute tier numbers)
-- [ ] 2.8 The edited lines in `prd.md` and ADR-001 read coherently without the flag
+- [x] 2.7 `SKILL.md`, `README.md` and `route.mjs` describe the same rule: the word limit, the hard keywords and the three first-plan reductions (`SKILL.md` as deltas only, with no absolute tier numbers)
+- [x] 2.8 The edited lines in `prd.md` and ADR-001 read coherently without the flag

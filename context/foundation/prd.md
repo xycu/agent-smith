@@ -20,7 +20,7 @@ timeline_budget:
 ## Current System Overview
 
 - **Purpose:** agent-smith is a Claude Code plugin that orchestrates AI SDLC skill chains (README: "10xDevs + OpenSpec"). Each step of a chain runs in its own subagent.
-- **Shipped skill:** `/agent-smith:10x-pipeline <change-id> [goal] [--size s|m|l]` runs plan, plan review, implement, implementation review, fix.
+- **Shipped skill:** `/agent-smith:10x-pipeline <change-id> [goal]` runs plan, plan review, implement, implementation review, fix.
 - **Router:** `skills/10x-pipeline/scripts/route.mjs` (Node.js 18+, ESM, no dependencies) reads `plan.md` `## Progress` and `reviews/*.md` (verdict, finding counts) and returns the next step, model, effort and prompt.
 - **Policy:** `skills/10x-pipeline/policy.json` holds a 7-tier model/effort ladder, a base tier per step, escalation rules, limits and prompt templates. A project can override keys in `context/foundation/agent-smith-policy.json`.
 - **Run state:** `context/changes/<change-id>/agent-smith/` (`run.jsonl`, `meta.json`).
@@ -32,7 +32,7 @@ timeline_budget:
 
 Running the chain on expensive models and effort levels consumes too much of the user's Claude usage limit, mostly the weekly limit.
 
-The gap: today the router picks model and effort from review verdicts, finding counts, plan size, the size flag and failed attempts. It does not use the content of the generated artifacts (plan markdown, rubric results, code, intent files), so a simple change can run on the same tier as a complex one.
+The gap: today the router picks model and effort from review verdicts, finding counts, plan size, the goal text and failed attempts. It does not use the content of the generated artifacts (plan markdown, rubric results, code, intent files), so a simple change can run on the same tier as a complex one.
 
 # TODO: why this change is needed now, and the current workaround and its cost — see Open Questions
 
@@ -80,7 +80,7 @@ The gap: today the router picks model and effort from review verdicts, finding c
 
 #### Before this change
 
-- Observed in `policy.json`: plan-review started at a fixed base tier (sonnet, medium), adjusted only by phase count and the size flag.
+- Observed in `policy.json`: plan-review started at a fixed base tier (sonnet, medium), adjusted only by phase count.
 
 ## Scope of Change
 
@@ -88,7 +88,7 @@ The gap: today the router picks model and effort from review verdicts, finding c
   > Socrates: Counter-argument considered: "reading costs tokens and can eat the savings." Resolution: kept as written; accept the reading cost for now.
 - [modified] FR-002: The router can decide from the plan markdown and rubric results whether the next step is plan-review or implement, skipping plan-review only on a clean rubric. Priority: must-have. Was: plan-review always followed plan.
   > Socrates: Counter-argument considered: "skipping review can cost more later." Resolution: kept; plan-review is skipped only on a clean rubric, otherwise it always runs.
-- [modified] FR-003: The router can set the model and effort before a step starts, from the artifacts, taking cost and complexity into account (a simple change gets a money-efficient pair, e.g. sonnet-5.5 at medium effort). Priority: must-have. Was: tier set from review verdicts, finding counts, plan size, size flag and failed attempts.
+- [modified] FR-003: The router can set the model and effort before a step starts, from the artifacts, taking cost and complexity into account (a simple change gets a money-efficient pair, e.g. sonnet-5.5 at medium effort). Priority: must-have. Was: tier set from review verdicts, finding counts, plan size, goal text and failed attempts.
   > Socrates: Counter-argument considered: "a change misjudged as simple fails on a cheap tier and costs more." Resolution: kept; start cheap and rely on per-failure escalation.
 - [new] FR-004: The user can see a report of which model and effort ran each step, written before the change is archived. Priority: must-have
   > Socrates: Counter-argument considered: "run.jsonl and the status command already show it." Resolution: kept; run.jsonl is machine data, the report is the human-readable summary for archive and pull request.
@@ -122,9 +122,9 @@ Added from ADR-001 (challenged in a Socrates round on 2026-10-30):
 
 The router chooses model and effort for each step by task effort and complexity so that the agentic pipeline is money efficient.
 
-- **Current rule:** the router derives the next step, model and effort from review verdicts, finding counts, plan size (phase count), the size flag and failed attempts.
+- **Current rule:** the router derives the next step, model and effort from review verdicts, finding counts, plan size (phase count), the goal text and failed attempts.
 - **Change:** the decision also uses a new scored rubric and usage or cost metrics, and may choose plan-review or implement as the next step (US-01).
-- **Phasing (ADR-001, proposed):** Phase 1 routes on deterministic signals the script can read without an LLM (phase count, size flag, files changed, review verdicts, finding counts, failed attempts) and adds a separate risk axis set by path rules. Scored complexity (cognitive and execution complexity, risk and confidence, each factor 0 to 3) is deferred to Phase 2 and only built if the Phase 1 measurements show the signals are not enough. Details: `docs/ADR/ADR-001-phased-complexity-routing.md`.
+- **Phasing (ADR-001, proposed):** Phase 1 routes on deterministic signals the script can read without an LLM (phase count, goal text, files changed, review verdicts, finding counts, failed attempts) and adds a separate risk axis set by path rules. Scored complexity (cognitive and execution complexity, risk and confidence, each factor 0 to 3) is deferred to Phase 2 and only built if the Phase 1 measurements show the signals are not enough. Details: `docs/ADR/ADR-001-phased-complexity-routing.md`.
 
 ## Access Control Changes
 
