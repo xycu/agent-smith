@@ -465,8 +465,8 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Automated
 
-- [ ] 1.1 Guard and `verify-archive` tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [ ] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 1.1 Guard and `verify-archive` tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
+- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 

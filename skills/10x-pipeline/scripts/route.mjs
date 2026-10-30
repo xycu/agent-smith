@@ -8,6 +8,7 @@
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
+//   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
 import fs from "node:fs";
@@ -100,6 +101,43 @@ function readReview(file) {
     res.warnings = Number((f[0].match(/(\d+)\s*warnings?/i) || [0, 0])[1]);
   }
   return res;
+}
+
+// ---- archive lookup -------------------------------------------------------
+
+// Folder names under context/archive/ that belong to this id: <YYYY-MM-DD>-<id>, anchored at both ends.
+// A name that only ends with the id (2026-01-01-x-<id>) is another change. The id is already [a-z0-9-].
+function archiveDirs(id) {
+  const re = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${id}$`);
+  let names;
+  try { names = fs.readdirSync(path.join(ROOT, "context/archive")); } catch { return []; }
+  return names.filter((name) => re.test(name)).sort();
+}
+
+// One field of the first --- block of a file, quotes stripped. null when the file, the block or the field is missing.
+function frontmatterField(file, key) {
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch { return null; }
+  const block = text.replace(/^﻿/, "").match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!block) return null;
+  const line = block[1].split(/\r?\n/).find((l) => l.startsWith(`${key}:`));
+  if (line === undefined) return null;
+  return line.slice(key.length + 1).trim().replace(/^(["'])(.*)\1$/, "$2");
+}
+
+// Halts with JSON and writes nothing when the change is archived (folder moved) or half-archived
+// (change.md says archived, folder still in place). Runs before any mkdirSync.
+function guardArchived(p, id) {
+  if (!fs.existsSync(p.change)) {
+    const found = archiveDirs(id).map((name) => `context/archive/${name}`);
+    if (found.length) {
+      out({ action: "halt", reason: `Change ${id} is archived at ${found.join(", ")}. Nothing was written.`, archivePath: found[0] }, 1);
+    }
+    return;
+  }
+  if (frontmatterField(path.join(p.change, "change.md"), "status") === "archived") {
+    out({ action: "halt", reason: `Change ${id} is stamped archived but its folder was not moved. Nothing was written; finish or undo /10x-archive by hand.` }, 1);
+  }
 }
 
 // ---- run log --------------------------------------------------------------
@@ -725,6 +763,7 @@ function render(tpl, vars) {
 
 function next(id, policy) {
   const p = paths(id);
+  guardArchived(p, id);
   fs.mkdirSync(p.dir, { recursive: true });
   const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
@@ -823,6 +862,42 @@ function next(id, policy) {
   });
 }
 
+// Read-only, files only, no git: did /10x-archive move this change and stamp it archived.
+function verifyArchive(id, flags) {
+  const no = (reason) => out({ archived: false, reason }, 1);
+  let name;
+  if (flags.path !== undefined) {
+    if (typeof flags.path !== "string") no("--path needs a folder");
+    const m = flags.path.replace(/^\.\//, "").replace(/\/$/, "").match(/^context\/archive\/([^/\\]+)$/);
+    if (!m || !archiveDirs(id).includes(m[1])) no(`--path is not an archive folder of ${id}`);
+    name = m[1];
+  } else {
+    const found = archiveDirs(id);
+    if (found.length > 1) no(`More than one archive folder for ${id}: ${found.map((n) => `context/archive/${n}`).join(", ")}. Pass --path.`);
+    name = found[0];
+  }
+  const p = paths(id);
+  const stillThere = fs.existsSync(p.change);
+  if (name === undefined) {
+    const stamped = stillThere && frontmatterField(path.join(p.change, "change.md"), "status") === "archived";
+    no(stamped
+      ? `No archive folder for ${id}: context/changes/${id} is stamped archived but was not moved.`
+      : `No archive folder for ${id} under context/archive/.`);
+  }
+  const rel = `context/archive/${name}`;
+  const changeFile = path.join(ROOT, rel, "change.md");
+  if (!fs.existsSync(changeFile)) no(`${rel}/change.md is missing.`);
+  const status = frontmatterField(changeFile, "status");
+  if (status !== "archived") no(`${rel}/change.md has status ${status === null ? "(none)" : status}, not archived.`);
+  if (stillThere) no(`context/changes/${id} still exists next to ${rel}.`);
+  out({
+    archived: true,
+    path: rel,
+    archivedAt: frontmatterField(changeFile, "archived_at"),
+    report: fs.existsSync(path.join(ROOT, rel, "agent-smith/report.md")) ? `${rel}/agent-smith/report.md` : null,
+  });
+}
+
 // Read-only: prints the churn numbers for a change.
 function riskCommand(id, policy) {
   const p = paths(id);
@@ -844,6 +919,7 @@ function status(id, flags) {
     })),
   };
   if (flags.report) {
+    guardArchived(p, id);
     if (!fs.existsSync(p.change)) out({ action: "halt", reason: `No change folder context/changes/${id}.` }, 1);
     const meta = readMeta(p.meta, { id, goal: "" });
     res.report = writeReport(p, id, meta, log);
@@ -860,7 +936,7 @@ function halt(reason) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--report]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--report] | verify-archive <change-id> [--path <p>]");
   }
   const policy = loadPolicy();
   const flags = parseFlags(rest);
@@ -872,6 +948,7 @@ function main() {
       halt(`Invalid --rigor ${flags.rigor === true ? "(no value)" : flags.rigor}. Use one of: ${levels.join(", ")}.`);
     }
     const p = paths(id);
+    guardArchived(p, id);
     fs.mkdirSync(p.dir, { recursive: true });
     const prev = readMeta(p.meta, {});
     // An empty, blank or valueless --goal keeps the stored goal.
@@ -898,6 +975,8 @@ function main() {
     status(id, flags);
   } else if (cmd === "risk") {
     riskCommand(id, policy);
+  } else if (cmd === "verify-archive") {
+    verifyArchive(id, flags);
   } else {
     halt(`Unknown command ${cmd}`);
   }

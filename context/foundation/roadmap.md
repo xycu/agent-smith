@@ -3,7 +3,7 @@ project: agent-smith
 version: 1
 status: draft
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 prd_version: 1
 main_goal: speed
 top_blocker: decisions
@@ -50,7 +50,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | proposed |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
-| S-09 | archive-adapter              | have a finished run commit its run state and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | planning |
+| S-09 | archive-adapter              | have a finished run commit its run state and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | in-progress |
 | S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | proposed |
 
 ## Streams
@@ -197,7 +197,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Unknowns:**
   - None blocking. The adapter design is accepted in the research (Follow-up 1). — Owner: user. Block: no.
 - **Risk:** It is the router's first git write, and archive moves the run state out of reach, so nothing may write after the move. Its implement step edits `endRun` in `route.mjs`, so it waits for S-03 to merge.
-- **Status:** planning
+- **Status:** in-progress
 
 ### S-10: Lesson candidates in the report
 
