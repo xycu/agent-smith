@@ -4,7 +4,7 @@
 // review verdicts) plus the run log. The orchestrator never picks a model itself.
 //
 // Usage (run from the project root):
-//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough]
+//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive]
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
@@ -417,13 +417,37 @@ function resolveRigor(meta, log, policy, plan, risk) {
 const SINCE_RE = /^(\d+\.(day|days|week|weeks|month|months|year|years)|\d{4}-\d{2}-\d{2})$/;
 const SHA_RE = /^[0-9a-f]{40,64}$/;
 
-// Runs git without a shell in the project root. Returns stdout, or null on any failure.
-function gitOut(args) {
+// Runs git without a shell in the project root. Never throws. Returns { status, stdout, stderr, timedOut }.
+// status is git's exit code, 127 when git is missing, 124 on a timeout (opts.timeout in ms), 1 for any other failure.
+// The only -c option is core.quotePath=false, a display setting: paths print raw, not escaped.
+function runGit(args, opts = {}) {
   try {
-    return execFileSync("git", ["-c", "core.quotePath=false", ...args], {
-      cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024,
+    const stdout = execFileSync("git", ["-c", "core.quotePath=false", ...args], {
+      cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
+      ...(Number.isInteger(opts.timeout) && opts.timeout > 0 ? { timeout: opts.timeout } : {}),
     });
-  } catch { return null; }
+    return { status: 0, stdout, stderr: "", timedOut: false };
+  } catch (e) {
+    const timedOut = e.code === "ETIMEDOUT";
+    const status = typeof e.status === "number" ? e.status : e.code === "ENOENT" ? 127 : timedOut ? 124 : 1;
+    return { status, stdout: String(e.stdout ?? ""), stderr: String(e.stderr ?? "") || String(e.message ?? ""), timedOut };
+  }
+}
+
+// Returns stdout, or null on any failure.
+function gitOut(args) {
+  const res = runGit(args);
+  return res.status === 0 ? res.stdout : null;
+}
+
+// The files of a change that `git add` must be able to commit, relative to the project root.
+// run.jsonl, meta.json and report.md are what the router writes; change.md is the file the archive stamps.
+// Probes files, never the directory: check-ignore on a directory that does not exist yet exits 1
+// whatever .gitignore says, and a directory probe misses file patterns such as *.jsonl.
+function ignoredProbePaths(id, opts = {}) {
+  const base = `context/changes/${id}`;
+  return [`${base}/agent-smith/run.jsonl`, `${base}/agent-smith/meta.json`, `${base}/agent-smith/report.md`, `${base}/change.md`]
+    .filter((file) => runGit(["check-ignore", "-q", "--", file], opts).status === 0);
 }
 
 // Glob without dependencies: "**/" is zero or more directories, "**" anything, "*" and "?" stay inside one segment.
@@ -936,7 +960,7 @@ function halt(reason) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--report] | verify-archive <change-id> [--path <p>]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--report] | verify-archive <change-id> [--path <p>]");
   }
   const policy = loadPolicy();
   const flags = parseFlags(rest);
@@ -947,15 +971,35 @@ function main() {
     if (flags.rigor !== undefined && (typeof flags.rigor !== "string" || !levels.includes(flags.rigor))) {
       halt(`Invalid --rigor ${flags.rigor === true ? "(no value)" : flags.rigor}. Use one of: ${levels.join(", ")}.`);
     }
+    // --archive is checked before anything is written: a bare flag or "true" turns it on, "false" turns it off.
+    let archive;
+    if (flags.archive !== undefined) {
+      if (flags.archive === true || flags.archive === "true") archive = true;
+      else if (flags.archive === "false") archive = false;
+      else halt(`Invalid --archive ${flags.archive}. Use --archive, --archive true or --archive false.`);
+    }
     const p = paths(id);
     guardArchived(p, id);
-    fs.mkdirSync(p.dir, { recursive: true });
     const prev = readMeta(p.meta, {});
+    // No flag keeps the stored value, so a resume of an archive run is checked again.
+    if ((archive ?? prev.archive) === true) {
+      const timeout = policy.archive?.gitTimeoutMs;
+      const inside = runGit(["rev-parse", "--is-inside-work-tree"], { timeout });
+      if (inside.status !== 0 || inside.stdout.trim() !== "true") {
+        halt(`--archive needs a git work tree and ${ROOT} is not one. Nothing was written.`);
+      }
+      const ignored = ignoredProbePaths(id, { timeout });
+      if (ignored.length) {
+        halt(`--archive needs git to track the change folder, but git ignores ${ignored.join(", ")}. Fix .gitignore or run without --archive. Nothing was written.`);
+      }
+    }
+    fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
     const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
     // Keep every stored field (rigor and whatever later changes add); a stored rigor that is no object is dropped.
     const meta = { ...prev, id, goal };
     if (!isObject(prev.rigor)) delete meta.rigor;
+    if (archive !== undefined) meta.archive = archive;
     if (flags.rigor !== undefined) {
       // On resume --rigor can raise the requested level, never lower it.
       const old = isObject(prev.rigor) && levels.includes(prev.rigor.requested) ? prev.rigor.requested : flags.rigor;
