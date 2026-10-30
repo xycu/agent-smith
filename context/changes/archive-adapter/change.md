@@ -1,7 +1,7 @@
 ---
 change_id: archive-adapter
 title: Archive adapter for the 10x pipeline
-status: new
+status: preparing
 created: 2026-10-30
 updated: 2026-10-30
 archived_at: null
