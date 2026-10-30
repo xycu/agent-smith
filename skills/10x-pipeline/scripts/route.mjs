@@ -186,6 +186,19 @@ function writeLog(file, entries) {
 
 // ---- report ---------------------------------------------------------------
 
+// The archive lines of the report. The archive step itself leaves no log entry, so this is where a reader of the moved copy learns about it.
+function archiveLines(id, meta, oneLine) {
+  if (meta.archive !== true) return [];
+  const o = meta.outcome;
+  if (!o) return ["Archive: not run (run not ended)"];
+  if (o.action !== "done") return ["Archive: not run (run halted)"];
+  const pending = Array.isArray(o.manualPending) ? o.manualPending : [];
+  return [
+    `Archive: requested - runs after this report was written; see the commit "chore(archive): close ${id}"`,
+    ...(pending.length ? [`Manual checks pending: ${pending.length}`, ...pending.map((row) => `- ${oneLine(row)}`)] : []),
+  ];
+}
+
 function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
   const log = executed(fullLog);
@@ -206,6 +219,7 @@ function buildReport(id, meta, fullLog) {
     `Goal: ${oneLine(meta.goal) || "-"}`,
     ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
     `Outcome: ${outcome}`,
+    ...archiveLines(id, meta, oneLine),
     "",
     "| # | Step | Model | Effort | Tier | Simple | Result | Tokens |",
     "| --- | --- | --- | --- | --- | --- | --- | --- |",
@@ -231,15 +245,24 @@ function writeReport(p, id, meta, log) {
   return path.relative(ROOT, p.report);
 }
 
-// Every end of run goes through here so no branch can skip the report.
-function endRun(p, id, meta, log, result) {
+// Writes the end of a run: log, meta.json outcome and report.md. Prints nothing and does not exit.
+// An ordinary halt of an archive run gets archive and committed here; a result that has its own archive field keeps it.
+function finishRun(p, id, meta, log, result) {
   writeLog(p.log, log);
   meta.outcome = { action: result.action, reason: result.reason };
+  if (result.action === "done") meta.outcome.manualPending = Array.isArray(result.manualPending) ? result.manualPending : [];
   fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
   let report = null;
   let reportError;
   try { report = writeReport(p, id, meta, log); } catch (e) { reportError = e.message; }
-  return out(reportError ? { ...result, report, reportError } : { ...result, report });
+  const extra = meta.archive === true && result.action === "halt" && result.archive === undefined
+    ? { archive: "skipped: run halted", committed: false } : {};
+  return reportError ? { ...result, ...extra, report, reportError } : { ...result, ...extra, report };
+}
+
+// Every end of run goes through here so no branch can skip the report.
+function endRun(p, id, meta, log, result) {
+  return out(finishRun(p, id, meta, log, result));
 }
 
 // ---- result intake + verification ---------------------------------------
@@ -785,6 +808,192 @@ function render(tpl, vars) {
   return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
 }
 
+// ---- archive adapter ------------------------------------------------------
+
+const CREATED_RE = /^\d{4}-\d{2}-\d{2}$/;
+const IN_PROGRESS = ["MERGE_HEAD", "REVERT_HEAD", "CHERRY_PICK_HEAD", "rebase-merge", "rebase-apply"];
+const SKIP_COMMITTED = "skipped: pre-archive commit exists; run not archived";
+const SKIP_FAILED = "skipped: pre-archive commit failed";
+
+// `created` as /10x-archive reads it: the first line of change.md that starts with "created:", second field split
+// on blanks, unmodified. The archive folder name must equal the skill's DEST, so no quote stripping and no trimming.
+function createdValue(file) {
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch { return null; }
+  const line = text.split("\n").find((l) => l.startsWith("created:"));
+  return line === undefined ? null : (line.split(/[ \t]+/)[1] ?? "");
+}
+
+// `git status --porcelain -z` as { xy, file } records, or null when git fails. With -z a name with spaces stays unquoted.
+// A rename or copy record is followed by one more NUL field (the old name), which is dropped.
+function statusEntries(args, opts) {
+  const res = runGit(["status", "--porcelain", "-z", ...args], opts);
+  if (res.status !== 0) return null;
+  const parts = res.stdout.split("\0");
+  const entries = [];
+  for (let i = 0; i < parts.length; i++) {
+    const rec = parts[i];
+    if (rec.length < 4) continue;
+    const xy = rec.slice(0, 2);
+    entries.push({ xy, file: rec.slice(3) });
+    if (/[RC]/.test(xy)) i++;
+  }
+  return entries;
+}
+
+// Up to ten names, joined for a halt message.
+const listNames = (names) => `${names.slice(0, 10).join(", ")}${names.length > 10 ? `, +${names.length - 10} more` : ""}`;
+
+// First lines of what a failed git call printed (stderr, then stdout: hooks write to either).
+function gitMessage(res) {
+  const text = `${res.stderr}\n${res.stdout}`.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 6).join(" | ");
+  return text || `exit status ${res.status}`;
+}
+
+const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone by the router. A resume makes no commit, " +
+  "so the check that the commit touched only the change folder (post-commit check 2) is not repeated; clearing the index " +
+  "does not remove a path the commit already holds (amend the commit, or accept it). `next` repeats safely after the cause is fixed.";
+
+// The done branch of a run with --archive. Pre-checks, final report, commit, post-commit checks, then the archive action.
+// While the folder is not committed a halt may write the end state (endRun). Once the commit exists, or the run is
+// written as done, a halt only prints (out): rewriting meta.json or report.md would dirty the committed folder.
+function archiveDone(p, id, meta, log, policy, level, d) {
+  const rel = `context/changes/${id}`;
+  const ran = executed(log);
+  const timeout = policy.archive?.gitTimeoutMs;
+  const g = (args) => runGit(args, { timeout });
+
+  // 1. Already committed and clean (a resume).
+  const tracked = g(["ls-files", "--error-unmatch", "--", `${rel}/agent-smith/report.md`]).status === 0;
+  const dirty = tracked ? statusEntries(["--", `${rel}/`], { timeout }) : null;
+  const committed = tracked && dirty !== null && dirty.length === 0;
+
+  // 2. Pre-checks. Kind A (folder not committed) writes the run's end state, kind B prints only.
+  const precheck = (reason) => {
+    if (committed) {
+      return out({ action: "halt", reason: `${reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
+    }
+    return endRun(p, id, meta, log, { action: "halt", reason: `${reason} Nothing was committed.`, steps: ran.length });
+  };
+  const inside = g(["rev-parse", "--is-inside-work-tree"]);
+  if (inside.status !== 0 || inside.stdout.trim() !== "true") precheck(`--archive needs a git work tree and ${ROOT} is not one.`);
+  const ignoredProbes = ignoredProbePaths(id, { timeout });
+  if (ignoredProbes.length) precheck(`git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`);
+  if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) precheck("HEAD is detached; check out a branch first.");
+  for (const name of IN_PROGRESS) {
+    const where = g(["rev-parse", "--git-path", name]);
+    if (where.status === 0 && fs.existsSync(path.resolve(ROOT, where.stdout.trim()))) {
+      precheck(`A merge, rebase, cherry-pick or revert is in progress (${name} exists); finish or abort it first.`);
+    }
+  }
+  const staged = g(["diff", "--cached", "--quiet"]);
+  if (staged.status === 1) {
+    const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
+    precheck(`The index holds staged changes: ${listNames(names)} (paths relative to the git root). Commit or unstage them first.`);
+  } else if (staged.status !== 0) {
+    precheck(`git diff --cached failed: ${gitMessage(staged)}`);
+  }
+  const created = createdValue(path.join(p.change, "change.md"));
+  if (created === null || !CREATED_RE.test(created)) {
+    precheck(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
+  }
+  const archivePath = `context/archive/${created}-${id}`;
+  if (fs.existsSync(path.join(ROOT, archivePath))) {
+    precheck(`Archive destination ${archivePath} already exists; a reused id on the same date needs a human.`);
+  }
+  const manualPending = Array.isArray(d.manualPending) ? d.manualPending : [];
+  if (policy.archive?.haltOnManualPending === true && manualPending.length) {
+    precheck(`Manual rows are pending and archive.haltOnManualPending is true: ${manualPending.join("; ")}`);
+  }
+  // The message and the tier are settled before git add, so a bad policy never leaves a staged index
+  // and never throws after the commit exists.
+  const template = policy.archive?.commitMessage;
+  if (typeof template !== "string" || !template.trim()) precheck("policy.archive.commitMessage must be a non-blank string.");
+  const message = render(template, { id }).trim();
+  if (!message) precheck("policy.archive.commitMessage renders to a blank message.");
+  let settled;
+  try {
+    settled = tierFor({ step: "archive" }, ran, policy, readPlan(p.plan), meta, level);
+  } catch (e) {
+    precheck(`Cannot pick the archive tier: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  const target = policy.ladder[settled.tier];
+  if (!isObject(target) || typeof target.model !== "string" || typeof target.effort !== "string") {
+    precheck(`policy.ladder has no entry for tier ${settled.tier}, which the archive step is pinned to.`);
+  }
+
+  // 3. Ignored files are reported, never a halt.
+  const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
+  const unprefix = (file) => (file.startsWith(prefix) ? file.slice(prefix.length) : file);
+  const ignoredEntries = statusEntries(["--ignored", "--", `${rel}/`], { timeout }) ?? [];
+  const ignored = ignoredEntries.filter((e) => e.xy === "!!").map((e) => unprefix(e.file)).slice(0, 10);
+
+  // 4. Final report, then the commit.
+  const done = finishRun(p, id, meta, log, { action: "done", reason: d.reason, manualPending, steps: ran.length });
+  const commitFailed = (what, res) => {
+    const reset = g(["reset", "-q", "--", rel]);
+    const note = res.timedOut
+      ? ` git timed out after ${timeout} ms; a hook child may still run and an index.lock may remain.`
+      : "";
+    return out({
+      action: "halt",
+      reason: `git ${what} failed: ${gitMessage(res)}.${note} The change folder was ${reset.status === 0 ? "unstaged again" : `not unstaged (git reset failed: ${gitMessage(reset)})`}. Nothing was committed.`,
+      steps: ran.length,
+      archive: SKIP_FAILED,
+      committed: false,
+    });
+  };
+  const added = g(["add", "--", rel]);
+  if (added.status !== 0) commitFailed("add", added);
+  const check = g(["diff", "--cached", "--quiet"]);
+  if (check.status !== 0 && check.status !== 1) commitFailed("diff --cached", check);
+  let madeCommit = false;
+  if (check.status === 1) {
+    const made = g(["commit", "-m", message, "--", rel]);
+    if (made.status !== 0) commitFailed("commit", made);
+    madeCommit = true;
+  }
+
+  // 5. Post-commit checks. The commit exists, so a halt prints only.
+  const commitHalt = (reason) => out({ action: "halt", reason: `${reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
+  const left = g(["diff", "--cached", "--quiet"]);
+  if (left.status !== 0) {
+    const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
+    commitHalt(`The index is not empty after the commit (a hook staged something): ${listNames(names)} (paths relative to the git root).`);
+  }
+  if (madeCommit) {
+    const shown = g(["show", "--name-only", "-z", "--format=", "HEAD"]);
+    if (shown.status !== 0) commitHalt(`Cannot list the commit: ${gitMessage(shown)}`);
+    const inFolder = `${prefix}${rel}/`;
+    const extra = shown.stdout.split("\0").filter(Boolean).filter((name) => !name.startsWith(inFolder));
+    if (extra.length) commitHalt(`The commit holds paths outside ${rel}: ${listNames(extra)} (paths relative to the git root).`);
+  }
+  const unclean = statusEntries(["--", `${rel}/`], { timeout });
+  if (unclean === null) commitHalt("Cannot read the status of the change folder.");
+  if (unclean.length) commitHalt(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => unprefix(e.file)))}.`);
+  if (done.reportError) commitHalt(`report.md was not written: ${done.reportError}.`);
+
+  // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
+  let commit = null;
+  if (madeCommit) {
+    const head = g(["rev-parse", "--short", "HEAD"]);
+    commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : "HEAD";
+  }
+  const prompt = render(policy.prompts.archive, { id }).trim() + "\n\n" + policy.prompts.suffix;
+  return out({
+    action: "archive",
+    model: target.model,
+    effort: target.effort,
+    reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${settled.tier} (${settled.tierWhy})`,
+    prompt,
+    summary: { reason: d.reason, manualPending, steps: ran.length },
+    report: done.report,
+    archivePath,
+    commit,
+    ignored,
+  });
+}
+
 function next(id, policy) {
   const p = paths(id);
   guardArchived(p, id);
@@ -835,6 +1044,7 @@ function next(id, policy) {
     writeLog(p.log, log);
   }
   const ran = executed(log);
+  if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d);
   if (d.halt || d.done) {
     return endRun(p, id, meta, log, d.done
       ? { action: "done", reason: d.reason, manualPending: d.manualPending, steps: ran.length }
