@@ -81,7 +81,7 @@ Legend for the "Need" column: **Core** = mandatory; **Opt** = optional; **Once**
 | # | Step | Need | Writes | What |
 |---|------|------|--------|------|
 | 24 | `/10x-ui` pre-audit | Opt | audit brief | UI change on view that renders? Audit 3–5 charges. Suggest change-id. Feed research. |
-| 25 | `/10x-new` | Opt | `change.md` (`status: new`) | Make change folder. Seed notes from intent. Plan, research and frame also make it if missing. |
+| 25 | `/10x-new` | Opt | `change.md` (`status: new`) | Make change folder. Seed notes from intent. Many origins feed it: see diagram 4. Plan, research and frame also make it if missing. |
 | 26 | `/10x-research` | Opt | `research.md` (`status: preparing`) | Plan needs ground truth? Parallel subagents read code, cite sources. Facts only. |
 | 27 | Legacy research prompts | Opt | `research.md` additions | Big legacy repo? Research with map, verify claims with ast-grep, rank refactor spots. |
 | 28 | Domain refactor prompts | Opt | refactor brief | Rule enforced many places or none? Plan guardian aggregate. External API leaks? Plan anti-corruption layer. |
@@ -145,7 +145,7 @@ flowchart LR
     A -->|"milestone done"| P
     RV -.->|"lessons.md"| C
     RV -.->|"needs re-plan"| PL
-    I -.->|"small or known change"| PL
+    I -.->|"small change"| PL
 
     classDef core fill:#d6f5d6,stroke:#2e7d32,stroke-width:2px
     classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
@@ -157,146 +157,225 @@ Solid green boxes are the mandatory core. Dashed boxes are optional stages.
 
 ### Detailed change flow
 
+Seven diagrams, one per group of stages. Rounded nodes link to the other diagrams. Green nodes are the mandatory core. Dashed nodes are optional. Blue nodes are decisions or automatic steps. Every branch is its own edge.
+
+#### 1. Ideation (stage A)
+
 ```mermaid
 flowchart TD
-    S1(["1 Raw intent"])
+    S1(["1 Raw intent"]) --> K{"Change kind?"}
+    K -->|"new product idea"| S2["2 /10x-opportunity-map"]
+    K -->|"feature on a set-up project"| TC(["Roadmap: diagram 3"])
+    K -->|"small known change"| TO(["Change origins: diagram 4"])
+    S2 --> SZ{"Signal size?"}
+    SZ -->|"narrow, clear first version"| TO
+    SZ -->|"large, unclear"| S3["3 /10x-mom-test"]
+    S3 --> V{"Problem real?"}
+    V -->|"no"| STOP(["Drop the idea"])
+    V -->|"yes"| S4["4 /10x-idea-check"]
+    S4 --> TB(["Foundations: diagram 2"])
 
-    subgraph A["A. Ideation and validation"]
-        S2["2 /10x-opportunity-map"]
-        S3["3 /10x-mom-test"]
-        S4["4 /10x-idea-check"]
-    end
+    classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
+    classDef auto fill:#e3ecfa,stroke:#3b6db3
+    class S2,S3,S4 opt
+    class K,SZ,V auto
+```
 
-    subgraph B["B. Product and foundations (once per project)"]
-        S5["5 /10x-init"]
-        S6["6 /10x-shape"]
-        S7["7 /10x-prd"]
-        BF{"Greenfield or brownfield?"}
-        S12["12 /10x-tech-stack-selector"]
-        S13["13 /10x-bootstrapper"]
-        S8["8 /10x-repo-map"]
-        S9["9 /10x-stack-assess"]
-        S10["10 /10x-health-check"]
-        S11["11 /10x-domain-distillation"]
-        S14["14 /10x-agents-md"]
-        S15["15 /10x-rule-review"]
-        S16["16 /10x-infra-research"]
-        S17["17 /10x-test-plan"]
-        S18["18 /10x-configure-hook"]
-        S19["19 /10x-e2e-setup"]
-        S20["20 /10x-observability-audit"]
-    end
+#### 2. Product and project foundations (stage B, once per project)
 
-    subgraph C["C. Roadmap and lanes"]
-        S21["21 /10x-roadmap open milestone"]
-        S22["22 Pick ready slice"]
-        S23["23 Parallel check + git worktree"]
-    end
+```mermaid
+flowchart TD
+    IN(["From diagram 1"]) --> S5["5 /10x-init"]
+    S5 --> S6["6 /10x-shape"]
+    S6 --> S7["7 /10x-prd"]
+    S7 --> T{"Project type?"}
+    T -->|"greenfield"| S12["12 /10x-tech-stack-selector"]
+    S12 --> S13["13 /10x-bootstrapper"]
+    T -->|"brownfield"| S8["8 /10x-repo-map"]
+    S8 --> S9["9 /10x-stack-assess"]
+    S9 --> S10["10 /10x-health-check"]
+    S10 --> S11["11 /10x-domain-distillation"]
+    S13 --> S14["14 /10x-agents-md"]
+    S11 --> S14
+    S14 --> S15["15 /10x-rule-review"]
+    S15 --> S16["16 /10x-infra-research"]
+    S16 --> S17["17 /10x-test-plan"]
+    S17 --> S18["18 /10x-configure-hook"]
+    S18 --> S19["19 /10x-e2e-setup"]
+    S19 --> S20["20 /10x-observability-audit"]
+    S20 --> OUT(["Roadmap: diagram 3"])
 
-    subgraph D["D. Change preparation"]
-        S24["24 /10x-ui pre-audit"]
-        S25["25 /10x-new"]
-        S26["26 /10x-research"]
-        S27["27 Legacy research prompts"]
-        S28["28 Domain refactor prompts"]
-        S29["29 /10x-frame"]
-    end
+    classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
+    classDef auto fill:#e3ecfa,stroke:#3b6db3
+    class S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20 opt
+    class T auto
+```
 
-    subgraph E["E. Planning"]
-        S30["30 /10x-plan"]
-        S31{"31 /10x-plan-review"}
-    end
+#### 3. Roadmap and lanes (stage C)
 
-    subgraph F["F. Build (one executor per phase)"]
-        EX{"Phase type?"}
-        S32["32 /10x-implement"]
-        S33["33 /10x-tdd"]
-        S34["34 /10x-e2e"]
-        S35["35 /10x-goal-implement"]
-        G{"Gates green?"}
-        MORE{"More phases?"}
-        S36["36 Epilogue commit"]
-        S37["37 /10x-status"]
-    end
+```mermaid
+flowchart TD
+    I1(["From diagram 1: feature on a set-up project"]) --> M{"Milestone open?"}
+    I2(["From diagram 2: foundations ready"]) --> M
+    I3(["From diagram 7: next slice"]) --> M
+    DD["11 /10x-domain-distillation fix-first item"] --> SH["6 /10x-shape"]
+    SH --> S21
+    DS["Out-of-scope discovery during build"] --> AS["/10x-roadmap add slice"]
+    M -->|"no"| S21["21 /10x-roadmap open milestone"]
+    M -->|"yes"| S22["22 Pick ready slice"]
+    S21 --> S22
+    AS --> S22
+    S22 --> P{"Run in parallel with another slice?"}
+    P -->|"yes, no shared files"| S23["23 git worktree add"]
+    P -->|"no"| OUT(["Change origins: diagram 4"])
+    S23 --> OUT
 
-    subgraph GR["G. Review and learning"]
-        S38{"38 /10x-impl-review"}
-        S39["39 Fix loop"]
-        S40["40 /10x-lesson"]
-    end
+    classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
+    classDef auto fill:#e3ecfa,stroke:#3b6db3
+    class DD,SH,DS,AS,S21,S22,S23 opt
+    class M,P auto
+```
 
-    subgraph H["H. Integration and release"]
-        S41["41 PR, /10x-impl-review-ci, merge, deploy"]
-    end
+#### 4. Change origins (inputs into `/10x-new`)
 
-    subgraph I["I. Close"]
-        S42(["42 /10x-archive"])
-        CM["/10x-roadmap close milestone"]
-        WT["Remove worktree"]
-    end
+```mermaid
+flowchart LR
+    O1(["Roadmap slice with Change ID: diagram 3"]) --> S25["25 /10x-new"]
+    O2(["Small known change: diagram 1"]) --> S25
+    O3(["Narrow opportunity signal: diagram 1"]) --> S25
+    O4["17 /10x-test-plan rollout phase"] --> S25
+    O5["24 /10x-ui pre-audit"] --> S25
+    O6["Production bug report"] --> S25
+    O7["Hook error the agent cannot fix"] --> S25
+    O8["20 /10x-observability-audit top fix"] --> S25
+    O9["8 /10x-repo-map goal for feature analysis"] --> S25
+    O10["Refactor opportunities from research"] --> S25
+    O11["Team requirements"] --> S25
+    O12["Archived change to revisit"] --> S25
+    S25 --> OUT(["Preparation: diagram 5"])
 
-    S1 --> S2 --> S3 --> S4 --> S5
-    S1 -.->|"small or known change"| S30
-    S1 -.->|"project ready"| S22
-    S5 --> S6 --> S7 --> BF
-    BF -->|"greenfield"| S12 --> S13 --> S14
-    BF -->|"brownfield"| S8 --> S9 --> S10 --> S11 --> S14
-    S14 --> S15 --> S16 --> S17 --> S18 --> S19 --> S20 --> S21
-    S21 --> S22 --> S23 --> S24 --> S25
-    S25 --> S26 --> S27 --> S28 --> S29 --> S30
-    S25 -.-> S30
-    S30 --> S31
+    classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
+    class O4,O5,O6,O7,O8,O9,O10,O11,O12,S25 opt
+```
+
+Sources: roadmap slice (`10x-roadmap`, lesson m2l2), opportunity signal (lesson m5l1), test-plan phase (`10x-test-plan`), UI audit (`10x-ui`), production bug (lesson m3l5), hook error (lesson m3l3), observability fix (`10x-observability-audit`), repo-map goal (lesson m4l3), refactor opportunities (prompt `m4l4-1-new-change-intention`), team requirements (prompt `m5l3-cicd`), archived change (`10x-archive`). `/10x-new` stays optional: `/10x-plan`, `/10x-research` and `/10x-frame` create the folder when it is missing.
+
+#### 5. Change preparation (stage D)
+
+```mermaid
+flowchart TD
+    IN(["From diagram 4: 25 /10x-new"]) --> Q{"What is unclear?"}
+    Q -->|"codebase facts"| S26["26 /10x-research"]
+    Q -->|"problem framing"| S29["29 /10x-frame"]
+    Q -->|"nothing"| OUT(["Plan: diagram 6"])
+    S26 --> L{"Legacy repo?"}
+    L -->|"yes"| S27["27 Legacy research prompts"]
+    L -->|"no"| DR{"Domain rule scattered?"}
+    S27 --> DR
+    DR -->|"yes"| S28["28 Domain refactor prompts"]
+    DR -->|"no"| FD{"Framing doubt?"}
+    S28 --> FD
+    FD -->|"yes"| S29
+    FD -->|"no"| OUT
+    S29 --> OUT
+
+    classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
+    classDef auto fill:#e3ecfa,stroke:#3b6db3
+    class S26,S27,S28,S29 opt
+    class Q,L,DR,FD auto
+```
+
+#### 6. Planning and build (stages E and F)
+
+```mermaid
+flowchart TD
+    IN(["From diagram 5"]) --> S30["30 /10x-plan"]
+    S30 --> RP{"Review the plan?"}
+    RP -->|"yes"| S31{"31 /10x-plan-review verdict"}
+    RP -->|"no"| EX{"Phase type?"}
     S31 -->|"SOUND"| EX
     S31 -->|"REVISE"| S30
-    S31 -->|"RETHINK"| S29
-    S30 -.->|"skip review"| EX
-    EX -->|"default"| S32
-    EX -->|"testable first"| S33
-    EX -->|"needs browser"| S34
-    EX -->|"unattended"| S35
-    S32 --> G
+    S31 -->|"RETHINK"| FR(["29 /10x-frame: diagram 5"])
+    EX -->|"default"| S32["32 /10x-implement"]
+    EX -->|"testable first"| S33["33 /10x-tdd"]
+    EX -->|"needs browser"| S34["34 /10x-e2e"]
+    EX -->|"unattended"| S35["35 /10x-goal-implement"]
+    S32 --> G{"Gates green?"}
     S33 --> G
     S34 --> G
     S35 --> G
-    G -->|"no, third failure"| S30
-    G -->|"yes, commit"| MORE
+    G -->|"no, attempts 1-2"| FX["Fix and rerun gates"]
+    FX --> G
+    G -->|"no, attempt 3"| S30
+    G -->|"yes"| CO["Phase commit, Progress SHA"]
+    CO --> MORE{"More phases?"}
     MORE -->|"yes"| EX
-    MORE -->|"no"| S36
-    S37 -.-> EX
-    S36 --> S38
-    S36 -.->|"skip review"| S41
-    S38 -->|"APPROVED"| S41
-    S38 -->|"NEEDS ATTENTION"| S39
-    S38 -->|"REJECTED"| S30
-    S39 --> S38
-    S38 -.->|"recurring pattern"| S40
-    S40 -.->|"read by next change"| S26
-    S41 --> S42
-    S36 -.->|"local only"| S42
-    S42 --> CM --> WT
-    WT -->|"next slice"| S22
+    MORE -->|"no"| S36["36 Epilogue commit"]
+    S36 --> OUT(["Review: diagram 7"])
+    S37["37 /10x-status"] -.->|"resume command"| EX
 
     classDef core fill:#d6f5d6,stroke:#2e7d32,stroke-width:2px
     classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
     classDef auto fill:#e3ecfa,stroke:#3b6db3
-    class S30,S32,S33,S34,S35,S42 core
-    class S2,S3,S4,S5,S6,S7,S8,S9,S10,S11,S12,S13,S14,S15,S16,S17,S18,S19,S20,S21,S22,S23,S24,S25,S26,S27,S28,S29,S31,S37,S38,S39,S40,S41,CM,WT opt
-    class S36,G,MORE,EX,BF auto
+    class S30,S32,S33,S34,S35 core
+    class S31,S37 opt
+    class RP,EX,G,FX,CO,MORE,S36 auto
 ```
 
-Green nodes are the mandatory core; any one of steps 32 to 35 satisfies the build step. Dashed nodes are optional. Blue nodes are automatic or decision points. Dotted edges are shortcuts that skip optional steps.
+Any one of steps 32 to 35 satisfies the build step. Phases of one plan may use different executors.
+
+#### 7. Review, release and close (stages G, H and I)
+
+```mermaid
+flowchart TD
+    IN(["From diagram 6"]) --> RC{"Review the code?"}
+    RC -->|"yes"| S38{"38 /10x-impl-review verdict"}
+    RC -->|"no"| SH{"Ship through a PR?"}
+    S38 -->|"APPROVED"| SH
+    S38 -->|"NEEDS ATTENTION"| S39["39 Fix findings in triage"]
+    S39 --> S38
+    S38 -->|"REJECTED"| BP(["30 /10x-plan: diagram 6"])
+    S38 -.->|"recurring pattern"| S40["40 /10x-lesson"]
+    S40 -.->|"read by next change"| NX(["lessons.md"])
+    SH -->|"yes"| PR["41 Push branch, open PR"]
+    PR --> CI["41 /10x-impl-review-ci"]
+    CI --> MG["41 Human merge"]
+    MG --> DP["41 Deploy"]
+    DP --> S42["42 /10x-archive"]
+    SH -->|"no, local only"| S42
+    S42 --> MS{"All milestone slices done?"}
+    MS -->|"yes"| CM["/10x-roadmap close milestone"]
+    MS -->|"no"| WQ{"Worktree used?"}
+    CM --> WQ
+    WQ -->|"yes"| WT["git worktree remove"]
+    WQ -->|"no"| NEXT(["Next slice: diagram 3"])
+    WT --> NEXT
+
+    classDef core fill:#d6f5d6,stroke:#2e7d32,stroke-width:2px
+    classDef opt fill:#f5f5f5,stroke:#777,stroke-dasharray:4 3
+    classDef auto fill:#e3ecfa,stroke:#3b6db3
+    class S42 core
+    class S38,S39,S40,PR,CI,MG,DP,CM,WT opt
+    class RC,SH,MS,WQ auto
+```
 
 ### Change status lifecycle
 
 ```mermaid
 stateDiagram-v2
+    state build <<choice>>
     [*] --> new: /10x-new
-    new --> preparing: /10x-research or /10x-frame
+    new --> preparing: /10x-research
+    new --> preparing: /10x-frame
     new --> planned: /10x-plan
     preparing --> planned: /10x-plan
     planned --> plan_reviewed: /10x-plan-review
-    planned --> implementing: executor starts
-    plan_reviewed --> implementing: executor starts
+    planned --> build
+    plan_reviewed --> build
+    build --> implementing: /10x-implement
+    build --> implementing: /10x-tdd
+    build --> implementing: /10x-e2e
+    build --> implementing: /10x-goal-implement
     implementing --> implemented: last phase + epilogue
     implemented --> impl_reviewed: /10x-impl-review
     implemented --> archived: /10x-archive
