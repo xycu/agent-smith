@@ -41,8 +41,8 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 
 | ID   | Change ID                    | Outcome (user can …)                                                                  | Prerequisites | PRD refs                          | Status   |
 | ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------- | --------------------------------- | -------- |
-| S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | done |
-| S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | done |
+| S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | done     |
+| S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | done     |
 | S-03 | risk-gated-review            | have changes touching risky paths always get both reviews, and a halt at the top level | S-01          | FR-010                            | proposed |
 | S-04 | plan-review-skip-on-clean-plan | have a clean plan go straight to implementation, other plans still get plan-review  | S-01, S-03    | US-01, FR-002                     | blocked  |
 | S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | proposed |
@@ -98,8 +98,8 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Parallel with:** S-01, S-03, S-04
 - **Blockers:** —
 - **Unknowns:**
-  - Where can token or cost figures be read from (PRD Open Question 4)? Record model and effort now and add figures once a source is found; finding the source is the first task. — Owner: user. Block: no.
-  - Which moment counts as "before archive", given the 10x toolkit cannot be changed? — Owner: user. Block: no.
+  - Where can token or cost figures be read from (PRD Open Question 4)? Resolved 2026-10-30: the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. — Owner: user. Block: no.
+  - Which moment counts as "before archive", given the 10x toolkit cannot be changed? Resolved 2026-10-30: the router writes `agent-smith/report.md` when a run ends (done or halt). — Owner: user. Block: no.
 - **Risk:** The usage figures may not be readable, leaving the report with model and effort only. It is still useful for the baseline comparison, so it goes early.
 - **Status:** done
 
@@ -161,19 +161,19 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 
 | Roadmap ID | Change ID                      | Suggested issue title                                   | Ready for `/10x-plan` | Notes                                   |
 | ---------- | ------------------------------ | ------------------------------------------------------- | --------------------- | --------------------------------------- |
-| S-01       | cheaper-routing-simple-change  | Route simple changes to a cheaper model and effort      | yes                   | Run `/10x-plan cheaper-routing-simple-change` |
-| S-02       | per-step-usage-report          | Report model and effort per pipeline step               | yes                   | Run `/10x-plan per-step-usage-report`   |
-| S-03       | risk-gated-review              | Force reviews and a halt for risky paths                | no                    | Needs S-01 done                         |
+| S-01       | cheaper-routing-simple-change  | Route simple changes to a cheaper model and effort      | done                  | Archived 2026-10-30                     |
+| S-02       | per-step-usage-report          | Report model and effort per pipeline step               | done                  | Archived 2026-10-30                     |
+| S-03       | risk-gated-review              | Force reviews and a halt for risky paths                | yes                   | Run `/10x-plan risk-gated-review`       |
 | S-04       | plan-review-skip-on-clean-plan | Skip plan-review when the plan is clean                 | no                    | Blocked: define "clean"; needs S-01, S-03 |
-| S-05       | pr-comment-report              | Post the usage report as a pull request comment         | no                    | Needs S-02 done                         |
-| S-06       | baseline-usage-comparison      | Compare a routed run with a baseline run                | no                    | Needs S-01 and S-02 done                |
+| S-05       | pr-comment-report              | Post the usage report as a pull request comment         | yes                   | Run `/10x-plan pr-comment-report`       |
+| S-06       | baseline-usage-comparison      | Compare a routed run with a baseline run                | yes                   | Run `/10x-plan baseline-usage-comparison`; Open Question 1 (success target) is still open |
 
 ## Open Roadmap Questions
 
 1. **What usage drop counts as success?** — Baseline is known (a full run on Sonnet-5.5 at high effort, compared by A/B test), but the target percentage is not set. Owner: user. Block: S-06.
 2. **What does "a dep for other models" mean?** — The user said the pipeline is a dependency for other models (meaning unclear: other modules or projects that depend on it?). Which ones, and what must stay stable for them? Owner: user. Block: roadmap-wide.
 3. **Which artifacts does the router score, and who produces the score?** — Code, intent MD files, others; a review step, or the router itself? ADR-001 Phase 1 needs no scorer: the script reads artifacts and diff stats. An LLM scorer is deferred to Phase 2; confirm. Owner: user. Block: S-01, S-04.
-4. **Is usage or cost data available to the router, and from where?** — The user named usage and cost metrics as a rubric input. Owner: user. Block: S-02, S-06.
+4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (2026-10-30): the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. Not yet confirmed on a foreground Agent result: the real-run evidence for S-02 row 3.6 was archived unfilled. Owner: user. Block: S-06.
 5. **Is OpenSpec (FR-006) out of scope for this delivery?** — The user called it nice-to-have but did not list it as a non-goal. This roadmap parks it. Owner: user. Block: roadmap-wide.
 6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — The user expects the router to be cheap to run, like Haiku-5.5. Today the router is a plain script with no LLM. ADR-001 Phase 1 keeps it a script; a cheap-model scorer only appears in Phase 2. Owner: user. Block: S-01, S-04.
 7. **What are the expected target_scale.qps and target_scale.data_volume?** — Not captured during shaping. Owner: user. Block: roadmap-wide.
@@ -195,8 +195,6 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 (Append-only. Empty on the first milestone.)
 
 ## Done
-
-(Empty on first generation. `/10x-archive` appends an entry here when a change whose `Change ID` matches an item is archived.)
 
 - **S-01: user can run the pipeline on a simple change and see its steps routed to a cheaper model and effort than a complex change gets.** — Archived 2026-10-30 → `context/archive/2026-10-30-cheaper-routing-simple-change/`. Lesson: —.
 - **S-02: user can see, for a finished run, a report of which model and effort ran each step, with usage figures where readable, written before the change is archived.** — Archived 2026-10-30 → `context/archive/2026-10-30-per-step-usage-report/`. Lesson: —.
