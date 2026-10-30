@@ -1107,7 +1107,7 @@ function next(id, policy) {
 
 // Read-only, files only, no git: did /10x-archive move this change and stamp it archived.
 function verifyArchive(id, flags) {
-  const no = (reason) => out({ archived: false, reason }, 1);
+  const no = (reason, extra = {}) => out({ archived: false, reason, ...extra }, 1);
   let name;
   if (flags.path !== undefined) {
     if (typeof flags.path !== "string") no("--path needs a folder");
@@ -1116,7 +1116,10 @@ function verifyArchive(id, flags) {
     name = m[1];
   } else {
     const found = archiveDirs(id);
-    if (found.length > 1) no(`More than one archive folder for ${id}: ${found.map((n) => `context/archive/${n}`).join(", ")}. Pass --path.`);
+    if (found.length > 1) {
+      const folders = found.map((n) => `context/archive/${n}`);
+      no(`More than one archive folder for ${id}: ${folders.join(", ")}. Pass --path.`, { ambiguous: folders });
+    }
     name = found[0];
   }
   const p = paths(id);
@@ -1133,10 +1136,11 @@ function verifyArchive(id, flags) {
   const status = frontmatterField(changeFile, "status");
   if (status !== "archived") no(`${rel}/change.md has status ${status === null ? "(none)" : status}, not archived.`);
   if (stillThere) no(`context/changes/${id} still exists next to ${rel}.`);
+  const archivedAt = frontmatterField(changeFile, "archived_at");
   out({
     archived: true,
     path: rel,
-    archivedAt: frontmatterField(changeFile, "archived_at"),
+    archivedAt: archivedAt === "null" ? null : archivedAt,
     report: fs.existsSync(path.join(ROOT, rel, "agent-smith/report.md")) ? `${rel}/agent-smith/report.md` : null,
   });
 }
