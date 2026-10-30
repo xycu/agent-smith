@@ -237,6 +237,42 @@ test("simple is false where the floor undid the discount and true where it survi
   assert.equal(readLogEntries(plan)[0].simple, true);
 });
 
+test("the effort floor beats maxTier", () => {
+  const project = makeProject({ plan: planText(), policy: { steps: { "plan-review": { minTier: 0, maxTier: 0 } } } });
+  const res = init(project, PLAIN_GOAL);
+  assert.equal(res.json.step, "plan-review");
+  const e = readLogEntries(project)[0];
+  assert.equal(e.tier, 3);
+  assert.equal(e.effort, "high");
+  assert.match(e.tierWhy, /clamped to 0/);
+  assert.match(e.tierWhy, /floor high \(tier 3\)/);
+});
+
+test("simple is false where the lean offset or the clamp absorbed the discount", () => {
+  // Lean impl-review: 3 - 1 (discount) - 1 (offset) = 1, raised to the floor 2; without the discount it is 2 too.
+  const lean = makeProject({ plan: planText({ done: 1 }) });
+  writeReview(lean, "plan-review");
+  init(lean, "fix typo");
+  const leanEntry = readLogEntries(lean)[0];
+  assert.equal(leanEntry.step, "impl-review");
+  assert.match(leanEntry.tierWhy, /-1 simple change/);
+  assert.equal(leanEntry.simple, false);
+
+  // A minTier clamp that lifts the discounted plan tier back to the undiscounted one.
+  const clamp = makeProject({ policy: { steps: { plan: { minTier: 3 } } } });
+  init(clamp, "fix typo");
+  const clampEntry = readLogEntries(clamp)[0];
+  assert.match(clampEntry.tierWhy, /clamped to 3/);
+  assert.equal(clampEntry.simple, false);
+
+  // A discount that survives is still reported.
+  const kept = makeProject();
+  init(kept, "fix typo");
+  const keptEntry = readLogEntries(kept)[0];
+  assert.equal(keptEntry.step, "plan");
+  assert.equal(keptEntry.simple, true);
+});
+
 // ---- malformed input ---------------------------------------------------------
 
 test("a meta.json that is not an object falls back and the output stays valid JSON", () => {
