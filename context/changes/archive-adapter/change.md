@@ -16,7 +16,7 @@ Scope:
 - Opt-in `--archive`. The adapter around `/10x-archive`, which stays unchanged:
   1. At `done`, `route.mjs` halts if anything is staged.
   2. It writes the final `report.md`.
-  3. It commits `context/changes/<id>/agent-smith/`.
+  3. It commits the whole `context/changes/<id>/` folder in one Conventional Commit (owner decision A, 2026-10-30; `research.md` Open Question 1).
   4. It checks that the change folder is clean.
   5. It returns a new `archive` action, so no result file is written into the folder that is about to move.
 - The archive subagent runs `/10x-archive <id>` at effort `high` or above. On warnings it answers `Continue archiving`; on a SHA repoint it answers `Archive without repointing`.

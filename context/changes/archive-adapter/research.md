@@ -192,3 +192,9 @@ All items below are planned in `context/changes/rigor-levels/change.md` and its 
 8. **Second `done` with the same state.** A resumed `done` rewrites `meta.json` and `report.md`. The commit can then be empty. The plan needs "skip the commit when `git diff --cached --quiet` passes after `git add`", the same guard as the goal-implement epilogue (`10x-goal-implement/SKILL.md:258`).
 9. **Archive step and the usage report.** Without a result file, the archive subagent's token figures are lost. Accept, or record them in the orchestrator's final message only?
 10. **Roadmap interplay.** The skill closes a roadmap item and stages it only when `roadmap.md` was clean (`10x-archive/SKILL.md:194`). Whether the adapter should warn about a dirty `roadmap.md` before archive is unspecified.
+
+---
+
+## Owner decisions (2026-10-30)
+
+- **Open Question 1 resolved: option A.** The router commits the whole `context/changes/<id>/` folder in one Conventional Commit before archive (`git add context/changes/<id>`), so `/10x-archive` hard block 1 clears on a normal run. Questions 2-10 stay open for `/10x-plan`.
