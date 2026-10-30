@@ -534,8 +534,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [ ] 1.1 Rule-form test passes on all current rules and rejects the bad fixtures: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 1.2 ADR-004 has its required sections: `test $(grep -c '^## ' docs/ADR/ADR-004-prompt-rules-as-scenarios.md) -ge 4`
+- [x] 1.1 Rule-form test passes on all current rules and rejects the bad fixtures: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 1.2 ADR-004 has its required sections: `test $(grep -c '^## ' docs/ADR/ADR-004-prompt-rules-as-scenarios.md) -ge 4`
 
 #### Manual
 

@@ -1,7 +1,7 @@
 ---
 change_id: rigor-levels
 title: Rigor levels, churn risk and skip logging for the 10x pipeline router
-status: planned
+status: implementing
 created: 2026-10-30
 updated: 2026-10-30
 archived_at: null
