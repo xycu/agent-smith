@@ -4,11 +4,11 @@
 
 Add an opt-in `--archive` flag to the pipeline. When a run that started with `--archive` reaches `done`, the router commits the whole `context/changes/<id>/` folder in one Conventional Commit, checks that the commit holds only that folder and that the folder is clean, and returns a new `archive` action. The orchestrator then runs `/10x-archive <id>` in one subagent that has its answers to the skill's prompts given as rules, and a read-only `route.mjs verify-archive <id> --path <archivePath>` confirms the move. `/10x-archive` stays unchanged. Nothing writes into the folder after it moves.
 
-This is change 5 of 5 (roadmap S-09). It extends the ADR-003 skeleton that `rigor-levels` writes and uses that change's test harness, `meta.json` persistence and effort floor. Implementation waits for the whole `rigor-levels` change (roadmap S-03) to be merged; see "Dependency on `rigor-levels`".
+This is change 5 of 5 (roadmap S-09). It extends the ADR-003 skeleton that `rigor-levels` writes and uses that change's test harness, `meta.json` persistence and effort floor. The whole `rigor-levels` change (roadmap S-03) is merged and archived at `context/archive/2026-10-30-rigor-levels/`, so the dependency is met; see "Dependency on `rigor-levels`".
 
 ## Current State Analysis
 
-Line numbers are not used for `route.mjs`: S-03 moves most of it. Code is named by function, as in the merged `rigor-levels` router (checked against branch `rigor-levels-fix`, the implementation with its review fix).
+Line numbers are not used for `route.mjs`: S-03 moves most of it. Code is named by function, as in the merged `rigor-levels` router (checked against the merged router on `main`, the `rigor-levels` implementation with its review fix).
 
 - `decide()` ends at `return { done: true, reason, manualPending }`. `next()` turns it into `endRun(... { action: "done", ... })`. That is the only place the adapter hooks in.
 - `endRun` writes the log, `meta.json` and `report.md`, then calls `out()`, which calls `process.exit`. Git work cannot follow `endRun`, so it has to be split into a write step and a print step.
@@ -27,7 +27,7 @@ Line numbers are not used for `route.mjs`: S-03 moves most of it. Code is named 
 - Without `--archive`, behavior is unchanged: `done` stays `done`, and the router runs no git write.
 - With `--archive`, at `done` the router: halts if anything is staged, HEAD is detached, a merge or rebase is in progress, git would ignore one of the four probe files, `change.md` has no valid `created`, the archive destination already exists, or (only when `archive.haltOnManualPending` is `true`, default `false`) Manual rows are pending; writes the final `report.md`, which lists the pending Manual rows; commits `context/changes/<id>/` as `chore(<id>): commit change folder before archive` (skipped when the commit would be empty); checks that nothing is staged, that the commit touched only that folder, and that the folder is clean; returns an `archive` action. A failed git command halts with the git message and no archive. Nothing is left staged by the router after a failed commit.
 - The `archive` action carries the done summary, the report path, the expected archive path, the ignored files that were not committed and a prompt for `/10x-archive`. The archive step runs at effort `high` or above through a pinned tier in `policy.json`.
-- Every halt of a run with `--archive` says whether the pre-archive commit exists (`committed`) and carries an `archive: "skipped: ..."` field. Which halt writes files and which only prints is fixed per halt kind in a table (Phase 3, change 2).
+- A halt printed by the `done` branch or by the end of the run (`endRun`) in a run with `--archive` says whether the pre-archive commit exists (`committed`) and carries an `archive: "skipped: ..."` field. Halts printed elsewhere carry neither: a missing result file, the guard halts for an archived change, usage and flag errors, halts at `init` and `Router error:` (ADR-003 lists them). Which halt writes files and which only prints is fixed per halt kind in a table (Phase 3, change 2).
 - `route.mjs verify-archive <id> [--path <archivePath>]` is read-only. It reports `archived: true` only when the archive folder (the one named by `--path`, else the single `context/archive/YYYY-MM-DD-<id>/` match) has `status: archived` in its `change.md` and `context/changes/<id>/` is gone.
 - `next`, `init` and `status --report` on an archived change, and on a change whose folder is still in place but whose `change.md` says `status: archived` (half-archived), halt with JSON and write nothing.
 - `SKILL.md`, `README.md`, `AGENTS.md`, ADR-003 and PRD FR-008 describe the adapter. ADR-003 records the router's first git write (index and commit writes only). The roadmap S-09 Outcome says "commit the change folder".
@@ -61,7 +61,7 @@ Line numbers are not used for `route.mjs`: S-03 moves most of it. Code is named 
 - Warning about a dirty `roadmap.md` in the router. `/10x-archive` already prints that notice; the prompt asks the subagent to copy it into its assumptions.
 - Unarchiving, and finishing a change whose folder `/10x-archive` already stamped `archived` but did not move (partial state): `verify-archive` reports it as not archived, `init`, `next` and `status --report` halt without writing, a human fixes it.
 - Detecting a staged-but-uncommitted archive (the `chore(archive)` commit failed after the move): `verify-archive` stays file-only, so the orchestrator prints a reminder to check `git status`.
-- Staged merging of `rigor-levels`: implementation starts only after the whole change is merged (see "Dependency on `rigor-levels`").
+- Staged merging of `rigor-levels`: the whole change is merged, so there is nothing to stage (see "Dependency on `rigor-levels`").
 - A human gate on pending Manual rows by default: archiving with pending Manual rows stays the explicit opt-in the owner set. `archive.haltOnManualPending` (default `false`) exists for projects that want the gate.
 
 ## Implementation Approach
@@ -97,7 +97,7 @@ Question 1 is decided by the owner (option A). The rest are decided here with th
 
 ### Dependency on `rigor-levels`
 
-This plan builds on the approved `rigor-levels` plan (reviewed SOUND, 2026-10-30). **Implementation of `archive-adapter` starts only after the whole `rigor-levels` change (roadmap S-03) is merged.** `rigor-levels` is one change on one branch, and the roadmap gates S-09 on S-03 as a whole ("waits for S-03 to merge"); nothing in its plan lands phases separately, so staged merging is unsupported. Research and planning do not wait. The phase numbers below name which `rigor-levels` phase delivers each thing this plan reuses; they are not merge checkpoints. It reuses these names and mechanisms and defines none of them again:
+This plan builds on the approved `rigor-levels` plan (reviewed SOUND, 2026-10-30). **The whole `rigor-levels` change (roadmap S-03) is merged (archived at `context/archive/2026-10-30-rigor-levels/`), so the dependency is met and implementation of `archive-adapter` can start.** `rigor-levels` was one change on one branch, and the roadmap gated S-09 on S-03 as a whole; nothing in its plan landed phases separately, so staged merging was unsupported. Research and planning did not wait. The phase numbers below name which `rigor-levels` phase delivers each thing this plan reuses; they are not merge checkpoints. It reuses these names and mechanisms and defines none of them again:
 
 - `{ ...prev, id, goal }` in `init`, so `meta.archive` persists with `meta.rigor` and `meta.baseSha`; flag validation before any write; the outer `try/catch` in the dispatch that prints `{ "action": "halt", "reason": "Router error: ..." }`.
 - Skip entries in `run.jsonl`, the "executed entries" helper, and the `Skipped steps` report section: the archive adapter reads the log only to write it out, and uses the executed count where it prints `steps`.
@@ -117,7 +117,7 @@ Shared edits: both plans edit the usage string in `route.mjs` (`rigor-levels` ad
 
 Git layer: `rigor-levels` Phase 3 adds `gitOut(args)`, which prepends `-c core.quotePath=false`, has no timeout, discards stderr and turns every failure into `null` ("unavailable"). The adapter needs the exit status and stderr. Phase 2 below adds one wrapper `runGit(args, opts)` returning `{ status, stdout, stderr }` that never throws and prepends the same `-c core.quotePath=false`; since `rigor-levels` is merged first, put `runGit` beside `gitOut` and make `gitOut` a thin caller (`status === 0 ? stdout : null`). The only `-c` option in any router git call is `core.quotePath=false`, a display setting; the router sets no `-c` that touches hooks, signing, identity or the index (`core.hooksPath`, `commit.gpgsign`, `user.*`).
 
-Test harness facts (checked against `rigor-levels-fix` `helpers.mjs`): `makeProject({ id, plan, policy, change, nest })` writes a `change.md` without `created`, so every full-path test rewrites it with `created: 2026-10-30` through a local `archiveProject()` helper in `archive.test.mjs`; `gitEnv(project)` takes the project and fixes identity and config; `run(project, args, { env })` already accepts `env`, so the router subprocess gets `gitEnv(project)`; `git(project, args)` and `gitInit(project)` run in `project.base`, which is the git root, while `project.root` (the router's working directory) is `base/<nest>` when `nest` is set; `commitFiles` commits files given relative to `project.base`.
+Test harness facts (checked against `helpers.mjs` of the merged `rigor-levels` on `main`): `makeProject({ id, plan, policy, change, nest })` writes a `change.md` without `created`, so every full-path test rewrites it with `created: 2026-10-30` through a local `archiveProject()` helper in `archive.test.mjs`; `gitEnv(project)` takes the project and fixes identity and config; `run(project, args, { env })` already accepts `env`, so the router subprocess gets `gitEnv(project)`; `git(project, args)` and `gitInit(project)` run in `project.base`, which is the git root, while `project.root` (the router's working directory) is `base/<nest>` when `nest` is set; `commitFiles` commits files given relative to `project.base`.
 
 ## Phase 1: Re-entry guard and `verify-archive`
 
@@ -446,14 +446,14 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 ## References
 
-- Related research: `context/changes/archive-adapter/research.md` (including Owner decisions), `context/changes/rigor-levels/research.md` (section 4, Follow-up 1 "Archive adapter")
-- Contract plan: `context/changes/rigor-levels/plan.md` and its plan review, both approved SOUND on branch `rigor-levels-plan-review-2`
+- Related research: `context/changes/archive-adapter/research.md` (including Owner decisions), `context/archive/2026-10-30-rigor-levels/research.md` (section 4, Follow-up 1 "Archive adapter")
+- Contract plan: `context/archive/2026-10-30-rigor-levels/plan.md` and its plan review, both approved SOUND
 - Plan review of this change: `context/changes/archive-adapter/reviews/plan-review.md` (round 2, verdict REVISE; its findings F1 to F8 are resolved in this revision, round 1 F1 to F9 in the one before)
-- Router (by function, in the merged `rigor-levels` version, branch `rigor-levels-fix`): `endRun`, `decide` (the `done` return), `next`, `main` (dispatch and `init`), `gitOut`, `tierFor`, `resolveRigor`, `buildReport`, `attachResult`
+- Router (by function, in the merged `rigor-levels` version on `main`): `endRun`, `decide` (the `done` return), `next`, `main` (dispatch and `init`), `gitOut`, `tierFor`, `resolveRigor`, `buildReport`, `attachResult`
 - Orchestrator: `skills/10x-pipeline/SKILL.md` (Start, Loop, Rules, "How the tier moves")
 - Policy: `skills/10x-pipeline/policy.json` (`steps`, `prompts`, `rigor`)
 - `/10x-archive`: `~/.claude/skills/10x-archive/SKILL.md:64-143` (blocks, prompts), `:113` (SHA history check), `:154-206` (move, commit), `references/archive-sha.md`
-- Test helpers: `skills/10x-pipeline/test/helpers.mjs` and `rules.test.mjs` in `rigor-levels-fix`
+- Test helpers: `skills/10x-pipeline/test/helpers.mjs` and `rules.test.mjs` on `main`
 - Prior design: `docs/ADR/ADR-001-phased-complexity-routing.md`, `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md`
 - Requirements: `context/foundation/prd.md` FR-004, FR-008
 
