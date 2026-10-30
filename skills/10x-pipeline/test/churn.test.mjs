@@ -3,7 +3,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
-  cleanupAll, makeProject, planText, run, init, writeLog, entry, readMetaFile, writeMetaFile,
+  cleanupAll, makeProject, writePlan, planText, run, init, writeLog, entry, readLogEntries, readMetaFile, writeMetaFile,
   gitAvailable, gitEnv, gitInit, commitFiles, git,
 } from "./helpers.mjs";
 
@@ -59,6 +59,103 @@ test("the plan paths are read from both **File**: and **Files**: lines", { skip 
   assert.equal(r.planPaths, 3);
   assert.deepEqual(r.planHits, ["f9.js"]);
   assert.equal(r.level, "standard");
+});
+
+// Hot files in src/: src/f4.js and src/f9.js. Each plan shape below names one of them without the exact relative path.
+function srcRisk(token) {
+  const project = makeProject();
+  writePlan(project, planWith(`**File**: ${token(project.root)}`));
+  dryRunRepo(project, "src/");
+  return { project, r: risk(project) };
+}
+
+test("a plan path that is a directory matches the hot files below it", { skip }, () => {
+  for (const token of ["`src/`", "`src`", "`./src/`"]) {
+    const { r } = srcRisk(() => token);
+    assert.deepEqual(r.hot, ["src/f4.js", "src/f9.js"], token);
+    assert.equal(r.planPaths, 1, token);
+    assert.deepEqual(r.planHits, ["src/f4.js", "src/f9.js"], token);
+    assert.deepEqual(r.unclassified, [], token);
+    assert.equal(r.level, "standard", token);
+  }
+  // A directory with no hot file below it is checked, not hot.
+  const cold = srcRisk(() => "`lib/`").r;
+  assert.equal(cold.planPaths, 1);
+  assert.deepEqual(cold.planHits, []);
+});
+
+test("a plan path that is a glob matches through the glob matcher", { skip }, () => {
+  const star = srcRisk(() => "`src/f*.js`").r;
+  assert.deepEqual(star.planHits, ["src/f4.js", "src/f9.js"]);
+  assert.equal(star.planPaths, 1);
+  assert.deepEqual(srcRisk(() => "`src/**`").r.planHits, ["src/f4.js", "src/f9.js"]);
+  assert.deepEqual(srcRisk(() => "`src/f?.js`").r.planHits, ["src/f4.js", "src/f9.js"]);
+  assert.deepEqual(srcRisk(() => "`src/g*.js`").r.planHits, []);
+});
+
+test("an absolute path under the project root is matched; one outside is not classified", { skip }, () => {
+  const inside = srcRisk((root) => `\`${root}/src/f9.js\``);
+  assert.deepEqual(inside.r.planHits, ["src/f9.js"]);
+  assert.equal(inside.r.planPaths, 1);
+  const outside = srcRisk(() => "`/etc/hosts`").r;
+  assert.equal(outside.planPaths, 0);
+  assert.deepEqual(outside.unclassified, ["/etc/hosts"]);
+  assert.deepEqual(outside.planHits, []);
+});
+
+test("a differently cased path matches the hot file", { skip }, () => {
+  const r = srcRisk(() => "`SRC/F9.JS`").r;
+  assert.deepEqual(r.planHits, ["src/f9.js"]);
+  assert.equal(r.planPaths, 1);
+});
+
+test("an unbackticked path with a trailing note or a line number is matched", { skip }, () => {
+  for (const token of ["src/f9.js (new section)", "src/f9.js:12", "src/f9.js:12-20 (edit)", "./src/f9.js"]) {
+    const r = srcRisk(() => token).r;
+    assert.deepEqual(r.planHits, ["src/f9.js"], token);
+    assert.equal(r.planPaths, 1, token);
+    assert.deepEqual(r.unclassified, [], token);
+  }
+});
+
+test("a token that cannot be classified is not a measured path", { skip }, () => {
+  for (const token of ["src/f9.js and the tests", "../outside.js", "~/x.js"]) {
+    const r = srcRisk(() => token).r;
+    assert.equal(r.planPaths, 0, token);
+    assert.equal(r.unclassified.length, 1, token);
+    assert.deepEqual(r.planHits, [], token);
+  }
+});
+
+test("lean plus a directory naming a hot file runs plan-review and raises rigor", { skip }, () => {
+  const project = makeProject({ plan: planWith("**File**: `src/`") });
+  dryRunRepo(project, "src/");
+  const res = runWithGit(project, ["init", project.id, "--goal", "fix typo"]);
+  assert.equal(res.json.step, "plan-review");
+  assert.equal(readMetaFile(project).rigor.level, "standard");
+  assert.equal(readLogEntries(project).filter((e) => e.skipped).length, 0);
+});
+
+test("lean with an unclassified plan path runs plan-review and never skips", { skip }, () => {
+  // Only an unclassified path.
+  const only = makeProject({ plan: planWith("**File**: `/etc/hosts`") });
+  dryRunRepo(only, "src/");
+  const a = runWithGit(only, ["init", only.id, "--goal", "fix typo"]);
+  assert.equal(a.json.step, "plan-review");
+  assert.match(a.json.reason, /risk not measured \(window, 0 plan paths, 1 unclassified\)/);
+  // A cold checked path next to an unclassified one still runs plan-review.
+  const mixed = makeProject({ plan: planWith("**Files**: `lib/cold.js`, `src/f9.js and more`") });
+  dryRunRepo(mixed, "src/");
+  const b = runWithGit(mixed, ["init", mixed.id, "--goal", "fix typo"]);
+  assert.equal(b.json.step, "plan-review");
+  assert.match(b.json.reason, /risk not measured \(window, 1 plan paths, 1 unclassified\)/);
+  assert.equal(readLogEntries(mixed).filter((e) => e.skipped).length, 0);
+  // Control: the cold path alone is measured and skips.
+  const cold = makeProject({ plan: planWith("**File**: `lib/cold.js`") });
+  dryRunRepo(cold, "src/");
+  const c = runWithGit(cold, ["init", cold.id, "--goal", "fix typo"]);
+  assert.equal(c.json.step, "implement");
+  assert.equal(readLogEntries(cold).filter((e) => e.skipped).length, 1);
 });
 
 test("hotMinCommits blocks a young repo", { skip }, () => {
