@@ -80,13 +80,13 @@ test("init keeps every stored meta field", () => {
   init(project, "fix typo");
   writeLog(project, []);
   const meta = readMetaFile(project);
-  meta.baseSha = "abc";
+  meta.baseSha = "a".repeat(40);
   meta.custom = { x: 1 };
   writeMetaFile(project, meta);
   run(project, ["init", project.id]);
   const after = readMetaFile(project);
   assert.equal(after.custom.x, 1);
-  assert.equal(after.baseSha, "abc");
+  assert.equal(after.baseSha, "a".repeat(40));
 });
 
 // ---- rigor raising inputs ----------------------------------------------------
