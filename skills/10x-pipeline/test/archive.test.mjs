@@ -685,6 +685,90 @@ test("kind C: a failing pre-commit hook halts with its output, nothing staged, o
   assert.match(readReportFile(project), /^Archive: requested/m);
 });
 
+test("kind C: the halt leaves report.md as it was when the hook ran", { skip: noGit }, () => {
+  const project = archiveProject();
+  const copy = path.join(project.base, "report-at-hook.txt");
+  writeHook(project, "pre-commit", `cp "${relDir(project)}/agent-smith/report.md" "${copy}"\nexit 1`);
+  const res = runNext(project);
+  assert.equal(res.json.archive, "skipped: pre-archive commit failed");
+  assert.ok(fs.existsSync(copy), "the hook did not run");
+  assert.equal(readReportFile(project), fs.readFileSync(copy, "utf8"));
+});
+
+// A directory with a `git` that sleeps when it sees `sleepOn` in its arguments (every call when null) and otherwise runs the real git.
+function fakeGitBin(sleepOn) {
+  const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+  const bin = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-fakegit-"));
+  const guard = sleepOn === null ? "exec sleep 5" : `case " $* " in *" ${sleepOn} "*) exec sleep 5;; esac\nexec "${real}" "$@"`;
+  fs.writeFileSync(path.join(bin, "git"), `#!/bin/sh\n${guard}\n`, { mode: 0o755 });
+  return bin;
+}
+
+test("a git commit that times out halts as kind C and names the timeout", { skip: noGit }, () => {
+  const project = archiveProject({ policy: { archive: { gitTimeoutMs: 400 } } });
+  const bin = fakeGitBin("commit");
+  try {
+    const res = run(project, ["next", project.id], { env: { ...gitEnv(project), PATH: `${bin}${path.delimiter}${process.env.PATH}` } });
+    assert.equal(res.status, 0, res.stdout + res.stderr);
+    assert.equal(res.json.action, "halt");
+    assert.match(res.json.reason, /git commit failed/);
+    assert.match(res.json.reason, /git timed out after 400 ms; a hook child may still run and an index\.lock may remain/);
+    assert.match(res.json.reason, /Nothing was committed/);
+    assert.equal(res.json.committed, false);
+    assert.equal(res.json.archive, "skipped: pre-archive commit failed");
+    assert.equal(commitCount(project), 1);
+    git(project, ["diff", "--cached", "--quiet"]);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test("a git that times out is reported as a timeout, not as a missing work tree, at init and at done", { skip: noGit }, () => {
+  const project = archiveProject({ policy: { archive: { gitTimeoutMs: 300 } } });
+  const bin = fakeGitBin(null);
+  const env = { ...gitEnv(project), PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+  try {
+    const atDone = run(project, ["next", project.id], { env });
+    assert.equal(atDone.json.action, "halt");
+    assert.match(atDone.json.reason, /git timed out after 300 ms while checking/);
+    assert.doesNotMatch(atDone.json.reason, /is not one/);
+    assert.equal(atDone.json.committed, false);
+    const atInit = run(project, ["init", project.id, "--goal", "x", "--archive"], { env });
+    assert.equal(atInit.status, 1);
+    assert.match(atInit.json.reason, /git timed out after 300 ms while checking/);
+    assert.match(atInit.json.reason, /Nothing was written/);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test("a missing git is reported as such, not as a missing work tree, at init and at done", { skip: noGit }, () => {
+  const project = archiveProject();
+  const bin = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-nogit-"));
+  const env = { ...gitEnv(project), PATH: bin };
+  try {
+    const atDone = run(project, ["next", project.id], { env });
+    assert.equal(atDone.json.action, "halt");
+    assert.match(atDone.json.reason, /git could not be run: .*ENOENT/);
+    assert.doesNotMatch(atDone.json.reason, /is not one/);
+    assert.equal(atDone.json.committed, false);
+    const atInit = run(project, ["init", project.id, "--goal", "x", "--archive"], { env });
+    assert.equal(atInit.status, 1);
+    assert.match(atInit.json.reason, /git could not be run: .*ENOENT/);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test("status --report on a running archive run says the archive did not run", { skip: noGit }, () => {
+  const project = archiveProject();
+  const res = run(project, ["status", project.id, "--report"], { env: gitEnv(project) });
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  const report = readReportFile(project);
+  assert.match(report, /^Outcome: not ended/m);
+  assert.match(report, /^Archive: not run \(run not ended\)$/m);
+});
+
 test("kind C: a report.md that cannot be written halts before git add; nothing staged, no commit", { skip: noGit }, () => {
   const project = archiveProject();
   // A directory where the report goes makes writeFileSync fail.
