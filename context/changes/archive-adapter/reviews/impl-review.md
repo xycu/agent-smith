@@ -76,7 +76,7 @@ Implementer assumptions, judged:
   - Tradeoff: One manual run with a real subagent.
   - Confidence: HIGH — the plan makes the same statement.
   - Blind spot: The SHA-history path depends on the local `gh` and remote state of the throwaway repo.
-- **Decision**: PENDING
+- **Decision**: Skip: needs a human run of rows 4.8-4.10 on a throwaway repo; not done in this fix pass.
 
 ### F2 — ADR-003 rejection reason for "gitignore `agent-smith/`" is circular and does not explain the refusal
 
@@ -86,7 +86,7 @@ Implementer assumptions, judged:
 - **Location**: docs/ADR/ADR-003-rigor-gated-routing.md:106
 - **Detail**: The sentence "rejected, because the run state would stay out of history, and `/10x-archive` still blocks on the other uncommitted files of the folder" was written by the implementer; the plan lists the alternative without a reason. The first clause restates what the alternative does, not why that is bad. The second clause applies to every option that leaves `reviews/` and `plan.md` uncommitted, not to this one. The same ADR says ignored files elsewhere are tolerated (reported, still moved by `git mv`), and the router refuses an ignored probe file at `init` and `done`, so the reader has no stated reason for that asymmetry.
 - **Fix**: Reword to the real constraint: the pre-archive commit is the only copy of the run state in history and `report.md` is the only router artifact the archived folder keeps, so a run whose `agent-smith/` files are ignored would archive without them committed and the FR-008 decision would hold only on paper; hence the probe refusal. Keep the `/10x-archive` blocking point as a separate sentence only if it is tied to the files that remain.
-- **Decision**: PENDING
+- **Decision**: Fix (8f3f443): ADR-003 now states why an ignored probe file is refused (the pre-archive commit is the only copy of the run state, and report.md is the only router artifact the archive keeps) while other ignored files are tolerated.
 
 ### F3 — A `report.md` write failure is detected only after the commit
 
@@ -96,7 +96,7 @@ Implementer assumptions, judged:
 - **Location**: skills/10x-pipeline/scripts/route.mjs:932, 946, 974
 - **Detail**: `finishRun` swallows a report write error into `reportError`. The adapter then runs `git add` and `git commit` and checks `done.reportError` as the very last post-commit check, so a run with an unwritable or half-written `report.md` still makes the pre-archive commit and ends as kind D ("report.md was not written"), with the commit in place. This breaks the principle the plan applies to the message and the tier (settle everything that can fail before `git add`). Unlikely in practice (the same directory just took `meta.json`), but the ordering is avoidable.
 - **Fix**: Check `done.reportError` right after `finishRun` and before `git add`, as a halt that prints and commits nothing (kind C wording, `committed: false`); keep the late check out.
-- **Decision**: PENDING
+- **Decision**: Fix (f88816a): reportError is checked right after finishRun, before git add; an unwritable report.md halts as kind C (committed false, nothing staged, no commit). ADR-003 halt table row C updated. Test added; deliberate break (check disabled) turned it red.
 
 ### F4 — AGENTS.md project structure omits `archive.test.mjs`
 
@@ -106,7 +106,7 @@ Implementer assumptions, judged:
 - **Location**: AGENTS.md:19
 - **Detail**: The bullet lists the suite as `route.test.mjs`, `churn.test.mjs`, `rules.test.mjs` and `helpers.mjs`. The change adds `archive.test.mjs` (971 lines, 55 tests) and both AGENTS.md and README (line 84 says "router and the prompt rule form") were edited by this change without listing it. The plan only asked for `verify-archive` in that bullet, so this is a gap in the plan, not in the implementation.
 - **Fix**: Add `archive.test.mjs` to the AGENTS.md bullet.
-- **Decision**: PENDING
+- **Decision**: Fix (8f3f443): archive.test.mjs added to the AGENTS.md test-suite bullet. The README layout lists no test files, so it needs no change.
 
 ### F5 — Plan review F3 and F4(a) were not folded into `plan.md`
 
@@ -116,7 +116,7 @@ Implementer assumptions, judged:
 - **Location**: context/changes/archive-adapter/plan.md:7, 11, 30, 100-118, 450-456
 - **Detail**: The only edits to `plan.md` after the review are Progress ticks. It still points to `context/changes/rigor-levels/...` (archived now at `context/archive/2026-10-30-rigor-levels/`), to branches `rigor-levels-fix` and `rigor-levels-plan-review-2`, says implementation "waits" for a merge that has happened, and keeps "Every halt of a run with `--archive` says whether the pre-archive commit exists", which is broader than the code (guard, usage, `init` and missing-result halts carry neither field). The code, README and ADR-003 are right; the plan is the stale source of truth for later reviews.
 - **Fix**: Replace the branch names with `main` and the archive path, state that the dependency is met, and narrow the sentence at line 30 to halts printed by the `done` branch and by `endRun`.
-- **Decision**: PENDING
+- **Decision**: Fix (860b664): stale branch names, the unmet-dependency wording, dead context/changes/rigor-levels paths and the broad "every halt" claim in plan.md now match the code and ADR-003. No Progress row, checkbox or SHA suffix touched.
 
 ### F6 — `verify-archive` edge cases around a reused id and `archived_at: null`
 
@@ -126,7 +126,7 @@ Implementer assumptions, judged:
 - **Location**: skills/10x-pipeline/SKILL.md:29; skills/10x-pipeline/scripts/route.mjs:1130
 - **Detail**: (a) Start step 2 runs `verify-archive <id>` without `--path`. With a reused id that left two anchored archive folders the command answers `archived: false` ("More than one archive folder ... Pass --path"), and the SKILL text then says "Otherwise tell the user to run `/10x-new`", which is wrong advice for an id that is archived twice. (b) `archivedAt` returns the string `"null"` when a stamped folder still has `archived_at: null` (`frontmatterField` strips quotes but does not map the literal), where the plan says "value or null". `/10x-archive` always writes a datetime, so (b) is theoretical.
 - **Fix**: (a) In step 2 say: when `verify-archive` lists archive folders in its reason, show them and STOP instead of suggesting `/10x-new`. (b) Map the literal `null` to JSON `null` in `verifyArchive`.
-- **Decision**: PENDING
+- **Decision**: Fix (9ce705c): archived_at null returns JSON null; several archive folders return archived false with an ambiguous list, and SKILL.md start step 2 shows them and stops instead of suggesting /10x-new. README updated. Tests added; deliberate break turned both red.
 
 ### F7 — Failure paths without a test, and a git failure reported as "not a work tree"
 
@@ -136,4 +136,4 @@ Implementer assumptions, judged:
 - **Location**: skills/10x-pipeline/scripts/route.mjs:193, 446-460, 879, 1198; skills/10x-pipeline/test/archive.test.mjs:659-673
 - **Detail**: (a) No test sets `gitTimeoutMs` low or exercises status 124, `timedOut` or the "hook child may still run" sentence. (b) `Archive: not run (run not ended)` (line 193) is in no test and in no doc. (c) The kind C test checks that `report.md` has the Archive line but not that the halt left it unchanged, which the plan asks for ("`report.md` unchanged by the halt"); the sibling kind D tests do assert it through `assertFilesAsCommitted`. (d) Any failed `rev-parse --is-inside-work-tree` (git missing, a timeout, a lock) is reported as "`--archive` needs a git work tree and <root> is not one", at `done` (879) and at `init` (1198), which misleads on a timeout; the git message is dropped.
 - **Fix**: Add one test each for (a) and (b), assert the report bytes in the kind C test, and include `gitMessage(inside)` in the halt text for (d).
-- **Decision**: PENDING
+- **Decision**: Fix (e9ffd56): tests for the commit timeout (timedOut, hook-child sentence), the "Archive: not run (run not ended)" line, a git timeout and a missing git at init and at done, and the kind C report.md assertion. A failed rev-parse now reports a timeout or a missing git instead of "not a work tree". Deliberate breaks turned the new tests red. Not run on Node 18 (unavailable): unverified.
