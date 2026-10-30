@@ -41,6 +41,7 @@ Usage report:
 - The report has the goal, size and outcome, then one table row per step: model, effort, tier, simple-change flag, result and tokens. A totals line sums the tokens.
 - Token figures are optional. The orchestrator passes along the total tokens, tool uses and duration of a step when the Agent result reports them. A step without a figure shows `-`, and the totals line says how many steps it covers.
 - `node skills/10x-pipeline/scripts/route.mjs status <change-id> --report` rewrites the report on demand. For a run in progress it prints `Outcome: not ended`. Plain `status` stays read-only.
+- A halt for a missing result file writes no report. A run that continues after a halt keeps the old `report.md` until it ends again or you run `status --report`.
 
 Limits:
 

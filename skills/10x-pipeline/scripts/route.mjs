@@ -120,7 +120,18 @@ function paths(id) {
 
 function readLog(file) {
   if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+  return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).flatMap((l) => {
+    try {
+      const e = JSON.parse(l);
+      return e && typeof e === "object" ? [e] : [];
+    } catch { return []; }
+  });
+}
+
+// meta.json must be a plain object; anything else falls back.
+function readMeta(file, fallback) {
+  const m = readJson(file, null);
+  return m && typeof m === "object" && !Array.isArray(m) ? m : fallback;
 }
 
 function writeLog(file, entries) {
@@ -169,19 +180,21 @@ function endRun(p, id, meta, log, result) {
   writeLog(p.log, log);
   meta.outcome = { action: result.action, reason: result.reason };
   fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
-  const report = writeReport(p, id, meta, log);
-  return out({ ...result, report });
+  let report = null;
+  let reportError;
+  try { report = writeReport(p, id, meta, log); } catch (e) { reportError = e.message; }
+  return out(reportError ? { ...result, report, reportError } : { ...result, report });
 }
 
 // ---- result intake + verification ---------------------------------------
 
-// Keep only finite non-negative numbers. Returns null when nothing survives.
+// Keep only non-negative safe integers. Returns null when nothing survives.
 function cleanUsage(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const clean = {};
   for (const key of ["totalTokens", "toolUses", "durationMs"]) {
     const v = raw[key];
-    if (typeof v === "number" && Number.isFinite(v) && v >= 0) clean[key] = v;
+    if (Number.isSafeInteger(v) && v >= 0) clean[key] = v;
   }
   return Object.keys(clean).length ? clean : null;
 }
@@ -363,7 +376,7 @@ function render(tpl, vars) {
 function next(id, policy) {
   const p = paths(id);
   fs.mkdirSync(p.dir, { recursive: true });
-  const meta = readJson(p.meta, { id, goal: "", sizeBump: 0 });
+  const meta = readMeta(p.meta, { id, goal: "", sizeBump: 0 });
   const log = readLog(p.log);
   attachResult(p, log);
 
@@ -434,7 +447,8 @@ function status(id, flags) {
     })),
   };
   if (flags.report) {
-    const meta = readJson(p.meta, { id, goal: "", sizeBump: 0 });
+    if (!fs.existsSync(p.change)) out({ action: "halt", reason: `No change folder context/changes/${id}.` }, 1);
+    const meta = readMeta(p.meta, { id, goal: "", sizeBump: 0 });
     res.report = writeReport(p, id, meta, log);
   }
   out(res);
@@ -452,7 +466,7 @@ const flags = parseFlags(rest);
 if (cmd === "init") {
   const p = paths(id);
   fs.mkdirSync(p.dir, { recursive: true });
-  const prev = readJson(p.meta, {});
+  const prev = readMeta(p.meta, {});
   const size = typeof flags.size === "string" ? flags.size : prev.size ?? "m";
   fs.writeFileSync(p.meta, JSON.stringify({
     id,
