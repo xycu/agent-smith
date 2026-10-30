@@ -943,6 +943,16 @@ function archiveDone(p, id, meta, log, policy, level, d) {
       committed: false,
     });
   };
+  // A report that could not be written halts here, before anything is staged or committed.
+  if (done.reportError) {
+    return out({
+      action: "halt",
+      reason: `report.md was not written: ${done.reportError}. Nothing was committed.`,
+      steps: ran.length,
+      archive: SKIP_FAILED,
+      committed: false,
+    });
+  }
   const added = g(["add", "--", rel]);
   if (added.status !== 0) commitFailed("add", added);
   const check = g(["diff", "--cached", "--quiet"]);
@@ -971,7 +981,6 @@ function archiveDone(p, id, meta, log, policy, level, d) {
   const unclean = statusEntries(["--", `${rel}/`], { timeout });
   if (unclean === null) commitHalt("Cannot read the status of the change folder.");
   if (unclean.length) commitHalt(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => unprefix(e.file)))}.`);
-  if (done.reportError) commitHalt(`report.md was not written: ${done.reportError}.`);
 
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
   let commit = null;
