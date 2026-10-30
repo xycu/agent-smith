@@ -545,9 +545,9 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 2.1 Rigor tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 2.3 `policy.json` parses and carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.rigor||!p.steps.plan.interactive||!p.steps["impl-review"].interactive)process.exit(1)'`
+- [x] 2.1 Rigor tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — 63c956a
+- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 63c956a
+- [x] 2.3 `policy.json` parses and carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.rigor||!p.steps.plan.interactive||!p.steps["impl-review"].interactive)process.exit(1)'` — 63c956a
 
 #### Manual
 
@@ -558,8 +558,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [ ] 3.1 Churn tests pass: `node --test skills/10x-pipeline/test/churn.test.mjs`
-- [ ] 3.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.1 Churn tests pass: `node --test skills/10x-pipeline/test/churn.test.mjs`
+- [x] 3.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 

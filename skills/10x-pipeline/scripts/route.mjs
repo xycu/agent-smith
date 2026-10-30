@@ -6,11 +6,13 @@
 // Usage (run from the project root):
 //   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough]
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
+//   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -282,7 +284,7 @@ function maxLevel(levels, a, b) {
 }
 
 // Every input that can set the level, as { level, by }. Inputs only raise.
-function rigorInputs(meta, log, policy, plan) {
+function rigorInputs(meta, log, policy, plan, risk) {
   const R = policy.rigor;
   const levels = rigorLevels(policy);
   const inputs = [];
@@ -305,27 +307,153 @@ function rigorInputs(meta, log, policy, plan) {
   for (const rule of Array.isArray(R.fromFailures) ? R.fromFailures : []) {
     if (isObject(rule) && failed >= rule.minFailed) add(rule.level, `failed steps ${failed}`);
   }
+
+  if (risk && risk.level) {
+    const names = risk.hits.slice(0, 3).join(", ");
+    add(risk.level, `hot paths ${names}${risk.hits.length > 3 ? ` +${risk.hits.length - 3}` : ""}`);
+  }
   return inputs;
 }
 
 // Resolves the level for this run: stored level, then every input, and never lower than the stored level.
 // Updates meta.rigor in place and returns the level. `changed` tells the caller to write meta.json.
-function resolveRigor(meta, log, policy, plan) {
+function resolveRigor(meta, log, policy, plan, risk) {
   const levels = rigorLevels(policy);
   const stored = isObject(meta.rigor) ? meta.rigor : {};
   const had = levels.includes(stored.level) ? stored.level : null;
   let level = had;
-  for (const input of rigorInputs(meta, log, policy, plan)) level = level === null ? input.level : maxLevel(levels, level, input.level);
+  for (const input of rigorInputs(meta, log, policy, plan, risk)) level = level === null ? input.level : maxLevel(levels, level, input.level);
   // No usable input (malformed override): take the second level, the cautious middle.
   if (level === null) level = levels[Math.min(1, levels.length - 1)];
   const updated = { ...stored, level };
   if (level !== had) {
-    const by = rigorInputs(meta, log, policy, plan).filter((i) => i.level === level).map((i) => i.by);
+    const by = rigorInputs(meta, log, policy, plan, risk).filter((i) => i.level === level).map((i) => i.by);
     updated.by = by.length ? by.join(", ") : "default";
   }
   const changed = JSON.stringify(updated) !== JSON.stringify(meta.rigor);
   meta.rigor = updated;
   return { level, changed };
+}
+
+// ---- churn risk -----------------------------------------------------------
+
+const SINCE_RE = /^(\d+\.(day|days|week|weeks|month|months|year|years)|\d{4}-\d{2}-\d{2})$/;
+const SHA_RE = /^[0-9a-f]{40,64}$/;
+
+// Runs git without a shell in the project root. Returns stdout, or null on any failure.
+function gitOut(args) {
+  try {
+    return execFileSync("git", ["-c", "core.quotePath=false", ...args], {
+      cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 256 * 1024 * 1024,
+    });
+  } catch { return null; }
+}
+
+// Glob without dependencies: "**/" is zero or more directories, "**" anything, "*" and "?" stay inside one segment.
+function globToRegex(glob) {
+  let re = "";
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === "*") {
+      if (glob[i + 1] === "*") {
+        if (glob[i + 2] === "/") { re += "(?:.*/)?"; i += 2; } else { re += ".*"; i += 1; }
+      } else re += "[^/]*";
+    } else if (c === "?") re += "[^/]";
+    else re += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${re}$`);
+}
+
+// Validated churn settings, or null when the block is unusable. A bad exclude falls back to the shipped list.
+function churnConfig(policy) {
+  const c = policy.risk?.churn;
+  if (!isObject(c)) return null;
+  const posInt = (v) => Number.isInteger(v) && v > 0;
+  if (typeof c.since !== "string" || !SINCE_RE.test(c.since)) return null;
+  if (!posInt(c.maxCommits) || !posInt(c.minCommitsInWindow) || !posInt(c.hotMinCommits)) return null;
+  if (!Number.isFinite(c.hotPercentile) || c.hotPercentile <= 0 || c.hotPercentile > 100) return null;
+  let exclude = c.exclude;
+  if (!Array.isArray(exclude)) exclude = readJson(path.join(SKILL_DIR, "policy.json"), {}).risk?.churn?.exclude;
+  if (!Array.isArray(exclude)) exclude = [];
+  return { ...c, exclude: exclude.filter((g) => typeof g === "string").map(globToRegex) };
+}
+
+// Commits per path from `git log`, or null when git fails. `since` null means all history.
+function churnCounts(rev, since, maxCommits) {
+  const args = ["log", "--no-merges", "--relative", ...(since ? [`--since=${since}`] : []),
+    "-n", String(maxCommits), "--format=tformat:@@", "--name-only", rev, "--"];
+  const text = gitOut(args);
+  if (text === null) return null;
+  const counts = new Map();
+  let commits = 0;
+  let seen = new Set();
+  for (const line of text.split("\n")) {
+    if (line === "@@") { commits++; seen = new Set(); continue; }
+    if (!line || seen.has(line)) continue;
+    seen.add(line);
+    counts.set(line, (counts.get(line) || 0) + 1);
+  }
+  return { counts, commits };
+}
+
+// The hot-path set cut off at `rev`: source is window, all-history or unavailable.
+function hotSet(policy, rev) {
+  const none = { source: "unavailable", hot: new Set(), exclude: [] };
+  const cfg = churnConfig(policy);
+  if (!cfg) return none;
+  let source = "window";
+  let found = churnCounts(rev, cfg.since, cfg.maxCommits);
+  if (found && found.commits < cfg.minCommitsInWindow) { source = "all-history"; found = churnCounts(rev, null, cfg.maxCommits); }
+  if (!found || found.commits < cfg.minCommitsInWindow) return { ...none, exclude: cfg.exclude };
+  const counts = [];
+  for (const [file, n] of found.counts) if (!cfg.exclude.some((re) => re.test(file))) counts.push([file, n]);
+  const sorted = counts.map(([, n]) => n).sort((a, b) => a - b);
+  const hot = new Set();
+  if (sorted.length) {
+    const threshold = sorted[Math.max(0, Math.ceil((cfg.hotPercentile / 100) * sorted.length) - 1)];
+    for (const [file, n] of counts) if (n >= threshold && n >= cfg.hotMinCommits) hot.add(file);
+  }
+  return { source, hot, exclude: cfg.exclude };
+}
+
+// Paths named on the **File**: and **Files**: lines of the plan (backtick tokens, else comma-split text).
+function planPaths(file) {
+  if (!fs.existsSync(file)) return [];
+  const found = new Set();
+  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+    const m = line.match(/^\*\*Files?\*\*:(.*)$/);
+    if (!m) continue;
+    const quoted = [...m[1].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
+    const tokens = quoted.length ? quoted : m[1].split(",");
+    for (let token of tokens) {
+      token = token.trim().replace(/^\.\//, "").replace(/:\d+(-\d+)?$/, "");
+      if (token) found.add(token);
+    }
+  }
+  return [...found].sort();
+}
+
+// What churn says about this change: hot paths named by the plan and touched by the diff, and the level they raise to.
+function measureRisk(p, meta, log, policy) {
+  const rev = typeof meta.baseSha === "string" && SHA_RE.test(meta.baseSha) ? meta.baseSha : meta.baseSha === undefined ? "HEAD" : null;
+  const set = rev === null ? { source: "unavailable", hot: new Set(), exclude: [] } : hotSet(policy, rev);
+  const planned = planPaths(p.plan);
+  const planHits = planned.filter((f) => set.hot.has(f));
+  let diffHits = [];
+  const coded = log.some((e) => !e.skipped && (e.step === "implement" || e.step === "fix"));
+  if (coded && rev !== null && rev !== "HEAD" && set.source !== "unavailable") {
+    const text = gitOut(["diff", "--name-only", "--relative", rev, "HEAD", "--"]);
+    if (text !== null) {
+      diffHits = text.split("\n").filter((f) => f && !set.exclude.some((re) => re.test(f)) && set.hot.has(f));
+    }
+  }
+  const hits = [...new Set([...planHits, ...diffHits])].sort();
+  let level = null;
+  const levels = rigorLevels(policy);
+  for (const rule of Array.isArray(policy.risk?.raise) ? policy.risk.raise : []) {
+    if (isObject(rule) && hits.length >= rule.minHot && levels.includes(rule.level)) level = level === null ? rule.level : maxLevel(levels, level, rule.level);
+  }
+  return { source: set.source, hot: [...set.hot].sort(), planPaths: planned.length, planHits, diffHits: [...new Set(diffHits)].sort(), hits, level };
 }
 
 function decide(p, log, policy, meta) {
@@ -493,7 +621,9 @@ function next(id, policy) {
   const log = readLog(p.log);
   attachResult(p, log);
 
-  const { level, changed } = resolveRigor(meta, log, policy, readPlan(p.plan));
+  const planNow = readPlan(p.plan);
+  const risk = planNow.exists ? measureRisk(p, meta, log, policy) : null;
+  const { level, changed } = resolveRigor(meta, log, policy, planNow, risk);
   if (changed) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
@@ -553,6 +683,14 @@ function next(id, policy) {
   });
 }
 
+// Read-only: prints the churn numbers for a change.
+function riskCommand(id, policy) {
+  const p = paths(id);
+  const meta = readMeta(p.meta, { id, goal: "" });
+  const r = measureRisk(p, meta, readLog(p.log), policy);
+  out({ source: r.source, hot: r.hot, planPaths: r.planPaths, planHits: r.planHits, diffHits: r.diffHits, level: r.level });
+}
+
 function status(id, flags) {
   const p = paths(id);
   const log = readLog(p.log);
@@ -582,7 +720,7 @@ function halt(reason) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status <change-id> [--goal text] [--rigor level] [--report]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--report]");
   }
   const policy = loadPolicy();
   const flags = parseFlags(rest);
@@ -606,12 +744,20 @@ function main() {
       const old = isObject(prev.rigor) && levels.includes(prev.rigor.requested) ? prev.rigor.requested : flags.rigor;
       meta.rigor = { ...meta.rigor, requested: maxLevel(levels, old, flags.rigor) };
     }
+    // The commit the run started from: churn is counted up to it. Set once, kept on resume.
+    if (!(typeof meta.baseSha === "string" && SHA_RE.test(meta.baseSha))) {
+      delete meta.baseSha;
+      const head = (gitOut(["rev-parse", "HEAD"]) ?? "").trim();
+      if (SHA_RE.test(head)) meta.baseSha = head;
+    }
     fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
     next(id, policy);
   } else if (cmd === "next") {
     next(id, policy);
   } else if (cmd === "status") {
     status(id, flags);
+  } else if (cmd === "risk") {
+    riskCommand(id, policy);
   } else {
     halt(`Unknown command ${cmd}`);
   }

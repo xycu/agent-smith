@@ -55,6 +55,17 @@
     "minEffort": { "lean": "medium", "standard": "high", "thorough": "high" },
     "tierOffset": { "lean": { "impl-review": -1 } }
   },
+  "risk": {
+    "churn": {
+      "since": "90.days",
+      "maxCommits": 500,
+      "minCommitsInWindow": 10,
+      "exclude": ["context/**", "docs/**", "**/*.lock", "package-lock.json", "pnpm-lock.yaml", "assets/**", "**/*.md"],
+      "hotPercentile": 80,
+      "hotMinCommits": 3
+    },
+    "raise": [{ "minHot": 1, "level": "standard" }, { "minHot": 3, "level": "thorough" }]
+  },
   "limits": {
     "maxTotalSteps": 14,
     "maxPlanRevisions": 2,
