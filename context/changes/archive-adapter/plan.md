@@ -465,8 +465,8 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Automated
 
-- [x] 1.1 Guard and `verify-archive` tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 1.1 Guard and `verify-archive` tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs` — 7f586e7
+- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 7f586e7
 
 #### Manual
 
@@ -476,10 +476,10 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Automated
 
-- [ ] 2.1 Flag, persistence and policy tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [ ] 2.2 Rule-form test passes on the archive prompt: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 2.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 2.4 `policy.json` carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.steps.archive||!p.archive.commitMessage||p.archive.haltOnManualPending!==false||!p.prompts.archive)process.exit(1)'`
+- [x] 2.1 Flag, persistence and policy tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
+- [x] 2.2 Rule-form test passes on the archive prompt: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 2.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 2.4 `policy.json` carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.steps.archive||!p.archive.commitMessage||p.archive.haltOnManualPending!==false||!p.prompts.archive)process.exit(1)'`
 
 #### Manual
 

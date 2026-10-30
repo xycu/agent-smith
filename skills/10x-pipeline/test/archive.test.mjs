@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { cleanupAll, makeProject, run, init, next, writeLog, entry } from "./helpers.mjs";
+import { cleanupAll, makeProject, run, init, next, writeLog, entry, ROUTE, gitEnv, gitInit, writeResult, readMetaFile } from "./helpers.mjs";
 
 after(cleanupAll);
 
@@ -313,4 +313,195 @@ test("verify-archive answers when PATH holds no git", () => {
   } finally {
     fs.rmSync(emptyBin, { recursive: true, force: true });
   }
+});
+
+// ---- --archive flag, persistence and init checks (Phase 2) -------------------
+
+const POLICY = JSON.parse(fs.readFileSync(path.join(path.dirname(ROUTE), "..", "policy.json"), "utf8"));
+
+// init with the hermetic environment, so no global ignore file or parent repository leaks in.
+function initArchive(project, ...extra) {
+  return run(project, ["init", project.id, "--goal", "fix typo", ...extra], { env: gitEnv(project) });
+}
+
+// A work tree with an optional .gitignore at its root.
+function gitProject(ignore = null, opts = {}) {
+  const project = makeProject(opts);
+  gitInit(project);
+  if (ignore !== null) fs.writeFileSync(path.join(project.base, ".gitignore"), ignore);
+  return project;
+}
+
+// Closes the pending plan step so a second init consumes a result instead of halting on a missing one.
+function answerPlan(project) {
+  writeResult(project, { status: "done", note: "fixture" });
+}
+
+test("init --archive stores archive: true", () => {
+  const project = gitProject();
+  const res = initArchive(project, "--archive");
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.action, "run");
+  assert.equal(readMetaFile(project).archive, true);
+});
+
+test("init --archive true is the same as the bare flag", () => {
+  const project = gitProject();
+  assert.equal(initArchive(project, "--archive", "true").status, 0);
+  assert.equal(readMetaFile(project).archive, true);
+});
+
+test("a resume without the flag keeps archive: true", () => {
+  const project = gitProject();
+  assert.equal(initArchive(project, "--archive").status, 0);
+  answerPlan(project);
+  const res = initArchive(project);
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(readMetaFile(project).archive, true);
+});
+
+test("--archive false stores false and a later bare resume keeps false", () => {
+  const project = makeProject();
+  const first = run(project, ["init", project.id, "--goal", "fix typo", "--archive", "false"]);
+  assert.equal(first.status, 0, first.stdout);
+  assert.equal(readMetaFile(project).archive, false);
+  answerPlan(project);
+  assert.equal(run(project, ["init", project.id]).status, 0);
+  assert.equal(readMetaFile(project).archive, false);
+});
+
+test("--archive false turns a stored true off", () => {
+  const project = gitProject();
+  assert.equal(initArchive(project, "--archive").status, 0);
+  answerPlan(project);
+  assert.equal(initArchive(project, "--archive", "false").status, 0);
+  assert.equal(readMetaFile(project).archive, false);
+});
+
+test("--archive with an invalid value halts and writes nothing", () => {
+  const project = gitProject();
+  const res = initArchive(project, "--archive", "maybe");
+  assert.equal(res.status, 1);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /Invalid --archive maybe/);
+  assert.equal(fs.existsSync(project.agentDir), false);
+});
+
+test("--archive in a directory that is not a repository halts and writes nothing", () => {
+  const project = makeProject();
+  const res = initArchive(project, "--archive");
+  assert.equal(res.status, 1);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /work tree/);
+  assert.equal(fs.existsSync(project.agentDir), false);
+});
+
+test("a stored archive: true is checked again on a resume", () => {
+  const project = gitProject();
+  assert.equal(initArchive(project, "--archive").status, 0);
+  answerPlan(project);
+  fs.rmSync(path.join(project.base, ".git"), { recursive: true, force: true });
+  const res = initArchive(project);
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /work tree/);
+});
+
+test("--archive halts when .gitignore hides agent-smith/ that does not exist yet", () => {
+  const project = gitProject("agent-smith/\n");
+  assert.equal(fs.existsSync(project.agentDir), false);
+  const res = initArchive(project, "--archive");
+  assert.equal(res.status, 1);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /context\/changes\/demo\/agent-smith\/run\.jsonl/);
+  assert.equal(fs.existsSync(project.agentDir), false);
+});
+
+test("--archive halts when .gitignore has *.jsonl and names run.jsonl", () => {
+  const project = gitProject("*.jsonl\n");
+  const res = initArchive(project, "--archive");
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /context\/changes\/demo\/agent-smith\/run\.jsonl/);
+  assert.doesNotMatch(res.json.reason, /meta\.json/);
+  assert.equal(fs.existsSync(project.agentDir), false);
+});
+
+test("--archive halts when .gitignore hides context/ and names change.md", () => {
+  const project = gitProject("context/\n");
+  const res = initArchive(project, "--archive");
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /context\/changes\/demo\/change\.md/);
+  assert.equal(fs.existsSync(project.agentDir), false);
+});
+
+test("--archive passes when .gitignore ignores none of the four files", () => {
+  const project = gitProject("node_modules/\n*.log\n.DS_Store\n");
+  const res = initArchive(project, "--archive");
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.action, "run");
+  assert.equal(readMetaFile(project).archive, true);
+});
+
+test("--archive works when the project root is below the repository root", () => {
+  const project = makeProject({ nest: "proj" });
+  gitInit(project);
+  fs.writeFileSync(path.join(project.base, ".gitignore"), "agent-smith/\n");
+  const bad = initArchive(project, "--archive");
+  assert.equal(bad.status, 1);
+  assert.match(bad.json.reason, /context\/changes\/demo\/agent-smith\/run\.jsonl/);
+  fs.writeFileSync(path.join(project.base, ".gitignore"), "\n");
+  assert.equal(initArchive(project, "--archive").status, 0);
+});
+
+test("init without --archive in a non-repository directory works and meta.json has no archive key", () => {
+  const project = makeProject();
+  const res = run(project, ["init", project.id, "--goal", "fix typo"], { env: gitEnv(project) });
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.action, "run");
+  assert.equal("archive" in readMetaFile(project), false);
+});
+
+test("init --archive writes nothing when the change is archived", () => {
+  const project = archivedOnly();
+  const before = snapshot(project.root);
+  const res = initArchive(project, "--archive");
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /is archived at/);
+  assert.deepEqual(snapshot(project.root), before);
+});
+
+// ---- policy data -------------------------------------------------------------
+
+test("steps.archive is pinned to one ladder entry with effort high or above", () => {
+  const step = POLICY.steps.archive;
+  assert.equal(step.skill, "10x-archive");
+  assert.equal(step.interactive, true);
+  assert.equal(step.minTier, step.baseTier);
+  assert.equal(step.maxTier, step.baseTier);
+  const entry = POLICY.ladder[step.baseTier];
+  assert.ok(["high", "xhigh", "max"].includes(entry.effort), `effort ${entry.effort}`);
+});
+
+test("policy.archive holds the commit message template and the manual-pending gate", () => {
+  assert.match(POLICY.archive.commitMessage, /^chore\(\{id\}\): /);
+  assert.equal(POLICY.archive.haltOnManualPending, false);
+  assert.ok(Number.isInteger(POLICY.archive.gitTimeoutMs) && POLICY.archive.gitTimeoutMs > 0);
+});
+
+test("prompts.archive gives the archive answers as nine one-line rules", () => {
+  const lines = POLICY.prompts.archive.split("\n");
+  assert.equal(lines[0], "Run /10x-archive {id}");
+  const rules = lines.slice(1);
+  assert.equal(rules.length, 9);
+  for (const line of rules) assert.ok(line.startsWith("- **GIVEN**"), line);
+  const text = POLICY.prompts.archive;
+  for (const needle of [
+    "Continue archiving", "Archive without repointing", "Archiwizuj bez podmiany",
+    "Uncertain review coverage", "Missing review coverage", "blocked",
+    "SHA history", "git fetch", "without asking",
+  ]) assert.ok(text.includes(needle), `missing ${needle}`);
+  assert.ok(rules.some((l) => l.includes("**MUST NOT**") && /\bask\b/.test(l)), "no MUST NOT about asking");
+  assert.ok(rules.some((l) => l.includes("blocking rule") && l.includes("**MUST**") && /\bwin\b/.test(l)), "no precedence rule");
+  // The router renders {id} only; any other placeholder would render empty.
+  const names = [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+  assert.ok(names.length > 0 && names.every((n) => n === "id"), names.join(","));
 });
