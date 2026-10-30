@@ -41,7 +41,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 
 | ID   | Change ID                    | Outcome (user can …)                                                                  | Prerequisites | PRD refs                          | Status   |
 | ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------- | --------------------------------- | -------- |
-| S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | in-progress |
+| S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | done |
 | S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | ready    |
 | S-03 | risk-gated-review            | have changes touching risky paths always get both reviews, and a halt at the top level | S-01          | FR-010                            | proposed |
 | S-04 | plan-review-skip-on-clean-plan | have a clean plan go straight to implementation, other plans still get plan-review  | S-01, S-03    | US-01, FR-002                     | blocked  |
@@ -87,7 +87,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
   - Which signals and thresholds count as "simple" (phase count, files changed, review verdicts, failures)? ADR-001 Phase 1 lists the signals; the thresholds are open. — Owner: user. Block: no.
   - Does Phase 1 really need no scorer (PRD Open Question 3 and 6)? — Owner: user. Block: no.
 - **Risk:** This is the claim behind the whole goal, so it goes first. A change misjudged as simple fails on a cheap tier and costs more; per-failure escalation, which already exists, is the safety net.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-02: Per-step usage report
 
@@ -197,3 +197,5 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 ## Done
 
 (Empty on first generation. `/10x-archive` appends an entry here when a change whose `Change ID` matches an item is archived.)
+
+- **S-01: user can run the pipeline on a simple change and see its steps routed to a cheaper model and effort than a complex change gets.** — Archived 2026-10-30 → `context/archive/2026-10-30-cheaper-routing-simple-change/`. Lesson: —.

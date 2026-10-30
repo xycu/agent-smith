@@ -1,10 +1,10 @@
 ---
 change_id: cheaper-routing-simple-change
 title: Cheaper routing for a simple change
-status: impl_reviewed
+status: archived
 created: 2026-10-30
 updated: 2026-10-30
-archived_at: null
+archived_at: 2026-10-30T00:00:47Z
 ---
 
 ## Notes
