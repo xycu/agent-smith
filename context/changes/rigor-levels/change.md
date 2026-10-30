@@ -17,7 +17,7 @@ Scope:
 - Churn risk paths from git history, configured under `risk.churn` in `policy.json` (proposal in research.md, Follow-up 2). Checked against the plan's `**File**:` lines, then against the actual diff.
 - `lean` skips plan-review. Elevated risk never runs at `lean` (FR-010). Update PRD FR-002 and roadmap S-03/S-04 to match.
 - Effort floor for interactive toolkit skills (plan, plan-review, impl-review, and every later one): effort `high` or above at `standard`/`thorough`, `medium` or above at `lean`.
-- Optional `signals` object in the subagent RESULT line, sanitized like `usage`. Unknown keys are ignored. Signals only add steps or raise rigor.
+- Optional `signals` object in the subagent RESULT line, sanitized like `usage`. Unknown keys are ignored. Signals can raise rigor or stop the run (`needsHuman`); they never lower rigor, remove a step or add a skip.
 - Skipped steps logged in `run.jsonl` with a reason, with every count kept correct (budget, numbering, failure streaks, freshness, report totals). They are shown in `report.md`.
 - Rule format: copy life-to-lore ADR-012 (GIVEN/WHEN/THEN with one bold RFC 2119 keyword) as an agent-smith ADR. Add a `node:test` check for the rule form in `policy.json` prompts and `skills/10x-pipeline/prompts/*.md`.
 - Update `SKILL.md` "How the tier moves" and the README routing bullets.

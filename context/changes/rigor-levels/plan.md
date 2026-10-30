@@ -581,9 +581,9 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 5.1 Signal tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [x] 5.2 Rule-form test passes on the new suffix: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 5.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 5.1 Signal tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — 1edfe99
+- [x] 5.2 Rule-form test passes on the new suffix: `node --test skills/10x-pipeline/test/rules.test.mjs` — 1edfe99
+- [x] 5.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 1edfe99
 
 #### Manual
 
@@ -593,12 +593,12 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [ ] 6.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 6.2 Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done`
-- [ ] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md`
-- [ ] 6.4 `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md`
-- [ ] 6.5 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0`
-- [ ] 6.6 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0`
+- [x] 6.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 6.2 Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done`
+- [x] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md`
+- [x] 6.4 `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md`
+- [x] 6.5 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0`
+- [x] 6.6 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0`
 
 #### Manual
 

@@ -15,16 +15,19 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `skills/10x-pipeline/SKILL.md` — orchestrator instructions (the loop over router output).
 - `skills/10x-pipeline/policy.json` — model ladder, base tiers, escalation, limits, prompt templates.
 - `skills/10x-pipeline/scripts/route.mjs` — router: `init`, `next`, `status`.
+- `skills/10x-pipeline/test/` — `node:test` suite: `route.test.mjs`, `churn.test.mjs`, `rules.test.mjs` and `helpers.mjs` (scratch projects, `run.jsonl` fixtures, hermetic git).
+- `docs/ADR/` — architecture decision records (ADR-001 to ADR-004).
 - `context/` — 10x workflow docs: `changes/`, `archive/`, `foundation/`. See the README in each.
 - `assets/` — README header image only.
 
 ## Commands
 
-There is no build, lint or test setup. Exercise the router from a project root that has `context/changes/<id>/change.md`:
+There is no build or lint setup. Run the tests with `node --test skills/10x-pipeline/test/*.test.mjs` (shell glob, Node 18 and later). Exercise the router from a project root that has `context/changes/<id>/change.md`:
 
-- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>"` — start or resume a run.
+- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>" [--rigor lean|standard|thorough]` — start or resume a run.
 - `node skills/10x-pipeline/scripts/route.mjs next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `node skills/10x-pipeline/scripts/route.mjs status <id>` — print the per-step model and effort log.
+- `node skills/10x-pipeline/scripts/route.mjs risk <id>` — print churn hot paths, plan hits and diff hits; writes nothing.
 
 ## Coding Style
 
@@ -35,7 +38,7 @@ There is no build, lint or test setup. Exercise the router from a project root t
 
 ## Testing
 
-No automated tests exist. After editing `route.mjs` or `policy.json`, run `init` and `status` against a scratch change folder and confirm the JSON output is valid.
+Run `node --test skills/10x-pipeline/test/*.test.mjs` after any change to `route.mjs`, `policy.json` or a prompt. The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. New router and test code must run on Node 18: avoid `toSorted`, `Object.groupBy`, `Set` methods such as `intersection`, `import.meta.dirname`, the regex `v` flag, `assert.partialDeepStrictEqual` and `mock.timers`. Then run `init` and `status` against a scratch change folder and confirm the JSON output is valid.
 
 ## Commits
 
