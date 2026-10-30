@@ -26,6 +26,7 @@ milestone_status: open
 - **Source materials:** `context/foundation/prd.md` (v1), with the Phase 1 scope of `docs/ADR/ADR-001-phased-complexity-routing.md`.
 - **Done when:** every F-NN and S-NN below is `done`.
 - **Scope anchors:** FR-001 to FR-005, FR-007 to FR-010, US-01, US-02. Left out of this milestone: FR-006 (OpenSpec) and FR-011 (LLM-scored complexity), both nice-to-have.
+- **Scope extension (2026-10-30):** S-07 to S-09 add the optional lifecycle steps of `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md` (diagrams 5, 6 and 7), gated by the rigor level from S-03 so they run only when worth their cost. Split from change `rigor-gated-routing`; shared research in `context/changes/rigor-levels/research.md`.
 
 ## Vision recap
 
@@ -43,10 +44,13 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------- | --------------------------------- | -------- |
 | S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | done     |
 | S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | done     |
-| S-03 | risk-gated-review            | have changes touching risky paths always get both reviews, and a halt at the top level | S-01          | FR-010                            | proposed |
-| S-04 | plan-review-skip-on-clean-plan | have a clean plan go straight to implementation, other plans still get plan-review  | S-01, S-03    | US-01, FR-002                     | blocked  |
+| S-03 | rigor-levels                 | have each change get a rigor level, with lean changes skipping plan-review and changes on often-changed paths always getting both reviews | S-01          | US-01, FR-002, FR-003, FR-010     | ready    |
+| S-04 | (merged into S-03)           | —                                                                                     | —             | —                                 | merged   |
 | S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | proposed |
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
+| S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | proposed |
+| S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
+| S-09 | archive-and-lessons          | have a finished run archive the change and list lesson candidates in the report       | S-03, S-08    | FR-004, FR-008                    | proposed |
 
 ## Streams
 
@@ -54,7 +58,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 
 | Stream | Theme     | Chain                      | Note                                                                       |
 | ------ | --------- | -------------------------- | -------------------------------------------------------------------------- |
-| A      | Routing   | `S-01` → `S-03` → `S-04`   | Speed: the routing claim and its safety guard come first.                  |
+| A      | Routing   | `S-01` → `S-03` → `S-07` → `S-08` → `S-09` | Speed: the routing claim and its rigor and risk guard come first; the optional steps follow one by one, because all of them edit `decide()` in `route.mjs`. |
 | B      | Reporting | `S-02` → `S-05` → `S-06`   | Joins Stream A at `S-01` (`S-06` needs both); shows what ran and the saving. |
 
 ## Baseline
@@ -95,7 +99,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Change ID:** per-step-usage-report
 - **PRD refs:** FR-004, FR-009
 - **Prerequisites:** —
-- **Parallel with:** S-01, S-03, S-04
+- **Parallel with:** S-01, S-03
 - **Blockers:** —
 - **Unknowns:**
   - Where can token or cost figures be read from (PRD Open Question 4)? Resolved 2026-10-30: the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. — Owner: user. Block: no.
@@ -103,32 +107,27 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Risk:** The usage figures may not be readable, leaving the report with model and effort only. It is still useful for the baseline comparison, so it goes early.
 - **Status:** done
 
-### S-03: Risk-gated review
+### S-03: Rigor levels and risk-gated review
 
-- **Outcome:** user can have changes that touch configured risky paths always get plan-review and implementation review, with a halt for a human at the highest risk level.
-- **Change ID:** risk-gated-review
-- **PRD refs:** FR-010
+- **Outcome:** user can have each change get a rigor level (`lean`, `standard`, `thorough`) that only rises during a run. A `lean` change skips plan-review. A change that touches often-changed paths always gets plan-review and implementation review. The report shows every skipped step with its reason.
+- **Change ID:** rigor-levels
+- **PRD refs:** US-01, FR-002, FR-003, FR-010
 - **Prerequisites:** S-01
 - **Parallel with:** S-02, S-05, S-06
 - **Blockers:** —
 - **Unknowns:**
-  - Which path rules and levels define elevated risk (PRD Open Question 11)? The plan can propose a small starter set for you to confirm. — Owner: user. Block: no.
-  - What does a halt look like in an unattended run? — Owner: user. Block: no.
-- **Risk:** Path rules can miss risky changes in unexpected files and flag harmless ones. It sits right after S-01 because it must exist before any review is skipped (S-04).
-- **Status:** proposed
+  - Which path rules define elevated risk (PRD Open Question 11)? Resolved 2026-10-30: paths that change often, measured from git history; the proposed parameters are in the change's research (Follow-up 2) and live in `policy.json`. — Owner: user. Block: no.
+  - What counts as a clean plan (Roadmap Question 12)? Resolved 2026-10-30: the owner decided that `lean` skips plan-review; elevated risk never runs at `lean`. — Owner: user. Block: no.
+  - What does a halt look like in an unattended run? Resolved 2026-10-30: a subagent that cannot make an evidence-backed call reports `blocked` with `signals.needsHuman`, and the router halts. — Owner: user. Block: no.
+  - Are the churn thresholds right? Uncalibrated until real runs exist (S-06). — Owner: user. Block: no.
+- **Risk:** Churn can miss a risky file that rarely changes and flag a harmless busy one. Absorbs former S-04 (plan-review skip on a clean plan), which is why FR-002 moves here.
+- **Status:** ready
 
-### S-04: Skip plan-review on a clean plan
+### S-04: Skip plan-review on a clean plan (merged into S-03)
 
-- **Outcome:** user can have a plan with a clean result go straight to implementation, while any other plan still gets plan-review.
-- **Change ID:** plan-review-skip-on-clean-plan
-- **PRD refs:** US-01, FR-002
-- **Prerequisites:** S-01, S-03
-- **Parallel with:** S-02, S-05, S-06
-- **Blockers:** Open Roadmap Question 12 (definition of a clean plan)
-- **Unknowns:**
-  - What counts as a clean result in Phase 1, where no LLM scorer exists (PRD Open Question 3 and 6)? Is it a review output or derived from the deterministic signals? — Owner: user. Block: yes.
-- **Risk:** Skipping review can cost more later. It comes after S-03 so risky changes never skip, and it stays blocked until "clean" has a definition.
-- **Status:** blocked
+- **Outcome:** merged into S-03 on 2026-10-30. The owner decided that a `lean` change skips plan-review, which replaces the "clean plan" definition this slice was blocked on.
+- **Change ID:** — (covered by `rigor-levels`)
+- **Status:** merged
 
 ### S-05: PR comment report
 
@@ -136,7 +135,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Change ID:** pr-comment-report
 - **PRD refs:** FR-005
 - **Prerequisites:** S-02
-- **Parallel with:** S-01, S-03, S-04, S-06
+- **Parallel with:** S-01, S-03, S-06, S-07, S-08, S-09
 - **Blockers:** —
 - **Unknowns:**
   - Can the pipeline reach the pull request when it finishes (access and tooling)? — Owner: user. Block: no.
@@ -149,12 +148,53 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Change ID:** baseline-usage-comparison
 - **PRD refs:** FR-009
 - **Prerequisites:** S-01, S-02
-- **Parallel with:** S-03, S-04, S-05
+- **Parallel with:** S-03, S-05, S-07, S-08, S-09
 - **Blockers:** —
 - **Unknowns:**
   - What usage drop counts as success (PRD Open Question 1)? — Owner: user. Block: no.
   - How are two runs of the same change made comparable? — Owner: user. Block: no.
 - **Risk:** With at most dozens of runs the comparison is noisy and may not show a real saving. It goes last because it needs both routing and the report.
+- **Status:** proposed
+
+### S-07: Rigor-gated pre-plan steps
+
+- **Outcome:** user can have `/10x-research`, legacy research (when a repo map exists), a domain brief and `/10x-frame` run before the plan only when the rigor level and the subagent signals call for them, and have a plan-review RETHINK or a repeated REVISE loop back to frame or research.
+- **Change ID:** pre-plan-steps
+- **PRD refs:** FR-001, FR-003, FR-007
+- **Prerequisites:** S-03
+- **Parallel with:** S-05, S-06
+- **Blockers:** —
+- **Unknowns:**
+  - Which predicate decides that a domain rule is scattered or a dependency leaks? The research found a status column for invariants but no structured signal for leaking dependencies. — Owner: user. Block: no.
+  - Does `/10x-frame` stay usable unattended with only a prompt-level decision guide, given its four ask points? — Owner: user. Block: no.
+- **Risk:** Frame and the legacy prompts were built for a human. A weak decision guide makes them guess, so the needs-human halt is the safety net.
+- **Status:** proposed
+
+### S-08: Per-phase executors
+
+- **Outcome:** user can have each plan phase run on `/10x-e2e`, `/10x-tdd` or `/10x-goal-implement` as it fits, with a blocked tdd or e2e run falling back to goal-implement, repeated failures and a REJECTED review re-planning, and manual checks automated (with Claude-in-Chrome where it helps) and backed by evidence.
+- **Change ID:** phase-executors
+- **PRD refs:** FR-001, FR-003, FR-007
+- **Prerequisites:** S-03, S-07
+- **Parallel with:** S-05, S-06
+- **Blockers:** —
+- **Unknowns:**
+  - How does the router tell real work from a tdd or e2e "Skip" that ticks rows with no commit? The research proposes a commit or SHA check. — Owner: user. Block: no.
+  - Can a subagent reliably load the Claude-in-Chrome tools? Not tested. — Owner: user. Block: no.
+- **Risk:** tdd and e2e have many interactive pauses and cannot be limited to one phase except by prompt. An agent ticking manual rows certifies its own work, so every ticked row needs evidence.
+- **Status:** proposed
+
+### S-09: Archive adapter and lesson candidates
+
+- **Outcome:** user can have a finished run commit its run state and archive the change through `/10x-archive` (opt-in), and see lesson candidates in the report with a ready `/10x-lesson` command.
+- **Change ID:** archive-and-lessons
+- **PRD refs:** FR-004, FR-008
+- **Prerequisites:** S-03, S-08
+- **Parallel with:** S-05, S-06
+- **Blockers:** —
+- **Unknowns:**
+  - None blocking. The adapter design is accepted in the research (Follow-up 1). — Owner: user. Block: no.
+- **Risk:** It is the router's first git write, and archive moves the run state out of reach, so nothing may write after the move.
 - **Status:** proposed
 
 ## Backlog Handoff
@@ -163,25 +203,28 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 | ---------- | ------------------------------ | ------------------------------------------------------- | --------------------- | --------------------------------------- |
 | S-01       | cheaper-routing-simple-change  | Route simple changes to a cheaper model and effort      | done                  | Archived 2026-10-30                     |
 | S-02       | per-step-usage-report          | Report model and effort per pipeline step               | done                  | Archived 2026-10-30                     |
-| S-03       | risk-gated-review              | Force reviews and a halt for risky paths                | yes                   | Run `/10x-plan risk-gated-review`       |
-| S-04       | plan-review-skip-on-clean-plan | Skip plan-review when the plan is clean                 | no                    | Blocked: define "clean"; needs S-01, S-03 |
+| S-03       | rigor-levels                   | Rigor levels, churn risk and plan-review skip at lean   | yes                   | Research done; run `/10x-plan rigor-levels` |
+| S-04       | —                              | (merged into S-03)                                      | —                     | Merged 2026-10-30                       |
 | S-05       | pr-comment-report              | Post the usage report as a pull request comment         | yes                   | Run `/10x-plan pr-comment-report`       |
 | S-06       | baseline-usage-comparison      | Compare a routed run with a baseline run                | yes                   | Run `/10x-plan baseline-usage-comparison`; Open Question 1 (success target) is still open |
+| S-07       | pre-plan-steps                 | Gate research, domain briefs and framing by rigor       | no                    | Needs S-03; research in `context/changes/rigor-levels/research.md` |
+| S-08       | phase-executors                | Route each plan phase to its executor                   | no                    | Needs S-03, S-07                        |
+| S-09       | archive-and-lessons            | Archive adapter and lesson candidates in the report     | no                    | Needs S-03, S-08                        |
 
 ## Open Roadmap Questions
 
 1. **What usage drop counts as success?** — Baseline is known (a full run on Sonnet-5.5 at high effort, compared by A/B test), but the target percentage is not set. Owner: user. Block: S-06.
 2. **What does "a dep for other models" mean?** — The user said the pipeline is a dependency for other models (meaning unclear: other modules or projects that depend on it?). Which ones, and what must stay stable for them? Owner: user. Block: roadmap-wide.
-3. **Which artifacts does the router score, and who produces the score?** — Code, intent MD files, others; a review step, or the router itself? ADR-001 Phase 1 needs no scorer: the script reads artifacts and diff stats. An LLM scorer is deferred to Phase 2; confirm. Owner: user. Block: S-01, S-04.
+3. **Which artifacts does the router score, and who produces the score?** — Code, intent MD files, others; a review step, or the router itself? ADR-001 Phase 1 needs no scorer: the script reads artifacts and diff stats. An LLM scorer is deferred to Phase 2; confirm. Owner: user. Block: S-01, S-03.
 4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (2026-10-30): the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. Not yet confirmed on a foreground Agent result: the real-run evidence for S-02 row 3.6 was archived unfilled. Owner: user. Block: S-06.
 5. **Is OpenSpec (FR-006) out of scope for this delivery?** — The user called it nice-to-have but did not list it as a non-goal. This roadmap parks it. Owner: user. Block: roadmap-wide.
-6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — The user expects the router to be cheap to run, like Haiku-5.5. Today the router is a plain script with no LLM. ADR-001 Phase 1 keeps it a script; a cheap-model scorer only appears in Phase 2. Owner: user. Block: S-01, S-04.
+6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — The user expects the router to be cheap to run, like Haiku-5.5. Today the router is a plain script with no LLM. ADR-001 Phase 1 keeps it a script; a cheap-model scorer only appears in Phase 2. Owner: user. Block: S-01, S-03.
 7. **What are the expected target_scale.qps and target_scale.data_volume?** — Not captured during shaping. Owner: user. Block: roadmap-wide.
 8. **Why now, and what is the current workaround and its cost?** — Not captured during shaping. Owner: user. Block: roadmap-wide.
 9. **Confirm two assumptions.** — (a) The change modifies the existing routing rule rather than replacing it. (b) There are no existing runs or data to carry over. Owner: user. Block: S-01.
 10. **Confirm the priorities of FR-009 to FR-011.** — They come from a proposed ADR. The Socrates round on 2026-10-30 challenged them, but the priorities themselves were set from the ADR, not by you. Owner: user. Block: S-02, S-03, S-06.
-11. **Which path rules and levels define elevated risk, and what does the pipeline do at the highest level?** — ADR-001 says the pipeline halts for a human, because subagents cannot ask questions. Owner: user. Block: S-03.
-12. **What counts as a "clean" plan in Phase 1?** — FR-002 skips plan-review only on a clean result, but Phase 1 has no scorer. Owner: user. Block: S-04.
+11. **Which path rules and levels define elevated risk, and what does the pipeline do at the highest level?** — ADR-001 says the pipeline halts for a human, because subagents cannot ask questions. Resolved 2026-10-30: elevated risk = paths that change often in git history; the halt is a `needsHuman` signal from the subagent. Owner: user. Block: none.
+12. **What counts as a "clean" plan in Phase 1?** — FR-002 skips plan-review only on a clean result, but Phase 1 has no scorer. Resolved 2026-10-30: the owner decided that a `lean` change skips plan-review; S-04 merged into S-03. Owner: user. Block: none.
 
 ## Parked
 
