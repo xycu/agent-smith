@@ -850,6 +850,15 @@ function gitMessage(res) {
   return text || `exit status ${res.status}`;
 }
 
+// The halt text when `rev-parse --is-inside-work-tree` did not answer "true". A git that is missing or timed out
+// is reported as such, not as "not a work tree".
+function notWorkTree(inside, timeout) {
+  if (inside.timedOut) return `--archive needs a git work tree, but git timed out after ${timeout} ms while checking ${ROOT}.`;
+  if (inside.status === 127) return `--archive needs a git work tree, but git could not be run: ${gitMessage(inside)}.`;
+  if (inside.status !== 0) return `--archive needs a git work tree and ${ROOT} is not one: ${gitMessage(inside)}.`;
+  return `--archive needs a git work tree and ${ROOT} is not one.`;
+}
+
 const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone by the router. A resume makes no commit, " +
   "so the check that the commit touched only the change folder (post-commit check 2) is not repeated; clearing the index " +
   "does not remove a path the commit already holds (amend the commit, or accept it). `next` repeats safely after the cause is fixed.";
@@ -876,7 +885,7 @@ function archiveDone(p, id, meta, log, policy, level, d) {
     return endRun(p, id, meta, log, { action: "halt", reason: `${reason} Nothing was committed.`, steps: ran.length });
   };
   const inside = g(["rev-parse", "--is-inside-work-tree"]);
-  if (inside.status !== 0 || inside.stdout.trim() !== "true") precheck(`--archive needs a git work tree and ${ROOT} is not one.`);
+  if (inside.status !== 0 || inside.stdout.trim() !== "true") precheck(notWorkTree(inside, timeout));
   const ignoredProbes = ignoredProbePaths(id, { timeout });
   if (ignoredProbes.length) precheck(`git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`);
   if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) precheck("HEAD is detached; check out a branch first.");
@@ -1209,7 +1218,7 @@ function main() {
       const timeout = policy.archive?.gitTimeoutMs;
       const inside = runGit(["rev-parse", "--is-inside-work-tree"], { timeout });
       if (inside.status !== 0 || inside.stdout.trim() !== "true") {
-        halt(`--archive needs a git work tree and ${ROOT} is not one. Nothing was written.`);
+        halt(`${notWorkTree(inside, timeout)} Nothing was written.`);
       }
       const ignored = ignoredProbePaths(id, { timeout });
       if (ignored.length) {
