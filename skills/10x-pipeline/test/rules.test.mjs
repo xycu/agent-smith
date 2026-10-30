@@ -72,12 +72,22 @@ test("ruleProblems rejects bad rules", () => {
     "missing WHEN": "**GIVEN** a **THEN** you **MUST** b",
     "two keywords": "**GIVEN** a **WHEN** b **THEN** you **MUST** c and **SHOULD** d",
     "no keyword": "**GIVEN** a **WHEN** b **THEN** you decide",
-    "unbolded MUST": "**GIVEN** a **WHEN** b **THEN** you MUST c",
     "wrong order": "**WHEN** b **GIVEN** a **THEN** you **MUST** c",
-    "SHALL": "**GIVEN** a **WHEN** b **THEN** you SHALL c",
   };
   for (const [name, line] of Object.entries(bad)) {
     assert.ok(ruleProblems(line).length > 0, `${name} must be rejected: ${line}`);
+  }
+});
+
+test("ruleProblems rejects a bare keyword next to a valid bold one", () => {
+  // Exactly one bold keyword each, so only the bare-keyword check can reject them.
+  const bad = {
+    "unbolded MUST": ["**GIVEN** a **WHEN** b **THEN** you **SHOULD** c and MUST d", "unbolded keyword MUST"],
+    "unbolded SHOULD": ["**GIVEN** a **WHEN** b **THEN** you **MUST** c and SHOULD d", "unbolded keyword SHOULD"],
+    "SHALL": ["**GIVEN** a **WHEN** b **THEN** you **MUST** c, as SHALL be", "unbolded keyword SHALL"],
+  };
+  for (const [name, [line, problem]] of Object.entries(bad)) {
+    assert.deepEqual(ruleProblems(line), [problem], `${name}: ${line}`);
   }
 });
 

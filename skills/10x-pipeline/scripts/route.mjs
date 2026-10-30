@@ -691,24 +691,32 @@ function tierFor(d, log, policy, plan, meta, level) {
   const discount = simple ? C.simple.discount[d.step] ?? 0 : 0;
   if (discount > 0) { tier -= discount; parts.push(`-${discount} simple change (${why})`); }
   const offset = policy.rigor?.tierOffset?.[level]?.[d.step];
-  if (Number.isInteger(offset) && offset !== 0) { tier += offset; parts.push(`${offset > 0 ? "+" : ""}${offset} rigor ${level}`); }
-  if (d.floorTier !== undefined && tier < d.floorTier + (d.bump || 0)) {
-    tier = d.floorTier + (d.bump || 0);
-    parts.push(`floor at last code tier ${d.floorTier}`);
-  }
-  const clamped = Math.max(s.minTier ?? 0, Math.min(s.maxTier ?? policy.ladder.length - 1, tier, policy.ladder.length - 1));
-  if (clamped !== tier) parts.push(`clamped to ${clamped}`);
-  let final = clamped;
-  let floorRaised = false;
   const minEffort = policy.rigor?.minEffort?.[level];
-  if (s.interactive && typeof minEffort === "string") {
-    // Applied last, so the floor wins over maxTier and over every discount.
-    const floor = effortFloorTier(policy, minEffort);
-    if (final < floor) { final = floor; floorRaised = true; }
-    parts.push(`floor ${minEffort} (tier ${floor})`);
-  }
-  // A discount the floor undid is no saving, so the report does not claim it.
-  return { tier: final, fails, simple: discount > 0 && !floorRaised, tierWhy: parts.join(", ") };
+  // Rigor offset, last-code floor, clamp, then the effort floor. Returns the final tier and what it did.
+  const settle = (start) => {
+    const notes = [];
+    let t = start;
+    if (Number.isInteger(offset) && offset !== 0) { t += offset; notes.push(`${offset > 0 ? "+" : ""}${offset} rigor ${level}`); }
+    if (d.floorTier !== undefined && t < d.floorTier + (d.bump || 0)) {
+      t = d.floorTier + (d.bump || 0);
+      notes.push(`floor at last code tier ${d.floorTier}`);
+    }
+    const clamped = Math.max(s.minTier ?? 0, Math.min(s.maxTier ?? policy.ladder.length - 1, t, policy.ladder.length - 1));
+    if (clamped !== t) notes.push(`clamped to ${clamped}`);
+    let final = clamped;
+    if (s.interactive && typeof minEffort === "string") {
+      // Applied last, so the floor wins over maxTier and over every discount.
+      const floor = effortFloorTier(policy, minEffort);
+      if (final < floor) final = floor;
+      notes.push(`floor ${minEffort} (tier ${floor})`);
+    }
+    return { final, notes };
+  };
+  const settled = settle(tier);
+  parts.push(...settled.notes);
+  // A discount that the clamp, the offset or the floor absorbed is no saving, so the report does not claim it.
+  const saved = discount > 0 && settled.final < settle(tier + discount).final;
+  return { tier: settled.final, fails, simple: saved, tierWhy: parts.join(", ") };
 }
 
 function render(tpl, vars) {
