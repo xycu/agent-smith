@@ -534,8 +534,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 1.1 Rule-form test passes on all current rules and rejects the bad fixtures: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 1.2 ADR-004 has its required sections: `test $(grep -c '^## ' docs/ADR/ADR-004-prompt-rules-as-scenarios.md) -ge 4`
+- [x] 1.1 Rule-form test passes on all current rules and rejects the bad fixtures: `node --test skills/10x-pipeline/test/rules.test.mjs` — 690b214
+- [x] 1.2 ADR-004 has its required sections: `test $(grep -c '^## ' docs/ADR/ADR-004-prompt-rules-as-scenarios.md) -ge 4` — 690b214
 
 #### Manual
 
@@ -545,9 +545,9 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [ ] 2.1 Rigor tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [ ] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 2.3 `policy.json` parses and carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.rigor||!p.steps.plan.interactive||!p.steps["impl-review"].interactive)process.exit(1)'`
+- [x] 2.1 Rigor tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
+- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 2.3 `policy.json` parses and carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.rigor||!p.steps.plan.interactive||!p.steps["impl-review"].interactive)process.exit(1)'`
 
 #### Manual
 

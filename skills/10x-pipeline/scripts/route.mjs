@@ -4,7 +4,7 @@
 // review verdicts) plus the run log. The orchestrator never picks a model itself.
 //
 // Usage (run from the project root):
-//   node route.mjs init   <change-id> [--goal "<text>"]
+//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough]
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
 //
@@ -156,6 +156,7 @@ function buildReport(id, meta, log) {
     `# Run report: ${id}`,
     "",
     `Goal: ${oneLine(meta.goal) || "-"}`,
+    ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
     `Outcome: ${outcome}`,
     "",
     "| # | Step | Model | Effort | Tier | Simple | Result | Tokens |",
@@ -260,6 +261,71 @@ function goalClass(goal, policy) {
     if (keyword) return { kind: "hard", keyword };
   }
   return { kind: Number.isFinite(F.maxWords) && words.length <= F.maxWords ? "short" : "plain" };
+}
+
+// ---- rigor ----------------------------------------------------------------
+
+const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+
+// Level order comes from policy.rigor.levels. A malformed block throws; main turns that into a JSON halt.
+function rigorLevels(policy) {
+  const levels = policy.rigor?.levels;
+  if (!Array.isArray(levels) || !levels.length || levels.some((l) => typeof l !== "string")) {
+    throw new Error("policy.rigor.levels must be a non-empty array of strings");
+  }
+  return levels;
+}
+
+// The highest of two level names. A name that is not a level loses.
+function maxLevel(levels, a, b) {
+  return levels.indexOf(b) > levels.indexOf(a) ? b : a;
+}
+
+// Every input that can set the level, as { level, by }. Inputs only raise.
+function rigorInputs(meta, log, policy, plan) {
+  const R = policy.rigor;
+  const levels = rigorLevels(policy);
+  const inputs = [];
+  const add = (level, by) => { if (levels.includes(level)) inputs.push({ level, by }); };
+
+  const stored = isObject(meta.rigor) ? meta.rigor : {};
+  const requested = typeof stored.requested === "string" && levels.includes(stored.requested) ? stored.requested : null;
+  if (requested) add(requested, `--rigor ${requested}`);
+  else {
+    const kind = goalClass(meta.goal, policy).kind;
+    add(R.fromGoal?.[kind], `goal ${kind}`);
+  }
+
+  const thresholds = Array.isArray(policy.complexity?.phaseThresholds) ? policy.complexity.phaseThresholds : [];
+  const reached = plan.hasProgress ? thresholds.filter((t) => plan.phases >= t).length : 0;
+  const fromPhases = Array.isArray(R.fromPhases) ? R.fromPhases : [];
+  if (reached && fromPhases.length) add(fromPhases[Math.min(reached, fromPhases.length) - 1], `phases ${plan.phases}`);
+
+  const failed = log.filter((e) => e.ok === false).length;
+  for (const rule of Array.isArray(R.fromFailures) ? R.fromFailures : []) {
+    if (isObject(rule) && failed >= rule.minFailed) add(rule.level, `failed steps ${failed}`);
+  }
+  return inputs;
+}
+
+// Resolves the level for this run: stored level, then every input, and never lower than the stored level.
+// Updates meta.rigor in place and returns the level. `changed` tells the caller to write meta.json.
+function resolveRigor(meta, log, policy, plan) {
+  const levels = rigorLevels(policy);
+  const stored = isObject(meta.rigor) ? meta.rigor : {};
+  const had = levels.includes(stored.level) ? stored.level : null;
+  let level = had;
+  for (const input of rigorInputs(meta, log, policy, plan)) level = level === null ? input.level : maxLevel(levels, level, input.level);
+  // No usable input (malformed override): take the second level, the cautious middle.
+  if (level === null) level = levels[Math.min(1, levels.length - 1)];
+  const updated = { ...stored, level };
+  if (level !== had) {
+    const by = rigorInputs(meta, log, policy, plan).filter((i) => i.level === level).map((i) => i.by);
+    updated.by = by.length ? by.join(", ") : "default";
+  }
+  const changed = JSON.stringify(updated) !== JSON.stringify(meta.rigor);
+  meta.rigor = updated;
+  return { level, changed };
 }
 
 function decide(p, log, policy, meta) {
@@ -370,7 +436,17 @@ function simpleSignal(d, plan, log, meta, policy) {
   return simple ? { simple, why: `${plan.phases} phase, ${plan.rows} rows` } : { simple: false };
 }
 
-function tierFor(d, log, policy, plan, meta) {
+// Lowest ladder index whose effort is at least `name` in policy.rigor.effortOrder.
+// An unknown name is ignored (index 0); no entry that high gives the top index.
+function effortFloorTier(policy, name) {
+  const order = Array.isArray(policy.rigor?.effortOrder) ? policy.rigor.effortOrder : [];
+  const want = order.indexOf(name);
+  if (want < 0) return 0;
+  const idx = policy.ladder.findIndex((entry) => order.indexOf(entry.effort) >= want);
+  return idx < 0 ? policy.ladder.length - 1 : idx;
+}
+
+function tierFor(d, log, policy, plan, meta, level) {
   const s = policy.steps[d.step];
   const C = policy.complexity;
   let tier = s.baseTier;
@@ -385,13 +461,25 @@ function tierFor(d, log, policy, plan, meta) {
   const { simple, why } = simpleSignal(d, plan, log, meta, policy);
   const discount = simple ? C.simple.discount[d.step] ?? 0 : 0;
   if (discount > 0) { tier -= discount; parts.push(`-${discount} simple change (${why})`); }
+  const offset = policy.rigor?.tierOffset?.[level]?.[d.step];
+  if (Number.isInteger(offset) && offset !== 0) { tier += offset; parts.push(`${offset > 0 ? "+" : ""}${offset} rigor ${level}`); }
   if (d.floorTier !== undefined && tier < d.floorTier + (d.bump || 0)) {
     tier = d.floorTier + (d.bump || 0);
     parts.push(`floor at last code tier ${d.floorTier}`);
   }
   const clamped = Math.max(s.minTier ?? 0, Math.min(s.maxTier ?? policy.ladder.length - 1, tier, policy.ladder.length - 1));
   if (clamped !== tier) parts.push(`clamped to ${clamped}`);
-  return { tier: clamped, fails, simple: discount > 0, tierWhy: parts.join(", ") };
+  let final = clamped;
+  let floorRaised = false;
+  const minEffort = policy.rigor?.minEffort?.[level];
+  if (s.interactive && typeof minEffort === "string") {
+    // Applied last, so the floor wins over maxTier and over every discount.
+    const floor = effortFloorTier(policy, minEffort);
+    if (final < floor) { final = floor; floorRaised = true; }
+    parts.push(`floor ${minEffort} (tier ${floor})`);
+  }
+  // A discount the floor undid is no saving, so the report does not claim it.
+  return { tier: final, fails, simple: discount > 0 && !floorRaised, tierWhy: parts.join(", ") };
 }
 
 function render(tpl, vars) {
@@ -405,8 +493,12 @@ function next(id, policy) {
   const log = readLog(p.log);
   attachResult(p, log);
 
-  if (log.length >= policy.limits.maxTotalSteps) {
-    return endRun(p, id, meta, log, { action: "halt", reason: `Step budget ${policy.limits.maxTotalSteps} spent.` });
+  const { level, changed } = resolveRigor(meta, log, policy, readPlan(p.plan));
+  if (changed) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+
+  const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
+  if (log.length >= budget) {
+    return endRun(p, id, meta, log, { action: "halt", reason: `Step budget ${budget} spent.` });
   }
 
   const d = decide(p, log, policy, meta);
@@ -417,7 +509,7 @@ function next(id, policy) {
   }
 
   const plan = readPlan(p.plan);
-  const { tier, fails, simple, tierWhy } = tierFor(d, log, policy, plan, meta);
+  const { tier, fails, simple, tierWhy } = tierFor(d, log, policy, plan, meta, level);
   if (fails >= policy.escalation.maxAttemptsPerStep) {
     return endRun(p, id, meta, log, { action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${log[log.length - 1]?.result?.note ?? "none"}` });
   }
@@ -443,6 +535,7 @@ function next(id, policy) {
     reason: d.reason,
     tierWhy,
     simple,
+    rigor: level,
     startedAt: Date.now(),
     before: { autoDone: plan.autoDone },
   };
@@ -465,6 +558,7 @@ function status(id, flags) {
   const log = readLog(p.log);
   const res = {
     change: id,
+    rigor: readMeta(p.meta, {}).rigor?.level ?? null,
     steps: log.map((e) => ({
       n: e.n, step: e.step, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
@@ -481,25 +575,51 @@ function status(id, flags) {
 
 // ---- main -----------------------------------------------------------------
 
-const [cmd, id, ...rest] = process.argv.slice(2);
-if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-  out({ action: "halt", reason: "Usage: route.mjs init|next|status <change-id> [--goal text] [--report]" }, 1);
+function halt(reason) {
+  out({ action: "halt", reason }, 1);
 }
-const policy = loadPolicy();
-const flags = parseFlags(rest);
 
-if (cmd === "init") {
-  const p = paths(id);
-  fs.mkdirSync(p.dir, { recursive: true });
-  const prev = readMeta(p.meta, {});
-  // An empty, blank or valueless --goal keeps the stored goal.
-  const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
-  fs.writeFileSync(p.meta, JSON.stringify({ id, goal }, null, 2) + "\n");
-  next(id, policy);
-} else if (cmd === "next") {
-  next(id, policy);
-} else if (cmd === "status") {
-  status(id, flags);
-} else {
-  out({ action: "halt", reason: `Unknown command ${cmd}` }, 1);
+function main() {
+  const [cmd, id, ...rest] = process.argv.slice(2);
+  if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
+    halt("Usage: route.mjs init|next|status <change-id> [--goal text] [--rigor level] [--report]");
+  }
+  const policy = loadPolicy();
+  const flags = parseFlags(rest);
+
+  if (cmd === "init") {
+    const levels = rigorLevels(policy);
+    // --rigor is checked before anything is written.
+    if (flags.rigor !== undefined && (typeof flags.rigor !== "string" || !levels.includes(flags.rigor))) {
+      halt(`Invalid --rigor ${flags.rigor === true ? "(no value)" : flags.rigor}. Use one of: ${levels.join(", ")}.`);
+    }
+    const p = paths(id);
+    fs.mkdirSync(p.dir, { recursive: true });
+    const prev = readMeta(p.meta, {});
+    // An empty, blank or valueless --goal keeps the stored goal.
+    const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
+    // Keep every stored field (rigor and whatever later changes add); a stored rigor that is no object is dropped.
+    const meta = { ...prev, id, goal };
+    if (!isObject(prev.rigor)) delete meta.rigor;
+    if (flags.rigor !== undefined) {
+      // On resume --rigor can raise the requested level, never lower it.
+      const old = isObject(prev.rigor) && levels.includes(prev.rigor.requested) ? prev.rigor.requested : flags.rigor;
+      meta.rigor = { ...meta.rigor, requested: maxLevel(levels, old, flags.rigor) };
+    }
+    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    next(id, policy);
+  } else if (cmd === "next") {
+    next(id, policy);
+  } else if (cmd === "status") {
+    status(id, flags);
+  } else {
+    halt(`Unknown command ${cmd}`);
+  }
+}
+
+try {
+  main();
+} catch (e) {
+  // Never a stack trace: a bad policy or a bad file ends the run with JSON.
+  halt(`Router error: ${e instanceof Error ? e.message : String(e)}`);
 }
