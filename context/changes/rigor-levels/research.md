@@ -9,7 +9,7 @@ tags: [research, router, route.mjs, policy.json, 10x-frame, 10x-research, 10x-ar
 status: complete
 last_updated: 2026-10-30
 last_updated_by: Claude (Opus 5.5)
-last_updated_note: "Follow-up 3: renamed to rigor-levels, three sibling changes created"
+last_updated_note: "Follow-up 4: archive adapter split off from archive-and-lessons"
 ---
 
 # Research: Rigor-gated routing of optional lifecycle steps
@@ -522,3 +522,11 @@ Each change is runnable on its own, in this order. Each one updates ADR-003, `SK
 - Created with status `new`: `context/changes/pre-plan-steps/`, `context/changes/phase-executors/` and `context/changes/archive-and-lessons/`. Each `change.md` names its scope and dependencies, and points back to this research.
 - Planned order: `rigor-levels`, then `pre-plan-steps`, then `phase-executors`, then `archive-and-lessons`.
 - Roadmap slices are not added yet.
+
+---
+
+## Follow-up 4 (2026-10-30): archive adapter split off
+
+- Change 4 `archive-and-lessons` is now two changes. `archive-adapter` (roadmap S-09) needs only `rigor-levels`. `lesson-candidates` (roadmap S-10) keeps the `phase-executors` dependency.
+- **Why:** the adapter needs the skip entries and the `endRun` change from `rigor-levels`, nothing from `pre-plan-steps` or `phase-executors`. Splitting it lets its research and plan run in parallel with `rigor-levels`. Its implement step still waits for `rigor-levels` to merge, because both edit `route.mjs`.
+- The table in "Remaining open items" above (row 4) and Follow-up 3 name `archive-and-lessons`. Read those as `archive-adapter` and `lesson-candidates`.

@@ -26,7 +26,7 @@ milestone_status: open
 - **Source materials:** `context/foundation/prd.md` (v1), with the Phase 1 scope of `docs/ADR/ADR-001-phased-complexity-routing.md`.
 - **Done when:** every F-NN and S-NN below is `done`.
 - **Scope anchors:** FR-001 to FR-005, FR-007 to FR-010, US-01, US-02. Left out of this milestone: FR-006 (OpenSpec) and FR-011 (LLM-scored complexity), both nice-to-have.
-- **Scope extension (2026-10-30):** S-07 to S-09 add the optional lifecycle steps of `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md` (diagrams 5, 6 and 7), gated by the rigor level from S-03 so they run only when worth their cost. Split from change `rigor-gated-routing`; shared research in `context/changes/rigor-levels/research.md`.
+- **Scope extension (2026-10-30):** S-07 to S-10 add the optional lifecycle steps of `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md` (diagrams 5, 6 and 7), gated by the rigor level from S-03 so they run only when worth their cost. Split from change `rigor-gated-routing`; shared research in `context/changes/rigor-levels/research.md`.
 
 ## Vision recap
 
@@ -50,7 +50,8 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | proposed |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
-| S-09 | archive-and-lessons          | have a finished run archive the change and list lesson candidates in the report       | S-03, S-08    | FR-004, FR-008                    | proposed |
+| S-09 | archive-adapter              | have a finished run commit its run state and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | proposed |
+| S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | proposed |
 
 ## Streams
 
@@ -58,7 +59,8 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 
 | Stream | Theme     | Chain                      | Note                                                                       |
 | ------ | --------- | -------------------------- | -------------------------------------------------------------------------- |
-| A      | Routing   | `S-01` → `S-03` → `S-07` → `S-08` → `S-09` | Speed: the routing claim and its rigor and risk guard come first; the optional steps follow one by one, because all of them edit `decide()` in `route.mjs`. |
+| A      | Routing   | `S-01` → `S-03` → `S-07` → `S-08` → `S-10` | Speed: the routing claim and its rigor and risk guard come first; the optional steps follow one by one, because all of them edit `decide()` in `route.mjs`. |
+| C      | Archive   | `S-03` → `S-09`            | Branches off Stream A at `S-03`. Only the research and plan steps can overlap with `S-03`; implement waits for `S-03` to merge, because both edit `route.mjs`. |
 | B      | Reporting | `S-02` → `S-05` → `S-06`   | Joins Stream A at `S-01` (`S-06` needs both); shows what ran and the saving. |
 
 ## Baseline
@@ -135,7 +137,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Change ID:** pr-comment-report
 - **PRD refs:** FR-005
 - **Prerequisites:** S-02
-- **Parallel with:** S-01, S-03, S-06, S-07, S-08, S-09
+- **Parallel with:** S-01, S-03, S-06, S-07, S-08, S-09, S-10
 - **Blockers:** —
 - **Unknowns:**
   - Can the pipeline reach the pull request when it finishes (access and tooling)? — Owner: user. Block: no.
@@ -148,7 +150,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Change ID:** baseline-usage-comparison
 - **PRD refs:** FR-009
 - **Prerequisites:** S-01, S-02
-- **Parallel with:** S-03, S-05, S-07, S-08, S-09
+- **Parallel with:** S-03, S-05, S-07, S-08, S-09, S-10
 - **Blockers:** —
 - **Unknowns:**
   - What usage drop counts as success (PRD Open Question 1)? — Owner: user. Block: no.
@@ -184,17 +186,30 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Risk:** tdd and e2e have many interactive pauses and cannot be limited to one phase except by prompt. An agent ticking manual rows certifies its own work, so every ticked row needs evidence.
 - **Status:** proposed
 
-### S-09: Archive adapter and lesson candidates
+### S-09: Archive adapter
 
-- **Outcome:** user can have a finished run commit its run state and archive the change through `/10x-archive` (opt-in), and see lesson candidates in the report with a ready `/10x-lesson` command.
-- **Change ID:** archive-and-lessons
+- **Outcome:** user can have a finished run commit its run state and archive the change through `/10x-archive` (opt-in), with a read-only check that the archive succeeded. Split from the former S-09 on 2026-10-30: it needs only S-03, so it can start before S-07 and S-08.
+- **Change ID:** archive-adapter
 - **PRD refs:** FR-004, FR-008
-- **Prerequisites:** S-03, S-08
-- **Parallel with:** S-05, S-06
+- **Prerequisites:** S-03
+- **Parallel with:** S-05, S-06, S-07, S-08
 - **Blockers:** —
 - **Unknowns:**
   - None blocking. The adapter design is accepted in the research (Follow-up 1). — Owner: user. Block: no.
-- **Risk:** It is the router's first git write, and archive moves the run state out of reach, so nothing may write after the move.
+- **Risk:** It is the router's first git write, and archive moves the run state out of reach, so nothing may write after the move. Its implement step edits `endRun` in `route.mjs`, so it waits for S-03 to merge.
+- **Status:** proposed
+
+### S-10: Lesson candidates in the report
+
+- **Outcome:** user can see lesson candidates from the impl-review in `report.md`, each with a ready `/10x-lesson <seed>` command.
+- **Change ID:** lesson-candidates
+- **PRD refs:** FR-004
+- **Prerequisites:** S-03, S-08
+- **Parallel with:** S-05, S-06, S-09
+- **Blockers:** —
+- **Unknowns:**
+  - Which lesson candidates does the impl-review report, given that it has no lesson-candidate section? The research proposes carrying them in RESULT `signals`. — Owner: user. Block: no.
+- **Risk:** The signal rides on the subagent's reply, so a weak prompt yields noise. `/10x-lesson` is interactive and is never run unattended.
 - **Status:** proposed
 
 ## Backlog Handoff
@@ -209,7 +224,8 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 | S-06       | baseline-usage-comparison      | Compare a routed run with a baseline run                | yes                   | Run `/10x-plan baseline-usage-comparison`; Open Question 1 (success target) is still open |
 | S-07       | pre-plan-steps                 | Gate research, domain briefs and framing by rigor       | no                    | Needs S-03; research in `context/changes/rigor-levels/research.md` |
 | S-08       | phase-executors                | Route each plan phase to its executor                   | no                    | Needs S-03, S-07                        |
-| S-09       | archive-and-lessons            | Archive adapter and lesson candidates in the report     | no                    | Needs S-03, S-08                        |
+| S-09       | archive-adapter                | Archive a finished run through the 10x-archive adapter  | no                    | Needs S-03 merged to implement; research and plan can start now |
+| S-10       | lesson-candidates              | Lesson candidates in the report                         | no                    | Needs S-03, S-08                        |
 
 ## Open Roadmap Questions
 
