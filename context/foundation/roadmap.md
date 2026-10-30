@@ -50,7 +50,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | proposed |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
-| S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | in-progress |
+| S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
 | S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | proposed |
 
 ## Streams
@@ -197,7 +197,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Unknowns:**
   - None blocking. The adapter design is accepted in the research (Follow-up 1). — Owner: user. Block: no.
 - **Risk:** It is the router's first git write, and archive moves the run state out of reach, so nothing may write after the move. Its implement step edits `endRun` in `route.mjs`, so it waits for S-03 to merge.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-10: Lesson candidates in the report
 
@@ -258,3 +258,4 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **S-01: user can run the pipeline on a simple change and see its steps routed to a cheaper model and effort than a complex change gets.** — Archived 2026-10-30 → `context/archive/2026-10-30-cheaper-routing-simple-change/`. Lesson: —.
 - **S-02: user can see, for a finished run, a report of which model and effort ran each step, with usage figures where readable, written before the change is archived.** — Archived 2026-10-30 → `context/archive/2026-10-30-per-step-usage-report/`. Lesson: —.
 - **S-03: user can have each change get a rigor level (`lean`, `standard`, `thorough`) that only rises during a run. A `lean` change skips plan-review. A change that touches often-changed paths always gets plan-review and implementation review. The report shows every skipped step with its reason.** — Archived 2026-10-30 → `context/archive/2026-10-30-rigor-levels/`. Lesson: —.
+- **S-09: user can have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in), with a read-only check that the archive succeeded. Split from the former S-09 on 2026-10-30: it needs only S-03, so it can start before S-07 and S-08.** — Archived 2026-10-30 → `context/archive/2026-10-30-archive-adapter/`. Lesson: —.
