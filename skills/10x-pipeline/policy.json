@@ -9,10 +9,10 @@
     { "model": "opus",   "effort": "max" }
   ],
   "steps": {
-    "plan":        { "skill": "10x-plan",           "baseTier": 4, "minTier": 2, "maxTier": 6 },
-    "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 1, "maxTier": 5 },
+    "plan":        { "skill": "10x-plan",           "baseTier": 4, "minTier": 2, "maxTier": 6, "interactive": true },
+    "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 1, "maxTier": 5, "interactive": true },
     "implement":   { "skill": "10x-goal-implement", "baseTier": 3, "minTier": 2, "maxTier": 6 },
-    "impl-review": { "skill": "10x-impl-review",    "baseTier": 3, "minTier": 2, "maxTier": 5 },
+    "impl-review": { "skill": "10x-impl-review",    "baseTier": 3, "minTier": 2, "maxTier": 5, "interactive": true },
     "fix":         { "skill": null,                 "baseTier": 3, "minTier": 2, "maxTier": 6 }
   },
   "complexity": {
@@ -43,6 +43,17 @@
   "review": {
     "reviseToleranceWarnings": 1,
     "fixOnNeedsAttention": true
+  },
+  "rigor": {
+    "levels": ["lean", "standard", "thorough"],
+    "fromGoal": { "short": "lean", "plain": "standard", "hard": "standard" },
+    "fromPhases": ["standard", "thorough"],
+    "fromFailures": [{ "minFailed": 1, "level": "standard" }, { "minFailed": 3, "level": "thorough" }],
+    "skipPlanReviewAt": ["lean"],
+    "budgetDelta": { "lean": -4, "standard": 0, "thorough": 4 },
+    "effortOrder": ["low", "medium", "high", "xhigh", "max"],
+    "minEffort": { "lean": "medium", "standard": "high", "thorough": "high" },
+    "tierOffset": { "lean": { "impl-review": -1 } }
   },
   "limits": {
     "maxTotalSteps": 14,
