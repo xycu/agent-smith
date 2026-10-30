@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeLog, entry,
-  readLogEntries, readMetaFile, writeMetaFile,
+  readLogEntries, readMetaFile, writeMetaFile, skipEntry, writeResult, readReportFile, gitAvailable, gitEnv, gitInit, commitFiles,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -265,4 +265,182 @@ test("report and status show the rigor level", () => {
   assert.equal(status.json.rigor, "lean");
   const report = fs.readFileSync(path.join(project.agentDir, "report.md"), "utf8");
   assert.match(report, /^Rigor: lean \(goal short\)$/m);
+});
+
+// ---- skip entries ------------------------------------------------------------
+// Lean skips plan-review only when churn was measured (git history) and the plan names a path.
+
+function gitProject({ plan = null, commits = 10, nest = null } = {}) {
+  const project = makeProject({ plan, nest });
+  gitInit(project);
+  for (let i = 1; i <= commits; i++) commitFiles(project, [`s${i}.js`], { message: `c${i}` });
+  return project;
+}
+
+const withGit = (project, args) => run(project, args, { env: gitEnv(project) });
+
+// Plan step done: plan.md written after the step started, result "done".
+function finishPlan(project, text) {
+  writePlan(project, text);
+  const later = new Date(Date.now() + 5000);
+  fs.utimesSync(project.planFile, later, later);
+  writeResult(project, { status: "done", note: "planned" });
+}
+
+function leanFlow() {
+  const project = gitProject();
+  const first = withGit(project, ["init", project.id, "--goal", "fix typo"]);
+  assert.equal(first.json.step, "plan");
+  finishPlan(project, planText({ files: ["**File**: `x.js`"] }));
+  const second = withGit(project, ["next", project.id]);
+  return { project, second };
+}
+
+const skipsOf = (project) => readLogEntries(project).filter((e) => e.skipped);
+const noGit = !gitAvailable() && "git is not installed";
+
+test("lean plus a fresh plan skips plan-review and logs one skip entry", { skip: noGit }, () => {
+  const { project, second } = leanFlow();
+  assert.equal(second.json.step, "implement");
+  const skips = skipsOf(project);
+  assert.equal(skips.length, 1);
+  assert.equal(skips[0].step, "plan-review");
+  assert.equal(skips[0].afterN, 1);
+  assert.equal(skips[0].rigor, "lean");
+  assert.match(skips[0].reason, /^rigor lean: plan-review skipped \(churn window, 1 plan paths, none hot\)$/);
+  assert.deepEqual(skips[0].risk, { source: "window", planPaths: 1 });
+  assert.equal(second.json.n, 2);
+  const entries = readLogEntries(project);
+  assert.equal(entries.filter((e) => !e.skipped).length, 2);
+  assert.equal(entries.find((e) => e.step === "implement").n, 2);
+  assert.equal(skips[0].n, undefined);
+  assert.equal(skips[0].result, undefined);
+  // The simple-change discount still applies with a skip in the log.
+  assert.equal(entries.find((e) => e.step === "implement").simple, true);
+});
+
+test("after a skip, the next step is not asked for plan-review again", { skip: noGit }, () => {
+  const { project } = leanFlow();
+  // Implement done: all rows checked and the result written.
+  writePlan(project, planText({ done: 1, files: ["**File**: `x.js`"] }));
+  const later = new Date(Date.now() + 9000);
+  fs.utimesSync(project.planFile, later, later);
+  writeResult(project, { status: "done", note: "implemented" });
+  const res = withGit(project, ["next", project.id]);
+  assert.equal(res.json.action, "run");
+  assert.equal(res.json.step, "impl-review");
+  assert.equal(skipsOf(project).length, 1);
+});
+
+test("next after a skip does not halt with has no result", { skip: noGit }, () => {
+  const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1)]);
+  const res = withGit(project, ["init", project.id, "--goal", "fix typo"]);
+  assert.equal(res.status, 0);
+  assert.equal(res.json.step, "implement");
+  assert.equal(res.json.n, 2);
+});
+
+test("skips do not use budget", { skip: noGit }, () => {
+  const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  const entries = Array.from({ length: 8 }, (_, i) => entry(i + 1, "plan"));
+  writeLog(project, [entries[0], skipEntry("plan-review", 1), skipEntry("plan-review", 1), ...entries.slice(1)]);
+  const res = withGit(project, ["init", project.id, "--goal", "fix typo"]);
+  assert.equal(res.json.action, "run", JSON.stringify(res.json));
+});
+
+test("a skip between failed attempts keeps the failure streak", { skip: noGit }, () => {
+  const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  writeLog(project, [
+    entry(1, "plan"),
+    skipEntry("plan-review", 1),
+    entry(2, "implement", { ok: false }),
+    skipEntry("plan-review", 2),
+    entry(3, "implement", { ok: false }),
+    entry(4, "implement", { ok: false }),
+  ]);
+  const res = withGit(project, ["init", project.id, "--goal", "fix typo"]);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /implement failed 3 times in a row/);
+});
+
+test("standard still returns plan-review", { skip: noGit }, () => {
+  const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  const res = withGit(project, ["init", project.id, "--goal", PLAIN_GOAL]);
+  assert.equal(res.json.step, "plan-review");
+  assert.equal(skipsOf(project).length, 0);
+});
+
+test("a plan that names a hot path never skips", { skip: noGit }, () => {
+  const project = makeProject({ plan: planText({ files: ["**File**: `f9.js`"] }) });
+  gitInit(project);
+  for (let i = 1; i <= 9; i++) commitFiles(project, ["f9.js", `s${i}.js`], { message: `c${i}` });
+  commitFiles(project, ["other.js"], { message: "c10" });
+  const res = withGit(project, ["init", project.id, "--goal", "fix typo"]);
+  assert.equal(res.json.step, "plan-review");
+  assert.equal(readMetaFile(project).rigor.level, "standard");
+  assert.equal(skipsOf(project).length, 0);
+});
+
+test("lean with unmeasured risk runs plan-review and logs no skip", { skip: noGit }, () => {
+  // Not a git repo.
+  const bare = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  const a = withGit(bare, ["init", bare.id, "--goal", "fix typo"]);
+  assert.equal(a.json.step, "plan-review");
+  assert.match(a.json.reason, /risk not measured \(unavailable, 1 plan paths\)/);
+  assert.equal(skipsOf(bare).length, 0);
+  // A repo, but the plan names no path.
+  const noPaths = gitProject({ plan: planText() });
+  const b = withGit(noPaths, ["init", noPaths.id, "--goal", "fix typo"]);
+  assert.equal(b.json.step, "plan-review");
+  assert.match(b.json.reason, /risk not measured \(window, 0 plan paths\)/);
+  assert.equal(skipsOf(noPaths).length, 0);
+  // The unmeasured review still gets the lean floor.
+  assert.ok(readLogEntries(noPaths)[0].tier >= 2);
+});
+
+test("a rigor rise before any implement or fix brings plan-review back", { skip: noGit }, () => {
+  const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  // Fixture: a skip with no implement or fix after it (the router itself moves on to implement at once).
+  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1)]);
+  const res = withGit(project, ["init", project.id, "--goal", "fix typo", "--rigor", "standard"]);
+  assert.equal(res.json.step, "plan-review");
+});
+
+test("after a failed implement, a rigor rise does not bring plan-review back", { skip: noGit }, () => {
+  const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1), entry(2, "implement", { ok: false, verified: false })]);
+  const res = withGit(project, ["init", project.id, "--goal", "fix typo", "--rigor", "thorough"]);
+  assert.equal(res.json.step, "implement");
+  assert.equal(readLogEntries(project).some((e) => e.template === "plan-revise"), false);
+});
+
+test("report lists the skipped step and keeps Steps as the executed count", { skip: noGit }, () => {
+  const { project } = leanFlow();
+  const status = withGit(project, ["status", project.id, "--report"]);
+  assert.equal(status.status, 0);
+  const report = readReportFile(project);
+  assert.match(report, /^## Skipped steps$/m);
+  assert.match(report, /^\| After step \| Step \| Reason \| Rigor \|$/m);
+  assert.match(report, /^\| 1 \| plan-review \| rigor lean: plan-review skipped .* \| lean \|$/m);
+  assert.match(report, /^Steps: 2 · .* · Skipped: 1$/m);
+  const skippedRow = status.json.steps.find((s) => s.skipped);
+  assert.equal(skippedRow.step, "plan-review");
+  assert.equal(status.json.steps.filter((s) => !s.skipped).length, 2);
+});
+
+test("a report without skips has no Skipped section", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  run(project, ["status", project.id, "--report"]);
+  const report = readReportFile(project);
+  assert.doesNotMatch(report, /Skipped/);
+});
+
+test("init on a log with a skip resumes cleanly", { skip: noGit }, () => {
+  const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1), entry(2, "implement", { verified: true })]);
+  const res = withGit(project, ["init", project.id]);
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.action, "run");
 });
