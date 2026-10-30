@@ -6,6 +6,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 
 - Keep routing decisions in `skills/10x-pipeline/scripts/route.mjs` and `skills/10x-pipeline/policy.json`. `SKILL.md` must not name models, effort levels or tiers beyond what it already documents.
 - `route.mjs` owns `context/changes/<change-id>/agent-smith/run.jsonl` and `meta.json`. Never edit them by hand or from the skill.
+- The router's only git writes are the index and commit writes of the pre-archive commit in the `done` branch of a run started with `--archive`: `git add`, `git commit`, and a `git reset` of its own add after a failure. It never pushes, never passes `--no-verify` and sets no `-c` option except `core.quotePath=false`. Everything else it does with git is a read.
 - Add no npm dependencies. The router uses only `node:` built-ins and must run on Node 18+.
 - Never edit `context/archive/`; it is read-only by convention.
 
@@ -14,7 +15,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `.claude-plugin/plugin.json` — plugin manifest. `.claude-plugin/marketplace.json` — marketplace listing this repo as its only plugin. Keep `name`, `description` and `version` aligned between the two and with @README.md.
 - `skills/10x-pipeline/SKILL.md` — orchestrator instructions (the loop over router output).
 - `skills/10x-pipeline/policy.json` — model ladder, base tiers, escalation, limits, prompt templates.
-- `skills/10x-pipeline/scripts/route.mjs` — router: `init`, `next`, `status`, `risk`.
+- `skills/10x-pipeline/scripts/route.mjs` — router: `init`, `next`, `status`, `risk`, `verify-archive`.
 - `skills/10x-pipeline/test/` — `node:test` suite: `route.test.mjs`, `churn.test.mjs`, `rules.test.mjs` and `helpers.mjs` (scratch projects, `run.jsonl` fixtures, hermetic git).
 - `docs/ADR/` — architecture decision records (ADR-001 to ADR-004).
 - `context/` — 10x workflow docs: `changes/`, `archive/`, `foundation/`. See the README in each.
@@ -24,10 +25,11 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 
 There is no build or lint setup. Run the tests with `node --test skills/10x-pipeline/test/*.test.mjs` (shell glob, Node 18 and later). Exercise the router from a project root that has `context/changes/<id>/change.md`:
 
-- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>" [--rigor lean|standard|thorough]` — start or resume a run.
+- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive]` — start or resume a run. `--archive` makes `done` commit the change folder and return an `archive` action (`--archive false` turns it off).
 - `node skills/10x-pipeline/scripts/route.mjs next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `node skills/10x-pipeline/scripts/route.mjs status <id>` — print the per-step model and effort log.
 - `node skills/10x-pipeline/scripts/route.mjs risk <id>` — print churn hot paths, plan hits and diff hits; writes nothing.
+- `node skills/10x-pipeline/scripts/route.mjs verify-archive <id> [--path <p>]` — read-only; prints `archived: true` only when the archive folder has `status: archived` and `context/changes/<id>/` is gone. Files only, no git.
 
 ## Coding Style
 

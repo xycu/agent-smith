@@ -6,7 +6,7 @@ description: >
   model and effort from the previous results: review verdicts, finding counts,
   plan size, failed attempts. Use when the user wants an orchestrated or adaptive
   10x run, "run the whole chain", "pipeline this change", or dynamic model routing.
-argument-hint: <change-id> [goal text]
+argument-hint: <change-id> [goal text] [--archive]
 allowed-tools:
   - Agent
   - Bash
@@ -25,9 +25,9 @@ Router: `ROUTER=<this skill's base directory>/scripts/route.mjs`. Run it with `n
 
 ## Start
 
-1. Parse the arguments: `<change-id>` (required, kebab-case), and optional goal text.
-2. If `context/changes/<change-id>/change.md` is missing, tell the user to run `/10x-new <change-id>` and STOP. If the 10x skills (`10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`) are not available in this project, tell the user to install the 10x toolkit first and STOP.
-3. Run `node $ROUTER init <change-id> --goal "<goal text>"`. Quote the goal safely for the shell. Re-running `init` on a change with an existing log resumes it: the router reads the disk state and continues from there. Add `--rigor <level>` only when the user named a rigor level (`lean`, `standard` or `thorough`). Never pick one yourself. On a resume the flag can only raise the level.
+1. Parse the arguments: `<change-id>` (required, kebab-case), optional goal text, and the optional flag `--archive`. Remove the flag from the goal text. Pass it on to `init` only when the user gave it.
+2. If `context/changes/<change-id>/change.md` is missing, first run `node $ROUTER verify-archive <change-id>` (no `--path`). When it reports `archived: true`, tell the user where the change was archived and STOP. Otherwise tell the user to run `/10x-new <change-id>` and STOP. If the 10x skills (`10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`) are not available in this project, tell the user to install the 10x toolkit first and STOP.
+3. Run `node $ROUTER init <change-id> --goal "<goal text>"`. Quote the goal safely for the shell. Re-running `init` on a change with an existing log resumes it: the router reads the disk state and continues from there. Add `--rigor <level>` only when the user named a rigor level (`lean`, `standard` or `thorough`). Never pick one yourself. On a resume the flag can only raise the level. Add `--archive` only when the user gave it. A resume keeps a stored `--archive`, and `--archive false` turns it off.
 
 ## Loop
 
@@ -40,13 +40,22 @@ The router prints one JSON object. Act on `action`:
   4. If the Agent result reports usage (total tokens, tool uses and duration), add `"usage":{"totalTokens":N,"toolUses":N,"durationMs":N}` to that JSON, with the figures copied exactly. Omit the key when no figure is reported. Write the JSON to the router's `resultFile` with the Write tool.
   5. Run `node $ROUTER next <change-id>` and repeat the loop with its output.
 - **`done`**: report the final verdict, the number of steps, and every entry in `manualPending` as a checklist for the human. Then run `node $ROUTER status <change-id>` and show the model/effort used per step as a short list. Point the user to the router's `report` path (`report.md`).
-- **`halt`**: report `reason` and the status output. A reason that says `needs a human` comes from the subagent, which found no evidence-backed answer. Show the quoted text. Point the user to the router's `report` path (`report.md`) when present. STOP. Do not try to recover on your own.
+- **`archive`** (only for a run started with `--archive`; the run is done and the router has committed the change folder, or found it already committed):
+  1. Run `node $ROUTER status <change-id>` now, before the move, because the archive moves the log. Report what `done` reports: the final verdict from `summary.reason`, the number of steps, every `summary.manualPending` item as a checklist, the model/effort used per step as a short list, and the router's `report` path.
+  2. Print one line: `Archive: /10x-archive on <model>/<effort>.`
+  3. Call the Agent tool with the same parameters as for `run` and `prompt` set to the router's `prompt`, copied verbatim.
+  4. Write no result file and do not call `next`. The `archive` action has no `resultFile`, and nothing may be written into the folder that moves.
+  5. Run `node $ROUTER verify-archive <change-id> --path <archivePath>` with the `archivePath` of the `archive` action.
+     - On `archived: true`: print the archive path and the report path inside it. Print one line asking the user to confirm that `git status` is clean, because `verify-archive` reads files only and a failed `chore(archive)` commit leaves the rename staged. Repeat every `manualPending` item as the checklist of checks nobody verified. When the action's `ignored` list is not empty, list its paths as "not committed (ignored by git)". Copy the subagent's `assumptions` and any usage figure it reported into the final message.
+     - On `archived: false`: print `reason` and the subagent's note, say the folder may be unchanged or half-archived, and STOP.
+- **`halt`**: report `reason` and the status output. A reason that says `needs a human` comes from the subagent, which found no evidence-backed answer. Show the quoted text. Point the user to the router's `report` path (`report.md`) when present. When the output has an `archive` field, say the change was not archived, then read `committed`: if `false`, say the folder is not committed and `/10x-archive` needs it committed first; if `true`, say the pre-archive commit exists locally, the router did not undo it, and `node $ROUTER next <change-id>` repeats the checks once the cause is fixed (the check of what the commit holds is not repeated, so the user should look at the commit with `git show --stat HEAD`). When the output has no `archive` field, say nothing about a commit or an archive. STOP. Do not try to recover on your own.
 
 ## Rules
 
 - Never choose or change `model` or `effort`. Never edit the prompt the router returns.
 - Never skip the router, call two steps without it, or run a step it did not return.
 - Never edit `context/changes/<change-id>/agent-smith/run.jsonl` or `meta.json` next to it. The router owns them.
+- After an `archive` action, never run `init`, `next` or `status --report` for that change. Its folder has moved.
 - Do not read the subagent's work in detail. The router reads the artifacts on disk and verifies them.
 - If the user interrupts and asks to change routing, point them to the policy (below). Do not hand-tune a single run.
 
@@ -65,6 +74,7 @@ How the tier moves (see `scripts/route.mjs`, `tierFor` and `decide`):
 - The step budget is `limits.maxTotalSteps` plus `rigor.budgetDelta` for the level.
 - Effort floor: plan, plan review and implementation review ask questions, so the router never runs them below the floor in `rigor.minEffort` for the level. The floor is applied last, so it wins over the simple-change discount. The report marks a step as simple only when the discount survived the floor.
 - The lowest level also moves implementation review one tier down (`rigor.tierOffset`), never below the floor.
+- The archive step is not moved by any rule above. The policy pins its tier.
 
 - Plan size: +1 tier per `phaseThresholds` entry reached by the phase count in `## Progress`.
 - First plan, from the goal text (changes relative to the plan step's base): a short goal (at most `firstPlan.maxWords` words, no hard keyword) = -1 plus the simple-change discount. A goal with a hard keyword from `firstPlan.hardKeywords` = no reduction, whatever its length. Any other goal, including an empty one = -1.

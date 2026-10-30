@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-10-30
 - **Deciders:** repository owner
-- **Origin:** research for `rigor-gated-routing`, split into four changes on 2026-10-30. Research and owner decisions: `context/changes/rigor-levels/research.md` (Follow-ups 1 to 3). Builds on ADR-001 (cheap deterministic signals first) and ADR-002 (change lifecycle, optional steps).
+- **Origin:** research for `rigor-gated-routing`, split into four changes on 2026-10-30, later split into five (S-09 into `archive-adapter` and `lesson-candidates`). Research and owner decisions: `context/archive/2026-10-30-rigor-levels/research.md` (Follow-ups 1 to 3). Builds on ADR-001 (cheap deterministic signals first) and ADR-002 (change lifecycle, optional steps).
 
 ## Context
 
@@ -15,16 +15,17 @@
 
 ## Decision
 
-The work is split in four changes. This ADR is a skeleton: change 1 is written in full, changes 2 to 4 only listed.
+The work is split in five changes. This ADR is a skeleton: changes 1 and 4 are written in full, changes 2, 3 and 5 only listed.
 
 | Part | Owning change | Status |
 | --- | --- | --- |
 | Rigor levels, churn risk, effort floor, skip entries, `signals` | `rigor-levels` (change 1) | implemented |
 | Pre-plan steps (research, legacy research, domain brief, frame), RETHINK/REVISE loops, frame authority over `needsHuman` | `pre-plan-steps` (change 2) | planned |
 | Per-phase executors, manual-row automation, tdd/e2e fallback, third-attempt re-plan | `phase-executors` (change 3) | planned |
-| Archive adapter, `verify-archive`, lesson candidates, git write decision for `agent-smith/` | `archive-and-lessons` (change 4) | planned |
+| Archive adapter, `verify-archive`, git write decision for the change folder | `archive-adapter` (change 4) | described in "Archive adapter" |
+| Lesson candidates from the implementation review | `lesson-candidates` (change 5) | planned |
 
-Design of changes 2 to 4 is in `context/changes/rigor-levels/research.md`. The git write decision of change 4 (the router committing `agent-smith/` before archive) is future work, not decided here.
+Design of changes 2, 3 and 5 is in `context/archive/2026-10-30-rigor-levels/research.md`. The git write decision of change 4 is in "Archive adapter" below.
 
 ### Rigor levels
 
@@ -72,6 +73,58 @@ A step result may carry an optional `signals` object. The router keeps two keys 
 
 Prompt rules follow ADR-004.
 
+### Archive adapter
+
+Change 4 (`archive-adapter`, roadmap S-09) lets a finished run commit its change folder and archive the change through `/10x-archive`. `/10x-archive` stays unchanged. The adapter is opt-in: `init <id> --archive` stores `archive: true` in `meta.json`, a resume keeps it and `--archive false` turns it off.
+
+Git facts. The router already reads git: `rev-parse HEAD` for `baseSha`, and `log` and `diff` for churn risk (see "Churn risk"). With `--archive` it also writes, which is its first git write. At `done` it commits the whole `context/changes/<id>/` folder, including `agent-smith/`, as `chore(<id>): commit change folder before archive`. This settles the FR-008 deferral ("git handling is decided downstream"). Without the flag the router writes nothing to git.
+
+- The router's git writes are limited to `git add` and `git commit` on the change folder and a `git reset` of its own add after a failure. The only `-c` option is the display setting `core.quotePath=false`, so hooks, signing and identity are the caller's. It never passes `--no-verify` and never pushes.
+- The commit lands on the current branch. Protected branches are not detected; a refused commit is a failed git command and halts.
+- The commit holds every file in the folder that git does not ignore. Ignored files outside the four probe files (`agent-smith/run.jsonl`, `meta.json`, `report.md` and `change.md`) are reported in the `archive` action, stay out of history, and still move with the folder. A probe file that git ignores is refused, at `init` and again at `done`.
+- Before the commit the router halts if anything is staged, HEAD is detached, a merge, rebase, cherry-pick or revert is in progress, `change.md` has no valid `created` (read as `/10x-archive` reads it, so the archive path matches the skill's destination), or the archive destination exists. `archive.haltOnManualPending` (default `false`) adds a halt for pending Manual rows.
+- After the commit it checks, because a hook can stage or write other files: the index is empty, the commit holds only paths of the change folder (compared as raw NUL-separated strings, so non-ASCII names pass), and the folder is clean.
+- The `archive` action carries the done summary, the report path, the expected `archivePath`, the commit, the ignored files and the prompt for `/10x-archive`. The step's tier is pinned in `policy.json`, so no rule of this ADR moves it. The prompt gives the answers to the skill's questions as rules (continue past warnings, archive without repointing, never ask), and a blocking warning wins over them.
+- The archive step has no log entry, no usage figure and no report row. This is the one step that logs no result. Nothing may be written under the change folder after the commit, because the folder moves.
+- `report.md` is written before the commit and holds the line `Archive: requested - runs after this report was written`, which stays in the archived copy. It lists pending Manual rows as `Manual checks pending: N`, because it is the only router artifact that survives the move.
+- `route.mjs verify-archive <id> [--path <p>]` is read-only and file-only: the archive folder has `status: archived` and the change folder is gone. `init`, `next` and `status --report` halt without writing for an archived change and for a change stamped `status: archived` whose folder did not move.
+
+Halts. A halt carries `archive: "skipped: ..."` and `committed` when the `done` branch prints it or when the end of the run (`endRun`) prints it. Both are halts of an archive run only. Four kinds exist:
+
+| Kind | Cause | Files written by the halt | `committed` | `archive` |
+| --- | --- | --- | --- | --- |
+| A | Pre-check fails and the folder is not committed and clean; any other halt of the run (budget, failed steps, loop limits, `needsHuman`) | log, `meta.json` outcome, `report.md` | `false` | `skipped: run halted` |
+| B | Pre-check fails on a resume and the folder is already committed and clean | none | `true` | `skipped: pre-archive commit exists; run not archived` |
+| C | `git add` or `git commit` fails (the router unstages its own add) | none (the final report and the outcome `done` were written before the commit) | `false` | `skipped: pre-archive commit failed` |
+| D | A post-commit check fails | none | `true` | `skipped: pre-archive commit exists; run not archived` |
+
+Halts printed elsewhere carry neither field: a missing result file (`Step N has no result`), the guard halts for an archived or half-archived change, usage and flag errors, halts at `init` (not a work tree, an ignored probe file), an unknown command and `Router error:`. The rule behind the table: while the folder is not committed, a halt may write the run's end state; once the commit exists, a halt only prints, because a rewrite would dirty the committed folder.
+
+Alternatives considered:
+
+- Commit only `agent-smith/` and halt on other dirty paths: rejected, because a normal run leaves `reviews/`, `plan.md` and `research.md` uncommitted (the toolkit skills do not commit), so it cannot succeed.
+- Gitignore `agent-smith/`: rejected, because the run state would stay out of history, and `/10x-archive` still blocks on the other uncommitted files of the folder.
+- Require a human commit first: rejected, because it defeats an unattended run.
+- Change `/10x-archive`: rejected, because it is a toolkit skill the pipeline does not own.
+
+Consequences of the adapter:
+
+- A halted run is never archived.
+- Manual rows pending at `done` raise the warnings question of `/10x-archive`. The subagent has `Continue archiving` as its answer, and the rows are listed in `report.md`. With `archive.haltOnManualPending` set to `true` the run halts before the commit instead.
+- A post-commit failure leaves the commit in place. `next` repeats safely and prints JSON only. On that repeat (kinds B and D) no new commit is made, so post-commit check 2, that the commit touched only the change folder, is skipped. A kind D halt caused by check 2 on the first call is therefore not detected again by a repeated `next`.
+- The archive subagent's own SHA history check may run `git fetch` and `gh`. That is outside the router's write rule.
+- `verify-archive` reads files only, so a staged-but-uncommitted archive (the `chore(archive)` commit failed after the move) reads as archived. The orchestrator asks the user to check `git status`.
+- A git timeout kills git but may leave a hung hook child and a stale `index.lock`.
+
+Rules for the adapter:
+
+- **GIVEN** a run started without `--archive` **WHEN** the router reaches `done` **THEN** it **MUST NOT** run a git command that writes the index or history.
+- **GIVEN** `--archive` is set **WHEN** anything is staged, HEAD is detached or a merge or rebase is in progress **THEN** the router **MUST** halt before it commits.
+- **GIVEN** a git command fails during the pre-archive commit **WHEN** the router handles the failure **THEN** it **MUST** halt with the git message and skip the archive.
+- **GIVEN** the router commits the change folder **WHEN** a commit hook fails **THEN** the router **MUST NOT** pass `--no-verify`.
+- **GIVEN** the change folder is committed **WHEN** the archive action has been returned **THEN** the router **MUST NOT** write under `context/changes/<id>/`.
+- **GIVEN** the pre-archive commit succeeded **WHEN** the run ends **THEN** the router **MUST NOT** push.
+
 ## Alternatives considered
 
 | Alternative | Verdict | Reason |
@@ -92,7 +145,8 @@ Prompt rules follow ADR-004.
 
 ## Sources
 
-- `context/changes/rigor-levels/research.md` (Follow-ups 1 to 3), `context/changes/rigor-levels/plan.md`
+- `context/archive/2026-10-30-rigor-levels/research.md` (Follow-ups 1 to 3), `context/archive/2026-10-30-rigor-levels/plan.md`
+- `context/changes/archive-adapter/research.md`, `context/changes/archive-adapter/plan.md`
 - `context/foundation/prd.md` FR-002, FR-003, FR-010; `context/foundation/roadmap.md` S-03
 - `docs/ADR/ADR-001-phased-complexity-routing.md`, `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md`, `docs/ADR/ADR-004-prompt-rules-as-scenarios.md`
 - Symbols: `resolveRigor`, `measureRisk`, `hotSet`, `tierFor`, `cleanSignals`, `decide` in `skills/10x-pipeline/scripts/route.mjs`

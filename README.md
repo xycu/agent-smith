@@ -15,15 +15,15 @@ A Claude Code plugin. Each step of a skill chain runs in its own subagent. A rou
 
 ## Skills
 
-### `/agent-smith:10x-pipeline <change-id> [goal]`
+### `/agent-smith:10x-pipeline <change-id> [goal] [--archive]`
 
-Runs a 10xDevs change end to end: plan, plan review, implement, implementation review, fix.
+Runs a 10xDevs change end to end: plan, plan review, implement, implementation review, fix. With `--archive` it also commits the change folder and archives the change when the run is done (see "Archive (opt-in)").
 
 Requirements in the target project:
 
 - The 10x toolkit skills: `10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`.
 - A change folder made with `/10x-new <change-id>`.
-- Node.js 18 or later. Churn risk also reads `git` history; without it the router flags no hot path.
+- Node.js 18 or later. Churn risk also reads `git` history; without it the router flags no hot path. `--archive` needs a git work tree and the `10x-archive` skill.
 
 How routing works:
 
@@ -33,6 +33,7 @@ How routing works:
 - The first plan reads the goal text. A brief goal (at most 25 words, no hard keyword) lowers the plan tier by 1 and earns the simple-change discount. Any other goal lowers it by 1, and a goal with a hard keyword lowers it by nothing. The word limit and the keyword list sit under `complexity.firstPlan` in `policy.json` and can be overridden per project.
 - Effort floor: plan, plan review and implementation review ask questions, so they never run below the floor in `rigor.minEffort` for the run's rigor level. The floor beats the simple-change discount, and the report marks a step as simple only when the discount survived.
 - A step counts as failed when the subagent does not report `done` or the expected file did not change.
+- The archive step is not moved by any of these rules: the policy pins its tier.
 - The run halts for a human after repeated failures, too many plan revisions or fix loops, or when the step budget is spent.
 
 Rigor:
@@ -43,6 +44,21 @@ Rigor:
 - The step budget is `limits.maxTotalSteps` plus a delta per level (smaller at `lean`, larger at `thorough`). Skipped steps use no budget.
 - A subagent can end its `RESULT:` line with an optional `signals` object. The router keeps two keys: `rigor` (raises the level) and `needsHuman` (halts the run once with a report). It ignores the rest.
 - Prompt rules follow the GIVEN/WHEN/THEN form with one bold RFC 2119 keyword (ADR-004). `node --test skills/10x-pipeline/test/*.test.mjs` checks the form and the router behavior.
+
+Archive (opt-in):
+
+- `init <id> --archive` stores `archive: true` in `meta.json`; a resume keeps it and `--archive false` turns it off. Without the flag the router writes nothing to git: `done` stays `done`. It only reads history, for churn risk.
+- `init --archive` halts, and writes nothing, when the project is not a git work tree or git ignores any of `agent-smith/run.jsonl`, `agent-smith/meta.json`, `agent-smith/report.md` or `change.md` of the change. The same checks run again at `done`.
+- At `done`, the router checks the git state first. It halts if anything is staged, HEAD is detached, a merge, rebase, cherry-pick or revert is in progress, `change.md` has no `created: YYYY-MM-DD` line, or the archive folder `context/archive/<created>-<id>` already exists. With `archive.haltOnManualPending` set to `true` it also halts when Manual rows are pending; the default is `false`.
+- Then it writes the final `report.md`, commits `context/changes/<id>/` as `chore(<id>): commit change folder before archive` (`archive.commitMessage` in the policy), and returns an `archive` action. The commit is skipped when it would be empty.
+- Three checks follow the commit, because a hook can stage or write other files: the index is empty, the commit touched only the change folder, and the folder is clean. A failed `git add` or `git commit` halts with git's message and unstages the router's own add. Hooks and signing apply; the router never skips them and never pushes.
+- The commit lands on the current branch. Protected branches such as `main` are not detected.
+- Every file in the change folder that git does not ignore is committed, editor junk such as `.DS_Store` included. Ignored files outside the four files above are not committed. The `archive` action lists them (at most ten) and the final message shows them as "not committed (ignored by git)"; they still move with the folder.
+- The orchestrator then runs `/10x-archive <id>` in one subagent. Its prompt gives the answers to the skill's questions as rules: continue past warnings, archive without repointing, never ask. A blocking warning, such as missing review coverage, ends the step as `blocked`.
+- `route.mjs verify-archive <id> [--path <p>]` confirms the move from files alone: the archive folder has `status: archived` in its `change.md` and `context/changes/<id>/` is gone. It does not call git, so check `git status` afterwards. `--path` names the exact folder (`context/archive/<date>-<id>`); the orchestrator passes the `archivePath` of the `archive` action.
+- `init`, `next` and `status --report` halt, and write nothing, for a change that is archived or stamped `status: archived` with its folder still in place.
+- `report.md` carries `Archive: requested - runs after this report was written`. Pending Manual rows are listed there as `Manual checks pending: N`, because this report is the only router file that survives the move. The archive step has no log entry, no usage figure and no report row, so the totals cover the steps before it.
+- A halt is never archived. A halt printed by the `done` branch or by the end of the run carries `archive: "skipped: ..."` and `committed`. `committed: false` means nothing was committed: the folder is uncommitted and `/10x-archive` needs a commit first. `committed: true` means the pre-archive commit exists locally and the router did not undo it; `next` repeats the checks safely after the cause is fixed, without a second commit. On that repeat the check that the commit touched only the change folder is skipped, because no new commit is made. Halts printed elsewhere carry neither field: a missing result file, a guard halt for an archived change, usage and flag errors, errors at `init` and `Router error:`.
 
 Override any policy key per project in `context/foundation/agent-smith-policy.json`. Run state lives in `context/changes/<change-id>/agent-smith/`.
 
