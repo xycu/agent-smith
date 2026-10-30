@@ -18,7 +18,11 @@
   "complexity": {
     "phaseThresholds": [3, 6],
     "appliesTo": ["plan-review", "implement", "impl-review", "fix"],
-    "sizeBump": { "s": -1, "m": 0, "l": 1 },
+    "firstPlan": {
+      "maxWords": 25,
+      "hardKeywords": ["refactor", "migrate", "migration", "rewrite", "redesign", "architecture", "security", "authentication", "schema"],
+      "bump": { "plain": -1, "hard": 0 }
+    },
     "simple": {
       "maxPhases": 1,
       "maxRows": 6,

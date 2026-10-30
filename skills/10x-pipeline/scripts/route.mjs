@@ -4,7 +4,7 @@
 // review verdicts) plus the run log. The orchestrator never picks a model itself.
 //
 // Usage (run from the project root):
-//   node route.mjs init   <change-id> [--goal "<text>"] [--size s|m|l]
+//   node route.mjs init   <change-id> [--goal "<text>"]
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
 //
@@ -156,7 +156,6 @@ function buildReport(id, meta, log) {
     `# Run report: ${id}`,
     "",
     `Goal: ${oneLine(meta.goal) || "-"}`,
-    `Size: ${meta.size ?? "-"}`,
     `Outcome: ${outcome}`,
     "",
     "| # | Step | Model | Effort | Tier | Simple | Result | Tokens |",
@@ -245,6 +244,20 @@ function trailingFailures(log, step) {
   return n;
 }
 
+// Classifies the goal text for the first plan step: short, plain or hard.
+// A hard keyword wins over a short goal. Words match by prefix, so "Refactoring" hits "refactor".
+function goalClass(goal, policy) {
+  const F = policy.complexity.firstPlan;
+  const words = typeof goal === "string" ? goal.split(/\s+/).filter(Boolean) : [];
+  if (!words.length) return { kind: "plain" };
+  for (const word of words) {
+    const w = word.toLowerCase().replace(/^[^\p{L}\p{N}]+/u, "");
+    const keyword = F.hardKeywords.find((k) => w.startsWith(k.toLowerCase()));
+    if (keyword) return { kind: "hard", keyword };
+  }
+  return { kind: words.length <= F.maxWords ? "short" : "plain" };
+}
+
 function decide(p, log, policy, meta) {
   const E = policy.escalation;
   const L = policy.limits;
@@ -257,7 +270,15 @@ function decide(p, log, policy, meta) {
     return { halt: `No change folder. Run /10x-new ${meta.id} first.` };
   }
   if (!plan.exists || !plan.hasProgress) {
-    return { step: "plan", template: "plan", bump: meta.sizeBump, reason: plan.exists ? "plan.md has no ## Progress" : "no plan yet" };
+    const { kind, keyword } = goalClass(meta.goal, policy);
+    const B = policy.complexity.firstPlan.bump;
+    return {
+      step: "plan",
+      template: "plan",
+      bump: kind === "hard" ? B.hard : B.plain,
+      bumpWhy: `goal class ${kind}`,
+      reason: `${plan.exists ? "plan.md has no ## Progress" : "no plan yet"} (goal: ${kind}${keyword ? `, "${keyword}"` : ""})`,
+    };
   }
 
   // Plan review is fresh if it ran after the last successful plan step.
@@ -335,13 +356,13 @@ function decide(p, log, policy, meta) {
 // Any failed step ends the discount for the rest of the run.
 function simpleSignal(d, plan, log, meta, policy) {
   if (d.step === "plan") {
-    return d.template === "plan" && meta.size === "s" && !log.some((e) => e.ok === false)
-      ? { simple: true, why: "--size s" }
+    return d.template === "plan" && goalClass(meta.goal, policy).kind === "short" && !log.some((e) => e.ok === false)
+      ? { simple: true, why: "short goal" }
       : { simple: false };
   }
   const S = policy.complexity.simple;
   const simple = plan.hasProgress && plan.phases >= 1 && plan.phases <= S.maxPhases &&
-    plan.rows <= S.maxRows && meta.size !== "l" && !log.some((e) => e.ok === false);
+    plan.rows <= S.maxRows && !log.some((e) => e.ok === false);
   return simple ? { simple, why: `${plan.phases} phase, ${plan.rows} rows` } : { simple: false };
 }
 
@@ -354,7 +375,7 @@ function tierFor(d, log, policy, plan, meta) {
     const cb = C.phaseThresholds.filter((t) => plan.phases >= t).length;
     if (cb) { tier += cb; parts.push(`+${cb} for ${plan.phases} phases`); }
   }
-  if (d.bump) { tier += d.bump; parts.push(`${d.bump > 0 ? "+" : ""}${d.bump} from results`); }
+  if (d.bump) { tier += d.bump; parts.push(`${d.bump > 0 ? "+" : ""}${d.bump} from ${d.bumpWhy ?? "results"}`); }
   const fails = trailingFailures(log, d.step);
   if (fails) { tier += fails * policy.escalation.perFailure; parts.push(`+${fails * policy.escalation.perFailure} for ${fails} failed attempt(s)`); }
   const { simple, why } = simpleSignal(d, plan, log, meta, policy);
@@ -376,7 +397,7 @@ function render(tpl, vars) {
 function next(id, policy) {
   const p = paths(id);
   fs.mkdirSync(p.dir, { recursive: true });
-  const meta = readMeta(p.meta, { id, goal: "", sizeBump: 0 });
+  const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
   attachResult(p, log);
 
@@ -448,7 +469,7 @@ function status(id, flags) {
   };
   if (flags.report) {
     if (!fs.existsSync(p.change)) out({ action: "halt", reason: `No change folder context/changes/${id}.` }, 1);
-    const meta = readMeta(p.meta, { id, goal: "", sizeBump: 0 });
+    const meta = readMeta(p.meta, { id, goal: "" });
     res.report = writeReport(p, id, meta, log);
   }
   out(res);
@@ -458,7 +479,7 @@ function status(id, flags) {
 
 const [cmd, id, ...rest] = process.argv.slice(2);
 if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-  out({ action: "halt", reason: "Usage: route.mjs init|next|status <change-id> [--goal text] [--size s|m|l] [--report]" }, 1);
+  out({ action: "halt", reason: "Usage: route.mjs init|next|status <change-id> [--goal text] [--report]" }, 1);
 }
 const policy = loadPolicy();
 const flags = parseFlags(rest);
@@ -467,13 +488,9 @@ if (cmd === "init") {
   const p = paths(id);
   fs.mkdirSync(p.dir, { recursive: true });
   const prev = readMeta(p.meta, {});
-  const size = typeof flags.size === "string" ? flags.size : prev.size ?? "m";
-  fs.writeFileSync(p.meta, JSON.stringify({
-    id,
-    goal: typeof flags.goal === "string" ? flags.goal : prev.goal ?? "",
-    size,
-    sizeBump: policy.complexity.sizeBump[size] ?? 0,
-  }, null, 2) + "\n");
+  // An empty, blank or valueless --goal keeps the stored goal.
+  const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : prev.goal ?? "";
+  fs.writeFileSync(p.meta, JSON.stringify({ id, goal }, null, 2) + "\n");
   next(id, policy);
 } else if (cmd === "next") {
   next(id, policy);
