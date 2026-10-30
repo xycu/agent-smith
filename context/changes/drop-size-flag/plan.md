@@ -246,14 +246,14 @@ None: one string split and a short keyword scan per `next` call.
 
 #### Automated
 
-- [x] 2.1 No flag in the docs: `grep -rnE "\-\-size|sizeBump|size flag" skills README.md AGENTS.md context/foundation/prd.md docs/ADR/ADR-001-phased-complexity-routing.md` prints nothing
-- [x] 2.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing
-- [x] 2.3 The goal rule is documented in both places: `grep -n "short goal" skills/10x-pipeline/SKILL.md README.md` prints one line from each file
-- [x] 2.4 The argument hint has no size: `grep -n "^argument-hint" skills/10x-pipeline/SKILL.md` prints `argument-hint: <change-id> [goal text]`
-- [x] 2.5 Manifests untouched: `git diff --stat .claude-plugin` is empty
-- [x] 2.6 Raw shaping notes untouched: `git diff --stat context/foundation/shape-notes.md` is empty
+- [x] 2.1 No flag in the docs: `grep -rnE "\-\-size|sizeBump|size flag" skills README.md AGENTS.md context/foundation/prd.md docs/ADR/ADR-001-phased-complexity-routing.md` prints nothing — 0cecc04
+- [x] 2.2 `SKILL.md` names no model that it did not name before: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -iE '^\+.*(haiku|sonnet|opus)'` prints nothing — 0cecc04
+- [x] 2.3 The goal rule is documented in both places: `grep -n "short goal" skills/10x-pipeline/SKILL.md README.md` prints one line from each file — 0cecc04
+- [x] 2.4 The argument hint has no size: `grep -n "^argument-hint" skills/10x-pipeline/SKILL.md` prints `argument-hint: <change-id> [goal text]` — 0cecc04
+- [x] 2.5 Manifests untouched: `git diff --stat .claude-plugin` is empty — 0cecc04
+- [x] 2.6 Raw shaping notes untouched: `git diff --stat context/foundation/shape-notes.md` is empty — 0cecc04
 
 #### Manual
 
-- [x] 2.7 `SKILL.md`, `README.md` and `route.mjs` describe the same rule: the word limit, the hard keywords and the three first-plan reductions (`SKILL.md` as deltas only, with no absolute tier numbers)
-- [x] 2.8 The edited lines in `prd.md` and ADR-001 read coherently without the flag
+- [x] 2.7 `SKILL.md`, `README.md` and `route.mjs` describe the same rule: the word limit, the hard keywords and the three first-plan reductions (`SKILL.md` as deltas only, with no absolute tier numbers) — 0cecc04
+- [x] 2.8 The edited lines in `prd.md` and ADR-001 read coherently without the flag — 0cecc04
