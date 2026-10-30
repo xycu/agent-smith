@@ -61,7 +61,7 @@ How the tier moves (see `scripts/route.mjs`, `tierFor` and `decide`):
 
 - Plan size: +1 tier per `phaseThresholds` entry reached by the phase count in `## Progress`.
 - `--size`: `s` = -1, `l` = +1 for the first plan.
-- A simple change (a plan with at most 1 phase and 6 `## Progress` rows, or `--size s` on the first plan) = -1 on plan, plan review, implement and implementation review. The discount is withheld after any failed step or with `--size l`.
+- A simple change (at most 1 phase and 6 `## Progress` rows) = -1 on plan review, implement and implementation review. `--size s` on the first plan = a further -1 on plan, on top of the `--size` bullet. The step's `minTier` can absorb the discount, for example implement after a clean `SOUND` review. The discount is withheld after any failed step or with `--size l`, so the first retry of a discounted step moves up 2 tiers (the lost discount plus the failure).
 - Plan review `RETHINK` = re-plan at +2. `REVISE` with criticals or too many warnings = re-plan at +1.
 - A noisy plan review (3+ warnings) = implement at +1. A clean `SOUND` = implement at -1.
 - Each failed or unverified attempt of the same step = +1, capped by `maxAttemptsPerStep`.

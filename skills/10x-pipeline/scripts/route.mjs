@@ -69,6 +69,7 @@ function readPlan(file) {
   res.hasProgress = true;
   let section = null;
   for (const line of text.slice(idx).split("\n")) {
+    if (/^## /.test(line) && !/^## Progress\s*$/.test(line)) break;
     if (/^### Phase \d+/.test(line)) { res.phases++; section = null; continue; }
     if (/^#### Automated/.test(line)) { section = "auto"; continue; }
     if (/^#### Manual/.test(line)) { section = "manual"; continue; }
@@ -261,7 +262,9 @@ function decide(p, log, policy, meta) {
 // Any failed step ends the discount for the rest of the run.
 function simpleSignal(d, plan, log, meta, policy) {
   if (d.step === "plan") {
-    return d.template === "plan" && meta.size === "s" ? { simple: true, why: "--size s" } : { simple: false };
+    return d.template === "plan" && meta.size === "s" && !log.some((e) => e.ok === false)
+      ? { simple: true, why: "--size s" }
+      : { simple: false };
   }
   const S = policy.complexity.simple;
   const simple = plan.hasProgress && plan.phases >= 1 && plan.phases <= S.maxPhases &&
@@ -290,7 +293,7 @@ function tierFor(d, log, policy, plan, meta) {
   }
   const clamped = Math.max(s.minTier ?? 0, Math.min(s.maxTier ?? policy.ladder.length - 1, tier, policy.ladder.length - 1));
   if (clamped !== tier) parts.push(`clamped to ${clamped}`);
-  return { tier: clamped, fails, simple, tierWhy: parts.join(", ") };
+  return { tier: clamped, fails, simple: discount > 0, tierWhy: parts.join(", ") };
 }
 
 function render(tpl, vars) {
