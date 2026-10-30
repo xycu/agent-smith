@@ -13,7 +13,7 @@ Add an opt-in `--archive` flag so a finished pipeline run commits its change fol
 
 ## Desired End State
 
-With `--archive`, a run that reaches `done` makes one commit `chore(<id>): commit change folder before archive`, returns an `archive` action, and the orchestrator runs `/10x-archive` in one subagent that answers `Continue archiving` and `Archive without repointing`. `route.mjs verify-archive <id>` confirms the move from files alone. Without the flag nothing changes. An archived change cannot be touched again by `init` or `next`.
+With `--archive`, a run that reaches `done` makes one commit `chore(<id>): commit change folder before archive`, checks that the commit holds only that folder, returns an `archive` action, and the orchestrator runs `/10x-archive` in one subagent that has `Continue archiving` and `Archive without repointing` given as its answers. `route.mjs verify-archive <id> --path <archivePath>` confirms the move from files alone. Without the flag nothing changes. An archived or half-archived change cannot be touched again by `init` or `next`.
 
 ## Key Decisions Made
 
@@ -22,26 +22,28 @@ With `--archive`, a run that reaches `done` makes one commit `chore(<id>): commi
 | Commit scope | Whole `context/changes/<id>/` folder, one commit | The other toolkit steps leave files uncommitted, so committing only `agent-smith/` cannot clear the archive block. | Research (owner decision A) |
 | Commit message | `chore(<id>): commit change folder before archive`, no trailer, hooks run | Conventional Commits per AGENTS.md; the user's identity and hooks apply. | Plan |
 | Git failures | Any failure halts with git's message; failed commit unstages its own `git add` | An unattended run must not leave a half-staged repo that blocks the human. | Plan |
-| Pre-checks | Work tree, HEAD attached, no merge or rebase, nothing staged, valid `created` | Each one would make the commit fail or land wrong. | Plan |
+| Pre-checks | Work tree, no ignored probe file, HEAD attached, no merge or rebase, nothing staged, valid `created`, archive destination free | Each one would make the commit fail, land wrong, or make `/10x-archive` stop after the commit. | Plan, review F1/F4 |
+| Post-commit checks | Index empty, commit holds only the change folder, folder clean; halt prints JSON only | A hook can stage or rewrite other files; `git commit -- <path>` does not prevent it (reproduced). | Review F2 |
 | Halted run | No commit, no archive, halt output says so | A failed run is not ready to archive. | Plan |
-| No git or ignored `agent-smith/` | `--archive` halts at `init`, nothing written | `git mv` with ignored files was not tested; refuse instead of guess. | Plan |
-| `verify-archive` | File checks only, anchored folder name, exit 0 or 1 | Keeps the command read-only and avoids the suffix match `/10x-archive` uses. | Research / Plan |
-| Re-entry | `init`, `next`, `status --report` halt on an archived change and write nothing | "Nothing writes after the move." | Research / Plan |
-| Repeat `done` | Skip the commit when nothing is staged after `git add` | Makes a resume after a late failure safe. | Research / Plan |
+| No git or ignored files | `--archive` halts at `init`, nothing written; probes the files `run.jsonl`, `meta.json`, `report.md`, `change.md`, not the directory | A directory probe exits 1 while the directory is absent and misses `*.jsonl` (reproduced). | Plan, review F1 |
+| `verify-archive` | File checks only, anchored folder name, optional `--path <archivePath>`, exit 0 or 1 | Keeps the command read-only, avoids the suffix match, and survives a reused id. | Research / Plan, review F4 |
+| Re-entry | `init`, `next`, `status --report` halt on an archived change and on a half-archived one (`status: archived`, folder in place) and write nothing | "Nothing writes after the move." | Research / Plan, review F7 |
+| Repeat `done` | Skip the commit when nothing is staged after `git add`; a pre-check halt on a resume prints JSON only when the folder is committed and clean | Makes a resume safe without dirtying the committed folder. | Research / Plan, review F7 |
+| Pending Manual rows | Archive stays opt-in; `report.md` lists them; `archive.haltOnManualPending` (default `false`) halts instead | The report is the only router artifact that survives the move. | Review F5 |
 | Archive step in report | No log entry, no usage, no row; a report line says archive runs after it | The folder moves, so nothing can be written after. | Research |
 | Dirty `roadmap.md` | No router check; subagent copies the skill's notice into `assumptions` | `/10x-archive` already prints it. | Plan |
 | Archive tier | `steps.archive` pinned at a tier with effort `high` or above in `policy.json` | Interactive skill; the pin works even at `lean`. | Research / Plan |
-| Prompt rules | GIVEN/WHEN/THEN, one bold keyword each, archive rules beat the generic suffix | The suffix would pick `Cancel`. | Plan |
+| Prompt rules | GIVEN/WHEN/THEN, one bold keyword each; answers given in advance (no question tool in a subagent), prefix match on labels, `blocked` for review-coverage warnings, archive rules beat the generic suffix | The suffix would pick `Cancel`, and a plain-text question ends a subagent turn. | Plan, review F3 |
 
 ## Scope
 
-**In scope:** `--archive` flag and persistence; policy keys; commit, clean check, `archive` action; report lines; `verify-archive`; re-entry guard; `SKILL.md`, README, AGENTS.md, ADR-003 section, PRD FR-008 note; tests in `archive.test.mjs`.
+**In scope:** `--archive` flag and persistence; policy keys (including `archive.haltOnManualPending`); commit, post-commit checks, `archive` action; report lines; `verify-archive` with `--path`; re-entry guard (archived and half-archived); roadmap S-09 Outcome wording; `SKILL.md`, README, AGENTS.md, ADR-003 section, PRD FR-008 note; tests in `archive.test.mjs`.
 
 **Out of scope:** lesson candidates, pre-plan steps, phase executors; any change to `/10x-archive`; push, `--no-verify`, protected-branch detection; archiving a halted run; the SHA repoint; recording archive tokens; a git read in `verify-archive`.
 
 ## Architecture / Approach
 
-Data plus two code spots. `policy.json` gets a pinned `steps.archive`, an archive prompt and a commit message template. In `route.mjs`, `endRun` splits into a write step and a print step, and the `done` branch of `next()` runs git pre-checks, writes the report, commits, checks the folder is clean and prints the `archive` payload. Post-commit failures print JSON only, so nothing is written into the committed folder. The orchestrator runs `status` first, calls the Agent, then `verify-archive`.
+Data plus two code spots. `policy.json` gets a pinned `steps.archive`, an archive prompt and a commit message template. In `route.mjs`, `endRun` splits into a write step and a print step, and the `done` branch of `next()` runs git pre-checks, writes the report, commits, checks the index is empty, the commit holds only the folder and the folder is clean, and prints the `archive` payload. Post-commit failures print JSON only, so nothing is written into the committed folder. The orchestrator runs `status` first, calls the Agent, then `verify-archive`.
 
 ## Phases at a Glance
 
@@ -52,16 +54,18 @@ Data plus two code spots. `policy.json` gets a pinned `steps.archive`, an archiv
 | 3. `done` branch | Pre-checks, commit, clean check, `archive` action, report lines | Half-staged or dirtied folder after a failure |
 | 4. Orchestrator and docs | `SKILL.md` loop, README, AGENTS.md, ADR-003, PRD note, real run | Only the manual run exercises the real `/10x-archive` |
 
-**Prerequisites:** `rigor-levels` merged in stages. Phase 1 needs its phases 1-2, Phase 2 needs 1-2, Phase 3 needs 1-5 (it rewrites `endRun`, `buildReport`, `next()`), Phase 4 needs 6 (ADR-003 skeleton, doc text). Planning and review can start now.
+**Prerequisites:** the whole `rigor-levels` change (roadmap S-03) merged before implementation starts; staged merging is unsupported. This plan reuses its test harness, `meta.json` spread, `endRun`/`buildReport`/`next()` rewrites and ADR-003 skeleton. Planning and review can run now.
 **Estimated effort:** about 3-4 sessions across 4 phases.
 
 ## Open Risks & Assumptions
 
 - Assumed, research questions 2-10 decided with the research's proposed rules (see the plan's decision table).
 - `git mv` with an ignored `agent-smith/` is untested; the adapter refuses that case.
-- Pending Manual rows raise the warnings prompt on nearly every run; the subagent always answers `Continue archiving`, so unchecked manual rows are archived (opt-in, owner-set).
-- A half-finished `/10x-archive` (stamped, not moved) is reported as not archived and needs a human.
-- The `runGit` wrapper may sit beside the churn git layer from `rigor-levels` Phase 3; either merge order works.
+- Pending Manual rows raise the warnings prompt on nearly every run; the subagent proceeds with `Continue archiving`, so unchecked manual rows are archived (opt-in, owner-set), but they are listed in `report.md` and the final message.
+- A half-finished `/10x-archive` (stamped, not moved) is reported as not archived, blocks `init`/`next` and needs a human. A staged-but-uncommitted archive reads as `archived: true`; the orchestrator reminds the user to check `git status`.
+- The commit lands on the current branch (`main` too) and includes every file in the folder; a git timeout may leave a hung hook child and a stale `index.lock`.
+- The `runGit` wrapper sits beside the churn git layer from `rigor-levels` Phase 3, which is merged first.
+- Plan review 2026-10-30 (REVISE) findings F1 to F9 are resolved in this revision.
 - Real `/10x-archive` behavior is checked once, manually, in Phase 4.
 
 ## Success Criteria (Summary)
