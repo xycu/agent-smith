@@ -476,10 +476,10 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Automated
 
-- [x] 2.1 Flag, persistence and policy tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [x] 2.2 Rule-form test passes on the archive prompt: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 2.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 2.4 `policy.json` carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.steps.archive||!p.archive.commitMessage||p.archive.haltOnManualPending!==false||!p.prompts.archive)process.exit(1)'`
+- [x] 2.1 Flag, persistence and policy tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs` — f11536b
+- [x] 2.2 Rule-form test passes on the archive prompt: `node --test skills/10x-pipeline/test/rules.test.mjs` — f11536b
+- [x] 2.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — f11536b
+- [x] 2.4 `policy.json` carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.steps.archive||!p.archive.commitMessage||p.archive.haltOnManualPending!==false||!p.prompts.archive)process.exit(1)'` — f11536b
 
 #### Manual
 
@@ -490,11 +490,11 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Automated
 
-- [ ] 3.1 Adapter tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [ ] 3.2 Existing routing and report tests still pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [ ] 3.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 3.4 The router never pushes or skips hooks: `! grep -nE "[\"']push[\"']|git push|--no-verify|--no-gpg-sign" skills/10x-pipeline/scripts/route.mjs && node --test --test-name-pattern="git subcommands" skills/10x-pipeline/test/archive.test.mjs`
-- [ ] 3.9 Non-ASCII names and a nested project root pass: `node --test --test-name-pattern="non-ASCII|nested root" skills/10x-pipeline/test/archive.test.mjs`
+- [x] 3.1 Adapter tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs`
+- [x] 3.2 Existing routing and report tests still pass: `node --test skills/10x-pipeline/test/route.test.mjs`
+- [x] 3.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.4 The router never pushes or skips hooks: `! grep -nE "[\"']push[\"']|git push|--no-verify|--no-gpg-sign" skills/10x-pipeline/scripts/route.mjs && node --test --test-name-pattern="git subcommands" skills/10x-pipeline/test/archive.test.mjs`
+- [x] 3.9 Non-ASCII names and a nested project root pass: `node --test --test-name-pattern="non-ASCII|nested root" skills/10x-pipeline/test/archive.test.mjs`
 
 #### Manual
 
