@@ -128,6 +128,17 @@ function writeLog(file, entries) {
 
 // ---- result intake + verification ---------------------------------------
 
+// Keep only finite non-negative numbers. Returns null when nothing survives.
+function cleanUsage(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const clean = {};
+  for (const key of ["totalTokens", "toolUses", "durationMs"]) {
+    const v = raw[key];
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) clean[key] = v;
+  }
+  return Object.keys(clean).length ? clean : null;
+}
+
 function attachResult(p, log) {
   const last = log[log.length - 1];
   if (!last || last.result) return;
@@ -148,6 +159,8 @@ function attachResult(p, log) {
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
   last.result = result;
+  const usage = cleanUsage(result.usage);
+  if (usage) last.usage = usage;
   last.verified = verified;
   last.ok = result.status === "done" && verified;
   last.finishedAt = Date.now();
@@ -367,6 +380,7 @@ function status(id) {
     steps: log.map((e) => ({
       n: e.n, step: e.step, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
+      usage: e.usage ?? null,
     })),
   });
 }
