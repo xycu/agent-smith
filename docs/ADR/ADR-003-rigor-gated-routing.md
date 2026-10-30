@@ -103,7 +103,7 @@ Halts printed elsewhere carry neither field: a missing result file (`Step N has 
 Alternatives considered:
 
 - Commit only `agent-smith/` and halt on other dirty paths: rejected, because a normal run leaves `reviews/`, `plan.md` and `research.md` uncommitted (the toolkit skills do not commit), so it cannot succeed.
-- Gitignore `agent-smith/`: rejected, because the run state would stay out of history, and `/10x-archive` still blocks on the other uncommitted files of the folder.
+- Gitignore `agent-smith/`: rejected, because the pre-archive commit is the only copy of the run state in history and `report.md` is the only router artifact the archived folder keeps. A run with ignored `agent-smith/` files would archive without them committed, so the FR-008 decision would hold only on paper. This is why the router refuses an ignored probe file at `init` and at `done`, while it tolerates other ignored files: those carry no run state, are reported, and still move with the folder.
 - Require a human commit first: rejected, because it defeats an unattended run.
 - Change `/10x-archive`: rejected, because it is a toolkit skill the pipeline does not own.
 
