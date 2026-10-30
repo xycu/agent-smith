@@ -534,8 +534,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 1.1 Rule-form test passes on all current rules and rejects the bad fixtures: `node --test skills/10x-pipeline/test/rules.test.mjs` — 690b214
-- [x] 1.2 ADR-004 has its required sections: `test $(grep -c '^## ' docs/ADR/ADR-004-prompt-rules-as-scenarios.md) -ge 4` — 690b214
+- [x] 1.1 Rule-form test passes on all current rules and rejects the bad fixtures: `node --test skills/10x-pipeline/test/rules.test.mjs` — 8c3a446
+- [x] 1.2 ADR-004 has its required sections: `test $(grep -c '^## ' docs/ADR/ADR-004-prompt-rules-as-scenarios.md) -ge 4` — 8c3a446
 
 #### Manual
 
@@ -545,9 +545,9 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 2.1 Rigor tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — 63c956a
-- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 63c956a
-- [x] 2.3 `policy.json` parses and carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.rigor||!p.steps.plan.interactive||!p.steps["impl-review"].interactive)process.exit(1)'` — 63c956a
+- [x] 2.1 Rigor tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — 815ca63
+- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 815ca63
+- [x] 2.3 `policy.json` parses and carries the new keys: `node -e 'const p=require("./skills/10x-pipeline/policy.json");if(!p.rigor||!p.steps.plan.interactive||!p.steps["impl-review"].interactive)process.exit(1)'` — 815ca63
 
 #### Manual
 
@@ -558,8 +558,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 3.1 Churn tests pass: `node --test skills/10x-pipeline/test/churn.test.mjs` — e36f95f
-- [x] 3.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — e36f95f
+- [x] 3.1 Churn tests pass: `node --test skills/10x-pipeline/test/churn.test.mjs` — 861fe80
+- [x] 3.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 861fe80
 
 #### Manual
 
@@ -570,8 +570,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 4.1 Skip and interplay tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — d59a8a3
-- [x] 4.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — d59a8a3
+- [x] 4.1 Skip and interplay tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — c51f359
+- [x] 4.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — c51f359
 
 #### Manual
 
@@ -581,9 +581,9 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 5.1 Signal tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — 1edfe99
-- [x] 5.2 Rule-form test passes on the new suffix: `node --test skills/10x-pipeline/test/rules.test.mjs` — 1edfe99
-- [x] 5.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 1edfe99
+- [x] 5.1 Signal tests pass: `node --test skills/10x-pipeline/test/route.test.mjs` — 92611bc
+- [x] 5.2 Rule-form test passes on the new suffix: `node --test skills/10x-pipeline/test/rules.test.mjs` — 92611bc
+- [x] 5.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 92611bc
 
 #### Manual
 
@@ -593,12 +593,12 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 6.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — da343f1
-- [x] 6.2 Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done` — da343f1
-- [x] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md` — da343f1
-- [x] 6.4 `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md` — da343f1
-- [x] 6.5 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0` — da343f1
-- [x] 6.6 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0` — da343f1
+- [x] 6.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 9496c7b
+- [x] 6.2 Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done` — 9496c7b
+- [x] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md` — 9496c7b
+- [x] 6.4 `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md` — 9496c7b
+- [x] 6.5 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0` — 9496c7b
+- [x] 6.6 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0` — 9496c7b
 
 #### Manual
 
