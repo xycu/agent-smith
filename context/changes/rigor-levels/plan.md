@@ -593,12 +593,12 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Automated
 
-- [x] 6.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 6.2 Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done`
-- [x] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md`
-- [x] 6.4 `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md`
-- [x] 6.5 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0`
-- [x] 6.6 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0`
+- [x] 6.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — da343f1
+- [x] 6.2 Rigor is documented in all four places: `for f in skills/10x-pipeline/SKILL.md README.md docs/ADR/ADR-003-rigor-gated-routing.md context/foundation/prd.md; do grep -qi rigor "$f" || exit 1; done` — da343f1
+- [x] 6.3 `SKILL.md` names no model, effort level or absolute tier: `! grep -Eiq "haiku|sonnet|opus|xhigh|tier [0-9]|effort[^.]{0,40}\b(low|medium|high|max)\b|\b(low|medium|high|max)\b[^.]{0,20}effort" skills/10x-pipeline/SKILL.md` — da343f1
+- [x] 6.4 `AGENTS.md` names the test command: `grep -q "node --test" AGENTS.md` — da343f1
+- [x] 6.5 Nothing under `context/archive/` changed: `test "$(git diff --name-only main -- context/archive | wc -l)" -eq 0` — da343f1
+- [x] 6.6 Manifests untouched: `test "$(git diff --name-only main -- .claude-plugin | wc -l)" -eq 0` — da343f1
 
 #### Manual
 
