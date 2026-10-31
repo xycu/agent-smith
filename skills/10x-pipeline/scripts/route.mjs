@@ -839,7 +839,10 @@ const PREDICATES = {
   researchExists: ({ p, policy }) => existsPredicate(artifactFile(p, policy, "research")),
   frameExists: ({ p, policy }) => existsPredicate(artifactFile(p, policy, "frame")),
   briefExists: ({ p, policy }) => {
-    const hit = ["domain-aggregate", "domain-acl"].map((key) => artifactFile(p, policy, key)).find((file) => file !== null && fs.existsSync(file));
+    // The brief files are those of the templates of the domain-brief gate (default and variants), read from the policy.
+    const gate = policy.preplan?.gates?.["domain-brief"];
+    const templates = [gate?.template, ...(Array.isArray(gate?.variants) ? gate.variants.map((v) => v?.template) : [])].filter((t) => typeof t === "string");
+    const hit = [...new Set(templates)].map((key) => artifactFile(p, policy, key)).find((file) => file !== null && fs.existsSync(file));
     return hit === undefined ? { hit: false, why: "no brief file" } : existsPredicate(hit);
   },
   repoMapExists: ({ policy }) => {
@@ -1117,9 +1120,8 @@ function artifactsLine(p, policy) {
 // change id is put into the rule here, before the rule is inserted as a variable.
 function authorityLine(p, policy, template) {
   if (template !== "plan-revise") return "";
-  const mapped = policy.preplan?.artifacts?.frame;
-  const file = typeof mapped === "string" && mapped ? mapped : "frame.md";
-  if (!fs.existsSync(path.join(p.change, file))) return "";
+  const file = artifactFile(p, policy, "frame");
+  if (file === null || !fs.existsSync(file)) return "";
   return "\n" + render(promptText(policy, "frame-authority"), { id: path.basename(p.change) }).trim();
 }
 
