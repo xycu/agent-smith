@@ -114,10 +114,10 @@ test("skills/10x-pipeline/prompts/*.md follow the rule form", () => {
   }
 });
 
-test("ADR-003 and ADR-004 rule lines follow the rule form", () => {
+test("ADR rule lines follow the rule form", () => {
   const dir = path.join(REPO, "docs/ADR");
   if (!fs.existsSync(dir)) return;
-  const files = fs.readdirSync(dir).filter((f) => /^ADR-00[34]-.*\.md$/.test(f));
+  const files = fs.readdirSync(dir).filter((f) => /^ADR-\d{3}-.*\.md$/.test(f));
   for (const f of files) {
     const lines = outsideFences(fs.readFileSync(path.join(dir, f), "utf8"));
     assert.deepEqual(lineProblems(lines, { strict: false }), [], f);
