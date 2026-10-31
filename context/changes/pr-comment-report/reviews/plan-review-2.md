@@ -6,6 +6,7 @@
 - **Date**: 2026-10-31
 - **Verdict**: REVISE
 - **Findings**: 0 critical, 3 warnings, 5 observations
+- **Triage**: all eight findings (F10-F17) decided in plan v3 (2026-10-31); every one accepted, with the details noted in each Decision (F11 fallback, F12 branch-name test, F17 cap unit)
 - **Round 1**: `reviews/plan-review.md` (F1-F9, all accepted). Round-2 findings are numbered F10 onward so IDs stay unique across rounds.
 
 ## Verdicts
@@ -52,7 +53,7 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
   - Tradeoff: the pagination check is no longer machine-gated. The default suite still covers marker matching with the fake.
   - Confidence: HIGH — read from `10x-goal-implement` SKILL.md; the 183-comment projection was re-run by this review.
   - Blind spot: whether the implementer's machine has an authenticated `gh` is unknown; the Manual route does not depend on it.
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted), plan v3. Re-verified against `10x-goal-implement` SKILL.md: an Automated row whose command fails gets two self-fix attempts then STOP, and a skipped test exits 0. Rows 1.8, 2.8 and 4.15 deleted from Automated; Manual rows 1.9, 2.9 and 4.16 hold the exact `GH_LIVE=1 node --test --test-name-pattern "live" ...` command and "ok, none skipped". The live tests stay in the suite (skipped by default). With `GH_LIVE=1` each live test first asserts `gh` is on `PATH` and `gh auth status` exits 0, and fails otherwise. Their names start with `live:`; the real-`gh` unauthenticated test needs no network and is not named `live`, so it stays in the default suite. Phase 3's note asks the human to run 1.9 and 2.9 before Phase 4.
 
 ### F11 — The A15 task item still depends on memory at the moment of use, and an open task can outlive the invocation
 
@@ -69,7 +70,7 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
   - Tradeoff: two more lines in the contended file.
   - Confidence: MED — the behavior of task tools across compaction and in `claude -p` is not provable from here; row 4.12 still tests only one short run.
   - Blind spot: whether `TaskList` is available in every host that runs this skill. The `meta.json` fallback in A15 stays the escape hatch.
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted), plan v3, with a different fallback than suggested. (a) Each of `done`, `archive`, `halt` now says: call TaskList, and when a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step (the phrase stays once per branch). (b) The subject carries the change id. (c) Start step 4 runs TaskList on every run; without the flag it marks an open task of the same change completed and ignores other change ids. (d) If TaskList or TaskCreate fails or is missing, it prints `PR comment: skipped, task list unavailable ...` at Start and posts nothing: printing it "at the end" would again depend on memory, and posting without a stored flag would break ADR rule 1, so the run fails closed. Docs tests pin the Start wording (TaskList, TaskCreate, subject format, fallback text, `completed`, `another change`) and, per branch, one `TaskList`, one subject and one `PR comment step`. Host behavior across compaction stays unproven (A15 residual risk; row 4.12 gets an extra check of the no-flag and other-change cases).
 
 ### F12 — The merge-base gates still fail open in two cases
 
@@ -79,7 +80,7 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
 - **Location**: Phase 3 row 3.5; Implementation Approach — branch-base gate; row 4.3
 - **Detail**: This is the F2 defect class and the fix is incomplete. (1) Row 3.5 is `BASE=$(git merge-base main HEAD); git diff -U0 "$BASE" -- SKILL.md | grep ... | grep -iwE ...` and "prints nothing" is the pass. With no local `main` (a fresh clone on a feature branch, a worktree created from a tag) `BASE` is empty and `git diff -U0 "" ...` dies with `fatal: bad revision ''`, which this review reproduced; the pipe prints nothing, so the row passes. The route/policy gate has `test -n "$BASE"`; 3.5 does not. (2) If the work is done on `main` itself, `git merge-base main HEAD` is `HEAD`, so after the first phase commit every gate diffs `HEAD` against the tree and prints nothing, and `git log main..HEAD` in 4.3 is empty by construction. The repository's own flow is branch then PR (memory), so (2) is unlikely, but the gate's stated promise is that it holds for any branch.
 - **Fix**: Add `test -n "$BASE" &&` to row 3.5, and add `test "$(git rev-parse --abbrev-ref HEAD)" != main &&` (or `git merge-base --is-ancestor main HEAD && test "$(git rev-parse main)" != "$(git rev-parse HEAD)"` for the "at least one commit ahead" form) to the shared gate. One edit in Implementation Approach, one in row 3.5.
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted), plan v3. Reproduced the class: `git diff -U0 "" -- file` fails with `bad revision` and a pipe hides it. Fixed with one shared preamble `PRE` (`BASE` set and non-empty, branch name not `main`, otherwise an stderr message and a false exit), used by the route/policy gate, row 3.5 and row 4.3. The reviewer's `HEAD != main` variant was not used: a fresh feature branch has `HEAD == main` before its first commit, so Phase 1 would fail wrongly; the branch-name test avoids that. Run in a scratch repository (five cases: on `main`, clean branch, edited `route.mjs`, no local `main`, SKILL.md added-word check): all as expected.
 
 ### F13 — Opt-in default (A1): defensible, recorded, but only where the owner reads the plan
 
@@ -89,7 +90,7 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
 - **Location**: A1; plan-brief "Open Risks"; PRD `prd.md:48`, FR-005
 - **Detail**: PRD FR-005 says "the user can see the same report as a comment on the pull request" (a capability, must-have); the success criterion says the report "is posted as a comment" (an outcome). Opt-in meets the first and not the second by default. Opt-in is defensible: `--archive` sets the precedent, the comment is visible to collaborators and carries goal text, mentions are the only outbound text the plugin controls, and the roadmap risk text makes a missing PR a skip, not a failure. The gap is recorded in A1 ("Owner confirmation is still pending") and in plan-brief "Open Risks and Assumptions". It is not recorded in `change.md`, the PRD, the roadmap or the README, which are the files a reviewer or the `/10x-status` reader opens. A later reader who checks the PRD success criterion against the README will see a gap with no explanation.
 - **Fix**: Add one line to `change.md` Notes: "PRD success criterion 'posted as a comment' is met only when `--pr-comment` is passed (A1); owner confirmation pending." Keep the README wording as planned.
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted), plan v3. One line added to `change.md` Notes; A1 and plan-brief point to it. README wording unchanged.
 
 ### F14 — The new ADR rule lines are not counted by any test
 
@@ -99,7 +100,7 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
 - **Location**: Phase 3 — ADR contract; docs tests; row 3.2
 - **Detail**: The plan lists the seven rule lines unbolded and says the keywords must be bold. `rules.test.mjs` checks only lines that contain `**GIVEN**` (`line.includes("**GIVEN**") ? ruleProblems(line) : strict ? proseProblems(line) : []`, ADR mode is not strict). An implementer who writes the seven lines without bold passes row 3.2 and the whole suite. S-06's plan counts its ADR rule lines with a grep; this plan does not.
 - **Fix**: Add to the docs tests: the `### PR comment` section of ADR-003 holds at least 7 lines with `**GIVEN**`, and each of the 7 sentences above appears once.
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted), plan v3. The ADR contract now lists the seven rule lines verbatim (bold keywords, list items); a docs test counts exactly seven `**GIVEN**` lines in the `### PR comment` section and checks each of the seven constants appears once. `rules.test.mjs` still checks the form of every one. Rule 6 was reworded for the new `--report` check (F17).
 
 ### F15 — Marker match must tolerate CRLF heads; say so and test it
 
@@ -109,7 +110,7 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
 - **Location**: Phase 2 — Contract "Lookup" and Match; test list "Update"
 - **Detail**: The contract says a comment matches when `head` "starts with that exact marker line". The 183-comment listing this review ran contains heads with `\r\n` line endings (comments edited in the GitHub web UI are stored with CRLF). If the human edits our comment in the browser, its head is `<!-- ... -->\r\n...`. A match written as `head.startsWith(marker + "\n")` or a split on `"\n"` would stop matching and the next run would POST a duplicate. The closing ` -->` already separates `a` from `ab`, so the newline is not needed.
 - **Fix**: State the match as `head.startsWith(marker)` with no newline, and add one fake-`gh` test with a CRLF head that must be PATCHed.
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted), plan v3. The match is `head.startsWith(marker)` with the marker line taken without any line ending; the contract explains why. New fake-`gh` test: a head of marker + `\r\n` + text by the viewer is PATCHed with no POST.
 
 ### F16 — "Edit discipline" anchors collide with S-07 (README) and S-06 (AGENTS.md)
 
@@ -123,7 +124,7 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
   - The `10x-goal-implement` entry step also flips the roadmap row to `in-progress` ("mandatory lookup", SKILL.md line 193). The plan calls this a forward-only edit; it is, but it re-opens the adjacent-line risk F4 closed. Declared, so acceptable.
   - Conflicts are small and resolvable (keep both sides) and Manual row 3.8 already covers the merge. This is not a plan defect, but the plan states the anchors avoid collisions and two do not.
 - **Fix**: Choose anchors no sibling claims. README: after the `Limits:` group and before `## Layout` (S-06 uses before-`Limits:`, S-07 before-`Override`); update the docs test to "after `Archive (opt-in):`" only. AGENTS.md Project Structure: add the script bullet after the `assets/` bullet (last) or merge it into the Hard Rules and Commands bullets only. ADR-003: after `### Archive adapter`, before `## Alternatives considered`, and say "on a conflict keep both sections".
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted, extended), plan v3. Read both sibling plans (S-06 v3, S-07 v2) for their anchors. README: the group goes after `Limits:` and before `## Layout`; the Layout line is dropped (the block lists directories, and `skills/10x-pipeline/` already covers `scripts/`); the docs test now checks `Limits:` before the group before `## Layout`. AGENTS.md: no Project Structure bullet (both siblings edit that list); the new script and test file are named in a Hard Rules bullet (after the git-writes bullet, which neither sibling edits) and a Commands bullet (after `risk`, one line away from S-06's append after `verify-archive`). ADR-003: kept the reviewer's spot (after `### Archive adapter`, before `## Alternatives considered`) because S-07 states no anchor, with an explicit "keep both sections on conflict". The Edit discipline section now lists what each sibling claims. Manual row 3.8 still covers the merge.
 
 ### F17 — Small contract tightening: cap unit, path suffix, Progress prose
 
@@ -137,4 +138,4 @@ Paths 9/9 ✓ (SKILL.md, README.md, AGENTS.md, ADR-003, route.mjs, policy.json, 
   - Phase 4 "Add one dated line under the matching Progress row" puts prose inside `## Progress`, which `progress-format.md` forbids ("No descriptive prose between phases or subsections"); the reference says to add an inline note in the Phase block instead. Carried over from v1.
   - `gh api --paginate` shares one 20 s timeout for all pages; a PR with hundreds of comments could exceed it and skip as `gh timed out`. The skip is safe (no duplicate); say so in the README skip list.
 - **Fix**: One edit pass over those four lines.
-- **Decision**: PENDING
+- **Decision**: FIXED (accepted; one point decided differently), plan v3. (1) Cap unit: UTF-16 code units, not code points as suggested. A cap of 60000 code points can reach 120000 code units for emoji text, which exceeds 65536 if GitHub counts code units; a code-unit cap is never larger than the code-point count, so it stays under the limit either way. The cut backs off one unit rather than split a surrogate pair; `<n>` is the number of code units removed; tests assert exact lengths and no lone surrogate (A6, Phase 2). (2) `--report` check: file named `report.md` inside a directory named `agent-smith`, by `path.basename` of the file and its parent; new usage-error test for `xagent-smith/report.md`; A13, ADR rule 6 and the README follow. (3) Phase 4 Findings no longer writes prose under a Progress row; a dated line goes into the Findings block. (4) The `--paginate` shared timeout is accepted as safe and documented in A6 and the README skip list; no timeout scaling (not worth the code).
