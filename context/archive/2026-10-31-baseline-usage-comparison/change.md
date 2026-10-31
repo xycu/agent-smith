@@ -1,10 +1,10 @@
 ---
 change_id: baseline-usage-comparison
 title: Compare routed run usage against a baseline run
-status: impl_reviewed
+status: archived
 created: 2026-10-31
 updated: 2026-10-31
-archived_at: null
+archived_at: 2026-10-31T03:56:04Z
 ---
 
 ## Notes
