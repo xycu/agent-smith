@@ -525,11 +525,11 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [x] 5.1 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 5.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 5.3 Docs name the new behaviour and the loop gate: `grep -q "frame-rethink" docs/ADR/ADR-003-rigor-gated-routing.md && grep -q "Pre-plan steps" README.md && grep -q "pre-plan" skills/10x-pipeline/SKILL.md && grep -q "preplan.test.mjs" AGENTS.md && grep -q "loops.minRigor" README.md`
-- [x] 5.4 ADR-003 marks the change implemented: `grep -E "pre-plan-steps.*implemented" docs/ADR/ADR-003-rigor-gated-routing.md`
-- [x] 5.5 Router output is valid JSON for `init` and `status` in a scratch change folder (AGENTS.md check): `d=$(mktemp -d); mkdir -p "$d/context/changes/demo"; node -e 'require("fs").writeFileSync(process.argv[1],"---\nchange_id: demo\nstatus: planned\n---\n")' "$d/context/changes/demo/change.md"; R=$PWD/skills/10x-pipeline/scripts/route.mjs; (cd "$d" && node "$R" init demo --goal "fix typo" --rigor thorough | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))' && node "$R" status demo | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))')`
+- [x] 5.1 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs` — 04c95db
+- [x] 5.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 04c95db
+- [x] 5.3 Docs name the new behaviour and the loop gate: `grep -q "frame-rethink" docs/ADR/ADR-003-rigor-gated-routing.md && grep -q "Pre-plan steps" README.md && grep -q "pre-plan" skills/10x-pipeline/SKILL.md && grep -q "preplan.test.mjs" AGENTS.md && grep -q "loops.minRigor" README.md` — 04c95db
+- [x] 5.4 ADR-003 marks the change implemented: `grep -E "pre-plan-steps.*implemented" docs/ADR/ADR-003-rigor-gated-routing.md` — 04c95db
+- [x] 5.5 Router output is valid JSON for `init` and `status` in a scratch change folder (AGENTS.md check): `d=$(mktemp -d); mkdir -p "$d/context/changes/demo"; node -e 'require("fs").writeFileSync(process.argv[1],"---\nchange_id: demo\nstatus: planned\n---\n")' "$d/context/changes/demo/change.md"; R=$PWD/skills/10x-pipeline/scripts/route.mjs; (cd "$d" && node "$R" init demo --goal "fix typo" --rigor thorough | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))' && node "$R" status demo | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))')` — 04c95db
 
 #### Manual
 
