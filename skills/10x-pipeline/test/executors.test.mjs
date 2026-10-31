@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   cleanupAll, makeProject, writePlan, writeReview, init, next, run, writeResult, readLogEntries, readMetaFile, writeMetaFile,
-  entry, writeLog, gitInit, git, commitFiles, gitAvailable,
+  readReportFile, entry, writeLog, gitInit, git, gitEnv, commitFiles, gitAvailable,
 } from "./helpers.mjs";
 import { buildPlan, pendingEntry, headSha, gateCheck } from "./phase-helpers.mjs";
 
@@ -267,6 +267,493 @@ test("strict verify git edge cases", { skip: noGit }, () => {
   assert.equal(finish(docs.project).e.ok, false);
 });
 
+// ---- phase 2 fixtures -------------------------------------------------------
+
+const POLICY = JSON.parse(fs.readFileSync(path.join(REPO, "skills/10x-pipeline/policy.json"), "utf8"));
+const fill = (text, id = "demo") => text.replace(/\{id\}/g, id).trim();
+const PLAIN_IMPLEMENT = `${fill(POLICY.prompts.implement)}\n\n${POLICY.prompts.suffix}`;
+const PLAIN_REVIEW = fill(POLICY.prompts["impl-review"]);
+
+const GOAL_ROW = "Parser keeps blank lines: `node --test test/parser.test.mjs`";
+const E2E_ROW = "Playwright spec covers the login flow: `npx playwright test tests/e2e/login.spec.ts`";
+const goalPhase = (name = "Parser") => ({ name, auto: [GOAL_ROW, `${GOAL_ROW} again`] });
+const e2ePhase = (name = "Login flow") => ({ name, auto: [E2E_ROW, `${E2E_ROW} twice`] });
+
+const SETUP_MD = [
+  "# Test stack", "", "## E2E", "", "<!-- Written by /10x-e2e-setup. -->", "",
+  "- runner: Playwright Test, @playwright/test 1.50.0",
+  "- config: playwright.config.ts",
+  "- single-spec command: npx playwright test tests/e2e/<name>.spec.ts",
+  "- seed: `tests/e2e/seed.spec.ts` — protects the login redirect",
+  "- updated: 2026-10-30", "", "## Other", "", "- config: nope.ts", "",
+].join("\n");
+
+// The /10x-e2e-setup record and the two files it names.
+function writeSetup(project, { md = SETUP_MD, files = ["playwright.config.ts", "tests/e2e/seed.spec.ts"] } = {}) {
+  if (md !== null) {
+    fs.mkdirSync(path.join(project.root, "context/foundation"), { recursive: true });
+    fs.writeFileSync(path.join(project.root, "context/foundation/test-stack.md"), md);
+  }
+  for (const f of files) {
+    fs.mkdirSync(path.dirname(path.join(project.root, f)), { recursive: true });
+    fs.writeFileSync(path.join(project.root, f), "// fixture\n");
+  }
+}
+
+// The plan with the phases of `specs` ([{ name, auto: [text] }]); `ticked` lists the phase numbers that are done.
+const planWith = (specs, ticked = []) =>
+  buildPlan(specs.map((ph, i) => ({ ...ph, auto: ph.auto.map((text) => ({ text, done: ticked.includes(i + 1) })) })));
+
+// A project at a fresh plan review with the given phases. `useGit` adds a repository with one base commit.
+function e2eProject({ specs, setup = true, useGit = false, policy = null, log = null } = {}) {
+  const project = makeProject({ plan: planWith(specs), policy });
+  writeReview(project, "plan-review", { verdict: "SOUND" });
+  if (setup) writeSetup(project);
+  if (useGit) {
+    gitInit(project);
+    commitFiles(project, ["src/base.mjs", `context/changes/${project.id}/plan.md`]);
+  }
+  writeLog(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
+  return project;
+}
+
+const lastEntry = (project) => readLogEntries(project).at(-1);
+const start = (project, rigor = "standard", goal = "Cover the login flow in the browser") => init(project, goal, ["--rigor", rigor]);
+
+// Rewrites the plan with the phases in `ticked` done, writes the result and runs `next`.
+function advance(project, specs, ticked, result = { status: "done", note: "x" }) {
+  writePlan(project, planWith(specs, ticked));
+  writeResult(project, result);
+  return next(project);
+}
+
+// ---- phase 2: e2e routing ---------------------------------------------------
+
+test("e2e setup predicate", () => {
+  const routed = (project) => start(project).json;
+  // Both fields exist: the e2e executor. The seed value carries backticks and a " — protects" tail.
+  const ok = e2eProject({ specs: [e2ePhase()] });
+  assert.equal(routed(ok).prompt.startsWith("Run /10x-e2e demo phase 1\n"), true);
+  assert.equal(lastEntry(ok).template, "implement-e2e");
+
+  const cases = {
+    "a config file that does not exist": (project) => fs.rmSync(path.join(project.root, "playwright.config.ts")),
+    "a seed file that does not exist": (project) => fs.rmSync(path.join(project.root, "tests/e2e/seed.spec.ts")),
+    "a section without a seed field": (project) => writeSetup(project, { md: SETUP_MD.replace(/^- seed:.*$/m, "- seed:"), files: [] }),
+    "a section without a config field": (project) => writeSetup(project, { md: SETUP_MD.replace(/^- config:.*\n/m, ""), files: [] }),
+    "the seed field only in another section": (project) => writeSetup(project, { md: `${SETUP_MD.replace(/^- seed:.*\n/m, "")}- seed: tests/e2e/seed.spec.ts\n`, files: [] }),
+    "no test-stack.md": (project) => fs.rmSync(path.join(project.root, "context/foundation/test-stack.md")),
+  };
+  for (const [what, spoil] of Object.entries(cases)) {
+    const project = e2eProject({ specs: [e2ePhase()] });
+    spoil(project);
+    const res = routed(project);
+    assert.equal(res.step, "implement", what);
+    assert.equal(res.prompt, PLAIN_IMPLEMENT, what);
+    assert.equal(lastEntry(project).template, "implement", what);
+  }
+});
+
+test("no e2e rows keeps plain prompt", () => {
+  const project = e2eProject({ specs: [goalPhase(), goalPhase("Writer")] });
+  const res = start(project).json;
+  assert.equal(res.step, "implement");
+  assert.equal(res.prompt, PLAIN_IMPLEMENT);
+  const e = lastEntry(project);
+  assert.equal(e.template, "implement");
+  assert.equal(e.skill, "10x-goal-implement");
+  for (const key of ["phase", "lastPhase", "executor", "retry"]) assert.equal(key in e, false, key);
+});
+
+test("e2e phase routes to e2e", () => {
+  const project = e2eProject({ specs: [e2ePhase()] });
+  const res = start(project).json;
+  assert.equal(res.step, "implement");
+  assert.ok(res.prompt.startsWith("Run /10x-e2e demo phase 1\n"), res.prompt);
+  assert.doesNotMatch(res.prompt, /\{(id|phase|lastPhase|retry|uncommitted)\}/);
+  assert.match(res.prompt, /after phase 1 /);
+  const e = lastEntry(project);
+  assert.equal(e.template, "implement-e2e");
+  assert.equal(e.executor, "e2e");
+  assert.equal(e.phase, 1);
+  assert.equal(e.lastPhase, 1);
+  assert.equal(e.step, "implement");
+
+  // Two browser phases in a row form one e2e segment that stops after the last one.
+  const two = e2eProject({ specs: [e2ePhase(), e2ePhase("Checkout")] });
+  const second = start(two).json;
+  assert.ok(second.prompt.startsWith("Run /10x-e2e demo phase 1\n"));
+  assert.match(second.prompt, /after phase 2 /);
+  assert.equal(lastEntry(two).lastPhase, 2);
+});
+
+test("e2e rows without setup", () => {
+  const project = e2eProject({ specs: [e2ePhase()], setup: false });
+  const res = start(project).json;
+  assert.equal(res.prompt, PLAIN_IMPLEMENT);
+  assert.equal(lastEntry(project).template, "implement");
+});
+
+test("mixed plan segments", () => {
+  const specs = [goalPhase(), e2ePhase(), goalPhase("Writer"), e2ePhase("Checkout")];
+  const project = e2eProject({ specs });
+  // The goal phase before the e2e phase runs as a segment that stops after phase 1.
+  const first = start(project).json;
+  assert.ok(first.prompt.startsWith("Run /10x-goal-implement demo phase 1\n"), first.prompt);
+  assert.match(first.prompt, /phases 1 to 1 /);
+  assert.deepEqual([lastEntry(project).template, lastEntry(project).executor, lastEntry(project).lastPhase], ["implement-segment", "goal", 1]);
+  // Then the e2e step for phase 2 only: phase 3 is a goal phase.
+  const second = advance(project, specs, [1]).json;
+  assert.ok(second.prompt.startsWith("Run /10x-e2e demo phase 2\n"), second.prompt);
+  assert.deepEqual([lastEntry(project).template, lastEntry(project).lastPhase], ["implement-e2e", 2]);
+  // The pool (2) is spent: the rest of the plan goes to the plain step, although phase 4 is browser-level.
+  const third = advance(project, specs, [1, 2]).json;
+  assert.equal(third.prompt, PLAIN_IMPLEMENT);
+  assert.equal(lastEntry(project).template, "implement");
+  assert.equal(readLogEntries(project).filter((e) => e.template === "implement-segment").length, 1);
+});
+
+test("e2e blocked falls back", () => {
+  const specs = [e2ePhase()];
+  const project = e2eProject({ specs });
+  const first = start(project).json;
+  assert.ok(first.prompt.startsWith("Run /10x-e2e "));
+  const level = readMetaFile(project).rigor.level;
+  const res = advance(project, specs, [], { status: "blocked", note: "feature not built" }).json;
+  const blocked = readLogEntries(project)[2];
+  assert.equal(blocked.fallback, true);
+  // Not repeated for the phase: goal-implement, one tier as for a fresh plain step, no failure counted, rigor kept.
+  assert.equal(res.prompt, PLAIN_IMPLEMENT);
+  const e = lastEntry(project);
+  assert.equal(e.template, "implement");
+  assert.doesNotMatch(e.tierWhy, /failed attempt/);
+  assert.equal(readMetaFile(project).rigor.level, level);
+  const fresh = e2eProject({ specs, setup: false });
+  start(fresh);
+  assert.equal(e.tier, lastEntry(fresh).tier);
+});
+
+test("e2e failed not repeated", { skip: noGit }, () => {
+  // The step ticked nothing: unverified, not a fallback. The phase goes to goal-implement one tier higher.
+  const specs = [e2ePhase()];
+  const quiet = e2eProject({ specs });
+  start(quiet);
+  const res = advance(quiet, specs, []).json;
+  const failed = readLogEntries(quiet)[2];
+  assert.equal(failed.ok, false);
+  assert.equal(failed.fallback, undefined);
+  assert.equal(res.prompt, PLAIN_IMPLEMENT);
+  assert.match(lastEntry(quiet).tierWhy, /\+1 for 1 failed attempt/);
+
+  // A Skip flip (rows ticked, no commit): never e2e again, and one tier higher.
+  const skip = e2eProject({ specs, useGit: true });
+  start(skip);
+  const flipped = advance(skip, specs, [1]).json;
+  assert.doesNotMatch(flipped.prompt, /^Run \/10x-e2e /);
+  assert.ok(flipped.prompt.startsWith("Run /10x-goal-implement demo phase 1\n"), flipped.prompt);
+  assert.match(lastEntry(skip).tierWhy, /\+1 for 1 failed attempt/);
+});
+
+test("e2e effort floor", () => {
+  for (const rigor of ["standard", "thorough"]) {
+    const project = e2eProject({ specs: [e2ePhase()] });
+    const res = start(project, rigor).json;
+    assert.ok(["high", "xhigh", "max"].includes(res.effort), `${rigor}: ${res.effort}`);
+    assert.match(lastEntry(project).tierWhy, /floor high/, rigor);
+    // The same plan on the plain step is cheaper, so the floor is what raised the e2e step.
+    const plain = e2eProject({ specs: [e2ePhase()], setup: false });
+    const cheap = start(plain, rigor).json;
+    assert.ok(lastEntry(project).tier > lastEntry(plain).tier, `${rigor}: ${cheap.effort}`);
+  }
+});
+
+test("e2e prompt rules", () => {
+  const project = e2eProject({ specs: [e2ePhase(), e2ePhase("Checkout")] });
+  const { prompt } = start(project).json;
+  // The stop phase is named, Skip is forbidden and a redirect ends blocked without a human.
+  assert.match(prompt, /after phase 2 \*\*WHEN\*\*/);
+  assert.match(prompt, /\*\*GIVEN\*\* the skill offers "Skip - already done".*\*\*MUST NOT\*\* choose it/);
+  assert.match(prompt, /would redirect to \/10x-e2e-setup, \/10x-tdd or \/10x-implement \*\*THEN\*\* you \*\*MUST\*\* stop, change nothing and finish with status `blocked`/);
+  assert.match(prompt, /never set `signals\.needsHuman`/);
+  assert.match(prompt, /manual confirmation gate.*treat it as confirmed.*leave every Manual row unticked/);
+  assert.match(prompt, /approve it as proposed/);
+  assert.match(prompt, /commit only the planned set/);
+  assert.match(prompt, /passing spec for the risk already exists.*leave the rows unticked.*status `blocked`/);
+  assert.match(prompt, /MUST NOT\*\* run pbcopy/);
+  // The shipped prompt array has the first line and the file reference.
+  assert.deepEqual(POLICY.prompts["implement-e2e"], ["Run /10x-e2e {id} phase {phase}", "@prompts/executor-e2e.md"]);
+});
+
+// ---- phase 2: retry ---------------------------------------------------------
+
+// A repository project that ran an e2e step which ticked every row without a commit: the next step is the retry.
+function retryProject() {
+  const specs = [e2ePhase()];
+  const project = e2eProject({ specs, useGit: true });
+  start(project);
+  const res = advance(project, specs, [1]).json;
+  return { project, specs, res };
+}
+
+test("retry after uncommitted ticks", { skip: noGit }, () => {
+  const { project, specs, res } = retryProject();
+  const failed = readLogEntries(project)[2];
+  assert.equal(failed.ok, false);
+  assert.deepEqual(failed.uncommitted, ["1.1", "1.2"]);
+  // Every Automated row is ticked, yet the next step is the retry and not impl-review.
+  assert.equal(res.step, "implement");
+  assert.ok(res.prompt.startsWith("Run /10x-goal-implement demo phase 1\n"), res.prompt);
+  assert.match(res.prompt, /rows 1\.1, 1\.2 of context\/changes\/demo\/plan\.md are marked done/);
+  const e = lastEntry(project);
+  assert.equal(e.template, "implement-retry");
+  assert.deepEqual(e.retry, ["1.1", "1.2"]);
+  assert.equal(e.executor, "goal");
+  assert.equal(e.before.head, headSha(project));
+  assert.deepEqual(e.before.done, ["1.1", "1.2"]);
+
+  // The subagent re-opens the rows, makes a code commit and ticks them again: the retry is ok.
+  commitFiles(project, ["src/feature.mjs"]);
+  const after = advance(project, specs, [1]).json;
+  const retried = readLogEntries(project)[3];
+  assert.equal(retried.ok, true);
+  assert.equal(retried.verified, true);
+  assert.equal(after.step, "impl-review");
+  assert.equal(lastEntry(project).template, "impl-review");
+  assert.equal(after.prompt.startsWith(PLAIN_REVIEW), true);
+  assert.doesNotMatch(after.prompt, /ticked in `plan\.md` with no code commit/);
+});
+
+test("retry prompt rules", { skip: noGit }, () => {
+  const { res } = retryProject();
+  const { prompt } = res;
+  assert.match(prompt, /ticked in `plan\.md` with no commit behind them \*\*WHEN\*\* you start \*\*THEN\*\* you \*\*MUST\*\* set each of those rows back to `\[ \]` before any other work/);
+  assert.match(prompt, /\*\*MUST NOT\*\* tick the row/);
+  assert.match(prompt, /write the commit SHA after the row/);
+  assert.match(prompt, /phase 1 is done \*\*WHEN\*\* later phases still have pending rows \*\*THEN\*\* you \*\*MUST NOT\*\* start them/);
+  assert.match(prompt, /nothing left to change \*\*WHEN\*\* this is the last attempt \*\*THEN\*\* you \*\*MUST\*\* finish with status `blocked`/);
+  assert.deepEqual(POLICY.prompts["implement-retry"], ["Run /10x-goal-implement {id} phase {phase}", "@prompts/executor-retry.md"]);
+});
+
+test("retry once then warn", { skip: noGit }, () => {
+  // An earlier plain failure plus the failed e2e step make two failures; the retry decides whether a third counts.
+  const flow = (retryResult) => {
+    const specs = [e2ePhase()];
+    const project = e2eProject({
+      specs,
+      useGit: true,
+      log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", { ok: false, verified: false })],
+    });
+    start(project);
+    advance(project, specs, [1]);
+    assert.equal(lastEntry(project).template, "implement-retry");
+    const res = advance(project, specs, [1], retryResult).json;
+    return { project, res };
+  };
+
+  // A retry that ends done without a commit: a neutral fallback, no new failure, no rigor rise.
+  const done = flow({ status: "done", note: "nothing to change" });
+  const retried = readLogEntries(done.project)[4];
+  assert.equal(retried.template, "implement-retry");
+  assert.equal(retried.ok, false);
+  assert.equal(retried.fallback, true);
+  assert.equal(readMetaFile(done.project).rigor.level, "standard");
+  // The run goes on to impl-review with the warning; its first part is the plain impl-review prompt.
+  assert.equal(done.res.step, "impl-review");
+  assert.equal(lastEntry(done.project).template, "impl-review-warn");
+  assert.ok(done.res.prompt.startsWith(`${PLAIN_REVIEW}\n`), done.res.prompt);
+  assert.match(done.res.prompt, /rows 1\.1, 1\.2 are ticked in `plan\.md` with no code commit/);
+  assert.deepEqual(POLICY.prompts["impl-review-warn"], [POLICY.prompts["impl-review"], "@prompts/impl-review-warn.md"]);
+  // A blocked retry (a legitimate zero-diff phase) is the same: no halt.
+  const blocked = flow({ status: "blocked", note: "nothing left to change" });
+  assert.equal(readLogEntries(blocked.project)[4].fallback, true);
+  assert.equal(blocked.res.step, "impl-review");
+  assert.equal(lastEntry(blocked.project).template, "impl-review-warn");
+
+  // A retry that ends failed counts as a failure: the third one raises the rigor level.
+  const failed = flow({ status: "failed", note: "broke" });
+  const bad = readLogEntries(failed.project)[4];
+  assert.equal(bad.ok, false);
+  assert.equal(bad.fallback, undefined);
+  assert.equal(readMetaFile(failed.project).rigor.level, "thorough");
+  assert.equal(failed.res.step, "impl-review");
+  assert.equal(readLogEntries(failed.project).filter((e) => e.template === "implement-retry").length, 1);
+});
+
+// ---- phase 2: pool, lean, containment, no phase list -------------------------
+
+test("extra steps pool", () => {
+  const poolOf = (allowance) => ({ extraSteps: { allowance: { lean: 0, standard: allowance, thorough: allowance } } });
+  // A pool of 1 cannot pay a goal segment and the e2e step behind it: the plain step.
+  const specs = [goalPhase(), e2ePhase()];
+  const small = e2eProject({ specs, policy: poolOf(1) });
+  assert.equal(start(small).json.prompt, PLAIN_IMPLEMENT);
+  assert.equal(lastEntry(small).template, "implement");
+  // A pool of 2 pays for both.
+  const enough = e2eProject({ specs, policy: poolOf(2) });
+  assert.ok(start(enough).json.prompt.startsWith("Run /10x-goal-implement demo phase 1\n"));
+  // A pool of 0 turns the executors off, and so does a negative one.
+  for (const zero of [0, -3]) {
+    const off = e2eProject({ specs: [e2ePhase()], policy: poolOf(zero) });
+    assert.equal(start(off).json.prompt, PLAIN_IMPLEMENT, String(zero));
+  }
+  // A pool of 1 pays for one e2e step; once it is spent the next browser phase gets the plain step.
+  const two = [e2ePhase(), goalPhase(), e2ePhase("Checkout")];
+  const spent = e2eProject({ specs: two, policy: poolOf(1) });
+  assert.ok(start(spent).json.prompt.startsWith("Run /10x-e2e demo phase 1\n"));
+  assert.equal(advance(spent, two, [1]).json.prompt, PLAIN_IMPLEMENT);
+  assert.equal(lastEntry(spent).template, "implement");
+});
+
+test("lean keeps plain implement", () => {
+  const specs = [e2ePhase()];
+  const withSetup = e2eProject({ specs });
+  const lean = start(withSetup, "lean", "fix typo");
+  assert.equal(lean.json.prompt, PLAIN_IMPLEMENT);
+  assert.equal(lastEntry(withSetup).template, "implement");
+  // A lean walk is the same with and without the feature: same step, model, effort, reason and prompt.
+  const without = e2eProject({ specs, setup: false });
+  const base = start(without, "lean", "fix typo");
+  assert.deepEqual(lean.json, base.json);
+  const walked = advance(withSetup, specs, [1]);
+  const baseWalk = advance(without, specs, [1]);
+  assert.deepEqual(walked.json, baseWalk.json);
+  // The lean budget stays 10: nine executed steps still run, ten halt.
+  for (const [count, action] of [[9, "run"], [10, "halt"]]) {
+    const project = e2eProject({ specs });
+    const log = [entry(1, "plan"), entry(2, "plan-review")];
+    for (let n = 3; n <= count; n++) log.push(entry(n, "implement", { template: "implement" }));
+    writeLog(project, log);
+    const res = start(project, "lean", "fix typo");
+    assert.equal(res.json.action, action, `${count} steps: ${res.stdout}`);
+    if (action === "halt") assert.match(res.json.reason, /Step budget 10 spent/);
+  }
+});
+
+test("e2e setup path containment", () => {
+  const routesE2e = (md, files = ["playwright.config.ts", "tests/e2e/seed.spec.ts"], after = () => {}) => {
+    const project = e2eProject({ specs: [e2ePhase()], setup: false });
+    writeSetup(project, { md, files });
+    after(project);
+    start(project);
+    return lastEntry(project).template === "implement-e2e";
+  };
+  assert.equal(routesE2e(SETUP_MD), true);
+  // An absolute path, even one that exists, is no hit.
+  const abs = (project) => SETUP_MD.replace("- config: playwright.config.ts", `- config: ${path.join(project.root, "playwright.config.ts")}`);
+  const absProject = e2eProject({ specs: [e2ePhase()] });
+  writeSetup(absProject, { md: abs(absProject), files: [] });
+  start(absProject);
+  assert.equal(lastEntry(absProject).template, "implement");
+  // A path with a .. segment is no hit, although the file it reaches exists.
+  const outer = makeProject();
+  fs.writeFileSync(path.join(outer.base, "outside.ts"), "x\n");
+  assert.equal(routesE2e(SETUP_MD.replace("- config: playwright.config.ts", `- config: ../${path.basename(outer.base)}/outside.ts`)), false);
+  assert.equal(routesE2e(SETUP_MD.replace("- config: playwright.config.ts", "- config: tests/../playwright.config.ts")), false);
+  assert.equal(routesE2e(SETUP_MD.replace("- config: playwright.config.ts", "- config: ")), false);
+  // A symlink that leaves the root is no hit; a symlink that stays inside is fine.
+  if (process.platform !== "win32") {
+    const leave = e2eProject({ specs: [e2ePhase()] });
+    fs.rmSync(path.join(leave.root, "playwright.config.ts"));
+    fs.symlinkSync(path.join(outer.base, "outside.ts"), path.join(leave.root, "playwright.config.ts"));
+    start(leave);
+    assert.equal(lastEntry(leave).template, "implement");
+    const stay = e2eProject({ specs: [e2ePhase()] });
+    fs.rmSync(path.join(stay.root, "playwright.config.ts"));
+    fs.symlinkSync(path.join(stay.root, "tests/e2e/seed.spec.ts"), path.join(stay.root, "playwright.config.ts"));
+    start(stay);
+    assert.equal(lastEntry(stay).template, "implement-e2e");
+  }
+});
+
+test("no phase list stays plain", () => {
+  // Progress headings that are not "### Phase N": the phase list is empty, the plain step runs.
+  const text = [
+    "# Plan", "", "## Progress", "", "### Faza 1: Login", "", "#### Automated", "",
+    `- [ ] 1.1 ${E2E_ROW}`, `- [ ] 1.2 ${E2E_ROW} twice`, "", "#### Manual", "", "- [ ] 1.3 Look at it", "",
+  ].join("\n");
+  const project = makeProject({ plan: text });
+  writeReview(project, "plan-review", { verdict: "SOUND" });
+  writeSetup(project);
+  writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+  const res = start(project).json;
+  assert.equal(res.step, "implement");
+  assert.equal(res.prompt, PLAIN_IMPLEMENT);
+  assert.equal(lastEntry(project).template, "implement");
+});
+
+// ---- phase 2: log entry and outputs ------------------------------------------
+
+test("entry skill names executor", { skip: noGit }, () => {
+  const e2e = e2eProject({ specs: [e2ePhase()] });
+  start(e2e);
+  assert.equal(lastEntry(e2e).skill, "10x-e2e");
+
+  const mixed = [goalPhase(), e2ePhase()];
+  const seg = e2eProject({ specs: mixed });
+  start(seg);
+  assert.equal(lastEntry(seg).template, "implement-segment");
+  assert.equal(lastEntry(seg).skill, "10x-goal-implement");
+
+  const plain = e2eProject({ specs: [goalPhase()] });
+  start(plain);
+  assert.equal(lastEntry(plain).template, "implement");
+  assert.equal(lastEntry(plain).skill, "10x-goal-implement");
+
+  const { project } = retryProject();
+  assert.equal(lastEntry(project).template, "implement-retry");
+  assert.equal(lastEntry(project).skill, "10x-goal-implement");
+  // The failed e2e step before the retry logged the e2e skill.
+  assert.equal(readLogEntries(project)[2].skill, "10x-e2e");
+});
+
+// A finished run in a repository: every row ticked, an approved impl-review, and a log in which an e2e step ticked its
+// rows without a commit and the retry changed nothing. `archive` sets the archive flag.
+function warnedProject(archive) {
+  const project = makeProject({ plan: planWith([e2ePhase()], [1]) });
+  fs.writeFileSync(path.join(project.changeDir, "change.md"), "---\nchange_id: demo\nstatus: implemented\ncreated: 2026-10-30\n---\n");
+  writeReview(project, "plan-review", { verdict: "SOUND" });
+  writeReview(project, "impl-review", { verdict: "APPROVED" });
+  writeLog(project, [
+    entry(1, "plan"),
+    entry(2, "plan-review"),
+    entry(3, "implement", { template: "implement-e2e", executor: "e2e", phase: 1, lastPhase: 1, ok: false, verified: false, uncommitted: ["1.1", "1.2"] }),
+    entry(4, "implement", { template: "implement-retry", executor: "goal", phase: 1, lastPhase: 1, retry: ["1.1", "1.2"], ok: false, verified: false, fallback: true, uncommitted: ["1.1", "1.2"] }),
+    entry(5, "impl-review", { template: "impl-review-warn" }),
+  ]);
+  writeMetaFile(project, { id: "demo", goal: "Cover the login flow in the browser", rigor: { requested: "standard" }, ...(archive ? { archive: true } : {}) });
+  gitInit(project);
+  commitFiles(project, ["README.md"]);
+  return project;
+}
+
+test("uncommitted ticks reach outputs", { skip: noGit }, () => {
+  // Without --archive: the done output and meta.outcome carry the ids; report.md has no archive lines.
+  const plain = warnedProject(false);
+  const done = run(plain, ["next", plain.id], { env: gitEnv(plain) });
+  assert.equal(done.json.action, "done", done.stdout);
+  assert.deepEqual(done.json.uncommittedTicks, ["1.1", "1.2"]);
+  assert.deepEqual(readMetaFile(plain).outcome.uncommittedTicks, ["1.1", "1.2"]);
+  assert.doesNotMatch(readReportFile(plain), /Ticked without a commit/);
+
+  // With --archive: the archive action summary, meta.outcome and the lines of report.md.
+  const project = warnedProject(true);
+  const res = run(project, ["next", project.id], { env: gitEnv(project) });
+  assert.equal(res.json.action, "archive", res.stdout);
+  assert.deepEqual(res.json.summary.uncommittedTicks, ["1.1", "1.2"]);
+  assert.deepEqual(readMetaFile(project).outcome.uncommittedTicks, ["1.1", "1.2"]);
+  assert.match(readReportFile(project), /^Ticked without a commit: 2\n- 1\.1\n- 1\.2$/m);
+  assert.match(git(project, ["show", "HEAD:context/changes/demo/agent-smith/report.md"]), /^Ticked without a commit: 2$/m);
+
+  // A clean run carries no such key anywhere.
+  const clean = warnedProject(true);
+  writeLog(clean, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+  const ok = run(clean, ["next", clean.id], { env: gitEnv(clean) });
+  assert.equal(ok.json.action, "archive", ok.stdout);
+  assert.equal("uncommittedTicks" in ok.json.summary, false);
+  assert.equal("uncommittedTicks" in readMetaFile(clean).outcome, false);
+  assert.doesNotMatch(readReportFile(clean), /Ticked without a commit/);
+});
+
 // ---- gate check -------------------------------------------------------------
 
 // Runs the exact command line of the plan's gate rows against a plan file and returns the exit status.
@@ -311,7 +798,7 @@ test("gate check fails when nothing is checked", () => {
   // The plan of this change passes for the phases whose tests exist (skipped once the change folder is archived).
   const real = path.join(REPO, "context/changes/phase-executors/plan.md");
   if (fs.existsSync(real)) {
-    for (const phase of [1]) {
+    for (const phase of [1, 2]) {
       const res = gateRun(real, phase);
       assert.equal(res.status, 0, `phase ${phase}: ${res.stderr}`);
     }

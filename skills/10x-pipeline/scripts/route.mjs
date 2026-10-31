@@ -214,9 +214,11 @@ function archiveLines(id, meta, oneLine) {
   if (!o) return ["Archive: not run (run not ended)"];
   if (o.action !== "done") return ["Archive: not run (run halted)"];
   const pending = Array.isArray(o.manualPending) ? o.manualPending : [];
+  const unproven = doneNotes(o).uncommittedTicks ?? [];
   return [
     `Archive: requested - runs after this report was written; see the commit "chore(archive): close ${id}"`,
     ...(pending.length ? [`Manual checks pending: ${pending.length}`, ...pending.map((row) => `- ${oneLine(row)}`)] : []),
+    ...(unproven.length ? [`Ticked without a commit: ${unproven.length}`, ...unproven.map((row) => `- ${oneLine(row)}`)] : []),
   ];
 }
 
@@ -271,7 +273,10 @@ function writeReport(p, id, meta, log) {
 function finishRun(p, id, meta, log, result) {
   writeLog(p.log, log);
   meta.outcome = { action: result.action, reason: result.reason };
-  if (result.action === "done") meta.outcome.manualPending = Array.isArray(result.manualPending) ? result.manualPending : [];
+  if (result.action === "done") {
+    meta.outcome.manualPending = Array.isArray(result.manualPending) ? result.manualPending : [];
+    Object.assign(meta.outcome, doneNotes(result));
+  }
   fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
   let report = null;
   let reportError;
@@ -722,14 +727,16 @@ function decide(p, fullLog, policy, meta, ctx) {
     (pr.verdict === "REVISE" && (pr.critical > 0 || pr.warnings > policy.review.reviseToleranceWarnings));
   if (needsReplan && plan.autoDone === 0) return replanNext(log, pr, policy, ctx.level);
 
-  if (plan.autoPending > 0) {
+  const reopen = retryRows(log, plan, policy);
+  if (plan.autoPending > 0 || reopen.length) {
     let bump = 0;
     const why = [`${plan.autoPending} automated rows pending`];
     if (pr.warnings >= E.noisyPlanReviewWarnings) { bump += E.noisyPlanReviewBump; why.push(`plan review had ${pr.warnings} warnings`); }
     if (pr.verdict === "SOUND" && pr.critical === 0 && pr.warnings === 0 && trailingFailures(log, "implement") === 0) {
       bump -= E.cleanReviewDrop; why.push("clean plan review");
     }
-    return { step: "implement", bump, reason: why.join(", ") };
+    if (reopen.length) return retryNext(plan, reopen, policy, { bump, why });
+    return executorNext(plan, log, policy, ctx, { bump, why }) ?? { step: "implement", bump, reason: why.join(", ") };
   }
 
   // All automated rows done. Review is stale if code moved after the last review.
@@ -742,6 +749,7 @@ function decide(p, fullLog, policy, meta, ctx) {
     const struggled = log.some((e) => (e.step === "implement" || e.step === "fix") && !e.ok && !e.fallback) || count("fix") > 0;
     return {
       step: "impl-review",
+      ...reviewWarning(log, plan, policy),
       bump: struggled ? E.hardChangeReviewerBump : 0,
       reason: struggled ? "implementation needed retries or fixes" : "implementation complete",
     };
@@ -767,6 +775,7 @@ function decide(p, fullLog, policy, meta, ctx) {
     done: true,
     reason: `impl review ${ir.verdict ?? "APPROVED"}`,
     manualPending: plan.manualPending,
+    ...doneNotes({ uncommittedTicks: unprovenTicks(log, plan, policy) }),
   };
 }
 
@@ -892,6 +901,7 @@ const PREDICATES = {
     return phrase !== null ? { hit: true, why: `goal phrase "${phrase}"` } : { hit: false, why: "no dependency phrase in the goal" };
   },
   aggregateGap: ({ policy, meta }) => aggregateGap(policy.preplan?.predicates?.aggregateGap, meta.goal),
+  e2eSetup: ({ policy }) => e2eSetup(policy.executors?.e2e?.setup),
 };
 
 function existsPredicate(file) {
@@ -1101,6 +1111,150 @@ function verifyImplement(last, plan, result, p, policy) {
   return retry ? ev : counted && ev;
 }
 
+// The /10x-e2e-setup record: the lines `- <field>: <path>` of the configured section of the configured file. Every
+// listed field needs a path that is relative, has no `..` segment, resolves under ROOT (symlinks included) and exists.
+// Anything else, or a missing file, section or field, is no hit.
+function e2eSetup(cfg) {
+  const none = (why) => ({ hit: false, why });
+  if (!isObject(cfg) || typeof cfg.file !== "string" || !cfg.file || typeof cfg.section !== "string" || !cfg.section) return none("e2e setup is not configured");
+  const fields = (Array.isArray(cfg.fields) ? cfg.fields : []).filter((f) => typeof f === "string" && f);
+  if (!fields.length) return none("e2e setup has no fields");
+  const lines = readText(path.resolve(ROOT, cfg.file)).split(/\r?\n/);
+  const start = lines.findIndex((l) => l.trimEnd() === cfg.section);
+  if (start < 0) return none(`${cfg.file} has no "${cfg.section}" section`);
+  let end = lines.findIndex((l, i) => i > start && l.startsWith("## "));
+  if (end < 0) end = lines.length;
+  let root;
+  try { root = fs.realpathSync(ROOT); } catch { return none("project root is unreadable"); }
+  for (const field of fields) {
+    const row = lines.slice(start + 1, end).map((l) => l.match(/^\s*[-*]\s+([^:]+?)\s*:\s*(.*)$/)).find((m) => m && m[1].toLowerCase() === field.toLowerCase());
+    const value = row ? row[2].split(" — ")[0].replace(/`/g, "").trim() : "";
+    if (!value) return none(`${cfg.file} has no ${field} path`);
+    if (path.isAbsolute(value) || value.split(/[\\/]/).includes("..")) return none(`${field} path ${value} is absolute or leaves the project`);
+    const abs = path.resolve(ROOT, value);
+    if (!abs.startsWith(ROOT + path.sep)) return none(`${field} path ${value} is outside the project`);
+    let real;
+    try { real = fs.realpathSync(abs); } catch { return none(`${field} path ${value} does not exist`); }
+    if (!real.startsWith(root + path.sep)) return none(`${field} path ${value} resolves outside the project`);
+  }
+  return { hit: true, why: `${cfg.file} names ${fields.join(" and ")}` };
+}
+
+// ---- extra steps and executor choice ----
+
+const extraAllowance = (policy, level) => (Number.isInteger(policy.extraSteps?.allowance?.[level]) ? policy.extraSteps.allowance[level] : 0);
+const extraCost = (policy, template) => {
+  const c = policy.extraSteps?.cost?.[template];
+  return Number.isInteger(c) && c > 0 ? c : 0;
+};
+
+// What the extra-step pool of this level still holds: the allowance minus the cost of every executed entry, any outcome.
+function extrasLeft(log, policy, level) {
+  return extraAllowance(policy, level) - log.reduce((sum, e) => sum + extraCost(policy, e.template), 0);
+}
+
+// An executor already failed or handed back a phase it covered: it is not chosen for that phase again.
+const executorExcluded = (log, phase, executor) =>
+  log.some((e) => e.executor === executor && e.phase <= phase && phase <= e.lastPhase && (e.fallback || e.ok === false));
+
+// Does a pending phase want the e2e executor? The rigor gate is open, the setup record is valid, the phase name or a
+// pending row names a browser word, and no earlier e2e attempt for the phase failed or handed back.
+function e2eWanted(ph, log, policy, level, setup) {
+  const cfg = policy.executors?.e2e;
+  if (!isObject(cfg) || typeof cfg.template !== "string" || !setup.hit) return false;
+  const levels = rigorLevels(policy);
+  if (levels.indexOf(level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(level) < levels.indexOf(cfg.minRigor)) return false;
+  if (executorExcluded(log, ph.n, "e2e")) return false;
+  const text = [ph.name, ...ph.auto.filter((r) => !r.done).map((r) => r.text)].join("\n");
+  return goalPhrase(text, cfg.rowWords) !== null;
+}
+
+// The implement step for the first pending phase, or null: the caller then returns the plain step. `note` is what the
+// implement branch computed: { bump, why }. The pool must pay for the whole route, so a run never starts a goal segment
+// it cannot follow with the executor that justified it.
+function executorNext(plan, log, policy, ctx, note) {
+  const cfg = policy.executors?.e2e;
+  const pending = plan.phaseList.filter((ph) => ph.auto.some((r) => !r.done));
+  if (!pending.length || !isObject(cfg) || typeof cfg.template !== "string" || extraAllowance(policy, ctx.level) <= 0) return null;
+  const setup = predicate("e2eSetup", { policy });
+  const choice = pending.map((ph) => (e2eWanted(ph, log, policy, ctx.level, setup) ? "e2e" : "goal"));
+  const special = choice.indexOf("e2e");
+  const segment = policy.executors?.segment?.template;
+  if (special < 0 || (special > 0 && typeof segment !== "string")) return null;
+  const needed = (special > 0 ? extraCost(policy, segment) : 0) + extraCost(policy, cfg.template);
+  if (extrasLeft(log, policy, ctx.level) < needed) return null;
+  const executor = choice[0];
+  let last = 0;
+  while (last + 1 < pending.length && choice[last + 1] === executor) last++;
+  const phase = pending[0].n;
+  const lastPhase = pending[last].n;
+  const span = lastPhase > phase ? `phases ${phase}-${lastPhase}` : `phase ${phase}`;
+  return {
+    step: "implement",
+    template: executor === "e2e" ? cfg.template : segment,
+    phase,
+    lastPhase,
+    executor,
+    skill: executor === "e2e" && typeof cfg.skill === "string" ? cfg.skill : undefined,
+    interactive: executor === "e2e",
+    bump: note.bump,
+    reason: `${note.why.join(", ")}; ${executor === "e2e" ? "e2e" : "goal-implement segment"} for ${span}`,
+  };
+}
+
+// Rows the latest implement entry ticked without a code commit that are still ticked, while a retry is left to run.
+// A non-positive executors.retry.max turns the retry off.
+function retryRows(log, plan, policy) {
+  const template = retryTemplate(policy);
+  const max = policy.executors?.retry?.max;
+  if (template === null || !Number.isInteger(max) || max <= 0) return [];
+  if (log.filter((e) => e.template === template).length >= max) return [];
+  const impl = log.filter((e) => e.step === "implement");
+  const last = impl[impl.length - 1];
+  if (!last || !Array.isArray(last.uncommitted)) return [];
+  const done = new Set(doneIds(plan));
+  return last.uncommitted.filter((id) => done.has(id));
+}
+
+// Rows ticked without a code commit that the router will not ask about again, in plan order.
+function unprovenTicks(log, plan, policy) {
+  const template = retryTemplate(policy);
+  const proven = new Set(log.filter((e) => template !== null && e.template === template && e.ok === true && Array.isArray(e.retry)).flatMap((e) => e.retry));
+  const reopen = new Set(retryRows(log, plan, policy));
+  const mine = new Set(log.filter((e) => e.step === "implement" && Array.isArray(e.uncommitted)).flatMap((e) => e.uncommitted));
+  return doneIds(plan).filter((id) => mine.has(id) && !proven.has(id) && !reopen.has(id));
+}
+
+// The retry step: costs nothing from the pool and is not subject to executorExcluded.
+function retryNext(plan, rows, policy, note) {
+  const at = rows.map((id) => plan.phaseList.find((ph) => ph.auto.some((r) => r.id === id))?.n).filter(Number.isInteger);
+  return {
+    step: "implement",
+    template: retryTemplate(policy),
+    phase: Math.min(...at),
+    lastPhase: Math.max(...at),
+    retry: rows,
+    executor: "goal",
+    bump: note.bump,
+    reason: `${rows.length} row(s) ticked without a code commit (${rows.join(", ")}): retry`,
+  };
+}
+
+// The impl-review template that warns about unproven ticks: only for the pass right after the implement entry that
+// recorded them. A later pass, after a fix, uses the plain prompt.
+function reviewWarning(log, plan, policy) {
+  const rows = unprovenTicks(log, plan, policy);
+  if (!rows.length) return {};
+  const at = log.reduce((acc, e, i) => (e.step === "implement" && Array.isArray(e.uncommitted) && e.uncommitted.some((id) => rows.includes(id)) ? i : acc), -1);
+  if (log.slice(at + 1).some((e) => e.step === "impl-review")) return {};
+  return { template: "impl-review-warn", uncommitted: rows };
+}
+
+// The non-empty note keys of a done result, so a run that ends clean carries none. Phase 5 adds manualUnproven.
+function doneNotes(d) {
+  return Array.isArray(d?.uncommittedTicks) && d.uncommittedTicks.length ? { uncommittedTicks: d.uncommittedTicks } : {};
+}
+
 // A change is simple when the plan stays small and nothing has failed yet.
 // Any failed step ends the discount for the rest of the run.
 function simpleSignal(d, plan, log, meta, policy) {
@@ -1154,7 +1308,7 @@ function tierFor(d, log, policy, plan, meta, level) {
     const clamped = Math.max(s.minTier ?? 0, Math.min(s.maxTier ?? policy.ladder.length - 1, t, policy.ladder.length - 1));
     if (clamped !== t) notes.push(`clamped to ${clamped}`);
     let final = clamped;
-    if (s.interactive && typeof minEffort === "string") {
+    if ((s.interactive || d.interactive) && typeof minEffort === "string") {
       // Applied last, so the floor wins over maxTier and over every discount.
       const floor = effortFloorTier(policy, minEffort);
       if (final < floor) final = floor;
@@ -1365,7 +1519,7 @@ function archiveDone(p, id, meta, log, policy, level, d) {
   const ignored = ignoredEntries.filter((e) => e.xy === "!!").map((e) => unprefix(e.file)).slice(0, 10);
 
   // 4. Final report, then the commit.
-  const done = finishRun(p, id, meta, log, { action: "done", reason: d.reason, manualPending, steps: ran.length });
+  const done = finishRun(p, id, meta, log, { action: "done", reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length });
   const commitFailed = (what, res) => {
     const reset = g(["reset", "-q", "--", rel]);
     const note = res.timedOut
@@ -1431,7 +1585,7 @@ function archiveDone(p, id, meta, log, policy, level, d) {
     effort: target.effort,
     reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${settled.tier} (${settled.tierWhy})`,
     prompt,
-    summary: { reason: d.reason, manualPending, steps: ran.length },
+    summary: { reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length },
     report: done.report,
     archivePath,
     commit,
@@ -1497,7 +1651,7 @@ function next(id, policy) {
   if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d);
   if (d.halt || d.done) {
     return endRun(p, id, meta, log, d.done
-      ? { action: "done", reason: d.reason, manualPending: d.manualPending, steps: ran.length }
+      ? { action: "done", reason: d.reason, manualPending: d.manualPending, ...doneNotes(d), steps: ran.length }
       : { action: "halt", reason: d.halt, steps: ran.length });
   }
 
@@ -1517,12 +1671,14 @@ function next(id, policy) {
   const template = d.template ?? d.step;
   const prompt = render(promptText(policy, template), {
     id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
+    phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
+    retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "),
   }).trim() + "\n\n" + policy.prompts.suffix;
   const entry = {
     n: ran.length + 1,
     step: d.step,
     template,
-    skill: policy.steps[d.step].skill,
+    skill: d.skill ?? policy.steps[d.step].skill,
     tier,
     model,
     effort,
@@ -1534,6 +1690,9 @@ function next(id, policy) {
     before: { autoDone: plan.autoDone, ...beforeExtra(policy, template, plan) },
   };
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
+  if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
+  if (d.executor) entry.executor = d.executor;
+  if (Array.isArray(d.retry)) entry.retry = d.retry;
   log.push(entry);
   writeLog(p.log, log);
   out({
