@@ -694,17 +694,17 @@ Written during implementation (unattended). Row titles are not changed; where a 
 
 #### Automated
 
-- [x] 3.1 `phaseFiles` reads `**File**` and `**Files**` lines per phase, English and Polish headings: `node --test --test-name-pattern "phase files reader" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.2 A pure-logic phase at thorough routes to `implement-tdd`: `node --test --test-name-pattern "tdd phase at thorough" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.3 The same plan at standard and lean stays on goal-implement: `node --test --test-name-pattern "tdd gated by rigor" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.4 Each predicate condition alone blocks tdd (a doc path, a config glob, a ticked row, a UI word, a row with no test command): `node --test --test-name-pattern "tdd predicate rejects" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.5 A phase that satisfies both predicates goes to e2e: `node --test --test-name-pattern "e2e wins over tdd" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.6 A blocked tdd entry falls back to goal-implement with no tier bump and no `needsHuman`: `node --test --test-name-pattern "tdd blocked falls back" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.7 The rendered tdd prompt names the stop phase, forbids Skip and ends `blocked` on a redirect: `node --test --test-name-pattern "tdd prompt rules" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.8 Prompt rule form and wiring tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 3.9 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 3.11 The log entry of a tdd step names the skill `10x-tdd`: `node --test --test-name-pattern "tdd entry skill" skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.12 Every `--test-name-pattern` gate row of Phase 3 names a test title that exists: `node -e 'import("./skills/10x-pipeline/test/phase-helpers.mjs").then((m) => process.exit(m.gateCheck("context/changes/phase-executors/plan.md", 3)))'`
+- [x] 3.1 `phaseFiles` reads `**File**` and `**Files**` lines per phase, English and Polish headings: `node --test --test-name-pattern "phase files reader" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.2 A pure-logic phase at thorough routes to `implement-tdd`: `node --test --test-name-pattern "tdd phase at thorough" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.3 The same plan at standard and lean stays on goal-implement: `node --test --test-name-pattern "tdd gated by rigor" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.4 Each predicate condition alone blocks tdd (a doc path, a config glob, a ticked row, a UI word, a row with no test command): `node --test --test-name-pattern "tdd predicate rejects" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.5 A phase that satisfies both predicates goes to e2e: `node --test --test-name-pattern "e2e wins over tdd" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.6 A blocked tdd entry falls back to goal-implement with no tier bump and no `needsHuman`: `node --test --test-name-pattern "tdd blocked falls back" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.7 The rendered tdd prompt names the stop phase, forbids Skip and ends `blocked` on a redirect: `node --test --test-name-pattern "tdd prompt rules" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.8 Prompt rule form and wiring tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/preplan.test.mjs` — f6b9247
+- [x] 3.9 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — f6b9247
+- [x] 3.11 The log entry of a tdd step names the skill `10x-tdd`: `node --test --test-name-pattern "tdd entry skill" skills/10x-pipeline/test/executors.test.mjs` — f6b9247
+- [x] 3.12 Every `--test-name-pattern` gate row of Phase 3 names a test title that exists: `node -e 'import("./skills/10x-pipeline/test/phase-helpers.mjs").then((m) => process.exit(m.gateCheck("context/changes/phase-executors/plan.md", 3)))'` — f6b9247
 
 #### Manual
 
