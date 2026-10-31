@@ -46,7 +46,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | done     |
 | S-03 | rigor-levels                 | have each change get a rigor level, with lean changes skipping plan-review and changes on often-changed paths always getting both reviews | S-01          | US-01, FR-002, FR-003, FR-010     | done |
 | S-04 | (merged into S-03)           | —                                                                                     | —             | —                                 | merged   |
-| S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | proposed |
+| S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | done     |
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | proposed |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
@@ -142,7 +142,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Unknowns:**
   - Can the pipeline reach the pull request when it finishes (access and tooling)? — Owner: user. Block: no.
 - **Risk:** It depends on tooling outside the plugin. The report file is always written, so a missing pull request only skips the comment.
-- **Status:** proposed
+- **Status:** done
 
 ### S-06: Baseline usage comparison
 
@@ -259,3 +259,4 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **S-02: user can see, for a finished run, a report of which model and effort ran each step, with usage figures where readable, written before the change is archived.** — Archived 2026-10-30 → `context/archive/2026-10-30-per-step-usage-report/`. Lesson: —.
 - **S-03: user can have each change get a rigor level (`lean`, `standard`, `thorough`) that only rises during a run. A `lean` change skips plan-review. A change that touches often-changed paths always gets plan-review and implementation review. The report shows every skipped step with its reason.** — Archived 2026-10-30 → `context/archive/2026-10-30-rigor-levels/`. Lesson: —.
 - **S-09: user can have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in), with a read-only check that the archive succeeded. Split from the former S-09 on 2026-10-30: it needs only S-03, so it can start before S-07 and S-08.** — Archived 2026-10-30 → `context/archive/2026-10-30-archive-adapter/`. Lesson: —.
+- **S-05: user can see the same report as a comment on the pull request, skipped when no pull request exists.** — Archived 2026-10-31 → `context/archive/2026-10-31-pr-comment-report/`. Lesson: —.
