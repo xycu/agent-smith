@@ -9,6 +9,7 @@ Unattended rules for the manual-verify step. You may tick a pending Manual row o
 - **GIVEN** you edit plan.md **WHEN** you save it **THEN** you **MUST NOT** change a row title, an Automated row or a commit SHA suffix.
 - **GIVEN** a Manual row was ticked before you started **WHEN** you save plan.md **THEN** you **MUST NOT** untick it.
 - **GIVEN** a row is listed as rejected last time: {unproven} **WHEN** you start **THEN** you **MUST** add valid evidence to it or set it back to `[ ]`.
+- **GIVEN** the command of a row never ends by itself or waits for input (a dev server, a watcher, a prompt) **WHEN** you decide whether to run it **THEN** you **MUST NOT** run it and you leave the row at `[ ]`.
 - **GIVEN** the command fails or its output does not prove the row **WHEN** you update plan.md **THEN** you **MUST NOT** tick the row.
 - **GIVEN** no row could be proved **WHEN** you finish **THEN** you **MUST** end with status `done` and no tick.
 - **GIVEN** the skill or a tool would ask a question **WHEN** you run unattended **THEN** you **MUST NOT** print a plain-text question or wait for input, and you decide from the plan and the output of the commands.
