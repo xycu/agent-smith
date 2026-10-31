@@ -1540,6 +1540,8 @@ function readSide(dirArg, id, side) {
     let withFigures = 0;
     for (const e of steps) {
       const v = e.usage?.[key];
+      // A running total past the safe-integer range counts as a missing figure, so the pair is not comparable.
+      if (validFigure(v) && !Number.isSafeInteger(total + v)) continue;
       if (validFigure(v)) { total += v; withFigures++; }
     }
     return { total, stepsWithFigures: withFigures };
