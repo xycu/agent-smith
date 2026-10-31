@@ -113,7 +113,7 @@ Added from ADR-001 (challenged in a Socrates round on 2026-10-30):
   > Deferred, 2026-10-30: "halts for a human at the highest level" is out of scope for `rigor-levels`. Only the generic stop exists: a subagent that cannot decide from evidence reports `blocked` with `signals.needsHuman`, and the router halts once with a report.
 - [new] FR-011: The pipeline can score change complexity with an LLM on a cheap model and store the scores with evidence and unknowns in a machine-readable file. Priority: must-have.
   > Socrates: Counter-argument considered: "a deferred FR invites early building." Resolution: kept as nice-to-have and listed as a non-goal for this delivery.
-  > Decision, 2026-10-31 (owner): changed from nice-to-have to must-have and pulled into milestone M-1 as slice S-11. This supersedes the Phase 2 deferral in ADR-001 and the non-goal below. The Phase 1 measurements are not a precondition any more. Where the LLM call runs (an orchestrator-run subagent step, or inside `route.mjs`) is open and needs a new ADR before S-11 is planned, because `AGENTS.md` and ADR-006 keep the router free of LLM and network calls.
+  > Decision, 2026-10-31 (owner): changed from nice-to-have to must-have and pulled into milestone M-1 as slice S-11. This supersedes the Phase 2 deferral in ADR-001 and the non-goal below. The Phase 1 measurements are not a precondition any more. Where the LLM call runs is settled by ADR-007 (accepted 2026-10-31): an orchestrator-run subagent step that the router schedules, so `route.mjs` stays free of LLM and network calls as `AGENTS.md` and ADR-006 require.
 
 ## Constraints & Compatibility
 
@@ -131,7 +131,7 @@ The router chooses model and effort for each step by task effort and complexity 
 - **Current rule:** the router derives the next step, model and effort from review verdicts, finding counts, plan size (phase count), the goal text and failed attempts.
 - **Change:** the decision also uses a new scored rubric and usage or cost metrics, and may choose plan-review or implement as the next step (US-01).
 - **Phasing (ADR-001, proposed):** Phase 1 routes on deterministic signals the script can read without an LLM (phase count, goal text, files changed, review verdicts, finding counts, failed attempts) and adds a separate risk axis set by path rules. Scored complexity (cognitive and execution complexity, risk and confidence, each factor 0 to 3) was deferred to Phase 2. Details: `docs/ADR/ADR-001-phased-complexity-routing.md`.
-- **Update, 2026-10-31 (owner):** the Phase 2 scorer is pulled into this delivery (FR-011, slice S-11), and the scorer runs as an LLM step on a cheap model. The deterministic Phase 1 signals stay as inputs. A new ADR must settle where the call runs and supersede the Phase 2 deferral in ADR-001.
+- **Update, 2026-10-31 (owner):** the Phase 2 scorer is pulled into this delivery (FR-011, slice S-11), and the scorer runs as an LLM step on a cheap model. The deterministic Phase 1 signals stay as inputs. ADR-007 settles where the call runs and supersedes the Phase 2 deferral in ADR-001.
 
 ## Access Control Changes
 
@@ -146,10 +146,10 @@ No access control changes — current model preserved. There is no auth and no r
 
 1. **What usage drop counts as success?** — Resolved 2026-10-31: 30% in raw tokens against the Sonnet-5.5 high-effort baseline, provisional until at least 5 comparable pairs exist. Owner: user.
 2. **What does "a dep for other models" mean?** — Resolved 2026-10-31: other projects install the plugin. The command, the policy override file and the `run.jsonl` and `report.md` formats stay stable (see Constraints). Owner: user.
-3. **Which artifacts does the router score, and who produces the score?** — Resolved 2026-10-31: an LLM scorer is built in this delivery (FR-011, slice S-11), not deferred to Phase 2. Which artifacts it reads and whether a review step or the router produces the score are settled in S-11's research and the new ADR. Owner: user.
+3. **Which artifacts does the router score, and who produces the score?** — Resolved 2026-10-31: an LLM scorer is built in this delivery (FR-011, slice S-11), not deferred to Phase 2. ADR-007 (accepted 2026-10-31) has a `score` subagent step produce the score from `change.md`, the goal and the upstream artifacts; the router only validates and applies it. Owner: user.
 4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (the orchestrator copies the Agent result's usage into the step result). Not yet confirmed on a foreground Agent result; to be verified on the next real run (S-10), then closed. Owner: user.
 5. **Is OpenSpec (FR-006) out of scope for this delivery?** — Resolved 2026-10-31: yes, it stays parked (see Non-Goals). Owner: user.
-6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — Resolved 2026-10-31: the owner chose a cheap-model LLM step. Whether that is the router itself or a scorer step the router calls is open until the new ADR (see FR-011); `AGENTS.md` and ADR-006 still describe a script-only router. Owner: user.
+6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — Resolved 2026-10-31: the owner chose a cheap-model LLM step. ADR-007 (accepted 2026-10-31) settles it as a scorer step that the router schedules; the router stays a script, so `AGENTS.md` and ADR-006 need no change. Owner: user.
 7. **What are the expected target_scale.qps and target_scale.data_volume?** — Resolved 2026-10-31: qps 0 (one sequential run at a time); a few KB per run; hundreds of runs across a small team. Owner: user.
 8. **Why now, and what is the current workaround and its cost?** — Resolved 2026-10-31: see Problem Statement. Owner: user.
 9. **Confirm two assumptions.** — Resolved 2026-10-31: (a) the change modifies the existing routing rule, (b) there is no existing run data to carry over. Both confirmed. Owner: user.

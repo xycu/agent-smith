@@ -1,6 +1,6 @@
 # ADR-007: Score change complexity in a cheap-model step the router schedules, and keep the router a script
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-10-31, repository owner)
 - **Date:** 2026-10-31
 - **Deciders:** repository owner
 - **Supersedes in part:** the Phase 2 deferral of `docs/ADR/ADR-001-phased-complexity-routing.md`
