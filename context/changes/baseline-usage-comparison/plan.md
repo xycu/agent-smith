@@ -150,6 +150,7 @@ All four observations were applied as binding amendments before implementation. 
 ## Implementation notes and deviations
 
 - Phase 1 run unattended (`/10x-goal-implement`, nested subagent). Rows 1.1 to 1.5 ticked; rows 1.6 and 1.7 left for the owner; `USAGE: pending` untouched. Phase 2 not started (precondition fails).
+- Gate cleared by the owner's direction, 2026-10-31: the owner was present, asked for the orchestrator to run the probe and set `USAGE: present`. Rows 1.6 and 1.7 are ticked on that evidence. Caveat accepted by the owner: the probe saw usage in a background completion notice only; row 1.8 (unticked) re-checks the foreground path.
 - Tests 1.1 to 1.4 plus a fifth test named `1.5` (policy `compare.targetDropPercent` is `null`) live in `compare.test.mjs`. Row 1.5 is the full-suite command; the `1.5` test is an addition that covers its first half.
 - Test 1.4 drives the real `next` after a finished plan step and reads `usage` from the log entry.
 
@@ -445,8 +446,9 @@ None. No stored format changes. Runs made before this change compare fine if the
 
 #### Manual
 
-- [ ] 1.6 In a running Claude Code session the `sonnet` alias resolves to Sonnet-5.5 (assumption A1); note the resolved model name in `real-run-evidence.md`
-- [ ] 1.7 Usage spike: in a scratch project run `/agent-smith:10x-pipeline <id> <short goal>` for one step, then `status <id>` shows `usage` with `totalTokens` on at least one step; paste the line in `real-run-evidence.md`. If no step carries `usage`, stop before Phase 2 and follow "If usage is absent"
+- [x] 1.6 In a running Claude Code session the `sonnet` alias resolves to Sonnet-5.5 (assumption A1); note the resolved model name in `real-run-evidence.md` — done by a live probe run by the orchestrator, 2026-10-31 (owner directed; see real-run-evidence.md)
+- [x] 1.7 Usage spike: in a scratch project run `/agent-smith:10x-pipeline <id> <short goal>` for one step, then `status <id>` shows `usage` with `totalTokens` on at least one step; paste the line in `real-run-evidence.md`. If no step carries `usage`, stop before Phase 2 and follow "If usage is absent" — done by a live probe run by the orchestrator, 2026-10-31 (owner directed): usage arrived in the background completion notice, not a foreground result; see real-run-evidence.md and row 1.8
+- [ ] 1.8 Re-check usage on the foreground orchestrator path: in a real interactive session run `/agent-smith:10x-pipeline <id> <short goal>` for one step (SKILL.md Loop step 2, `run_in_background: false`) and confirm the Agent result carries the usage figures that `status <id>` then shows. The gate probe could only see the background completion notice; the owner accepted that caveat
 
 ### Phase 2: `compare` command (JSON)
 
