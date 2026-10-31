@@ -471,13 +471,13 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [x] 2.1 Form test accepts the new prompts and the guide file: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 2.2 Loader and artifact tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 2.3 Every prompt file is wired or documented: `node --test --test-name-pattern="wired or documented" skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 2.4 The frame guide covers each ask point: `node --test --test-name-pattern="frame guide" skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 2.5 `policy.json` is valid, carries the `preplan` block with loops gated at `thorough`, and pins `frame` at tier 4: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const f=p.steps.frame;if(!p.preplan||p.preplan.loops.minRigor!=="thorough"||!f||f.baseTier!==4||f.minTier!==4||f.maxTier!==4)process.exit(1)'`
-- [x] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 2.7 Research templates ask for the status frontmatter and the authority rule is conditional: `node --test --test-name-pattern="status frontmatter|frame authority" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 2.1 Form test accepts the new prompts and the guide file: `node --test skills/10x-pipeline/test/rules.test.mjs` — 28b0a7d
+- [x] 2.2 Loader and artifact tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs` — 28b0a7d
+- [x] 2.3 Every prompt file is wired or documented: `node --test --test-name-pattern="wired or documented" skills/10x-pipeline/test/preplan.test.mjs` — 28b0a7d
+- [x] 2.4 The frame guide covers each ask point: `node --test --test-name-pattern="frame guide" skills/10x-pipeline/test/preplan.test.mjs` — 28b0a7d
+- [x] 2.5 `policy.json` is valid, carries the `preplan` block with loops gated at `thorough`, and pins `frame` at tier 4: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const f=p.steps.frame;if(!p.preplan||p.preplan.loops.minRigor!=="thorough"||!f||f.baseTier!==4||f.minTier!==4||f.maxTier!==4)process.exit(1)'` — 28b0a7d
+- [x] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 28b0a7d
+- [x] 2.7 Research templates ask for the status frontmatter and the authority rule is conditional: `node --test --test-name-pattern="status frontmatter|frame authority" skills/10x-pipeline/test/preplan.test.mjs` — 28b0a7d
 
 #### Manual
 
@@ -490,15 +490,15 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [ ] 3.1 Pre-plan tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 3.2 Three skips in one call work: `node --test --test-name-pattern="three skips in one call" skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 3.3 Existing routing, churn and archive tests keep their first step: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/churn.test.mjs skills/10x-pipeline/test/archive.test.mjs`
-- [ ] 3.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 3.5 The router still adds no dependency and no new git write: `! (grep -nE '^import .* from "' skills/10x-pipeline/scripts/route.mjs | grep -v 'from "node:') && ! grep -nE "[\"']push[\"']|--no-verify" skills/10x-pipeline/scripts/route.mjs`
-- [ ] 3.6 Node 18 ban list is respected in new code: `! grep -nE "toSorted|groupBy|import\.meta\.dirname|mock\.timers|partialDeepStrictEqual" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/loops.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs`
-- [ ] 3.7 A plain `fix typo` goal opens no frame and does not halt: `node --test --test-name-pattern="framing doubt|thorough opens" skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 3.8 `aggregateGap` reads the real report format: `node --test --test-name-pattern="aggregateGap" skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 3.9 A pre-plan skip row prints in `status` and `report.md`: `node --test --test-name-pattern="pre-plan skip row" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 3.1 Pre-plan tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 3.2 Three skips in one call work: `node --test --test-name-pattern="three skips in one call" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 3.3 Existing routing, churn and archive tests keep their first step: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/churn.test.mjs skills/10x-pipeline/test/archive.test.mjs`
+- [x] 3.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.5 The router still adds no dependency and no new git write: `! (grep -nE '^import .* from "' skills/10x-pipeline/scripts/route.mjs | grep -v 'from "node:') && ! grep -nE "[\"']push[\"']|--no-verify" skills/10x-pipeline/scripts/route.mjs`
+- [x] 3.6 Node 18 ban list is respected in new code: `! grep -nE "toSorted|groupBy|import\.meta\.dirname|mock\.timers|partialDeepStrictEqual" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/loops.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 3.7 A plain `fix typo` goal opens no frame and does not halt: `node --test --test-name-pattern="framing doubt|thorough opens" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 3.8 `aggregateGap` reads the real report format: `node --test --test-name-pattern="aggregateGap" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 3.9 A pre-plan skip row prints in `status` and `report.md`: `node --test --test-name-pattern="pre-plan skip row" skills/10x-pipeline/test/preplan.test.mjs`
 
 #### Manual
 

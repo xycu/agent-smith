@@ -310,6 +310,23 @@ function attachResult(p, log, policy) {
     case "plan": verified = plan.hasProgress && plan.mtime > last.startedAt; break;
     case "plan-review": verified = mtime(p.planReview) > last.startedAt && readReview(p.planReview).verdict !== null; break;
     case "impl-review": verified = mtime(p.implReview) > last.startedAt && readReview(p.implReview).verdict !== null; break;
+    case "research": {
+      const file = preplanFile(p, policy, last);
+      verified = file !== null && mtime(file) > last.startedAt && frontmatterField(file, "status") !== null;
+      break;
+    }
+    case "frame": {
+      // The Confidence label is never read: its section lists all three labels as bullets.
+      const file = preplanFile(p, policy, last);
+      verified = file !== null && mtime(file) > last.startedAt && /^## Reframed/m.test(readText(file));
+      break;
+    }
+    case "domain-brief": {
+      // The file comes from the entry's template, so the two domain templates verify against different files.
+      const file = preplanFile(p, policy, last);
+      verified = file !== null && mtime(file) > last.startedAt && frontmatterField(file, "type") === "refactor-plan";
+      break;
+    }
     case "implement": verified = plan.autoDone > (last.before?.autoDone ?? 0); break;
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
@@ -628,6 +645,8 @@ function decide(p, fullLog, policy, meta, ctx) {
     return { halt: `No change folder. Run /10x-new ${meta.id} first.` };
   }
   if (!plan.exists || !plan.hasProgress) {
+    const pre = preplanNext(p, fullLog, policy, meta, ctx);
+    if (pre) return pre;
     const { kind, keyword } = goalClass(meta.goal, policy);
     const B = policy.complexity.firstPlan?.bump ?? {};
     return {
@@ -734,6 +753,191 @@ function decide(p, fullLog, policy, meta, ctx) {
     reason: `impl review ${ir.verdict ?? "APPROVED"}`,
     manualPending: plan.manualPending,
   };
+}
+
+// ---- pre-plan steps ---------------------------------------------------------
+
+const ARTIFACT_NAME = /^[A-Za-z0-9._-]+$/;
+
+function readText(file) {
+  try { return fs.readFileSync(file, "utf8"); } catch { return ""; }
+}
+
+// A file name of preplan.artifacts in the change folder, or null when the name is missing or unsafe.
+function artifactFile(p, policy, key) {
+  const name = policy.preplan?.artifacts?.[key];
+  return typeof name === "string" && ARTIFACT_NAME.test(name) ? path.join(p.change, name) : null;
+}
+
+// The artifact a pre-plan log entry must have written: the file of its template, else of its step.
+function preplanFile(p, policy, entry) {
+  return artifactFile(p, policy, entry.template ?? entry.step);
+}
+
+// The first configured phrase that starts at a word start of the goal (index 0, or after a non-letter, non-digit).
+// Phrases may contain spaces. Lowercase compare. Returns the phrase or null.
+function goalPhrase(goal, phrases) {
+  const text = typeof goal === "string" ? goal.toLowerCase() : "";
+  for (const raw of Array.isArray(phrases) ? phrases : []) {
+    if (typeof raw !== "string" || !raw.trim()) continue;
+    const phrase = raw.toLowerCase();
+    for (let i = text.indexOf(phrase); i >= 0; i = text.indexOf(phrase, i + 1)) {
+      if (i === 0 || !/[\p{L}\p{N}]/u.test(text[i - 1])) return raw;
+    }
+  }
+  return null;
+}
+
+const letterWords = (text) => String(text ?? "").toLowerCase().split(/[^\p{L}]+/u).filter(Boolean);
+
+// Cells of one pipe-table line, trimmed, without the outer pipes.
+function tableCells(line) {
+  const inner = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return inner.split(/(?<!\\)\|/).map((cell) => cell.replace(/\\\|/g, "|").trim());
+}
+
+const isSeparatorRow = (cells) => cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell));
+
+// The invariant and policy rows of a distillation report that share a word with the goal. Format: see the
+// reference template of /10x-domain-distillation. The section runs from "## Invariants and policies" to the next
+// "## " line. A table counts when a header cell starts with "invariant" or "policy" and another cell is "status".
+// The status is the first alphabetic word of the status cell without * _ and backticks. A "###" heading is not a
+// word source. Words are whole lowercase letter tokens of the candidate column (if any), the invariant or policy
+// cell and the gap cell. Returns { hit, why }; no file, no section or no matching row is no hit.
+function aggregateGap(cfg, goal) {
+  const none = (why) => ({ hit: false, why });
+  if (!isObject(cfg)) return none("aggregateGap is not configured");
+  const files = Array.isArray(cfg.files) ? cfg.files.filter((f) => typeof f === "string" && f) : [];
+  const file = files.find((f) => fs.existsSync(path.resolve(ROOT, f)));
+  if (file === undefined) return none("no distillation file");
+  const lines = readText(path.resolve(ROOT, file)).split(/\r?\n/);
+  const start = lines.findIndex((l) => /^## Invariants and policies\s*$/.test(l));
+  if (start < 0) return none(`${file} has no "## Invariants and policies" section`);
+  let end = lines.findIndex((l, i) => i > start && l.startsWith("## "));
+  if (end < 0) end = lines.length;
+  const statuses = new Set((Array.isArray(cfg.statuses) ? cfg.statuses : []).filter((s) => typeof s === "string").map((s) => s.toLowerCase()));
+  const stop = new Set((Array.isArray(cfg.stopwords) ? cfg.stopwords : []).filter((s) => typeof s === "string").map((s) => s.toLowerCase()));
+  const minLen = Number.isFinite(cfg.minWordLength) ? cfg.minWordLength : 4;
+  const goalWords = new Set(letterWords(goal));
+
+  const section = lines.slice(start + 1, end);
+  for (let i = 0; i < section.length; i++) {
+    if (!section[i].trim().startsWith("|")) continue;
+    const block = [];
+    for (; i < section.length && section[i].trim().startsWith("|"); i++) block.push(section[i]);
+    const header = tableCells(block[0]).map((cell) => cell.toLowerCase());
+    if (block.length < 3 || !isSeparatorRow(tableCells(block[1]))) continue;
+    const statusAt = header.indexOf("status");
+    const textAt = header.findIndex((cell) => cell.startsWith("invariant") || cell.startsWith("policy"));
+    if (statusAt < 0 || textAt < 0) continue;
+    const wordAt = [header.findIndex((cell) => cell.startsWith("candidate")), textAt, header.indexOf("gap")].filter((at) => at >= 0);
+    for (const line of block.slice(2)) {
+      const cells = tableCells(line);
+      const status = (String(cells[statusAt] ?? "").replace(/[*_`]/g, "").match(/[A-Za-z]+/) ?? [""])[0].toLowerCase();
+      if (!statuses.has(status)) continue;
+      for (const at of wordAt) {
+        const word = letterWords(cells[at]).find((w) => w.length >= minLen && !stop.has(w) && goalWords.has(w));
+        if (word !== undefined) return { hit: true, why: `${file}: ${cells[0] || "row"} (${status}) shares "${word}" with the goal` };
+      }
+    }
+  }
+  return none(`${file} has no declared row that shares a word with the goal`);
+}
+
+// Pure, read-only. Each takes { p, policy, meta, ran } and returns { hit, why }. An unknown name is no hit.
+const PREDICATES = {
+  researchExists: ({ p, policy }) => existsPredicate(artifactFile(p, policy, "research")),
+  frameExists: ({ p, policy }) => existsPredicate(artifactFile(p, policy, "frame")),
+  briefExists: ({ p, policy }) => {
+    const hit = ["domain-aggregate", "domain-acl"].map((key) => artifactFile(p, policy, key)).find((file) => file !== null && fs.existsSync(file));
+    return hit === undefined ? { hit: false, why: "no brief file" } : existsPredicate(hit);
+  },
+  repoMapExists: ({ policy }) => {
+    const cfg = policy.preplan?.predicates?.repoMapExists;
+    if (!isObject(cfg) || typeof cfg.file !== "string" || !cfg.file) return { hit: false, why: "repoMapExists is not configured" };
+    const file = path.resolve(ROOT, cfg.file);
+    if (!fs.existsSync(file)) return { hit: false, why: `${cfg.file} is missing` };
+    for (const [key, want] of Object.entries(isObject(cfg.frontmatter) ? cfg.frontmatter : {})) {
+      if (frontmatterField(file, key) !== String(want)) return { hit: false, why: `${cfg.file} has no ${key}: ${want}` };
+    }
+    return { hit: true, why: `${cfg.file} exists` };
+  },
+  framingDoubt: ({ policy, meta, ran }) => {
+    const phrase = goalPhrase(meta.goal, policy.preplan?.predicates?.framingDoubt?.goalWords);
+    if (phrase !== null) return { hit: true, why: `goal phrase "${phrase}"` };
+    const early = ran.find((e) => (e.step === "research" || e.step === "domain-brief") && isObject(e.signals) && typeof e.signals.rigor === "string");
+    if (early) return { hit: true, why: `signals.rigor of step ${early.n} (${early.step})` };
+    return { hit: false, why: "no cause-shaped or design-shaped goal phrase, no signals.rigor of an earlier step" };
+  },
+  dependencyLeak: ({ policy, meta }) => {
+    const phrase = goalPhrase(meta.goal, policy.preplan?.predicates?.dependencyLeak?.goalWords);
+    return phrase !== null ? { hit: true, why: `goal phrase "${phrase}"` } : { hit: false, why: "no dependency phrase in the goal" };
+  },
+  aggregateGap: ({ policy, meta }) => aggregateGap(policy.preplan?.predicates?.aggregateGap, meta.goal),
+};
+
+function existsPredicate(file) {
+  if (file === null) return { hit: false, why: "artifact is not configured" };
+  return fs.existsSync(file) ? { hit: true, why: `${path.basename(file)} exists` } : { hit: false, why: `${path.basename(file)} is missing` };
+}
+
+function predicate(name, env) {
+  const fn = typeof name === "string" && Object.hasOwn(PREDICATES, name) ? PREDICATES[name] : null;
+  if (!fn) return { hit: false, why: "unknown predicate" };
+  try { return fn(env); } catch { return { hit: false, why: "predicate failed" }; }
+}
+
+// The pre-plan branch of the "no plan yet" case. Returns null (go on to plan), { skip: { step, reason } } or
+// { step, template, bump, reason }. Nothing runs once a plan attempt exists. A gate closed by rigor is silent;
+// an open gate that does not run logs a skip with its reason. Malformed config is ignored, never thrown.
+function preplanNext(p, fullLog, policy, meta, ctx) {
+  const cfg = policy.preplan;
+  if (!isObject(cfg) || !Array.isArray(cfg.order) || !isObject(cfg.gates)) return null;
+  const ran = executed(fullLog);
+  if (ran.some((e) => e.step === "plan")) return null;
+  const levels = rigorLevels(policy);
+  const env = { p, policy, meta, ran };
+  const names = (list) => (Array.isArray(list) ? list : []);
+  for (const step of cfg.order) {
+    const gate = typeof step === "string" ? cfg.gates[step] : null;
+    if (!isObject(gate) || !isObject(policy.steps?.[step])) continue;
+    const variants = names(gate.variants).filter((v) => isObject(v) && typeof v.template === "string");
+    const templates = new Set([...(typeof gate.template === "string" ? [gate.template] : []), ...variants.map((v) => v.template)]);
+    const mine = ran.filter((e) => e.step === step && templates.has(e.template ?? e.step));
+    if (mine.some((e) => e.ok)) continue;
+    if (mine.length) {
+      const last = mine[mine.length - 1];
+      return { step, template: last.template ?? step, bump: 0, reason: `retry ${step} (${last.template ?? step}): attempt ${mine.length} did not pass` };
+    }
+    if (fullLog.some((e) => e.skipped && e.step === step)) continue;
+    const open = levels.indexOf(ctx.level) >= 0 && levels.indexOf(gate.minRigor) >= 0 && levels.indexOf(ctx.level) >= levels.indexOf(gate.minRigor);
+    if (!open) continue;
+    const lead = `rigor ${ctx.level}: ${step}`;
+    for (const name of names(gate.skipIf)) {
+      const res = predicate(name, env);
+      if (res.hit) return { skip: { step, reason: `${lead} skipped (${name}: ${res.why})` } };
+    }
+    const when = names(gate.when);
+    const hits = [];
+    if (when.length) {
+      const misses = [];
+      for (const name of when) {
+        const res = predicate(name, env);
+        if (res.hit) hits.push(`${name}: ${res.why}`);
+        else misses.push(`${name}: ${res.why}`);
+      }
+      if (!hits.length) return { skip: { step, reason: `${lead} skipped (no signal; ${misses.join("; ")})` } };
+    }
+    let template = null;
+    for (const v of variants) {
+      const res = typeof v.when === "string" ? predicate(v.when, env) : { hit: false };
+      if (res.hit) { template = v.template; hits.push(`${v.when}: ${res.why}`); break; }
+    }
+    if (template === null && typeof gate.template === "string") template = gate.template;
+    if (template === null) return { skip: { step, reason: `${lead} skipped (no template matched)` } };
+    return { step, template, bump: 0, reason: `${lead} runs (${hits.length ? hits.join("; ") : `gate open, template ${template}`})` };
+  }
+  return null;
 }
 
 // A change is simple when the plan stays small and nothing has failed yet.
@@ -1091,14 +1295,18 @@ function next(id, policy) {
     return endRun(p, id, meta, log, { action: "halt", reason: `Step budget ${budget} spent.` });
   }
 
-  // decide() may skip a step: log the skip and ask again, at most three times in one call.
+  // decide() may skip a step: log the skip and ask again. A step is skipped at most once per call, because a
+  // logged skip marks it handled; a second skip of the same step is a router bug and halts. Different steps may
+  // skip in turn (the three pre-plan gates can all close), and step names are finite, so the loop ends.
+  const skippedNow = new Set();
   let d;
-  for (let asked = 1; ; asked++) {
+  for (;;) {
     d = decide(p, log, policy, meta, { level, risk });
     if (!d.skip) break;
-    if (asked >= 3) {
+    if (skippedNow.has(d.skip.step)) {
       return endRun(p, id, meta, log, { action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
     }
+    skippedNow.add(d.skip.step);
     log.push({
       skipped: true,
       step: d.skip.step,

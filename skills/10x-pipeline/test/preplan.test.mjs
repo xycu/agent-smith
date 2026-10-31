@@ -1,12 +1,14 @@
 // Pre-plan steps of the pre-plan-steps change. Black-box through the CLI, plus data checks on policy.json.
 // Phase 2 covers the policy data and the prompt wiring (loader, artifact list, frame authority line).
+// Phase 3 covers the gates, the predicates, the verification by artifact and the skip-cap fix.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, writeReview, init, writeLog, entry,
+  cleanupAll, makeProject, planText, writeReview, init, next, run, writeLog, entry, writeResult,
+  readLogEntries, readMetaFile, readReportFile,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -301,4 +303,644 @@ test("frame authority rule wins over the Progress titles line and keeps the cont
   assert.match(rule, /wins over the line that keeps step indices and titles/);
   // Exactly one rule line with one bold keyword (the form test in rules.test.mjs checks the shape).
   assert.equal([...rule.matchAll(/\*\*(MUST NOT|MUST|SHOULD NOT|SHOULD|MAY)\*\*/g)].length, 1);
+});
+
+// ---- Phase 3 helpers --------------------------------------------------------------
+
+const RESEARCH = "---\nstatus: complete\n---\n# Research\n";
+const BRIEF = "---\ntype: refactor-plan\n---\n# Brief\n";
+const frameText = (label = "HIGH") =>
+  `# Frame Brief: demo\n\n## Reframed (or Confirmed) Problem Statement\n\nThe task.\n\n## Confidence\n\n- HIGH\n- MEDIUM\n- LOW\n\nStated: ${label}\n`;
+
+const future = () => new Date(Date.now() + 60_000);
+
+// An artifact in the change folder with a fresh mtime (or the given one), so ordering with startedAt never depends on the clock.
+function put(project, file, text, when = future()) {
+  const abs = path.join(project.changeDir, file);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, text);
+  fs.utimesSync(abs, when, when);
+}
+
+// A file under the project root (distillation report, repo map).
+function putRoot(project, file, text) {
+  const abs = path.join(project.root, file);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, text);
+}
+
+const thorough = (project, goal, extra = []) => init(project, goal, ["--rigor", "thorough", ...extra]);
+const finish = (project, result = { status: "done", note: "ok" }) => {
+  writeResult(project, result);
+  return next(project);
+};
+const ranOf = (project) => readLogEntries(project).filter((e) => !e.skipped);
+const skipsOf = (project) => readLogEntries(project).filter((e) => e.skipped);
+const lastRan = (project) => ranOf(project)[ranOf(project).length - 1];
+
+// What the first answer of a thorough run was: the step, the template the router logged, and the skips before it.
+function start(project, goal, extra = []) {
+  const res = thorough(project, goal, extra);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  return { res, step: res.json.step, template: lastRan(project)?.template, skips: skipsOf(project) };
+}
+
+// ---- distillation fixtures: synthetic rows in the real report format -----------------
+
+const REF_HEADER = "| id | candidate | invariant (quoted) | source | status | guarded at | gap |\n| --- | --- | --- | --- | --- | --- | --- |";
+const SHORT_HEADER = "| id | invariant (quoted) | source | status | guarded at | gap |\n| --- | --- | --- | --- | --- | --- |";
+const POLICY_HEADER = "| id | policy (quoted) | source | status | guarded at | gap |\n| --- | --- | --- | --- | --- | --- |";
+const DRIFT = "## Model vs code drift\n\n| id | the documents say (newest) | the code does |\n| --- | --- | --- |\n| D-1 | x | y |\n";
+const FILE_A = "context/domain/domain-distillation.md";
+const FILE_B = "context/domain/01-domain-distillation.md";
+
+const section = (...blocks) => `# Domain distillation\n\n## Summary\n\nx\n\n## Invariants and policies\n\n${blocks.join("\n\n")}\n\n${DRIFT}`;
+const refRow = (id, candidate, invariant, status, gap = "none") => `| ${id} | ${candidate} | "${invariant}" | spec | ${status} | \`a.js:1\` | ${gap} |`;
+const row = (id, invariant, status, gap = "none") => `| ${id} | "${invariant}" | spec | ${status} | \`a.js:1\` | ${gap} |`;
+
+// Does the aggregateGap predicate hit for this report and goal? Research exists, so the domain brief is the first gate asked.
+function gapHit(files, goal) {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  for (const [file, text] of Object.entries(files)) putRoot(project, file, text);
+  const out = start(project, goal);
+  assert.ok(out.step === "domain-brief" || out.step === "plan", `unexpected step ${out.step}`);
+  return out.step === "domain-brief" && out.template === "domain-aggregate";
+}
+
+// ---- gates ----------------------------------------------------------------------------
+
+test("default policy keeps the first step at lean and standard", () => {
+  const lean = makeProject();
+  const a = init(lean, "fix typo");
+  assert.equal(a.json.step, "plan");
+  assert.equal(readMetaFile(lean).rigor.level, "lean");
+  assert.deepEqual(skipsOf(lean), []);
+
+  const standard = makeProject();
+  const b = init(standard, Array.from({ length: 30 }, (_, i) => `word${i}`).join(" "));
+  assert.equal(b.json.step, "plan");
+  assert.equal(readMetaFile(standard).rigor.level, "standard");
+  assert.deepEqual(skipsOf(standard), []);
+
+  // A cause-shaped goal and a distillation report change nothing below thorough.
+  const loud = makeProject();
+  putRoot(loud, FILE_A, section(REF_HEADER + "\n" + refRow("R-1", "World", "A world has one slug", "**declared**", "unchecked")));
+  const c = init(loud, "Worlds break because the slug is unchecked", ["--rigor", "standard"]);
+  assert.equal(c.json.step, "plan");
+  assert.deepEqual(skipsOf(loud), []);
+});
+
+test("thorough opens the pre-plan gates", () => {
+  const project = makeProject();
+  const first = start(project, "fix typo");
+  assert.equal(first.step, "research");
+  assert.equal(first.template, "research");
+  assert.equal(first.res.json.model, "sonnet");
+  assert.equal(first.res.json.effort, "high");
+  assert.match(first.res.json.reason, /rigor thorough: research runs/);
+  assert.deepEqual(first.skips, []);
+
+  // fix typo: research runs, then the domain brief and the frame step are skipped and the plan follows without a halt.
+  put(project, "research.md", RESEARCH);
+  const res = finish(project);
+  assert.equal(res.status, 0);
+  assert.equal(res.json.step, "plan");
+  const skips = skipsOf(project);
+  assert.deepEqual(skips.map((s) => s.step), ["domain-brief", "frame"]);
+  assert.ok(skips.every((s) => s.afterN === 1 && s.rigor === "thorough"));
+});
+
+test("research skipped when research.md exists", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  const out = start(project, "fix typo");
+  assert.equal(out.step, "plan");
+  const skip = out.skips.find((s) => s.step === "research");
+  assert.ok(skip, "a skip entry for research");
+  assert.match(skip.reason, /^rigor thorough: research skipped \(researchExists: research\.md exists\)$/);
+  assert.equal(skip.afterN, 0);
+  // The next gate was evaluated in the same call.
+  assert.ok(out.skips.some((s) => s.step === "domain-brief"));
+});
+
+test("repo map selects research-with-map", () => {
+  const legacyFirstLine = fs.readFileSync(path.join(PROMPTS_DIR, "research-with-map.md"), "utf8").split("\n")[0].replace("{id}", "demo").replace("{goal}", "fix typo");
+
+  const mapped = makeProject();
+  putRoot(mapped, "context/map/repo-map.md", "---\nartifact: repo-map\n---\n# Map\n");
+  const a = start(mapped, "fix typo");
+  assert.equal(a.step, "research");
+  assert.equal(a.template, "research-with-map");
+  assert.ok(a.res.json.prompt.startsWith(legacyFirstLine));
+  assert.ok(a.res.json.prompt.includes(STATUS_RULE.replace("{id}", "demo")));
+
+  const other = makeProject();
+  putRoot(other, "context/map/repo-map.md", "---\nartifact: something-else\n---\n# Map\n");
+  assert.equal(start(other, "fix typo").template, "research");
+
+  const plain = makeProject();
+  putRoot(plain, "context/map/repo-map.md", "# Map without frontmatter\n");
+  assert.equal(start(plain, "fix typo").template, "research");
+
+  const none = makeProject();
+  assert.equal(start(none, "fix typo").template, "research");
+});
+
+// ---- aggregateGap ---------------------------------------------------------------------
+
+test("aggregateGap on the reference template", () => {
+  const declared = section(`${REF_HEADER}\n${refRow("R-1", "World", "A world has one slug", "**declared**", "no check at insert")}`);
+  assert.equal(gapHit({ [FILE_A]: declared }, "Rename the world tooltip"), true);
+  // Other statuses in the policy list count too.
+  for (const status of ["ignored", "contradicted"]) {
+    const text = section(`${REF_HEADER}\n${refRow("R-1", "World", "A world has one slug", `**${status}**`)}`);
+    assert.equal(gapHit({ [FILE_A]: text }, "Rename the world tooltip"), true, status);
+  }
+  // No shared word: no hit.
+  assert.equal(gapHit({ [FILE_A]: declared }, "Polish the footer layout"), false);
+  // An enforced row does not hit, even with a shared word.
+  const enforced = section(`${REF_HEADER}\n${refRow("R-1", "World", "A world has one slug", "**enforced**")}`);
+  assert.equal(gapHit({ [FILE_A]: enforced }, "Rename the world tooltip"), false);
+  // The second file path works.
+  assert.equal(gapHit({ [FILE_B]: declared }, "Rename the world tooltip"), true);
+  // The first existing file wins: it has no declared row, so the second file is never read.
+  assert.equal(gapHit({ [FILE_A]: enforced, [FILE_B]: declared }, "Rename the world tooltip"), false);
+});
+
+test("aggregateGap on multi-candidate sections", () => {
+  const text = [
+    "# Domain distillation",
+    "",
+    "## Invariants and policies",
+    "",
+    "### World lifecycle",
+    "",
+    SHORT_HEADER,
+    row("R-1", "A realm needs one slug", "**declared**", "the slug is not checked"),
+    row("R-2", "A pod is archived once", "**enforced**"),
+    "",
+    "### Ticket handling",
+    "",
+    SHORT_HEADER,
+    row("R-3", "A ticket closes once", "**declared**", "double close possible"),
+    "",
+    "### Code-only rules",
+    "",
+    "- C-1 a pigeon rule that is declared in code only",
+    "",
+    "## Model vs code drift",
+    "",
+    SHORT_HEADER,
+    row("D-2", "A comet orbits", "**declared**"),
+    "",
+  ].join("\n");
+  const files = { [FILE_A]: text };
+  // A row under the first heading hits through its own text, a row under the second heading through the second table.
+  assert.equal(gapHit(files, "Fix the slug check"), true);
+  assert.equal(gapHit(files, "Close the ticket twice"), true);
+  // The enforced row does not hit even when the goal names it.
+  assert.equal(gapHit(files, "Archive the pod"), false);
+  // A heading word is not a word source.
+  assert.equal(gapHit(files, "World lifecycle handling"), false);
+  // A table under a later ## section is not read.
+  assert.equal(gapHit(files, "Comet orbits"), false);
+  // A list such as Code-only rules is ignored.
+  assert.equal(gapHit(files, "A pigeon rule"), false);
+});
+
+test("aggregateGap on a policy (quoted) table", () => {
+  const text = section(`### Product-wide policies\n\n${POLICY_HEADER}\n${row("R-9", "Every export is logged", "**declared**", "exports skip the log")}\n${row("R-10", "Every import is checked", "**enforced**")}`);
+  assert.equal(gapHit({ [FILE_A]: text }, "Log the export"), true);
+  assert.equal(gapHit({ [FILE_A]: text }, "Check the import"), false);
+  // The gap cell is a word source too.
+  assert.equal(gapHit({ [FILE_A]: text }, "Skip the exports"), true);
+});
+
+test("aggregateGap heading word does not hit rows", () => {
+  const text = section(`### World\n\n${SHORT_HEADER}\n${row("R-1", "A ticket closes once", "**declared**", "double close")}\n${row("R-2", "A ledger balances", "**declared**", "none")}`);
+  assert.equal(gapHit({ [FILE_A]: text }, "world"), false);
+  assert.equal(gapHit({ [FILE_A]: text }, "Rework the world page"), false);
+  // The same words in a row do hit.
+  assert.equal(gapHit({ [FILE_A]: text }, "Close the ticket"), true);
+});
+
+test("aggregateGap matches whole words", () => {
+  const under = section(`${SHORT_HEADER}\n${row("R-1", "An underworld gate opens once", "**declared**")}`);
+  assert.equal(gapHit({ [FILE_A]: under }, "Rename the world tooltip"), false);
+  assert.equal(gapHit({ [FILE_A]: under }, "Rename the underworld tooltip"), true);
+  const plural = section(`${SHORT_HEADER}\n${row("R-1", "Worlds are numbered", "**declared**")}`);
+  assert.equal(gapHit({ [FILE_A]: plural }, "Rename the world tooltip"), false);
+  assert.equal(gapHit({ [FILE_A]: plural }, "Rename the worlds tooltip"), true);
+});
+
+test("aggregateGap qualified status", () => {
+  const rowFor = (status) => section(`${SHORT_HEADER}\n${row("R-1", "A world has one slug", status)}`);
+  assert.equal(gapHit({ [FILE_A]: rowFor("**enforced** (new worlds)") }, "Rename the world tooltip"), false);
+  assert.equal(gapHit({ [FILE_A]: rowFor("declared (soft)") }, "Rename the world tooltip"), true);
+  assert.equal(gapHit({ [FILE_A]: rowFor("**declared**") }, "Rename the world tooltip"), true);
+  assert.equal(gapHit({ [FILE_A]: rowFor("`declared`") }, "Rename the world tooltip"), true);
+  assert.equal(gapHit({ [FILE_A]: rowFor("_ignored_ for now") }, "Rename the world tooltip"), true);
+  assert.equal(gapHit({ [FILE_A]: rowFor("") }, "Rename the world tooltip"), false);
+});
+
+test("aggregateGap ignores stopwords and short words", () => {
+  const text = section(`${SHORT_HEADER}\n${row("R-1", "Every page needs a tag", "**declared**", "none")}`);
+  // "page" and "every" are stopwords, "tag" is shorter than minWordLength.
+  assert.equal(gapHit({ [FILE_A]: text }, "Update the page tag every day"), false);
+  assert.equal(gapHit({ [FILE_A]: text }, "Rename the tag"), false);
+});
+
+test("aggregateGap with no file, no section or no usable table is no hit and no halt", () => {
+  const cases = {
+    "no file": {},
+    "no section": { [FILE_A]: "# Domain distillation\n\n## Summary\n\nWorld rows.\n" },
+    "section without a table": { [FILE_A]: "# D\n\n## Invariants and policies\n\n- R-1 a world rule that is declared\n" },
+    "table without status": { [FILE_A]: `# D\n\n## Invariants and policies\n\n| id | invariant (quoted) | gap |\n| --- | --- | --- |\n| R-1 | "world rule" | declared world |\n` },
+    "table without invariant or policy": { [FILE_A]: `# D\n\n## Invariants and policies\n\n| id | rule | status |\n| --- | --- | --- |\n| R-1 | world rule | declared |\n` },
+    "table without separator row": { [FILE_A]: `# D\n\n## Invariants and policies\n\n| id | invariant (quoted) | status |\n| R-1 | world rule | declared |\n` },
+    "empty file": { [FILE_A]: "" },
+  };
+  for (const [name, files] of Object.entries(cases)) {
+    assert.equal(gapHit(files, "Rename the world rule tooltip"), false, name);
+  }
+});
+
+test("aggregateGap wins when both hit", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  putRoot(project, FILE_A, section(`${REF_HEADER}\n${refRow("R-1", "World", "A world has one slug", "**declared**")}`));
+  const out = start(project, "Wrap the vendor sdk for the world tooltip");
+  assert.equal(out.step, "domain-brief");
+  assert.equal(out.template, "domain-aggregate");
+  assert.match(out.res.json.reason, /aggregateGap/);
+});
+
+// ---- domain brief ---------------------------------------------------------------------
+
+test("domain brief by dependencyLeak", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  const out = start(project, "Put an adapter around the vendor sdk");
+  assert.equal(out.step, "domain-brief");
+  assert.equal(out.template, "domain-acl");
+  assert.equal(out.res.json.model, "sonnet");
+  assert.match(out.res.json.reason, /dependencyLeak/);
+  assert.ok(out.res.json.prompt.startsWith("You are a Domain-Driven Design specialist who finds leaking dependencies"));
+});
+
+test("domain brief skipped with no signal", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  const out = start(project, "fix typo");
+  const skip = out.skips.find((s) => s.step === "domain-brief");
+  assert.ok(skip);
+  assert.match(skip.reason, /^rigor thorough: domain-brief skipped \(no signal; aggregateGap: .*; dependencyLeak: .*\)$/);
+  assert.equal(out.step, "plan");
+
+  // An existing brief file skips the step even when the goal names a leak.
+  for (const file of ["refactor-invariant-aggregate.md", "refactor-anti-corruption-layer.md"]) {
+    const done = makeProject();
+    put(done, "research.md", RESEARCH);
+    put(done, file, BRIEF);
+    const res = start(done, "Put an adapter around the vendor sdk");
+    assert.equal(res.step, "plan", file);
+    assert.match(res.skips.find((s) => s.step === "domain-brief").reason, /briefExists: .*\.md exists/, file);
+  }
+});
+
+// ---- frame ----------------------------------------------------------------------------
+
+test("framing doubt by cause-shaped goal", () => {
+  for (const goal of ["Logins fail because the token cache is stale", "Bug caused by token expiry", "Rethink the session store"]) {
+    const project = makeProject();
+    put(project, "research.md", RESEARCH);
+    const out = start(project, goal);
+    assert.equal(out.step, "frame", goal);
+    assert.equal(out.template, "frame", goal);
+    assert.equal(out.res.json.model, "opus", goal);
+    assert.equal(out.res.json.effort, "high", goal);
+    assert.match(out.res.json.reason, /framingDoubt/, goal);
+  }
+});
+
+test("framing doubt by signals.rigor of an earlier step", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  writeLog(project, [entry(1, "research", { signals: { rigor: "thorough" } })]);
+  const out = start(project, "fix typo");
+  assert.equal(out.step, "frame");
+  assert.match(out.res.json.reason, /signals\.rigor of step 1 \(research\)/);
+
+  // Without the signal the same log goes on to plan.
+  const quiet = makeProject();
+  put(quiet, "research.md", RESEARCH);
+  writeLog(quiet, [entry(1, "research")]);
+  assert.equal(start(quiet, "fix typo").step, "plan");
+});
+
+test("framing doubt does not fire on fix typo", () => {
+  for (const goal of ["fix typo", "fixture cleanup", "fixes for the router", "bug report template"]) {
+    const project = makeProject();
+    put(project, "research.md", RESEARCH);
+    const out = start(project, goal);
+    assert.equal(out.step, "plan", goal);
+    const skip = out.skips.find((s) => s.step === "frame");
+    assert.ok(skip, goal);
+    assert.match(skip.reason, /^rigor thorough: frame skipped \(no signal; framingDoubt: /, goal);
+  }
+  // A word start is needed: "because" inside another word does not count.
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  assert.equal(start(project, "Rename unbecause").step, "plan");
+});
+
+// ---- skip cap -------------------------------------------------------------------------
+
+test("three skips in one call", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  const out = start(project, "fix typo");
+  assert.equal(out.step, "plan");
+  assert.equal(out.res.json.action, "run");
+  assert.deepEqual(out.skips.map((s) => s.step), ["research", "domain-brief", "frame"]);
+  for (const s of out.skips) {
+    assert.equal(s.afterN, 0);
+    assert.equal(s.rigor, "thorough");
+    assert.equal(typeof s.reason, "string");
+    assert.ok(!("risk" in s), "a pre-plan skip row has no risk key");
+  }
+  assert.equal(ranOf(project).length, 1);
+  // The report lists all three.
+  const res = run(project, ["status", project.id, "--report"]);
+  assert.equal(res.status, 0);
+  const report = readReportFile(project);
+  assert.match(report, /Skipped: 3/);
+  const rows = report.split("\n").filter((l) => /^\| 0 \| (research|domain-brief|frame) \|/.test(l));
+  assert.equal(rows.length, 3);
+});
+
+test("pre-plan skip row in status and report", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  start(project, "fix typo");
+  const res = run(project, ["status", project.id, "--report"]);
+  assert.equal(res.status, 0);
+  const skipped = res.json.steps.filter((s) => s.skipped);
+  assert.deepEqual(skipped.map((s) => s.step), ["research", "domain-brief", "frame"]);
+  for (const s of skipped) {
+    assert.equal(s.skipped, true);
+    assert.equal(s.risk, null);
+    assert.equal(s.rigor, "thorough");
+    assert.equal(s.afterN, 0);
+    assert.ok(s.reason.startsWith(`rigor thorough: ${s.step} skipped`));
+  }
+  const report = readReportFile(project);
+  const at = report.indexOf("## Skipped steps");
+  assert.ok(at >= 0, "report has a Skipped steps section");
+  const table = report.slice(at);
+  assert.match(table, /\| 0 \| research \| rigor thorough: research skipped \(researchExists: research\.md exists\) \| thorough \|/);
+  assert.match(table, /\| 0 \| frame \| rigor thorough: frame skipped \(no signal; framingDoubt: /);
+});
+
+// ---- failures and retries -----------------------------------------------------------
+
+test("failed research is retried at the next tier and halts after three failures", () => {
+  const project = makeProject();
+  putRoot(project, "context/map/repo-map.md", "---\nartifact: repo-map\n---\n# Map\n");
+  const first = start(project, "fix typo");
+  assert.equal(first.step, "research");
+  assert.equal(lastRan(project).tier, 3);
+
+  // The repo map is gone, yet the retry keeps the template of the failed attempt.
+  fs.rmSync(path.join(project.root, "context/map/repo-map.md"));
+  const second = finish(project, { status: "failed", note: "no luck" });
+  assert.equal(second.status, 0);
+  assert.equal(second.json.step, "research");
+  assert.equal(lastRan(project).template, "research-with-map");
+  assert.equal(lastRan(project).tier, 4);
+  assert.match(lastRan(project).tierWhy, /\+1 for 1 failed attempt\(s\)/);
+
+  const third = finish(project, { status: "failed", note: "again" });
+  assert.equal(third.json.step, "research");
+  assert.equal(lastRan(project).tier, 5);
+  assert.equal(skipsOf(project).length, 0, "a retry writes no skip");
+
+  const last = finish(project, { status: "failed", note: "third time" });
+  assert.equal(last.json.action, "halt");
+  assert.match(last.json.reason, /research failed 3 times in a row. Last note: third time/);
+  assert.equal(ranOf(project).length, 3);
+});
+
+test("frame stays at opus/high on retry", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  const first = start(project, "Logins fail because the cache is stale");
+  assert.equal(first.step, "frame");
+  assert.equal(lastRan(project).tier, 4);
+
+  for (const note of ["one", "two"]) {
+    const res = finish(project, { status: "failed", note });
+    assert.equal(res.json.step, "frame", note);
+    assert.equal(res.json.model, "opus", note);
+    assert.equal(res.json.effort, "high", note);
+    assert.equal(lastRan(project).tier, 4, note);
+    assert.equal(lastRan(project).template, "frame", note);
+  }
+  assert.match(lastRan(project).tierWhy, /clamped to 4/);
+  const halted = finish(project, { status: "failed", note: "three" });
+  assert.equal(halted.json.action, "halt");
+  assert.match(halted.json.reason, /frame failed 3 times in a row/);
+});
+
+test("frame blocked with needsHuman halts and writes the report", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  start(project, "Logins fail because the cache is stale");
+  const res = finish(project, { status: "blocked", note: "nothing to frame", signals: { needsHuman: "the goal is empty and change.md has no notes" } });
+  assert.equal(res.status, 0);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /Step 1 \(frame\) needs a human: the goal is empty and change\.md has no notes/);
+  assert.ok(res.json.report, "the halt names a report");
+  assert.ok(fs.existsSync(path.join(project.root, res.json.report)));
+  assert.match(readReportFile(project), /Outcome: halt - Step 1 \(frame\) needs a human/);
+});
+
+test("needsHuman wins over a frame.md that says Confidence HIGH", () => {
+  for (const status of ["blocked", "done"]) {
+    const project = makeProject();
+    put(project, "research.md", RESEARCH);
+    start(project, "Logins fail because the cache is stale");
+    put(project, "frame.md", frameText("HIGH"));
+    const res = finish(project, { status, note: "n", signals: { needsHuman: "no evidence-backed answer" } });
+    assert.equal(res.json.action, "halt", status);
+    assert.match(res.json.reason, /needs a human: no evidence-backed answer/, status);
+    assert.equal(lastRan(project).verified, true, `${status}: the artifact itself passed`);
+  }
+});
+
+test("frame done with Confidence LOW does not raise rigor and the plan step follows", () => {
+  const project = makeProject();
+  put(project, "research.md", RESEARCH);
+  start(project, "Logins fail because the cache is stale");
+  put(project, "frame.md", frameText("LOW"));
+  const res = finish(project);
+  assert.equal(res.status, 0);
+  assert.equal(res.json.action, "run");
+  assert.equal(res.json.step, "plan");
+  assert.equal(ranOf(project)[0].ok, true);
+  const meta = readMetaFile(project);
+  assert.equal(meta.rigor.level, "thorough");
+  assert.equal(meta.rigor.by, "--rigor thorough");
+  assert.equal(skipsOf(project).filter((s) => s.step === "frame").length, 0);
+  assert.ok(res.json.prompt.split("\n")[1].includes("context/changes/demo/frame.md"));
+});
+
+// ---- verification by artifact ---------------------------------------------------------
+
+test("verification by artifact: research", () => {
+  const cases = [
+    ["missing status frontmatter fails", "# Research without frontmatter\n", future(), false],
+    ["frontmatter without status fails", "---\ntitle: x\n---\n# Research\n", future(), false],
+    ["status present passes", RESEARCH, future(), true],
+    ["status partial passes", "---\nstatus: partial\n---\n# Research\n", future(), true],
+    ["stale mtime fails", RESEARCH, new Date(1000), false],
+  ];
+  for (const [name, text, when, ok] of cases) {
+    const project = makeProject();
+    start(project, "fix typo");
+    put(project, "research.md", text, when);
+    finish(project);
+    assert.equal(ranOf(project)[0].ok, ok, name);
+    assert.equal(ranOf(project)[0].verified, ok, name);
+  }
+  // No file at all fails.
+  const none = makeProject();
+  start(none, "fix typo");
+  finish(none);
+  assert.equal(ranOf(none)[0].verified, false);
+});
+
+test("verification by artifact: frame", () => {
+  const cases = [
+    ["no Reframed heading fails", "# Frame Brief: demo\n\n## Confidence\n\n- HIGH\n- MEDIUM\n- LOW\n", future(), false],
+    ["Reframed heading passes", frameText("MEDIUM"), future(), true],
+    ["Confidence LOW still passes", frameText("LOW"), future(), true],
+    ["stale mtime fails", frameText("HIGH"), new Date(1000), false],
+  ];
+  for (const [name, text, when, ok] of cases) {
+    const project = makeProject();
+    put(project, "research.md", RESEARCH);
+    start(project, "Logins fail because the cache is stale");
+    put(project, "frame.md", text, when);
+    finish(project);
+    assert.equal(ranOf(project)[0].ok, ok, name);
+    assert.equal(ranOf(project)[0].verified, ok, name);
+  }
+});
+
+test("verification by artifact: both domain templates", () => {
+  const acl = "refactor-anti-corruption-layer.md";
+  const aggregate = "refactor-invariant-aggregate.md";
+  const wrongType = "---\ntype: notes\n---\n# Brief\n";
+  const setups = {
+    "domain-acl": (project) => start(project, "Put an adapter around the vendor sdk"),
+    "domain-aggregate": (project) => {
+      putRoot(project, FILE_A, section(`${REF_HEADER}\n${refRow("R-1", "World", "A world has one slug", "**declared**")}`));
+      return start(project, "Rename the world tooltip");
+    },
+  };
+  const own = { "domain-acl": acl, "domain-aggregate": aggregate };
+  const other = { "domain-acl": aggregate, "domain-aggregate": acl };
+  for (const template of ["domain-acl", "domain-aggregate"]) {
+    const attempts = [
+      ["the right file with type refactor-plan passes", own[template], BRIEF, future(), true],
+      ["the other template's file fails", other[template], BRIEF, future(), false],
+      ["the right file with another type fails", own[template], wrongType, future(), false],
+      ["the right file without frontmatter fails", own[template], "# Brief\n", future(), false],
+      ["a stale mtime fails", own[template], BRIEF, new Date(1000), false],
+    ];
+    for (const [name, file, text, when, ok] of attempts) {
+      const project = makeProject();
+      put(project, "research.md", RESEARCH);
+      const out = setups[template](project);
+      assert.equal(out.template, template, `${template}: ${name}`);
+      put(project, file, text, when);
+      finish(project);
+      assert.equal(ranOf(project)[0].ok, ok, `${template}: ${name}`);
+      assert.equal(ranOf(project)[0].verified, ok, `${template}: ${name}`);
+    }
+  }
+});
+
+// ---- the walk into the plan -------------------------------------------------------------
+
+test("plan runs after the pre-plan steps with the artifacts listed", () => {
+  const project = makeProject();
+  const first = start(project, "Logins fail because the cache is stale");
+  assert.equal(first.step, "research");
+  put(project, "research.md", RESEARCH);
+  const second = finish(project);
+  assert.equal(second.json.step, "frame");
+  assert.deepEqual(skipsOf(project).map((s) => [s.step, s.afterN]), [["domain-brief", 1]]);
+  put(project, "frame.md", frameText("MEDIUM"));
+  const third = finish(project);
+  assert.equal(third.json.step, "plan");
+  assert.equal(third.json.n, 3);
+  const lines = third.json.prompt.split("\n");
+  assert.equal(lines[0], "Run /10x-plan demo Logins fail because the cache is stale");
+  assert.equal(lines[1], "Upstream artifacts (read each fully before planning): context/changes/demo/research.md, context/changes/demo/frame.md");
+  assert.deepEqual(ranOf(project).map((e) => e.step), ["research", "frame", "plan"]);
+  assert.ok(ranOf(project).slice(0, 2).every((e) => e.ok && e.verified));
+});
+
+test("a plan attempt closes the pre-plan phase", () => {
+  const project = makeProject();
+  writeLog(project, [entry(1, "plan", { ok: false, verified: false, result: { status: "failed", note: "x" } })]);
+  const res = thorough(project, "fix typo");
+  assert.equal(res.status, 0);
+  assert.equal(res.json.step, "plan");
+  assert.equal(res.json.n, 2);
+  assert.deepEqual(skipsOf(project), []);
+  assert.deepEqual(ranOf(project).map((e) => e.step), ["plan", "plan"]);
+});
+
+// ---- malformed config -------------------------------------------------------------------
+
+test("malformed preplan config never throws", () => {
+  const cases = {
+    "unknown predicates": { preplan: { gates: { research: { skipIf: ["nope"], when: ["nope"] }, frame: { when: ["nope"] } } } },
+    "unknown level": { preplan: { gates: { research: { minRigor: "bogus" }, "domain-brief": { minRigor: "bogus" }, frame: { minRigor: "bogus" } } } },
+    "no minRigor": { preplan: { gates: { research: { minRigor: null }, "domain-brief": { minRigor: 3 }, frame: { minRigor: [] } } } },
+    "gates is not an object": { preplan: { gates: "research" } },
+    "preplan is null": { preplan: null },
+    "order is not a list": { preplan: { order: "research" } },
+    "gate is not an object": { preplan: { gates: { research: 5, "domain-brief": null, frame: [] } } },
+    "order names a step without a policy entry": { preplan: { order: ["ghost"], gates: { ghost: { minRigor: "thorough", template: "frame" } } } },
+    "skipIf is not a list": { preplan: { gates: { research: { skipIf: "researchExists", when: 7 }, "domain-brief": { when: "x" }, frame: { when: [], skipIf: {} } } } },
+    "predicate config is wrong": { preplan: { predicates: { aggregateGap: "x", repoMapExists: 1, framingDoubt: { goalWords: "because" }, dependencyLeak: null } } },
+    "artifacts is wrong": { preplan: { artifacts: ["research.md"] } },
+    "unsafe artifact name": { preplan: { artifacts: { research: "../research.md", frame: "" } } },
+  };
+  for (const [name, policy] of Object.entries(cases)) {
+    const project = makeProject({ policy });
+    putRoot(project, FILE_A, section(`${REF_HEADER}\n${refRow("R-1", "World", "A world has one slug", "**declared**")}`));
+    const res = thorough(project, "Logins fail because the world slug is unchecked");
+    assert.equal(res.status, 0, `${name}: ${res.stdout}${res.stderr}`);
+    assert.equal(res.json.action, "run", name);
+    assert.ok(["research", "domain-brief", "frame", "plan"].includes(res.json.step), `${name}: ${res.json.step}`);
+    assert.ok(!/Router error/.test(res.stdout), name);
+  }
+  // Closed or broken gates go to the plan without a skip row.
+  for (const name of ["unknown level", "no minRigor", "gates is not an object", "preplan is null", "order is not a list", "gate is not an object", "order names a step without a policy entry"]) {
+    const project = makeProject({ policy: cases[name] });
+    const res = thorough(project, "fix typo");
+    assert.equal(res.json.step, "plan", name);
+    assert.deepEqual(skipsOf(project), [], name);
+  }
+  // Malformed variants still give the gate's own template.
+  const variants = makeProject({ policy: { preplan: { gates: { research: { variants: [5, null, { when: 3, template: "x" }, { when: "nope", template: "research-with-map" }] } } } } });
+  const res = thorough(variants, "fix typo");
+  assert.equal(res.json.step, "research");
+  assert.equal(lastRan(variants).template, "research");
 });
