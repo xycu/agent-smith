@@ -30,6 +30,8 @@ function tmpDir(prefix) {
 // The fake gh. It logs argv (unit-separator format, one line per call), copies the `-F body=@file` file to
 // body-<n>.txt while it still exists, and answers from <FAKE_GH_DIR>/<kind>.{out,err,code,sleep}.
 // Kinds: pr-view, user, comments, post, patch.
+// Without --paginate the comments call prints comments.firstpage (one page) when that file exists; without --jq it
+// prints comments.nojq (raw JSON) when that file exists. Both fall back to comments.out.
 const SHIM = `#!/bin/sh
 D="$FAKE_GH_DIR"
 n=$(( $(cat "$D/count" 2>/dev/null || echo 0) + 1 ))
@@ -38,7 +40,13 @@ printf '%s\\037' "$@" >> "$D/calls.log"
 printf '\\n' >> "$D/calls.log"
 method=GET
 prev=
+paginate=0
+jq=0
 for a in "$@"; do
+  case "$a" in
+    --paginate) paginate=1 ;;
+    --jq) jq=1 ;;
+  esac
   case "$prev" in
     --method) method="$a" ;;
     -F) case "$a" in body=@*) cp "\${a#body=@}" "$D/body-$n.txt" ;; esac ;;
@@ -57,7 +65,12 @@ case "$1" in
 esac
 if [ -f "$D/$kind.sleep" ]; then exec sleep "$(cat "$D/$kind.sleep")"; fi
 if [ -f "$D/$kind.err" ]; then cat "$D/$kind.err" >&2; fi
-if [ -f "$D/$kind.out" ]; then cat "$D/$kind.out"; fi
+out="$D/$kind.out"
+if [ "$kind" = comments ]; then
+  if [ "$paginate" = 0 ] && [ -f "$D/comments.firstpage" ]; then out="$D/comments.firstpage"; fi
+  if [ "$jq" = 0 ] && [ -f "$D/comments.nojq" ]; then out="$D/comments.nojq"; fi
+fi
+if [ -f "$out" ]; then cat "$out"; fi
 code=0
 if [ -f "$D/$kind.code" ]; then code=$(cat "$D/$kind.code"); fi
 exit "$code"
@@ -350,25 +363,92 @@ test("update: change ids a and ab do not patch each other", { skip: win }, () =>
   }
 });
 
-test("update: /user fails, a marker comment is patched with match marker-only", { skip: win }, () => {
-  const w = postWorld({ comments: [entry(5, "someone", markerOf("demo"))], answers: { user: { code: 1, err: "HTTP 403\n" } } });
+test("viewer lookup fails closed: any /user failure is a skip with no comment call and no write", { skip: win }, () => {
+  const marker = markerOf("demo");
+  const cases = [
+    { name: "403", answers: { user: { code: 1, err: "HTTP 403: Resource not accessible by integration\n" } }, args: [], reason: /viewer lookup failed: HTTP 403/ },
+    { name: "exit without stderr", answers: { user: { code: 1 } }, args: [], reason: /viewer lookup failed: gh exited 1/ },
+    { name: "empty login", answers: { user: { out: "\n" } }, args: [], reason: /viewer lookup failed: empty login/ },
+    { name: "timeout", answers: { user: { sleep: 5 } }, args: ["--timeout-ms", "300"], reason: /viewer lookup failed: gh timed out/ },
+  ];
+  for (const c of cases) {
+    // A marker comment planted by another user is the case this protects against.
+    const w = postWorld({ comments: [entry(5, "mallory", `${marker}\n\nplanted`)], answers: c.answers });
+    const res = runScript(w, ["demo", ...c.args]);
+    assertSkip(res, c.reason);
+    assert.equal(res.json.pr, PR_URL, c.name);
+    assert.deepEqual(methodsOf(w), [], c.name);
+    assert.ok(!calls(w).some((a) => a.includes("--paginate")), `${c.name}: comments were listed`);
+  }
+});
+
+test("failures: a timed-out POST or PATCH is a skip that names the timeout", { skip: win }, () => {
+  const post = postWorld({ answers: { post: { sleep: 5 } } });
+  assertSkip(runScript(post, ["demo", "--timeout-ms", "300"]), /^comment request failed: gh timed out$/);
+  assert.deepEqual(methodsOf(post), ["POST"]);
+
+  const patch = postWorld({ comments: [entry(5, "bot", markerOf("demo"))], answers: { patch: { sleep: 5 } } });
+  assertSkip(runScript(patch, ["demo", "--timeout-ms", "300"]), /^comment request failed: gh timed out$/);
+  assert.deepEqual(methodsOf(patch), ["PATCH"]);
+});
+
+test("lookup: output with no valid entry fails closed and posts nothing", { skip: win }, () => {
+  const marker = markerOf("demo");
+  const mine = { id: 5, login: "bot", head: marker };
+  const cases = {
+    "pretty-printed array": JSON.stringify([mine], null, 2),
+    "pretty-printed objects": JSON.stringify(mine, null, 2),
+    "garbage": "<html>rate limited</html>",
+    "only entries without a numeric id": JSON.stringify({ login: "bot", head: marker }),
+  };
+  for (const [name, out] of Object.entries(cases)) {
+    const w = postWorld({ answers: { comments: { out: `${out}\n` } } });
+    assertSkip(runScript(w, ["demo"]), /^comment lookup failed: unexpected gh output$/);
+    assert.deepEqual(methodsOf(w), [], name);
+  }
+  // An empty list is a real answer and creates the comment.
+  assert.equal(runScript(postWorld({ comments: [] }), ["demo"]).json.action, "created");
+  assert.equal(runScript(postWorld({ answers: { comments: { out: "\n\n" } } }), ["demo"]).json.action, "created");
+});
+
+test("lookup argv: the calls and their flags are exactly the planned ones", { skip: win }, () => {
+  const w = postWorld({ comments: [entry(5, "bot", `${markerOf("demo")}\n\nold`)] });
+  assert.equal(runScript(w, ["demo"]).json.action, "updated");
+  const [view, user, list, patch] = calls(w);
+  assert.deepEqual(view, ["pr", "view", "--json", "number,url,state,isDraft"]);
+  assert.deepEqual(user, ["api", "user", "--jq", ".login"]);
+  assert.deepEqual(list, ["api", "--paginate", "repos/acme/widgets/issues/7/comments", "--jq", COMMENT_JQ]);
+  assert.equal(patch.length, 8);
+  assert.deepEqual([...patch.slice(0, 5), patch[6], patch[7]], ["api", "--method", "PATCH", "repos/acme/widgets/issues/comments/5", "-F", "--jq", ".html_url"]);
+  assert.match(patch[5], /^body=@/);
+
+  const created = postWorld();
+  runScript(created, ["demo"]);
+  const post = calls(created)[3];
+  assert.equal(post.length, 8);
+  assert.deepEqual([...post.slice(0, 5), post[6], post[7]], ["api", "--method", "POST", "repos/acme/widgets/issues/7/comments", "-F", "--jq", ".html_url"]);
+  assert.match(post[5], /^body=@/);
+});
+
+test("lookup: a comment on page 2 is found only because --paginate is passed", { skip: win }, () => {
+  const page1 = [entry(1, "bot", "a note"), entry(2, "ann", "another note")];
+  const w = postWorld({ comments: [...page1, entry(31, "bot", `${markerOf("demo")}\n\nold`)] });
+  fs.writeFileSync(path.join(w.fake, "comments.firstpage"), `${page1.join("\n")}\n`);
   const res = runScript(w, ["demo"]);
   assert.equal(res.json.action, "updated");
-  assert.equal(res.json.match, "marker-only");
-  assert.deepEqual(methodsOf(w), ["PATCH"]);
+  assert.equal(writeCall(w)[3], "repos/acme/widgets/issues/comments/31");
 });
 
-test("update: a failed marker-only PATCH carries the A10 suffix and posts nothing else", { skip: win }, () => {
-  const w = postWorld({
-    comments: [entry(5, "someone", markerOf("demo"))],
-    answers: { user: { code: 1 }, patch: { code: 1, err: "HTTP 403: forbidden\n" } },
-  });
+test("lookup: the raw list that gh prints without --jq is unusable, so --jq COMMENT_JQ is required", { skip: win }, () => {
+  const marker = markerOf("demo");
+  const w = postWorld({ comments: [entry(5, "bot", `${marker}\n\nold`)] });
+  fs.writeFileSync(path.join(w.fake, "comments.nojq"), `${JSON.stringify([{ id: 5, user: { login: "bot" }, body: marker }], null, 2)}\n`);
   const res = runScript(w, ["demo"]);
-  assertSkip(res, /comment request failed: HTTP 403: forbidden \(a comment with this marker by another user may block updates\)/);
-  assert.deepEqual(methodsOf(w), ["PATCH"]);
+  assert.equal(res.json.action, "updated");
+  assert.equal(res.json.match, "author");
 });
 
-test("a viewer-matched PATCH failure has no marker-only suffix", { skip: win }, () => {
+test("a viewer-matched PATCH failure is reported as is", { skip: win }, () => {
   const w = postWorld({ comments: [entry(5, "bot", markerOf("demo"))], answers: { patch: { code: 1, err: "HTTP 500\n" } } });
   const res = runScript(w, ["demo"]);
   assertSkip(res, /comment request failed: HTTP 500$/);
@@ -413,7 +493,7 @@ test("body: mentions are neutralized, emails are not", { skip: win }, () => {
   runScript(w, ["demo"]);
   const body = capturedBody(w);
   for (const name of ["alice", "bob", "carol", "dave", "eve"]) {
-    assert.ok(body.includes(`@​${name}`), `${name} not neutralized: ${JSON.stringify(body)}`);
+    assert.ok(body.includes(`@\u200b${name}`), `${name} not neutralized: ${JSON.stringify(body)}`);
   }
   assert.ok(body.includes("a@b.com"));
   assert.ok(body.startsWith(`${markerOf("demo")}\n\n`));
@@ -489,7 +569,7 @@ test("audit: allowed argv only, body only as a file, four calls at most, temp di
   const scenarios = [
     { name: "create", comments: [] },
     { name: "update", comments: [entry(5, "bot", marker)] },
-    { name: "marker-only", comments: [entry(5, "x", marker)], answers: { user: { code: 1 } } },
+    { name: "viewer lookup fails", comments: [entry(5, "x", marker)], answers: { user: { code: 1 } } },
     { name: "skipped", comments: [], answers: { "pr-view": { code: 1, err: 'no pull requests found for branch "x"\n' } } },
   ];
   for (const sc of scenarios) {
