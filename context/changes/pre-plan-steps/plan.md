@@ -102,7 +102,7 @@ Both run in parallel and touch `README.md`, `SKILL.md`, `AGENTS.md`, `policy.jso
 
 Docs: new bullets or a new subsection, never inside the README "Usage report"; placement is given in Phase 5, and Phase 5 runs last and rebases onto whichever of S-05 and S-06 lands first (on a conflict keep both sides).
 
-Additive for S-06 `compare`: log entries gain a `verdict` key (on `plan-revise` and `fix` entries only); the new step names are `research`, `domain-brief` and `frame`; new `template` values are `research`, `research-with-map`, `research-revise`, `domain-aggregate`, `domain-acl`, `frame`, `frame-rethink`; skip rows for pre-plan steps carry `rigor`, `reason` and `afterN` and no `risk` key. A Phase 3 test asserts that `status` and `report.md` print such a row.
+Additive for S-06 `compare`: log entries gain a `verdict` key (on `plan-revise` and `fix` entries; since Phase 4 also on the `frame-rethink` and `research-revise` entries); the new step names are `research`, `domain-brief` and `frame`; new `template` values are `research`, `research-with-map`, `research-revise`, `domain-aggregate`, `domain-acl`, `frame`, `frame-rethink`; skip rows for pre-plan steps carry `rigor`, `reason` and `afterN` and no `risk` key. A Phase 3 test asserts that `status` and `report.md` print such a row.
 
 ## Phase 1: Lock the current loop; store the verdict
 
@@ -450,6 +450,30 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 - F3: `aggregateGap` accepts a header cell starting with `invariant` or `policy` plus a `status` cell. Words are whole-word lowercase letter tokens of the `candidate` column, the invariant or policy cell and the `gap` cell; a `###` heading is not a word source. Default `stopwords` sit in `policy.json`. Tests cover the `policy (quoted)` table, a heading word that must not hit every row, and whole-word matching.
 - Observations: rows 2.9 to 2.11 run in a scratch project (`mktemp -d`, throwaway `change.md`) and stay Manual; `frame-unattended.md` forbids plain-text questions; a test checks the plan prompt lists the artifacts that exist; row 5.6 also checks that the plan cites them.
 
+## Fix pass (implementation review of 2026-10-31)
+
+The implementation review (`reviews/impl-review.md`, NEEDS ATTENTION: 0 critical, 3 warnings, 5 observations) was handled on branch `pre-plan-steps-fix` in an unattended pass. Each finding has a `Decision` line in the review file. No Manual row was run or ticked, because each needs a human or a live session.
+
+**Open Manual rows, verified by the owner before merge.** Rows 2.9, 2.10, 2.11 (live unattended `/10x-frame`), 3.10 (skip reasons of a real thorough run), 5.6 and 5.7 (real thorough pipeline runs), plus the rows added below (5.9 to 5.12), are open. `change.md` stays `impl_reviewed`. The branch is merge-ready on the tests only; the behavior that depends on a real skill or model is unproven, and ADR-003 says so. One ordering promise of this plan is lost: the Phase 2 Implementation Note wanted rows 2.9 to 2.11 run before the router code that relies on the guide; Phases 3 and 4 landed first. If a live run shows the guide failing, fix the guide then, and fix the `frame-authority` line if row 5.7 shows a patched plan, before merging.
+
+**Unverified behavior beyond the original Manual rows** (the review's F2 showed that "the Manual rows are all the unverified behavior" was false):
+
+1. A real `research-revise` round with the real `/10x-research`: appending to an existing `research.md`, keeping `status`, updating `last_updated`. Router side tested with synthetic files (`research-revise verification` tests, including one for a dropped `status`). Live: row 5.9.
+2. The second domain-brief template. The router verifies both files and types (tested); a test now checks that both prompts name their file and `type: refactor-plan`. Live: row 5.10.
+3. `frame-rethink` when no `frame.md` exists (frame skipped before the plan, then a `RETHINK`). The prompt said "update in place" and the guide has no rule for a first brief in this mode; the `frame-rethink` prompt now adds "When that file does not exist, write it there as a new brief." The router side (verification, retry, authority line afterwards) is tested. Live: row 5.11.
+4. A missing `10x-research` or `10x-frame` skill. The router cannot see installed skills; a subagent that cannot find one reports a non-done status, which counts as a failed attempt, and three failures halt the run with the last note (tested for `blocked` and `failed`). The README Requirements bullet already tells a user that these skills are needed at `thorough` and that a missing one halts the run; SKILL.md Start is left as is (this plan keeps the Start section untouched and the orchestrator never names these steps). Live: row 5.12.
+
+**Per finding** (commits on the fix branch):
+
+- F1 (warning): not fixed in code; the rows stay open and are stated above and in ADR-003. Nothing ticked.
+- F2 (warning): fixed as far as the router goes (tests and one prompt line in 708d4b2); the live-only parts became rows 5.9 to 5.12.
+- F3 (warning): fixed in 5850977. `context/foundation/roadmap.md` equals main's again; `/10x-archive` makes the only S-07 edit after the merge.
+- F4: fixed in 708d4b2. A test pins the retry before `skipIf`, `when` and the rigor check, for research, frame, a closed gate and a gone `when` signal. Both surviving mutations (skipIf wins over the retry, a closed gate wins over the retry) turn red in a scratch copy.
+- F5: fixed in 7b0fe76. `next()` resolves every policy prompt before it consumes `last-result.json`; a bad reference halts with a clear message and leaves the result file and the log untouched. Test added; removing the check turns it red.
+- F6: no code change, on purpose. This plan (Decision 1 and the Phase 3 contract for `framingDoubt`) says a `signals.rigor` on an earlier pre-plan step opens the frame step, whatever its value. A pre-plan step only runs at `thorough`, so the value cannot raise the level; the key says the subagent saw more risk than the goal suggested. A test now pins this (any valid level counts, an invalid one is dropped) and the README predicate table says so. Narrowing the predicate waits for run data.
+- F7: fixed. README splits the sentence (pre-plan steps open only for a run that starts at `thorough`; the loops follow the current level), a test pins the old-log migration (no `verdict` never gets a `research-revise`), and the S-06 compatibility note above and ADR-003 say that `frame-rethink` and `research-revise` entries carry `verdict`.
+- F8: fixed in 3aeec4d. `briefExists` reads the templates of the `domain-brief` gate and maps them through `preplan.artifacts`; `authorityLine` reads the `frame` artifact name from the policy. Test with a renamed template and artifact.
+
 ## Progress
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.
@@ -536,3 +560,7 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 - [ ] 5.6 A real `--rigor thorough` pipeline run with a repo map and a distillation fixture goes research-with-map, domain brief, frame, plan, the plan prompt lists the artifacts, and `research.md` starts with frontmatter that holds `status:`
 - [ ] 5.7 A real RETHINK, frame, re-plan run at `--rigor thorough` (a scratch change whose plan contradicts the code, so the real `/10x-plan-review` returns RETHINK): record in the review file or the PR text what `/10x-plan` did with `frame.md`, that is, whether the re-plan changed its approach to match the reframed problem statement or patched the old plan; if it patched, strengthen the `frame-authority` line before merging
 - [ ] 5.8 `README.md` reads correctly for a user who never uses `--rigor thorough`: the new text says the pre-plan steps and loops are `thorough` only, and a standard or lean run needs no new skill and shows no new step
+- [ ] 5.9 A real second `REVISE` at `--rigor thorough` runs the real `/10x-research` as `research-revise`: `research.md` keeps the earlier findings, keeps `status` in its frontmatter and gets a new `last_updated`, and the step is verified. Live only: the router side is tested with synthetic files (fix pass, unverified behavior 1)
+- [ ] 5.10 A real thorough run for each domain template, once with a distillation fixture that makes `aggregateGap` hit (`domain-aggregate`) and once with a goal that names a vendor SDK (`domain-acl`): each real prompt writes its own folder file (`refactor-invariant-aggregate.md` or `refactor-anti-corruption-layer.md`) with `type: refactor-plan`, and the step is verified. Live only: the tests check the prompt wording and the verification, not the skill (fix pass, unverified behavior 2)
+- [ ] 5.11 A real `RETHINK` at `--rigor thorough` on a run whose frame step was skipped (no `frame.md`): the `frame-rethink` step writes a new `frame.md` with a `## Reframed` heading under the guide, and the re-plan prompt then lists it. Live only: the tests drive the router, not `/10x-frame` (fix pass, unverified behavior 3)
+- [ ] 5.12 A `--rigor thorough` run in a project without the `10x-research` skill, and one without the `10x-frame` skill: the step fails three times and the run halts with the subagent's last note, as the README says. Live only: the router cannot see installed skills; the tests feed it the failed results (fix pass, unverified behavior 4)

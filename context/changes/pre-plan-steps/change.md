@@ -18,3 +18,5 @@ Scope:
 - Frame runs pinned to opus/high through `policy.json`. Its prompt carries a decision guide: wherever `/10x-frame` would ask, the subagent decides from researched best practice, cites the evidence and states confidence. With no evidence-backed call, it reports `blocked` with `signals.needsHuman` and the router halts. `signals.needsHuman` wins over the `frame.md` Confidence value.
 - Backward loops: RETHINK goes to frame once, then re-plan; a second RETHINK halts. REVISE twice adds research, then re-plans.
 - Update ADR-003, `SKILL.md` "How the tier moves" and the README routing bullets.
+
+Fix pass 2026-10-31 (branch `pre-plan-steps-fix`): the findings of `reviews/impl-review.md` are handled; see "Fix pass" in `plan.md`. `status` stays `impl_reviewed`. The Manual rows 2.9 to 2.11, 3.10, 5.6, 5.7 and the new 5.9 to 5.12 need a human or a live session and are open: the owner verifies them before merge. Nothing was ticked.

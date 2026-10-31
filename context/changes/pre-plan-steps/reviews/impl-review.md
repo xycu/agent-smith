@@ -48,7 +48,7 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
   - Tradeoff: Needs a real pipeline run and some model spend.
   - Confidence: HIGH — the plan text makes 5.7 a pre-merge condition.
   - Blind spot: I could not run a real pipeline here, so I cannot say whether the guide or the authority line will hold.
-- **Decision**: PENDING
+- **Decision**: Skip: Manual rows 2.9 to 2.11, 3.10, 5.6 and 5.7 need a human or a live session (a real unattended `/10x-frame`, a real thorough pipeline run); not done in this fix pass and none ticked. `plan.md` (Fix pass) and `change.md` Notes state that these rows are open and owner-verified before merge; `change.md` stays `impl_reviewed`; ADR-003 says the live-skill checks are unverified and its `implemented` row means code and tests only.
 
 ### F2 — "The 11 Manual rows are all the unverified behavior" is not quite true
 
@@ -66,7 +66,7 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
   - Tradeoff: More manual work; the rows only matter for runs at `thorough`.
   - Confidence: MED — item 3 may already work through the generic suffix rules.
   - Blind spot: Real skill behavior was not run.
-- **Decision**: PENDING
+- **Decision**: Fix (708d4b2) for the router side, rows for the live side: tests for a research-revise round that drops `status`, `frame-rethink` without a `frame.md`, a missing `10x-research` or `10x-frame` skill (three failed attempts halt with the last note), both domain prompts naming their file and `type: refactor-plan`, and the old-log migration. The `frame-rethink` prompt now says to write a new brief when `frame.md` does not exist. The list of unverified behavior is in `plan.md` (Fix pass); the live parts are Manual rows 5.9 to 5.12, unticked. The README Requirements bullet already names the two skills and the halt; SKILL.md Start is left as is on purpose (the plan keeps Start untouched).
 
 ### F3 — Roadmap status flip does not belong in this PR (same call as S-05)
 
@@ -76,7 +76,7 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
 - **Location**: context/foundation/roadmap.md:51 (table row S-07) and :173 (`Status:` of section S-07)
 - **Detail**: The branch moves S-07 from `proposed` to `in-progress` in two places. The plan did say the implementing branch moves it, so this is not drift from the plan. The reason S-05 dropped the same edit applies here: row 51 sits directly under rows 49 (S-05) and 50 (S-06), which the parallel PRs will edit; adjacent-line edits in one table conflict on merge. The value is also low: after merge the row would read `in-progress` for a change that is implemented, until someone sets `done`.
 - **Fix**: Revert both roadmap lines in this PR; set S-07 to `done` in the close-out commit after merge, as was done for the other changes.
-- **Decision**: PENDING
+- **Decision**: Fix (5850977): both roadmap lines reverted; a diff of `context/foundation/roadmap.md` against main is empty. `/10x-archive` makes the only S-07 edit after the merge.
 
 ### F4 — The retry-regardless-of-gate rule is sound but not pinned by a test
 
@@ -86,7 +86,7 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
 - **Location**: skills/10x-pipeline/scripts/route.mjs, `preplanNext` (`if (mine.length)` before the `skipIf` and `minRigor` checks); skills/10x-pipeline/test/preplan.test.mjs:708
 - **Detail**: A failed pre-plan attempt is retried before `skipIf`, `when` and the rigor check are looked at. That is correct and matches the plan's contract order. A failed `research` often leaves a `research.md` without `status` frontmatter; if `researchExists` were evaluated first, the retry would be skipped and an unverified file would pass, which breaks Decision 4. The level never drops, so the rigor-closed case is only reachable through a changed policy. I ran three mutations in a scratch copy: skipping the retry when `skipIf` now hits, and skipping it when the gate is closed by rigor, both survive the whole `preplan` and `loops` suites. Only the variant case (repo map removed, template kept) is tested.
 - **Fix**: Add one test: a failed `research` that leaves a `research.md` without `status` frontmatter returns `research` again (not a skip, not `plan`), and halts after three failures.
-- **Decision**: PENDING
+- **Decision**: Fix (708d4b2): test `a failed pre-plan step is retried before skipIf, when and the rigor check` covers research and frame (artifact present but unverified), a gate closed under the run, and a `when` signal that is gone. Both surviving mutations (skipIf wins over the retry, a closed gate wins over the retry) turn red in a scratch copy; the unmutated copy is green.
 
 ### F5 — A policy or prompt error loses the subagent's result
 
@@ -96,7 +96,7 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
 - **Location**: skills/10x-pipeline/scripts/route.mjs, `attachResult` (removes the result file) and `next()` (`promptText` runs before `writeLog`)
 - **Detail**: `attachResult` deletes `last-result.json` and mutates the log in memory; the log is written only after the next prompt is built. If `promptText` throws (a bad `@prompts/` reference in a project override), the result is gone, the log entry has no result, and the next `next` halts with `Step N (...) has no result`. Reproduced in a scratch project. The same loss existed before for a missing prompt key (a TypeError in `render`), so this is not a regression, but the new loader makes the failure easier to reach and the plan describes it as a clean JSON halt.
 - **Fix**: Check that every prompt reference resolves at the start of `next()` before `attachResult`, or write the log right after `attachResult`.
-- **Decision**: PENDING
+- **Decision**: Fix (7b0fe76): `next()` resolves every policy prompt before `attachResult` consumes `last-result.json`. A bad `@prompts/` reference, a missing file, a path escape or a null prompt halts with `Router error: ...` and "the result file and the log are untouched"; after the policy is fixed the same result is consumed. Test added; removing the check turns it red.
 
 ### F6 — Any `signals.rigor` on an early step opens the frame step
 
@@ -106,7 +106,7 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
 - **Location**: skills/10x-pipeline/scripts/route.mjs, `PREDICATES.framingDoubt` (`typeof e.signals.rigor === "string"`)
 - **Detail**: Pre-plan steps only run at `thorough`, so a `signals.rigor` on `research` or `domain-brief` can never raise the level. The predicate still treats the value (`standard` and `lean` included, both valid per the suffix prompt) as a framing doubt and starts the opus/high frame step. I confirmed it: a thorough run with goal `add a button` and a research result carrying `signals.rigor: "standard"` returns `frame`. This matches the plan text ("a `signals.rigor` on an earlier pre-plan step") and has a test, so it is a design note, not a bug.
 - **Fix**: Document that any value counts, or narrow the predicate to the level `thorough` once run data shows how subagents use the key.
-- **Decision**: PENDING
+- **Decision**: Skip (no code change, plan followed): the plan (Decision 1, Phase 3 `framingDoubt` contract) says a `signals.rigor` on an earlier pre-plan step opens the frame step, whatever its value. Pre-plan steps run only at `thorough`, so the value cannot raise the level; the key means the subagent saw more risk than the goal suggested. Added a test that pins it (lean, standard and thorough count; an invalid value is dropped before the router) and documented it in the README predicate table. Narrowing the predicate waits for run data.
 
 ### F7 — Small precision gaps in docs and tests
 
@@ -116,7 +116,7 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
 - **Location**: README.md ("Pre-plan steps", second bullet); context/changes/pre-plan-steps/plan.md Migration Notes; skills/10x-pipeline/test/loops.test.mjs
 - **Detail**: (a) The README bullet "They are reached by `--rigor thorough`, a `signals.rigor` ..., a plan of 6 or more phases, three failed steps or three hot paths" reads as if all of these open the pre-plan steps. Before the first plan only an explicit `--rigor thorough` can: the other triggers need a plan or a failed step, and the next sentence ("decided once ... a later rise does not open them") then closes them. The caveat is documented honestly, but the first sentence invites a misreading. (b) The migration claim "an old log without `verdict` never gets a `research-revise`" is true (I ran it: an old log with one `plan-revise` and no `verdict` key returns `plan-revise`) but no test pins it. (c) The Phase 1 contract and the "additive for S-06" note say `verdict` appears on `plan-revise` and `fix` entries only; since Phase 4 the `frame-rethink` and `research-revise` entries carry it too.
 - **Fix**: Split the README sentence into "pre-plan steps: `--rigor thorough` only" and "loops: any rise to thorough"; add the old-log test; mention the two extra templates in the S-06 compatibility note.
-- **Decision**: PENDING
+- **Decision**: Fix (5297bc2, 708d4b2): README now says pre-plan steps open only for a run that starts at `thorough` and the loops follow the current level; test for the old log without `verdict`; README, ADR-003 and the S-06 note in `plan.md` say `frame-rethink` and `research-revise` entries carry `verdict`.
 
 ### F8 — Two template names are hard-coded in `route.mjs`
 
@@ -126,4 +126,4 @@ All five phases were reviewed. Every Automated row is ticked; every phase still 
 - **Location**: skills/10x-pipeline/scripts/route.mjs, `PREDICATES.briefExists` (`["domain-aggregate", "domain-acl"]`), `authorityLine` (`"frame.md"` fallback)
 - **Detail**: AGENTS.md keeps tunable data in `policy.json`. `briefExists` lists the two brief templates in code instead of reading the templates of the `domain-brief` gate, so a project override that renames a brief template or artifact silently disables the skip. The plan specified the same shape and the names are stable, so this is minor.
 - **Fix**: Derive the list from `preplan.gates.domain-brief` (default plus variants) mapped through `preplan.artifacts`.
-- **Decision**: PENDING
+- **Decision**: Fix (3aeec4d): `briefExists` derives the brief files from the templates of `preplan.gates.domain-brief` (default and variants) mapped through `preplan.artifacts`; `authorityLine` reads the `frame` artifact from the policy. Test with a renamed template and artifact (red on the old code).
