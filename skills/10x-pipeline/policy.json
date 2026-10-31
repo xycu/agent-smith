@@ -17,7 +17,8 @@
     "archive":     { "skill": "10x-archive",        "baseTier": 3, "minTier": 3, "maxTier": 3, "interactive": true },
     "research":     { "skill": "10x-research",      "baseTier": 3, "minTier": 2, "maxTier": 5, "interactive": true },
     "domain-brief": { "skill": null,                "baseTier": 3, "minTier": 3, "maxTier": 5, "interactive": true },
-    "frame":        { "skill": "10x-frame",         "baseTier": 4, "minTier": 4, "maxTier": 4, "interactive": true }
+    "frame":        { "skill": "10x-frame",         "baseTier": 4, "minTier": 4, "maxTier": 4, "interactive": true },
+    "manual-verify": { "skill": null,               "baseTier": 3, "minTier": 2, "maxTier": 5 }
   },
   "complexity": {
     "phaseThresholds": [3, 6],
@@ -217,6 +218,17 @@
       "- **GIVEN** you edit the `## Progress` section **WHEN** you save it **THEN** you **MUST** keep its contract: the phase headings, the `#### Automated` and `#### Manual` sections, the checkbox syntax and the step indices.",
       "- **GIVEN** you revise the plan **WHEN** you finish **THEN** you **MUST NOT** change code, tests, the review file or any file outside the change folder.",
       "- **GIVEN** the skill would ask the user a question **WHEN** you run unattended **THEN** you **MUST** decide from the review findings, the plan and the code, and list the decision as an assumption."
+    ],
+    "manual-verify": [
+      "Check the pending #### Manual rows of context/changes/{id}/plan.md that a command can prove, and tick only the rows you proved. Rows rejected by the router last time: {unproven}",
+      "@prompts/manual-verify.md"
+    ],
+    "manual-verify-chrome": [
+      "Check the pending #### Manual rows of context/changes/{id}/plan.md that a command or the browser can prove, and tick only the rows you proved. Rows rejected by the router last time: {unproven}",
+      "@prompts/manual-verify.md",
+      "- **GIVEN** a pending Manual row needs a browser to be proven **WHEN** you check it **THEN** you **MUST** load the `mcp__claude-in-chrome__*` tools with ToolSearch first, use them only for rows that need a browser, and save the screenshot or GIF under `context/changes/{id}/evidence/`.",
+      "- **GIVEN** the Chrome tools are unavailable or the extension is not connected **WHEN** a row needs a browser **THEN** you **MUST** leave that row unticked and finish with status `done`.",
+      "- **GIVEN** the Chrome tools are unavailable **WHEN** you decide whether to wait **THEN** you **MUST NOT** wait for a connection or ask for one."
     ]
   },
   "executors": {
@@ -253,5 +265,13 @@
     "rejectedBump": 1,
     "failureBump": 0,
     "failureNoteMax": 300
+  },
+  "manualVerify": {
+    "minRigor": "standard",
+    "maxRuns": 1,
+    "maxAttempts": 2,
+    "commandWords": ["node", "npm", "npx", "pnpm", "yarn", "make", "grep", "git", "curl", "diff", "test", "ls", "cat", "sh", "bash", "python", "python3"],
+    "humanWords": ["reviewer", "human", "person", "owner", "reads", "reading", "judge", "looks"],
+    "browserWords": ["browser", "page", "click", "screen", "chrome", "dom"]
   }
 }
