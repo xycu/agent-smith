@@ -149,10 +149,14 @@ function buildBody(id, reportText) {
   return `${kept}\n\nReport truncated: ${text.length - kept.length} characters omitted.`;
 }
 
+// Returns { login } or { skip }. Fails closed: without the viewer's login the script cannot tell its own comment from a stranger's.
 function viewerLogin(opts) {
   const res = runGh(["api", "user", "--jq", ".login"], opts.timeoutMs);
-  const login = res.status === 0 ? res.stdout.trim() : "";
-  return login === "" ? null : login;
+  if (res.timedOut) return { skip: "viewer lookup failed: gh timed out" };
+  if (res.status !== 0) return { skip: `viewer lookup failed: ${firstLine(res.stderr) || `gh exited ${res.status}`}` };
+  const login = res.stdout.trim();
+  if (login === "") return { skip: "viewer lookup failed: empty login" };
+  return { login };
 }
 
 // Returns { comments } or { skip }.
@@ -161,23 +165,24 @@ function listComments(opts, pr) {
   if (res.timedOut) return { skip: "comment lookup failed: gh timed out" };
   if (res.status !== 0) return { skip: `comment lookup failed: ${firstLine(res.stderr) || `gh exited ${res.status}`}` };
   const comments = [];
+  let lines = 0;
   for (const line of res.stdout.split("\n")) {
     if (line.trim() === "") continue;
+    lines += 1;
     let c = null;
     try { c = JSON.parse(line); } catch { continue; }
     if (c && typeof c === "object" && typeof c.id === "number" && typeof c.head === "string") comments.push(c);
   }
+  // Output with no valid entry is not an empty list (pretty-printed or changed shape): reading it as empty would POST a duplicate.
+  if (lines > 0 && comments.length === 0) return { skip: "comment lookup failed: unexpected gh output" };
   return { comments };
 }
 
 // The author comparison below is the one line the mutation test breaks.
 function pickTarget(comments, marker, viewer) {
   const candidates = comments.filter((c) => c.head.startsWith(marker)).sort((a, b) => a.id - b.id);
-  if (viewer !== null) {
-    const mine = candidates.find((c) => c.login === viewer);
-    return mine ? { comment: mine, match: "author" } : null;
-  }
-  return candidates.length ? { comment: candidates[0], match: "marker-only" } : null;
+  const mine = candidates.find((c) => c.login === viewer);
+  return mine ? { comment: mine, match: "author" } : null;
 }
 
 function post(opts, found, body) {
@@ -186,9 +191,10 @@ function post(opts, found, body) {
     const file = path.join(dir, "body.md");
     fs.writeFileSync(file, body);
     const viewer = viewerLogin(opts);
+    if (viewer.skip) return skip(viewer.skip, found.url);
     const listed = listComments(opts, found);
     if (listed.skip) return skip(listed.skip, found.url);
-    const target = pickTarget(listed.comments, markerFor(opts.id), viewer);
+    const target = pickTarget(listed.comments, markerFor(opts.id), viewer.login);
     const base = `repos/${found.owner}/${found.repo}`;
     const args = target
       ? ["api", "--method", "PATCH", `${base}/issues/comments/${target.comment.id}`, "-F", `body=@${file}`, "--jq", ".html_url"]
@@ -197,8 +203,7 @@ function post(opts, found, body) {
     const url = res.status === 0 ? res.stdout.trim() : "";
     if (url === "") {
       const why = res.timedOut ? "gh timed out" : firstLine(res.stderr) || (res.status === 0 ? "empty response" : `gh exited ${res.status}`);
-      const suffix = target && target.match === "marker-only" ? " (a comment with this marker by another user may block updates)" : "";
-      return skip(`comment request failed: ${why}${suffix}`, found.url);
+      return skip(`comment request failed: ${why}`, found.url);
     }
     return result(target ? "updated" : "created", { url, pr: found.url, match: target ? target.match : null });
   } finally {
