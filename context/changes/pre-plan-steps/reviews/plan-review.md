@@ -53,7 +53,7 @@ Checked and found correct, no finding:
   - Tradeoff: Every standard RETHINK costs an opus/high step on a guide no run has exercised; the budget margin shrinks (F7).
   - Confidence: MED — depends on the unattended frame proving usable.
   - Blind spot: No evidence how often a standard run gets a RETHINK.
-- **Decision**: PENDING
+- **Decision**: FIXED via Fix A. Re-checked: `decide()` has no rigor test on the `needsReplan` branch, so a standard RETHINK would have run `frame`. Added `preplan.loops.minRigor` (default `thorough`, Decision 10); `replanNext` is closed below it and falls through to today's code. Brief, Desired End State and the README requirement note are now true; new test `RETHINK below minRigor behaves as on main` plus the Phase 1 characterization file in its own file, checked byte-identical by a diff in row 4.4. Fix B rejected: it spends an unproven opus/high step on every standard RETHINK.
 
 ### F2 — A failed re-plan after the frame round halts the run instead of being retried
 
@@ -63,7 +63,7 @@ Checked and found correct, no finding:
 - **Location**: Phase 4 change 1, halt rule (a)
 - **Detail**: Rule (a) halts on RETHINK when "a `plan-revise` entry" exists after the last ok `frame-rethink`. Today's `revisions` count includes failed entries (`log.filter(e => e.template === "plan-revise")`), and an implementer will reuse that filter. A re-plan that fails (status `failed` or `blocked`, or `plan.md` left unchanged so the mtime check fails) has `ok: false`, does not move `lastIdx(log, ["plan"])`, and leaves the review fresh and still RETHINK. The next `decide()` then reaches (a), sees the failed `plan-revise` entry and halts with "RETHINK again after frame and re-plan", although plan review never re-ran. The retry at +1 tier, which every other step gets, is lost exactly on the expensive path. The test list has no case for it (`failed frame-rethink is retried` covers the frame step only).
 - **Fix**: Make (a) count only `ok` `plan-revise` entries after the last ok `frame-rethink`, and add the test `failed plan-revise after frame-rethink is retried at the next tier and halts after three`.
-- **Decision**: PENDING
+- **Decision**: FIXED. Re-checked: `revisions` counts failed `plan-revise` entries, so rule (a) as drafted would halt on the first failed re-plan. Rule (a) now counts only ok `plan-revise` entries after the last ok `frame-rethink`; test `failed plan-revise after frame-rethink is retried at the next tier` added. Correction to the finding: the halt after the second failure comes from `maxPlanRevisions` (today's counting, pinned in Phase 1), not after three; Decision 13 records it.
 
 ### F3 — Nothing makes the re-plan use the frame brief it was triggered to produce
 
@@ -73,7 +73,7 @@ Checked and found correct, no finding:
 - **Location**: Phase 2 change 1 (`plan-revise` gains `{artifacts}`); Phase 4; row 5.9
 - **Detail**: The RETHINK loop is worth its cost only if the re-plan changes direction because of the new `frame.md`. The `plan-revise` prompt still says "Revise the existing plan.md. Resolve every CRITICAL finding and every WARNING ... Keep the ## Progress contract", and the only change is the appended artifact line. `/10x-plan` Step 1.0 treats an existing `plan.md` as "resume/refine mode — out of scope for this scaling logic", so its rule "treat the Reframed problem statement as authoritative" is documented for a fresh plan, not for a refine run. A RETHINK means the approach is wrong. A re-plan that patches the old plan around the findings satisfies every router check (`plan.md` changed, `## Progress` valid) and burns a revision. Row 5.9 writes the verdict by hand and so cannot show this.
 - **Fix**: Add one rule line to the `plan-revise` prompt in the ADR-004 form: GIVEN `frame.md` is listed under the upstream artifacts, WHEN you revise, THEN you **MUST** treat its reframed problem statement as authoritative and rework any approach that contradicts it instead of patching. Add one real (not hand-written) RETHINK, frame, re-plan run to Phase 5 and record what `/10x-plan` did with the brief.
-- **Decision**: PENDING
+- **Decision**: FIXED. Re-checked: `plan-revise` prompt has no reference to `frame.md` and `/10x-plan` treats an existing plan as refine mode. Added `prompts.frame-authority` (ADR-004 rule line), appended by `authorityLine` only when `frame.md` exists so the prompt stays byte-identical otherwise; Phase 2 test `frame authority rule only with frame.md`. The hand-written-verdict row is gone; row 5.7 is a real RETHINK, frame, re-plan run that records what `/10x-plan` did.
 
 ### F4 — Research verification demands frontmatter that the unedited `research-with-map` prompt never asks for
 
@@ -92,7 +92,7 @@ Checked and found correct, no finding:
   - Tradeoff: A stub or half-written file passes.
   - Confidence: MED — cheaper but weaker.
   - Blind spot: Whether any consumer later reads `status`.
-- **Decision**: PENDING
+- **Decision**: FIXED via Fix A. Re-checked: `research-with-map.md` asks for no frontmatter, while `/10x-research` writes `status: complete|partial` (the two domain prompts do ask for `type: refactor-plan`, so no change there). The three research templates now carry one status rule line; the shipped prompt file stays unedited. Test `research templates ask for status frontmatter`; row 5.6 checks a real run's `research.md`.
 
 ### F5 — The `aggregateGap` parser spec does not match the real distillation report
 
@@ -102,7 +102,7 @@ Checked and found correct, no finding:
 - **Location**: Phase 3 change 1 (`aggregateGap`); change 5 (`domain brief by aggregateGap`)
 - **Detail**: The real table header in `10x-domain-distillation/references/report.md` is `| id | candidate | invariant (quoted) | source | status | guarded at | gap |`, so a column named `invariant` never matches an exact-name lookup. With more than three candidates the report puts one `###` subheading per candidate under `## Invariants and policies`, each with its own table, so a section reader that stops at the first heading of any level sees only the first table. Status cells may carry qualifiers; the plan normalises to "lowercase letters only", so `declared (soft)` becomes `declaredsoft` and misses. The test fixture is hand-written by the same author as the parser, so it will match the parser and say nothing about the real report. The result is a domain-brief gate that never fires in real use and no test that notices.
 - **Fix**: Specify the parser against the real format: section from `## Invariants and policies` to the next `## ` heading (so `###` tables count); a header cell matches when it starts with `invariant`; the status is the first alphabetic word of the cell, lowercased. Build the fixture by copying the table template from the reference verbatim, with one multi-candidate (`###`) case and one qualified status case.
-- **Decision**: PENDING
+- **Decision**: FIXED. Re-checked against `10x-domain-distillation/references/report.md` and a real report under another project's `context/domain/`: header is `invariant (quoted)`, `###` sections hold one table each, status is bold with qualifiers. Parser re-specified (section bound at the next `## `, header starts with `invariant`, status is the first alphabetic word, candidate from the `###` heading when no column). Fixtures use the verbatim reference header plus synthetic rows in the real shape: reference template, multi-candidate, qualified status.
 
 ### F6 — `framingDoubt` fires on bare "fix" and "bug", and the guide then halts for the goals it matched
 
@@ -112,7 +112,7 @@ Checked and found correct, no finding:
 - **Location**: Decision 9; Phase 3 change 1 (`framingDoubt`); Phase 2 change 3 (`frame-unattended.md`); rows 3.7 and 5.5
 - **Detail**: The word list is the trigger phrases of the frame skill description, and the match is a word-start prefix of the lowercased goal. That list holds "fix", "bug" and "broken", so `fix typo`, `fixture cleanup` and `fixes for the router` all open a frame step at opus/high on every `thorough` run. The skill itself says to skip mechanical changes. The unattended guide then tells the subagent to report `blocked` with `signals.needsHuman` when "the goal and `change.md` give no observation or proposed cause to frame". `fix typo`, the goal in the plan's own check 5.5, has neither. The two rules combine so that a trivial thorough goal ends in a human halt before any plan exists, at the most expensive tier. Calibration is deferred to S-06, but the first run already pays.
 - **Fix**: Drop the bare verbs from the default list and keep cause-shaped and design-shaped phrases (`root cause`, `should we even`, `is this the right`, `challenge the assumption`, `rethink`, `before i plan`, `caused by`, `because`). Add a test that `fix typo` does not open frame. Keep the full skill list as a documented override for projects that want it.
-- **Decision**: PENDING
+- **Decision**: FIXED. Re-checked: the default list was the skill description triggers including `fix`, `bug`, `broken`. Dropped them (Decision 9); kept cause- and design-shaped phrases plus `assuming`; the full skill list stays available as the documented `goalWords` override. The guide now confirms a plain goal at LOW and ends `done` (Decision 14); `blocked` only for an empty goal with nothing to frame. Tests: `framing doubt does not fire on fix typo`, `thorough opens` with `fix typo`; manual rows 2.10 and 2.11.
 
 ### F7 — The 13-step worst path leaves no tolerance for one failed step at standard
 
@@ -122,7 +122,7 @@ Checked and found correct, no finding:
 - **Location**: Decision 3; Phase 4 tests `longest legal path at standard fits`
 - **Detail**: The arithmetic is right (13 of 14 at `standard`, 16 of 18 at `thorough`), but the budget check is `executed >= budget` and it runs before `decide()`. A path of 13 reaches `done` only if no step failed. One failed step makes 14 executed, the next `next()` halts with "Step budget 14 spent" after all the work is finished and reviewed. Before this change the worst path was 12 and tolerated one failure; after it tolerates none. Failures are the case the budget exists for. The proof also assumes a single `implement` step; an `implement` that ticks only some rows is still `ok` (verified when `autoDone` rises), so "longest legal path" is a reference path, not a bound. This finding disappears for `standard` if F1 Fix A is taken (the standard worst path stays 12).
 - **Fix**: If the loops stay ungated at `standard` (F1 Fix B), set `rigor.budgetDelta.standard` to 1 (update `route.test.mjs:152`, row 4.6 and the README) or state the zero-failure tolerance in the README and ADR-003 and call the test a reference path. Either way, rename the tests from "longest legal path" to "reference path" and assert the margin in the test.
-- **Decision**: PENDING
+- **Decision**: FIXED, by taking F1 Fix A and accepting the remainder. Standard worst path stays 12 of 14 (tolerates one failure, unchanged). Thorough worst path is 16 of 18, tolerates one failed step; `budgetDelta` is not raised because only a RETHINK or a double REVISE on top of three pre-plan steps reaches it and a project can raise its own delta (Decision 3). Tests renamed to `reference path` and assert one step to spare; README and ADR-003 state the tolerance and the number for projects that open the loops at standard.
 
 ### F8 — The plan commit flipped the roadmap, and the parallel changes collide with this one in more places than the plan lists
 
@@ -136,7 +136,7 @@ Checked and found correct, no finding:
   - Row 2.5 asserts that `preplan` is exactly the key after `archive`. S-05 and S-06 will add policy keys after `archive` as well (the plan says to do that), so whichever merges second fails 2.5 although nothing is wrong.
   - Phase 5 appends to "How the tier moves" after the archive bullet and to the README routing list; both parallel changes append there.
 - **Fix**: Remove the `roadmap.md` hunks from the plan commit (restore the file from `git merge-base main HEAD`) and let the status move in the implementing branch. Replace 2.5 by an order-free check (`p.preplan` exists, `p.steps.frame` pinned to tier 4). Correct the "Dependency" section to list the real touch points in `attachResult`, `next()` and `decide()`, state that the log entry change is additive (`verdict` key, new step names, skip rows), and add a `status` and report assertion for a pre-plan skip row. Do the docs of Phase 5 last and rebase on whichever of S-05 and S-06 lands first.
-- **Decision**: PENDING
+- **Decision**: FIXED. Re-checked: commit 6688377 flipped S-07 in two roadmap places; `roadmap.md` is restored to its `54f1729` version and the status moves on the implementing branch (this deviates from the 10x-plan skill's default roadmap sync on purpose). Row 2.5 is order-free. The Dependency section lists every `route.mjs` region by phase (`attachResult`, `next()`, `decide()` no-plan and re-plan branches, new section below `decide()`, helpers below `render()`), states that `verdict`, the new step names, templates and skip rows are additive for S-06 `compare`, and test `pre-plan skip row in status and report` covers `status` and `report.md`. README and SKILL.md placements are exact and Phase 5 rebases last.
 
 ### F9 — Manual rows duplicate automated ones, and one guard is weaker than its name
 
@@ -149,4 +149,4 @@ Checked and found correct, no finding:
   - Row 4.4 says the Phase 1 tests "pass unchanged", but the pattern run proves only that they pass. Phase 4 edits the same file, and the tests pass at all only because the override switches the loops off. A diff of the `existing loop` tests against the Phase 1 commit proves "unchanged"; a separate file makes that diff trivial.
   - Test `frame guide covers each ask point` checks that the guide contains the headings the plan told its author to write. It cannot notice a new ask point in the real `10x-frame`. The proof that the guide works is rows 5.6 and 5.7, which sit in the last phase, after all router code is written. The guide is independent of the router, so the smoke run can happen as soon as Phase 2 ends.
 - **Fix**: Turn 2.8, 3.8, 4.7 and 5.9 into assertions (or delete them), add the `status` assertion to the 3.7 test, move `existing loop` tests to their own file with a diff-against-Phase-1-commit check, and move an unattended `/10x-frame` run with a bug-shaped goal to the Phase 2 manual rows.
-- **Decision**: PENDING
+- **Decision**: FIXED. Rows 2.8, 3.7, 3.8, 4.7 and 5.9 became assertions or were merged into tests (the walker asserts model and effort of `frame` and `frame-rethink`); the characterization tests moved to `loops-existing.test.mjs` and row 4.4 now runs them plus a diff check against the commit that added the file; the unattended `/10x-frame` runs moved from Phase 5 to Phase 2 (rows 2.9 to 2.11). Also fixed an inconsistency the finding did not name: the `verdict on the entry` test cannot pass before the code change, so it moved to `loops.test.mjs`.
