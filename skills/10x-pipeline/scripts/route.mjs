@@ -233,9 +233,9 @@ function buildReport(id, meta, fullLog) {
   const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
   const tokens = (e) => (typeof e.usage?.totalTokens === "number" ? e.usage.totalTokens : null);
   const rows = log.map((e) => {
-    const result = e.result ? (e.ok ? "ok" : "failed") : "-";
+    const result = e.result ? (e.ok ? "ok" : e.fallback ? "fallback" : "failed") : "-";
     const t = tokens(e);
-    return `| ${e.n} | ${e.step} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |`;
+    return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |`;
   });
   const withTokens = log.filter((e) => tokens(e) !== null);
   const total = withTokens.reduce((sum, e) => sum + tokens(e), 0);
@@ -2068,7 +2068,7 @@ function readSide(dirArg, id, side) {
     outcome: meta.outcome?.action ?? null,
     steps: steps.length,
     skipped,
-    failedAttempts: steps.filter((e) => e.ok === false).length,
+    failedAttempts: steps.filter((e) => e.ok === false && !e.fallback).length,
     plan,
     inputFiles,
     tokens: { ...figure("totalTokens"), byModel },
