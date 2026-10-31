@@ -1,9 +1,9 @@
 ---
 change_id: phase-executors
 title: Per-phase executor routing and automated manual checks in the 10x pipeline
-status: new
+status: preparing
 created: 2026-10-30
-updated: 2026-10-30
+updated: 2026-10-31
 archived_at: null
 ---
 
