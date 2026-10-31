@@ -7,8 +7,8 @@ context_type: brownfield
 product_type: other  # Claude Code plugin (skill + router script); unchanged by this work
 target_scale:
   users: medium  # dozens to a hundred
-  qps: # TODO: target_scale.qps — see Open Questions
-  data_volume: # TODO: target_scale.data_volume — see Open Questions
+  qps: 0  # one sequential run at a time; no server (decided 2026-10-31)
+  data_volume: "KBs per run (run.jsonl, report.md); hundreds of runs"  # decided 2026-10-31
 timeline_budget:
   delivery_weeks: 3
   hard_deadline: null
@@ -34,7 +34,7 @@ Running the chain on expensive models and effort levels consumes too much of the
 
 The gap: today the router picks model and effort from review verdicts, finding counts, plan size, the goal text and failed attempts. It does not use the content of the generated artifacts (plan markdown, rubric results, code, intent files), so a simple change can run on the same tier as a complex one.
 
-# TODO: why this change is needed now, and the current workaround and its cost — see Open Questions
+Why now (decided 2026-10-31): the weekly Claude usage limit runs out before the week ends. The current workaround is to run every 10x step by hand on a fixed, expensive model and effort level. The cost is the weekly limit itself.
 
 ## User & Persona
 
@@ -46,7 +46,7 @@ The gap: today the router picks model and effort from review verdicts, finding c
 ### Primary
 
 - A report of which model and effort ran each step exists before the change is archived, and is posted as a comment on the pull request.
-- The user's weekly Claude usage limit consumption drops significantly, measured by A/B test against a full run on Sonnet-5.5 at high effort. # TODO: target percentage — see Open Questions
+- The user's weekly Claude usage limit consumption drops significantly, measured by A/B test against a full run on Sonnet-5.5 at high effort. Target (decided 2026-10-31): a drop of 30% in raw tokens, provisional until at least 5 comparable pairs exist.
 
 ### Secondary
 
@@ -111,13 +111,15 @@ Added from ADR-001 (challenged in a Socrates round on 2026-10-30):
   > Socrates: Counter-argument considered: "path rules misjudge risk, missing risky changes and over-flagging harmless ones." Resolution: kept; start with a small set of path rules and review them after the first runs.
   > Decision, 2026-10-30 (rigor-levels): elevated risk means paths that change often in git history (churn), measured with the parameters under `risk` in `policy.json`. A plan or diff that touches such a path raises the rigor level to at least `standard`, so a change on a hot path never runs at `lean` and always gets plan-review. The numbers are uncalibrated until real runs exist.
   > Deferred, 2026-10-30: "halts for a human at the highest level" is out of scope for `rigor-levels`. Only the generic stop exists: a subagent that cannot decide from evidence reports `blocked` with `signals.needsHuman`, and the router halts once with a report.
-- [new] FR-011: The pipeline can score change complexity with an LLM on a cheap model and store the scores with evidence and unknowns in a machine-readable file. Priority: nice-to-have. Deferred: built only if measurements show deterministic signals are not enough (ADR-001, Phase 2).
+- [new] FR-011: The pipeline can score change complexity with an LLM on a cheap model and store the scores with evidence and unknowns in a machine-readable file. Priority: must-have.
   > Socrates: Counter-argument considered: "a deferred FR invites early building." Resolution: kept as nice-to-have and listed as a non-goal for this delivery.
+  > Decision, 2026-10-31 (owner): changed from nice-to-have to must-have and pulled into milestone M-1 as slice S-11. This supersedes the Phase 2 deferral in ADR-001 and the non-goal below. The Phase 1 measurements are not a precondition any more. Where the LLM call runs (an orchestrator-run subagent step, or inside `route.mjs`) is open and needs a new ADR before S-11 is planned, because `AGENTS.md` and ADR-006 keep the router free of LLM and network calls.
 
 ## Constraints & Compatibility
 
 - **Backward compatibility:** not required. Nobody uses the current command, so it may change freely.
-- **Existing data:** none known to carry over, because nothing uses agent-smith yet. # TODO: confirm — see Open Questions
+- **Existing data:** none to carry over, because nothing uses agent-smith yet (confirmed 2026-10-31).
+- **Stable surface for installers (decided 2026-10-31):** other projects install the plugin, so the `/agent-smith:10x-pipeline` command, the policy override file `context/foundation/agent-smith-policy.json`, and the formats of `run.jsonl` and `report.md` are kept stable. Everything else may change.
 - **Existing integrations:** the toolkit skills `10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`, called as they are today. The 10x toolkit cannot be changed, and the same applies to OpenSpec.
 - **Runtime:** requires a fairly new Claude Code version. The README names a subagent spawn depth of 3 or more, the default since Claude Code v2.1.219, because `10x-goal-implement` spawns its own subagents.
 - **Preserved behavior:** one subagent per step (FR-007); run state in `context/changes/<change-id>/agent-smith/` (FR-008).
@@ -128,7 +130,8 @@ The router chooses model and effort for each step by task effort and complexity 
 
 - **Current rule:** the router derives the next step, model and effort from review verdicts, finding counts, plan size (phase count), the goal text and failed attempts.
 - **Change:** the decision also uses a new scored rubric and usage or cost metrics, and may choose plan-review or implement as the next step (US-01).
-- **Phasing (ADR-001, proposed):** Phase 1 routes on deterministic signals the script can read without an LLM (phase count, goal text, files changed, review verdicts, finding counts, failed attempts) and adds a separate risk axis set by path rules. Scored complexity (cognitive and execution complexity, risk and confidence, each factor 0 to 3) is deferred to Phase 2 and only built if the Phase 1 measurements show the signals are not enough. Details: `docs/ADR/ADR-001-phased-complexity-routing.md`.
+- **Phasing (ADR-001, proposed):** Phase 1 routes on deterministic signals the script can read without an LLM (phase count, goal text, files changed, review verdicts, finding counts, failed attempts) and adds a separate risk axis set by path rules. Scored complexity (cognitive and execution complexity, risk and confidence, each factor 0 to 3) was deferred to Phase 2. Details: `docs/ADR/ADR-001-phased-complexity-routing.md`.
+- **Update, 2026-10-31 (owner):** the Phase 2 scorer is pulled into this delivery (FR-011, slice S-11), and the scorer runs as an LLM step on a cheap model. The deterministic Phase 1 signals stay as inputs. A new ADR must settle where the call runs and supersede the Phase 2 deferral in ADR-001.
 
 ## Access Control Changes
 
@@ -137,18 +140,18 @@ No access control changes — current model preserved. There is no auth and no r
 ## Non-Goals
 
 - Changing or forking the 10x toolkit skills, or OpenSpec. agent-smith is an add-on and never edits them.
-- Scoring change complexity with an LLM (FR-011) in this delivery. It is built only if the Phase 1 measurements show that deterministic signals are not enough (ADR-001).
+- OpenSpec support (FR-006) in this delivery (confirmed 2026-10-31).
 
 ## Open Questions
 
-1. **What usage drop counts as success?** — Baseline is known (a full run on Sonnet-5.5 at high effort, compared by A/B test), but the target percentage is not set. Owner: user.
-2. **What does "a dep for other models" mean?** — The user said the pipeline is a dependency for other models (meaning unclear: other modules or projects that depend on it?). Which ones, and what must stay stable for them? Owner: user.
-3. **Which artifacts does the router score, and who produces the score?** — Code, intent MD files, others; a review step, or the router itself? ADR-001 Phase 1 needs no scorer: the script reads artifacts and diff stats. An LLM scorer is deferred to Phase 2; confirm. Owner: user.
-4. **Is usage or cost data available to the router, and from where?** — The user named usage and cost metrics as a rubric input. Owner: user.
-5. **Is OpenSpec (FR-006) out of scope for this delivery?** — The user called it nice-to-have but did not list it as a non-goal. Owner: user.
-6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — The user expects the router to be cheap to run, like Haiku-5.5. Today `route.mjs` is a plain script with no LLM. Does the router read and judge artifacts on a cheap model, or only read structured rubric output? This affects questions 3 and 4 and the FR-001 note "reading costs tokens". ADR-001 Phase 1 keeps the router a script; a cheap-model scorer only appears in Phase 2. Owner: user.
-7. **What are the expected target_scale.qps and target_scale.data_volume?** — Not captured during shaping. Owner: user.
-8. **Why now, and what is the current workaround and its cost?** — Not captured during shaping. Owner: user.
-9. **Confirm two assumptions.** — (a) The change modifies the existing routing rule rather than replacing it. (b) There are no existing runs or data to carry over. Owner: user.
-10. **Confirm the priorities of FR-009 to FR-011.** — They come from a proposed ADR. The Socrates round on 2026-10-30 challenged them, but the priorities themselves were set from the ADR, not by you. Owner: user.
+1. **What usage drop counts as success?** — Resolved 2026-10-31: 30% in raw tokens against the Sonnet-5.5 high-effort baseline, provisional until at least 5 comparable pairs exist. Owner: user.
+2. **What does "a dep for other models" mean?** — Resolved 2026-10-31: other projects install the plugin. The command, the policy override file and the `run.jsonl` and `report.md` formats stay stable (see Constraints). Owner: user.
+3. **Which artifacts does the router score, and who produces the score?** — Resolved 2026-10-31: an LLM scorer is built in this delivery (FR-011, slice S-11), not deferred to Phase 2. Which artifacts it reads and whether a review step or the router produces the score are settled in S-11's research and the new ADR. Owner: user.
+4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (the orchestrator copies the Agent result's usage into the step result). Not yet confirmed on a foreground Agent result; to be verified on the next real run (S-10), then closed. Owner: user.
+5. **Is OpenSpec (FR-006) out of scope for this delivery?** — Resolved 2026-10-31: yes, it stays parked (see Non-Goals). Owner: user.
+6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — Resolved 2026-10-31: the owner chose a cheap-model LLM step. Whether that is the router itself or a scorer step the router calls is open until the new ADR (see FR-011); `AGENTS.md` and ADR-006 still describe a script-only router. Owner: user.
+7. **What are the expected target_scale.qps and target_scale.data_volume?** — Resolved 2026-10-31: qps 0 (one sequential run at a time); a few KB per run; hundreds of runs across a small team. Owner: user.
+8. **Why now, and what is the current workaround and its cost?** — Resolved 2026-10-31: see Problem Statement. Owner: user.
+9. **Confirm two assumptions.** — Resolved 2026-10-31: (a) the change modifies the existing routing rule, (b) there is no existing run data to carry over. Both confirmed. Owner: user.
+10. **Confirm the priorities of FR-009 to FR-011.** — Resolved 2026-10-31: FR-009 and FR-010 stay must-have (both built). FR-011 moves to must-have and into milestone M-1. Owner: user.
 11. **Which path rules and levels define elevated risk, and what does the pipeline do at the highest level?** — ADR-001 says the pipeline halts for a human, because subagents cannot ask questions. Owner: user. Resolved 2026-10-30: elevated risk is churn (paths that change often in git history), configured under `risk` in `policy.json`. The three levels are `lean`, `standard` and `thorough`. The generic halt is `signals.needsHuman`; a halt by level alone is deferred (see FR-010).
