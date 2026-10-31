@@ -426,12 +426,12 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [x] 1.1 Phase 1 tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
-- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 1.3 The script imports only `node:` built-ins
-- [x] 1.4 No Node 19+ API in the new files
-- [x] 1.5 Router and policy untouched
-- [x] 1.6 Usage error exits 2
+- [x] 1.1 Phase 1 tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs` — f5c4517
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — f5c4517
+- [x] 1.3 The script imports only `node:` built-ins — f5c4517
+- [x] 1.4 No Node 19+ API in the new files — f5c4517
+- [x] 1.5 Router and policy untouched — f5c4517
+- [x] 1.6 Usage error exits 2 — f5c4517
 
 #### Manual
 
@@ -441,12 +441,12 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [ ] 2.1 All script tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
-- [ ] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 2.3 No Node 19+ API in the new files
-- [ ] 2.4 Router and policy untouched
-- [ ] 2.5 Deliberate-break check: removing the author comparison makes the "another login yields POST" test fail
-- [ ] 2.7 No write under the project root and no call outside the allowed list: tree-snapshot and argv-audit tests pass
+- [x] 2.1 All script tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
+- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 2.3 No Node 19+ API in the new files
+- [x] 2.4 Router and policy untouched
+- [x] 2.5 Deliberate-break check: removing the author comparison makes the "another login yields POST" test fail
+- [x] 2.7 No write under the project root and no call outside the allowed list: tree-snapshot and argv-audit tests pass
 
 #### Manual
 

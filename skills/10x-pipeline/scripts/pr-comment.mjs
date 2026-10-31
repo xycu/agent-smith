@@ -4,6 +4,7 @@
 // Prints exactly one JSON object and exits 0 for every runtime outcome; exit 2 is for usage errors only.
 // Plain node: built-ins only. Node 18 safe.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,11 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
 const DEFAULT_TIMEOUT_MS = 20000;
 const GH_HOST = "github.com";
 const PR_URL_RE = /^https:\/\/([^/]+)\/([^/]+)\/([^/]+)\/pull\/(\d+)/;
+const BODY_CAP = 60000;
+const MENTION_RE = /(^|[^A-Za-z0-9_])@(?=[A-Za-z0-9])/g;
+
+// Projects and bounds the comment list; every decision is made in JS, so a fake gh can test it.
+export const COMMENT_JQ = ".[] | {id: .id, login: .user.login, head: ((.body // \"\") | .[0:200])}";
 
 class UsageError extends Error {}
 
@@ -128,12 +134,84 @@ function findPullRequest(opts) {
   return { pr: { url: pr.url, owner: m[2], repo: m[3], number: Number(m[4]) } };
 }
 
+function markerFor(id) {
+  return `<!-- agent-smith:pr-report change=${id} -->`;
+}
+
+// Marker line, blank line, report with mentions neutralized. The cap counts UTF-16 code units and never splits a pair.
+function buildBody(id, reportText) {
+  const text = `${markerFor(id)}\n\n${reportText.replace(MENTION_RE, "$1@\u200b")}`;
+  if (text.length <= BODY_CAP) return text;
+  let end = BODY_CAP;
+  const last = text.charCodeAt(end - 1);
+  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  const kept = text.slice(0, end);
+  return `${kept}\n\nReport truncated: ${text.length - kept.length} characters omitted.`;
+}
+
+function viewerLogin(opts) {
+  const res = runGh(["api", "user", "--jq", ".login"], opts.timeoutMs);
+  const login = res.status === 0 ? res.stdout.trim() : "";
+  return login === "" ? null : login;
+}
+
+// Returns { comments } or { skip }.
+function listComments(opts, pr) {
+  const res = runGh(["api", "--paginate", `repos/${pr.owner}/${pr.repo}/issues/${pr.number}/comments`, "--jq", COMMENT_JQ], opts.timeoutMs);
+  if (res.timedOut) return { skip: "comment lookup failed: gh timed out" };
+  if (res.status !== 0) return { skip: `comment lookup failed: ${firstLine(res.stderr) || `gh exited ${res.status}`}` };
+  const comments = [];
+  for (const line of res.stdout.split("\n")) {
+    if (line.trim() === "") continue;
+    let c = null;
+    try { c = JSON.parse(line); } catch { continue; }
+    if (c && typeof c === "object" && typeof c.id === "number" && typeof c.head === "string") comments.push(c);
+  }
+  return { comments };
+}
+
+// The author comparison below is the one line the mutation test breaks.
+function pickTarget(comments, marker, viewer) {
+  const candidates = comments.filter((c) => c.head.startsWith(marker)).sort((a, b) => a.id - b.id);
+  if (viewer !== null) {
+    const mine = candidates.find((c) => c.login === viewer);
+    return mine ? { comment: mine, match: "author" } : null;
+  }
+  return candidates.length ? { comment: candidates[0], match: "marker-only" } : null;
+}
+
+function post(opts, found, body) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "as-prc-"));
+  try {
+    const file = path.join(dir, "body.md");
+    fs.writeFileSync(file, body);
+    const viewer = viewerLogin(opts);
+    const listed = listComments(opts, found);
+    if (listed.skip) return skip(listed.skip, found.url);
+    const target = pickTarget(listed.comments, markerFor(opts.id), viewer);
+    const base = `repos/${found.owner}/${found.repo}`;
+    const args = target
+      ? ["api", "--method", "PATCH", `${base}/issues/comments/${target.comment.id}`, "-F", `body=@${file}`, "--jq", ".html_url"]
+      : ["api", "--method", "POST", `${base}/issues/${found.number}/comments`, "-F", `body=@${file}`, "--jq", ".html_url"];
+    const res = runGh(args, opts.timeoutMs);
+    const url = res.status === 0 ? res.stdout.trim() : "";
+    if (url === "") {
+      const why = res.timedOut ? "gh timed out" : firstLine(res.stderr) || (res.status === 0 ? "empty response" : `gh exited ${res.status}`);
+      const suffix = target && target.match === "marker-only" ? " (a comment with this marker by another user may block updates)" : "";
+      return skip(`comment request failed: ${why}${suffix}`, found.url);
+    }
+    return result(target ? "updated" : "created", { url, pr: found.url, match: target ? target.match : null });
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 function run(opts) {
   const report = readReport(opts);
   if (report.skip) return skip(report.skip);
   const found = findPullRequest(opts);
   if (found.skip) return skip(found.skip, found.pr ?? null);
-  return skip("posting not implemented", found.pr.url);
+  return post(opts, found.pr, buildBody(opts.id, report.text));
 }
 
 function main() {
