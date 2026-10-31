@@ -581,6 +581,67 @@ test("retry once then warn", { skip: noGit }, () => {
   assert.equal(readLogEntries(failed.project).filter((e) => e.template === "implement-retry").length, 1);
 });
 
+test("retry without commit evidence warns", () => {
+  // A retry whose commit check cannot run (no repository, a repository with no commit, a recorded head that does not
+  // resolve) must not pass silently when its rows are ticked again: a neutral fallback and the impl-review-warn prompt.
+  const RETRY = ["1.1", "1.2"];
+  const UNKNOWN = "0123456789abcdef0123456789abcdef01234567";
+  const setups = {
+    "no repository": () => strictProject({ template: "implement-retry", useGit: false, over: { retry: RETRY } }),
+    "a repository with no commit": () => {
+      const s = strictProject({ template: "implement-retry", useGit: false, over: { retry: RETRY } });
+      gitInit(s.project);
+      return s;
+    },
+    "an unknown recorded head": () => strictProject({
+      template: "implement-retry", over: { retry: RETRY, before: { autoDone: 0, head: UNKNOWN, done: [] } },
+    }),
+  };
+  for (const [what, setup] of Object.entries(setups)) {
+    if (what !== "no repository" && noGit) continue;
+    // Rows ticked again, status done: unproven, neutral, warned.
+    const { project } = setup();
+    tickAll(project);
+    const { res, e } = finish(project);
+    assert.equal(e.ok, false, what);
+    assert.equal(e.verified, false, what);
+    assert.equal(e.fallback, true, what);
+    assert.deepEqual(e.uncommitted, RETRY, what);
+    assert.equal(e.evidenceUnavailable, true, what);
+    assert.equal(readMetaFile(project).rigor.level, "lean", `${what}: a neutral entry raises no rigor`);
+    assert.equal(res.json.step, "impl-review", what);
+    assert.equal(lastEntry(project).template, "impl-review-warn", what);
+    assert.match(res.json.prompt, /rows 1\.1, 1\.2 are ticked in `plan\.md` with no code commit/, what);
+    assert.match(res.json.prompt, /Commit evidence was unavailable/, what);
+
+    // Rows not ticked again: still unproven, still no failure count.
+    const open = setup();
+    const b = finish(open.project, { status: "blocked", note: "nothing to change" });
+    assert.equal(b.e.ok, false, what);
+    assert.equal(b.e.fallback, true, what);
+    assert.equal(b.e.uncommitted, undefined, what);
+
+    // A retry that reports failed is a failure, as for a missing commit.
+    const failed = setup();
+    tickAll(failed.project);
+    const f = finish(failed.project, { status: "failed", note: "broke" });
+    assert.equal(f.e.ok, false, what);
+    assert.equal(f.e.fallback, undefined, what);
+    assert.deepEqual(f.e.uncommitted, RETRY, what);
+  }
+});
+
+test("warning names a check that ran", { skip: noGit }, () => {
+  // With a readable history the warning carries no evidence note: the commit check ran and found nothing.
+  const { project } = strictProject({ template: "implement-retry", over: { retry: ["1.1", "1.2"] } });
+  tickAll(project);
+  const { res, e } = finish(project, { status: "done", note: "x" });
+  assert.equal(e.fallback, true);
+  assert.equal(e.evidenceUnavailable, undefined);
+  assert.equal(lastEntry(project).template, "impl-review-warn");
+  assert.doesNotMatch(res.json.prompt, /evidence was unavailable/);
+});
+
 // ---- phase 2: pool, lean, containment, no phase list -------------------------
 
 test("extra steps pool", () => {
