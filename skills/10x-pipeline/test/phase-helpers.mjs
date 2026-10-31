@@ -1,5 +1,5 @@
 // Helpers of the phase-executors tests: plan builders, log fixtures and the gate check of the plan's Progress rows.
-// Plain node: built-ins only. Node 18 safe. helpers.mjs stays untouched.
+// Plain node: built-ins only. helpers.mjs stays untouched.
 import fs from "node:fs";
 import path from "node:path";
 import { entry, git } from "./helpers.mjs";

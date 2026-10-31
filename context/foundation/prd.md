@@ -21,7 +21,7 @@ timeline_budget:
 
 - **Purpose:** agent-smith is a Claude Code plugin that orchestrates AI SDLC skill chains (README: "10xDevs + OpenSpec"). Each step of a chain runs in its own subagent.
 - **Shipped skill:** `/agent-smith:10x-pipeline <change-id> [goal]` runs plan, plan review, implement, implementation review, fix.
-- **Router:** `skills/10x-pipeline/scripts/route.mjs` (Node.js 18+, ESM, no dependencies) reads `plan.md` `## Progress` and `reviews/*.md` (verdict, finding counts) and returns the next step, model, effort and prompt.
+- **Router:** `skills/10x-pipeline/scripts/route.mjs` (Node.js 24+, ESM, no dependencies) reads `plan.md` `## Progress` and `reviews/*.md` (verdict, finding counts) and returns the next step, model, effort and prompt.
 - **Policy:** `skills/10x-pipeline/policy.json` holds a 7-tier model/effort ladder, a base tier per step, escalation rules, limits and prompt templates. A project can override keys in `context/foundation/agent-smith-policy.json`.
 - **Run state:** `context/changes/<change-id>/agent-smith/` (`run.jsonl`, `meta.json`).
 - **Distribution:** Claude Code plugin and marketplace manifests in `.claude-plugin/`.

@@ -1,6 +1,6 @@
 // Tests for scripts/pr-comment.mjs. A fake `gh` (a /bin/sh shim first on PATH) answers from canned files,
 // so no test needs the network. Opt-in live tests (GH_LIVE=1) are run by a human.
-// Plain node: built-ins only. Node 18 safe.
+// Plain node: built-ins only.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
