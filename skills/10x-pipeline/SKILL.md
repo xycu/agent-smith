@@ -45,10 +45,10 @@ The router prints one JSON object. Act on `action`:
   4. If the Agent result reports usage (total tokens, tool uses and duration), add `"usage":{"totalTokens":N,"toolUses":N,"durationMs":N}` to that JSON, with the figures copied exactly. Omit the key when no figure is reported. Write the JSON to the router's `resultFile` with the Write tool.
   5. Run `node $ROUTER next <change-id>` and repeat the loop with its output.
 - **`done`**: report the final verdict, the number of steps, and every entry in `manualPending` as a checklist for the human. Then run `node $ROUTER status <change-id>` and show the model/effort used per step as a short list. Point the user to the router's `report` path (`report.md`).
-  Call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step. If the call errors, post nothing and print `PR comment: skipped, task list unavailable`.
+  Call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step. If the call errors, post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`.
 - **`archive`** (only for a run started with `--archive`; the run is done and the router has committed the change folder, or found it already committed):
   1. Run `node $ROUTER status <change-id>` now, before the move, because the archive moves the log. Report what `done` reports: the final verdict from `summary.reason`, the number of steps, every `summary.manualPending` item as a checklist, the model/effort used per step as a short list, and the router's `report` path.
-     Then call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step now, before step 2, so the comment is posted before the move. If the call errors, post nothing and print `PR comment: skipped, task list unavailable`.
+     Then call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step now, before step 2, so the comment is posted before the move. If the call errors, post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`.
   2. Print one line: `Archive: /10x-archive on <model>/<effort>.`
   3. Call the Agent tool with the same parameters as for `run` and `prompt` set to the router's `prompt`, copied verbatim.
   4. Write no result file and do not call `next`. The `archive` action has no `resultFile`, and nothing may be written into the folder that moves.
@@ -56,13 +56,13 @@ The router prints one JSON object. Act on `action`:
      - On `archived: true`: print the archive path and the report path inside it. Print one line asking the user to confirm that `git status` is clean, because `verify-archive` reads files only and a failed `chore(archive)` commit leaves the rename staged. Repeat every `manualPending` item as the checklist of checks nobody verified. When the action's `ignored` list is not empty, list its paths as "not committed (ignored by git)". Copy the subagent's `assumptions` and any usage figure it reported into the final message.
      - On `archived: false`: print `reason` and the subagent's note, say the folder may be unchanged or half-archived, and STOP.
 - **`halt`**: report `reason` and the status output. A reason that says `needs a human` comes from the subagent, which found no evidence-backed answer. Show the quoted text. Point the user to the router's `report` path (`report.md`) when present. When the output has an `archive` field, say the change was not archived, then read `committed`: if `false`, say the folder is not committed and `/10x-archive` needs it committed first; if `true`, say the pre-archive commit exists locally, the router did not undo it, and `node $ROUTER next <change-id>` repeats the checks once the cause is fixed (the check of what the commit holds is not repeated, so the user should look at the commit with `git show --stat HEAD`). When the output has no `archive` field, say nothing about a commit or an archive. STOP. Do not try to recover on your own.
-  Before you STOP, call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step. If the call errors, post nothing and print `PR comment: skipped, task list unavailable`.
+  Before you STOP, call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step. If the call errors, post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`.
 
 ## PR comment (opt-in)
 
 The PR comment step runs only when TaskList shows an open task with the subject `PR comment: <change-id>` for this run's change id. A task for another change id does not count. Do these in order, once:
 
-1. Run `node $PR_COMMENT <change-id>` from the project root. It prints one JSON object and posts the router's `report.md` as a comment on the open pull request of the current branch, or edits its own earlier comment.
+1. Run `node $PR_COMMENT <change-id>` from the project root. Quote the script path and the change id for the shell. It prints one JSON object and posts the router's `report.md` as a comment on the open pull request of the current branch, or edits its own earlier comment.
 2. Print one line: `PR comment: <action>, <url or reason> (PR <pr url or none>)`, from the `action`, `url`, `reason` and `pr` of that object.
 3. Mark the task completed.
 

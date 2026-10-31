@@ -706,6 +706,8 @@ test("SKILL.md: done, archive and halt each point at TaskList, the subject and t
     // F18: a TaskList error at an end branch posts nothing and says so.
     assert.equal(countOf(text, "task list unavailable"), 1, `${name}: task list unavailable`);
     assert.match(text, /post nothing/, `${name}: fail closed`);
+    // The printed line needs the flag, as in Start step 4: a run without it stays silent.
+    assert.match(text, /post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`/, `${name}: line only with the flag`);
   }
   const archive = branch(skill, "archive");
   assert.ok(archive.indexOf("PR comment step") < archive.indexOf("Call the Agent tool"), "the archive pointer must come before the archive step");
@@ -719,6 +721,8 @@ test("SKILL.md: the PR comment section names the task, the subject and the scrip
   // F20: no JSON or a non-zero exit is a skip, and the id length difference is named.
   assert.ok(section.includes("PR comment: skipped, script error"));
   assert.ok(section.includes("100 characters"));
+  // The id and the script path reach a shell line before the script can validate them.
+  assert.match(section, /Quote the script path and the change id for the shell/);
   assert.ok(section.includes("PR comment: skipped, no report"));
 });
 
