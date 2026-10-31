@@ -173,7 +173,7 @@
       "@prompts/frame-unattended.md"
     ],
     "frame-rethink": [
-      "Run /10x-frame {id}\nPlan review context/changes/{id}/reviews/plan-review.md returned {verdict}. Treat its findings as the observation to test. Update context/changes/{id}/frame.md in place.",
+      "Run /10x-frame {id}\nPlan review context/changes/{id}/reviews/plan-review.md returned {verdict}. Treat its findings as the observation to test. Update context/changes/{id}/frame.md in place. When that file does not exist, write it there as a new brief.",
       "@prompts/frame-unattended.md"
     ],
     "frame-authority": "- **GIVEN** context/changes/{id}/frame.md is listed under the upstream artifacts **WHEN** you revise the plan **THEN** you **MUST** treat its reframed problem statement as authoritative: rework every phase and row that contradicts it, and apply the Progress contract (format, numbering and checkbox syntax) to the result, because this rule wins over the line that keeps step indices and titles."

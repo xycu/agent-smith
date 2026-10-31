@@ -671,6 +671,27 @@ test("framing doubt by signals.rigor of an earlier step", () => {
   assert.equal(start(quiet, "fix typo").step, "plan");
 });
 
+test("framing doubt: any valid signals.rigor of an earlier step counts, as the plan says", () => {
+  // The plan (Decision 1, Phase 3) names "a signals.rigor on an earlier pre-plan step", whatever its value: the
+  // step ran at thorough already, so the value cannot raise the level, and a subagent that adds the key says the
+  // change is riskier than the goal suggested. A value that is no rigor level is dropped before the router sees it.
+  for (const value of ["lean", "standard", "thorough"]) {
+    const project = makeProject();
+    assert.equal(start(project, "fix typo").step, "research");
+    put(project, "research.md", RESEARCH);
+    const res = finish(project, { status: "done", note: "n", signals: { rigor: value } });
+    assert.equal(res.json.step, "frame", value);
+    assert.match(res.json.reason, /signals\.rigor of step 1 \(research\)/, value);
+    assert.equal(readMetaFile(project).rigor.level, "thorough", value);
+  }
+  const bogus = makeProject();
+  start(bogus, "fix typo");
+  put(bogus, "research.md", RESEARCH);
+  const res = finish(bogus, { status: "done", note: "n", signals: { rigor: "extreme" } });
+  assert.equal(res.json.step, "plan");
+  assert.equal(ranOf(bogus)[0].signals, undefined);
+});
+
 test("framing doubt does not fire on fix typo", () => {
   for (const goal of ["fix typo", "fixture cleanup", "fixes for the router", "bug report template"]) {
     const project = makeProject();
@@ -762,6 +783,106 @@ test("failed research is retried at the next tier and halts after three failures
   assert.equal(last.json.action, "halt");
   assert.match(last.json.reason, /research failed 3 times in a row. Last note: third time/);
   assert.equal(ranOf(project).length, 3);
+});
+
+test("a failed pre-plan step is retried before skipIf, when and the rigor check", () => {
+  // (a) A failed research often leaves a research.md without status frontmatter. researchExists would now hit
+  // skipIf, but the failed attempt is retried first: no skip, no plan, and three failures halt the run.
+  const research = makeProject();
+  assert.equal(start(research, "fix typo").step, "research");
+  put(research, "research.md", "# Research without frontmatter\n");
+  const again = finish(research);
+  assert.equal(ranOf(research)[0].verified, false);
+  assert.equal(again.json.action, "run");
+  assert.equal(again.json.step, "research", "retried, not skipped and not passed on to plan");
+  assert.deepEqual(skipsOf(research), []);
+  assert.equal(lastRan(research).tier, 4);
+  assert.equal(finish(research).json.step, "research");
+  const halted = finish(research);
+  assert.equal(halted.json.action, "halt");
+  assert.match(halted.json.reason, /research failed 3 times in a row/);
+  assert.deepEqual(ranOf(research).map((e) => e.step), ["research", "research", "research"]);
+  assert.deepEqual(skipsOf(research), []);
+
+  // (b) The same for frame: a frame.md without "## Reframed" makes frameExists true, yet the step is retried.
+  const frame = makeProject();
+  put(frame, "research.md", RESEARCH);
+  assert.equal(start(frame, "Logins fail because the cache is stale").step, "frame");
+  put(frame, "frame.md", "# Frame Brief: demo\n\nNo reframed heading.\n");
+  const frameAgain = finish(frame);
+  assert.equal(frameAgain.json.step, "frame");
+  assert.equal(lastRan(frame).template, "frame");
+  assert.deepEqual(skipsOf(frame).filter((sk) => sk.step === "frame"), []);
+
+  // (c) A policy that closes the gate under a run (an unknown minRigor reads as closed) does not drop a failed attempt.
+  const closed = makeProject();
+  assert.equal(start(closed, "fix typo").step, "research");
+  const overrideFile = path.join(closed.root, "context/foundation/agent-smith-policy.json");
+  fs.mkdirSync(path.dirname(overrideFile), { recursive: true });
+  fs.writeFileSync(overrideFile, JSON.stringify({ preplan: { gates: { research: { minRigor: "bogus" } } } }));
+  const retry = finish(closed, { status: "failed", note: "no luck" });
+  assert.equal(retry.json.step, "research", "retried although the gate is now closed");
+  assert.equal(lastRan(closed).tier, 4);
+  assert.deepEqual(skipsOf(closed), []);
+
+  // (d) A failed domain brief is retried when its `when` signal is gone.
+  const brief = makeProject();
+  put(brief, "research.md", RESEARCH);
+  const first = start(brief, "Put an adapter around the vendor sdk");
+  assert.equal(first.step, "domain-brief");
+  assert.equal(first.template, "domain-acl");
+  fs.mkdirSync(path.join(brief.root, "context/foundation"), { recursive: true });
+  fs.writeFileSync(path.join(brief.root, "context/foundation/agent-smith-policy.json"), JSON.stringify({ preplan: { predicates: { dependencyLeak: { goalWords: ["zzz"] } } } }));
+  const briefAgain = finish(brief, { status: "failed", note: "no luck" });
+  assert.equal(briefAgain.json.step, "domain-brief");
+  assert.equal(lastRan(brief).template, "domain-acl", "the retry keeps the template of the failed attempt");
+  assert.deepEqual(skipsOf(brief).filter((s) => s.step === "domain-brief"), []);
+});
+
+test("a missing 10x-research or 10x-frame skill fails the step three times and halts", () => {
+  // The router cannot see which skills are installed. A subagent that cannot find the skill reports a
+  // non-done status without signals.needsHuman, which is a failed attempt: retried, then a halt with the last note.
+  for (const status of ["blocked", "failed"]) {
+    const research = makeProject();
+    assert.equal(start(research, "fix typo").step, "research");
+    assert.equal(finish(research, { status, note: "Unknown skill: 10x-research" }).json.step, "research", status);
+    assert.equal(finish(research, { status, note: "Unknown skill: 10x-research" }).json.step, "research", status);
+    const haltedResearch = finish(research, { status, note: "Unknown skill: 10x-research" });
+    assert.equal(haltedResearch.json.action, "halt", status);
+    assert.match(haltedResearch.json.reason, /^research failed 3 times in a row\. Last note: Unknown skill: 10x-research/, status);
+    assert.ok(ranOf(research).every((e) => e.ok === false && e.verified === false), status);
+
+    const frame = makeProject();
+    put(frame, "research.md", RESEARCH);
+    assert.equal(start(frame, "Logins fail because the cache is stale").step, "frame");
+    finish(frame, { status, note: "Unknown skill: 10x-frame" });
+    finish(frame, { status, note: "Unknown skill: 10x-frame" });
+    const haltedFrame = finish(frame, { status, note: "Unknown skill: 10x-frame" });
+    assert.equal(haltedFrame.json.action, "halt", status);
+    assert.match(haltedFrame.json.reason, /^frame failed 3 times in a row\. Last note: Unknown skill: 10x-frame/, status);
+  }
+});
+
+test("both domain prompt templates name their artifact file and type refactor-plan", () => {
+  // What the router verifies (the file of the template, type: refactor-plan) is what the prompt asks the skill to write.
+  const aggregate = makeProject();
+  put(aggregate, "research.md", RESEARCH);
+  putRoot(aggregate, FILE_A, section(`${REF_HEADER}\n${refRow("R-1", "World", "A world has one slug", "**declared**")}`));
+  const a = start(aggregate, "Rename the world tooltip");
+  assert.equal(a.template, "domain-aggregate");
+
+  const acl = makeProject();
+  put(acl, "research.md", RESEARCH);
+  const b = start(acl, "Put an adapter around the vendor sdk");
+  assert.equal(b.template, "domain-acl");
+
+  for (const [out, template] of [[a, "domain-aggregate"], [b, "domain-acl"]]) {
+    const file = policy.preplan.artifacts[template];
+    const prompt = withoutSuffix(out.res.json.prompt);
+    assert.ok(prompt.includes(`context/changes/demo/${file}`), `${template}: the prompt names ${file}`);
+    assert.ok(prompt.includes("type: refactor-plan"), `${template}: the prompt asks for type: refactor-plan`);
+    assert.ok(!prompt.includes("{id}"), `${template}: the id is filled`);
+  }
 });
 
 test("frame stays at opus/high on retry", () => {
