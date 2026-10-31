@@ -286,6 +286,21 @@ test("second REVISE adds research-revise before the second plan-revise", () => {
   assert.deepEqual(stepsOf(project), ["plan", "plan-review", "plan", "plan-review", "research", "plan"], "plan review does not run between the research round and the re-plan");
 });
 
+test("an old log without verdict on its plan-revise entries never gets a research-revise", () => {
+  // Migration: entries written before the verdict key existed read as no earlier REVISE round.
+  const old = replan(3, "REVISE");
+  delete old.verdict;
+  assert.equal("verdict" in old, false);
+  const log = [...BASE, old, entry(4, "plan-review")];
+  const project = reviewed("REVISE", CRITICAL, log);
+  const res = start(project, "thorough");
+  assert.equal(res.json.action, "run");
+  assert.equal(res.json.step, "plan");
+  assert.equal(lastRan(project).template, "plan-revise");
+  assert.equal(lastRan(project).verdict, "REVISE", "the new entry stores the verdict");
+  assert.equal(ranOf(project).some((e) => e.step === "research"), false);
+});
+
 test("a RETHINK re-plan does not count as the first REVISE", () => {
   const log = [...BASE, frameRound(3), replan(4, "RETHINK"), entry(5, "plan-review")];
   const project = reviewed("REVISE", CRITICAL, log);
@@ -334,6 +349,58 @@ test("research-revise verification: a stale research.md fails the step and the r
   assert.equal(ranOf(project).filter((e) => e.template === "research-revise").map((e) => e.ok).join(), "false,true");
   assert.equal(fresh.json.step, "plan");
   assert.equal(lastRan(project).template, "plan-revise");
+});
+
+test("research-revise verification: a fresh research.md that lost its status frontmatter fails the step", () => {
+  // A real follow-up appends to research.md. If it rewrites the file and drops the frontmatter, the round is not verified.
+  const log = [...BASE, replan(3, "REVISE"), entry(4, "plan-review")];
+  const project = reviewed("REVISE", CRITICAL, log);
+  put(project, "research.md", RESEARCH, new Date(1000));
+  assert.equal(start(project, "thorough").json.step, "research");
+
+  put(project, "research.md", "# Research\n\nNew findings, no frontmatter.\n");
+  const dropped = finish(project);
+  const failed = ranOf(project).find((e) => e.template === "research-revise");
+  assert.equal(failed.ok, false);
+  assert.equal(failed.verified, false);
+  assert.equal(dropped.json.step, "research", "a failed round is retried");
+
+  // Appended findings with the status kept, and a later last_updated, pass.
+  put(project, "research.md", "---\nstatus: partial\nlast_updated: 2026-10-31\n---\n# Research\n\nFirst.\n\n## Follow-up\n\nSecond.\n");
+  const kept = finish(project);
+  assert.equal(ranOf(project).filter((e) => e.template === "research-revise").map((e) => e.ok).join(), "false,true");
+  assert.equal(kept.json.step, "plan");
+});
+
+test("frame-rethink without a frame.md writes a new brief and is verified like any frame", () => {
+  // The frame step was skipped before the plan, so no frame.md exists when the RETHINK comes.
+  const project = reviewed("RETHINK", "2 critical, 0 warnings", BASE);
+  assert.equal(fs.existsSync(path.join(project.changeDir, "frame.md")), false);
+  const res = start(project, "thorough");
+  assert.equal(res.json.step, "frame");
+  assert.equal(lastRan(project).template, "frame-rethink");
+  assert.match(res.json.prompt, /When that file does not exist, write it there as a new brief\./);
+  assert.doesNotMatch(res.json.prompt, /frame\.md is listed under the upstream artifacts/, "the authority line belongs to the re-plan prompt");
+
+  // The subagent reports done but wrote nothing: not verified, retried at the same tier.
+  const none = finish(project);
+  assert.equal(ranOf(project).find((e) => e.template === "frame-rethink").verified, false);
+  assert.equal(ranOf(project).find((e) => e.template === "frame-rethink").ok, false);
+  assert.equal(none.json.step, "frame");
+  assert.equal(lastRan(project).tier, 4);
+
+  // A brief without the Reframed heading fails too.
+  put(project, "frame.md", "# Frame Brief: demo\n\nNo reframed heading.\n");
+  assert.equal(finish(project).json.step, "frame");
+
+  // A real brief passes, and the re-plan prompt now lists it and carries the authority line.
+  put(project, "frame.md", FRAME);
+  const replanned = finish(project);
+  assert.equal(replanned.json.step, "plan");
+  assert.equal(lastRan(project).template, "plan-revise");
+  assert.match(replanned.json.prompt, /Upstream artifacts \(read each fully before planning\): context\/changes\/demo\/frame\.md/);
+  assert.match(replanned.json.prompt, /treat its reframed problem statement as authoritative/);
+  assert.deepEqual(ranOf(project).filter((e) => e.template === "frame-rethink").map((e) => e.ok), [false, false, true]);
 });
 
 // ---- reference paths: the budget -------------------------------------------------------
