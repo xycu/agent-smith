@@ -314,7 +314,7 @@ With a pool of 2 at `standard`, two segments, a segment and `manual-verify`, or 
 
 ### Strict verification and fallback
 
-`implement-e2e` and `implement-tdd` are strict. A step that reports `done` counts only when the plan shows ticked rows and a commit exists in `before.head..HEAD` that touched at least one path outside `context/changes/<id>/` (docs, lock files, `assets/**` and `context/**` do not count; they reuse the churn exclude globs). The router reads git with `rev-parse`, `merge-base --is-ancestor` and `log -z` only. When git is missing or the recorded head is unknown, the count rule applies. A SHA suffix on a row must be a prefix of such a commit. Plain `implement` and `implement-segment` keep the count rule: `/10x-goal-implement` legitimately ends a phase with no diff to commit, so a commit check would make that a false failure. The residual risk is a goal-implement phase that ticks rows with no work: it passes until the implementation review.
+`implement-e2e` and `implement-tdd` are strict. A step that reports `done` counts only when the plan shows ticked rows and a commit exists in `before.head..HEAD` that touched at least one path outside `context/changes/<id>/` (docs, lock files, `assets/**` and `context/**` do not count; they reuse the churn exclude globs). The router reads git with `rev-parse`, `merge-base --is-ancestor` and `log -z` only. When git is missing, the repository has no commit yet or the recorded head is unknown, the count rule applies to the first check. The check is per step, not per row: one counted commit covers every row the step ticked, so a commit made for one row passes a flip of another. A SHA suffix on a row must be a prefix of such a commit. Plain `implement` and `implement-segment` keep the count rule: `/10x-goal-implement` legitimately ends a phase with no diff to commit, so a commit check would make that a false failure. The residual risk is a goal-implement phase that ticks rows with no work: it passes until the implementation review.
 
 - **GIVEN** a strict step reports `done` **WHEN** no commit of `before.head..HEAD` touched a code path **THEN** the router **MUST** count the step as failed.
 - **GIVEN** an e2e or tdd step ends `blocked` **WHEN** the router records the entry **THEN** the router **MUST** mark it `fallback`.
@@ -329,7 +329,7 @@ A strict step that leaves rows ticked with no code commit records them as `uncom
 - **GIVEN** a strict step left rows ticked without a code commit **WHEN** the router picks the next step **THEN** the router **MUST** run `implement-retry` once for those rows.
 - **GIVEN** the retry ends `done` or `blocked` with its rows ticked and still no commit **WHEN** the router goes on **THEN** the router **MUST** run the implementation review with the `impl-review-warn` prompt, which names the rows.
 
-The retry costs nothing from the pool and runs at most once per run (`executors.retry.max`; 0 turns it off). A retry that ends `failed` is a failure. The `done` output, the `archive` summary, `meta.outcome` and, in an `--archive` run, `report.md` list the rows as `uncommittedTicks`. A legitimate zero-diff phase therefore never halts the run. The residual risk is a Skip flip that survives the single retry and a reviewer who misses the warning.
+The retry costs nothing from the pool and runs at most once per run (`executors.retry.max`; 0 turns it off). A retry that ends `failed` is a failure. A retry whose commit check cannot run (no git, no commit yet, an unresolvable recorded head) does not pass on ticked rows: it is a neutral fallback with the rows recorded as uncommitted, and the review prompt adds a note that commit evidence was unavailable. A project without git therefore gets a warning, never a failure. The `done` output, the `archive` summary, `meta.outcome` and, in an `--archive` run, `report.md` list the rows as `uncommittedTicks`. A legitimate zero-diff phase therefore never halts the run. The residual risk is a Skip flip that survives the single retry and a reviewer who misses the warning.
 
 ### Code re-plans
 
@@ -339,7 +339,7 @@ Two triggers run the `plan` step with a new template, at rigor `standard` or abo
 - **GIVEN** the first implementation review returns `REJECTED` before any fix step and the pool holds 2 **WHEN** the router picks the next step **THEN** the router **MUST** run `plan` with the template `plan-rejected`.
 - **GIVEN** a `plan-replan` step fails **WHEN** the router handles the result **THEN** the router **MUST** halt the run.
 
-A re-plan counts against the step budget and uses one of the `maxFixLoops`. A `REJECTED` review after a fix keeps today's path, which is another fix. Plan review follows a re-plan like any other plan.
+A re-plan counts against the step budget and uses one of the `maxFixLoops`. A `REJECTED` review after a fix keeps today's path, which is another fix. Plan review follows a re-plan like any other plan. Order: the failure re-plan fires at exactly two trailing implement failures and costs nothing from the pool, so when those failures left rows ticked without a commit it takes the turn of the one `implement-retry`, and a failed re-plan then halts the run in a case where the retry would have fitted. This follows the plan and is recorded, not changed.
 
 ### Manual verification
 
@@ -357,7 +357,7 @@ An attempt with zero ticks is `done`. A failed attempt is a neutral fallback ent
 
 ### Budget
 
-`rigor.budgetDelta` becomes -4 (`lean`, unchanged), +2 and +7, so the budgets are 10, 16 and 21. The delta is the smallest at which the longest legal path of each level completes with one failed step and its retry to spare. A test lets the router walk saturating fixtures at each level and asserts `longest path === maxTotalSteps + delta - 2`; a second walk with every pool allowance raised by one must exceed it, so a policy that raises a pool without raising the delta fails the first test.
+`rigor.budgetDelta` becomes -4 (`lean`, the same value as before), +2 and +7, so the budgets are 10, 16 and 21. The delta is the smallest at which the longest legal path of each level completes with one failed step and its retry to spare. A test lets the router walk saturating fixtures at each level and asserts `longest path === maxTotalSteps + delta - 2`; a second walk with every pool allowance raised by one must exceed it, so a policy that raises a pool without raising the delta fails the first test.
 
 | Level | Longest legal path (executed steps) | Steps | Budget |
 | --- | --- | --- | --- |
@@ -366,7 +366,7 @@ An attempt with zero ticks is `done`. A failed attempt is a neutral fallback ent
 | `standard` | plan loop of 6, implement, impl-review (`REJECTED`), `plan-rejected`, plan-review, implement, impl-review, fix, impl-review | 14 | 16 |
 | `thorough` | research, domain brief, frame, plan, review `RETHINK`, frame-rethink, plan-revise, review, plan-revise, review (10), `implement-segment`, `implement-e2e`, `implement-tdd`, plain tail (4), then 5 | 19 | 21 |
 | `thorough` | the same 10, implement, `manual-verify`, impl-review (`REJECTED`), `plan-rejected`, plan-review, implement, impl-review, fix, impl-review | 19 | 21 |
-| `lean` | unchanged: the pool is empty, so no extra step exists | as before | 10 |
+| `lean` | keeps its path and budget until a failure raises the rigor to `standard`: while the level is `lean` the pool is empty, so no extra step exists; after the rise the `standard` rows apply | as before | 10 |
 
 Failure paths are not part of the reference set. A path with a failed plan loop, two failed implement steps and a re-plan still ends in `Step budget spent` by design, as it did before. One failure path is proved to fit at `standard`: plan, plan-review, implement failed twice, `plan-replan`, plan-review, implement, `manual-verify`, impl-review, fix, impl-review (11 steps of 16).
 
@@ -388,7 +388,7 @@ Decided without a human. Each is overridable in `context/foundation/agent-smith-
 | 4 | The strict commit check covers `implement-tdd`, `implement-e2e` and the retry; plain `implement` and `implement-segment` keep the count rule. | Medium: a commit check on goal-implement plus a policy escape. |
 | 5 | Commit evidence is a commit in `before.head..HEAD` that touched a path outside the change folder and the exclude globs; an amend or a rewriting hook reads as a failure and goes through the retry. | Low: one function. |
 | 6 | The re-plan triggers at two trailing implement failures or at a first `REJECTED` review, shares one cap, costs a fix loop and a halt follows a failed `plan-replan`. | Low: data (`codeReplan`). |
-| 7 | E2E has no rigor gate but needs pool allowance, so `lean` runs no executor; tdd is gated at `thorough`. | Low: data. |
+| 7 | E2E has no rigor gate but needs pool allowance, so a run that stays at `lean` runs no executor (one that rises to `standard` gets the pool from then on); tdd is gated at `thorough`. | Low: data. |
 | 8 | One pool replaces a cap per feature; a segment the pool cannot follow with its special executor is not started. | Low: data; a larger pool needs a larger delta, which the test derives. |
 | 9 | The deltas are +2 and +7. | Low: data. |
 | 10 | A fallback entry neither counts nor ends a failure streak. | Low: one helper. |
