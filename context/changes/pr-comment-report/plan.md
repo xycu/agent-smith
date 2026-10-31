@@ -426,12 +426,12 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [ ] 1.1 Phase 1 tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
-- [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 1.3 The script imports only `node:` built-ins
-- [ ] 1.4 No Node 19+ API in the new files
-- [ ] 1.5 Router and policy untouched
-- [ ] 1.6 Usage error exits 2
+- [x] 1.1 Phase 1 tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 1.3 The script imports only `node:` built-ins
+- [x] 1.4 No Node 19+ API in the new files
+- [x] 1.5 Router and policy untouched
+- [x] 1.6 Usage error exits 2
 
 #### Manual
 

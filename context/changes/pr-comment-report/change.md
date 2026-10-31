@@ -1,7 +1,7 @@
 ---
 change_id: pr-comment-report
 title: Post the final run report as a pull request comment
-status: plan_reviewed
+status: implementing
 created: 2026-10-31
 updated: 2026-10-31
 archived_at: null
