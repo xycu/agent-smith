@@ -75,6 +75,9 @@
     "maxPlanRevisions": 2,
     "maxFixLoops": 2
   },
+  "compare": {
+    "targetDropPercent": null
+  },
   "archive": {
     "commitMessage": "chore({id}): commit change folder before archive",
     "gitTimeoutMs": 120000,
