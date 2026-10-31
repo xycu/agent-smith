@@ -695,17 +695,7 @@ function decide(p, fullLog, policy, meta, ctx) {
   const needsReplan =
     pr.verdict === "RETHINK" ||
     (pr.verdict === "REVISE" && (pr.critical > 0 || pr.warnings > policy.review.reviseToleranceWarnings));
-  if (needsReplan && plan.autoDone === 0) {
-    const revisions = log.filter((e) => e.template === "plan-revise").length;
-    if (revisions >= L.maxPlanRevisions) return { halt: `Plan still ${pr.verdict} after ${revisions} revisions. Needs a human.` };
-    return {
-      step: "plan",
-      template: "plan-revise",
-      verdict: pr.verdict,
-      bump: pr.verdict === "RETHINK" ? E.rethinkBump : E.reviseBump,
-      reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings)`,
-    };
-  }
+  if (needsReplan && plan.autoDone === 0) return replanNext(log, pr, policy, ctx.level);
 
   if (plan.autoPending > 0) {
     let bump = 0;
@@ -938,6 +928,64 @@ function preplanNext(p, fullLog, policy, meta, ctx) {
     return { step, template, bump: 0, reason: `${lead} runs (${hits.length ? hits.join("; ") : `gate open, template ${template}`})` };
   }
   return null;
+}
+
+// The re-plan branch of decide(): plan review said RETHINK, or REVISE with findings to fix, and no code ran yet.
+// `log` holds executed entries. Below preplan.loops.minRigor (or with a malformed level) the loops are closed and
+// only the last branch applies, which is the behaviour from before the loops existed. Non-integer loop values
+// disable that loop. Revisions count every plan-revise entry, failed ones included: a failed re-plan leaves the
+// review fresh and spends one revision.
+function replanNext(log, pr, policy, level) {
+  const E = policy.escalation;
+  const L = policy.limits;
+  const loops = isObject(policy.preplan?.loops) ? policy.preplan.loops : {};
+  const levels = rigorLevels(policy);
+  const open = levels.indexOf(level) >= 0 && levels.indexOf(loops.minRigor) >= 0 && levels.indexOf(level) >= levels.indexOf(loops.minRigor);
+  const posInt = (v) => Number.isInteger(v) && v > 0;
+  const okFrames = log.filter((e) => e.template === "frame-rethink" && e.ok);
+  const revisions = log.filter((e) => e.template === "plan-revise").length;
+
+  // (a) A second RETHINK after the frame round and a good re-plan needs a human.
+  if (open && pr.verdict === "RETHINK" && posInt(loops.rethinkToFrame) && okFrames.length >= loops.rethinkToFrame) {
+    const lastFrame = log.lastIndexOf(okFrames[okFrames.length - 1]);
+    if (log.some((e, i) => i > lastFrame && e.template === "plan-revise" && e.ok)) {
+      return { halt: "Plan review said RETHINK again after frame and re-plan. Needs a human." };
+    }
+  }
+  // (b) The revision cap, as before.
+  if (revisions >= L.maxPlanRevisions) return { halt: `Plan still ${pr.verdict} after ${revisions} revisions. Needs a human.` };
+  // (c) RETHINK: one frame round before the re-plan. A failed frame-rethink has no ok, so it is retried here.
+  if (open && pr.verdict === "RETHINK" && posInt(loops.rethinkToFrame) && okFrames.length < loops.rethinkToFrame) {
+    return {
+      step: "frame",
+      template: "frame-rethink",
+      verdict: pr.verdict,
+      bump: 0,
+      reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings): frame round before the re-plan`,
+    };
+  }
+  // (d) A REVISE that needs a re-plan after earlier REVISE re-plans: one research round first.
+  if (open && pr.verdict === "REVISE" && posInt(loops.reviseResearchAfter) && posInt(loops.reviseResearchMax)) {
+    const revised = log.filter((e) => e.template === "plan-revise" && e.ok && e.verdict === "REVISE").length;
+    const researched = log.filter((e) => e.template === "research-revise" && e.ok).length;
+    if (revised >= loops.reviseResearchAfter && researched < loops.reviseResearchMax) {
+      return {
+        step: "research",
+        template: "research-revise",
+        verdict: pr.verdict,
+        bump: 0,
+        reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings) after ${revised} REVISE re-plan(s): research round before the re-plan`,
+      };
+    }
+  }
+  // (e) Otherwise the re-plan, as before.
+  return {
+    step: "plan",
+    template: "plan-revise",
+    verdict: pr.verdict,
+    bump: pr.verdict === "RETHINK" ? E.rethinkBump : E.reviseBump,
+    reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings)`,
+  };
 }
 
 // A change is simple when the plan stays small and nothing has failed yet.
