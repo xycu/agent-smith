@@ -2,7 +2,7 @@
 // Posts the final run report of a change as one comment on the open pull request of the current branch.
 // Opt-in: the orchestrator runs it only for a run started with --pr-comment. The router never calls it.
 // Prints exactly one JSON object and exits 0 for every runtime outcome; exit 2 is for usage errors only.
-// Plain node: built-ins only. Node 18 safe.
+// Plain node: built-ins only.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

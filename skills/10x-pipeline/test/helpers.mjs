@@ -1,5 +1,5 @@
 // Shared test helpers: scratch projects, the router CLI, run.jsonl fixtures and a hermetic git environment.
-// Plain node: built-ins only. Node 18 safe (see the ban list in the rigor-levels plan, Phase 2).
+// Plain node: built-ins only.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

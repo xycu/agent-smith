@@ -23,7 +23,7 @@ Requirements in the target project:
 
 - The 10x toolkit skills: `10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`.
 - A change folder made with `/10x-new <change-id>`.
-- Node.js 18 or later. Churn risk also reads `git` history; without it the router flags no hot path. `--archive` needs a git work tree and the `10x-archive` skill.
+- Node.js 24 or later (ADR-006). Claude Code does not guarantee a `node` on PATH (a native install is a single binary), so install it yourself. Churn risk also reads `git` history; without it the router flags no hot path. `--archive` needs a git work tree and the `10x-archive` skill.
 - The `10x-research` and `10x-frame` skills are used when a pre-plan gate opens or when a `thorough` run loops (see "Pre-plan steps"). A step whose skill is missing fails three times and halts the run. A run that stays at `standard` or `lean` runs no such step and needs neither skill.
 
 How routing works:
