@@ -641,6 +641,43 @@ test("domain brief skipped with no signal", () => {
   }
 });
 
+test("briefExists and the frame authority line follow the policy, not fixed names", () => {
+  // A project renames the brief template and its artifact; the skip must follow, not the two shipped names.
+  const policyOverride = {
+    preplan: {
+      gates: { "domain-brief": { variants: [{ when: "dependencyLeak", template: "acl-custom" }] } },
+      artifacts: { "acl-custom": "custom-acl-brief.md", frame: "reframe.md" },
+    },
+    prompts: { "acl-custom": "Write the custom brief for {id}" },
+  };
+  const open = makeProject({ policy: policyOverride });
+  put(open, "research.md", RESEARCH);
+  const a = start(open, "Put an adapter around the vendor sdk");
+  assert.equal(a.step, "domain-brief");
+  assert.equal(a.template, "acl-custom");
+
+  const done = makeProject({ policy: policyOverride });
+  put(done, "research.md", RESEARCH);
+  put(done, "custom-acl-brief.md", BRIEF);
+  const b = start(done, "Put an adapter around the vendor sdk");
+  assert.equal(b.step, "plan");
+  assert.match(b.skips.find((s) => s.step === "domain-brief").reason, /briefExists: custom-acl-brief\.md exists/);
+  // The plan prompt lists the renamed brief.
+  assert.match(b.res.json.prompt, /context\/changes\/demo\/custom-acl-brief\.md/);
+
+  // The authority line follows the renamed frame artifact: reframe.md triggers it, frame.md does not.
+  const renamed = replanProject();
+  fs.mkdirSync(path.join(renamed.root, "context/foundation"), { recursive: true });
+  fs.writeFileSync(path.join(renamed.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(policyOverride));
+  touch(renamed, "frame.md");
+  assert.ok(!withoutSuffix(init(renamed, "fix typo", ["--rigor", "standard"]).json.prompt).includes("authoritative"));
+  const named = replanProject();
+  fs.mkdirSync(path.join(named.root, "context/foundation"), { recursive: true });
+  fs.writeFileSync(path.join(named.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(policyOverride));
+  touch(named, "reframe.md");
+  assert.ok(withoutSuffix(init(named, "fix typo", ["--rigor", "standard"]).json.prompt).includes("authoritative"));
+});
+
 // ---- frame ----------------------------------------------------------------------------
 
 test("framing doubt by cause-shaped goal", () => {
