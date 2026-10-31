@@ -188,6 +188,10 @@
       "Run /10x-e2e {id} phase {phase}",
       "@prompts/executor-e2e.md"
     ],
+    "implement-tdd": [
+      "Run /10x-tdd {id} phase {phase}",
+      "@prompts/executor-tdd.md"
+    ],
     "implement-retry": [
       "Run /10x-goal-implement {id} phase {phase}",
       "@prompts/executor-retry.md"
@@ -207,6 +211,15 @@
       "minRigor": "lean",
       "setup": { "file": "context/foundation/test-stack.md", "section": "## E2E", "fields": ["config", "seed"] },
       "rowWords": ["playwright", "e2e", "end-to-end", "browser"]
+    },
+    "tdd": {
+      "template": "implement-tdd",
+      "skill": "10x-tdd",
+      "minRigor": "thorough",
+      "codeExtensions": [".mjs", ".js", ".ts", ".tsx", ".py", ".go", ".rs"],
+      "excludeGlobs": ["context/**", "docs/**", "**/*.lock", "package-lock.json", "pnpm-lock.yaml", "assets/**", "**/*.md", "**/*.json", "**/*.yml", "**/*.yaml", ".github/**", ".claude/**"],
+      "testWords": ["test", "vitest", "jest", "pytest"],
+      "uiWords": ["page", "screen", "click", "css", "visual", "playwright", "e2e", "end-to-end", "browser"]
     }
   },
   "extraSteps": {

@@ -736,7 +736,7 @@ function decide(p, fullLog, policy, meta, ctx) {
       bump -= E.cleanReviewDrop; why.push("clean plan review");
     }
     if (reopen.length) return retryNext(plan, reopen, policy, { bump, why });
-    return executorNext(plan, log, policy, ctx, { bump, why }) ?? { step: "implement", bump, reason: why.join(", ") };
+    return executorNext(plan, log, policy, ctx, { bump, why }, p.plan) ?? { step: "implement", bump, reason: why.join(", ") };
   }
 
   // All automated rows done. Review is stale if code moved after the last review.
@@ -1169,21 +1169,67 @@ function e2eWanted(ph, log, policy, level, setup) {
   return goalPhrase(text, cfg.rowWords) !== null;
 }
 
+// Paths named on the **File**: and **Files**: lines of each descriptive `## Phase N:` or `## Faza N:` block of the plan,
+// as a Map from phase number to the sorted paths (backtick tokens, else comma-split text, normalized like planPaths).
+function phaseFiles(planFile) {
+  const found = new Map();
+  let phase = null;
+  for (const line of readText(planFile).split("\n")) {
+    const h = line.match(/^## (?:Phase|Faza) (\d+)/);
+    if (h) { phase = Number(h[1]); if (!found.has(phase)) found.set(phase, new Set()); continue; }
+    if (/^## /.test(line)) { phase = null; continue; }
+    const m = phase === null ? null : line.match(/^\*\*Files?\*\*:(.*)$/);
+    if (!m) continue;
+    const quoted = [...m[1].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
+    for (const raw of quoted.length ? quoted : m[1].split(",")) {
+      const token = normalizePlanPath(raw);
+      if (token) found.get(phase).add(token);
+    }
+  }
+  return new Map([...found].map(([n, set]) => [n, [...set].sort()]));
+}
+
+const wordList = (v) => (Array.isArray(v) ? v.filter((w) => typeof w === "string" && w) : []);
+
+// Does a pending phase want the tdd executor? Conservative and deterministic: the rigor gate is open, no earlier tdd
+// attempt for the phase failed or handed back, no Automated row is done yet (the skill stops when the implementation
+// exists), the phase names files and every one is code outside the exclude globs, and every pending Automated row
+// names a test command in backticks and no UI word. `files` are the paths of the phase block.
+function pureLogicPhase(ph, files, log, policy, level) {
+  const cfg = policy.executors?.tdd;
+  if (!isObject(cfg) || typeof cfg.template !== "string") return false;
+  const levels = rigorLevels(policy);
+  if (levels.indexOf(level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(level) < levels.indexOf(cfg.minRigor)) return false;
+  if (executorExcluded(log, ph.n, "tdd") || ph.auto.some((r) => r.done) || !ph.auto.length) return false;
+  const extensions = wordList(cfg.codeExtensions).map((x) => x.toLowerCase());
+  const excluded = wordList(cfg.excludeGlobs).map(globToRegex);
+  if (!files.length || !files.every((f) => extensions.includes(path.posix.extname(f).toLowerCase()) && !excluded.some((re) => re.test(f)))) return false;
+  const testWords = wordList(cfg.testWords).map((w) => w.toLowerCase());
+  return ph.auto.every((r) => {
+    const spans = [...r.text.matchAll(/`([^`]+)`/g)].map((x) => x[1].toLowerCase());
+    return spans.some((s) => testWords.some((w) => s.includes(w))) && goalPhrase(r.text, cfg.uiWords) === null;
+  });
+}
+
 // The implement step for the first pending phase, or null: the caller then returns the plain step. `note` is what the
 // implement branch computed: { bump, why }. The pool must pay for the whole route, so a run never starts a goal segment
-// it cannot follow with the executor that justified it.
-function executorNext(plan, log, policy, ctx, note) {
-  const cfg = policy.executors?.e2e;
+// it cannot follow with the executor that justified it. e2e wins over tdd for a phase that fits both.
+function executorNext(plan, log, policy, ctx, note, planFile) {
   const pending = plan.phaseList.filter((ph) => ph.auto.some((r) => !r.done));
-  if (!pending.length || !isObject(cfg) || typeof cfg.template !== "string" || extraAllowance(policy, ctx.level) <= 0) return null;
+  if (!pending.length || extraAllowance(policy, ctx.level) <= 0) return null;
   const setup = predicate("e2eSetup", { policy });
-  const choice = pending.map((ph) => (e2eWanted(ph, log, policy, ctx.level, setup) ? "e2e" : "goal"));
-  const special = choice.indexOf("e2e");
+  const files = isObject(policy.executors?.tdd) ? phaseFiles(planFile) : new Map();
+  const choice = pending.map((ph) => {
+    if (e2eWanted(ph, log, policy, ctx.level, setup)) return "e2e";
+    return pureLogicPhase(ph, files.get(ph.n) ?? [], log, policy, ctx.level) ? "tdd" : "goal";
+  });
+  const special = choice.findIndex((c) => c !== "goal");
   const segment = policy.executors?.segment?.template;
   if (special < 0 || (special > 0 && typeof segment !== "string")) return null;
-  const needed = (special > 0 ? extraCost(policy, segment) : 0) + extraCost(policy, cfg.template);
+  const needed = (special > 0 ? extraCost(policy, segment) : 0) + extraCost(policy, policy.executors[choice[special]].template);
   if (extrasLeft(log, policy, ctx.level) < needed) return null;
   const executor = choice[0];
+  const cfg = executor === "goal" ? null : policy.executors[executor];
   let last = 0;
   while (last + 1 < pending.length && choice[last + 1] === executor) last++;
   const phase = pending[0].n;
@@ -1191,14 +1237,14 @@ function executorNext(plan, log, policy, ctx, note) {
   const span = lastPhase > phase ? `phases ${phase}-${lastPhase}` : `phase ${phase}`;
   return {
     step: "implement",
-    template: executor === "e2e" ? cfg.template : segment,
+    template: cfg ? cfg.template : segment,
     phase,
     lastPhase,
     executor,
-    skill: executor === "e2e" && typeof cfg.skill === "string" ? cfg.skill : undefined,
-    interactive: executor === "e2e",
+    skill: cfg && typeof cfg.skill === "string" ? cfg.skill : undefined,
+    interactive: executor !== "goal",
     bump: note.bump,
-    reason: `${note.why.join(", ")}; ${executor === "e2e" ? "e2e" : "goal-implement segment"} for ${span}`,
+    reason: `${note.why.join(", ")}; ${executor === "goal" ? "goal-implement segment" : executor} for ${span}`,
   };
 }
 

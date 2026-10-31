@@ -620,6 +620,8 @@ Written during implementation (unattended). Row titles are not changed; where a 
 - **Phase 2, pool arithmetic**: `extraCost` is 0 for a template without a positive integer cost, and `executorNext` also needs a positive allowance, so a non-positive allowance turns the executors off even when a cost is 0. The pool must cover the whole route: one cost when the first pending phase is special, the goal segment plus the e2e cost when a goal segment must precede it.
 - **Phase 2, e2e prompt wording**: `/10x-e2e` has no option labelled "stop here". Its next-phase question offers Continue, Start a fresh session first and Review this phase first, so `executor-e2e.md` names "Start a fresh session first" as the example of the option that stops, and forbids the clipboard step. The skill's own label is "Skip — already done" (em dash); the prompt writes "Skip - already done" as the plan does and forbids the option by that name.
 - **Phase 2, retry fallback**: a retry that ends `done` or `blocked` with rows still ticked and no commit records those rows as `uncommitted` on its own entry too, so `unprovenTicks` keeps them and the `done` output lists them once. Test "retry once then warn" shows the neutral fallback does not raise rigor and a `failed` retry does (the third failure of the seeded log gives `thorough`).
+- **Phase 3, executorNext signature**: `executorNext` takes the plan file path as a sixth argument (`p.plan`, one token added to the call in `decide()`), because `phaseFiles` reads the descriptive `## Phase N:` blocks, which `readPlan` does not keep. The tdd file list is read only when `executors.tdd` is a policy object; `pureLogicPhase` checks the rigor gate first. `executors.tdd.uiWords` lists the e2e `rowWords` inline (data, not a reference), and `excludeGlobs` also lists `**/*.json`, `**/*.yml`, `**/*.yaml`, `.github/**` and `.claude/**` beside the churn-exclude shape. The test "e2e wins over tdd" loosens `uiWords` through the override file, because under the shipped lists a phase with an e2e row word always carries a tdd UI word and the two predicates never both hold.
+- **Phase 3, tdd prompt**: `/10x-tdd` has no "stop here" label either. Its next-phase question offers Continue, Clear context first and Review this phase first, so `executor-tdd.md` names "Clear context first" as the example of the option that stops, and its redirect rule covers the existing-implementation stop, a missing test runner and the not-TDD-able question.
 - **Gate rows in the agent harness**: the harness of the unattended run refuses compound shell commands that name git, so the git gate rows (1.11 and the later `merge-base` gates) were run from a saved script that holds the exact command text. The command in the row is unchanged.
 
 ## References
@@ -692,17 +694,17 @@ Written during implementation (unattended). Row titles are not changed; where a 
 
 #### Automated
 
-- [ ] 3.1 `phaseFiles` reads `**File**` and `**Files**` lines per phase, English and Polish headings: `node --test --test-name-pattern "phase files reader" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.2 A pure-logic phase at thorough routes to `implement-tdd`: `node --test --test-name-pattern "tdd phase at thorough" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.3 The same plan at standard and lean stays on goal-implement: `node --test --test-name-pattern "tdd gated by rigor" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.4 Each predicate condition alone blocks tdd (a doc path, a config glob, a ticked row, a UI word, a row with no test command): `node --test --test-name-pattern "tdd predicate rejects" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.5 A phase that satisfies both predicates goes to e2e: `node --test --test-name-pattern "e2e wins over tdd" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.6 A blocked tdd entry falls back to goal-implement with no tier bump and no `needsHuman`: `node --test --test-name-pattern "tdd blocked falls back" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.7 The rendered tdd prompt names the stop phase, forbids Skip and ends `blocked` on a redirect: `node --test --test-name-pattern "tdd prompt rules" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.8 Prompt rule form and wiring tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 3.9 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 3.11 The log entry of a tdd step names the skill `10x-tdd`: `node --test --test-name-pattern "tdd entry skill" skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.12 Every `--test-name-pattern` gate row of Phase 3 names a test title that exists: `node -e 'import("./skills/10x-pipeline/test/phase-helpers.mjs").then((m) => process.exit(m.gateCheck("context/changes/phase-executors/plan.md", 3)))'`
+- [x] 3.1 `phaseFiles` reads `**File**` and `**Files**` lines per phase, English and Polish headings: `node --test --test-name-pattern "phase files reader" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.2 A pure-logic phase at thorough routes to `implement-tdd`: `node --test --test-name-pattern "tdd phase at thorough" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.3 The same plan at standard and lean stays on goal-implement: `node --test --test-name-pattern "tdd gated by rigor" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.4 Each predicate condition alone blocks tdd (a doc path, a config glob, a ticked row, a UI word, a row with no test command): `node --test --test-name-pattern "tdd predicate rejects" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.5 A phase that satisfies both predicates goes to e2e: `node --test --test-name-pattern "e2e wins over tdd" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.6 A blocked tdd entry falls back to goal-implement with no tier bump and no `needsHuman`: `node --test --test-name-pattern "tdd blocked falls back" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.7 The rendered tdd prompt names the stop phase, forbids Skip and ends `blocked` on a redirect: `node --test --test-name-pattern "tdd prompt rules" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.8 Prompt rule form and wiring tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 3.9 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.11 The log entry of a tdd step names the skill `10x-tdd`: `node --test --test-name-pattern "tdd entry skill" skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.12 Every `--test-name-pattern` gate row of Phase 3 names a test title that exists: `node -e 'import("./skills/10x-pipeline/test/phase-helpers.mjs").then((m) => process.exit(m.gateCheck("context/changes/phase-executors/plan.md", 3)))'`
 
 #### Manual
 

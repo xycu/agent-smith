@@ -1,4 +1,4 @@
-// phase-executors, phases 1 and 2: commit verification, neutral fallback, executor routing, segments and the retry.
+// phase-executors, phases 1 to 3: commit verification, neutral fallback, executor routing (e2e, tdd), segments and the retry.
 // Black-box through the CLI in scratch projects. Test titles are string literals: the gate rows of the plan check them.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
@@ -754,6 +754,190 @@ test("uncommitted ticks reach outputs", { skip: noGit }, () => {
   assert.doesNotMatch(readReportFile(clean), /Ticked without a commit/);
 });
 
+// ---- phase 3: tdd ------------------------------------------------------------
+
+const TDD_FILES = ["`src/parser.mjs`"];
+const tddPhase = (name = "Parser", files = TDD_FILES, auto = [GOAL_ROW, `${GOAL_ROW} again`]) => ({ name, files, auto });
+const GOAL_ONLY = { name: "Writer", auto: [GOAL_ROW, `${GOAL_ROW} again`] };
+
+// The prompt of the first step for `specs` at `rigor`, and the entry it logged.
+function firstStep(specs, { rigor = "thorough", setup = false, policy = null } = {}) {
+  const project = e2eProject({ specs, setup, policy });
+  const res = start(project, rigor, "Parse blank lines").json;
+  return { project, res, e: lastEntry(project) };
+}
+
+test("phase files reader", () => {
+  const route = (planText) => {
+    const project = e2eProject({ specs: [tddPhase()], setup: false });
+    writePlan(project, planText);
+    start(project, "thorough", "Parse blank lines");
+    return lastEntry(project).template;
+  };
+  const base = buildPlan([tddPhase()]);
+  assert.equal(route(base), "implement-tdd");
+  // A Polish heading, a **Files** line with comma-separated plain paths and a trailing note or :line are read.
+  assert.equal(route(base.replace(/^## Phase 1/m, "## Faza 1")), "implement-tdd");
+  assert.equal(route(base.replace("**File**: `src/parser.mjs`", "**Files**: src/parser.mjs, src/util.mjs")), "implement-tdd");
+  assert.equal(route(base.replace("**File**: `src/parser.mjs`", "**Files**: `src/parser.mjs` (new), `src/util.mjs:12-20`")), "implement-tdd");
+  // One doc path among the files blocks the phase, whatever form the line has.
+  assert.equal(route(base.replace("**File**: `src/parser.mjs`", "**Files**: src/parser.mjs, docs/notes.mjs")), "implement");
+  // A file line outside a phase block, or after the Progress heading, is not read: the phase names no file.
+  const stray = base.replace("**File**: `src/parser.mjs`\n", "").replace("# Plan\n", "# Plan\n\n**File**: `src/parser.mjs`\n");
+  assert.equal(route(stray), "implement");
+  // The files of one phase do not leak into the next: phase 1 has no file line, so the goal segment runs first.
+  const two = buildPlan([{ name: "Writer", auto: [GOAL_ROW] }, tddPhase("Parser")]);
+  assert.equal(route(two), "implement-segment");
+});
+
+test("tdd phase at thorough", () => {
+  const { res, e } = firstStep([tddPhase()]);
+  assert.ok(res.prompt.startsWith("Run /10x-tdd demo phase 1\n"), res.prompt);
+  assert.doesNotMatch(res.prompt, /\{(id|phase|lastPhase|retry|uncommitted)\}/);
+  assert.match(res.prompt, /after phase 1 /);
+  assert.equal(res.step, "implement");
+  assert.deepEqual([e.template, e.executor, e.phase, e.lastPhase], ["implement-tdd", "tdd", 1, 1]);
+  assert.ok(["high", "xhigh", "max"].includes(res.effort), res.effort);
+  assert.match(e.tierWhy, /floor high/);
+  // The entry records head and done for the commit check.
+  assert.deepEqual(Object.keys(e.before).sort(), ["autoDone", "done", "head"]);
+
+  // Two pure-logic phases in a row form one tdd segment that stops after the last one.
+  const two = firstStep([tddPhase(), tddPhase("Printer", ["`src/printer.mjs`"])]);
+  assert.ok(two.res.prompt.startsWith("Run /10x-tdd demo phase 1\n"));
+  assert.match(two.res.prompt, /after phase 2 /);
+  assert.equal(two.e.lastPhase, 2);
+
+  // A goal phase after the tdd phase is left to the plain step: the tdd segment ends before it.
+  const mixed = firstStep([tddPhase(), GOAL_ONLY]);
+  assert.equal(mixed.e.template, "implement-tdd");
+  assert.equal(mixed.e.lastPhase, 1);
+  // Goal, then tdd: a goal segment first, then the tdd step (the pool of 3 pays for both).
+  const specs = [GOAL_ONLY, tddPhase()];
+  const goalFirst = firstStep(specs);
+  assert.equal(goalFirst.e.template, "implement-segment");
+  assert.equal(goalFirst.e.lastPhase, 1);
+  const second = advance(goalFirst.project, specs, [1]).json;
+  assert.ok(second.prompt.startsWith("Run /10x-tdd demo phase 2\n"), second.prompt);
+});
+
+test("tdd gated by rigor", () => {
+  for (const rigor of ["standard", "lean"]) {
+    const { res, e } = firstStep([tddPhase()], { rigor });
+    assert.equal(res.prompt, PLAIN_IMPLEMENT, rigor);
+    assert.equal(e.template, "implement", rigor);
+  }
+  // The gate is data: a project that lowers minRigor gets tdd at standard.
+  const lowered = firstStep([tddPhase()], { rigor: "standard", policy: { executors: { tdd: { minRigor: "standard" } } } });
+  assert.equal(lowered.e.template, "implement-tdd");
+  // A pool of 0 keeps tdd off even at thorough.
+  const dry = firstStep([tddPhase()], { policy: { extraSteps: { allowance: { thorough: 0 } } } });
+  assert.equal(dry.res.prompt, PLAIN_IMPLEMENT);
+});
+
+test("tdd predicate rejects", () => {
+  assert.equal(firstStep([tddPhase()]).e.template, "implement-tdd");
+  const plain = (what, spec, policy = null) => {
+    const { res, e } = firstStep([spec], { policy });
+    assert.equal(res.prompt, PLAIN_IMPLEMENT, what);
+    assert.equal(e.template, "implement", what);
+  };
+  plain("a doc path", tddPhase("Parser", ["`docs/guide.md`"]));
+  plain("a path that is not code", tddPhase("Parser", ["`src/notes.txt`"]));
+  plain("a directory", tddPhase("Parser", ["`src/`"]));
+  plain("a config glob", tddPhase("Parser", ["`.github/scripts/ci.mjs`"]));
+  plain("a code path next to a doc path", tddPhase("Parser", ["`src/parser.mjs`", "`README.md`"]));
+  plain("no file line", { name: "Parser", auto: [GOAL_ROW, `${GOAL_ROW} again`] });
+  plain("a UI word", tddPhase("Parser", TDD_FILES, ["Page renders the list: `node --test test/page.test.mjs`"]));
+  plain("a browser word", tddPhase("Parser", TDD_FILES, [GOAL_ROW, "Opens it in the browser: `node --test test/open.test.mjs`"]));
+  plain("a row with no test command", tddPhase("Parser", TDD_FILES, [GOAL_ROW, "Parser is documented: `node scripts/check.mjs`"]));
+  plain("a test word outside backticks", tddPhase("Parser", TDD_FILES, [GOAL_ROW, "Run the test suite once"]));
+  // A done row: the implementation may exist already, so the skill would stop.
+  const ticked = e2eProject({ specs: [tddPhase()], setup: false });
+  writePlan(ticked, buildPlan([{ ...tddPhase(), auto: [{ text: GOAL_ROW, done: true }, `${GOAL_ROW} again`] }]));
+  const res = start(ticked, "thorough", "Parse blank lines").json;
+  assert.equal(res.prompt, PLAIN_IMPLEMENT);
+  assert.equal(lastEntry(ticked).template, "implement");
+  // The word lists are data: an empty test word list turns the predicate off.
+  plain("no test words", tddPhase(), { executors: { tdd: { testWords: [] } } });
+});
+
+test("e2e wins over tdd", () => {
+  // Under the shipped lists an e2e phase also carries a UI word, so loosen the UI list to make both predicates true.
+  const policy = { executors: { tdd: { uiWords: ["css"] } } };
+  const spec = { name: "Login flow", files: TDD_FILES, auto: [E2E_ROW, `${E2E_ROW} twice`] };
+  const both = firstStep([spec], { setup: true, policy });
+  assert.equal(both.e.template, "implement-e2e");
+  assert.equal(both.e.executor, "e2e");
+  assert.ok(both.res.prompt.startsWith("Run /10x-e2e demo phase 1\n"));
+  // Without the e2e setup the same phase goes to tdd.
+  const noSetup = firstStep([spec], { setup: false, policy });
+  assert.equal(noSetup.e.template, "implement-tdd");
+  // A tdd phase before an e2e phase: the segments differ, so the tdd step stops after phase 1.
+  const mixed = firstStep([tddPhase(), { name: "Login flow", auto: [E2E_ROW, `${E2E_ROW} twice`] }], { setup: true });
+  assert.equal(mixed.e.template, "implement-tdd");
+  assert.equal(mixed.e.lastPhase, 1);
+});
+
+test("tdd blocked falls back", () => {
+  const specs = [tddPhase()];
+  const { project } = firstStep(specs);
+  const level = readMetaFile(project).rigor.level;
+  const res = advance(project, specs, [], { status: "blocked", note: "not a fit for test-first" }).json;
+  const blocked = readLogEntries(project)[2];
+  assert.equal(blocked.template, "implement-tdd");
+  assert.equal(blocked.fallback, true);
+  assert.equal(blocked.ok, false);
+  // Not repeated for the phase: the plain step, no failure counted, no tier bump, rigor kept, no halt.
+  assert.equal(res.action, "run");
+  assert.equal(res.prompt, PLAIN_IMPLEMENT);
+  const e = lastEntry(project);
+  assert.equal(e.template, "implement");
+  assert.doesNotMatch(e.tierWhy, /failed attempt/);
+  assert.equal(readMetaFile(project).rigor.level, level);
+  const fresh = firstStep(specs, { policy: { extraSteps: { allowance: { thorough: 0 } } } });
+  assert.equal(e.tier, fresh.e.tier);
+
+  // A tdd step that ticks rows with no code commit is a failure, not a fallback, and is not repeated either.
+  const skip = e2eProject({ specs, setup: false, useGit: true });
+  start(skip, "thorough", "Parse blank lines");
+  const flipped = advance(skip, specs, [1]).json;
+  const failed = readLogEntries(skip)[2];
+  assert.equal(failed.ok, false);
+  assert.equal(failed.fallback, undefined);
+  assert.deepEqual(failed.uncommitted, ["1.1", "1.2"]);
+  assert.doesNotMatch(flipped.prompt, /^Run \/10x-tdd /);
+});
+
+test("tdd prompt rules", () => {
+  const { res } = firstStep([tddPhase(), tddPhase("Printer", ["`src/printer.mjs`"])]);
+  const { prompt } = res;
+  assert.match(prompt, /after phase 2 \*\*WHEN\*\*/);
+  assert.match(prompt, /\*\*GIVEN\*\* the skill offers "Skip - already done".*\*\*MUST NOT\*\* choose it/);
+  assert.match(prompt, /no test runner is set up.*redirect to \/10x-implement.*\*\*THEN\*\* you \*\*MUST\*\* stop, change nothing and finish with status `blocked`/);
+  assert.match(prompt, /never set `signals\.needsHuman`/);
+  assert.match(prompt, /manual confirmation gate.*treat it as confirmed.*leave every Manual row unticked/);
+  assert.match(prompt, /approve it as proposed/);
+  assert.match(prompt, /commit only the planned set/);
+  assert.match(prompt, /MUST NOT\*\* tick the row, because the router counts only rows backed by a code commit/);
+  assert.match(prompt, /MUST NOT\*\* run pbcopy/);
+  assert.match(prompt, /MUST NOT\*\* print a plain-text question/);
+  assert.deepEqual(POLICY.prompts["implement-tdd"], ["Run /10x-tdd {id} phase {phase}", "@prompts/executor-tdd.md"]);
+});
+
+test("tdd entry skill", () => {
+  const { e } = firstStep([tddPhase()]);
+  assert.equal(e.skill, "10x-tdd");
+  // The segment before it logs the goal skill; the tdd step after it the tdd skill.
+  const specs = [GOAL_ONLY, tddPhase()];
+  const { project, e: seg } = firstStep(specs);
+  assert.equal(seg.template, "implement-segment");
+  assert.equal(seg.skill, "10x-goal-implement");
+  advance(project, specs, [1]);
+  assert.equal(lastEntry(project).template, "implement-tdd");
+  assert.equal(lastEntry(project).skill, "10x-tdd");
+});
+
 // ---- gate check -------------------------------------------------------------
 
 // Runs the exact command line of the plan's gate rows against a plan file and returns the exit status.
@@ -798,7 +982,7 @@ test("gate check fails when nothing is checked", () => {
   // The plan of this change passes for the phases whose tests exist (skipped once the change folder is archived).
   const real = path.join(REPO, "context/changes/phase-executors/plan.md");
   if (fs.existsSync(real)) {
-    for (const phase of [1, 2]) {
+    for (const phase of [1, 2, 3]) {
       const res = gateRun(real, phase);
       assert.equal(res.status, 0, `phase ${phase}: ${res.stderr}`);
     }
