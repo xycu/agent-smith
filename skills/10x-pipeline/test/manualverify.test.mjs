@@ -214,6 +214,46 @@ test("evidence suffix required", () => {
   assert.deepEqual(both.ticked, ["1.2", "1.3"]);
 });
 
+test("mangled evidence suffix is unproven", () => {
+  // A ticked row whose evidence suffix the router cannot read must not vanish: it is a tick without valid evidence.
+  const mangled = {
+    "a hyphen for the dash": `${A} - evidence: evidence/out.txt`,
+    "two hyphens for the dash": `${A} -- evidence: evidence/out.txt`,
+    "an en dash for the dash": `${A} – evidence: evidence/out.txt`,
+    "no space after the dash": `${A} —evidence: evidence/out.txt`,
+    "no path": `${A} — evidence:`,
+    "an empty path": `${A} — evidence: `,
+    "a path with a space": `${A} — evidence: evidence/my out.txt`,
+  };
+  for (const [what, text] of Object.entries(mangled)) {
+    const project = verifying({ manual: [A] });
+    save(project, [{ text, done: true }]);
+    evidence(project, "out.txt");
+    const { e, res } = finish(project);
+    assert.equal(e.ok, false, what);
+    assert.equal(e.fallback, true, what);
+    assert.deepEqual(e.ticked, [], what);
+    assert.deepEqual(e.unproven, ["1.2"], what);
+    // The row is still ticked, so the retry is offered and its prompt names the row.
+    assert.equal(res.json.step, "manual-verify", what);
+    assert.match(res.json.prompt, /Rows rejected by the router last time: 1\.2/, what);
+  }
+  // Control: the exact suffix passes. A mangled row among a valid one lists only the mangled row.
+  const two = verifying({ manual: [A, B] });
+  save(two, [ticked(A), { text: `${B} - evidence: evidence/out.txt`, done: true }]);
+  evidence(two, "out.txt");
+  const mixed = finish(two).e;
+  assert.deepEqual(mixed.ticked, ["1.2"]);
+  assert.deepEqual(mixed.unproven, ["1.3"]);
+  assert.equal(mixed.ok, false);
+  // An unticked row with an edited title is not a tick: nothing to prove.
+  const unticked = verifying({ manual: [A] });
+  save(unticked, [{ text: `${A} - evidence: evidence/out.txt`, done: false }]);
+  const quiet = finish(unticked).e;
+  assert.deepEqual(quiet.unproven, []);
+  assert.equal(quiet.ok, false);
+});
+
 test("zero ticks is done", () => {
   const project = verifying();
   const { e, res } = finish(project);
