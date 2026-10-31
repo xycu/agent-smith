@@ -1,10 +1,10 @@
 ---
 change_id: pre-plan-steps
 title: Rigor-gated pre-plan steps and backward loops in the 10x pipeline
-status: impl_reviewed
+status: archived
 created: 2026-10-30
 updated: 2026-10-31
-archived_at: null
+archived_at: 2026-10-31T01:51:06Z
 ---
 
 ## Notes
