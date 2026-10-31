@@ -48,7 +48,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-04 | (merged into S-03)           | —                                                                                     | —             | —                                 | merged   |
 | S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | done     |
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
-| S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | in-progress |
+| S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | proposed |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
 | S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
 | S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | proposed |
@@ -170,7 +170,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
   - Which predicate decides that a domain rule is scattered or a dependency leaks? The research found a status column for invariants but no structured signal for leaking dependencies. — Owner: user. Block: no.
   - Does `/10x-frame` stay usable unattended with only a prompt-level decision guide, given its four ask points? — Owner: user. Block: no.
 - **Risk:** Frame and the legacy prompts were built for a human. A weak decision guide makes them guess, so the needs-human halt is the safety net.
-- **Status:** in-progress
+- **Status:** proposed
 
 ### S-08: Per-phase executors
 
