@@ -11,7 +11,7 @@ Roadmap S-06 (FR-009): let a user compare the total usage of a routed run with a
 - A 7-entry `sonnet/high` ladder in the override file makes every step run at `sonnet/high` (probed in the research on commit 54f1729). A ladder shorter than a step's `minTier` crashes `next` with `Cannot destructure property 'model'`. `rigor.minEffort` is `high` at `standard` and `thorough`, so the floor never leaves `sonnet/high` for a pinned ladder.
 - The rigor level decides whether plan review runs: a short goal starts at `lean` (`rigor.fromGoal.short`), and `rigor.skipPlanReviewAt` is `["lean"]` (`policy.json:53`). With the default policy a short goal such as "fix typo" gets `plan sonnet/medium` at `lean`; with the override below it gets `plan sonnet/high` at `standard` (probe in a scratch project, review-revision session). SKILL.md Start step 1 parses only `<change-id>`, the goal text and `--archive`; it does not parse `--rigor`, so a flag typed after the goal would stay in the goal text. The baseline therefore fixes the level in data (`rigor.fromGoal`, `rigor.skipPlanReviewAt`). `deepMerge` merges objects key by key and replaces arrays whole (`route.mjs:38-46`).
 - `risk` is the precedent for a read-only command (`riskCommand`, `route.mjs:1158-1163`). `main` takes `<cmd> <change-id>` for every command and dispatches with `else if (cmd === "...")` branches (`:1200-1259`).
-- Whether a real foreground Agent result reports usage is unconfirmed (`context/archive/2026-10-30-per-step-usage-report/real-run-evidence.md` was archived unfilled; roadmap Open Question 4). Every real pair depends on it, so it is checked first (Phase 1 Manual 1.7), not last.
+- Whether a real foreground Agent result reports usage is unconfirmed (`context/archive/2026-10-30-per-step-usage-report/real-run-evidence.md` was archived unfilled; roadmap Open Question 4). Every real pair depends on it, so it is checked first (Phase 1 Manual 1.7), not last. The check needs a live top-level session, which an unattended implementation does not have, so Phase 2 is gated by a `USAGE:` line in `real-run-evidence.md` (see "Phase 2 gate").
 - Archived `run.jsonl` (research gap G1) is resolved by code, not by a real run. The pre-archive commit holds `agent-smith/run.jsonl` (`archive.test.mjs:594`; a gitignored one is refused at `init` and at `done`, `route.mjs:1224-1226`). `/10x-archive` moves the whole folder with `git mv`, falling back to `mv` of the folder, and a scratch probe shows `git mv` carries a gitignored `run.jsonl` along. The ADR-003 sentence "`report.md` ... only router artifact that survives the move" says where the pending-Manual note must live for a reader of the archive; it does not say `run.jsonl` is deleted. Phase 2 row 2.10 proves it with a hermetic `git mv` test.
 
 ## Desired End State
@@ -20,7 +20,7 @@ Roadmap S-06 (FR-009): let a user compare the total usage of a routed run with a
 - `node skills/10x-pipeline/scripts/route.mjs compare <id> --baseline <dir> [--routed <dir>] [--format md]` prints, for one pair of runs: per-side totals and coverage, the baseline pin check, `comparable`, `reasons`, `warnings`, `dropPercent`, `targetDropPercent` and `verdict` (`target not set`, `met`, `not met`, `not comparable`). It writes nothing. Tokens are a proxy for the PRD's weekly-limit metric.
 - `policy.json` has `compare.targetDropPercent: null`. The README documents how to make the baseline checkout and how to read the output. ADR-005 records the method.
 - `compare.test.mjs` covers the cases in Testing Strategy and the full suite passes on Node 18.
-- Manual evidence exists for the real shape of a foreground Agent result (before Phase 2 starts) and for one real pair.
+- Manual evidence exists for the real shape of a foreground Agent result (the `USAGE:` line says `present` before Phase 2 starts) and for one real pair.
 
 ### Key Discoveries:
 
@@ -34,7 +34,7 @@ Roadmap S-06 (FR-009): let a user compare the total usage of a routed run with a
 ## What We're NOT Doing
 
 - No `init --baseline` flag, no `meta.baseline`, no change to `init`, `decide`, `tierFor`, `next`, `buildReport`, `finishRun`, `attachResult` or `archiveDirs`. S-07 changes `decide`, `next` and the skip cap; S-05 declares it touches neither `route.mjs` nor `policy.json`, but it shares README and AGENTS.md lines.
-- No new prompt (so `rules.test.mjs` is unaffected) and no change to `SKILL.md`: `compare` is not part of the orchestrator loop, and the baseline needs no `--rigor` flag.
+- No new prompt and no change to `SKILL.md`: `compare` is not part of the orchestrator loop, and the baseline needs no `--rigor` flag. The only edit to `rules.test.mjs` is the ADR file regex and test name (Phase 3, ADR-005), so that ADR-005 is checked against the ADR-004 rule form.
 - No success threshold value, no model weights, no significance test, no confidence interval, no pairs ledger or `aggregate` mode (owner questions O1 to O3).
 - No `--out` flag. The command only prints; a user redirects stdout. This makes "writes nothing" unconditional and removes the archive-path refusal logic.
 - No parsing of `report.md`. A folder without `run.jsonl` is a usage error.
@@ -47,7 +47,7 @@ Roadmap S-06 (FR-009): let a user compare the total usage of a routed run with a
 
 Option A from the research: the baseline arm is a shipped file; the comparison is one new command in its own block.
 
-1. Phase 1 ships the data (policy key, baseline file) and the tests that guard it, plus the usage-intake tests the comparison depends on, and ends with a one-step live spike that checks a real Agent result reports usage. If it does not, work stops before Phase 2 (see "If usage is absent").
+1. Phase 1 ships the data (policy key, baseline file) and the tests that guard it, plus the usage-intake tests the comparison depends on, and ends with a one-step live spike that checks a real Agent result reports usage. The spike is a human step: an unattended run therefore stops after Phase 1 until the owner sets the `USAGE:` line (see "Phase 2 gate"). If the answer is `absent`, work stays stopped (see "If usage is absent").
 2. Phase 2 adds `compareCommand` to `route.mjs` with JSON output and its test cases, including a `git mv` archive test and one case fed by a log the real router wrote.
 3. Phase 3 adds Markdown output, the docs, ADR-005 and the real-pair evidence row.
 
@@ -57,12 +57,28 @@ Edit discipline for the parallel changes (placement is exact; each edit is a new
 - `policy.json`: new `compare` block between `limits` and `archive`, not next to `prompts` (S-07 edits `steps`, `prompts` and a `preplan` block).
 - `README.md`: one block "Baseline comparison:" between the "Usage report:" bullets and "Limits:". S-05 adds its block after "Archive (opt-in)", a different hunk.
 - `AGENTS.md`: Commands gets one new bullet after the last bullet (`verify-archive` today; S-05 may add one there too, keep both). Project Structure gets one new `baseline-policy.json` bullet right after the `policy.json` bullet, the token `compare` in the `route.mjs` command list, `compare.test.mjs` in the test list, and `ADR-001 to ADR-004` becomes `ADR-001 to ADR-005` (on a conflict take the higher number).
-- `docs/ADR/ADR-005-baseline-usage-comparison.md`: new file. If a parallel change also claims number 005, renumber at merge.
+- `docs/ADR/ADR-005-baseline-usage-comparison.md`: new file. No sibling plan creates an ADR file today (S-05 and S-07 extend ADR-003), but a duplicate number would merge silently because the file names differ. So: (1) detection: before merging, run `ls docs/ADR/ADR-005-*` on the merged tree and expect exactly one file; a second hit is a collision (Phase 3 row 3.8 runs the same check on this branch). (2) Procedure: the change that merges second renumbers its own ADR to the next free number with `git mv`, edits the `# ADR-00N:` title, every `ADR-005` mention it added (`grep -rn "ADR-005" README.md AGENTS.md docs context/changes/baseline-usage-comparison`), and the AGENTS.md range token to the highest number. (3) Nothing in code names the number (`rules.test.mjs` matches `ADR-\d{3}`), so the rename touches docs only.
+- `skills/10x-pipeline/test/rules.test.mjs`: one edit in the last test: the file filter regex `/^ADR-00[34]-.*\.md$/` becomes `/^ADR-\d{3}-.*\.md$/` and the test name becomes "ADR rule lines follow the rule form". Probed on this branch: ADR-001 to ADR-004 pass the widened filter. No sibling plan edits that line.
 - `SKILL.md` and `ADR-003`: untouched.
+
+### Phase 2 gate (unattended runs stop after Phase 1)
+
+Why a file gate: `/10x-goal-implement` (checked in its SKILL.md, "Manual rows") flips only Automated rows, never blocks on a pending Manual row, commits each phase on green gates and lists the Manual rows at the end. So a sentence like "do not start Phase 2 until row 1.7 is answered" has nothing in it that an unattended run can honour. Row 1.7 also cannot be done by the implementation subagent: it needs `/agent-smith:10x-pipeline` in a live top-level session with the plugin installed, because SKILL.md Loop step 2 requires a foreground `Agent` call from the top-level orchestrator (a nested subagent's Agent tool has no `run_in_background` parameter, and its call returns the figures only in the completion notice as `subagent_tokens`, `tool_uses`, `duration_ms`, per the round-2 review probe). A nested subagent running the pipeline would also spawn plan, review and implement subagents on the owner's budget.
+
+How the gate works:
+
+- Phase 1 creates `real-run-evidence.md` with the usage-spike heading followed by the single line `USAGE: pending`. No other line in the file starts with `USAGE:`.
+- The owner replaces it with `USAGE: present` (and pastes the raw `status` line and the raw usage text of the Agent result) or `USAGE: absent`.
+- Phase 2 opens with an unnumbered precondition, `grep -q "^USAGE: present" context/changes/baseline-usage-comparison/real-run-evidence.md`, and row 2.13 repeats the same command as a gate. If the precondition fails, an unattended run MUST NOT edit `route.mjs`, MUST NOT tick 1.6 or 1.7, MUST commit Phase 1 (its Automated gates are green) and MUST finish `blocked`: `10x-goal-implement` prints its STOP block, and the pipeline implement step reports `blocked` with `signals.needsHuman` "rows 1.6 and 1.7 need a live top-level session; set USAGE: present or absent in real-run-evidence.md, then resume". Row 2.13 is the backstop: if an implementer ignores the precondition and builds Phase 2 anyway, the gate fails, the Phase 2 commit does not land and the router halts the run.
+- Rows 1.6, 1.7 and 3.7 are human rows. An unattended run MUST NOT run `/agent-smith:10x-pipeline` and MUST NOT try to emulate the spike. It MAY run one bare `Agent` probe and paste the raw notice under a sub-heading "advisory (nested subagent, background call, not the orchestrator path)"; that never changes the `USAGE:` line.
+
+What the owner does after the unattended run stops (and what to expect): the run ends after Phase 1 with Phase 1 committed and Phases 2 and 3 not started. In a top-level Claude Code session with the plugin installed: (1) do row 1.6 and paste the resolved model name under its heading; (2) do row 1.7 in a scratch project: run `/agent-smith:10x-pipeline <id> <short goal>`, let one step finish and `next` run once, stop the session, run `node skills/10x-pipeline/scripts/route.mjs status <id>`, paste the raw `status` line and the raw usage text of the Agent result under the usage-spike heading; (3) replace `USAGE: pending` with `USAGE: present` or `USAGE: absent`; (4) tick rows 1.6 and 1.7 by hand; (5) resume with `/agent-smith:10x-pipeline baseline-usage-comparison` (a second `init` resumes) or `/10x-goal-implement baseline-usage-comparison phase 2`. Phases 2 and 3 then wait for that one session of manual work; that is the cost of the gate and matches the default below.
+
+SKILL.md Loop step 4 says to copy the usage figures exactly. If the harness names the fields differently from `totalTokens`, `toolUses`, `durationMs`, the mapping is the orchestrator's judgement. Then the owner decides whether SKILL.md needs a one-line fix, as a separate change; this plan does not edit SKILL.md.
 
 ### If usage is absent
 
-Phase 1 Manual 1.7 runs one real routed step and reads `status`. If no step carries `usage`, every real pair would be `not comparable` with `usage-incomplete`. Then: stop before Phase 2, record the finding in `real-run-evidence.md`, and hand the owner two options. (a) A separate change makes SKILL.md step 4 pass the figures the Agent result does report (this plan does not edit SKILL.md); resume here afterwards. (b) Build Phases 2 and 3 anyway, for use with other figure sources. With no owner answer the default is to stop. Phases 2 and 3 stay valid either way because their automated rows use fabricated `usage`.
+If the owner sets `USAGE: absent` (no step carries `usage`), every real pair would be `not comparable` with `usage-incomplete`. Then: Phase 2 stays blocked, the finding is recorded in `real-run-evidence.md`, and the owner has two options. (a) A separate change makes SKILL.md step 4 pass the figures the Agent result does report (this plan does not edit SKILL.md); set `USAGE: present` afterwards. (b) Build Phases 2 and 3 anyway, for use with other figure sources: the owner sets `USAGE: present` with a note "building without live figures" in `real-run-evidence.md`, which unlocks the gate. With no owner answer the default is to stop. Phases 2 and 3 stay valid either way because their automated rows use fabricated `usage`.
 
 ### Assumptions (decided without a human; each reversible)
 
@@ -75,8 +91,8 @@ Phase 1 Manual 1.7 runs one real routed step and reads `status`. If no step carr
 | A5 | Noise: the unit is one pair; per-pair observed drop only; no p-value or interval at n = 1; aggregation is left to the reader (O3). | ADR-001 "does not fit"; research section 6 | Low: add an aggregate mode later |
 | A6 | `compare` writes nothing and has no `--out`. | AGENTS.md Hard Rules; ADR-003 archive-step bullet | Low |
 | A7 | The baseline is every step the router picks at `standard` rigor with no plan-review skip, all on `sonnet/high`, set by `baseline-policy.json` alone. Optional steps that S-07 adds run on both sides if their gates open (O6). `compare` sums every executed entry whatever its step name. Skip entries are neither summed nor rejected: they list as the warning `baseline-skipped-steps:<n>`. | `policy.json:53-56`; `route.mjs:173`; S-07 research (gated-out steps are logged as skips) | Low |
-| A8 | `met` means the drop is at least the target (inclusive). `targetDropPercent` is `null` or a finite number from 0 to 100; anything else halts. | The PRD gives no boundary; inclusive reads "drops by at least" | Low |
-| A9 | `diff = baselineTotal - routedTotal` over summed `totalTokens` of executed entries. `met` is decided on `diff * 100 >= target * baselineTotal`; the left side is an exact integer, and a slack of `1e-9 * max(1, right side)` keeps a fractional target exact. `dropPercent` prints as `Math.round(diff / baselineTotal * 10000) / 100`. Negative when the routed run cost more. Baseline total 0 gives `null`. Reason: `(100 - 71) / 100 * 100` is `28.999999999999996` in Node, which would fail an exact 29 % target. | Research section 5; review F5 probe | Low |
+| A8 | `met` means the drop is at least the target (inclusive). `targetDropPercent` is `null` or a finite number from 0 to 100; anything else halts. An `undefined` value (the key is missing, or an override wrote `"compare": null`, which `deepMerge` returns whole) counts as `null`. | The PRD gives no boundary; inclusive reads "drops by at least"; `deepMerge` at `route.mjs:38-46` returns a non-object override whole | Low |
+| A9 | `diff = baselineTotal - routedTotal` over summed `totalTokens` of executed entries. `met` is decided on `diff * 100 >= target * baselineTotal`; the left side is an exact integer, and a slack of `1e-9 * max(1, right side)` keeps a fractional target exact. The slack range: one token is 100 on the left side, so the slack stays below one token while `target * baselineTotal < 1e11`, which holds for any baseline below 1e9 tokens at any target (about 3e9 at target 29); realistic totals are far lower, and the slack must not be widened. `dropPercent` is the exact drop rounded **down** to 2 decimals: `q = Math.floor(diff * 10000 / baselineTotal)`, corrected by one step if needed so that `q * baselineTotal <= diff * 10000 < (q + 1) * baselineTotal`, printed as `q / 100`. For a target with at most 2 decimals the printed value is then at least the target exactly when the verdict is `met` (baseline 100000, routed 71004 prints 28.99 against target 29 and is `not met`; routed 71000 prints 29 and is `met`). The verdict is always decided on exact tokens. Negative when the routed run cost more. Baseline total 0 gives `null`. Reason: `(100 - 71) / 100 * 100` is `28.999999999999996` in Node, which would fail an exact 29 % target. | Research section 5; review F5 probe; round-2 review F6 | Low |
 | A10 | Pairing keys are `meta.goal` and `meta.baseSha`. A mismatch is a warning, not a refusal. | Research section 3 | Low |
 | A11 | If `run.jsonl` is absent in an archived folder the command halts with a message. It does not fall back to `report.md`. `run.jsonl` survives `/10x-archive` (`git mv` of the folder), proven by row 2.10. | `archive.test.mjs:594`, `/10x-archive` "Move and stamp", probe (review F7) | Low |
 
@@ -106,7 +122,26 @@ All ten findings were accepted; none was dismissed. The decisions are also recor
 | F9 | Accepted | Nine contract lines added to the Phase 2 and Phase 3 contracts |
 | F10 | Accepted | Six notes folded in: AGENTS.md bullet, `<plugin dir>`, proxy wording, ADR-005, keep-the-worktree rule, corrected merge-risk text |
 
-Test-name convention (F8a): each automated row below is covered by a top-level `test()` whose name starts with the row number and a space (for example `"2.4 baseline pin ..."`), and the row runs `node --test --test-name-pattern="^2\.4 " skills/10x-pipeline/test/compare.test.mjs`. `--test-name-pattern` needs Node 18.11 or later. A pattern that matches nothing also exits 0, so read the output and confirm `# pass` is at least 1.
+## Review response (plan-review round 2, 2026-10-31, verdict REVISE, 0 critical, 2 warnings, 4 observations)
+
+All six findings were accepted; none was dismissed. Each was re-checked against the code and the skill text first. The decisions are also recorded in `reviews/plan-review-2.md`.
+
+| Finding | Decision | What changed |
+| --- | --- | --- |
+| F1 | Accepted, Fix A; one addition (row 2.13) | New "Phase 2 gate" section: `real-run-evidence.md` holds `USAGE: pending\|present\|absent`; Phase 2 opens with an unnumbered precondition `grep -q "^USAGE: present"`; if it fails an unattended run commits Phase 1 and finishes `blocked` with `signals.needsHuman`, ticks no Manual row and runs no pipeline. Added backstop row 2.13 (the same grep as a gate), because `10x-goal-implement` verifies gates but has no pre-phase hook. Rows 1.6, 1.7, 3.7 stay human gates; the owner steps are spelled out. Titles unchanged; the "top-level session only" wording lives in the Phase 1 note |
+| F2 | Accepted | Convention paragraph replaced: a pattern row passes only when the run exits 0 and the output has a `✔` or `ok N -` line for the row number. Checked on the spec and tap reporters of Node 24 (`# pass` is not usable: a no-match run still reports one passing test, the file) |
+| F3 | Accepted | Edit discipline: `ls docs/ADR/ADR-005-*` expects one file, and a renumber procedure. New row 3.8 runs the check on this branch |
+| F4 | Accepted, widen the regex | `rules.test.mjs` filter becomes `/^ADR-\d{3}-.*\.md$/` and the test is renamed (probe: ADR-001 to ADR-004 pass). Row 3.4 now has its "exactly one" claim backed by that test, run by new row 3.8 |
+| F5 | Accepted | plan-brief row reference 1.5 becomes 1.6; stray fragment dropped from the 1.4 case |
+| F6 | Accepted, with a stronger fix for (1) | (1) `dropPercent` is rounded down to 2 decimals, so the printed value never reads at or above a target the exact verdict missed (28.99 vs 29); Markdown says the verdict uses exact tokens. (2) `undefined` counts as `null` (A8). (3) Slack range documented (A9) |
+
+## Convention for pattern rows
+
+Test-name convention (F8a): each automated row below that names a pattern is covered by a top-level `test()` whose name starts with the row number and a space (for example `"2.4 baseline pin ..."`), and the row runs `node --test --test-name-pattern="^2\.4 " skills/10x-pipeline/test/compare.test.mjs`. `--test-name-pattern` needs Node 18.11 or later. A pattern that matches nothing exits 0, and the run still reports one passing test (the file itself), so `# pass` or `ℹ pass` of at least 1 proves nothing. A pattern row therefore passes only when both hold: the command exits 0 and its output has a line for the row's own tests. Run it as one command (shown for row 2.4; the trailing space after the row number keeps `2.1` from matching `2.10`):
+
+`node --test --test-name-pattern="^2\.4 " skills/10x-pipeline/test/compare.test.mjs > "$TMPDIR/r.txt" 2>&1 && grep -qE "(✔|^ *ok [0-9]+ -) 2\.4 " "$TMPDIR/r.txt"`
+
+`✔ <name>` is the spec reporter (Node 20 and later), `ok N - <name>` the tap reporter (the Node 18 default; the leading spaces allow the nested form). Checked on Node 24 with both reporters; Node 18 was not available in the review session. A skipped test prints neither, so a git-dependent row (1.3, 2.10) fails on a machine without git instead of passing silently. The rows keep their short form; this paragraph defines how every pattern row is run.
 
 ## Phase 1: Baseline arm, policy key, guard tests and usage spike
 
@@ -143,15 +178,15 @@ Ship the data the rest depends on, the tests that keep it correct and the usage-
 - 1.1: the file has exactly the keys `ladder` and `rigor`; every ladder entry is `sonnet`/`high`; the length meets the bound above; `rigor` has exactly `fromGoal` (all three classes `standard`) and `skipPlanReviewAt` (`[]`).
 - 1.2: three scratch projects per goal, no `--rigor` flag. Goal "refactor the auth module" (a hard keyword): the default policy returns `plan opus high`; the baseline file written as `context/foundation/agent-smith-policy.json` returns `plan sonnet high` and `meta.rigor.level` is `standard`. Goal "fix typo" (short): the default returns `plan sonnet medium` at `lean`; the baseline returns `plan sonnet high` at `standard`. Each assertion pair differs, so an empty override fails the row.
 - 1.3: needs git (skip when `gitAvailable()` is false, as `route.test.mjs` does). Copy the `gitProject` and `finishPlan` setup from `route.test.mjs`: a short goal and a fresh plan that names one path. With the default policy `next` skips plan review and logs one skip entry (control). With the baseline file `next` returns `plan-review` at `sonnet`/`high` and the log holds no skip entry.
-- 1.4: intake: a result with `usage: { totalTokens: 1000, toolUses: 3, durationMs: 500 }` is stored on the log entry; negative, fractional and non-numeric fields are dropped; a result without `usage` leaves no `usage` key. Node 18 only (AGENTS.md ban list).
+- 1.4: intake: a result with `usage: { totalTokens: 1000, toolUses: 3, durationMs: 500 }` is stored on the log entry; negative, fractional and non-numeric fields are dropped; a result without `usage` leaves no `usage` key.
 
 #### 4. Evidence note
 
 **File**: `context/changes/baseline-usage-comparison/real-run-evidence.md` (new)
 
-**Intent**: A place to paste the output of the manual rows, created now because row 1.7 gates Phase 2.
+**Intent**: A place to paste the output of the manual rows, created now because its `USAGE:` line gates Phase 2 (see "Phase 2 gate").
 
-**Contract**: Three headings, each with a one-line "paste here" instruction: A1 alias (row 1.6), usage spike (row 1.7), real pair (row 3.7). Not parsed by anything.
+**Contract**: Three headings, each with a one-line "paste here" instruction: A1 alias (row 1.6), usage spike (row 1.7), real pair (row 3.7). Directly under the usage-spike heading, one line `USAGE: pending`; the owner changes it to `USAGE: present` or `USAGE: absent`. No instruction line may start with `USAGE:` (the gate greps `^USAGE: present`). Nothing else parses the file. The usage-spike section also asks for the raw `status` line and the raw usage text of the Agent result, and has an empty sub-heading "advisory (nested subagent, background call, not the orchestrator path)" for an optional bare `Agent` probe.
 
 ### Success Criteria:
 
@@ -166,9 +201,9 @@ Ship the data the rest depends on, the tests that keep it correct and the usage-
 #### Manual Verification:
 
 - In a running Claude Code session the `sonnet` alias resolves to Sonnet-5.5 (assumption A1); note the resolved model name in `real-run-evidence.md`
-- Usage spike: in a scratch project with one change folder, run `/agent-smith:10x-pipeline <id> <short goal>`, let the first step finish and the orchestrator call `next` once, then stop the session and run `node skills/10x-pipeline/scripts/route.mjs status <id>`. At least one step must show `usage` with `totalTokens`. Paste the line in `real-run-evidence.md`. If no step carries `usage`, stop and follow "If usage is absent"
+- Usage spike (top-level session only, plugin installed): in a scratch project with one change folder, run `/agent-smith:10x-pipeline <id> <short goal>`, let the first step finish and the orchestrator call `next` once, then stop the session and run `node skills/10x-pipeline/scripts/route.mjs status <id>`. At least one step must show `usage` with `totalTokens`. Paste the `status` line and, next to it, the raw usage text of that step's Agent result (so the name mapping, for example `subagent_tokens` against `totalTokens`, is on record) in `real-run-evidence.md`, then set the `USAGE:` line. If no step carries `usage`, set `USAGE: absent` and follow "If usage is absent"
 
-**Implementation Note**: After the automated checks pass, run the two manual rows. Do not start Phase 2 until row 1.7 has an answer recorded. A positive answer proves one step carries a figure; row 3.7 still checks that every step does.
+**Implementation Note**: Rows 1.6, 1.7 and 3.7 are human rows. After the automated checks pass, an unattended run commits Phase 1 and lists them as the closing checklist; it MUST NOT run `/agent-smith:10x-pipeline`, MUST NOT emulate the spike and MUST NOT tick 1.6 or 1.7. It MAY paste one bare `Agent` probe under the "advisory" sub-heading, which never changes the `USAGE:` line. Phase 2 starts only when the `USAGE:` line says `present` ("Phase 2 gate"). A human does the rows in a live session, then sets the line. A `present` answer proves one step carries a figure; row 3.7 still checks that every step does.
 
 ---
 
@@ -177,6 +212,10 @@ Ship the data the rest depends on, the tests that keep it correct and the usage-
 ### Overview
 
 Add the read-only `compare` command with JSON output and the cases that cover its rules.
+
+### Precondition (unnumbered; run it before any Phase 2 edit)
+
+The first command of Phase 2 is `grep -q "^USAGE: present" context/changes/baseline-usage-comparison/real-run-evidence.md`. If it fails, an unattended run MUST NOT edit `route.mjs` or `compare.test.mjs`, MUST NOT tick rows 1.6 or 1.7, and MUST finish `blocked` with `signals.needsHuman` as set out in "Phase 2 gate" (Phase 1 is already committed). The same rule is stated here because a different implementer skill may not read the section near the top. Row 2.13 runs the same command as a gate.
 
 ### Changes Required:
 
@@ -194,8 +233,8 @@ Add the read-only `compare` command with JSON output and the cases that cover it
 - Per-side object: `source`, `dir`, `goal`, `baseSha`, `rigor` (`meta.rigor.level` or `null`), `outcome` (`meta.outcome.action` or `null`), `steps` (executed entries), `skipped` (skip entries, with their step names), `failedAttempts` (executed entries with `ok === false`), `plan` (`{ phases, rows }` from `readPlan` on the sibling `plan.md`, or `null`), `inputFiles` (names of the regular files directly in the change folder, which is the parent of the `agent-smith` folder, excluding `plan.md` and `plan-brief.md`; `null` when the log folder is not named `agent-smith`), `tokens` (`{ total, stepsWithFigures, byModel }`), `toolUses` and `durationMs` (each `{ total, stepsWithFigures }`). A figure counts only when it is a non-negative safe integer (`Number.isSafeInteger`), because `run.jsonl` may be edited by hand; any other value counts as missing. `byModel` is keyed by the entry's `model`, and `"unknown"` when an entry has none. The sums are over entries that carry the figure, and the coverage count says how many, so a partial sum cannot read like a total. Unparseable log lines are dropped by `readLog`; a bad `meta.json` falls back through `readMeta`.
 - Pair object: `baseline`, `routed`, `pinned` (the baseline has at least one executed entry and every executed entry is `sonnet`/`high`), `comparable`, `reasons` (codes), `warnings` (codes), `dropPercent`, `targetDropPercent`, `verdict`.
 - `reasons` codes: `baseline-not-pinned`, `no-steps:<side>`, `outcome-not-done:<side>`, `usage-incomplete:<side>`, `baseline-total-zero`. `warnings` codes: `goal-mismatch`, `baseSha-mismatch`, `baseline-skipped-steps:<n>` (with the skipped step names listed on the baseline side object), `input-files-differ:<names>` (names present in one side's `inputFiles` and not the other, sorted, comma separated; only when both lists are known), `archive-also-present:<side>`. `<side>` is `baseline` or `routed`. `usage-incomplete` means at least one executed entry lacks a valid `usage.totalTokens`.
-- `comparable` is true only when `reasons` is empty. When true, `dropPercent` and the `met` decision follow A9; otherwise `dropPercent` is `null`. Verdict: `not comparable` when `reasons` is not empty; else `target not set` when the target is `null`; else `met` when the A9 integer test holds, else `not met`.
-- `targetDropPercent` comes from `policy.compare?.targetDropPercent`, where `policy` is the policy loaded from `ROOT` (project override applies), not the policy of the `--routed` project when the two differ. It is `null` or a finite number in [0, 100]; anything else halts before output.
+- `comparable` is true only when `reasons` is empty. When true, `dropPercent` and the `met` decision follow A9 (`dropPercent` is the exact drop rounded down to 2 decimals; the verdict uses exact tokens); otherwise `dropPercent` is `null`. Verdict: `not comparable` when `reasons` is not empty; else `target not set` when the target is `null`; else `met` when the A9 integer test holds, else `not met`.
+- `targetDropPercent` comes from `policy.compare?.targetDropPercent`, where `policy` is the policy loaded from `ROOT` (project override applies), not the policy of the `--routed` project when the two differ. `undefined` (key missing, or `"compare": null` in an override) is treated as `null`. Otherwise it must be `null` or a finite number in [0, 100]; anything else halts before output.
 
 #### 2. Dispatch, usage string, header comment
 
@@ -221,7 +260,7 @@ Add the read-only `compare` command with JSON output and the cases that cover it
 #### Automated Verification:
 
 - A complete done pair gives the expected `dropPercent` (baseline 1000, routed 600 gives 40) and, with the default policy, verdict `target not set`: `node --test --test-name-pattern="^2\.1 " skills/10x-pipeline/test/compare.test.mjs`
-- With `compare.targetDropPercent` set in the override file, baseline 100 and routed 71 with target 29 gives `met` (the float case `28.999999999999996`), routed 72 gives `not met`, baseline 1000 and routed 705 with target 29.5 gives `met`, a routed total above the baseline gives a negative `dropPercent` and `not met`; printed `dropPercent` has at most 2 decimals: `node --test --test-name-pattern="^2\.2 " skills/10x-pipeline/test/compare.test.mjs`
+- With `compare.targetDropPercent` set in the override file, baseline 100 and routed 71 with target 29 gives `met` (the float case `28.999999999999996`), routed 72 gives `not met`, baseline 1000 and routed 705 with target 29.5 gives `met`, a routed total above the baseline gives a negative `dropPercent` and `not met`; baseline 100000 and routed 71004 with target 29 prints `dropPercent` 28.99 and is `not met`, routed 71000 prints 29 and is `met`; printed `dropPercent` has at most 2 decimals and never reads at or above a (2-decimal) target the verdict missed; a policy with `"compare": null` or no `compare` key gives `target not set` and does not halt: `node --test --test-name-pattern="^2\.2 " skills/10x-pipeline/test/compare.test.mjs`
 - A missing `usage.totalTokens` on any executed entry of either side, or a hand-edited invalid one (`-1`, `1.5`, `"x"`, a number above the safe-integer range), gives `comparable: false`, `dropPercent: null`, `usage-incomplete:<side>` and the partial `total` with `stepsWithFigures` below `steps`; `toolUses` and `durationMs` carry their own coverage counts; an entry with no `model` lands under `byModel.unknown`: `node --test --test-name-pattern="^2\.3 " skills/10x-pipeline/test/compare.test.mjs`
 - A baseline entry on `haiku` or at `medium` gives `pinned: false`, `baseline-not-pinned` and verdict `not comparable`; a baseline with skip entries and otherwise all `sonnet`/`high` executed entries stays `pinned: true` and `comparable`, with the warning `baseline-skipped-steps:<n>`; a baseline with no executed entry gives `no-steps:baseline`: `node --test --test-name-pattern="^2\.4 " skills/10x-pipeline/test/compare.test.mjs`
 - A side whose `meta.outcome.action` is `halt` or absent gives `outcome-not-done:<side>` with the outcome listed on that side: `node --test --test-name-pattern="^2\.5 " skills/10x-pipeline/test/compare.test.mjs`
@@ -232,8 +271,9 @@ Add the read-only `compare` command with JSON output and the cases that cover it
 - A routed folder moved with `git mv` to `context/archive/<date>-<id>/`, with `run.jsonl` gitignored, is read by `compare` with unchanged totals: `node --test --test-name-pattern="^2\.10 " skills/10x-pipeline/test/compare.test.mjs`
 - A log written by the real router (`init`, `next` with a `usage` figure under the baseline override) is read by `compare` with the written total: `node --test --test-name-pattern="^2\.11 " skills/10x-pipeline/test/compare.test.mjs`
 - The full suite passes and the new code uses no Node 18 banned API: `node --test skills/10x-pipeline/test/*.test.mjs` and `grep -nE "toSorted|groupBy|import\.meta\.dirname|partialDeepStrictEqual|mock\.timers|\.(intersection|union|difference|symmetricDifference|isSubsetOf|isSupersetOf|isDisjointFrom)\(|/[dgimsuy]*v[dgimsuy]*[.,;) ]" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/test/compare.test.mjs` prints nothing (the last alternative is a rough regex-`v`-flag check; read any hit by hand)
+- The Phase 2 precondition holds (backstop gate; see "Phase 2 gate"): `grep -q "^USAGE: present" context/changes/baseline-usage-comparison/real-run-evidence.md`
 
-**Implementation Note**: Pause after this phase's automated checks pass before starting Phase 3.
+**Implementation Note**: Pause after this phase's automated checks pass before starting Phase 3. Every pattern row runs as set out in "Convention for pattern rows".
 
 ---
 
@@ -251,7 +291,7 @@ Add `--format md`, document the procedure, record the method in ADR-005, and col
 
 **Intent**: A human-readable and paste-ready form of the same pair object.
 
-**Contract**: `--format md` prints Markdown to stdout instead of JSON; `--format json` or no flag prints JSON; any other value halts with JSON (the existing `halt` style). `out()` prints JSON only, so the Markdown branch writes with its own `process.stdout.write` and exits 0. The Markdown has a heading with the change id, one table with a row per side (outcome, steps, skipped, failed attempts, tokens `total (stepsWithFigures of steps)`, tool uses, duration, plan phases and rows), a per-model token line for each side, then `Drop`, `Target`, `Verdict`, `Reasons` and `Warnings` lines (`none` when empty). The `Verdict` line says the unit is raw tokens, a proxy for the weekly limit. Built from the same object as the JSON, so the two cannot disagree. Still writes nothing.
+**Contract**: `--format md` prints Markdown to stdout instead of JSON; `--format json` or no flag prints JSON; any other value halts with JSON (the existing `halt` style). `out()` prints JSON only, so the Markdown branch writes with its own `process.stdout.write` and exits 0. The Markdown has a heading with the change id, one table with a row per side (outcome, steps, skipped, failed attempts, tokens `total (stepsWithFigures of steps)`, tool uses, duration, plan phases and rows), a per-model token line for each side, then `Drop`, `Target`, `Verdict`, `Reasons` and `Warnings` lines (`none` when empty). The `Drop` line says it is rounded down to 2 decimals and that the verdict uses exact tokens. The `Verdict` line says the unit is raw tokens, a proxy for the weekly limit. Built from the same object as the JSON, so the two cannot disagree. Still writes nothing.
 
 #### 2. README block
 
@@ -285,7 +325,15 @@ Keep the "Usage report" block untouched.
 
 **Intent**: Record the measurement method so a later change does not reopen it by accident. A new file avoids edits to ADR-003, which the parallel plans touch.
 
-**Contract**: Same layout as ADR-004 (Status `Proposed`, Date, Deciders, Origin, Context, Decision, Consequences). Decision lines in the GIVEN/WHEN/THEN form with one bold RFC 2119 keyword (ADR-004), covering: the baseline arm is data in a second checkout; `compare` is read-only and compares only runs that ended `done` with complete usage; the baseline is pinned when every executed entry is `sonnet`/`high`, skips only warn; the unit is raw tokens as a proxy; the threshold ships unset. At least 4 rule lines.
+**Contract**: Same layout as ADR-004 (Status `Proposed`, Date, Deciders, Origin, Context, Decision, Consequences). Decision lines in the GIVEN/WHEN/THEN form with one bold RFC 2119 keyword (ADR-004), covering: the baseline arm is data in a second checkout; `compare` is read-only and compares only runs that ended `done` with complete usage; the baseline is pinned when every executed entry is `sonnet`/`high`, skips only warn; the unit is raw tokens as a proxy; the threshold ships unset. At least 4 rule lines. The ADR-004 form is enforced by `rules.test.mjs` once its file filter is widened (next item); row 3.4's grep is a floor on the count.
+
+#### 4a. Rule-form test covers every ADR
+
+**File**: `skills/10x-pipeline/test/rules.test.mjs`
+
+**Intent**: Check ADR-005 against the ADR-004 form (exactly one bold keyword per rule line, no bold keyword or bare upper-case keyword outside a rule line) instead of leaving it to a grep.
+
+**Contract**: In the last test, change the filter regex `/^ADR-00[34]-.*\.md$/` to `/^ADR-\d{3}-.*\.md$/` and rename the test from "ADR-003 and ADR-004 rule lines follow the rule form" to "ADR rule lines follow the rule form". No other line changes. The step runs after ADR-005 exists, and ADR-001 to ADR-004 still pass (probed). This makes the "exactly one bold keyword" claim of row 3.4 true; row 3.8 runs the test.
 
 #### 5. Markdown test
 
@@ -313,12 +361,13 @@ Keep the "Usage report" block untouched.
 - ADR-005 has at least 4 rule lines and each has exactly one bold keyword: `grep -c '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md` is at least 4 and `grep '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md | grep -vcE '\*\*(MUST|MUST NOT|SHOULD|SHOULD NOT|MAY)\*\*'` prints 0
 - The router diff is additive outside the usage string: `git diff -U0 $(git merge-base main HEAD) -- skills/10x-pipeline/scripts/route.mjs | grep -c '^-[^-]'` prints at most 1
 - The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- ADR-005 passes the ADR-004 rule form through the widened `rules.test.mjs` filter, and exactly one ADR-005 file exists: `node --test --test-name-pattern="^ADR rule lines" skills/10x-pipeline/test/rules.test.mjs` run as set out in "Convention for pattern rows" (grep for `ADR rule lines` instead of the row number), and `ls docs/ADR/ADR-005-* | wc -l` prints 1. Repeat the `ls` on the merged tree before merging (Edit discipline)
 
 #### Manual Verification:
 
 - Real baseline run: make one routed run and one baseline run of the same small change (baseline in a `git worktree` from the routed run's `meta.baseSha`, per the README block), run `node skills/10x-pipeline/scripts/route.mjs compare <id> --baseline <worktree> --format md`, and paste the output in `real-run-evidence.md`; every executed entry of the baseline log is `sonnet`/`high`, `pinned` is true, and every executed step of both runs has a token figure (this also settles that all steps carry usage, which row 1.7 proved for one)
 
-**Implementation Note**: The manual row needs real runs and costs real tokens. Run it once, after the automated rows pass.
+**Implementation Note**: The manual row needs real runs and costs real tokens. Run it once, after the automated rows pass. Row 3.7 is a human row (see "Phase 2 gate"): an unattended run leaves it unticked and lists it in the closing checklist. Row 3.8 was added in review round 2 and takes the next free index; it sits with the Automated rows.
 
 ---
 
@@ -328,6 +377,7 @@ Keep the "Usage report" block untouched.
 
 - Baseline file guard: exact keys `ladder` and `rigor`, 7 x `sonnet`/`high`, length at least the highest step `maxTier` + 1 and at least the default ladder length, `rigor.fromGoal` all `standard`, `rigor.skipPlanReviewAt` empty.
 - Usage intake through the CLI: valid kept, negative, fractional and string values dropped, absent key stays absent.
+- ADR-005 rule form: the widened filter in `rules.test.mjs` (row 3.8); no new test file.
 - `compare` rules: complete pair; boundary of `met` (float-hostile 100/71/29, fractional target, drop just below, negative drop); incomplete or invalid usage on each side; coverage counts for tool uses and duration; entry with no model; unpinned baseline (`haiku`, `medium`); baseline with skip entries stays pinned with a warning; no executed entry; halted and unfinished sides; goal and `baseSha` mismatch; input file name differences; live plus archived folder; zero total; empty log; garbage lines; archived routed side; folder form; relative `<dir>`; ambiguous archive; near-miss archive names; missing `run.jsonl`; missing or valueless flags; invalid target; read-only listing check; `--format md`, valueless `--format` and invalid format.
 
 ### Integration Tests:
@@ -336,7 +386,7 @@ Keep the "Usage report" block untouched.
 
 ### Manual Testing Steps:
 
-1. Usage spike (row 1.7): one routed step, then `status`.
+1. Usage spike (row 1.7), in a live top-level session: one routed step, then `status`; then set the `USAGE:` line (this unlocks Phase 2 for an unattended run).
 2. Follow the README block to make a baseline worktree and run both sides of one small change.
 3. Run `compare` with `--format md` and read the verdict, reasons, warnings and coverage.
 
@@ -351,7 +401,7 @@ None. No stored format changes. Runs made before this change compare fine if the
 ## References
 
 - Related research: `context/changes/baseline-usage-comparison/research.md`
-- Plan review: `context/changes/baseline-usage-comparison/reviews/plan-review.md`
+- Plan reviews: `context/changes/baseline-usage-comparison/reviews/plan-review.md` (round 1), `reviews/plan-review-2.md` (round 2)
 - Read-only command precedent: `skills/10x-pipeline/scripts/route.mjs` (`riskCommand`)
 - Usage intake: `skills/10x-pipeline/scripts/route.mjs` (`cleanUsage`, `attachResult`)
 - Test helpers: `skills/10x-pipeline/test/helpers.mjs`; pre-archive commit test: `skills/10x-pipeline/test/archive.test.mjs:594`
@@ -394,6 +444,7 @@ None. No stored format changes. Runs made before this change compare fine if the
 - [ ] 2.10 A routed folder moved with `git mv` to `context/archive/<date>-<id>/` with `run.jsonl` gitignored is read by `compare` with unchanged totals: `node --test --test-name-pattern="^2\.10 " skills/10x-pipeline/test/compare.test.mjs`
 - [ ] 2.11 A log written by the real router (`init`, `next` with a `usage` figure under the baseline override) is read by `compare` with the written total: `node --test --test-name-pattern="^2\.11 " skills/10x-pipeline/test/compare.test.mjs`
 - [ ] 2.12 The full suite passes and the new code uses no Node 18 banned API: `node --test skills/10x-pipeline/test/*.test.mjs` and `grep -nE "toSorted|groupBy|import\.meta\.dirname|partialDeepStrictEqual|mock\.timers|\.(intersection|union|difference|symmetricDifference|isSubsetOf|isSupersetOf|isDisjointFrom)\(|/[dgimsuy]*v[dgimsuy]*[.,;) ]" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/test/compare.test.mjs` prints nothing
+- [ ] 2.13 The Phase 2 precondition holds (backstop gate, see "Phase 2 gate"): `grep -q "^USAGE: present" context/changes/baseline-usage-comparison/real-run-evidence.md`
 
 ### Phase 3: Markdown output, docs and real-pair evidence
 
@@ -405,6 +456,7 @@ None. No stored format changes. Runs made before this change compare fine if the
 - [ ] 3.4 ADR-005 has at least 4 rule lines, each with exactly one bold keyword: `grep -c '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md` is at least 4 and `grep '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md | grep -vcE '\*\*(MUST|MUST NOT|SHOULD|SHOULD NOT|MAY)\*\*'` prints 0
 - [ ] 3.5 The router diff is additive outside the usage string: `git diff -U0 $(git merge-base main HEAD) -- skills/10x-pipeline/scripts/route.mjs | grep -c '^-[^-]'` prints at most 1
 - [ ] 3.6 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [ ] 3.8 ADR-005 passes the ADR-004 rule form through the widened `rules.test.mjs` filter and exactly one ADR-005 file exists: `node --test --test-name-pattern="^ADR rule lines" skills/10x-pipeline/test/rules.test.mjs` (run as in "Convention for pattern rows") and `ls docs/ADR/ADR-005-* | wc -l` prints 1
 
 #### Manual
 
