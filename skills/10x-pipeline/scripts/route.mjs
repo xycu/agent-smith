@@ -9,6 +9,7 @@
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
+//   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>]   # read-only: usage of a routed run against a baseline run
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
 import fs from "node:fs";
@@ -1486,6 +1487,183 @@ function riskCommand(id, policy) {
   out({ source: r.source, hot: r.hot, planPaths: r.planPaths, unclassified: r.unclassified, planHits: r.planHits, diffHits: r.diffHits, level: r.level });
 }
 
+// ---- compare --------------------------------------------------------------
+
+// Read-only: compares the usage of a routed run with a baseline run of the same change.
+// Each side is a run folder in its own checkout. Nothing is written, nothing is routed.
+
+const BASELINE_PIN = { model: "sonnet", effort: "high" };
+
+// A figure counts only when it is a non-negative safe integer; run.jsonl may be edited by hand.
+function validFigure(v) {
+  return Number.isSafeInteger(v) && v >= 0;
+}
+
+// Floor division for BigInt (the built-in operator truncates toward zero).
+function floorDivBig(a, b) {
+  const q = a / b;
+  return a % b !== 0n && (a < 0n) !== (b < 0n) ? q - 1n : q;
+}
+
+// Find the agent-smith folder of one side: the folder itself, the live change folder, then the archive.
+function locateSide(dirArg, id, side) {
+  const base = path.resolve(ROOT, dirArg);
+  const live = path.join(base, "context/changes", id, "agent-smith");
+  const archiveRoot = path.join(base, "context/archive");
+  const re = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${id}$`);
+  let archived = [];
+  try {
+    archived = fs.readdirSync(archiveRoot, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && re.test(d.name)).map((d) => d.name).sort();
+  } catch { /* no archive folder */ }
+  const hasLog = (dir) => fs.existsSync(path.join(dir, "run.jsonl"));
+  const tried = [base, live, archived.length ? path.join(archiveRoot, `${archived[0]}/agent-smith`) : path.join(archiveRoot, `<date>-${id}/agent-smith`)];
+  if (hasLog(base)) return { source: "folder", dir: base, alsoArchived: false };
+  if (hasLog(live)) return { source: "changes", dir: live, alsoArchived: archived.length > 0 };
+  if (archived.length > 1) {
+    halt(`${side}: more than one archive folder for ${id} under ${archiveRoot}: ${archived.join(", ")}. Pass the exact folder.`);
+  }
+  if (archived.length === 1 && hasLog(path.join(archiveRoot, archived[0], "agent-smith"))) {
+    return { source: "archive", dir: path.join(archiveRoot, archived[0], "agent-smith"), alsoArchived: false };
+  }
+  return halt(`${side}: no run.jsonl found for ${id}. Looked in: ${tried.map((t) => path.join(t, "run.jsonl")).join(", ")}.`);
+}
+
+function readSide(dirArg, id, side) {
+  const found = locateSide(dirArg, id, side);
+  const log = readLog(path.join(found.dir, "run.jsonl")).filter(isObject); // readLog lets a JSON array through
+  const meta = readMeta(path.join(found.dir, "meta.json"), {});
+  const steps = executed(log);
+  const skipped = log.filter((e) => e.skipped).map((e) => (typeof e.step === "string" ? e.step : "unknown"));
+  const figure = (key) => {
+    let total = 0;
+    let withFigures = 0;
+    for (const e of steps) {
+      const v = e.usage?.[key];
+      if (validFigure(v)) { total += v; withFigures++; }
+    }
+    return { total, stepsWithFigures: withFigures };
+  };
+  const byModel = {};
+  for (const e of steps) {
+    const v = e.usage?.totalTokens;
+    if (!validFigure(v)) continue;
+    const model = typeof e.model === "string" && e.model ? e.model : "unknown";
+    byModel[model] = (byModel[model] ?? 0) + v;
+  }
+  const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
+  let plan = null;
+  let inputFiles = null;
+  if (changeDir) {
+    const pl = readPlan(path.join(changeDir, "plan.md"));
+    if (pl.exists) plan = { phases: pl.phases, rows: pl.rows };
+    try {
+      inputFiles = fs.readdirSync(changeDir, { withFileTypes: true })
+        .filter((d) => d.isFile() && d.name !== "plan.md" && d.name !== "plan-brief.md").map((d) => d.name).sort();
+    } catch { inputFiles = null; }
+  }
+  return {
+    source: found.source,
+    dir: found.dir,
+    goal: typeof meta.goal === "string" ? meta.goal : null,
+    baseSha: typeof meta.baseSha === "string" ? meta.baseSha : null,
+    rigor: meta.rigor?.level ?? null,
+    outcome: meta.outcome?.action ?? null,
+    steps: steps.length,
+    skipped,
+    failedAttempts: steps.filter((e) => e.ok === false).length,
+    plan,
+    inputFiles,
+    tokens: { ...figure("totalTokens"), byModel },
+    toolUses: figure("toolUses"),
+    durationMs: figure("durationMs"),
+    alsoArchived: found.alsoArchived,
+    pinned: steps.length > 0 && steps.every((e) => e.model === BASELINE_PIN.model && e.effort === BASELINE_PIN.effort),
+  };
+}
+
+// The A9 decision on exact tokens. A target with at most 2 decimals is decided in exact integer math;
+// any other target uses a float test with a relative slack that only absorbs the rounding of target * baseline.
+function dropMet(diff, baseline, target) {
+  const cents = Math.round(target * 100);
+  if (cents / 100 === target) return BigInt(diff) * 10000n >= BigInt(cents) * BigInt(baseline);
+  const right = target * baseline;
+  return diff * 100 >= right - 4 * Number.EPSILON * Math.max(1, right);
+}
+
+// The exact drop rounded down to 2 decimals.
+function dropPercentOf(diff, baseline) {
+  return Number(floorDivBig(BigInt(diff) * 10000n, BigInt(baseline))) / 100;
+}
+
+function comparePair(id, flags, policy) {
+  // Flags and the target are checked before anything is read.
+  for (const key of ["baseline", "routed", "format"]) {
+    if (flags[key] !== undefined && typeof flags[key] !== "string") halt(`Missing value for --${key}.`);
+  }
+  if (flags.baseline === undefined) halt("compare needs --baseline <dir>: compare <change-id> --baseline <dir> [--routed <dir>] [--format md].");
+  const format = flags.format === undefined ? "json" : flags.format;
+  if (format !== "json") halt(`Invalid --format ${format}. Use json.`);
+  let target = policy.compare?.targetDropPercent;
+  if (target === undefined) target = null;
+  if (target !== null && !(typeof target === "number" && Number.isFinite(target) && target >= 0 && target <= 100)) {
+    halt(`Invalid compare.targetDropPercent ${JSON.stringify(target)}. Use null or a number from 0 to 100.`);
+  }
+
+  const baseline = readSide(flags.baseline, id, "baseline");
+  const routed = readSide(typeof flags.routed === "string" ? flags.routed : ROOT, id, "routed");
+
+  const reasons = [];
+  const warnings = [];
+  if (baseline.steps > 0 && !baseline.pinned) reasons.push("baseline-not-pinned");
+  const sides = [["baseline", baseline], ["routed", routed]];
+  for (const [name, s] of sides) {
+    if (s.steps === 0) reasons.push(`no-steps:${name}`);
+    if (s.outcome !== "done") reasons.push(`outcome-not-done:${name}`);
+    if (s.steps > 0 && s.tokens.stepsWithFigures < s.steps) reasons.push(`usage-incomplete:${name}`);
+  }
+  const baselineComplete = baseline.steps > 0 && baseline.tokens.stepsWithFigures === baseline.steps;
+  if (baselineComplete && baseline.tokens.total === 0) reasons.push("baseline-total-zero");
+
+  if (baseline.goal !== routed.goal) warnings.push("goal-mismatch");
+  if (baseline.baseSha !== routed.baseSha) warnings.push("baseSha-mismatch");
+  if (baseline.skipped.length) warnings.push(`baseline-skipped-steps:${baseline.skipped.length}`);
+  if (baseline.inputFiles && routed.inputFiles) {
+    const differ = [
+      ...baseline.inputFiles.filter((n) => !routed.inputFiles.includes(n)),
+      ...routed.inputFiles.filter((n) => !baseline.inputFiles.includes(n)),
+    ].sort();
+    if (differ.length) warnings.push(`input-files-differ:${differ.join(",")}`);
+  }
+  for (const [name, s] of sides) if (s.alsoArchived) warnings.push(`archive-also-present:${name}`);
+
+  const comparable = reasons.length === 0;
+  let dropPercent = null;
+  let verdict = "not comparable";
+  if (comparable) {
+    const diff = baseline.tokens.total - routed.tokens.total;
+    dropPercent = dropPercentOf(diff, baseline.tokens.total);
+    verdict = target === null ? "target not set" : dropMet(diff, baseline.tokens.total, target) ? "met" : "not met";
+  }
+  const strip = ({ alsoArchived, pinned, ...rest }) => rest;
+  return {
+    change: id,
+    baseline: strip(baseline),
+    routed: strip(routed),
+    pinned: baseline.pinned,
+    comparable,
+    reasons,
+    warnings,
+    dropPercent,
+    targetDropPercent: target,
+    verdict,
+  };
+}
+
+function compareCommand(id, flags, policy) {
+  out(comparePair(id, flags, policy));
+}
+
 function status(id, flags) {
   const p = paths(id);
   const log = readLog(p.log);
@@ -1516,7 +1694,7 @@ function halt(reason) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--report] | verify-archive <change-id> [--path <p>]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md]");
   }
   const policy = loadPolicy();
   const flags = parseFlags(rest);
@@ -1577,6 +1755,8 @@ function main() {
     riskCommand(id, policy);
   } else if (cmd === "verify-archive") {
     verifyArchive(id, flags);
+  } else if (cmd === "compare") {
+    compareCommand(id, flags, policy);
   } else {
     halt(`Unknown command ${cmd}`);
   }
