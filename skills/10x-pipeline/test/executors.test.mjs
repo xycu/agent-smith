@@ -984,7 +984,7 @@ test("gate check fails when nothing is checked", () => {
   // The plan of this change passes for the phases whose tests exist (skipped once the change folder is archived).
   const real = path.join(REPO, "context/changes/phase-executors/plan.md");
   if (fs.existsSync(real)) {
-    for (const phase of [1, 2, 3, 4]) {
+    for (const phase of [1, 2, 3, 4, 5]) {
       const res = gateRun(real, phase);
       assert.equal(res.status, 0, `phase ${phase}: ${res.stderr}`);
     }

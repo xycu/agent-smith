@@ -4,7 +4,7 @@
 // review verdicts) plus the run log. The orchestrator never picks a model itself.
 //
 // Usage (run from the project root):
-//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive]
+//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome]
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
@@ -214,10 +214,13 @@ function archiveLines(id, meta, oneLine) {
   if (!o) return ["Archive: not run (run not ended)"];
   if (o.action !== "done") return ["Archive: not run (run halted)"];
   const pending = Array.isArray(o.manualPending) ? o.manualPending : [];
-  const unproven = doneNotes(o).uncommittedTicks ?? [];
+  const notes = doneNotes(o);
+  const unproven = notes.uncommittedTicks ?? [];
+  const manualUnproven = notes.manualUnproven ?? [];
   return [
     `Archive: requested - runs after this report was written; see the commit "chore(archive): close ${id}"`,
     ...(pending.length ? [`Manual checks pending: ${pending.length}`, ...pending.map((row) => `- ${oneLine(row)}`)] : []),
+    ...(manualUnproven.length ? [`Manual checks unproven: ${manualUnproven.length}`, ...manualUnproven.map((row) => `- ${oneLine(row)}`)] : []),
     ...(unproven.length ? [`Ticked without a commit: ${unproven.length}`, ...unproven.map((row) => `- ${oneLine(row)}`)] : []),
   ];
 }
@@ -354,6 +357,7 @@ function attachResult(p, log, policy) {
       break;
     }
     case "implement": verified = verifyImplement(last, plan, result, p, policy); break;
+    case "manual-verify": verified = verifyManual(last, ran, plan, result, p, policy); break;
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
   // The raw signals object never reaches run.jsonl; only the cleaned one does.
@@ -752,6 +756,8 @@ function decide(p, fullLog, policy, meta, ctx) {
     ? ir.exists && lir > lcode
     : ir.exists && ir.mtime >= plan.mtime;
   if (!irFresh) {
+    const verify = manualVerifyNext(plan, log, policy, ctx, meta);
+    if (verify) return verify;
     const struggled = log.some((e) => (e.step === "implement" || e.step === "fix") && !e.ok && !e.fallback) || count("fix") > 0;
     return {
       step: "impl-review",
@@ -784,7 +790,7 @@ function decide(p, fullLog, policy, meta, ctx) {
     done: true,
     reason: `impl review ${ir.verdict ?? "APPROVED"}`,
     manualPending: plan.manualPending,
-    ...doneNotes({ uncommittedTicks: unprovenTicks(log, plan, policy) }),
+    ...doneNotes({ uncommittedTicks: unprovenTicks(log, plan, policy), manualUnproven: manualUnprovenIds(log, plan) }),
   };
 }
 
@@ -1159,7 +1165,7 @@ const extraCost = (policy, template) => {
 
 // What the extra-step pool of this level still holds: the allowance minus the cost of every executed entry, any outcome.
 function extrasLeft(log, policy, level) {
-  return extraAllowance(policy, level) - log.reduce((sum, e) => sum + extraCost(policy, e.template), 0);
+  return extraAllowance(policy, level) - log.reduce((sum, e) => sum + extraCost(policy, e.step === "manual-verify" ? e.step : e.template), 0);
 }
 
 // An executor already failed or handed back a phase it covered: it is not chosen for that phase again.
@@ -1305,9 +1311,118 @@ function reviewWarning(log, plan, policy) {
   return { template: "impl-review-warn", uncommitted: rows };
 }
 
-// The non-empty note keys of a done result, so a run that ends clean carries none. Phase 5 adds manualUnproven.
+// The non-empty note keys of a done result, so a run that ends clean carries none.
 function doneNotes(d) {
-  return Array.isArray(d?.uncommittedTicks) && d.uncommittedTicks.length ? { uncommittedTicks: d.uncommittedTicks } : {};
+  const notes = {};
+  for (const key of ["uncommittedTicks", "manualUnproven"]) {
+    if (Array.isArray(d?.[key]) && d[key].length) notes[key] = d[key];
+  }
+  return notes;
+}
+
+// ---- manual verification ----
+
+// The ` — evidence: <token>` suffix a ticked Manual row carries.
+const EVIDENCE_SUFFIX_RE = /\s+—\s+evidence:\s*(\S+)$/;
+const withoutEvidence = (text) => text.replace(EVIDENCE_SUFFIX_RE, "");
+
+// Can a command (or, with --chrome, the browser) prove this Manual row? A row with a human word is never eligible; a
+// prefix hit on a human word only keeps a row pending, which is the safe direction. A browser word must match whole.
+function manualEligible(text, meta, policy) {
+  const cfg = policy.manualVerify;
+  if (!isObject(cfg)) return false;
+  const row = withoutEvidence(String(text ?? ""));
+  if (goalPhrase(row, wordList(cfg.humanWords)) !== null) return false;
+  const commands = wordList(cfg.commandWords).map((w) => w.toLowerCase());
+  for (const m of row.matchAll(/`([^`]+)`/g)) {
+    const first = m[1].trim().split(/\s+/)[0].toLowerCase();
+    if (commands.includes(first)) return true;
+  }
+  if (meta?.chrome !== true) return false;
+  const browser = wordList(cfg.browserWords).map((w) => w.toLowerCase());
+  return (row.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).some((w) => browser.includes(w));
+}
+
+const manualRows = (plan) => plan.phaseList.flatMap((ph) => ph.manual);
+
+// Manual rows the last manual-verify entry ticked without valid evidence that are still ticked. Empty when that entry was ok.
+function manualUnprovenIds(log, plan) {
+  const last = [...log].reverse().find((e) => e.step === "manual-verify");
+  if (!last || last.ok || !Array.isArray(last.unproven)) return [];
+  const done = new Set(manualRows(plan).filter((r) => r.done).map((r) => r.id));
+  return last.unproven.filter((id) => done.has(id));
+}
+
+// The manual-verify step, or null. It runs before the first impl-review pass that finds an eligible pending Manual row
+// (or a row the last attempt ticked without valid evidence), at most `maxRuns` ok runs and `maxAttempts` runs, and only
+// when the extra-step pool pays for it. A failed attempt is a neutral entry, so the run always goes on to impl-review.
+function manualVerifyNext(plan, log, policy, ctx, meta) {
+  const cfg = policy.manualVerify;
+  const posInt = (v) => Number.isInteger(v) && v > 0;
+  if (!isObject(cfg) || !posInt(cfg.maxRuns) || !posInt(cfg.maxAttempts) || plan.autoPending > 0) return null;
+  const levels = rigorLevels(policy);
+  if (levels.indexOf(ctx.level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(ctx.level) < levels.indexOf(cfg.minRigor)) return null;
+  const runs = log.filter((e) => e.step === "manual-verify");
+  if (runs.filter((e) => e.ok).length >= cfg.maxRuns || runs.length >= cfg.maxAttempts) return null;
+  if (extraAllowance(policy, ctx.level) <= 0 || extrasLeft(log, policy, ctx.level) < extraCost(policy, "manual-verify")) return null;
+  const rows = manualRows(plan);
+  const retry = manualUnprovenIds(log, plan);
+  if (!rows.some((r) => !r.done && manualEligible(r.text, meta, policy)) && !retry.length) return null;
+  return {
+    step: "manual-verify",
+    template: meta?.chrome === true ? "manual-verify-chrome" : "manual-verify",
+    bump: 0,
+    unproven: retry,
+    reason: `${rows.filter((r) => !r.done).length} manual rows pending; ${retry.length ? `${retry.length} unproven tick(s) to settle` : "command-checkable rows can be proved"}`,
+  };
+}
+
+// An evidence file that was written after `since` and lies inside <change>/evidence/. The token comes from a row suffix.
+function evidenceOk(changeDir, token, since) {
+  const segments = token.startsWith("evidence/") ? token.slice("evidence/".length).split("/") : [];
+  if (!segments.length || segments.some((s) => !/^[A-Za-z0-9._-]+$/.test(s) || s === "." || s === "..")) return false;
+  try {
+    const dir = path.join(changeDir, "evidence");
+    const dirStat = fs.lstatSync(dir);
+    if (!dirStat.isDirectory() || dirStat.isSymbolicLink()) return false;
+    const file = path.join(dir, ...segments);
+    const st = fs.statSync(file);
+    if (!st.isFile() || st.size <= 0 || !(st.mtimeMs > since)) return false;
+    return fs.realpathSync(file).startsWith(path.join(fs.realpathSync(changeDir), "evidence") + path.sep);
+  } catch { return false; }
+}
+
+// Verification of a manual-verify entry against the first entry of its trailing streak (a retry judges the first
+// attempt's ticks again). Sets last.ticked and last.unproven; a step that is not ok is a neutral fallback entry.
+function verifyManual(last, ran, plan, result, p, policy) {
+  const streak = [];
+  for (let i = ran.length - 1; i >= 0 && ran[i].step === "manual-verify"; i--) streak.unshift(ran[i]);
+  const first = streak[0] ?? last;
+  const baseManual = Array.isArray(first.before?.manual) ? first.before.manual : [];
+  const baseAuto = Array.isArray(first.before?.auto) ? first.before.auto : [];
+  const meta = readMeta(p.meta, {});
+  const nowManual = new Map(manualRows(plan).map((r) => [r.id, r]));
+  const nowAuto = new Map(plan.phaseList.flatMap((ph) => ph.auto).map((r) => [r.id, r]));
+  let intact = manualRows(plan).length === baseManual.length && nowAuto.size === baseAuto.length;
+  for (const b of baseAuto) {
+    const r = nowAuto.get(b.id);
+    if (!r || r.text !== b.text || r.done !== b.done) intact = false;
+  }
+  const ticked = [];
+  const unproven = [];
+  for (const b of baseManual) {
+    const r = nowManual.get(b.id);
+    if (!r || withoutEvidence(r.text) !== withoutEvidence(b.text) || (b.done && !r.done)) { intact = false; continue; }
+    if (b.done || !r.done) continue;
+    const token = r.text.match(EVIDENCE_SUFFIX_RE)?.[1];
+    if (manualEligible(b.text, meta, policy) && token && evidenceOk(p.change, token, first.startedAt ?? 0)) ticked.push(b.id);
+    else unproven.push(b.id);
+  }
+  last.ticked = ticked;
+  last.unproven = unproven;
+  const verified = intact && unproven.length === 0;
+  if (!(result.status === "done" && verified)) last.fallback = true;
+  return verified;
 }
 
 // ---- code re-plans ----
@@ -1779,6 +1894,7 @@ function next(id, policy) {
     id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
     phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
     retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "), failure: d.failure ?? "",
+    unproven: (d.unproven ?? []).join(", ") || "none",
   }).trim() + "\n\n" + policy.prompts.suffix;
   const entry = {
     n: ran.length + 1,
@@ -1799,6 +1915,11 @@ function next(id, policy) {
   if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
   if (d.executor) entry.executor = d.executor;
   if (Array.isArray(d.retry)) entry.retry = d.retry;
+  if (d.step === "manual-verify") {
+    const copy = (rows) => rows.map(({ id: rid, text, done }) => ({ id: rid, text, done }));
+    entry.before.manual = copy(manualRows(plan));
+    entry.before.auto = copy(plan.phaseList.flatMap((ph) => ph.auto));
+  }
   log.push(entry);
   writeLog(p.log, log);
   out({
@@ -2095,6 +2216,7 @@ function status(id, flags) {
       n: e.n, step: e.step, template: e.template ?? null, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
+      ...(e.step === "manual-verify" ? { ticked: e.ticked?.length ?? 0, unproven: e.unproven?.length ?? 0 } : {}),
     })),
   };
   if (flags.report) {
@@ -2115,7 +2237,7 @@ function halt(reason) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md]");
   }
   const policy = loadPolicy();
   const flags = parseFlags(rest);
@@ -2132,6 +2254,13 @@ function main() {
       if (flags.archive === true || flags.archive === "true") archive = true;
       else if (flags.archive === "false") archive = false;
       else halt(`Invalid --archive ${flags.archive}. Use --archive, --archive true or --archive false.`);
+    }
+    // --chrome is checked before anything is written, like --archive: a bare flag or "true" turns it on, "false" turns it off.
+    let chrome;
+    if (flags.chrome !== undefined) {
+      if (flags.chrome === true || flags.chrome === "true") chrome = true;
+      else if (flags.chrome === "false") chrome = false;
+      else halt(`Invalid --chrome ${flags.chrome}. Use --chrome, --chrome true or --chrome false.`);
     }
     const p = paths(id);
     guardArchived(p, id);
@@ -2155,6 +2284,7 @@ function main() {
     const meta = { ...prev, id, goal };
     if (!isObject(prev.rigor)) delete meta.rigor;
     if (archive !== undefined) meta.archive = archive;
+    if (chrome !== undefined) meta.chrome = chrome;
     if (flags.rigor !== undefined) {
       // On resume --rigor can raise the requested level, never lower it.
       const old = isObject(prev.rigor) && levels.includes(prev.rigor.requested) ? prev.rigor.requested : flags.rigor;
