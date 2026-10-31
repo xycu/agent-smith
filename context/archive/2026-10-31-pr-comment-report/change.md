@@ -1,10 +1,10 @@
 ---
 change_id: pr-comment-report
 title: Post the final run report as a pull request comment
-status: impl_reviewed
+status: archived
 created: 2026-10-31
 updated: 2026-10-31
-archived_at: null
+archived_at: 2026-10-31T01:21:15Z
 ---
 
 ## Notes
