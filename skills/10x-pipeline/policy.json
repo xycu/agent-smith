@@ -14,7 +14,10 @@
     "implement":   { "skill": "10x-goal-implement", "baseTier": 3, "minTier": 2, "maxTier": 6 },
     "impl-review": { "skill": "10x-impl-review",    "baseTier": 3, "minTier": 2, "maxTier": 5, "interactive": true },
     "fix":         { "skill": null,                 "baseTier": 3, "minTier": 2, "maxTier": 6 },
-    "archive":     { "skill": "10x-archive",        "baseTier": 3, "minTier": 3, "maxTier": 3, "interactive": true }
+    "archive":     { "skill": "10x-archive",        "baseTier": 3, "minTier": 3, "maxTier": 3, "interactive": true },
+    "research":     { "skill": "10x-research",      "baseTier": 3, "minTier": 2, "maxTier": 5, "interactive": true },
+    "domain-brief": { "skill": null,                "baseTier": 3, "minTier": 3, "maxTier": 5, "interactive": true },
+    "frame":        { "skill": "10x-frame",         "baseTier": 4, "minTier": 4, "maxTier": 4, "interactive": true }
   },
   "complexity": {
     "phaseThresholds": [3, 6],
@@ -77,14 +80,102 @@
     "gitTimeoutMs": 120000,
     "haltOnManualPending": false
   },
+  "preplan": {
+    "order": ["research", "domain-brief", "frame"],
+    "gates": {
+      "research": {
+        "minRigor": "thorough",
+        "skipIf": ["researchExists"],
+        "template": "research",
+        "variants": [{ "when": "repoMapExists", "template": "research-with-map" }]
+      },
+      "domain-brief": {
+        "minRigor": "thorough",
+        "when": ["aggregateGap", "dependencyLeak"],
+        "skipIf": ["briefExists"],
+        "variants": [
+          { "when": "aggregateGap", "template": "domain-aggregate" },
+          { "when": "dependencyLeak", "template": "domain-acl" }
+        ]
+      },
+      "frame": {
+        "minRigor": "thorough",
+        "when": ["framingDoubt"],
+        "skipIf": ["frameExists"],
+        "template": "frame"
+      }
+    },
+    "artifacts": {
+      "research": "research.md",
+      "research-with-map": "research.md",
+      "research-revise": "research.md",
+      "domain-aggregate": "refactor-invariant-aggregate.md",
+      "domain-acl": "refactor-anti-corruption-layer.md",
+      "frame": "frame.md",
+      "frame-rethink": "frame.md"
+    },
+    "predicates": {
+      "repoMapExists": { "file": "context/map/repo-map.md", "frontmatter": { "artifact": "repo-map" } },
+      "aggregateGap": {
+        "files": ["context/domain/domain-distillation.md", "context/domain/01-domain-distillation.md"],
+        "statuses": ["declared", "ignored", "contradicted"],
+        "minWordLength": 4,
+        "stopwords": [
+          "the", "and", "for", "with", "from", "that", "this", "into", "when", "then", "must", "only", "each", "every",
+          "also", "been", "both", "does", "done", "else", "have", "here", "just", "more", "most", "much", "same", "some",
+          "such", "than", "their", "them", "they", "there", "these", "those", "were", "what", "where", "which", "while",
+          "will", "would", "your",
+          "page", "view", "add", "fix", "update", "change", "make", "should", "work", "code", "test", "tests", "file",
+          "files", "data", "new", "use", "using"
+        ]
+      },
+      "dependencyLeak": {
+        "goalWords": ["vendor", "sdk", "third-party", "third party", "wrapper", "adapter", "leak", "anti-corruption", "swap out", "external api"]
+      },
+      "framingDoubt": {
+        "goalWords": ["root cause", "should we even", "is this the right", "challenge the assumption", "rethink", "before i plan", "caused by", "because", "assuming"]
+      }
+    },
+    "loops": {
+      "minRigor": "thorough",
+      "rethinkToFrame": 1,
+      "reviseResearchAfter": 1,
+      "reviseResearchMax": 1
+    }
+  },
   "prompts": {
     "suffix": "You run as an unattended subagent. AskUserQuestion is unavailable. Do not commit unless the skill itself commits.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.\nFinish your reply with exactly one line. The `signals` object is optional:\nRESULT: {\"status\":\"done|blocked|failed\",\"note\":\"<one sentence>\",\"assumptions\":[\"...\"],\"signals\":{\"needsHuman\":\"<reason, only when blocked>\",\"rigor\":\"standard|thorough\"}}",
-    "plan": "Run /10x-plan {id} {goal}\nWrite the plan to context/changes/{id}/plan.md with a valid ## Progress section.",
-    "plan-revise": "Run /10x-plan {id}\nRevise the existing context/changes/{id}/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Keep the ## Progress contract, step indices and titles.",
+    "plan": "Run /10x-plan {id} {goal}{artifacts}\nWrite the plan to context/changes/{id}/plan.md with a valid ## Progress section.",
+    "plan-revise": "Run /10x-plan {id}{artifacts}\nRevise the existing context/changes/{id}/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Keep the ## Progress contract, step indices and titles.{authority}",
     "plan-review": "Run /10x-plan-review context/changes/{id}/plan.md\nSave the review to context/changes/{id}/reviews/plan-review.md. Do not apply fixes to the plan. When the skill offers triage, choose to save and stop.",
     "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md. List pending #### Manual rows in your reply.",
     "impl-review": "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md. Do not fix findings. When the skill offers triage, choose to save and stop.",
     "fix": "Fix the findings in context/changes/{id}/reviews/impl-review.md (verdict: {verdict}). Fix every CRITICAL finding, then every WARNING with a clear fix. Stay inside the plan's scope. Run the plan's automated success criteria and the test suite. Commit with Conventional Commits (fix: ...). Do not edit ## Progress or the review file.",
-    "archive": "Run /10x-archive {id}\n- **GIVEN** `/10x-archive` would ask its warnings question and every warning is pending Manual Progress rows only, Progress rows without a SHA suffix, a status other than `implemented` or `impl_reviewed`, or a SHA history diagnostic **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Continue archiving` (the label may read `Continue archiving (Recommended)`; match the prefix).\n- **GIVEN** `/10x-archive` would ask its repoint question (`Update and archive`, `Archive without repointing`, `Cancel`) and no listed warning is a blocking warning **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Archive without repointing` (the Polish label `Archiwizuj bez podmiany` is the same answer).\n- **GIVEN** the SHA history check finds no remote, integration branch, implementation PR or integrating commit, or its `git fetch` fails, or it reports SHAs outside the target history **WHEN** the skill would ask you to identify, confirm or choose any of them **THEN** you **MUST** skip repointing, treat the diagnostics as warnings and answer the warnings question by the rules here, without asking.\n- **GIVEN** `/10x-archive` tells you to ask a question as plain text and wait because no question tool exists **WHEN** the question is the warnings question, the repoint question or a SHA history question **THEN** you **MUST NOT** ask it or end your turn to wait, and you continue in the same turn with the answer given here.\n- **GIVEN** the warnings include `Uncertain review coverage`, `Missing review coverage for phases`, `No impl-review found`, `No plan.md found`, a pending Automated row or pending Progress rows with no Automated and Manual breakdown (these are the blocking warnings), or `/10x-archive` stops on a hard block or asks a question not covered here **WHEN** you cannot continue **THEN** you **MUST** finish with status `blocked` and the printed reason in `note`.\n- **GIVEN** a blocking warning is listed **WHEN** the skill also shows its repoint question or its warnings question **THEN** the blocking rule above **MUST** win over the answers given here, and you answer neither question.\n- **GIVEN** these rules and the generic unattended rules disagree about an archive question **WHEN** you pick an answer **THEN** these rules **MUST** win.\n- **GIVEN** `/10x-archive` prints a warning, a SHA diagnostic or a roadmap notice **WHEN** you write the RESULT line **THEN** you **MUST** copy each one into `assumptions`.\n- **GIVEN** `/10x-archive` has finished or stopped **WHEN** you have more to do **THEN** you **MUST NOT** write any file under `context/changes/{id}/` or `context/archive/`."
+    "archive": "Run /10x-archive {id}\n- **GIVEN** `/10x-archive` would ask its warnings question and every warning is pending Manual Progress rows only, Progress rows without a SHA suffix, a status other than `implemented` or `impl_reviewed`, or a SHA history diagnostic **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Continue archiving` (the label may read `Continue archiving (Recommended)`; match the prefix).\n- **GIVEN** `/10x-archive` would ask its repoint question (`Update and archive`, `Archive without repointing`, `Cancel`) and no listed warning is a blocking warning **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Archive without repointing` (the Polish label `Archiwizuj bez podmiany` is the same answer).\n- **GIVEN** the SHA history check finds no remote, integration branch, implementation PR or integrating commit, or its `git fetch` fails, or it reports SHAs outside the target history **WHEN** the skill would ask you to identify, confirm or choose any of them **THEN** you **MUST** skip repointing, treat the diagnostics as warnings and answer the warnings question by the rules here, without asking.\n- **GIVEN** `/10x-archive` tells you to ask a question as plain text and wait because no question tool exists **WHEN** the question is the warnings question, the repoint question or a SHA history question **THEN** you **MUST NOT** ask it or end your turn to wait, and you continue in the same turn with the answer given here.\n- **GIVEN** the warnings include `Uncertain review coverage`, `Missing review coverage for phases`, `No impl-review found`, `No plan.md found`, a pending Automated row or pending Progress rows with no Automated and Manual breakdown (these are the blocking warnings), or `/10x-archive` stops on a hard block or asks a question not covered here **WHEN** you cannot continue **THEN** you **MUST** finish with status `blocked` and the printed reason in `note`.\n- **GIVEN** a blocking warning is listed **WHEN** the skill also shows its repoint question or its warnings question **THEN** the blocking rule above **MUST** win over the answers given here, and you answer neither question.\n- **GIVEN** these rules and the generic unattended rules disagree about an archive question **WHEN** you pick an answer **THEN** these rules **MUST** win.\n- **GIVEN** `/10x-archive` prints a warning, a SHA diagnostic or a roadmap notice **WHEN** you write the RESULT line **THEN** you **MUST** copy each one into `assumptions`.\n- **GIVEN** `/10x-archive` has finished or stopped **WHEN** you have more to do **THEN** you **MUST NOT** write any file under `context/changes/{id}/` or `context/archive/`.",
+    "research": [
+      "Run /10x-research {id} {goal}\nWrite the findings to context/changes/{id}/research.md.",
+      "- **GIVEN** you save context/changes/{id}/research.md **WHEN** you write its first lines **THEN** you **MUST** start the file with YAML frontmatter that holds status: complete or status: partial."
+    ],
+    "research-with-map": [
+      "@prompts/research-with-map.md",
+      "- **GIVEN** you save context/changes/{id}/research.md **WHEN** you write its first lines **THEN** you **MUST** start the file with YAML frontmatter that holds status: complete or status: partial."
+    ],
+    "research-revise": [
+      "Run /10x-research {id}\nThis is a follow-up that closes the gaps named in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Append the new findings to context/changes/{id}/research.md and update last_updated.",
+      "- **GIVEN** context/changes/{id}/research.md already holds findings **WHEN** you add the follow-up **THEN** you **MUST NOT** rewrite the earlier findings.",
+      "- **GIVEN** the skill would ask the user a new question **WHEN** you run the follow-up **THEN** you **MUST NOT** ask it and you decide from the review findings.",
+      "- **GIVEN** you save context/changes/{id}/research.md **WHEN** you write its first lines **THEN** you **MUST** start the file with YAML frontmatter that holds status: complete or status: partial."
+    ],
+    "domain-aggregate": "@prompts/invariant-aggregate-refactor.md",
+    "domain-acl": "@prompts/anti-corruption-layer.md",
+    "frame": [
+      "Run /10x-frame {id} {goal}\nWrite the brief to context/changes/{id}/frame.md.",
+      "@prompts/frame-unattended.md"
+    ],
+    "frame-rethink": [
+      "Run /10x-frame {id}\nPlan review context/changes/{id}/reviews/plan-review.md returned {verdict}. Treat its findings as the observation to test. Update context/changes/{id}/frame.md in place.",
+      "@prompts/frame-unattended.md"
+    ],
+    "frame-authority": "- **GIVEN** context/changes/{id}/frame.md is listed under the upstream artifacts **WHEN** you revise the plan **THEN** you **MUST** treat its reframed problem statement as authoritative: rework every phase and row that contradicts it, and apply the Progress contract (format, numbering and checkbox syntax) to the result, because this rule wins over the line that keeps step indices and titles."
   }
 }

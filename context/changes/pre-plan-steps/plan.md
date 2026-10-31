@@ -459,8 +459,8 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 #### Automated
 
 - [x] 1.1 Characterization tests pass: `node --test skills/10x-pipeline/test/loops-existing.test.mjs` — ad19eb2
-- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 1.3 The verdict is stored on the entry: `node --test --test-name-pattern="verdict on the entry" skills/10x-pipeline/test/loops.test.mjs`
+- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 6d2442e
+- [x] 1.3 The verdict is stored on the entry: `node --test --test-name-pattern="verdict on the entry" skills/10x-pipeline/test/loops.test.mjs` — 6d2442e
 
 #### Manual
 
@@ -471,13 +471,13 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [ ] 2.1 Form test accepts the new prompts and the guide file: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 2.2 Loader and artifact tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 2.3 Every prompt file is wired or documented: `node --test --test-name-pattern="wired or documented" skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 2.4 The frame guide covers each ask point: `node --test --test-name-pattern="frame guide" skills/10x-pipeline/test/preplan.test.mjs`
-- [ ] 2.5 `policy.json` is valid, carries the `preplan` block with loops gated at `thorough`, and pins `frame` at tier 4: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const f=p.steps.frame;if(!p.preplan||p.preplan.loops.minRigor!=="thorough"||!f||f.baseTier!==4||f.minTier!==4||f.maxTier!==4)process.exit(1)'`
-- [ ] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 2.7 Research templates ask for the status frontmatter and the authority rule is conditional: `node --test --test-name-pattern="status frontmatter|frame authority" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 2.1 Form test accepts the new prompts and the guide file: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 2.2 Loader and artifact tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 2.3 Every prompt file is wired or documented: `node --test --test-name-pattern="wired or documented" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 2.4 The frame guide covers each ask point: `node --test --test-name-pattern="frame guide" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 2.5 `policy.json` is valid, carries the `preplan` block with loops gated at `thorough`, and pins `frame` at tier 4: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const f=p.steps.frame;if(!p.preplan||p.preplan.loops.minRigor!=="thorough"||!f||f.baseTier!==4||f.minTier!==4||f.maxTier!==4)process.exit(1)'`
+- [x] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 2.7 Research templates ask for the status frontmatter and the authority rule is conditional: `node --test --test-name-pattern="status frontmatter|frame authority" skills/10x-pipeline/test/preplan.test.mjs`
 
 #### Manual
 
