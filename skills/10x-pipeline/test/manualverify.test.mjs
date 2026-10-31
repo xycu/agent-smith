@@ -419,6 +419,9 @@ test("manual verify prompts", () => {
   assert.ok(prompt.includes("` — evidence: evidence/<name>`"));
   assert.ok(!prompt.includes("ToolSearch"));
   assert.match(prompt, /MUST NOT\*\* tick it/);
+  // A command that never ends or waits for input is not run, and its row stays pending (a hang costs the step).
+  const never = /never ends by itself or waits for input[^\n]*\*\*MUST NOT\*\* run it and you leave the row at `\[ \]`/;
+  assert.match(prompt, never);
 
   const chrome = mvProject();
   const cp = start(chrome, "standard", ["--chrome"]).json.prompt;
@@ -426,6 +429,7 @@ test("manual verify prompts", () => {
   assert.ok(cp.includes("evidence: evidence/<name>"));
   assert.ok(cp.includes("ToolSearch"));
   assert.ok(cp.includes("mcp__claude-in-chrome__*"));
+  assert.match(cp, never);
   assert.match(cp, /unavailable or the extension is not connected/);
   assert.match(cp, /leave that row unticked and finish with status `done`/);
 
