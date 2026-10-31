@@ -2,7 +2,7 @@
 
 > Full plan: `context/changes/baseline-usage-comparison/plan.md`
 > Research: `context/changes/baseline-usage-comparison/research.md`
-> Revised after plan review (REVISE, F1-F10 all accepted): see "Review response" in the plan.
+> Revised after plan review round 1 (REVISE, F1-F10 all accepted) and round 2 (REVISE, F1-F6 all accepted): see "Review response" in the plan.
 
 ## What & Why
 
@@ -28,13 +28,14 @@ A shipped `baseline-policy.json` defines the baseline arm (all tiers `sonnet`/`h
 | Comparability | Both runs `done`, every executed step has a valid token figure, every executed baseline step `sonnet/high`; skips only warn | Partial sums or dropped failures bias the drop; S-07 will log skips | Plan, review F1 |
 | Noise | One pair, observed drop only, no significance claim | Dozens of runs cannot support one (ADR-001) | Research |
 | Output | stdout JSON, `--format md`; no `--out`, no `report.md` | Writes nothing, so it is safe after the routed run was archived | Plan |
-| `met` boundary | Integer test `diff*100 >= target*baseline`, target in 0 to 100 or `null` | "Drops by at least"; float math fails an exact 29 % | Plan, review F5 |
+| `met` boundary | Integer test `diff*100 >= target*baseline`, target in 0 to 100 or `null` (`undefined` counts as `null`); printed `dropPercent` is rounded down to 2 decimals so it never reads at the target when the verdict says `not met` | "Drops by at least"; float math fails an exact 29 % | Plan, reviews F5 and R2-F6 |
+| Phase 2 gate | `real-run-evidence.md` line `USAGE: pending\|present\|absent`; Phase 2 opens with `grep -q "^USAGE: present"` and row 2.13 repeats it | An unattended `/10x-goal-implement` flips only Automated rows and never stops at a Manual row, and the usage spike needs a live top-level session | Review R2-F1 |
 | Archived runs | Look in `context/archive/<date>-<id>/agent-smith/`; no `report.md` fallback | `report.md` table is lossy; `git mv` keeps `run.jsonl`, proven by a hermetic test | Plan, review F7 |
 | Pairing keys | `meta.goal` and `meta.baseSha`; mismatch is a warning | Numbers stay visible | Plan |
 
 ## Scope
 
-**In scope:** `baseline-policy.json`, `compare` policy key, `compare` command (JSON and Markdown), usage-intake tests, `compare.test.mjs`, README block, AGENTS.md lists, ADR-005, evidence note and three manual rows (alias, usage spike, real pair).
+**In scope:** `baseline-policy.json`, `compare` policy key, `compare` command (JSON and Markdown), usage-intake tests, `compare.test.mjs`, README block, AGENTS.md lists, ADR-005 (checked by a one-line widening of the `rules.test.mjs` ADR filter), evidence note and three manual rows (alias, usage spike, real pair).
 
 **Out of scope:** `init --baseline`, any change to `decide`, `tierFor`, `next`, `buildReport`, prompts or `SKILL.md`; threshold value, weights, significance tests, aggregate mode; orchestrator-session tokens; writing files; roadmap status flip (left to the merge to avoid conflicts with S-05 and S-07).
 
@@ -46,7 +47,7 @@ The baseline arm is data; the comparison is one read-only command in its own blo
 
 | Phase | What it delivers | Key risk |
 | --- | --- | --- |
-| 1. Baseline arm, policy key, guard tests and usage spike | `baseline-policy.json`, `compare` policy block, tests that fail without the file, usage intake tests, one-step live usage check | Real Agent results may carry no usage: the spike stops the work before Phase 2 |
+| 1. Baseline arm, policy key, guard tests and usage spike | `baseline-policy.json`, `compare` policy block, tests that fail without the file, usage intake tests, evidence file with `USAGE: pending`, one-step live usage check (human) | Real Agent results may carry no usage: an unattended run stops after Phase 1 until the owner sets the `USAGE:` line |
 | 2. `compare` command (JSON) | Read-only command, all rule tests, `git mv` archive test, router-made-log case | Edit overlap with S-07 in `main`; kept to two one-line edits |
 | 3. Markdown output, docs and real-pair evidence | `--format md`, README, AGENTS.md, ADR-005, one real pair | Real runs cost tokens |
 
@@ -55,9 +56,11 @@ The baseline arm is data; the comparison is one read-only command in its own blo
 
 ## Open Risks & Assumptions
 
-- A1: `sonnet` alias is read as Sonnet-5.5; the repo does not record the resolved version (row 1.5).
+- A1: `sonnet` alias is read as Sonnet-5.5; the repo does not record the resolved version (row 1.6).
 - A7: the baseline includes whatever optional steps S-07 adds at `standard` (O6).
-- Foreground Agent usage is unconfirmed (row 1.7, now before Phase 2); without it every pair is `not comparable`, and the default is to stop and hand the owner two options.
+- Foreground Agent usage is unconfirmed (row 1.7, before Phase 2); without it every pair is `not comparable`, and the default is to stop and hand the owner two options.
+- An unattended run (`/10x-goal-implement`) therefore stops after Phase 1, with Phase 1 committed, finishing `blocked` with `signals.needsHuman`. Owner to do, in a live top-level session with the plugin installed: rows 1.6 and 1.7, paste the raw `status` line and raw usage text of the Agent result into `real-run-evidence.md`, replace `USAGE: pending` with `USAGE: present` or `USAGE: absent`, tick 1.6 and 1.7, resume. Phases 2 and 3 then run; row 3.7 (real pair) is also a human row.
+- ADR-005: no sibling plan claims the number today. Before merging run `ls docs/ADR/ADR-005-*` on the merged tree (expect one file); the second change to merge renumbers with `git mv` (procedure in the plan, Edit discipline).
 - Raw tokens are a proxy for the weekly limit (understates `haiku` savings, overstates a drop bought with `opus`).
 - Owner questions with defaults applied: O1 threshold, O2 weights, O3 sample size and aggregate mode, O5 orchestrator tokens, O6 baseline scope.
 
