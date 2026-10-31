@@ -2,7 +2,7 @@
 
 > Full plan: `context/changes/phase-executors/plan.md`
 > Research: `context/changes/phase-executors/research.md`
-> Revised 2026-10-31 after plan review v1 (REVISE); see "Review Response" in the plan.
+> Revised 2026-10-31 after plan review round 1 and round 2 (both REVISE); see "Review Response" in the plan.
 
 ## What & Why
 
@@ -14,7 +14,7 @@ The pipeline runs every plan through one `/10x-goal-implement` call, accepts any
 
 ## Desired End State
 
-`implement` picks plain, segment, e2e, tdd or retry templates per phase. tdd, e2e and retry steps are `ok` only with a code commit in `before.head..HEAD`; a blocked executor falls back to goal-implement with no penalty. Rows ticked without a commit are re-opened by an `implement-retry` step. One extra-step pool per rigor level meters every non-plain implement step, `manual-verify` and the REJECTED re-plan; `lean` has none, so `lean` is unchanged. Two trailing failures, or a REJECTED before any `fix`, trigger one shared re-plan. At `standard` and above `manual-verify` ticks only command-checkable rows, each with a checked evidence file. `rigor.budgetDelta` is standard 2, thorough 7, from a proved longest path.
+`implement` picks plain, segment, e2e, tdd or retry templates per phase. tdd, e2e and retry steps are `ok` only with a code commit in `before.head..HEAD`; a blocked executor falls back to goal-implement with no penalty. Rows ticked without a commit are re-opened by one `implement-retry` step; a second miss goes to impl-review as a warning. One extra-step pool per rigor level meters every non-plain implement step, `manual-verify` and the REJECTED re-plan; `lean` has none, so `lean` is unchanged. Two trailing failures, or a REJECTED before any `fix`, trigger one shared re-plan. At `standard` and above `manual-verify` ticks only command-checkable rows, each with a checked evidence file. `rigor.budgetDelta` is standard 2, thorough 7, from a proved longest path.
 
 ## Key Decisions Made
 
@@ -24,12 +24,14 @@ The pipeline runs every plan through one `/10x-goal-implement` call, accepts any
 | Extra-step pool | Allowance lean 0, standard 2, thorough 3; segment, e2e, tdd, manual-verify cost 1, REJECTED re-plan 2 | One cap keeps the sum of features inside the budget; replaces `maxSegments` | Review F5 |
 | tdd / e2e gate | e2e: setup + row keywords; tdd: `thorough` plus a pure-logic predicate; both need pool allowance | Conservative; `lean` gets no executor steps | Plan |
 | Commit check | Strict for tdd, e2e and retry: a commit touching a path outside the change folder; goal-implement keeps the count rule | Zero-diff goal-implement phases are legitimate | Research, F4 |
-| Uncommitted ticks | Record `uncommitted` ids; `decide()` returns `implement-retry` while they stay ticked | A full-phase Skip flip must not reach impl-review as done | Review F2 |
+| Uncommitted ticks | Record `uncommitted` ids; `decide()` returns `implement-retry` while they stay ticked, at most once; a second miss goes to impl-review with the rows named as a warning and listed in `done`, the archive summary and `report.md` | A full-phase Skip flip must not reach impl-review as done, and a legitimate zero-diff phase must not halt the run | Review F2 (rounds 1 and 2) |
 | Fallback | `blocked` without `needsHuman` is a neutral entry (`fallback: true`), set inside the cases | No tier bump, no rigor rise; keeps the `attachResult` tail untouched for S-10 | Research, F8 |
 | Re-plan | Exactly 2 trailing failures, or REJECTED before any `fix` (costs a fix loop and pool 2); shared cap 1; `standard`+ | `route.test.mjs:386-400` and the reference paths stay valid | Review F1 |
 | manual-verify | From `standard`, once; only backticked-command rows (or browser rows with `--chrome`); evidence file existence and containment checked; failure neutral | Stops the step certifying human-judgment rows | Review F3 |
 | `--chrome` | `init` flag in `meta.json` with value validation, selects a chrome prompt | Orchestrator cannot probe tools; Chrome use is a Manual row | Plan, F10 |
-| Budget | `budgetDelta` standard 2, thorough 7 (rise +2 and +3) | Smallest values that fit the longest legal path (14 and 19) with one failed step to spare | Review F5 |
+| Budget | `budgetDelta` standard 2, thorough 7 (rise +2 and +3); the router walks saturating fixtures to prove it and a raised cap must break the bound | Smallest values that fit the longest legal path (14 and 19) with one failed step to spare | Review F5, round 2 F4 |
+| Existing test edits | `loops.test.mjs:30-34` (Phase 4) and `route.test.mjs:148-165` (Phase 6); gates allow exactly those | The new budgets break the second test (scratch run) | Round 2 F1 |
+| Gate rows | Per-phase `gateCheck` proves each pattern row names a real test title; `git diff` gates use the working tree and fail when `merge-base` fails | A pattern row that matches no test exits 0 | Round 2 F5 |
 | Baseline arm | Not pinned; README note | `compare.test.mjs` pins the baseline file keys | Review F9 |
 
 ## Scope
@@ -40,7 +42,7 @@ The pipeline runs every plan through one `/10x-goal-implement` call, accepts any
 
 ## Architecture / Approach
 
-New logic sits in one section after `replanNext`. Touch points inside existing functions: the implement branch, `struggled`, the REJECTED block and fix-loop count, one `manual-verify` call in the `!irFresh` branch, one conditional key in the `done` return, and new case bodies in `attachResult`. New policy keys are new groups after `prompts` plus appended entries and two `budgetDelta` values. Counters derive from the log by template name; a non-positive knob turns a feature off. All tests are new files that drive the real router through the CLI, except one block in `loops.test.mjs` (lines 30-34) that the REJECTED change intentionally edits.
+New logic sits in one section after `replanNext`. Touch points inside existing functions: the implement branch, `struggled`, the REJECTED block and fix-loop count, one `manual-verify` call in the `!irFresh` branch, one `doneNotes` spread in the `done` return (also spread in the `next()` done object, `archiveDone`, `finishRun` and `archiveLines`), and new case bodies in `attachResult`. New policy keys are new groups after `prompts` plus appended entries and two `budgetDelta` values. Counters derive from the log by template name; a non-positive knob turns a feature off. All tests are new files that drive the real router through the CLI, except one block in `loops.test.mjs` (lines 30-34) that the REJECTED change intentionally edits and the budget test at `route.test.mjs:148-165` that the new budgets break.
 
 ## Phases at a Glance
 
@@ -49,16 +51,16 @@ New logic sits in one section after `replanNext`. Touch points inside existing f
 | 1. Commit verification and neutral fallback | `phaseList`, `isFailure`, `commitEvidence`, fallback flag, `uncommitted`, log keys | Changing failure counters must not alter old runs |
 | 2. Phase list routing with e2e, segments and retry | Executor pick, pool, segments, e2e and retry prompts | Prompt cannot enforce "one phase"; Manual run needed |
 | 3. tdd at thorough | Pure-logic predicate, tdd prompt | Predicate is uncalibrated and conservative |
-| 4. Re-plan after failures or REJECTED | `plan-replan`, `plan-rejected`, the one test edit | Changes a tested behavior (REJECTED) |
+| 4. Re-plan after failures or REJECTED | `plan-replan`, `plan-rejected`, the `loops.test.mjs` edit | Changes a tested behavior (REJECTED) |
 | 5. manual-verify and `--chrome` | New step, eligibility, evidence check, flag, prompts | Chrome in a subagent is untested |
-| 6. Budget, report label, docs, gates | Proved deltas, ADR-003, SKILL, README, AGENTS, scope gates | Word lists and budget are uncalibrated |
+| 6. Budget, report label, docs, gates | Proved deltas, the `route.test.mjs` edit, ADR-003, SKILL, README, AGENTS, scope gates | Word lists and budget are uncalibrated |
 
 **Prerequisites:** `rigor-levels`, `pre-plan-steps` and `archive-adapter` merged (they are on main). Node 18+.
 **Estimated effort:** about 6 implement runs, one per phase, plus Manual checks.
 
 ## Open Risks & Assumptions
 
-- Assumptions 1-14 in `plan.md` carry reversal costs; the ones to watch are 3 (evidence content is not read), 4 (a goal-implement no-op can pass until impl-review; a retry that finds nothing halts after three attempts), 8-9 (pool sizes and the budget deltas) and 14 (the baseline arm runs the new defaults).
+- Assumptions 1-18 in `plan.md` carry reversal costs; the ones to watch are 3 (evidence content is not read), 4 and 15 (a goal-implement no-op can pass until impl-review; a Skip flip can pass after one retry, with a warning for the reviewer), 8-9 (pool sizes and the budget deltas) and 14 (the baseline arm runs the new defaults).
 - Chrome use in a subagent, unattended tdd, unattended e2e and a goal-implement segment that stops after its phase were never run; each has a Manual row.
 - Predicates and word lists (row words, command, human and browser words) are uncalibrated; a wrong pick costs one neutral step.
 
@@ -68,5 +70,5 @@ New logic sits in one section after `replanNext`. Touch points inside existing f
 - A mixed plan runs on the right executors within the pool and the budget; `lean` keeps today's paths and budget.
 - Repeated failure and a first-review REJECTED re-plan once, then behave as today.
 - Manual rows that a command or the browser can prove are ticked with a checked evidence file; the rest stay pending.
-- Frozen tests and files are byte-identical to `main`; `loops.test.mjs` differs in one hunk.
+- Frozen tests and files are byte-identical to `main`; `loops.test.mjs` differs in one hunk and `route.test.mjs` only in its budget test.
 - `node --test skills/10x-pipeline/test/*.test.mjs` passes.
