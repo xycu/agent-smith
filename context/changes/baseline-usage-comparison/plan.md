@@ -150,11 +150,22 @@ All four observations were applied as binding amendments before implementation. 
 ## Implementation notes and deviations
 
 - Phase 1 run unattended (`/10x-goal-implement`, nested subagent). Rows 1.1 to 1.5 ticked; rows 1.6 and 1.7 left for the owner; `USAGE: pending` untouched. Phase 2 not started (precondition fails).
-- Gate cleared by the owner's direction, 2026-10-31: the owner was present, asked for the orchestrator to run the probe and set `USAGE: present`. Rows 1.6 and 1.7 are ticked on that evidence. Caveat accepted by the owner: the probe saw usage in a background completion notice only; row 1.8 (unticked) re-checks the foreground path.
+- Gate cleared by the owner's direction, 2026-10-31: the owner was present, asked for the orchestrator to run the probe and set `USAGE: present`. Rows 1.6 and 1.7 are ticked on that evidence. Caveat accepted by the owner: figures exist in background completion notices; the foreground orchestrator path (row 1.8) is unverified. Row 1.8 (unticked) re-checks it.
 - Tests 1.1 to 1.4 plus a fifth test named `1.5` (policy `compare.targetDropPercent` is `null`) live in `compare.test.mjs`. Row 1.5 is the full-suite command; the `1.5` test is an addition that covers its first half.
 - Phase 2 (unattended, after the owner cleared the gate): `compare` in `route.mjs`, tests 2.1 to 2.11 in `compare.test.mjs`. Verdict math uses BigInt exact integer math for a target with at most 2 decimals and the `4 * Number.EPSILON` relative slack otherwise (round-3 F1). `readSide` drops JSON-array lines that `readLog` lets through, without changing `readLog`.
 - Phase 3: `--format md`, README block, AGENTS.md lists, ADR-005 and the widened `rules.test.mjs` filter. The pre-merge check `ls docs/ADR/ADR-005-*` found one file; `origin/pr-comment-report` and `origin/pre-plan-steps` (fetched, not merged) hold ADR-001 to ADR-004 only, so no renumber was needed. Row 3.7 stays open: it needs two real runs in a live session.
 - Test 1.4 drives the real `next` after a finished plan step and reads `usage` from the log entry.
+
+## Fix pass (implementation review 2026-10-31, verdict APPROVED, 0 critical, 2 warnings, 4 observations)
+
+Decisions are also recorded in `reviews/impl-review.md`. Manual rows 1.8 and 3.7 stay unticked.
+
+- F1 fixed: test 2.2 now covers the `dropMet` float branch (targets with 3 or more decimals) and the `4 * Number.EPSILON` slack. Mutants "always false", "no slack" and "1e-9 slack" turn the suite red in a scratch copy.
+- F2 fixed: tests for the all-entries pin (`some` against `every`), floor rounding of a negative drop (-33.34), the archive `^` anchor, the routed-only direction of `input-files-differ`, `failedAttempts`, the `plan` field and the Markdown `Source` row. Each mutant is killed in a scratch copy. No production bug found.
+- F3 kept as is: `USAGE: present` and the disclosure stay. The caveat reads: figures exist in background completion notices; the foreground orchestrator path (row 1.8) is unverified. Row 1.7 supports the background path only.
+- F4 recorded: "only 1.8 and 3.7 are unverified" holds for harness behavior only. Also unverified: Node 18 was never run (the suite ran on Node 24.19.0), row 1.6 is a model self-report from the subagent's system prompt, and the README worktree recipe (`git worktree add`, copying input files, copying the override) was never executed. Unticked Manual rows 3.9 (recipe) and 3.10 (Node 18) were added.
+- F5 fixed (one additive line in `readSide`): a running figure total past the safe-integer range counts as a missing figure, so the side is `usage-incomplete`. Test added; removing the guard turns it red. The router diff still removes only the `Usage:` line.
+- F6 documented in the README compare section: `baseline-total-zero` is a not-comparable reason, an unreadable `meta.json` shows only as `outcome-not-done` plus mismatch warnings, and a failed step without usage makes its side not comparable (A3 stays; revisit it with row 3.7). No `meta-unreadable` warning was added.
 
 ## Convention for pattern rows
 
@@ -485,3 +496,5 @@ None. No stored format changes. Runs made before this change compare fine if the
 #### Manual
 
 - [ ] 3.7 Real baseline run: make one routed run and one baseline run of the same small change (baseline in a `git worktree` from the routed run's `meta.baseSha`, per the README block), run `compare <id> --baseline <worktree> --format md`, and paste the output in `real-run-evidence.md`; every executed entry of the baseline log is `sonnet`/`high`, `pinned` is true, and every executed step of both runs has a token figure
+- [ ] 3.9 Execute the README "Baseline comparison:" recipe once on a throwaway change: `git worktree add <path> <baseSha>`, copy the input files, copy `baseline-policy.json` to `context/foundation/agent-smith-policy.json`, check that `init` there starts at `sonnet`/`high` and `standard`, then `git worktree remove <path>`; note any step that does not work as written
+- [ ] 3.10 Run the full suite on Node 18 (`node --test skills/10x-pipeline/test/*.test.mjs`, for example through `nvm` or `npx node@18`), including the tap-reporter path of the pattern-row command; the suite has run on Node 24.19.0 only
