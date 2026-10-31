@@ -25,7 +25,8 @@ milestone_status: open
 - **Intent:** Show that the pipeline picks a cheaper model and effort for a simple change than for a complex one, and that a report makes the difference visible and comparable to a full Sonnet-5.5 high-effort run.
 - **Source materials:** `context/foundation/prd.md` (v1), with the Phase 1 scope of `docs/ADR/ADR-001-phased-complexity-routing.md`.
 - **Done when:** every F-NN and S-NN below is `done`.
-- **Scope anchors:** FR-001 to FR-005, FR-007 to FR-010, US-01, US-02. Left out of this milestone: FR-006 (OpenSpec) and FR-011 (LLM-scored complexity), both nice-to-have.
+- **Scope anchors:** FR-001 to FR-005, FR-007 to FR-011, US-01, US-02. Left out of this milestone: FR-006 (OpenSpec), nice-to-have.
+- **Scope extension (2026-10-31):** S-11 pulls FR-011 (LLM-scored complexity on a cheap model) into this milestone, by owner decision. It was parked as Phase 2 of `docs/ADR/ADR-001-phased-complexity-routing.md`.
 - **Scope extension (2026-10-30):** S-07 to S-10 add the optional lifecycle steps of `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md` (diagrams 5, 6 and 7), gated by the rigor level from S-03 so they run only when worth their cost. Split from change `rigor-gated-routing`; shared research in `context/changes/rigor-levels/research.md`.
 
 ## Vision recap
@@ -52,6 +53,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | done |
 | S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
 | S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | proposed |
+| S-11 | llm-complexity-scorer        | have change complexity scored by an LLM on a cheap model, with the scores stored with evidence and unknowns and used by the router | S-03, S-10    | FR-001, FR-003, FR-011            | proposed |
 
 ## Streams
 
@@ -59,7 +61,7 @@ Navigation aid — groups items that share a Prerequisites chain. Canonical orde
 
 | Stream | Theme     | Chain                      | Note                                                                       |
 | ------ | --------- | -------------------------- | -------------------------------------------------------------------------- |
-| A      | Routing   | `S-01` → `S-03` → `S-07` → `S-08` → `S-10` | Speed: the routing claim and its rigor and risk guard come first; the optional steps follow one by one, because all of them edit `decide()` in `route.mjs`. |
+| A      | Routing   | `S-01` → `S-03` → `S-07` → `S-08` → `S-10` → `S-11` | Speed: the routing claim and its rigor and risk guard come first; the optional steps follow one by one, because all of them edit `decide()` in `route.mjs`. |
 | C      | Archive   | `S-03` → `S-09`            | Branches off Stream A at `S-03`. Only the research and plan steps can overlap with `S-03`; implement waits for `S-03` to merge, because both edit `route.mjs`. |
 | B      | Reporting | `S-02` → `S-05` → `S-06`   | Joins Stream A at `S-01` (`S-06` needs both); shows what ran and the saving. |
 
@@ -212,40 +214,55 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Risk:** The signal rides on the subagent's reply, so a weak prompt yields noise. `/10x-lesson` is interactive and is never run unattended.
 - **Status:** proposed
 
+### S-11: LLM complexity scorer
+
+- **Outcome:** user can have the complexity of a change scored by an LLM on a cheap model, with the scores stored with evidence and unknowns in a machine-readable file, and have the router use them next to the deterministic signals.
+- **Change ID:** llm-complexity-scorer
+- **PRD refs:** FR-001, FR-003, FR-011
+- **Prerequisites:** S-03, S-10
+- **Parallel with:** S-05, S-06
+- **Blockers:** a new ADR that decides where the LLM call runs and supersedes the Phase 2 deferral in ADR-001. `AGENTS.md` and ADR-006 keep the router free of LLM and network calls.
+- **Unknowns:**
+  - Where does the scorer run: an orchestrator-run subagent step that the router schedules, or inside `route.mjs`? The first keeps the router a script. — Owner: user. Block: yes.
+  - Which artifacts does the scorer read, and which scale does it use (ADR-001 sketches four factors, each 0 to 3)? — Owner: user. Block: no.
+  - Does the scorer's own token cost eat the saving? It counts toward the `compare` totals. — Owner: user. Block: no.
+- **Risk:** The scorer spends tokens on every change, including the simple ones it should make cheaper. S-06's `compare` is the check. It edits `decide()` and the `signals` parsing in `route.mjs`, so it waits for S-10 to merge.
+- **Status:** proposed
+
 ## Backlog Handoff
 
 | Roadmap ID | Change ID                      | Suggested issue title                                   | Ready for `/10x-plan` | Notes                                   |
 | ---------- | ------------------------------ | ------------------------------------------------------- | --------------------- | --------------------------------------- |
 | S-01       | cheaper-routing-simple-change  | Route simple changes to a cheaper model and effort      | done                  | Archived 2026-10-30                     |
 | S-02       | per-step-usage-report          | Report model and effort per pipeline step               | done                  | Archived 2026-10-30                     |
-| S-03       | rigor-levels                   | Rigor levels, churn risk and plan-review skip at lean   | yes                   | Research done; run `/10x-plan rigor-levels` |
+| S-03       | rigor-levels                   | Rigor levels, churn risk and plan-review skip at lean   | done                  | Archived 2026-10-30                     |
 | S-04       | —                              | (merged into S-03)                                      | —                     | Merged 2026-10-30                       |
-| S-05       | pr-comment-report              | Post the usage report as a pull request comment         | yes                   | Run `/10x-plan pr-comment-report`       |
-| S-06       | baseline-usage-comparison      | Compare a routed run with a baseline run                | yes                   | Run `/10x-plan baseline-usage-comparison`; Open Question 1 (success target) is still open |
-| S-07       | pre-plan-steps                 | Gate research, domain briefs and framing by rigor       | no                    | Needs S-03; research in `context/changes/rigor-levels/research.md` |
-| S-08       | phase-executors                | Route each plan phase to its executor                   | no                    | Needs S-03, S-07                        |
-| S-09       | archive-adapter                | Archive a finished run through the 10x-archive adapter  | no                    | Needs S-03 merged to implement; research and plan can start now |
-| S-10       | lesson-candidates              | Lesson candidates in the report                         | no                    | Needs S-03, S-08                        |
+| S-05       | pr-comment-report              | Post the usage report as a pull request comment         | done                  | Archived 2026-10-31                     |
+| S-06       | baseline-usage-comparison      | Compare a routed run with a baseline run                | done                  | Archived 2026-10-31; target drop set to 30% (Open Question 1) |
+| S-07       | pre-plan-steps                 | Gate research, domain briefs and framing by rigor       | done                  | Archived 2026-10-31                     |
+| S-08       | phase-executors                | Route each plan phase to its executor                   | done                  | Archived 2026-10-31                     |
+| S-09       | archive-adapter                | Archive a finished run through the 10x-archive adapter  | done                  | Archived 2026-10-30                     |
+| S-10       | lesson-candidates              | Lesson candidates in the report                         | yes                   | Prerequisites done; change folder exists, no plan yet. Run `/10x-research lesson-candidates`, then `/10x-plan lesson-candidates` |
+| S-11       | llm-complexity-scorer          | Score change complexity with an LLM on a cheap model    | no                    | Needs S-10 merged and a new ADR (placement of the LLM call); then `/10x-new llm-complexity-scorer` |
 
 ## Open Roadmap Questions
 
-1. **What usage drop counts as success?** — Baseline is known (a full run on Sonnet-5.5 at high effort, compared by A/B test), but the target percentage is not set. Owner: user. Block: S-06.
-2. **What does "a dep for other models" mean?** — The user said the pipeline is a dependency for other models (meaning unclear: other modules or projects that depend on it?). Which ones, and what must stay stable for them? Owner: user. Block: roadmap-wide.
-3. **Which artifacts does the router score, and who produces the score?** — Code, intent MD files, others; a review step, or the router itself? ADR-001 Phase 1 needs no scorer: the script reads artifacts and diff stats. An LLM scorer is deferred to Phase 2; confirm. Owner: user. Block: S-01, S-03.
-4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (2026-10-30): the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. Not yet confirmed on a foreground Agent result: the real-run evidence for S-02 row 3.6 was archived unfilled. Owner: user. Block: S-06.
-5. **Is OpenSpec (FR-006) out of scope for this delivery?** — The user called it nice-to-have but did not list it as a non-goal. This roadmap parks it. Owner: user. Block: roadmap-wide.
-6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — The user expects the router to be cheap to run, like Haiku-5.5. Today the router is a plain script with no LLM. ADR-001 Phase 1 keeps it a script; a cheap-model scorer only appears in Phase 2. Owner: user. Block: S-01, S-03.
-7. **What are the expected target_scale.qps and target_scale.data_volume?** — Not captured during shaping. Owner: user. Block: roadmap-wide.
-8. **Why now, and what is the current workaround and its cost?** — Not captured during shaping. Owner: user. Block: roadmap-wide.
-9. **Confirm two assumptions.** — (a) The change modifies the existing routing rule rather than replacing it. (b) There are no existing runs or data to carry over. Owner: user. Block: S-01.
-10. **Confirm the priorities of FR-009 to FR-011.** — They come from a proposed ADR. The Socrates round on 2026-10-30 challenged them, but the priorities themselves were set from the ADR, not by you. Owner: user. Block: S-02, S-03, S-06.
+1. **What usage drop counts as success?** — Resolved 2026-10-31: 30% in raw tokens against the Sonnet-5.5 high-effort baseline, provisional until at least 5 comparable pairs exist. To make `compare` use it, set `compare.targetDropPercent` to 30 in `context/foundation/agent-smith-policy.json`. Owner: user. Block: none.
+2. **What does "a dep for other models" mean?** — Resolved 2026-10-31: other projects install the plugin. The `/agent-smith:10x-pipeline` command, the policy override file and the `run.jsonl` and `report.md` formats stay stable. Owner: user. Block: none.
+3. **Which artifacts does the router score, and who produces the score?** — Resolved 2026-10-31: an LLM scorer is built in this milestone as S-11. Which artifacts it reads and who produces the score are settled in S-11's research and the new ADR. Owner: user. Block: S-11.
+4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (2026-10-30): the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. Not yet confirmed on a foreground Agent result: the real-run evidence for S-02 row 3.6 was archived unfilled. Decided 2026-10-31: verify on the next real run (S-10), then mark resolved. Owner: user. Block: none.
+5. **Is OpenSpec (FR-006) out of scope for this delivery?** — Resolved 2026-10-31: yes, it stays parked. Owner: user. Block: none.
+6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — Resolved 2026-10-31: the owner chose a cheap-model LLM step. Whether that is the router itself or a scorer step that the router schedules is open, and `AGENTS.md` and ADR-006 still describe a script-only router. A new ADR decides it before S-11 is planned. Owner: user. Block: S-11.
+7. **What are the expected target_scale.qps and target_scale.data_volume?** — Resolved 2026-10-31: qps 0 (one sequential run at a time); a few KB per run; hundreds of runs across a small team. Owner: user. Block: none.
+8. **Why now, and what is the current workaround and its cost?** — Resolved 2026-10-31: the weekly Claude usage limit runs out. The workaround is running every 10x step by hand on a fixed expensive model and effort. Owner: user. Block: none.
+9. **Confirm two assumptions.** — Resolved 2026-10-31: both confirmed (the change modifies the existing routing rule; there is no existing run data to carry over). Owner: user. Block: none.
+10. **Confirm the priorities of FR-009 to FR-011.** — Resolved 2026-10-31: FR-009 and FR-010 stay must-have (built). FR-011 moves to must-have and into M-1 as S-11. Owner: user. Block: none.
 11. **Which path rules and levels define elevated risk, and what does the pipeline do at the highest level?** — ADR-001 says the pipeline halts for a human, because subagents cannot ask questions. Resolved 2026-10-30: elevated risk = paths that change often in git history; the halt is a `needsHuman` signal from the subagent. Owner: user. Block: none.
 12. **What counts as a "clean" plan in Phase 1?** — FR-002 skips plan-review only on a clean result, but Phase 1 has no scorer. Resolved 2026-10-30: the owner decided that a `lean` change skips plan-review; S-04 merged into S-03. Owner: user. Block: none.
 
 ## Parked
 
 - **Changing or forking the 10x toolkit skills, or OpenSpec** — Why parked: PRD Non-Goals; agent-smith is an add-on and never edits them.
-- **LLM-scored change complexity (FR-011)** — Why parked: PRD Non-Goals and ADR-001 Phase 2; built only if the Phase 1 measurements show deterministic signals are not enough.
 - **OpenSpec chain through a second pipeline skill (FR-006)** — Why parked: nice-to-have, built after dynamic routing works; speed favors the must-have path.
 - **Splitting model and effort into separate choices** — Why parked: ADR-001 keeps the single ladder until measurements show their effects separately.
 
