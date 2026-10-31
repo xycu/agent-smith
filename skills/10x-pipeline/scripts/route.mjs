@@ -1602,8 +1602,9 @@ function comparePair(id, flags, policy) {
     if (flags[key] !== undefined && typeof flags[key] !== "string") halt(`Missing value for --${key}.`);
   }
   if (flags.baseline === undefined) halt("compare needs --baseline <dir>: compare <change-id> --baseline <dir> [--routed <dir>] [--format md].");
-  const format = flags.format === undefined ? "json" : flags.format;
-  if (format !== "json") halt(`Invalid --format ${format}. Use json.`);
+  if (flags.format !== undefined && flags.format !== "json" && flags.format !== "md") {
+    halt(`Invalid --format ${flags.format}. Use json or md.`);
+  }
   let target = policy.compare?.targetDropPercent;
   if (target === undefined) target = null;
   if (target !== null && !(typeof target === "number" && Number.isFinite(target) && target >= 0 && target <= 100)) {
@@ -1660,8 +1661,52 @@ function comparePair(id, flags, policy) {
   };
 }
 
+// Markdown form of the same pair object, so the two outputs cannot disagree.
+function compareMarkdown(pair) {
+  const { baseline: b, routed: r } = pair;
+  const row = (label, f) => `| ${label} | ${f(b)} | ${f(r)} |`;
+  const list = (a) => (a.length ? a.join(", ") : "none");
+  const withSteps = (key) => (s) => `${s[key].total} (${s[key].stepsWithFigures} of ${s.steps})`;
+  const models = (s) => {
+    const names = Object.keys(s.tokens.byModel).sort();
+    return names.length ? names.map((m) => `${m} ${s.tokens.byModel[m]}`).join(", ") : "none";
+  };
+  return [
+    `# Usage comparison: ${pair.change}`,
+    "",
+    "| | Baseline | Routed |",
+    "| --- | --- | --- |",
+    row("Outcome", (s) => s.outcome ?? "none"),
+    row("Rigor", (s) => s.rigor ?? "none"),
+    row("Steps", (s) => s.steps),
+    row("Skipped", (s) => list(s.skipped)),
+    row("Failed attempts", (s) => s.failedAttempts),
+    row("Tokens", withSteps("tokens")),
+    row("Tool uses", withSteps("toolUses")),
+    row("Duration (ms)", withSteps("durationMs")),
+    row("Plan phases and rows", (s) => (s.plan ? `${s.plan.phases} and ${s.plan.rows}` : "none")),
+    row("Source", (s) => s.source),
+    "",
+    `Tokens by model, baseline: ${models(b)}`,
+    `Tokens by model, routed: ${models(r)}`,
+    "",
+    `Baseline pinned to sonnet at high effort: ${pair.pinned ? "yes" : "no"}`,
+    `Drop: ${pair.dropPercent === null ? "none" : `${pair.dropPercent}%`} (rounded down to 2 decimals; the verdict uses exact tokens)`,
+    `Target: ${pair.targetDropPercent === null ? "not set" : `${pair.targetDropPercent}%`}`,
+    `Verdict: ${pair.verdict}. Unit: raw tokens, a proxy for the weekly limit.`,
+    `Reasons: ${list(pair.reasons)}`,
+    `Warnings: ${list(pair.warnings)}`,
+    "",
+  ].join("\n");
+}
+
 function compareCommand(id, flags, policy) {
-  out(comparePair(id, flags, policy));
+  const pair = comparePair(id, flags, policy);
+  if (flags.format === "md") {
+    process.stdout.write(compareMarkdown(pair));
+    process.exit(0);
+  }
+  out(pair);
 }
 
 function status(id, flags) {

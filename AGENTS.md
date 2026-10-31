@@ -16,11 +16,12 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `.claude-plugin/plugin.json` — plugin manifest. `.claude-plugin/marketplace.json` — marketplace listing this repo as its only plugin. Keep `name`, `description` and `version` aligned between the two and with @README.md.
 - `skills/10x-pipeline/SKILL.md` — orchestrator instructions (the loop over router output).
 - `skills/10x-pipeline/policy.json` — model ladder, base tiers, escalation, limits, prompt templates.
-- `skills/10x-pipeline/scripts/route.mjs` — router: `init`, `next`, `status`, `risk`, `verify-archive`.
-- `skills/10x-pipeline/test/` — `node:test` suite: `route.test.mjs`, `churn.test.mjs`, `archive.test.mjs`, `rules.test.mjs` and `helpers.mjs` (scratch projects, `run.jsonl` fixtures, hermetic git).
+- `skills/10x-pipeline/baseline-policy.json` — per-project override that pins the baseline arm of `compare` (all tiers `sonnet`/`high`, `standard` rigor, no plan-review skip). Data the user copies; the router does not read it.
+- `skills/10x-pipeline/scripts/route.mjs` — router: `init`, `next`, `status`, `risk`, `verify-archive`, `compare`.
+- `skills/10x-pipeline/test/` — `node:test` suite: `route.test.mjs`, `churn.test.mjs`, `archive.test.mjs`, `rules.test.mjs`, `compare.test.mjs` and `helpers.mjs` (scratch projects, `run.jsonl` fixtures, hermetic git).
 - `skills/10x-pipeline/prompts/` — rule-form prompt files; `policy.json` references them as `@prompts/<file>.md`.
 - `skills/10x-pipeline/test/preplan.test.mjs`, `loops-existing.test.mjs` and `loops.test.mjs` — pre-plan gates and prompt wiring, the characterized RETHINK/REVISE loop (never edit it), and the new loops and budget reference paths.
-- `docs/ADR/` — architecture decision records (ADR-001 to ADR-004).
+- `docs/ADR/` — architecture decision records (ADR-001 to ADR-005).
 - `context/` — 10x workflow docs: `changes/`, `archive/`, `foundation/`. See the README in each.
 - `assets/` — README header image only.
 
@@ -34,6 +35,7 @@ There is no build or lint setup. Run the tests with `node --test skills/10x-pipe
 - `node skills/10x-pipeline/scripts/route.mjs risk <id>` — print churn hot paths, plan hits and diff hits; writes nothing.
 - `node skills/10x-pipeline/scripts/pr-comment.mjs <id> [--report <p>]` — post the run report as a comment on the open pull request of the current branch, or edit its earlier comment. Prints one JSON object and exits 0 on a skip. Its tests are in `skills/10x-pipeline/test/pr-comment.test.mjs`; `GH_LIVE=1` enables the read-only live tests, which a human runs.
 - `node skills/10x-pipeline/scripts/route.mjs verify-archive <id> [--path <p>]` — read-only; prints `archived: true` only when the archive folder has `status: archived` and `context/changes/<id>/` is gone. Files only, no git.
+- `node skills/10x-pipeline/scripts/route.mjs compare <id> --baseline <dir> [--routed <dir>] [--format md]` — read-only; writes nothing. Compares the usage of a routed run with a baseline run (a second checkout with `baseline-policy.json` as its override) and prints totals, coverage, `comparable`, `reasons`, `warnings`, `dropPercent` and `verdict`.
 
 ## Coding Style
 

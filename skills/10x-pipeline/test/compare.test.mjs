@@ -490,3 +490,50 @@ test("2.11 a log written by the real router under the baseline file is read with
   assert.equal(res.json.verdict, "not comparable");
   assert.ok(res.json.reasons.includes("outcome-not-done:baseline"));
 });
+
+// ---- Phase 3: --format md ---------------------------------------------------------
+
+test("3.1 --format md prints the table, per-model lines, drop, target, verdict, reasons and warnings", () => {
+  const baseline = side({ totals: [400, 600] });
+  const routed = side({ totals: [250, 350] });
+  const before = [snapshot(baseline.base), snapshot(routed.base)];
+  const res = compare(routed, baseline, ["--format", "md"]);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json, null, "markdown, not JSON");
+  const md = res.stdout;
+  for (const text of [
+    "# Usage comparison: demo",
+    "| | Baseline | Routed |",
+    "| Tokens | 1000 (2 of 2) | 600 (2 of 2) |",
+    "Tokens by model, baseline: sonnet 1000",
+    "Tokens by model, routed: sonnet 600",
+    "Drop: 40% (rounded down to 2 decimals; the verdict uses exact tokens)",
+    "Target: not set",
+    "Verdict: target not set",
+    "raw tokens, a proxy for the weekly limit",
+    "Reasons: none",
+    "Warnings: none",
+  ]) assert.ok(md.includes(text), text);
+  assert.equal(compare(routed, baseline, ["--format", "json"]).json.verdict, "target not set");
+
+  // A mixed fixture lists every reason and warning code.
+  const mixedBaseline = side({ totals: [400, 600], over: { model: "haiku" }, skips: ["plan-review"], files: { "research.md": "r\n" } });
+  const mixedRouted = side({ totals: [100, null], meta: { goal: "other", baseSha: "b".repeat(40), outcome: { action: "halt" } }, policy: targetPolicy(29) });
+  const mixed = compare(mixedRouted, mixedBaseline, ["--format", "md"]).stdout;
+  for (const code of [
+    "baseline-not-pinned", "outcome-not-done:routed", "usage-incomplete:routed",
+    "goal-mismatch", "baseSha-mismatch", "baseline-skipped-steps:1", "input-files-differ:research.md",
+  ]) assert.ok(mixed.includes(code), code);
+  assert.ok(mixed.includes("Verdict: not comparable"));
+  assert.ok(mixed.includes("Target: 29%"));
+  assert.ok(mixed.includes("Drop: none"));
+  assert.ok(mixed.includes("Tokens by model, baseline: haiku 1000"));
+
+  const other = compare(routed, baseline, ["--format", "xml"]);
+  assert.equal(other.status, 1);
+  assert.equal(other.json.action, "halt");
+  const valueless = run(routed, ["compare", "demo", "--baseline", baseline.root, "--format"]);
+  assert.equal(valueless.status, 1);
+  assert.equal(valueless.json.action, "halt");
+  assert.deepEqual([snapshot(baseline.base), snapshot(routed.base)], before);
+});
