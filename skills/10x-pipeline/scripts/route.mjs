@@ -1412,7 +1412,12 @@ function verifyManual(last, ran, plan, result, p, policy) {
   const unproven = [];
   for (const b of baseManual) {
     const r = nowManual.get(b.id);
-    if (!r || withoutEvidence(r.text) !== withoutEvidence(b.text) || (b.done && !r.done)) { intact = false; continue; }
+    if (!r || withoutEvidence(r.text) !== withoutEvidence(b.text) || (b.done && !r.done)) {
+      intact = false;
+      // A newly ticked row whose title no longer matches (a mangled evidence suffix, for example) is a tick without valid evidence.
+      if (r?.done && !b.done) unproven.push(b.id);
+      continue;
+    }
     if (b.done || !r.done) continue;
     const token = r.text.match(EVIDENCE_SUFFIX_RE)?.[1];
     if (manualEligible(b.text, meta, policy) && token && evidenceOk(p.change, token, first.startedAt ?? 0)) ticked.push(b.id);
