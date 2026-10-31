@@ -33,6 +33,15 @@ Plan v3, after `reviews/plan-review-2.md` (verdict REVISE, F10 to F17). Each fin
 | F16 anchor collisions | Accepted, extended | README group moves to after `Limits:` and before `## Layout`; the README Layout line and the AGENTS.md Project Structure bullet are dropped; ADR-003 anchor kept with an explicit "keep both sections" rule. The sibling plans were read for their anchors |
 | F17 contract tightening | Accepted, one change | Cap counted in UTF-16 code units, not code points (a code-point cap can exceed GitHub's limit for emoji text); `--report` checked by file and directory name, not by string suffix; prose moved out of Progress; the timeout skip is documented as safe |
 
+Plan v4, after `reviews/plan-review-3.md` (verdict SOUND, four observations F18 to F21), applied while implementing. Each finding is decided in that file; this is the summary.
+
+| Finding | Decision | What changed |
+| --- | --- | --- |
+| F18 fallback unconditional, `TaskList` error at an end branch | Accepted | Start step 4 prints `task list unavailable` only when `--pr-comment` was given (without it a task tool error is silent). Each of `done`, `archive` and `halt` adds: if the call errors, post nothing and print `PR comment: skipped, task list unavailable`. The docs test pins the step 4 condition and the clause in each branch |
+| F19 back-off test could pass without back-off | Accepted | The emoji fixture puts one ASCII character before the run when needed so the cap falls between the two units of a pair; the test asserts the kept length is 59999. Checked: deleting the back-off turns it red |
+| F20 script with no JSON | Accepted | The `## PR comment (opt-in)` section says: if the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error` and complete the task. The 100-character id limit of the script (the router has none) is documented in that section and in the README; the router is not changed |
+| F21 edit discipline text | Accepted | Corrected below: three existing lines are extended and no sibling edits them; the S-07 ADR-003 remark is dropped (S-07 puts its section at the end of the file) |
+
 Progress rows keep their titles and numbers (the plan was reviewed, so titles are immutable). Rows whose check moved between Automated and Manual were deleted and a new row took the next free number, so some numbers have gaps (`references/progress-format.md` allows this). Where a row's command changed, the Phase text says so.
 
 ## Current State Analysis
@@ -241,7 +250,7 @@ Add the flag to the orchestrator and document the script, its rules and the manu
 
 ### Edit discipline
 
-Every edit to a shared file is a new line, bullet, group or section at the anchor below, never a change inside a line another change is likely to edit. Where a line could have been extended, a new line is added instead. The anchors were checked against the plans of the two parallel changes (S-06 `baseline-usage-comparison`, S-07 `pre-plan-steps`) after review round 2 (F16) and chosen so that none sits at an anchor a sibling claims:
+Every edit to a shared file is a new line, bullet, group or section at the anchor below, except three existing lines that are extended (the `argument-hint` frontmatter, the end of Start step 1 and the README heading line); no sibling edits those lines (F21). The anchors were checked against the plans of the two parallel changes (S-06 `baseline-usage-comparison`, S-07 `pre-plan-steps`) after review round 2 (F16) and chosen so that none sits at an anchor a sibling claims:
 
 - S-06 claims: README between "Usage report:" and "Limits:"; AGENTS.md `route.mjs` Project Structure bullet (adds `compare`), a `baseline-policy.json` bullet after the `policy.json` bullet, the test list, the ADR range token, and a Commands bullet after the last bullet; `docs/ADR/ADR-005`. It leaves `SKILL.md` and ADR-003 alone.
 - S-07 claims: README "Pre-plan steps" subsection before the "Override any policy key" paragraph and bullets at the end of "How routing works"; two new AGENTS.md Project Structure bullets; ADR-003 table row and a new section (no stated anchor); `SKILL.md` "How the tier moves" bullets after the archive bullet.
@@ -251,7 +260,7 @@ This change therefore uses:
 - `SKILL.md`: `argument-hint` gains `[--pr-comment]` at its end; a new line `PR_COMMENT=...` directly after the `Router:` line; Start step 1 gains one sentence at its end (flag parsing); a new Start step 4 after step 3; a new section `## PR comment (opt-in)` placed immediately before `## Rules`; one new continuation line under each of `done`, `archive` step 1 and `halt` (new lines, not edits of the existing long lines); one new bullet in `## Rules`. "How the tier moves" is untouched.
 - `README.md`: the skill heading line gains `[--pr-comment]` at its end; a new group `PR comment (opt-in):` after the last bullet of the `Limits:` group and before `## Layout`. That spot is claimed by neither sibling (S-06 is before `Limits:`, S-07 before "Override"). Its first bullet states the `gh` requirement, so the Requirements list stays unedited. There is no Layout line: the Layout block lists directories and `skills/10x-pipeline/` already covers `scripts/`.
 - `AGENTS.md`: one new Hard Rules bullet directly after the router git-writes bullet (neither sibling edits Hard Rules); one new Commands bullet directly after the `risk` bullet (S-06 appends after the last bullet, `verify-archive`, one line further down). No Project Structure bullet and no edit of its `route.mjs`, `test/` or `ADR` lines: both siblings edit that list, so the Hard Rules and Commands bullets name `scripts/pr-comment.mjs` and `test/pr-comment.test.mjs` instead.
-- `docs/ADR/ADR-003-rigor-gated-routing.md`: one new `### PR comment` section placed after `### Archive adapter` and immediately before `## Alternatives considered`, with no edit of the Context table. S-07's section may land at the same spot; on a merge conflict there keep both sections (they are independent).
+- `docs/ADR/ADR-003-rigor-gated-routing.md`: one new `### PR comment` section placed after `### Archive adapter` and immediately before `## Alternatives considered`, with no edit of the Context table. S-07 puts its ADR-003 section at the end of the file, so the two sections do not collide (F21).
 - `context/foundation/roadmap.md`: not edited by this change's plan commits. It is identical to `main` in this branch. Status tracking belongs to the commit that closes or merges the change; the implement skill's best-effort status sync, if it runs, is the only edit, and it is forward-only.
 
 ### Changes Required:
@@ -273,6 +282,7 @@ This change therefore uses:
 - New section `## PR comment (opt-in)` before `## Rules`: the PR comment step runs only when TaskList shows an open task with the subject `PR comment: <change-id>` for this run's change id. Run `node $PR_COMMENT <change-id>` from the project root once, print one line `PR comment: <action>, <url or reason> (PR <pr url or none>)`, then mark the task completed. In `archive` it runs at the end of step 1, before the archive subagent and so before the move. A halt without `report` posts nothing: print `PR comment: skipped, no report` and complete the task. A skip is not a failure of the run and is never retried. This is the only place `node $PR_COMMENT` appears.
 - One new continuation line under each branch: under `done`, `archive` step 1 and `halt`: "Call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step." (for `halt`, add "before you STOP"). Each pointer holds the phrase `PR comment step` once.
 - One new Rules bullet: only `$PR_COMMENT` may post a comment; never run `gh` yourself; never write the result into the change folder.
+- Round-3 amendments (F18, F20; see "Review response"): the `task list unavailable` print in Start step 4 applies only when `--pr-comment` was given, and each end-branch pointer adds "if the call errors, post nothing and print `PR comment: skipped, task list unavailable`". The section adds "if the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error` and mark the task completed" and names the 100-character id limit. The docs tests pin all three.
 
 #### 2. README
 
@@ -441,12 +451,12 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [x] 2.1 All script tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
-- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 2.3 No Node 19+ API in the new files
-- [x] 2.4 Router and policy untouched
-- [x] 2.5 Deliberate-break check: removing the author comparison makes the "another login yields POST" test fail
-- [x] 2.7 No write under the project root and no call outside the allowed list: tree-snapshot and argv-audit tests pass
+- [x] 2.1 All script tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs` — dca3f49
+- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — dca3f49
+- [x] 2.3 No Node 19+ API in the new files — dca3f49
+- [x] 2.4 Router and policy untouched — dca3f49
+- [x] 2.5 Deliberate-break check: removing the author comparison makes the "another login yields POST" test fail — dca3f49
+- [x] 2.7 No write under the project root and no call outside the allowed list: tree-snapshot and argv-audit tests pass — dca3f49
 
 #### Manual
 
@@ -456,13 +466,13 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [ ] 3.1 Docs consistency tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
-- [ ] 3.2 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 3.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 3.4 Router and policy untouched
-- [ ] 3.5 `SKILL.md` names no model, effort or tier added by this change
-- [ ] 3.6 `init` and `status` still print valid JSON in a scratch change folder
-- [ ] 3.9 SKILL.md loop structure: one `node $PR_COMMENT`, three `PR comment step` pointers, archive pointer before the archive subagent
+- [x] 3.1 Docs consistency tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
+- [x] 3.2 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 3.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.4 Router and policy untouched
+- [x] 3.5 `SKILL.md` names no model, effort or tier added by this change
+- [x] 3.6 `init` and `status` still print valid JSON in a scratch change folder
+- [x] 3.9 SKILL.md loop structure: one `node $PR_COMMENT`, three `PR comment step` pointers, archive pointer before the archive subagent
 
 #### Manual
 

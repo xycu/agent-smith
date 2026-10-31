@@ -7,6 +7,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - Keep routing decisions in `skills/10x-pipeline/scripts/route.mjs` and `skills/10x-pipeline/policy.json`. `SKILL.md` must not name models, effort levels or tiers beyond what it already documents.
 - `route.mjs` owns `context/changes/<change-id>/agent-smith/run.jsonl` and `meta.json`. Never edit them by hand or from the skill.
 - The router's only git writes are the index and commit writes of the pre-archive commit in the `done` branch of a run started with `--archive`: `git add`, `git commit`, and a `git reset` of its own add after a failure. It never pushes, never passes `--no-verify` and sets no `-c` option except `core.quotePath=false`. Everything else it does with git is a read.
+- The router never calls `gh`. `skills/10x-pipeline/scripts/pr-comment.mjs` is the only code that posts to GitHub, and only for a run started with `--pr-comment`. Its only network writes are one issue comment, created or edited, on an open `github.com` pull request of the current branch, found by a hidden marker. It never writes under the project root.
 - Add no npm dependencies. The router uses only `node:` built-ins and must run on Node 18+.
 - Never edit `context/archive/`; it is read-only by convention.
 
@@ -29,6 +30,7 @@ There is no build or lint setup. Run the tests with `node --test skills/10x-pipe
 - `node skills/10x-pipeline/scripts/route.mjs next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `node skills/10x-pipeline/scripts/route.mjs status <id>` — print the per-step model and effort log.
 - `node skills/10x-pipeline/scripts/route.mjs risk <id>` — print churn hot paths, plan hits and diff hits; writes nothing.
+- `node skills/10x-pipeline/scripts/pr-comment.mjs <id> [--report <p>]` — post the run report as a comment on the open pull request of the current branch, or edit its earlier comment. Prints one JSON object and exits 0 on a skip. Its tests are in `skills/10x-pipeline/test/pr-comment.test.mjs`; `GH_LIVE=1` enables the read-only live tests, which a human runs.
 - `node skills/10x-pipeline/scripts/route.mjs verify-archive <id> [--path <p>]` — read-only; prints `archived: true` only when the archive folder has `status: archived` and `context/changes/<id>/` is gone. Files only, no git.
 
 ## Coding Style

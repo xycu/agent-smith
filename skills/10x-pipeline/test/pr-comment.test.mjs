@@ -573,6 +573,125 @@ test("real gh without a login is not authenticated", { skip: win || !realGh }, (
   assert.match(res.json.reason, /gh is not authenticated/, res.stdout);
 });
 
+// ---- Phase 3: docs consistency -----------------------------------------------------
+
+const REPO = path.resolve(path.dirname(SCRIPT), "../../..");
+const readRepo = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8");
+const SUBJECT = "PR comment: <change-id>";
+
+// A SKILL.md loop branch: from the line starting `- **`<name>`**` to the next line that starts with `- **` or `## `.
+function branch(skill, name) {
+  const lines = skill.split("\n");
+  const start = lines.findIndex((l) => l.startsWith(`- **\`${name}\`**`));
+  assert.ok(start >= 0, `no ${name} branch`);
+  let end = start + 1;
+  while (end < lines.length && !lines[end].startsWith("- **") && !lines[end].startsWith("## ")) end++;
+  return lines.slice(start, end).join("\n");
+}
+
+const countOf = (text, needle) => text.split(needle).length - 1;
+
+test("SKILL.md: flag, script variable and the single node $PR_COMMENT call", () => {
+  const skill = readRepo("skills/10x-pipeline/SKILL.md");
+  assert.match(skill, /^argument-hint:.*--pr-comment/m);
+  assert.ok(skill.includes("PR_COMMENT="));
+  assert.ok(!skill.includes("gh pr") && !skill.includes("gh api"));
+  assert.equal(countOf(skill, "node $PR_COMMENT"), 1);
+  const section = skill.indexOf("## PR comment (opt-in)");
+  const rules = skill.indexOf("## Rules");
+  const call = skill.indexOf("node $PR_COMMENT");
+  assert.ok(section >= 0 && section < rules, "section must precede ## Rules");
+  assert.ok(call > section && call < rules, "node $PR_COMMENT must lie inside the section");
+});
+
+test("SKILL.md: Start step 4 stores the flag as a task and fails closed", () => {
+  const skill = readRepo("skills/10x-pipeline/SKILL.md");
+  const start = skill.slice(skill.indexOf("## Start"), skill.indexOf("## Loop"));
+  for (const needle of ["TaskList", "TaskCreate", "--pr-comment", SUBJECT, "task list unavailable", "completed", "another change"]) {
+    assert.ok(start.includes(needle), `Start section lacks ${needle}`);
+  }
+  // F18: the printed fallback needs the flag; without it a task tool error is silent.
+  const fallback = start.split("\n").find((l) => l.includes("task list unavailable"));
+  assert.match(fallback, /`--pr-comment` was given/);
+  assert.ok(start.includes("a task tool error is silent"));
+});
+
+test("SKILL.md: done, archive and halt each point at TaskList, the subject and the PR comment step once", () => {
+  const skill = readRepo("skills/10x-pipeline/SKILL.md");
+  for (const name of ["done", "archive", "halt"]) {
+    const text = branch(skill, name);
+    assert.equal(countOf(text, "PR comment step"), 1, `${name}: PR comment step`);
+    assert.equal(countOf(text, "TaskList"), 1, `${name}: TaskList`);
+    assert.equal(countOf(text, SUBJECT), 1, `${name}: subject`);
+    // F18: a TaskList error at an end branch posts nothing and says so.
+    assert.equal(countOf(text, "task list unavailable"), 1, `${name}: task list unavailable`);
+    assert.match(text, /post nothing/, `${name}: fail closed`);
+  }
+  const archive = branch(skill, "archive");
+  assert.ok(archive.indexOf("PR comment step") < archive.indexOf("Call the Agent tool"), "the archive pointer must come before the archive step");
+  assert.match(branch(skill, "halt"), /Before you STOP/);
+});
+
+test("SKILL.md: the PR comment section names the task, the subject and the script-error fallback", () => {
+  const skill = readRepo("skills/10x-pipeline/SKILL.md");
+  const section = skill.slice(skill.indexOf("## PR comment (opt-in)"), skill.indexOf("## Rules"));
+  assert.ok(section.includes("TaskList") && section.includes(SUBJECT));
+  // F20: no JSON or a non-zero exit is a skip, and the id length difference is named.
+  assert.ok(section.includes("PR comment: skipped, script error"));
+  assert.ok(section.includes("100 characters"));
+  assert.ok(section.includes("PR comment: skipped, no report"));
+});
+
+test("SKILL.md: lines about the PR comment name no model, effort or tier", () => {
+  const skill = readRepo("skills/10x-pipeline/SKILL.md");
+  const banned = /\b(sonnet|opus|haiku|fable|effort|tier|model)\b/i;
+  const lines = skill.split("\n").filter((l) => /PR_COMMENT|--pr-comment|PR comment/.test(l));
+  assert.ok(lines.length >= 8, "expected the PR comment lines");
+  for (const line of lines) assert.doesNotMatch(line, banned, line);
+});
+
+test("README documents the flag, and its PR comment group lies after Limits: and before ## Layout", () => {
+  const readme = readRepo("README.md");
+  assert.ok(readme.includes("--pr-comment"));
+  const limits = readme.indexOf("\nLimits:");
+  const group = readme.indexOf("\nPR comment (opt-in):");
+  const layout = readme.indexOf("\n## Layout");
+  assert.ok(limits >= 0 && group > limits && layout > group);
+  const text = readme.slice(group, layout);
+  for (const needle of ["task list unavailable", "unsupported host", "gh timed out", "100 characters", "script error", "report.md", "agent-smith"]) {
+    assert.ok(text.includes(needle), `README group lacks ${needle}`);
+  }
+});
+
+const ADR_RULES = [
+  "- **GIVEN** a run started without `--pr-comment` **WHEN** the run ends **THEN** the orchestrator **MUST NOT** call `pr-comment.mjs`.",
+  "- **GIVEN** the router runs any command **WHEN** it handles a step **THEN** it **MUST NOT** call `gh`.",
+  "- **GIVEN** `pr-comment.mjs` cannot reach an open pull request **WHEN** it handles the failure **THEN** it **MUST** skip the comment and exit 0.",
+  "- **GIVEN** the script finds a marker comment by the viewer **WHEN** it posts **THEN** it **MUST** edit that comment instead of creating another.",
+  "- **GIVEN** the script posts **WHEN** it builds the body **THEN** it **MUST NOT** pass the body as a command argument.",
+  "- **GIVEN** `--report` does not name a file `report.md` inside a directory `agent-smith` **WHEN** the script starts **THEN** it **MUST** refuse it as a usage error.",
+  "- **GIVEN** the script has run **WHEN** the orchestrator records the result **THEN** it **MUST NOT** write under `context/changes/<id>/`.",
+];
+
+test("ADR-003 has a PR comment section with exactly seven rule lines, each once", () => {
+  const adr = readRepo("docs/ADR/ADR-003-rigor-gated-routing.md");
+  const archive = adr.indexOf("### Archive adapter");
+  const start = adr.indexOf("### PR comment");
+  const end = adr.indexOf("## Alternatives considered");
+  assert.ok(archive >= 0 && start > archive && end > start, "section order");
+  const lines = adr.slice(start, end).split("\n");
+  assert.equal(lines.filter((l) => l.includes("**GIVEN**")).length, 7);
+  for (const rule of ADR_RULES) assert.equal(lines.filter((l) => l === rule).length, 1, rule);
+});
+
+test("AGENTS.md names the script in Hard Rules and Commands and the test file in Commands", () => {
+  const agents = readRepo("AGENTS.md");
+  const rules = agents.slice(agents.indexOf("## Hard Rules"), agents.indexOf("## Project Structure"));
+  const commands = agents.slice(agents.indexOf("## Commands"), agents.indexOf("## Coding Style"));
+  assert.ok(rules.includes("pr-comment.mjs"));
+  assert.ok(commands.includes("pr-comment.mjs") && commands.includes("pr-comment.test.mjs"));
+});
+
 // ---- live, opt-in (run by a human with GH_LIVE=1) -----------------------------------
 
 const live = process.env.GH_LIVE === "1";

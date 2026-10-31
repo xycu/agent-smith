@@ -15,7 +15,7 @@ A Claude Code plugin. Each step of a skill chain runs in its own subagent. A rou
 
 ## Skills
 
-### `/agent-smith:10x-pipeline <change-id> [goal] [--archive]`
+### `/agent-smith:10x-pipeline <change-id> [goal] [--archive] [--pr-comment]`
 
 Runs a 10xDevs change end to end: plan, plan review, implement, implementation review, fix. With `--archive` it also commits the change folder and archives the change when the run is done (see "Archive (opt-in)").
 
@@ -74,6 +74,19 @@ Limits:
 
 - Subagents cannot use `AskUserQuestion`. Where a skill would ask, the subagent decides from researched best practice, cites the evidence and lists the decision as an assumption. With no evidence-backed answer it reports `blocked` with `signals.needsHuman`, and the router halts.
 - `10x-goal-implement` spawns its own subagents. This needs `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` of 3 or more (the default since Claude Code v2.1.219).
+
+PR comment (opt-in):
+
+- Needs the GitHub CLI `gh`, authenticated, and only with `--pr-comment`. Without the flag nothing is posted and `gh` is not needed. The permission a fine-grained token needs is not verified yet (pull requests or issues write is the expected one).
+- Opt-in because the comment is visible to collaborators and carries the goal text. The PRD wording "is posted" is therefore met only when the flag is given.
+- When the run ends (`done`, `archive` or `halt` with a `report`), the orchestrator runs `skills/10x-pipeline/scripts/pr-comment.mjs <change-id>`. It posts `report.md` as one comment on the open pull request of the current branch. In an `archive` run it posts before the move. The flag is kept as an orchestrator task named `PR comment: <change-id>` and read at each end of the run; `route.mjs` and `policy.json` are not involved.
+- One comment per change per pull request. The first line is a hidden marker, `<!-- agent-smith:pr-report change=<change-id> -->`. A later run edits the comment of the same author that holds the marker, even after you edited it in the GitHub web UI. It never edits another comment. When `gh api user` fails (some integration tokens), it matches by marker only and reports `match: "marker-only"`. The edit replaces the earlier text; GitHub keeps the edit history.
+- Skip reasons, each with exit code 0 and no effect on the run: `gh is not installed`, `gh is not authenticated`, `no pull request for this branch`, `not a git work tree`, `pull request is MERGED` or `CLOSED`, `unsupported host <host>` (no GitHub Enterprise), `gh timed out` (each call has 20 seconds; a pull request with hundreds of comments can exceed that while the comment list is read, and the skip posts nothing and cannot duplicate), `comment lookup failed`, `comment request failed`, a missing, empty or foreign report, and `task list unavailable` (the task tools are missing, so the flag cannot be stored and nothing is posted). A draft pull request gets the comment.
+- The orchestrator prints a `PR comment:` line when the flag was given. A missing line means the step was dropped.
+- Mentions such as `@name` in the report get a zero-width space after the `@`, so nobody is notified. A body over 60000 UTF-16 code units is cut and says how many characters were omitted.
+- Nothing is written to the change folder, so `report.md` cannot say whether it was posted. The result is in the final message only.
+- A change id is at most 100 characters for the script (the marker must fit in the comment head). The router has no such limit, so a longer id ends in `PR comment: skipped, script error`.
+- A run that ended before the pull request existed: open the pull request, check out its branch and run `node <plugin>/skills/10x-pipeline/scripts/pr-comment.mjs <change-id> [--report context/archive/<date>-<change-id>/agent-smith/report.md]` from the project root. The comment goes to the pull request of the branch checked out now, so run it from the branch of that pull request. The result prints the pull request url. `--report` accepts only a file named `report.md` inside a directory named `agent-smith`, whose first line is `# Run report: <change-id>`.
 
 ## Layout
 
