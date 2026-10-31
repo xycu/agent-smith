@@ -145,11 +145,11 @@ test("a stored rigor with an unknown level is ignored", () => {
 
 // ---- budget ------------------------------------------------------------------
 
-test("step budget differs per level: 10, 14, 18", () => {
+test("step budget differs per level: 10, 16, 21", () => {
   const cases = [
     { goal: "fix typo", extra: [], budget: 10 },
-    { goal: PLAIN_GOAL, extra: [], budget: 14 },
-    { goal: "fix typo", extra: ["--rigor", "thorough"], budget: 18 },
+    { goal: PLAIN_GOAL, extra: [], budget: 16 },
+    { goal: "fix typo", extra: ["--rigor", "thorough"], budget: 21 },
   ];
   for (const { goal, extra, budget } of cases) {
     const project = makeProject();

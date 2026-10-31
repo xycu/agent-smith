@@ -55,7 +55,7 @@
     "fromPhases": ["standard", "thorough"],
     "fromFailures": [{ "minFailed": 1, "level": "standard" }, { "minFailed": 3, "level": "thorough" }],
     "skipPlanReviewAt": ["lean"],
-    "budgetDelta": { "lean": -4, "standard": 0, "thorough": 4 },
+    "budgetDelta": { "lean": -4, "standard": 2, "thorough": 7 },
     "effortOrder": ["low", "medium", "high", "xhigh", "max"],
     "minEffort": { "lean": "medium", "standard": "high", "thorough": "high" },
     "tierOffset": { "lean": { "impl-review": -1 } }

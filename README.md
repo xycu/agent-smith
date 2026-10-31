@@ -15,7 +15,7 @@ A Claude Code plugin. Each step of a skill chain runs in its own subagent. A rou
 
 ## Skills
 
-### `/agent-smith:10x-pipeline <change-id> [goal] [--archive] [--pr-comment]`
+### `/agent-smith:10x-pipeline <change-id> [goal] [--archive] [--chrome] [--pr-comment]`
 
 Runs a 10xDevs change end to end: plan, plan review, implement, implementation review, fix. With `--archive` it also commits the change folder and archives the change when the run is done (see "Archive (opt-in)").
 
@@ -36,6 +36,7 @@ How routing works:
 - A step counts as failed when the subagent does not report `done` or the expected file did not change.
 - The archive step is not moved by any of these rules: the policy pins its tier.
 - At rigor `thorough` the router can run `research`, `domain-brief` and `frame` before the first plan, and a plan review `RETHINK` or a repeated `REVISE` can send the run back to `frame` or `research` once before the re-plan. Both are off below `thorough` by default. See "Pre-plan steps".
+- From `standard` up the router can swap the plain implement step for a phase executor (`implement-e2e`, `implement-tdd`, `implement-segment`), re-plan after code ran (`plan-replan` after two implement failures in a row, `plan-rejected` after a first `REJECTED` review) and run `manual-verify` before the implementation review. A tdd or e2e step also needs a code commit to count as done, and a step that ends `blocked` falls back with no failure counted. See "Phase executors".
 - The run halts for a human after repeated failures, too many plan revisions or fix loops, or when the step budget is spent.
 
 Rigor:
@@ -43,7 +44,7 @@ Rigor:
 - Every run has a rigor level, `lean`, `standard` or `thorough`, stored in `meta.json` and kept on resume. It starts from the goal class (a short goal is `lean`) or from `init <id> --rigor <level>`, and it only rises: with 3 or more phases (`standard`) or 6 or more (`thorough`), after failed steps, when the plan or the diff touches a hot path, and when a subagent result carries `signals.rigor`.
 - Hot paths come from churn: paths that change often in the repository history, counted up to the commit the run started from (`meta.baseSha`). The parameters sit under `risk` in `policy.json` and are uncalibrated. `node skills/10x-pipeline/scripts/route.mjs risk <change-id>` prints the hot paths, the plan hits and the diff hits and writes nothing.
 - At `lean` the router skips plan review before implementation starts, if risk was measured (history readable, the plan names at least one path, and every named path can be matched against the hot set: a file, a directory, a glob or an absolute path under the project root) and no named path is hot. The skip is logged in `run.jsonl` with its reason and listed in `report.md`. If risk could not be measured, plan review runs. Implementation review is never skipped.
-- The step budget is `limits.maxTotalSteps` plus a delta per level (smaller at `lean`, larger at `thorough`). Skipped steps use no budget.
+- The step budget is `limits.maxTotalSteps` plus a delta per level (`rigor.budgetDelta`: -4, +2 and +7, so 10, 16 and 21 steps). Skipped steps use no budget. See "Budget" below for the longest path each level is sized for.
 - A subagent can end its `RESULT:` line with an optional `signals` object. The router keeps two keys: `rigor` (raises the level) and `needsHuman` (halts the run once with a report). It ignores the rest.
 - Prompt rules follow the GIVEN/WHEN/THEN form with one bold RFC 2119 keyword (ADR-004). `node --test skills/10x-pipeline/test/*.test.mjs` checks the form and the router behavior.
 
@@ -102,8 +103,20 @@ Loops (`preplan.loops.minRigor`, default `thorough`):
 
 Budget:
 
-- The steps count against the step budget; skips do not. At `standard` the reference worst path stays 12 of 14, as before. At `thorough` the reference worst path (three pre-plan steps, a `RETHINK` with a frame round, two fix loops) is 16 of 18, so one failed step still fits and two end the run with the budget spent. `lean` is not covered: its budget of 10 already could not hold the 12-step path when plan review runs.
-- A project that lowers a gate or `loops.minRigor` to `standard` has a standard worst path of 13 and no tolerance for a failed step. It should raise `rigor.budgetDelta.standard` to 1.
+- The steps count against the step budget; skips do not. The budgets are 10 (`lean`), 16 (`standard`) and 21 (`thorough`). The longest failure-free path with every feature in play is 14 steps at `standard` and 19 at `thorough`, so one failed step and its retry still fit and a second failure can end the run with the budget spent. A test lets the router walk saturating plans and checks this; the same test shows that a pool allowance raised by one without a larger delta breaks it. `lean` is unchanged: its pool is empty, and its budget of 10 already could not hold a 12-step path when plan review runs.
+- Typical worst paths at `standard`: the plan loop (6 steps), a segment, an e2e step and a plain tail (3), then impl-review, fix, impl-review, fix, impl-review (5) is 14. At `thorough`: three pre-plan steps, a `RETHINK` with a frame round and a plan loop (10), segment, e2e, tdd and a plain tail (4), then 5 is 19.
+- A project that overrides `rigor.budgetDelta` keeps its values. With a pool allowance above 0 and an old delta, the budget can halt a run that uses extra steps.
+
+Phase executors:
+
+- The step name stays `implement`; the template changes. For the first pending phase of `### Phase N` headings the router returns `implement-e2e` (a valid `/10x-e2e-setup` record in `context/foundation/test-stack.md` and a browser word in the phase), `implement-tdd` (rigor `thorough`, a phase whose files are code and whose rows name a test command) or the plain step. Goal phases in front of a special phase run as `implement-segment`, which stops after its last phase.
+- The extra-step pool (`extraSteps.allowance`: `lean` 0, `standard` 2, `thorough` 3) pays for segments, e2e, tdd and `manual-verify` at 1 each and for the `plan-rejected` re-plan at 2. When the pool cannot pay for a segment and the executor after it, plain `implement` runs the whole plan.
+- A tdd or e2e step counts as done only with ticked rows and a code commit since it began (read-only `git`; docs, lock files, `assets/**` and `context/**` do not count). Rows left ticked without a commit get one `implement-retry` step; if they still have none, the run goes on and the implementation review prompt carries a warning. The rows are listed as `uncommittedTicks` in the final message, the `archive` summary and `meta.outcome`, and in `report.md` of an `--archive` run.
+- A tdd or e2e step that ends `blocked` is a fallback: no failed attempt, no tier bump, no rigor rise, and the executor is not chosen again for that phase. The report shows `fallback`, and `compare` does not count it as a failed attempt. The report shows `implement (<template>)` in the Step cell.
+- Code re-plans, at `standard` or above, one per run: `plan-replan` after two implement failures in a row, `plan-rejected` after a first implementation review `REJECTED` before any fix (cost 2 of the pool). A failed `plan-replan` halts the run.
+- `manual-verify` runs once before the first implementation review at `standard` or above. A subagent runs the backticked command of each pending Manual row that has one and no human word, saves the output under `context/changes/<id>/evidence/` and ticks the row with ` — evidence: evidence/<name>`. The router checks that the file exists, is regular and non-empty, lies inside the real `evidence` folder and is newer than the step start, and that no Automated row, row title or SHA suffix changed. It never reads the content and never edits `plan.md`. A failed attempt is neutral (one retry), and ticks without valid evidence are listed as `manualUnproven`.
+- `--chrome` (an `init` flag, kept in `meta.json`; `--chrome false` clears it) selects the `manual-verify` template that may also check browser rows with the Chrome tools. The orchestrator does not probe for them.
+- Word lists and extension lists (`executors`, `manualVerify`) are uncalibrated. Nothing here has run against a live `/10x-e2e`, `/10x-tdd`, `/10x-goal-implement` or Chrome session.
 
 Override any policy key per project in `context/foundation/agent-smith-policy.json`. Run state lives in `context/changes/<change-id>/agent-smith/`.
 
@@ -124,12 +137,14 @@ Baseline comparison:
 - `dropPercent` is the exact drop rounded down to 2 decimals; the verdict uses exact tokens. Run `compare` from the project whose override file holds the target: `compare.targetDropPercent` is read from that project's policy, not from `--routed`'s. It ships as `null`, so the verdict is `target not set` until the owner fills it.
 - The unit is raw tokens, a proxy for the weekly limit. It understates savings from `haiku` steps and overstates a drop bought by moving work to `opus`. Orchestrator-session tokens are not counted; retries are counted.
 - One pair is an anecdote. Compare per-pair drops across several changes, run the two sides close in time and alternate which runs first. A halted or incomplete side makes the pair not comparable instead of being dropped. Read the warnings before trusting the number.
+- The baseline file keeps its keys, so the baseline arm runs the same phase executors, segments, `manual-verify` and re-plans as the routed arm. For a routing-only comparison add this to the baseline override by hand: `{"extraSteps": {"allowance": {"lean": 0, "standard": 0, "thorough": 0}}, "codeReplan": {"afterFailures": 0}}`. A pool allowance of 0 turns off segments, executors, `manual-verify` and the `REJECTED` re-plan, all of which draw from the pool; `afterFailures` 0 turns off the failure re-plan, which does not. The commit check, the retry and the fallback act only after an executor step ran, so with the allowance at 0 they never fire. `compare` does not warn when the two arms differ in these features.
 - Keep the baseline worktree until `compare` has run, because its `run.jsonl` exists nowhere else; remove it with `git worktree remove <path>` afterwards.
 
 Limits:
 
 - Subagents cannot use `AskUserQuestion`. Where a skill would ask, the subagent decides from researched best practice, cites the evidence and lists the decision as an assumption. With no evidence-backed answer it reports `blocked` with `signals.needsHuman`, and the router halts.
 - `10x-goal-implement` spawns its own subagents. This needs `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` of 3 or more (the default since Claude Code v2.1.219).
+- `--chrome` hands a subagent the Chrome browser tools through ToolSearch. Whether a subagent can load and call them was not tested; when they are missing the `manual-verify` subagent leaves its rows unticked and the run goes on. `/10x-e2e` and `/10x-tdd` also run in a subagent and answer their own questions from the decision guides in `skills/10x-pipeline/prompts/`; no live run has been done.
 
 PR comment (opt-in):
 

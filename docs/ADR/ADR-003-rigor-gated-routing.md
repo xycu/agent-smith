@@ -21,7 +21,7 @@ The work is split in five changes. This ADR is a skeleton: changes 1 and 4 are w
 | --- | --- | --- |
 | Rigor levels, churn risk, effort floor, skip entries, `signals` | `rigor-levels` (change 1) | implemented |
 | Pre-plan steps (research, legacy research, domain brief, frame), RETHINK/REVISE loops, frame authority over `needsHuman` | `pre-plan-steps` (change 2) | implemented |
-| Per-phase executors, manual-row automation, tdd/e2e fallback, third-attempt re-plan | `phase-executors` (change 3) | planned |
+| Per-phase executors, manual-row automation, tdd/e2e fallback, third-attempt re-plan | `phase-executors` (change 3) | implemented (see "Phase executors and manual verification") |
 | Archive adapter, `verify-archive`, git write decision for the change folder | `archive-adapter` (change 4) | described in "Archive adapter" |
 | Lesson candidates from the implementation review | `lesson-candidates` (change 5) | planned |
 
@@ -53,7 +53,7 @@ At `lean`, a fresh plan skips plan-review, but only when risk was measured (sour
 
 ### Step budget
 
-The budget is `limits.maxTotalSteps` plus `rigor.budgetDelta` for the level (-4, 0, +4), at least 1. Skip entries use none.
+The budget is `limits.maxTotalSteps` plus `rigor.budgetDelta` for the level (-4, +2, +7; change 3 raised the last two from 0 and +4, see "Phase executors and manual verification"), at least 1. Skip entries use none.
 
 ### Effort floor
 
@@ -258,7 +258,7 @@ Pre-plan and loop steps count against the budget; skips do not. The reference pa
 | `standard` | plan, review, two re-plans each with a review, implement, impl review, two fix rounds each with an impl review | 12 | 14 | 1 |
 | `thorough` | research, domain brief, frame, plan, review `RETHINK`, frame-rethink, plan-revise, review `REVISE`, plan-revise, review `SOUND`, implement, impl review, two fix rounds each with an impl review | 16 | 18 | 1 |
 
-`rigor.budgetDelta` and `limits` did not change. The thorough path with `research-revise` in place of the frame round is also 16. The standard path is today's, because the loops are gated at `thorough`. A project that lowers a gate or `loops.minRigor` to `standard` has a standard worst path of 13 and no failure tolerance, and should raise `rigor.budgetDelta.standard` to 1. `lean` is not covered: its budget of 10 already could not hold the 12-step path when plan review runs, and this change leaves that as it was.
+At the time of this change `rigor.budgetDelta` and `limits` did not change (change 3 later raised the deltas, so the budgets are now 16 and 21; the section "Phase executors and manual verification" has the current table). The thorough path with `research-revise` in place of the frame round is also 16. The standard path is today's, because the loops are gated at `thorough`. A project that lowers a gate or `loops.minRigor` to `standard` has a standard worst path of 13 and, at the old delta of 0, no failure tolerance; the delta of 2 from change 3 covers it. `lean` is not covered: its budget of 10 already could not hold the 12-step path when plan review runs, and this change leaves that as it was.
 
 ### Assumptions that carry a cost
 
@@ -268,7 +268,7 @@ No human could answer the six open owner questions of the research. Each was dec
 | --- | --- | --- |
 | 1 | The gates of `research`, `domain-brief` and `frame` open at `thorough`; `frame` also needs `framingDoubt`. | Low: one `minRigor` per gate, plus the budget (decision 3). Each lowered gate adds a costly step to every run at that level. |
 | 2 | Legacy research is a template variant of `research`, not a second step. | Medium: a second step, its gate, a verification case and a skip rule for plain research. |
-| 3 | Pre-plan and loop steps count against the budget; `budgetDelta` stays at -4, 0, 4. | Low: data. A project can raise `rigor.budgetDelta.thorough`. |
+| 3 | Pre-plan and loop steps count against the budget; `budgetDelta` stays at -4, 0, 4 (raised to -4, 2, 7 by change 3). | Low: data. A project can raise `rigor.budgetDelta.thorough`. |
 | 4 | A failed optional pre-plan step is retried and halts; it does not continue silently. | Medium: an `optional` flag, a skip after one failure, care for `rigor.fromFailures`. |
 | 5 | A LOW Confidence without `needsHuman` does not raise rigor, and the label is never read. | Low: one rigor input that reads `frame.md`. |
 | 6 | The three prompts that work on an existing `research.md` stay unwired (two stop as `blocked` without `ast-grep`). | Low: a template, a gate and a verification case each. |
@@ -282,3 +282,118 @@ No human could answer the six open owner questions of the research. Each was dec
 | 14 | A goal with no separate cause is confirmed at LOW and the run goes on. | Low: guide text. |
 
 Three things are still open, and none of them has been verified against the real skills. Whether `/10x-plan` changes its approach to match `frame.md` on a re-plan, or patches the old plan, needs a manual run with a real `RETHINK` (plan row 5.7); if it patches, the authority line gets stronger before merge. Whether the guide holds for every ask point of `/10x-frame` needs unattended runs with a clear, a thin and an empty goal (plan rows 2.9 to 2.11). Neither the word lists nor the tiers have run data behind them. The router side of these paths is covered by tests; the behavior that depends on a real skill or model is not. The plan's Fix pass lists the other unverified behavior: a real `research-revise` round, the second domain brief template, `frame-rethink` when no `frame.md` exists, and a missing `10x-research` or `10x-frame` skill. These manual rows are open and are verified by the owner before merge. The table row above says `implemented` for the code and the tests only.
+
+## Phase executors and manual verification
+
+Change 3 (`phase-executors`) lets the router pick a different executor per phase of the plan, checks that an executor really committed code, re-plans after code ran and proves Manual rows with commands. Plan: `context/changes/phase-executors/plan.md`; research: `context/changes/phase-executors/research.md`. The code is in the sections `extra steps and executor choice`, `manual verification` and `code re-plans` of `route.mjs`; the data is under `executors`, `extraSteps`, `codeReplan` and `manualVerify` in `policy.json`. The word lists, extension lists and thresholds are uncalibrated: no run data exists. Nothing here was run against a live `/10x-e2e`, `/10x-tdd`, `/10x-goal-implement` or Chrome session; the tests drive the router only.
+
+### Executor choice and segments
+
+The step name stays `implement`. The template varies: `implement` (goal-implement for the whole plan), `implement-segment` (goal-implement stopped after one phase), `implement-e2e`, `implement-tdd` and `implement-retry`. The router reads the `### Phase N` headings of the Progress section and picks an executor for the first pending phase:
+
+- e2e: the setup record `context/foundation/test-stack.md` has an `## E2E` section whose `config` and `seed` paths exist inside the project, and the phase name or a pending row names a word of `executors.e2e.rowWords`. No rigor gate (`minRigor` is `lean`), but `lean` has no pool, so it never runs there.
+- tdd: rigor `thorough`, no row of the phase ticked yet, every file on the `**File**:` lines is code outside the exclude globs, and every pending row names a test command in backticks and no UI word.
+- goal: everything else.
+
+Goal phases in front of the first special phase run as a segment that stops after its last phase; consecutive phases of one executor form one step. Both interactive executors run under a decision guide (`prompts/executor-e2e.md`, `prompts/executor-tdd.md`) that answers the skill's questions without a human and ends `blocked` when the skill would redirect elsewhere.
+
+- **GIVEN** a pending phase names a browser word and the e2e setup record is valid **WHEN** the extra-step pool can pay for the step **THEN** the router **MUST** run `implement-e2e` for that phase.
+- **GIVEN** the pool cannot pay for a goal segment and the special executor after it **WHEN** the router picks an implement step **THEN** the router **MUST** run plain `implement` for the whole plan.
+
+### Extra-step pool
+
+One pool per level replaces a cap per feature. Every executed entry spends its cost, whatever its outcome.
+
+| Level | Allowance | Cost 1 each | Cost 2 |
+| --- | --- | --- | --- |
+| `lean` | 0 | | |
+| `standard` | 2 | `implement-segment`, `implement-e2e`, `implement-tdd`, `manual-verify` | `plan-rejected` |
+| `thorough` | 3 | the same | the same |
+
+With a pool of 2 at `standard`, two segments, a segment and `manual-verify`, or the `REJECTED` re-plan each use all of it, so the three cannot add up. Without the pool the same features would sum to 17 steps at `standard` and 21 at `thorough`.
+
+### Strict verification and fallback
+
+`implement-e2e` and `implement-tdd` are strict. A step that reports `done` counts only when the plan shows ticked rows and a commit exists in `before.head..HEAD` that touched at least one path outside `context/changes/<id>/` (docs, lock files, `assets/**` and `context/**` do not count; they reuse the churn exclude globs). The router reads git with `rev-parse`, `merge-base --is-ancestor` and `log -z` only. When git is missing or the recorded head is unknown, the count rule applies. A SHA suffix on a row must be a prefix of such a commit. Plain `implement` and `implement-segment` keep the count rule: `/10x-goal-implement` legitimately ends a phase with no diff to commit, so a commit check would make that a false failure. The residual risk is a goal-implement phase that ticks rows with no work: it passes until the implementation review.
+
+- **GIVEN** a strict step reports `done` **WHEN** no commit of `before.head..HEAD` touched a code path **THEN** the router **MUST** count the step as failed.
+- **GIVEN** an e2e or tdd step ends `blocked` **WHEN** the router records the entry **THEN** the router **MUST** mark it `fallback`.
+- **GIVEN** an entry is a `fallback` **WHEN** the router counts failed attempts, bumps the tier or raises the rigor **THEN** the router **MUST NOT** treat it as a failure.
+
+A fallback entry is transparent to the failure streak: it neither counts nor ends one. The executor is not chosen again for a phase it failed or handed back, so the phase goes to goal-implement. `report.md` shows the result `fallback` and a Step cell `implement (<template>)`; `compare` does not count a fallback as a failed attempt. After the archive move the report is the only router file left, and it names the executor only in the Step cell.
+
+### Retry of uncommitted rows
+
+A strict step that leaves rows ticked with no code commit records them as `uncommitted`.
+
+- **GIVEN** a strict step left rows ticked without a code commit **WHEN** the router picks the next step **THEN** the router **MUST** run `implement-retry` once for those rows.
+- **GIVEN** the retry ends `done` or `blocked` with its rows ticked and still no commit **WHEN** the router goes on **THEN** the router **MUST** run the implementation review with the `impl-review-warn` prompt, which names the rows.
+
+The retry costs nothing from the pool and runs at most once per run (`executors.retry.max`; 0 turns it off). A retry that ends `failed` is a failure. The `done` output, the `archive` summary, `meta.outcome` and, in an `--archive` run, `report.md` list the rows as `uncommittedTicks`. A legitimate zero-diff phase therefore never halts the run. The residual risk is a Skip flip that survives the single retry and a reviewer who misses the warning.
+
+### Code re-plans
+
+Two triggers run the `plan` step with a new template, at rigor `standard` or above, under a shared cap of one per run (`codeReplan.max`).
+
+- **GIVEN** the last two implement entries failed in a row **WHEN** the router picks the next step **THEN** the router **MUST** run `plan` with the template `plan-replan`, with the failure note in the prompt.
+- **GIVEN** the first implementation review returns `REJECTED` before any fix step and the pool holds 2 **WHEN** the router picks the next step **THEN** the router **MUST** run `plan` with the template `plan-rejected`.
+- **GIVEN** a `plan-replan` step fails **WHEN** the router handles the result **THEN** the router **MUST** halt the run.
+
+A re-plan counts against the step budget and uses one of the `maxFixLoops`. A `REJECTED` review after a fix keeps today's path, which is another fix. Plan review follows a re-plan like any other plan.
+
+### Manual verification
+
+`manual-verify` is a step of its own (`policy.steps["manual-verify"]`, no skill) that runs once before the first implementation review at `standard` or above, when no Automated row is pending and a pending Manual row is eligible. A row is eligible when it has a backticked command whose first word is in `manualVerify.commandWords` and no word that starts with one of `humanWords`; with `--chrome` a row with a whole-word `browserWords` hit is eligible too. The subagent runs the command, saves the output under `context/changes/<id>/evidence/<name>` and ticks the row with the suffix ` — evidence: evidence/<name>`.
+
+- **GIVEN** a Manual row is ticked after the step **WHEN** its suffix does not name a non-empty regular file inside the real `evidence` folder written after the step started **THEN** the router **MUST** record the tick as unproven.
+- **GIVEN** an Automated row, a row title or a SHA suffix changed during the step **WHEN** the router verifies it **THEN** the router **MUST** count the step as unverified.
+- **GIVEN** a `manual-verify` attempt is unverified **WHEN** the router picks the next step **THEN** the router **MUST NOT** count it as a failed attempt.
+
+An attempt with zero ticks is `done`. A failed attempt is a neutral fallback entry: no tier bump, no rigor rise, and the run goes on. One retry is allowed (`maxAttempts` 2) and is judged against the baseline of the first attempt, so a bad tick left by the first attempt fails again unless it gets valid evidence. Unproven ticks are listed as `manualUnproven` in the `done` output, the `archive` summary, `meta.outcome` and, in an `--archive` run, `report.md`. The router never edits `plan.md`, so it cannot undo a tick. The content of an evidence file is not read: a file with junk text passes. The command list includes `sh`, `bash`, `python` and `curl`; the subagent runs the text of `plan.md`, which is the same trust domain as the plan author.
+
+### `--chrome`
+
+`init <id> --chrome` stores `chrome: true` in `meta.json`; a resume keeps it and `--chrome false` clears it. It selects the template `manual-verify-chrome`, whose prompt tells the subagent to load the `mcp__claude-in-chrome__*` tools through ToolSearch and to leave the row unticked and finish `done` when they are unavailable. The orchestrator does not probe for the tools. A subagent saw the tools as deferred; no call was tested.
+
+### Budget
+
+`rigor.budgetDelta` becomes -4 (`lean`, unchanged), +2 and +7, so the budgets are 10, 16 and 21. The delta is the smallest at which the longest legal path of each level completes with one failed step and its retry to spare. A test lets the router walk saturating fixtures at each level and asserts `longest path === maxTotalSteps + delta - 2`; a second walk with every pool allowance raised by one must exceed it, so a policy that raises a pool without raising the delta fails the first test.
+
+| Level | Longest legal path (executed steps) | Steps | Budget |
+| --- | --- | --- | --- |
+| `standard` | plan loop of 6 (plan, review, two re-plans each with a review), `implement-segment`, `implement-e2e`, plain tail, then impl-review, fix, impl-review, fix, impl-review | 14 | 16 |
+| `standard` | plan loop of 6, `implement-e2e`, plain tail, `manual-verify`, then 5 | 14 | 16 |
+| `standard` | plan loop of 6, implement, impl-review (`REJECTED`), `plan-rejected`, plan-review, implement, impl-review, fix, impl-review | 14 | 16 |
+| `thorough` | research, domain brief, frame, plan, review `RETHINK`, frame-rethink, plan-revise, review, plan-revise, review (10), `implement-segment`, `implement-e2e`, `implement-tdd`, plain tail (4), then 5 | 19 | 21 |
+| `thorough` | the same 10, implement, `manual-verify`, impl-review (`REJECTED`), `plan-rejected`, plan-review, implement, impl-review, fix, impl-review | 19 | 21 |
+| `lean` | unchanged: the pool is empty, so no extra step exists | as before | 10 |
+
+Failure paths are not part of the reference set. A path with a failed plan loop, two failed implement steps and a re-plan still ends in `Step budget spent` by design, as it did before. One failure path is proved to fit at `standard`: plan, plan-review, implement failed twice, `plan-replan`, plan-review, implement, `manual-verify`, impl-review, fix, impl-review (11 steps of 16).
+
+A project that overrides `rigor.budgetDelta` keeps its values. With a pool allowance above 0 and an old delta, the budget can halt a run that uses extras.
+
+### Baseline comparison gap
+
+`baseline-policy.json` is not changed, because `compare.test.mjs` pins its keys. The baseline arm therefore runs the same defaults, including segments, `manual-verify` and the re-plans, unless the user adds an override by hand (the README has the text). `compare` does not warn when the two arms differ in these features.
+
+### Assumptions that carry a cost (change 3)
+
+Decided without a human. Each is overridable in `context/foundation/agent-smith-policy.json` unless the cost says otherwise.
+
+| Decision | Assumption | Cost to reverse |
+| --- | --- | --- |
+| 1 | `--chrome` is an `init` flag stored in `meta.json`; the orchestrator does not probe tools; Chrome use in a subagent is untested. | Low: remove the flag and the chrome template. |
+| 2 | `manual-verify` runs from `standard`, once (`maxRuns` 1), at most two attempts, zero ticks is `done`, a failed attempt is neutral. | Low: data. |
+| 3 | A ticked Manual row needs a valid evidence file; the content is not read; unproven ticks are listed, not undone. | Medium: reading evidence or undoing ticks needs the router to edit `plan.md`, which it never does. |
+| 4 | The strict commit check covers `implement-tdd`, `implement-e2e` and the retry; plain `implement` and `implement-segment` keep the count rule. | Medium: a commit check on goal-implement plus a policy escape. |
+| 5 | Commit evidence is a commit in `before.head..HEAD` that touched a path outside the change folder and the exclude globs; an amend or a rewriting hook reads as a failure and goes through the retry. | Low: one function. |
+| 6 | The re-plan triggers at two trailing implement failures or at a first `REJECTED` review, shares one cap, costs a fix loop and a halt follows a failed `plan-replan`. | Low: data (`codeReplan`). |
+| 7 | E2E has no rigor gate but needs pool allowance, so `lean` runs no executor; tdd is gated at `thorough`. | Low: data. |
+| 8 | One pool replaces a cap per feature; a segment the pool cannot follow with its special executor is not started. | Low: data; a larger pool needs a larger delta, which the test derives. |
+| 9 | The deltas are +2 and +7. | Low: data. |
+| 10 | A fallback entry neither counts nor ends a failure streak. | Low: one helper. |
+| 11 | Row words, extension lists, test words, command words and human words are uncalibrated. | Low: data. |
+| 12 | A live tdd, e2e or goal-implement run, a real E2E project, any Chrome call and a segment that stops after its last phase are not verified. | n/a: Manual rows cover them. |
+| 13 | A plan whose Progress headings are not `### Phase N` gets no phase list and plain routing; `--chrome` at `lean` is stored and ignored. | Low. |
+| 14 | `baseline-policy.json` stays as it is, so the baseline arm runs the new defaults unless the user overrides them. | Medium: edit `compare.test.mjs` and the baseline file together, or add a `compare` warning. |
+| 15 | The retry runs once; a retry that ends without a commit is a neutral fallback and the review prompt warns. | Low: data (`retry.max`). |

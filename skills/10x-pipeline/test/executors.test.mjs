@@ -984,9 +984,72 @@ test("gate check fails when nothing is checked", () => {
   // The plan of this change passes for the phases whose tests exist (skipped once the change folder is archived).
   const real = path.join(REPO, "context/changes/phase-executors/plan.md");
   if (fs.existsSync(real)) {
-    for (const phase of [1, 2, 3, 4, 5]) {
+    for (const phase of [1, 2, 3, 4, 5, 6]) {
       const res = gateRun(real, phase);
       assert.equal(res.status, 0, `phase ${phase}: ${res.stderr}`);
     }
   }
+});
+
+// ---- phase 6: report label, compare count and the smoke run ------------------
+
+test("report shows fallback", () => {
+  const project = makeProject({ plan: buildPlan([{ auto: ["row one"] }]) });
+  writeLog(project, [
+    entry(1, "plan", { usage: { totalTokens: 10 } }),
+    entry(2, "implement", { template: "implement-e2e", ok: false, verified: false, fallback: true, result: { status: "blocked", note: "no feature" }, usage: { totalTokens: 10 } }),
+    entry(3, "implement", { template: "implement-segment", usage: { totalTokens: 10 } }),
+    entry(4, "implement", { ok: false, verified: false, result: { status: "failed", note: "broke" }, usage: { totalTokens: 10 } }),
+    entry(5, "implement", { template: "implement-retry", usage: { totalTokens: 10 } }),
+    entry(6, "impl-review", { usage: { totalTokens: 10 } }),
+    pendingEntry(7, "fix"),
+  ]);
+  writeMetaFile(project, { id: project.id, goal: "fix typo", baseSha: "a".repeat(40), rigor: { level: "standard" }, outcome: { action: "done" } });
+  assert.equal(run(project, ["status", project.id, "--report"]).status, 0);
+  const rows = Object.fromEntries(readReportFile(project).split("\n").filter((l) => /^\| \d+ \|/.test(l)).map((l) => {
+    const cells = l.split("|").map((c) => c.trim());
+    return [cells[1], { step: cells[2], result: cells[7] }];
+  }));
+  assert.deepEqual(rows[1], { step: "plan", result: "ok" });
+  assert.deepEqual(rows[2], { step: "implement (implement-e2e)", result: "fallback" });
+  assert.deepEqual(rows[3], { step: "implement (implement-segment)", result: "ok" });
+  assert.deepEqual(rows[4], { step: "implement", result: "failed" });
+  assert.deepEqual(rows[5], { step: "implement (implement-retry)", result: "ok" });
+  assert.deepEqual(rows[6], { step: "impl-review", result: "ok" });
+  assert.deepEqual(rows[7], { step: "fix", result: "-" });
+
+  // compare counts the failed entry, not the fallback; the fallback entry still has to carry a token figure.
+  const baseline = makeProject({ plan: buildPlan([{ auto: ["row one"] }]) });
+  writeLog(baseline, [entry(1, "plan", { usage: { totalTokens: 100 } }), entry(2, "implement", { usage: { totalTokens: 100 } })]);
+  writeMetaFile(baseline, { id: baseline.id, goal: "fix typo", baseSha: "a".repeat(40), rigor: { level: "standard" }, outcome: { action: "done" } });
+  const res = run(project, ["compare", project.id, "--baseline", baseline.root]);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.routed.failedAttempts, 1);
+  assert.equal(res.json.baseline.failedAttempts, 0);
+});
+
+test("executors smoke", () => {
+  const specs = [{ name: "Login flow", auto: ["Playwright spec covers login: `npx playwright test tests/e2e/login.spec.ts`"], manual: ["Run `node --version` and see a version"] }];
+  const project = makeProject({ plan: buildPlan(specs) });
+  writeReview(project, "plan-review", { verdict: "SOUND" });
+  writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+  // init prints one JSON object with a run action; status prints one JSON object with the step log.
+  const started = init(project, "Cover the login flow in the browser", ["--rigor", "standard", "--chrome"]);
+  assert.equal(started.status, 0, started.stderr);
+  assert.notEqual(started.json, null, `init printed no JSON: ${started.stdout}`);
+  assert.equal(started.json.action, "run");
+  assert.equal(started.json.step, "implement");
+  const status = run(project, ["status", project.id]);
+  assert.equal(status.status, 0, status.stderr);
+  assert.notEqual(status.json, null, `status printed no JSON: ${status.stdout}`);
+  assert.equal(status.json.rigor, "standard");
+  assert.equal(Array.isArray(status.json.steps), true);
+  assert.equal(status.json.steps.at(-1).step, "implement");
+  // The files the router owns parse as JSON, one object per log line.
+  assert.equal(readMetaFile(project).chrome, true);
+  assert.equal(readLogEntries(project).length, 3);
+  // A resume prints valid JSON again.
+  writeResult(project, { status: "done", note: "x" });
+  const resumed = next(project);
+  assert.notEqual(resumed.json, null, `next printed no JSON: ${resumed.stdout}`);
 });
