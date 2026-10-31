@@ -153,6 +153,7 @@ All four observations were applied as binding amendments before implementation. 
 - Gate cleared by the owner's direction, 2026-10-31: the owner was present, asked for the orchestrator to run the probe and set `USAGE: present`. Rows 1.6 and 1.7 are ticked on that evidence. Caveat accepted by the owner: the probe saw usage in a background completion notice only; row 1.8 (unticked) re-checks the foreground path.
 - Tests 1.1 to 1.4 plus a fifth test named `1.5` (policy `compare.targetDropPercent` is `null`) live in `compare.test.mjs`. Row 1.5 is the full-suite command; the `1.5` test is an addition that covers its first half.
 - Phase 2 (unattended, after the owner cleared the gate): `compare` in `route.mjs`, tests 2.1 to 2.11 in `compare.test.mjs`. Verdict math uses BigInt exact integer math for a target with at most 2 decimals and the `4 * Number.EPSILON` relative slack otherwise (round-3 F1). `readSide` drops JSON-array lines that `readLog` lets through, without changing `readLog`.
+- Phase 3: `--format md`, README block, AGENTS.md lists, ADR-005 and the widened `rules.test.mjs` filter. The pre-merge check `ls docs/ADR/ADR-005-*` found one file; `origin/pr-comment-report` and `origin/pre-plan-steps` (fetched, not merged) hold ADR-001 to ADR-004 only, so no renumber was needed. Row 3.7 stays open: it needs two real runs in a live session.
 - Test 1.4 drives the real `next` after a finished plan step and reads `usage` from the log entry.
 
 ## Convention for pattern rows
@@ -473,13 +474,13 @@ None. No stored format changes. Runs made before this change compare fine if the
 
 #### Automated
 
-- [ ] 3.1 `--format md` prints the table, per-model line, drop, target, verdict, reasons and warnings; a valueless `--format` and `--format xml` halt with exit 1; nothing is written: `node --test --test-name-pattern="^3\.1 " skills/10x-pipeline/test/compare.test.mjs`
-- [ ] 3.2 README has a "Baseline comparison:" heading between "Usage report:" and "Limits:": `grep -n "^Usage report:\|^Baseline comparison:\|^Limits:" README.md` lists the three in that order
-- [ ] 3.3 AGENTS.md and the router name the command and the file: `grep -c "compare" AGENTS.md` is at least 3, `grep -n "compare.test.mjs" AGENTS.md` matches, `grep -n "baseline-policy.json" AGENTS.md` matches, `grep -c 'cmd === "compare"' skills/10x-pipeline/scripts/route.mjs` prints 1, `grep -c "compare <change-id> --baseline" skills/10x-pipeline/scripts/route.mjs` prints at least 1
-- [ ] 3.4 ADR-005 has at least 4 rule lines, each with exactly one bold keyword: `grep -c '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md` is at least 4 and `grep '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md | grep -vcE '\*\*(MUST|MUST NOT|SHOULD|SHOULD NOT|MAY)\*\*'` prints 0
-- [ ] 3.5 The router diff is additive outside the usage string: `git diff -U0 $(git merge-base main HEAD) -- skills/10x-pipeline/scripts/route.mjs | grep -c '^-[^-]'` prints at most 1
-- [ ] 3.6 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 3.8 ADR-005 passes the ADR-004 rule form through the widened `rules.test.mjs` filter and exactly one ADR-005 file exists: `node --test --test-name-pattern="^ADR rule lines" skills/10x-pipeline/test/rules.test.mjs` (run as in "Convention for pattern rows") and `ls docs/ADR/ADR-005-* | wc -l` prints 1
+- [x] 3.1 `--format md` prints the table, per-model line, drop, target, verdict, reasons and warnings; a valueless `--format` and `--format xml` halt with exit 1; nothing is written: `node --test --test-name-pattern="^3\.1 " skills/10x-pipeline/test/compare.test.mjs` — 0793234
+- [x] 3.2 README has a "Baseline comparison:" heading between "Usage report:" and "Limits:": `grep -n "^Usage report:\|^Baseline comparison:\|^Limits:" README.md` lists the three in that order — 0793234
+- [x] 3.3 AGENTS.md and the router name the command and the file: `grep -c "compare" AGENTS.md` is at least 3, `grep -n "compare.test.mjs" AGENTS.md` matches, `grep -n "baseline-policy.json" AGENTS.md` matches, `grep -c 'cmd === "compare"' skills/10x-pipeline/scripts/route.mjs` prints 1, `grep -c "compare <change-id> --baseline" skills/10x-pipeline/scripts/route.mjs` prints at least 1 — 0793234
+- [x] 3.4 ADR-005 has at least 4 rule lines, each with exactly one bold keyword: `grep -c '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md` is at least 4 and `grep '\*\*GIVEN\*\*' docs/ADR/ADR-005-baseline-usage-comparison.md | grep -vcE '\*\*(MUST|MUST NOT|SHOULD|SHOULD NOT|MAY)\*\*'` prints 0 — 0793234
+- [x] 3.5 The router diff is additive outside the usage string: `git diff -U0 $(git merge-base main HEAD) -- skills/10x-pipeline/scripts/route.mjs | grep -c '^-[^-]'` prints at most 1 — 0793234
+- [x] 3.6 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 0793234
+- [x] 3.8 ADR-005 passes the ADR-004 rule form through the widened `rules.test.mjs` filter and exactly one ADR-005 file exists: `node --test --test-name-pattern="^ADR rule lines" skills/10x-pipeline/test/rules.test.mjs` (run as in "Convention for pattern rows") and `ls docs/ADR/ADR-005-* | wc -l` prints 1 — 0793234
 
 #### Manual
 
