@@ -333,7 +333,7 @@ function attachResult(p, log, policy) {
   const plan = readPlan(p.plan);
   let verified;
   switch (last.step) {
-    case "plan": verified = plan.hasProgress && plan.mtime > last.startedAt; break;
+    case "plan": verified = plan.hasProgress && plan.mtime > last.startedAt && (!CODE_REPLANS.includes(last.template) || verifyCodeReplan(last, plan)); break;
     case "plan-review": verified = mtime(p.planReview) > last.startedAt && readReview(p.planReview).verdict !== null; break;
     case "impl-review": verified = mtime(p.implReview) > last.startedAt && readReview(p.implReview).verdict !== null; break;
     case "research": {
@@ -727,8 +727,14 @@ function decide(p, fullLog, policy, meta, ctx) {
     (pr.verdict === "REVISE" && (pr.critical > 0 || pr.warnings > policy.review.reviseToleranceWarnings));
   if (needsReplan && plan.autoDone === 0) return replanNext(log, pr, policy, ctx.level);
 
+  const lastRan = log[log.length - 1];
+  if (lastRan?.template === "plan-replan" && !lastRan.ok) {
+    return { halt: `The re-plan after ${policy.codeReplan?.afterFailures} failed implement attempts did not produce a valid plan. Needs a human.` };
+  }
   const reopen = retryRows(log, plan, policy);
   if (plan.autoPending > 0 || reopen.length) {
+    const replan = codeReplanNext("failure", log, policy, ctx);
+    if (replan) return replan;
     let bump = 0;
     const why = [`${plan.autoPending} automated rows pending`];
     if (pr.warnings >= E.noisyPlanReviewWarnings) { bump += E.noisyPlanReviewBump; why.push(`plan review had ${pr.warnings} warnings`); }
@@ -759,7 +765,10 @@ function decide(p, fullLog, policy, meta, ctx) {
     ir.verdict === "REJECTED" ||
     (ir.verdict === "NEEDS ATTENTION" && (ir.critical > 0 || policy.review.fixOnNeedsAttention));
   if (needsFix) {
-    if (count("fix") >= L.maxFixLoops) return { halt: `Implementation still ${ir.verdict} after ${count("fix")} fix loops. Needs a human.` };
+    const replan = ir.verdict === "REJECTED" ? codeReplanNext("rejected", log, policy, ctx, { fixes: count("fix") }) : null;
+    if (replan) return replan;
+    const loops = count("fix") + log.filter((e) => e.template === "plan-rejected").length;
+    if (loops >= L.maxFixLoops) return { halt: `Implementation still ${ir.verdict} after ${loops} fix loops. Needs a human.` };
     const lastCode = [...log].reverse().find((e) => e.step === "implement" || e.step === "fix");
     return {
       step: "fix",
@@ -1048,7 +1057,7 @@ const retryTemplate = (policy) => (typeof policy.executors?.retry?.template === 
 
 // Extra keys of the entry `before`, only for a template whose result is checked by a commit. Additive (ADR-005).
 function beforeExtra(policy, template, plan) {
-  if (!strictTemplate(policy, template) && template !== retryTemplate(policy)) return {};
+  if (!strictTemplate(policy, template) && template !== retryTemplate(policy) && !CODE_REPLANS.includes(template)) return {};
   const head = (gitOut(["rev-parse", "HEAD"]) ?? "").trim();
   return { head: SHA_RE.test(head) ? head : null, done: doneIds(plan) };
 }
@@ -1299,6 +1308,57 @@ function reviewWarning(log, plan, policy) {
 // The non-empty note keys of a done result, so a run that ends clean carries none. Phase 5 adds manualUnproven.
 function doneNotes(d) {
   return Array.isArray(d?.uncommittedTicks) && d.uncommittedTicks.length ? { uncommittedTicks: d.uncommittedTicks } : {};
+}
+
+// ---- code re-plans ----
+
+// The two templates of the `plan` step that revise a plan after code ran: repeated implement failures, or a first REJECTED review.
+const CODE_REPLANS = ["plan-replan", "plan-rejected"];
+
+// The re-plan of one run, or null. kind "failure": the trailing implement failures equal codeReplan.afterFailures.
+// kind "rejected": the impl-review said REJECTED and `extra.fixes` fix steps ran so far, at most codeReplan.rejectedMaxFixes.
+// Both need the rigor gate, a positive cap not yet used by any re-plan, and (rejected only) pool room for its cost.
+// A non-positive or missing knob turns that trigger off.
+function codeReplanNext(kind, log, policy, ctx, extra) {
+  const cfg = policy.codeReplan;
+  const posInt = (v) => Number.isInteger(v) && v > 0;
+  if (!isObject(cfg) || !posInt(cfg.max) || log.filter((e) => CODE_REPLANS.includes(e.template)).length >= cfg.max) return null;
+  const levels = rigorLevels(policy);
+  if (levels.indexOf(ctx.level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(ctx.level) < levels.indexOf(cfg.minRigor)) return null;
+  const bump = (v) => (Number.isInteger(v) ? v : 0);
+  if (kind === "failure") {
+    if (!posInt(cfg.afterFailures) || trailingFailures(log, "implement") !== cfg.afterFailures) return null;
+    const failed = [...log].reverse().find((e) => e.step === "implement" && !e.fallback);
+    const note = String(failed?.result?.note ?? "").replace(/\s+/g, " ").trim().slice(0, posInt(cfg.failureNoteMax) ? cfg.failureNoteMax : 300);
+    return {
+      step: "plan",
+      template: "plan-replan",
+      bump: bump(cfg.failureBump),
+      bumpWhy: "code re-plan",
+      failure: note || "no note",
+      reason: `${cfg.afterFailures} implement attempts failed in a row: re-plan`,
+    };
+  }
+  if (cfg.onRejected !== true || !Number.isInteger(cfg.rejectedMaxFixes) || !(extra.fixes <= cfg.rejectedMaxFixes)) return null;
+  const cost = extraCost(policy, "plan-rejected");
+  if (extraAllowance(policy, ctx.level) <= 0 || extrasLeft(log, policy, ctx.level) < cost) return null;
+  return {
+    step: "plan",
+    template: "plan-rejected",
+    verdict: "REJECTED",
+    bump: bump(cfg.rejectedBump),
+    bumpWhy: "code re-plan",
+    reason: "impl review REJECTED before any fix: re-plan",
+  };
+}
+
+// A code re-plan is verified when it still has pending Automated work and keeps every row that was ticked when it
+// started: a re-plan must add rows, not untick or drop a ticked one. An entry without a list skips the subset test.
+function verifyCodeReplan(last, plan) {
+  if (plan.autoPending <= 0) return false;
+  if (!Array.isArray(last.before?.done)) return true;
+  const now = new Set(doneIds(plan));
+  return last.before.done.every((id) => now.has(id));
 }
 
 // A change is simple when the plan stays small and nothing has failed yet.
@@ -1718,7 +1778,7 @@ function next(id, policy) {
   const prompt = render(promptText(policy, template), {
     id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
     phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
-    retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "),
+    retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "), failure: d.failure ?? "",
   }).trim() + "\n\n" + policy.prompts.suffix;
   const entry = {
     n: ran.length + 1,

@@ -30,8 +30,16 @@ test("verdict on the entry: plan-revise and fix keep the review verdict, plan ke
   writeReview(rejected, "impl-review", { verdict: "REJECTED", findings: "1 critical, 0 warnings" });
   writeLog(rejected, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
   const b = init(rejected, GOAL, ["--rigor", "standard"]);
-  assert.equal(b.json.step, "fix");
+  assert.equal(b.json.step, "plan");
+  assert.equal(readLogEntries(rejected).pop().template, "plan-rejected");
   assert.equal(readLogEntries(rejected).pop().verdict, "REJECTED");
+  // A REJECTED review after an executed plan-rejected re-plan keeps the fix step, as before.
+  const again = makeProject({ plan: planText({ done: 1 }) });
+  writeReview(again, "plan-review", { verdict: "SOUND" });
+  writeReview(again, "impl-review", { verdict: "REJECTED", findings: "1 critical, 0 warnings" });
+  writeLog(again, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), entry(5, "plan", { template: "plan-rejected" }), entry(6, "plan-review"), entry(7, "implement"), entry(8, "impl-review")]);
+  assert.equal(init(again, GOAL, ["--rigor", "standard"]).json.step, "fix");
+  assert.equal(readLogEntries(again).pop().verdict, "REJECTED");
 
   // The first plan has no verdict and no key.
   const fresh = makeProject();
