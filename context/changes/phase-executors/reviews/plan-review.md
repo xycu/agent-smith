@@ -37,7 +37,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
   3. `route.test.mjs:195-199` ("impl-review never gets a tier below the floor", standard part: `planText({done:1})`, no impl-review file) expects `impl-review` first; Phase 5 returns `manual-verify`.
   The research listed `:441` and `:453-482` as tests "the plan must keep or edit" and noted the `N.9` row; the plan carried neither into its scope. An implementer hits a dead end at Phase 4 or 5: edit outside the stated scope, or weaken the feature. Row titles are review-immutable, so these titles must be fixed now.
 - **Fix**: Replace the scope with an explicit edit list. (a) `loops.test.mjs:30-34` as planned. (b) The reference-path block `:412-497`: `answer()` gets cases for `manual-verify` (tick the Manual row with an evidence suffix) and for the `plan-rejected` template (add a pending row, keep ticked ones); `IMPL` and the three `sequence` arrays and step counts are updated; `assertFits` stays. (c) `route.test.mjs:195-199`: give the standard fixture a plan without a pending Manual row, or pin `manualVerify.minRigor` through the policy override. Reword 4.10 ("loops.test.mjs and route.test.mjs edited only as listed in Phase 4/5"), 5.10 and 6.3 ("Existing reference paths pass, with only the listed edits"). Run the suite against a prototype of the Phase 5 placement before finalizing the list: a fixture with a pending Manual row at standard is the common case, so other tests may move.
-- **Decision**: PENDING
+- **Decision**: Accepted. Re-verified with a prototype of the new routing in a scratch copy of the repo (deleted): the whole suite fails in exactly one existing test, `loops.test.mjs:16` (block at lines 30-34), because a first-review REJECTED now re-plans. The three reference paths (`:441-497`) reach REJECTED after a `fix`, so they stay valid when the re-plan applies only before any `fix` (`codeReplan.rejectedMaxFixes` 0) and consumes a fix loop. `route.test.mjs:195-199` stays valid because `manual-verify` needs a command-checkable row and `planText`'s "Look at it" is not one. The plan now lists the single intended test edit (Phase 4 section 3) and rewords rows 4.10, 5.10 and 6.3 (diff gates against `git merge-base main HEAD`: `loops.test.mjs` one hunk, no other existing test edited, `loops-existing.test.mjs` byte-identical). `helpers.mjs` is not edited.
 
 ### F2 — A failed strict check never re-opens the flipped rows, so a full-phase Skip flip still reaches impl-review as "done"
 
@@ -56,7 +56,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
   - Tradeoff: The headline benefit of the change shrinks to a bump; the plan ships a verification that verifies nothing in the common case.
   - Confidence: HIGH — nothing new to get wrong.
   - Blind spot: None significant.
-- **Decision**: PENDING
+- **Decision**: Accepted, router-side (review fix A). `decide()` now enters the implement branch also when `retryRows` is not empty. A strict step that ticks rows without commit evidence records them as `uncommitted`; while they stay ticked the next step is `implement-retry`, even with every Automated row ticked. The retry prompt names the rows and tells the subagent to set them back to `[ ]` first; the retry is `ok` only with a commit in its own range. The router never edits `plan.md`. Residual: a retry on a phase with nothing to change fails three times and halts for a human (Assumption 4). New rows 1.13, 2.13, 2.14; 2.13 tests the all-rows-ticked case.
 
 ### F3 — `manual-verify` certifies its own work: the evidence check is a regex, the retry absorbs bad ticks, and human gates become tickable
 
@@ -80,7 +80,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
   - Tradeoff: Self-ticked human gates remain possible.
   - Confidence: HIGH for the fixes themselves.
   - Blind spot: How often subagents tick human-judgment rows is unknown until a live run.
-- **Decision**: PENDING
+- **Decision**: Accepted. Eligible rows are rows with a backticked command whose first word is in `manualVerify.commandWords` and no `humanWords` entry, plus browser rows with `--chrome`; every other row stays in `manualPending`. The router checks that the evidence file `evidence/<name>` exists under the change folder, is not empty and stays inside the evidence directory (no `..`, no absolute path, realpath check). The retry baseline is the Manual state before the first attempt of the streak, so a bad tick is judged again. A failed attempt is neutral (`fallback: true`, no tier bump, no rigor rise), `maxAttempts` 2, then the run goes on to impl-review; unproven ticks are listed in `done` as `manualUnproven`. Opt-in by `--chrome` was not needed once the eligibility rule exists. Rows 5.2 and 5.4 reworded; 5.14-5.16 added.
 
 ### F4 — The commit proof accepts any commit and any existing SHA
 
@@ -94,7 +94,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
   - Tradeoff: A legitimate plan-only commit phase (docs phase through tdd, which tdd excludes anyway) reads as a failure.
   - Confidence: HIGH — the checks are plain `rev-list`/`diff --name-only` reads, allowed by AGENTS.md.
   - Blind spot: Behavior under unusual hook setups that rewrite the commit.
-- **Decision**: PENDING
+- **Decision**: Accepted. `commitEvidence` needs a commit in `before.head..HEAD` that touched at least one path outside `context/changes/<id>/` (read-only `merge-base`, `log --name-only --relative`); a SHA suffix must be a prefix of such a commit and never passes alone. Row ids strip the SHA and evidence suffixes. An entry with no `before.head` (resume on the new router) is treated like a null head with `== null`. Row 1.5 reworded; 1.12 added. Noted: an amend or rebase of the old head reads as a false failure that the retry path covers; paths outside the project root do not count (Assumption 5).
 
 ### F5 — Budget deltas 7 and 11 are a stacked ceiling that no run needs; lean is left exposed
 
@@ -113,7 +113,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
   - Tradeoff: More `next()` logic; the budget moves during a run.
   - Confidence: MED — new moving part inside the step-budget check.
   - Blind spot: Interaction with rigor rises that already move the budget mid-run.
-- **Decision**: PENDING
+- **Decision**: Accepted. Replaced the per-feature cap with one extra-step pool (`extraSteps`: allowance lean 0, standard 2, thorough 3; cost 1 for segment, e2e, tdd and `manual-verify`, 2 for the REJECTED re-plan). `rigor.budgetDelta` rises by +2 at standard (to 2) and +3 at thorough (to 7), inside the owner limit; lean stays -4 and gets allowance 0, so executors, `manual-verify` and the REJECTED re-plan are inert at lean and lean keeps today's paths and budget. Phase 6 lists the longest legal path per level with the arithmetic (standard 14, thorough 19, each at most `budget - 2`), and the test derives the needed delta from the walked path and proves `delta - 1` would not fit. Rows 6.1 and 6.2 keep their titles; 2.15, 2.16 and 6.18 added.
 
 ### F6 — The plan commit flips the roadmap status
 
@@ -123,7 +123,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
 - **Location**: commit 8e4f6ea, `context/foundation/roadmap.md` lines 52 and 187
 - **Detail**: Main has `proposed` for S-08; the plan commit sets `planning` in the table and in the S-08 section. The plan says nothing about the roadmap beyond naming S-08. Earlier changes reverted the same edit (`25e34d9 fix(pre-plan-steps): revert the roadmap S-07 status flip`, `415441f ... restore the roadmap S-05 row to main`). A status flip in a plan commit conflicts with the neighboring S-10 branch and with the archive commit that owns the status.
 - **Fix**: Restore the file to main (`git checkout main -- context/foundation/roadmap.md`) in the plan branch, and leave status changes to the close-out commit.
-- **Decision**: PENDING
+- **Decision**: Accepted and done. `context/foundation/roadmap.md` is restored to the version on `main` on this branch (`git checkout main -- context/foundation/roadmap.md`), so the plan commit carries no status change.
 
 ### F7 — The "untouched" and scope claims have no mechanical gate; several Progress rows are weak
 
@@ -133,7 +133,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
 - **Location**: "What We're NOT Doing", rows 1.10, 4.10, 6.6, 6.9
 - **Detail**: The plan promises no edit to `loops-existing.test.mjs`, `compare.test.mjs`, `cleanSignals`, `prompts.suffix`, `buildReport`, and router git use limited to `rev-parse`, `cat-file` and `merge-base --is-ancestor`. The only gates are a human reading the diff (1.10) and a title sentence (4.10). 6.6 `grep -c "manual-verify" skills/10x-pipeline/SKILL.md README.md` passes when one file mentions the word and does not look for `--chrome` or the re-plan. 6.9 says "Node 18 syntax rules" but runs on whatever Node is installed.
 - **Fix**: Add commands that diff against `git merge-base main HEAD`, never against `HEAD~`: `git diff --quiet "$(git merge-base main HEAD)" HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs skills/10x-pipeline/test/compare.test.mjs`; for git use, `git diff "$(git merge-base main HEAD)" HEAD -- skills/10x-pipeline/scripts/route.mjs | grep -E '^\+.*(runGit|gitOut)\(\['` and compare the subcommands to the allowed list; per-file greps for `--chrome` in SKILL.md and README.md. Name the Node version the suite runs on.
-- **Decision**: PENDING
+- **Decision**: Accepted. Every "untouched" claim has a command against `git merge-base main HEAD`: frozen files (6.13), test-edit scope (4.10, 5.10, 6.14), router git subcommands (1.11, re-run as 6.15), `cleanSignals`, `cleanUsage`, `prompts.suffix` and the `buildReport` rows (6.16). Per-file keyword greps in 6.6; 6.9 runs Node 18 when installed, otherwise the installed Node plus a ban-list grep for Node 19+ APIs (the grep returns nothing on today's code, so it is a valid gate).
 
 ### F8 — S-10 conflict surface is larger than stated
 
@@ -143,7 +143,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
 - **Location**: "Implementation Approach", Phase 1 §3
 - **Detail**: The plan says `decide()` gets three call sites. The design needs more: the implement-branch executor call, the failure re-plan trigger, the failed `plan-replan` halt, the `struggled` edit (`:718`), the REJECTED block and the `!irFresh` manual-verify call. S-10 is unlikely to edit those. The real overlap is `attachResult`: the plan sets `last.fallback` "after `last.ok` is set", i.e. in the lines directly after `last.signals = signals` and `last.verified`, where S-10's signal capture will land. `cleanSignals`, `prompts.suffix` and `buildReport` are indeed untouched.
 - **Fix**: Compute `fallback` inside `case "implement"` (it depends only on `result.status === "blocked"` and the template, not on `ok`) so the tail of `attachResult` stays untouched, and correct the "three call sites" sentence.
-- **Decision**: PENDING
+- **Decision**: Accepted. `last.fallback` is set inside `case "implement"` and the new `case "manual-verify"`; the tail of `attachResult` (`last.signals`, `last.verified`, `last.ok`) is untouched. The "three call sites" sentence is replaced by the full touch-point list in Implementation Approach (failure re-plan, retry and executor calls in the implement branch, `struggled`, the REJECTED block and fix-loop count, one `manual-verify` call in the `!irFresh` branch, one conditional key in the `done` return).
 
 ### F9 — `compare` baseline, `report.md` and `status` contract for the new steps
 
@@ -153,7 +153,7 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
 - **Location**: Migration Notes, "What We're NOT Doing" (report)
 - **Detail**: The log keys are additive, `compare` reads steps generically and `baseline-policy.json` pins the ladder, so new step names are pinned automatically: that part holds. Two gaps. (a) The baseline arm (standard, all sonnet/high) inherits the new defaults, so it runs `manual-verify`, segments and re-plans, while a routed run at `lean` does not (`manualVerify.minRigor: standard`). A drop then comes partly from a feature gate, not from model routing. The plan does not decide whether `baseline-policy.json` should disable the new steps. (b) `buildReport` prints `e.step`, so `implement-segment`/`-e2e`/`-tdd` all read "implement", `plan-replan`/`plan-rejected` read "plan", and a neutral fallback prints "failed" in the Result column; `compare` counts it in `failedAttempts`. `status` gets `template` but the report that survives archive does not.
 - **Fix**: Decide (a) in the plan: pin `manualVerify`, `codeReplan` and `executors.maxSegments` in `baseline-policy.json`, or document that both arms carry them. For (b) accept it and say so in ADR-003, or print the template in the Step cell of `buildReport` (one line inside the `rows` map, which S-10 does not touch).
-- **Decision**: PENDING
+- **Decision**: Accepted in part. (b) done: `buildReport` shows `fallback` instead of `failed` and `implement (<template>)` in the Step cell (rows map only), and `compare`'s `readSide` counts `failedAttempts` as `e.ok === false && !e.fallback` (row 6.17). (a) rejected as a code change: pinning the new features in `baseline-policy.json` needs a key outside `["ladder","rigor"]`, and `compare.test.mjs:23` and `:28` pin those keys, which the plan keeps frozen. Recorded as Assumption 14 with a README note (add the allowance override by hand for a routing-only comparison). The baseline ladder pins every tier, so new step names are tolerated automatically.
 
 ### F10 — Smaller gaps
 
@@ -171,4 +171,4 @@ Grounding: 21/21 line anchors checked (`route.mjs` :65-89, :84, :331, :355, :417
   - Manual ticks made before a `plan-rejected` re-plan describe the old code and are not repeated (`maxRuns` 1).
   - The "fallback loops forever" worry does not hold: every fallback consumes one of `maxSegments` slots and `executorExcluded` blocks the same (phase, executor) pair, so at most 2 fallback entries exist per run, and the budget still bounds it.
 - **Fix**: Fold into the plan edits for F1-F5.
-- **Decision**: PENDING
+- **Decision**: Accepted, one item rejected. Done: `e2eSetup` path containment (relative, no `..`, resolves under the root; row 2.17), `{failure}` flattened to one line and capped by `failureNoteMax` (row 4.13), dead `evidenceDir` key dropped, `--chrome` value validation and usage string, `--chrome` at lean stored and ignored, `Faza N` Progress headings give plain routing (row 2.18), goal-implement stop-rule observation added to Manual row 2.12, manual ticks before a `plan-rejected` stated as not repeated (Assumption 13). Rejected: the "fallback loops forever" worry, which does not hold (the review itself shows `executorExcluded` ends it).
