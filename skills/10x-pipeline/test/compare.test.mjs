@@ -491,6 +491,76 @@ test("2.11 a log written by the real router under the baseline file is read with
   assert.ok(res.json.reasons.includes("outcome-not-done:baseline"));
 });
 
+// ---- Implementation review fix pass (F1, F2, F5) ---------------------------------
+
+test("2.2 a target with 3 or more decimals takes the float branch with a tight slack", () => {
+  // baseline 3, routed 2: the exact drop is 33.333...%
+  assert.equal(verdictFor(3, 2, 33.333).verdict, "met");
+  assert.equal(verdictFor(3, 2, 33.34).verdict, "not met");
+  // 30.000000000000004 is above 30 by one float step; only the slack makes diff 30 of 100 enough.
+  assert.equal(verdictFor(100, 70, 30.000000000000004).verdict, "met");
+  assert.equal(verdictFor(100, 71, 30.000000000000004).verdict, "not met");
+  // A wide relative slack (1e-9 * right is about 29 here) would call a 0.01 gap met.
+  assert.equal(verdictFor(1000000000, 710000000, 29.00000000001).verdict, "not met");
+  assert.equal(verdictFor(1000000000, 709999999, 29.00000000001).verdict, "met");
+});
+
+test("2.2 a negative drop that does not divide evenly is floored, not truncated", () => {
+  assert.equal(verdictFor(3, 4, null).dropPercent, -33.34);
+  assert.equal(verdictFor(3, 2, null).dropPercent, 33.33);
+  assert.equal(verdictFor(7, 9, null).dropPercent, -28.58);
+});
+
+test("2.4 a baseline is pinned only when every executed entry is pinned", () => {
+  const routed = side({ totals: [100] });
+  const mixed = (second) => {
+    const project = side({ totals: [100] });
+    writeLog(project, [entry(1, "plan", { usage: { totalTokens: 100 } }), entry(2, "implement", { usage: { totalTokens: 100 }, ...second })]);
+    return compare(routed, project).json;
+  };
+  for (const second of [{ model: "haiku" }, { effort: "medium" }, { model: "opus" }]) {
+    const res = mixed(second);
+    assert.equal(res.pinned, false, JSON.stringify(second));
+    assert.ok(res.reasons.includes("baseline-not-pinned"), JSON.stringify(second));
+    assert.equal(res.verdict, "not comparable");
+  }
+  assert.equal(mixed({}).pinned, true);
+});
+
+test("2.6 an input file on the routed side only is also reported, and a prefixed archive name is not an archive", () => {
+  const res = compare(side({ totals: [600], files: { "frame.md": "f\n", "research.md": "r\n" } }), side({ totals: [1000], files: { "research.md": "r\n" } }));
+  assert.ok(res.json.warnings.includes("input-files-differ:frame.md"), res.json.warnings.join(","));
+  const both = compare(side({ totals: [600], files: { "frame.md": "f\n" } }), side({ totals: [1000], files: { "research.md": "r\n" } }));
+  assert.ok(both.json.warnings.includes("input-files-differ:frame.md,research.md"), both.json.warnings.join(","));
+});
+
+test("2.8 an archive folder with a prefix before the date is ignored", () => {
+  const prefixed = archivedProject(["old-2026-10-30-demo"], { log: [entry(1, "plan", { usage: { totalTokens: 600 } })] });
+  const res = compare(prefixed, side({ totals: [1000] }));
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /no run\.jsonl/);
+});
+
+test("2.1 failed attempts and the plan size are reported per side, in JSON and Markdown", () => {
+  const baseline = side({ totals: [100, 100], files: { "plan.md": planText({ phases: 2, rowsPerPhase: 2 }) } });
+  const routed = side({ totals: [100] });
+  writeLog(routed, [
+    entry(1, "plan", { usage: { totalTokens: 50 } }),
+    entry(2, "implement", { ok: false, result: { status: "failed", note: "x" }, usage: { totalTokens: 50 } }),
+    entry(3, "implement", { ok: false, usage: { totalTokens: 50 } }),
+  ]);
+  const res = compare(routed, baseline);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.routed.failedAttempts, 2);
+  assert.equal(res.json.baseline.failedAttempts, 0);
+  assert.deepEqual(res.json.baseline.plan, { phases: 2, rows: 6 });
+  assert.equal(res.json.routed.plan, null);
+  const md = compare(routed, baseline, ["--format", "md"]).stdout;
+  assert.ok(md.includes("| Failed attempts | 0 | 2 |"), md);
+  assert.ok(md.includes("| Plan phases and rows | 2 and 6 | none |"), md);
+  assert.ok(md.includes("| Source | changes | changes |"), md);
+});
+
 // ---- Phase 3: --format md ---------------------------------------------------------
 
 test("3.1 --format md prints the table, per-model lines, drop, target, verdict, reasons and warnings", () => {
