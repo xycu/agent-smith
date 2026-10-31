@@ -6,9 +6,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { makeProject, cleanupAll } from "./helpers.mjs";
+import { COMMENT_JQ } from "../scripts/pr-comment.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/pr-comment.mjs");
 const win = process.platform === "win32";
@@ -209,14 +211,12 @@ test("no gh call is logged when the report check fails", { skip: win }, () => {
   }
 });
 
-test("an open pull request reaches the posting stub in phase 1 only", { skip: win }, () => {
+test("the first gh call is pr view with the fixed field list", { skip: win }, () => {
   const w = world({ answers: { "pr-view": { out: PR_OPEN } } });
   const res = runScript(w, ["demo"]);
   assert.equal(res.status, 0, res.stderr);
-  assert.match(res.json.reason, /posting not implemented/);
   assert.equal(res.json.pr, PR_URL);
-  const first = calls(w)[0];
-  assert.deepEqual(first, ["pr", "view", "--json", "number,url,state,isDraft"]);
+  assert.deepEqual(calls(w)[0], ["pr", "view", "--json", "number,url,state,isDraft"]);
 });
 
 // ---- usage errors ------------------------------------------------------------------
@@ -273,6 +273,287 @@ test("every skip prints one parseable JSON object with the six keys and exits 0"
   assert.deepEqual(Object.keys(res.json).sort(), ["action", "match", "posted", "pr", "reason", "url"]);
 });
 
+// ---- Phase 2: create or update -----------------------------------------------------
+
+const COMMENT_URL = `${PR_URL}#issuecomment-99`;
+const markerOf = (id) => `<!-- agent-smith:pr-report change=${id} -->`;
+const entry = (id, login, head) => JSON.stringify({ id, login, head });
+const postable = { "pr-view": { out: PR_OPEN }, user: { out: "bot\n" }, post: { out: `${COMMENT_URL}\n` }, patch: { out: `${COMMENT_URL}\n` } };
+
+function postWorld({ id = "demo", report, comments = [], answers = {} } = {}) {
+  return world({
+    id,
+    report,
+    answers: { ...postable, comments: { out: comments.length ? `${comments.join("\n")}\n` : "" }, ...answers },
+  });
+}
+
+const writeCall = (w) => calls(w).find((a) => a.includes("--method"));
+const methodsOf = (w) => calls(w).filter((a) => a.includes("--method")).map((a) => a[a.indexOf("--method") + 1]);
+function capturedBody(w) {
+  const files = fs.readdirSync(w.fake).filter((f) => /^body-\d+\.txt$/.test(f));
+  assert.equal(files.length, 1, `expected one captured body, got ${files}`);
+  return fs.readFileSync(path.join(w.fake, files[0]), "utf8");
+}
+
+test("create: POST to the repo of the pull request url, marker first, report bytes after one blank line", { skip: win }, () => {
+  const report = "# Run report: demo\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n";
+  const w = postWorld({ report });
+  const res = runScript(w, ["demo"]);
+  assert.equal(res.status, 0, res.stderr);
+  assert.deepEqual(res.json, { posted: true, action: "created", reason: null, url: COMMENT_URL, pr: PR_URL, match: null });
+  const write = writeCall(w);
+  assert.deepEqual(write.slice(0, 4), ["api", "--method", "POST", "repos/acme/widgets/issues/7/comments"]);
+  assert.equal(capturedBody(w), `${markerOf("demo")}\n\n${report}`);
+});
+
+test("create: a draft pull request is posted to", { skip: win }, () => {
+  const w = postWorld({ answers: { "pr-view": { out: JSON.stringify({ number: 7, url: PR_URL, state: "OPEN", isDraft: true }) } } });
+  assert.equal(runScript(w, ["demo"]).json.action, "created");
+});
+
+test("update: only the viewer's marker comment of this change is patched", { skip: win }, () => {
+  const marker = markerOf("demo");
+  const cases = [
+    { name: "marker comment by the viewer", comments: [entry(5, "bot", `${marker}\n\nold`)], patch: 5 },
+    { name: "marker comment by another login", comments: [entry(5, "mallory", `${marker}\n\nold`)], patch: null },
+    { name: "unmarked comment by the viewer", comments: [entry(5, "bot", "just a note")], patch: null },
+    { name: "two marker entries by the viewer patch the lowest id", comments: [entry(9, "bot", marker), entry(5, "bot", marker)], patch: 5 },
+    { name: "marker of a different change id", comments: [entry(5, "bot", markerOf("other"))], patch: null },
+    { name: "marker of change demo-two is not a match for demo", comments: [entry(5, "bot", markerOf("demo-two"))], patch: null },
+    { name: "marker not at the start", comments: [entry(5, "bot", `quoted: ${marker}`)], patch: null },
+    { name: "CRLF head from a web edit", comments: [entry(5, "bot", `${marker}\r\n\r\nedited`)], patch: 5 },
+    { name: "a null login is never the viewer", comments: [entry(5, null, marker)], patch: null },
+  ];
+  for (const c of cases) {
+    const w = postWorld({ comments: c.comments });
+    const res = runScript(w, ["demo"]);
+    assert.equal(res.status, 0, `${c.name}: ${res.stderr}`);
+    if (c.patch === null) {
+      assert.deepEqual(methodsOf(w), ["POST"], c.name);
+      assert.equal(res.json.action, "created", c.name);
+    } else {
+      assert.deepEqual(methodsOf(w), ["PATCH"], c.name);
+      assert.equal(writeCall(w)[3], `repos/acme/widgets/issues/comments/${c.patch}`, c.name);
+      assert.equal(res.json.action, "updated", c.name);
+      assert.equal(res.json.match, "author", c.name);
+      assert.equal(res.json.url, COMMENT_URL, c.name);
+    }
+  }
+});
+
+test("update: change ids a and ab do not patch each other", { skip: win }, () => {
+  for (const [mine, other] of [["a", "ab"], ["ab", "a"]]) {
+    const w = postWorld({ id: mine, comments: [entry(5, "bot", `${markerOf(other)}\n\nold`)] });
+    const res = runScript(w, [mine]);
+    assert.deepEqual(methodsOf(w), ["POST"], `${mine} vs ${other}: ${res.stdout}`);
+  }
+});
+
+test("update: /user fails, a marker comment is patched with match marker-only", { skip: win }, () => {
+  const w = postWorld({ comments: [entry(5, "someone", markerOf("demo"))], answers: { user: { code: 1, err: "HTTP 403\n" } } });
+  const res = runScript(w, ["demo"]);
+  assert.equal(res.json.action, "updated");
+  assert.equal(res.json.match, "marker-only");
+  assert.deepEqual(methodsOf(w), ["PATCH"]);
+});
+
+test("update: a failed marker-only PATCH carries the A10 suffix and posts nothing else", { skip: win }, () => {
+  const w = postWorld({
+    comments: [entry(5, "someone", markerOf("demo"))],
+    answers: { user: { code: 1 }, patch: { code: 1, err: "HTTP 403: forbidden\n" } },
+  });
+  const res = runScript(w, ["demo"]);
+  assertSkip(res, /comment request failed: HTTP 403: forbidden \(a comment with this marker by another user may block updates\)/);
+  assert.deepEqual(methodsOf(w), ["PATCH"]);
+});
+
+test("a viewer-matched PATCH failure has no marker-only suffix", { skip: win }, () => {
+  const w = postWorld({ comments: [entry(5, "bot", markerOf("demo"))], answers: { patch: { code: 1, err: "HTTP 500\n" } } });
+  const res = runScript(w, ["demo"]);
+  assertSkip(res, /comment request failed: HTTP 500$/);
+});
+
+test("internal error: an unwritable TMPDIR is a skip, not a crash", { skip: win }, () => {
+  const w = postWorld();
+  const res = runScript(w, ["demo"], { env: { TMPDIR: path.join(w.fake, "missing-dir") } });
+  assertSkip(res, /^internal error: /);
+  assert.equal(res.stdout.trim().split("\n").length, 1);
+  assert.deepEqual(methodsOf(w), []);
+});
+
+test("lookup: garbage lines and lines without a numeric id are ignored", { skip: win }, () => {
+  const w = postWorld({
+    comments: ["not json", JSON.stringify({ login: "bot", head: markerOf("demo") }), JSON.stringify({ id: "7", login: "bot", head: markerOf("demo") }), entry(5, "bot", markerOf("demo"))],
+  });
+  const res = runScript(w, ["demo"]);
+  assert.equal(res.json.action, "updated");
+  assert.equal(writeCall(w)[3], "repos/acme/widgets/issues/comments/5");
+});
+
+test("failures: lookup, POST and empty URL are skips and a failed lookup posts nothing", { skip: win }, () => {
+  const lookup = postWorld({ answers: { comments: { code: 1, err: "HTTP 502\n" } } });
+  assertSkip(runScript(lookup, ["demo"]), /comment lookup failed: HTTP 502/);
+  assert.deepEqual(methodsOf(lookup), []);
+
+  const slow = postWorld({ answers: { comments: { sleep: 5 } } });
+  assertSkip(runScript(slow, ["demo", "--timeout-ms", "300"]), /comment lookup failed: gh timed out/);
+  assert.deepEqual(methodsOf(slow), []);
+
+  const failedPost = postWorld({ answers: { post: { code: 1, err: "HTTP 403\n" } } });
+  assertSkip(runScript(failedPost, ["demo"]), /comment request failed: HTTP 403/);
+
+  const emptyUrl = postWorld({ answers: { post: { out: "\n" } } });
+  assertSkip(runScript(emptyUrl, ["demo"]), /comment request failed/);
+});
+
+test("body: mentions are neutralized, emails are not", { skip: win }, () => {
+  const report = "# Run report: demo\n\nGoal: ask @alice (@bob) mail a@b.com\n@carol and x.@dave and @@eve\n";
+  const w = postWorld({ report });
+  runScript(w, ["demo"]);
+  const body = capturedBody(w);
+  for (const name of ["alice", "bob", "carol", "dave", "eve"]) {
+    assert.ok(body.includes(`@​${name}`), `${name} not neutralized: ${JSON.stringify(body)}`);
+  }
+  assert.ok(body.includes("a@b.com"));
+  assert.ok(body.startsWith(`${markerOf("demo")}\n\n`));
+});
+
+const TRUNCATED = /\n\nReport truncated: (\d+) characters omitted\.$/;
+
+test("body: 70000 ASCII characters are cut to exactly 60000 code units with the omitted count", { skip: win }, () => {
+  const report = `# Run report: demo\n${"a".repeat(70000 - 19)}`;
+  const w = postWorld({ report });
+  runScript(w, ["demo"]);
+  const body = capturedBody(w);
+  const m = TRUNCATED.exec(body);
+  assert.ok(m, "no truncation line");
+  const kept = body.slice(0, m.index);
+  assert.equal(kept.length, 60000);
+  assert.ok(kept.startsWith(markerOf("demo")));
+  const original = markerOf("demo").length + 2 + report.length;
+  assert.equal(Number(m[1]), original - 60000);
+});
+
+test("body: the cut backs off one unit instead of splitting a surrogate pair", { skip: win }, () => {
+  const lone = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/;
+  const head = "# Run report: demo\n";
+  const prefix = markerOf("demo").length + 2 + head.length;
+  // One ASCII character before the emoji run makes the cap fall between the two units of a pair (F19).
+  const pad = (60000 - prefix) % 2 === 0 ? "x" : "";
+  assert.equal((60000 - prefix - pad.length) % 2, 1, "fixture must straddle a pair at the cap");
+  const report = `${head}${pad}${"\u{1F600}".repeat(40000)}`;
+  const w = postWorld({ report });
+  runScript(w, ["demo"]);
+  const body = capturedBody(w);
+  const m = TRUNCATED.exec(body);
+  assert.ok(m, "no truncation line");
+  const kept = body.slice(0, m.index);
+  assert.equal(kept.length, 59999);
+  assert.equal(lone.test(body), false, "lone surrogate in the body");
+  assert.ok(body.length < 65536);
+  assert.equal(Number(m[1]), markerOf("demo").length + 2 + report.length - 59999);
+});
+
+test("body: a cut on a pair boundary keeps the full 60000 units", { skip: win }, () => {
+  const head = "# Run report: demo\n";
+  const prefix = markerOf("demo").length + 2 + head.length;
+  const pad = (60000 - prefix) % 2 === 0 ? "" : "x";
+  const w = postWorld({ report: `${head}${pad}${"\u{1F600}".repeat(40000)}` });
+  runScript(w, ["demo"]);
+  const kept = capturedBody(w).replace(TRUNCATED, "");
+  assert.equal(kept.length, 60000);
+});
+
+function snapshot(root) {
+  const out = [];
+  const walk = (dir) => {
+    for (const name of fs.readdirSync(dir).sort()) {
+      const full = path.join(dir, name);
+      if (fs.statSync(full).isDirectory()) {
+        out.push(`d ${path.relative(root, full)}`);
+        walk(full);
+      } else {
+        out.push(`f ${path.relative(root, full)} ${createHash("sha1").update(fs.readFileSync(full)).digest("hex")}`);
+      }
+    }
+  };
+  walk(root);
+  return out.join("\n");
+}
+
+test("audit: allowed argv only, body only as a file, four calls at most, temp dir removed, nothing written under the project", { skip: win }, () => {
+  const marker = markerOf("demo");
+  const secret = "UNIQUE-BODY-TEXT-4711";
+  const report = `# Run report: demo\n\n${secret}\n`;
+  const scenarios = [
+    { name: "create", comments: [] },
+    { name: "update", comments: [entry(5, "bot", marker)] },
+    { name: "marker-only", comments: [entry(5, "x", marker)], answers: { user: { code: 1 } } },
+    { name: "skipped", comments: [], answers: { "pr-view": { code: 1, err: 'no pull requests found for branch "x"\n' } } },
+  ];
+  for (const sc of scenarios) {
+    const w = postWorld({ report, comments: sc.comments, answers: sc.answers });
+    const tmp = tmpDir("as-prc-tmp-");
+    const before = snapshot(w.project.root);
+    const res = runScript(w, ["demo"], { env: { TMPDIR: tmp } });
+    assert.equal(res.status, 0, `${sc.name}: ${res.stderr}`);
+    assert.equal(snapshot(w.project.root), before, `${sc.name}: the project tree changed`);
+    assert.deepEqual(fs.readdirSync(tmp), [], `${sc.name}: temp directory left behind`);
+    const all = calls(w);
+    assert.ok(all.length <= 4, `${sc.name}: ${all.length} calls`);
+    for (const args of all) {
+      assert.ok(args[0] === "pr" || args[0] === "api", args.join(" "));
+      if (args[0] === "pr") assert.deepEqual(args.slice(0, 2), ["pr", "view"]);
+      const forbidden = ["merge", "close", "review", "--web", "--editor", "--input", "--hostname", "DELETE"];
+      assert.ok(!args.some((a) => forbidden.includes(a)), args.join(" "));
+      assert.ok(!args.some((a) => a.includes(secret)), "body text in argv");
+      args.forEach((a, i) => {
+        if (a.startsWith("body=")) {
+          assert.equal(args[i - 1], "-F");
+          assert.match(a, /^body=@/);
+        }
+      });
+      if (args[0] === "api") {
+        const method = args.includes("--method") ? args[args.indexOf("--method") + 1] : "GET";
+        assert.ok(["GET", "POST", "PATCH"].includes(method), method);
+        const target = args.slice(1).find((a, i, arr) => !a.startsWith("-") && arr[i - 1] !== "--method" && arr[i - 1] !== "--jq" && arr[i - 1] !== "-F");
+        assert.ok(target === "user" || target.startsWith("repos/"), `api path ${target}`);
+      }
+    }
+  }
+});
+
+test("mutation: without the author comparison a foreign marker comment would be patched", { skip: win }, () => {
+  const source = fs.readFileSync(SCRIPT, "utf8");
+  const needle = "c.login === viewer";
+  assert.equal(source.split(needle).length - 1, 1, "the author comparison must occur exactly once");
+  const dir = tmpDir("as-prc-mut-");
+  const mutant = path.join(dir, "pr-comment.mjs");
+  fs.writeFileSync(mutant, source.replace(needle, "true"));
+  const scenario = () => postWorld({ comments: [entry(5, "mallory", `${markerOf("demo")}\n\nold`)] });
+  const original = scenario();
+  runScript(original, ["demo"]);
+  assert.deepEqual(methodsOf(original), ["POST"]);
+  const broken = scenario();
+  broken.script = mutant;
+  runScript(broken, ["demo"]);
+  assert.deepEqual(methodsOf(broken), ["PATCH"], "the mutant must behave differently");
+});
+
+test("guard: route.mjs never calls gh and policy.json has no prComment key", () => {
+  const skill = path.resolve(path.dirname(SCRIPT), "..");
+  const source = fs.readFileSync(path.join(skill, "scripts/route.mjs"), "utf8");
+  assert.equal(/["'`]gh["'`]/.test(source), false);
+  const policy = JSON.parse(fs.readFileSync(path.join(skill, "policy.json"), "utf8"));
+  assert.equal("prComment" in policy, false);
+});
+
+test("COMMENT_JQ only projects and bounds", () => {
+  assert.equal(COMMENT_JQ, '.[] | {id: .id, login: .user.login, head: ((.body // "") | .[0:200])}');
+  assert.doesNotMatch(COMMENT_JQ, /select|startswith|test\(/);
+});
+
 // ---- real gh, no network -----------------------------------------------------------
 
 const realGh = spawnSync("sh", ["-c", "command -v gh"], { encoding: "utf8" }).stdout.trim();
@@ -320,4 +601,19 @@ test("live: a branch with no pull request is skipped", { skip: !live && "set GH_
   const json = JSON.parse(res.stdout);
   assert.equal(json.action, "skipped");
   assert.match(json.reason, /no pull request for this branch/);
+});
+
+test("live: the real comment projection is one parseable object per line across pages", { skip: !live && "set GH_LIVE=1 to run (needs network and an authenticated gh)" }, () => {
+  requireLiveGh();
+  const res = spawnSync("gh", ["api", "--paginate", "repos/cli/cli/issues/14090/comments", "--jq", COMMENT_JQ], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  assert.equal(res.status, 0, res.stderr);
+  const lines = res.stdout.split("\n").filter((l) => l !== "");
+  assert.ok(lines.length > 30, `only ${lines.length} lines, expected more than one page`);
+  for (const line of lines) {
+    const c = JSON.parse(line);
+    assert.equal(typeof c.id, "number");
+    assert.ok(c.login === null || typeof c.login === "string");
+    assert.equal(typeof c.head, "string");
+    assert.ok([...c.head].length <= 200);
+  }
 });
