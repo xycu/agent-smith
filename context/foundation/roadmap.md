@@ -49,7 +49,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | done     |
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | done     |
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | done |
-| S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
+| S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | planning |
 | S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
 | S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | proposed |
 
@@ -184,7 +184,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
   - How does the router tell real work from a tdd or e2e "Skip" that ticks rows with no commit? The research proposes a commit or SHA check. — Owner: user. Block: no.
   - Can a subagent reliably load the Claude-in-Chrome tools? Not tested. — Owner: user. Block: no.
 - **Risk:** tdd and e2e have many interactive pauses and cannot be limited to one phase except by prompt. An agent ticking manual rows certifies its own work, so every ticked row needs evidence.
-- **Status:** proposed
+- **Status:** planning
 
 ### S-09: Archive adapter
 
