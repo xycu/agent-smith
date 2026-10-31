@@ -1118,8 +1118,15 @@ function verifyImplement(last, plan, result, p, policy) {
   const ids = retry ? last.retry.filter((id) => done.has(id)) : newlyTicked(last.before?.done, plan);
   const ev = commitEvidence(last.before, ids, plan, path.basename(p.change), policy);
   if (strict && result.status === "blocked") last.fallback = true;
-  // A retry re-opens its rows, so the count cannot show progress; without a check it is enough that they are ticked again.
-  if (ev === null) return retry ? ids.length === last.retry.length : counted;
+  // The retry is the last attempt and the one place a Skip flip must not pass unseen. With no check possible (head
+  // unreadable, no commit yet, no repository) its rows stay unproven and the review gets the warning, as for a missing
+  // commit. The entry is a neutral fallback, not a failure, so a project without a repository is never failed for it.
+  if (ev === null && retry) {
+    if (ids.length) { last.uncommitted = ids; last.evidenceUnavailable = true; }
+    if (result.status === "done" || result.status === "blocked") last.fallback = true;
+    return false;
+  }
+  if (ev === null) return counted;
   if (ev === false && ids.length) last.uncommitted = ids;
   // The retry is the last attempt: a missing commit is accepted with a warning and costs no failure.
   if (retry && ev === false && (result.status === "done" || result.status === "blocked")) last.fallback = true;
@@ -1301,6 +1308,9 @@ function retryNext(plan, rows, policy, note) {
   };
 }
 
+// Added to the impl-review-warn prompt when the retry could not look for a commit at all.
+const EVIDENCE_UNAVAILABLE = " Commit evidence was unavailable: the router could not read the commit history, so a commit may exist.";
+
 // The impl-review template that warns about unproven ticks: only for the pass right after the implement entry that
 // recorded them. A later pass, after a fix, uses the plain prompt.
 function reviewWarning(log, plan, policy) {
@@ -1308,7 +1318,7 @@ function reviewWarning(log, plan, policy) {
   if (!rows.length) return {};
   const at = log.reduce((acc, e, i) => (e.step === "implement" && Array.isArray(e.uncommitted) && e.uncommitted.some((id) => rows.includes(id)) ? i : acc), -1);
   if (log.slice(at + 1).some((e) => e.step === "impl-review")) return {};
-  return { template: "impl-review-warn", uncommitted: rows };
+  return { template: "impl-review-warn", uncommitted: rows, evidenceNote: log[at].evidenceUnavailable === true ? EVIDENCE_UNAVAILABLE : "" };
 }
 
 // The non-empty note keys of a done result, so a run that ends clean carries none.
@@ -1899,7 +1909,7 @@ function next(id, policy) {
     id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
     phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
     retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "), failure: d.failure ?? "",
-    unproven: (d.unproven ?? []).join(", ") || "none",
+    unproven: (d.unproven ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
   }).trim() + "\n\n" + policy.prompts.suffix;
   const entry = {
     n: ran.length + 1,
