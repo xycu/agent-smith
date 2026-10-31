@@ -180,5 +180,8 @@
       "@prompts/frame-unattended.md"
     ],
     "frame-authority": "- **GIVEN** context/changes/{id}/frame.md is listed under the upstream artifacts **WHEN** you revise the plan **THEN** you **MUST** treat its reframed problem statement as authoritative: rework every phase and row that contradicts it, and apply the Progress contract (format, numbering and checkbox syntax) to the result, because this rule wins over the line that keeps step indices and titles."
+  },
+  "executors": {
+    "strictVerify": ["implement-tdd", "implement-e2e"]
   }
 }

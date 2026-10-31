@@ -62,8 +62,16 @@ function mtime(file) {
 
 // ---- disk readers ---------------------------------------------------------
 
+// The id of a Progress row: its leading N.M, else the whole text without a trailing SHA or evidence suffix,
+// so a suffix never changes an id.
+const ROW_SUFFIX_RE = /\s+\u2014\s+(?:[0-9a-f]{7,40}|evidence:\s*\S+)$/;
+function rowId(text) {
+  const m = text.match(/^(\d+\.\d+)(?=\s|$)/);
+  return m ? m[1] : text.replace(ROW_SUFFIX_RE, "");
+}
+
 function readPlan(file) {
-  const res = { exists: false, hasProgress: false, phases: 0, rows: 0, autoDone: 0, autoPending: 0, manualPending: [], mtime: 0 };
+  const res = { exists: false, hasProgress: false, phases: 0, rows: 0, autoDone: 0, autoPending: 0, manualPending: [], phaseList: [], mtime: 0 };
   if (!fs.existsSync(file)) return res;
   res.exists = true;
   res.mtime = mtime(file);
@@ -72,15 +80,27 @@ function readPlan(file) {
   if (idx < 0) return res;
   res.hasProgress = true;
   let section = null;
+  let cur = null;
   for (const line of text.slice(idx).split("\n")) {
     if (/^## /.test(line) && !/^## Progress\s*$/.test(line)) break;
-    if (/^### Phase \d+/.test(line)) { res.phases++; section = null; continue; }
+    if (/^### Phase \d+/.test(line)) {
+      res.phases++;
+      section = null;
+      const h = line.match(/^### Phase (\d+)\s*:?\s*(.*)$/);
+      cur = { n: Number(h[1]), name: h[2].trim(), auto: [], manual: [] };
+      res.phaseList.push(cur);
+      continue;
+    }
     if (/^#### Automated/.test(line)) { section = "auto"; continue; }
     if (/^#### Manual/.test(line)) { section = "manual"; continue; }
     const m = line.match(/^- \[( |x|X)\] (.*)$/);
     if (!m) continue;
     res.rows++;
     const done = m[1] !== " ";
+    if (cur) {
+      const text = m[2].trim();
+      cur[section === "manual" ? "manual" : "auto"].push({ id: rowId(text), text, done });
+    }
     if (section === "manual") { if (!done) res.manualPending.push(m[2].trim()); }
     else if (done) res.autoDone++;
     else res.autoPending++;
@@ -328,7 +348,7 @@ function attachResult(p, log, policy) {
       verified = file !== null && mtime(file) > last.startedAt && frontmatterField(file, "type") === "refactor-plan";
       break;
     }
-    case "implement": verified = plan.autoDone > (last.before?.autoDone ?? 0); break;
+    case "implement": verified = verifyImplement(last, plan, result, p, policy); break;
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
   // The raw signals object never reaches run.jsonl; only the cleaned one does.
@@ -352,9 +372,13 @@ function lastIdx(log, names, okOnly = true) {
   return -1;
 }
 
+// A failed step. A fallback entry (an executor that handed the phase back) is neutral, not a failure.
+const isFailure = (e) => e.ok === false && !e.fallback;
+
 function trailingFailures(log, step) {
   let n = 0;
   for (let i = log.length - 1; i >= 0; i--) {
+    if (log[i].fallback) continue;
     if (log[i].step !== step) break;
     if (log[i].ok) break;
     n++;
@@ -418,7 +442,7 @@ function rigorInputs(meta, log, policy, plan, risk) {
   const fromPhases = Array.isArray(R.fromPhases) ? R.fromPhases : [];
   if (reached && fromPhases.length) add(fromPhases[Math.min(reached, fromPhases.length) - 1], `phases ${plan.phases}`);
 
-  const failed = log.filter((e) => e.ok === false).length;
+  const failed = log.filter(isFailure).length;
   for (const rule of Array.isArray(R.fromFailures) ? R.fromFailures : []) {
     if (isObject(rule) && failed >= rule.minFailed) add(rule.level, `failed steps ${failed}`);
   }
@@ -715,7 +739,7 @@ function decide(p, fullLog, policy, meta, ctx) {
     ? ir.exists && lir > lcode
     : ir.exists && ir.mtime >= plan.mtime;
   if (!irFresh) {
-    const struggled = log.some((e) => (e.step === "implement" || e.step === "fix") && !e.ok) || count("fix") > 0;
+    const struggled = log.some((e) => (e.step === "implement" || e.step === "fix") && !e.ok && !e.fallback) || count("fix") > 0;
     return {
       step: "impl-review",
       bump: struggled ? E.hardChangeReviewerBump : 0,
@@ -992,17 +1016,102 @@ function replanNext(log, pr, policy, level) {
   };
 }
 
+// ---- phase executors ----------------------------------------------------------
+
+// A SHA suffix on a Progress row: " \u2014 <7-40 hex>".
+const SHA_SUFFIX_RE = /\s+\u2014\s+([0-9a-f]{7,40})$/;
+
+// Ids of the done Automated rows, in plan order.
+function doneIds(plan) {
+  return plan.phaseList.flatMap((ph) => ph.auto.filter((r) => r.done).map((r) => r.id));
+}
+
+// Done Automated rows that were not done at `beforeIds`. An entry without a list (an in-flight run) names none.
+function newlyTicked(beforeIds, plan) {
+  if (!Array.isArray(beforeIds)) return [];
+  const before = new Set(beforeIds);
+  return doneIds(plan).filter((id) => !before.has(id));
+}
+
+const strictTemplate = (policy, template) => Array.isArray(policy.executors?.strictVerify) && policy.executors.strictVerify.includes(template);
+const retryTemplate = (policy) => (typeof policy.executors?.retry?.template === "string" ? policy.executors.retry.template : null);
+
+// Extra keys of the entry `before`, only for a template whose result is checked by a commit. Additive (ADR-005).
+function beforeExtra(policy, template, plan) {
+  if (!strictTemplate(policy, template) && template !== retryTemplate(policy)) return {};
+  const head = (gitOut(["rev-parse", "HEAD"]) ?? "").trim();
+  return { head: SHA_RE.test(head) ? head : null, done: doneIds(plan) };
+}
+
+// The churn exclude globs as regexes; the shipped list when the override is unusable.
+function evidenceExcludes(policy) {
+  const cfg = churnConfig(policy);
+  if (cfg) return cfg.exclude;
+  const shipped = readJson(path.join(SKILL_DIR, "policy.json"), {}).risk?.churn?.exclude;
+  return (Array.isArray(shipped) ? shipped : []).filter((g) => typeof g === "string").map(globToRegex);
+}
+
+// Is there a code commit in before.head..HEAD? null: no check possible (no head recorded, no repository, unknown
+// commit), the count rule applies. false: no counted commit, or a SHA suffix of `ids` names no counted commit.
+// true otherwise. A commit counts when it touched a path outside the change folder that the churn exclude globs
+// do not cover.
+function commitEvidence(before, ids, plan, id, policy) {
+  const head = before?.head;
+  if (typeof head !== "string" || !SHA_RE.test(head)) return null;
+  const anc = runGit(["merge-base", "--is-ancestor", head, "HEAD"]);
+  if (anc.status === 1) return false;
+  if (anc.status !== 0) return null;
+  const log = runGit(["log", "-z", "--name-only", "--relative", "--format=%x01%H%x01", `${head}..HEAD`, "--"]);
+  if (log.status !== 0) return null;
+  // Output: \x01<sha>\x01, then \0, an optional \n, and the paths separated by \0.
+  const parts = log.stdout.split("\x01");
+  const exclude = evidenceExcludes(policy);
+  const prefix = `context/changes/${id}/`;
+  const counted = [];
+  for (let i = 1; i + 1 < parts.length; i += 2) {
+    const files = parts[i + 1].replace(/^\0?\n?/, "").split("\0").map((f) => f.replace(/^\n/, "")).filter(Boolean);
+    if (files.some((f) => !f.startsWith(prefix) && !exclude.some((re) => re.test(f)))) counted.push(parts[i]);
+  }
+  if (!counted.length) return false;
+  const rows = plan.phaseList.flatMap((ph) => ph.auto);
+  for (const rowId of ids) {
+    const row = rows.find((r) => r.id === rowId);
+    const m = row ? row.text.match(SHA_SUFFIX_RE) : null;
+    if (m && !counted.some((sha) => sha.startsWith(m[1]))) return false;
+  }
+  return true;
+}
+
+// The check for an `implement` entry. Plain and segment entries keep the count rule. A tdd, e2e or retry entry also
+// needs a code commit; it sets last.uncommitted (rows ticked without one) and last.fallback (a neutral entry) itself.
+function verifyImplement(last, plan, result, p, policy) {
+  const counted = plan.autoDone > (last.before?.autoDone ?? 0);
+  const retry = Array.isArray(last.retry);
+  const strict = strictTemplate(policy, last.template);
+  if (!strict && !retry) return counted;
+  const done = new Set(doneIds(plan));
+  const ids = retry ? last.retry.filter((id) => done.has(id)) : newlyTicked(last.before?.done, plan);
+  const ev = commitEvidence(last.before, ids, plan, path.basename(p.change), policy);
+  if (strict && result.status === "blocked") last.fallback = true;
+  // A retry re-opens its rows, so the count cannot show progress; without a check it is enough that they are ticked again.
+  if (ev === null) return retry ? ids.length === last.retry.length : counted;
+  if (ev === false && ids.length) last.uncommitted = ids;
+  // The retry is the last attempt: a missing commit is accepted with a warning and costs no failure.
+  if (retry && ev === false && (result.status === "done" || result.status === "blocked")) last.fallback = true;
+  return retry ? ev : counted && ev;
+}
+
 // A change is simple when the plan stays small and nothing has failed yet.
 // Any failed step ends the discount for the rest of the run.
 function simpleSignal(d, plan, log, meta, policy) {
   if (d.step === "plan") {
-    return d.template === "plan" && goalClass(meta.goal, policy).kind === "short" && !log.some((e) => e.ok === false)
+    return d.template === "plan" && goalClass(meta.goal, policy).kind === "short" && !log.some(isFailure)
       ? { simple: true, why: "short goal" }
       : { simple: false };
   }
   const S = policy.complexity.simple;
   const simple = plan.hasProgress && plan.phases >= 1 && plan.phases <= S.maxPhases &&
-    plan.rows <= S.maxRows && !log.some((e) => e.ok === false);
+    plan.rows <= S.maxRows && !log.some(isFailure);
   return simple ? { simple, why: `${plan.phases} phase, ${plan.rows} rows` } : { simple: false };
 }
 
@@ -1422,7 +1531,7 @@ function next(id, policy) {
     simple,
     rigor: level,
     startedAt: Date.now(),
-    before: { autoDone: plan.autoDone },
+    before: { autoDone: plan.autoDone, ...beforeExtra(policy, template, plan) },
   };
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   log.push(entry);
@@ -1718,7 +1827,7 @@ function status(id, flags) {
     change: id,
     rigor: readMeta(p.meta, {}).rigor?.level ?? null,
     steps: log.map((e) => e.skipped ? { skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null } : ({
-      n: e.n, step: e.step, model: e.model, effort: e.effort, simple: e.simple ?? null,
+      n: e.n, step: e.step, template: e.template ?? null, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
     })),
