@@ -482,9 +482,9 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [x] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 4.2 No Node 19+ API anywhere in the new files
-- [x] 4.3 Router and policy have no commit from this branch
+- [x] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 617b111
+- [x] 4.2 No Node 19+ API anywhere in the new files — 617b111
+- [x] 4.3 Router and policy have no commit from this branch — 617b111
 
 #### Manual
 
