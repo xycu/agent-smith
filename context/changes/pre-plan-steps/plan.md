@@ -458,9 +458,9 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [x] 1.1 Characterization tests pass: `node --test skills/10x-pipeline/test/loops-existing.test.mjs`
-- [ ] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 1.3 The verdict is stored on the entry: `node --test --test-name-pattern="verdict on the entry" skills/10x-pipeline/test/loops.test.mjs`
+- [x] 1.1 Characterization tests pass: `node --test skills/10x-pipeline/test/loops-existing.test.mjs` — ad19eb2
+- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 1.3 The verdict is stored on the entry: `node --test --test-name-pattern="verdict on the entry" skills/10x-pipeline/test/loops.test.mjs`
 
 #### Manual
 

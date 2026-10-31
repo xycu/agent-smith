@@ -1100,6 +1100,7 @@ function next(id, policy) {
     startedAt: Date.now(),
     before: { autoDone: plan.autoDone },
   };
+  if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   log.push(entry);
   writeLog(p.log, log);
   out({
