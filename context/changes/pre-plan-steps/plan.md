@@ -441,6 +441,15 @@ Plan review of 2026-10-31 (REVISE: 1 critical, 7 warnings, 1 observation). Each 
 - F8, accepted: `roadmap.md` restored to its version at `54f1729`; the "Dependency" section lists every `route.mjs` region by phase; the `preplan` key is placed "after `archive`" with no order check; `verdict`, the new step names and skip rows are stated as additive for S-06 and a Phase 3 test checks `status` and `report.md`; docs are Phase 5 and rebase last. Deviation from the plan skill's default: the roadmap status sync was left to the implementing branch on purpose.
 - F9, accepted: old rows 2.8, 3.7, 3.8, 4.7 and 5.9 are now assertions (or merged into tests); the characterization tests moved to `loops-existing.test.mjs` with a `git diff` check in row 4.4; the unattended `/10x-frame` runs moved from Phase 5 to Phase 2. Row numbers changed where rows moved; 2.5 and 4.2 changed title because their claims changed. Nothing was checked yet.
 
+## Review response (round 2)
+
+Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 observations) is binding for the implementation. Phase blocks and Progress row titles are unchanged; these amendments apply inside the existing phases and rows. Decisions are in the `Decision` fields of the review file.
+
+- F1: "standard looks as before" holds while the level stays standard. A rise to thorough mid-run (a plan of 6 or more phases, 3 failed steps, 3 hot paths, `signals.rigor`) opens the loops (Decision 10 kept). Row 5.8 is read as "a user who never reaches thorough"; the README bullet and Migration Notes name the ways to reach it, including an in-flight standard run whose plan has 6 or more phases (its next `next` after a RETHINK starts the frame round). Phase 4 tests add `standard run that rises to thorough mid-run opens the loops` and `1-phase standard plan RETHINK takes today path (below minRigor)`.
+- F2: `authorityLine` renders the `frame-authority` text with the real id before insertion. The line says it wins over the `plan-revise` line that keeps step indices and titles: the Progress contract (format, numbering, checkbox syntax) applies to the result, and phases and rows may change. One bold keyword. Phase 2 test: no `{` left in the rendered `plan-revise` prompt.
+- F3: `aggregateGap` accepts a header cell starting with `invariant` or `policy` plus a `status` cell. Words are whole-word lowercase letter tokens of the `candidate` column, the invariant or policy cell and the `gap` cell; a `###` heading is not a word source. Default `stopwords` sit in `policy.json`. Tests cover the `policy (quoted)` table, a heading word that must not hit every row, and whole-word matching.
+- Observations: rows 2.9 to 2.11 run in a scratch project (`mktemp -d`, throwaway `change.md`) and stay Manual; `frame-unattended.md` forbids plain-text questions; a test checks the plan prompt lists the artifacts that exist; row 5.6 also checks that the plan cites them.
+
 ## Progress
 
 > Convention: `- [ ]` pending, `- [x]` done. Append ` — <commit sha>` when a step lands. Do not rename step titles. See `references/progress-format.md`.
