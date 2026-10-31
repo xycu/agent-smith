@@ -561,6 +561,21 @@ test("2.1 failed attempts and the plan size are reported per side, in JSON and M
   assert.ok(md.includes("| Source | changes | changes |"), md);
 });
 
+test("2.3 a token sum past the safe-integer range is a missing figure, not an inexact total", () => {
+  const huge = side({ totals: [100] });
+  writeLog(huge, [
+    entry(1, "plan", { usage: { totalTokens: Number.MAX_SAFE_INTEGER } }),
+    entry(2, "implement", { usage: { totalTokens: Number.MAX_SAFE_INTEGER } }),
+  ]);
+  const res = compare(side({ totals: [1] }), huge);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.comparable, false);
+  assert.equal(res.json.dropPercent, null);
+  assert.ok(res.json.reasons.includes("usage-incomplete:baseline"));
+  assert.equal(res.json.baseline.tokens.total, Number.MAX_SAFE_INTEGER);
+  assert.equal(res.json.baseline.tokens.stepsWithFigures, 1);
+});
+
 // ---- Phase 3: --format md ---------------------------------------------------------
 
 test("3.1 --format md prints the table, per-model lines, drop, target, verdict, reasons and warnings", () => {
