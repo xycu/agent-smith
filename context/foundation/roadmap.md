@@ -47,7 +47,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-03 | rigor-levels                 | have each change get a rigor level, with lean changes skipping plan-review and changes on often-changed paths always getting both reviews | S-01          | US-01, FR-002, FR-003, FR-010     | done |
 | S-04 | (merged into S-03)           | —                                                                                     | —             | —                                 | merged   |
 | S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | done     |
-| S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
+| S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | done     |
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | done |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
 | S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
@@ -156,7 +156,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
   - What usage drop counts as success (PRD Open Question 1)? — Owner: user. Block: no.
   - How are two runs of the same change made comparable? — Owner: user. Block: no.
 - **Risk:** With at most dozens of runs the comparison is noisy and may not show a real saving. It goes last because it needs both routing and the report.
-- **Status:** proposed
+- **Status:** done
 
 ### S-07: Rigor-gated pre-plan steps
 
@@ -261,3 +261,4 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **S-09: user can have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in), with a read-only check that the archive succeeded. Split from the former S-09 on 2026-10-30: it needs only S-03, so it can start before S-07 and S-08.** — Archived 2026-10-30 → `context/archive/2026-10-30-archive-adapter/`. Lesson: —.
 - **S-05: user can see the same report as a comment on the pull request, skipped when no pull request exists.** — Archived 2026-10-31 → `context/archive/2026-10-31-pr-comment-report/`. Lesson: —.
 - **S-07: user can have `/10x-research`, legacy research (when a repo map exists), a domain brief and `/10x-frame` run before the plan only when the rigor level and the subagent signals call for them, and have a plan-review RETHINK or a repeated REVISE loop back to frame or research.** — Archived 2026-10-31 → `context/archive/2026-10-30-pre-plan-steps/`. Lesson: —.
+- **S-06: user can compare the total usage of a routed run against a baseline run of the same change (a full run on Sonnet-5.5 at high effort).** — Archived 2026-10-31 → `context/archive/2026-10-31-baseline-usage-comparison/`. Lesson: —.
