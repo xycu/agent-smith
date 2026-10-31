@@ -401,6 +401,21 @@ test("chrome flag", () => {
   assert.equal(lastEntry(off).template, "manual-verify");
 });
 
+test("chrome step draws from the pool", () => {
+  // A manual-verify-chrome entry has no cost key of its own; the pool charges it by its step name, like manual-verify.
+  const failed = (template) => entry(4, "manual-verify", { template, ok: false, verified: false, fallback: true, ticked: [], unproven: [] });
+  const log = (template) => [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), failed(template)];
+  const pool = (n) => ({ extraSteps: { allowance: { lean: 0, standard: n, thorough: n } } });
+  for (const [template, extra] of [["manual-verify", []], ["manual-verify-chrome", ["--chrome"]]]) {
+    // A pool of 1 is spent by the failed attempt: no retry, whatever the template.
+    const spent = mvProject({ log: log(template), policy: pool(1) });
+    assert.equal(start(spent, "standard", extra).json.step, "impl-review", `${template}: spent pool`);
+    // A pool of 2 still pays for the retry.
+    const room = mvProject({ log: log(template), policy: pool(2) });
+    assert.equal(start(room, "standard", extra).json.step, "manual-verify", `${template}: pool with room`);
+  }
+});
+
 test("chrome flag value", () => {
   const project = mvProject();
   const res = start(project, "standard", ["--chrome", "foo"]);
