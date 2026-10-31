@@ -51,7 +51,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: skills/10x-pipeline/scripts/route.mjs:1415
 - **Detail**: In `verifyManual`, a Manual row whose text no longer matches its baseline once the evidence suffix is stripped (`withoutEvidence(r.text) !== withoutEvidence(b.text)`) sets `intact = false` and `continue`s, so the row id never reaches `unproven`. Reproduced with a tick written as `... - evidence: evidence/a.txt` (hyphen instead of the em dash the prompt shows). The step becomes a neutral fallback, the row is ticked in `plan.md`, yet it is in neither `manualPending` nor `manualUnproven`, no retry is eligible, and the final `done` output has no `manualUnproven` key. README and ADR-003 say a tick without valid evidence is listed as `manualUnproven`. A subagent writing "-" or "--" for the dash is plausible. Effect: a human reading the closing checklist misses a row that was ticked but not proven.
 - **Fix**: In the retitled branch, add the id to `unproven` when `r.done && !b.done` (the row was ticked), then `continue`. Add a test beside the forgery cases in `manualverify.test.mjs`.
-- **Decision**: PENDING
+- **Decision**: Fix (a06a039): a newly ticked Manual row whose title no longer matches (hyphen, two hyphens, en dash, no space, no path, empty path, path with a space) is added to `unproven` in `verifyManual`, so it reaches `manualUnproven` and the retry. The bug was reproduced first; the new test "mangled evidence suffix is unproven" fails when the added line is removed (scratch-copy mutation). An unticked row with an edited title stays out of `unproven`.
 
 ### F2 — A retry whose commit check cannot run lets a Skip flip pass silently
 
@@ -65,7 +65,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
   - Tradeoff: A no-git project gets one warning per retry; the retry already ran in that case.
   - Confidence: MED — null also covers "git not installed", where a warning on every retry may be noisy.
   - Blind spot: Behavior of a shallow clone was not tried.
-- **Decision**: PENDING
+- **Decision**: Fix (2a7099d): a retry whose `commitEvidence` is null (no git, no commit yet, unresolvable head) is no longer ok. It records its ticked rows as `uncommitted` plus `evidenceUnavailable`, is a neutral fallback when it ends `done` or `blocked` (a `failed` retry still counts), and the impl-review-warn prompt gains the note "Commit evidence was unavailable". Not made a failure, so a project without git never false-fails; the first strict step without git keeps the count rule (README and ADR-003 now say so, including the repository with no commit). Test "retry without commit evidence warns" covers no repository, a repository with no commit and an unknown head; five scratch-copy mutants (old rule restored, no flag, no fallback, no `uncommitted`, always-true note) turn the suite red.
 
 ### F3 — Manual Progress rows are unchecked; live executor behavior was never run
 
@@ -75,7 +75,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: context/changes/phase-executors/plan.md:675, 705, 725, 748, 774, 775, 776, 805, 806
 - **Detail**: Rows 1.10, 2.12, 3.10, 4.11, 5.11, 5.12, 5.13, 6.11 and 6.12 are `[ ]`. Three of them (2.12, 3.10, 5.11-5.13, 6.12) need a live `/10x-e2e`, `/10x-tdd`, Chrome extension or full pipeline run, so nothing shows that the executor prompts make a subagent stop after its phase, avoid "Skip", or that `--chrome` loads the Chrome tools. The README states this honestly. Rows 1.10, 4.11 and 6.11 are reading tasks that this review partly covers (git use is limited to the three read commands; the re-plan prompts contain no question a subagent cannot answer; ADR-003, SKILL.md and README agree), but a human still has to tick them. None of these may be treated as passed.
 - **Fix**: Keep the rows pending and run 2.12, 3.10, 5.11-5.13 and 6.12 once before the change is archived. Tick 1.10, 4.11 and 6.11 after reading this review.
-- **Decision**: PENDING
+- **Decision**: Skip: the nine Manual rows (1.10, 2.12, 3.10, 4.11, 5.11, 5.12, 5.13, 6.11, 6.12) need live `/10x-e2e`, `/10x-tdd`, Chrome or full pipeline runs, or a human reading. They stay unticked and untouched; nothing was run live in this fix pass. Left for a human before the change is archived.
 
 ### F4 — The commit check is per step, not per row, and any outside commit passes
 
@@ -85,7 +85,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: skills/10x-pipeline/scripts/route.mjs:1083
 - **Detail**: `commitEvidence` counts one commit that touches a path outside `context/changes/<id>/` and outside the churn exclude globs. One unrelated commit made during the step covers every flipped row, and a subagent that commits real work for row 1.1 and flips row 1.2 passes. The plan names this as residual trust (round 3, O5a) and the docs say the check is per step. The mutation run covers the individual conditions of the check.
 - **Fix**: None needed now; revisit if a flip is seen in a real run.
-- **Decision**: PENDING
+- **Decision**: Record (facec76): not changed. README, SKILL.md and ADR-003 now state in one sentence that the commit check is per step, not per row, and that one counted commit covers every row the step ticked. Revisit if a flip is seen in a real run.
 
 ### F5 — The manual-verify prompt has no rule for commands that never end
 
@@ -95,7 +95,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: skills/10x-pipeline/prompts/manual-verify.md
 - **Detail**: The step runs backticked commands from plan text (sh, bash, python, curl allowed; round-3 O5). A Manual row such as `npm run dev` would hang the subagent. Nothing tells it to bound or background a long command, and the router sets no timeout. A hang costs one step and is bounded by the host, not by the router.
 - **Fix**: Add one rule to the prompt: run only commands that end by themselves, with a timeout; otherwise leave the row pending.
-- **Decision**: PENDING
+- **Decision**: Fix (fe297a9): `manual-verify.md` has one more rule: a command that never ends by itself or waits for input (dev server, watcher, prompt) is not run and its row stays `[ ]` (GIVEN/WHEN/THEN, one bold `MUST NOT`). The prompt test checks the rule in both templates; the rules test stays green. The router still sets no timeout, as the review says.
 
 ### F6 — A failure re-plan can take the turn of the retry and a failed re-plan halts
 
@@ -105,7 +105,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: skills/10x-pipeline/scripts/route.mjs:735
 - **Detail**: The failure re-plan fires at exactly two trailing implement failures and costs nothing from the pool. When those two failures left rows flip-ticked, the re-plan comes before the one retry, and the `plan-replan` prompt forbids unticking the rows. If the re-plan fails, the run halts for a human in a case where the retry would have fitted. This follows the plan's order (re-plan at the second failure) and the halt is consistent with the other halts, so it is a note, not a defect.
 - **Fix**: None; mention the order in the ADR if a real run shows it matters.
-- **Decision**: PENDING
+- **Decision**: Record (facec76): not changed. ADR-003 (Code re-plans) now says the failure re-plan can take the turn of the one `implement-retry`, and that a failed re-plan then halts. It follows the plan's order. Also noted in the plan's Fix pass.
 
 ### F7 — The docs say "lean unchanged" but lean can rise and gain the pool
 
@@ -115,7 +115,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: README.md (budget and limits notes), docs/ADR/ADR-003 (new section)
 - **Detail**: A lean run has pool 0 and budget 10. Rigor only rises: one failed step lifts lean to standard, which gives pool 2 and budget 16 (round-3 O5d). The docs state that lean behavior is unchanged without saying that a raised level changes it mid-run. The code is correct; the sentence is too short.
 - **Fix**: Add "until the level rises" to the lean sentence in the README and the ADR.
-- **Decision**: PENDING
+- **Decision**: Fix (facec76): the sentences "`lean` is unchanged" (README, ADR-003 budget text and table) and "`lean` runs no executor" (ADR-003 assumption 7) now say that lean keeps its path and budget until a failure raises the rigor to `standard`, after which the pool of 2 and the budget of 16 apply. SKILL.md and AGENTS.md held no such claim. The immutable titles of plan rows 2.16 and 6.18 are not changed.
 
 ### F8 — Gate row 5.10 fails when re-run after Phase 6; `gateCheck` is loose on titles
 
@@ -125,7 +125,7 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: context/changes/phase-executors/plan.md:763; skills/10x-pipeline/test/phase-helpers.mjs:43
 - **Detail**: Rows 4.10 and 5.10 hard-code a changed-file set of `loops.test.mjs` only, so they fail once Phase 6 edits `route.test.mjs`. The plan and Implementation Notes disclose this and 6.14 supersedes both. Separately, `gateCheck`'s title regex also matches `test.skip` and `test.todo` titles and accepts a pattern that is a substring of a longer title, so a gate row can be satisfied by a skipped test. Neither affects the router.
 - **Fix**: No change for the first point. For the second, drop `skip` and `todo` from `TITLE_RE` if the gate is reused.
-- **Decision**: PENDING
+- **Decision**: Record: gate 5.10 (and 4.10) fails if re-run after Phase 6, because `route.test.mjs` is then legitimately changed; it passed at Phase 5 and row 6.14 covers the final state. A note was added under row 5.10 in `plan.md` (title unchanged). Not fixed: `gateCheck` title matching of `test.skip`/`test.todo` and substring patterns is left as is, since no gate row relies on it and `phase-helpers.mjs` is shared by the pattern rows; revisit if the gate is reused.
 
 ### F9 — Pool charge for a `--chrome` manual-verify step is untested
 
@@ -135,4 +135,4 @@ Reviewed range: `f246cdf` (merge-base with `main`) to `26ea60b` (`phase-executor
 - **Location**: skills/10x-pipeline/scripts/route.mjs:1168
 - **Detail**: `extrasLeft` charges a manual-verify entry by its step name because a `--chrome` entry carries the template `manual-verify-chrome`, which has no `extraSteps.cost` key. Removing that special case leaves every test green (mutation survived), so a `--chrome` run could use the pool for free without a test noticing. The `maxAttempts` cap still bounds the step, so the effect is a budget leak, not a loop. The other three survivors are equivalent or redundant under the default policy: `context/**` is already in the exclude globs, so the `startsWith(prefix)` test in `commitEvidence` adds nothing there (it only matters if a project override removes `context/**`); the realpath containment test covers the evidence directory symlink; and the lean allowance guard is repeated by the `extrasLeft` check.
 - **Fix**: Add a case to `budget-executors.test.mjs` that logs a `manual-verify-chrome` entry and asserts the pool drops by the manual-verify cost.
-- **Decision**: PENDING
+- **Decision**: Fix (c72ff98): the new test "chrome step draws from the pool" seeds a failed `manual-verify-chrome` entry (and a `manual-verify` one as control) with a pool of 1 and of 2; the retry runs only with room. Replacing the step-name charge by the template name in a scratch copy turns it red.
