@@ -30,7 +30,7 @@ Raw usage text of that probe step's Agent result, as the harness delivered it in
 
 Name mapping: `subagent_tokens` -> `totalTokens`, `tool_uses` -> `toolUses`, `duration_ms` -> `durationMs`. A second probe gave `subagent_tokens` 49775, `tool_uses` 1, `duration_ms` 3807.
 
-Limit, accepted by the owner: in this harness every `Agent` call returned "Async agent launched" even with `run_in_background: false`, so the usage arrived in the completion notification, not in a foreground tool result. The foreground orchestrator path of SKILL.md Loop step 2 (`run_in_background: false`) could not be observed here. Plan Progress row 1.8 (Manual, unticked) re-checks usage in a real interactive foreground pipeline run.
+Limit, accepted by the owner: in this harness every `Agent` call returned "Async agent launched" even with `run_in_background: false`, so the usage arrived in the completion notification, not in a foreground tool result. What is supported: figures exist in background completion notices. What is not: the foreground orchestrator path of SKILL.md Loop step 2 (`run_in_background: false`) is unverified; it could not be observed here. Read `USAGE: present` above in that narrower sense. Plan Progress row 1.8 (Manual, unticked) re-checks usage in a real interactive foreground pipeline run.
 
 ### advisory (nested subagent, background call, not the orchestrator path)
 
