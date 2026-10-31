@@ -125,6 +125,34 @@ Rules for the adapter:
 - **GIVEN** the change folder is committed **WHEN** the archive action has been returned **THEN** the router **MUST NOT** write under `context/changes/<id>/`.
 - **GIVEN** the pre-archive commit succeeded **WHEN** the run ends **THEN** the router **MUST NOT** push.
 
+### PR comment
+
+Change 5 (`pr-comment-report`, roadmap S-05, PRD FR-005) lets a finished run post its `report.md` as a comment on the pull request. It is opt-in: the skill takes `--pr-comment`, and without it nothing is posted.
+
+Decision. A separate script, `skills/10x-pipeline/scripts/pr-comment.mjs`, does the work. The orchestrator runs it with Bash at the end of a run (`done`, `archive` before the move, `halt` with a `report`). The router stays free of network calls, and `policy.json` has no new key. The flag is not stored in `meta.json`: the orchestrator keeps it as a task named `PR comment: <change-id>` and reads it at each end of the run, so it cannot leak to another run or change, and a missing task tool means no post.
+
+- The only `gh` calls are `pr view --json number,url,state,isDraft`, `api user --jq .login`, `api --paginate repos/<o>/<r>/issues/<n>/comments` with a filter that only projects `id`, `login` and the first 200 characters of the body, and one `api --method POST` or `--method PATCH` on an issue comment. The body goes in a temporary file as `-F body=@<file>`, never in argv.
+- The comment starts with the hidden marker `<!-- agent-smith:pr-report change=<id> -->`. The script matches the marker and the author in JavaScript, edits the comment in place, and creates one only when none matches. State lives on GitHub because nothing may be written under the change folder after the pre-archive commit.
+- Only an open pull request on `github.com` is posted to. Any other outcome (no `gh`, no login, no pull request, a closed one, a timeout, a failed request) is a skip with a reason, and the script exits 0.
+- The script writes nothing under the project root. The result goes into the orchestrator's final message only.
+
+Alternatives considered:
+
+- The router posts: rejected, because it has never made a network call and `route.mjs` is the most contended file.
+- A subagent posts: rejected, because the task is mechanical and a model could improvise the `gh` command.
+- `gh pr comment --edit-last`: rejected, because it edits the last comment of the token's user, which is the human's own comment when the token is the human's.
+- The flag in `meta.json`: kept as the fallback if a silent skip is ever observed. It would edit the `init` block of the router.
+
+Rules for the PR comment:
+
+- **GIVEN** a run started without `--pr-comment` **WHEN** the run ends **THEN** the orchestrator **MUST NOT** call `pr-comment.mjs`.
+- **GIVEN** the router runs any command **WHEN** it handles a step **THEN** it **MUST NOT** call `gh`.
+- **GIVEN** `pr-comment.mjs` cannot reach an open pull request **WHEN** it handles the failure **THEN** it **MUST** skip the comment and exit 0.
+- **GIVEN** the script finds a marker comment by the viewer **WHEN** it posts **THEN** it **MUST** edit that comment instead of creating another.
+- **GIVEN** the script posts **WHEN** it builds the body **THEN** it **MUST NOT** pass the body as a command argument.
+- **GIVEN** `--report` does not name a file `report.md` inside a directory `agent-smith` **WHEN** the script starts **THEN** it **MUST** refuse it as a usage error.
+- **GIVEN** the script has run **WHEN** the orchestrator records the result **THEN** it **MUST NOT** write under `context/changes/<id>/`.
+
 ## Alternatives considered
 
 | Alternative | Verdict | Reason |

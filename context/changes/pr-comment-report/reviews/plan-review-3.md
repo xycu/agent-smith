@@ -52,7 +52,7 @@ Paths 10/10 ✓ (`SKILL.md`, `README.md`, `AGENTS.md`, ADR-003, `route.mjs`, `po
 - **Location**: Phase 3 — SKILL.md contract, Start step 4 and the three pointer lines
 - **Detail**: Step 4 calls `TaskList` on every run and says "If TaskList or TaskCreate fails or is not available: print `PR comment: skipped, task list unavailable ...`". Read literally, a run started without `--pr-comment` in a host with no task tools prints a `PR comment: skipped` line the user never asked for. That also muddies the README promise "a `PR comment:` line is printed when the flag was given, so a missing line means the step was dropped". Second, the pointers say what to do when the task is open, not what to do when `TaskList` itself errors at `done`, `archive` or `halt`; the model will improvise, most likely by saying nothing, which is the silent drop the `PR comment:` line exists to expose.
 - **Fix**: In step 4, limit the printed fallback to a run that has `--pr-comment`; without the flag a task-tool failure is silent. In the three pointers add one clause: "if TaskList fails, print `PR comment: skipped, task list unavailable`". The docs tests already pin that phrase for the Start section; extend the pin to the pointers or leave it.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED, applied in implementation (Phase 3). Start step 4 prints the fallback only when `--pr-comment` was given and says that without the flag a task tool error is silent. Each of `done`, `archive` and `halt` carries "If the call errors, post nothing and print `PR comment: skipped, task list unavailable`" (worded "the call", so each branch still holds `TaskList` exactly once). The docs test pins the step 4 condition and the clause, with fail-closed wording, in all three branches. Limit: at an end branch the orchestrator cannot always know whether the flag was given, so a rare TaskList error there prints the line even for a run without the flag; harmless (nothing is posted).
 
 ### F19 — The surrogate back-off test can pass without exercising the back-off
 
@@ -62,7 +62,7 @@ Paths 10/10 ✓ (`SKILL.md`, `README.md`, `AGENTS.md`, ADR-003, `route.mjs`, `po
 - **Location**: Phase 2 — Tests, "Body" bullet
 - **Detail**: The test cuts a report of repeated `"\u{1F600}"` at the cap and asserts no lone surrogate. The body is marker line + `"\n\n"` + report, so the report starts at offset `38 + len(id) + 2`. For an even-length id the offset is even, `60000 - offset` is even, and the cut falls on a pair boundary: no pair is split, the assertion holds, and a script with no back-off passes. I ran the cut with a 138-character prefix (even) and got exactly 60000 kept with nothing to back off. The 70000-ASCII case cannot cover it either.
 - **Fix**: State in the test contract that the fixture puts one ASCII character before the emoji run (or uses an odd-length id), so the cap lands between the two units of a pair, and assert the kept length is 59999 in that case. A mutation by deleting the back-off then fails the test.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED, applied in implementation (Phase 2). The fixture computes the prefix length and adds one ASCII character when needed, asserts that the cap straddles a pair, and asserts the kept length is 59999 and no lone surrogate. A second test covers the pair-boundary case (60000 kept). Verified as a deliberate break: removing the surrogate back-off line turned the straddle test red; it was restored before the commit.
 
 ### F20 — No orchestrator wording for a script that prints no JSON
 
@@ -72,7 +72,7 @@ Paths 10/10 ✓ (`SKILL.md`, `README.md`, `AGENTS.md`, ADR-003, `route.mjs`, `po
 - **Location**: Phase 3 — `## PR comment (opt-in)` section; Phase 1 usage errors
 - **Detail**: The script exits 2 with no JSON for a usage error. The router accepts any `^[a-z0-9][a-z0-9-]*$` id with no length cap (`route.mjs:1194`), but the script rejects an id over 100 characters, so a long id reaches the end of a full run and then gets exit 2 from the script. The SKILL step says to print `PR comment: <action>, <url or reason> (PR ...)`, which presumes a JSON object. The model will improvise; the effect is harmless (nothing is posted) but it is the only script outcome the step text does not cover.
 - **Fix**: One clause in the section: "if the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error` and complete the task". Optionally note in the README that the id limit is 100 characters.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED, applied in implementation (Phase 3). The `## PR comment (opt-in)` section carries the clause and names the 100-character difference; the README says a longer id ends in `PR comment: skipped, script error`. The script keeps its limit (the marker must fit the 200-character head) and the router cannot be edited here, so the difference is documented rather than aligned. A docs test pins the clause and "100 characters" in the section and the README.
 
 ### F21 — "Edit discipline" slightly misdescribes the siblings and itself
 
@@ -82,7 +82,7 @@ Paths 10/10 ✓ (`SKILL.md`, `README.md`, `AGENTS.md`, ADR-003, `route.mjs`, `po
 - **Location**: Phase 3 — Edit discipline
 - **Detail**: (1) The plan says S-07's ADR-003 section "may land at the same spot" (before `## Alternatives considered`). S-07 v2 says its section goes "at the end", and its other ADR-003 edit is a table row, so there is no collision; the "keep both sections" rule is harmless but unneeded. (2) The section says every edit is a new line and none changes "a line another change is likely to edit", yet three existing lines are extended: the `argument-hint` frontmatter, the end of Start step 1 and the README heading line. No sibling touches those lines (S-06 leaves `SKILL.md` alone; S-07 leaves the Start section alone), so no conflict follows. The claim is only inexact.
 - **Fix**: None required. If the text is touched anyway, say "three existing lines are extended; no sibling edits them" and drop the S-07 ADR-003 collision remark.
-- **Decision**: PENDING
+- **Decision**: ACCEPTED, applied in plan.md. The Edit discipline text now says three existing lines are extended and no sibling edits them, and the ADR-003 bullet says S-07 puts its section at the end of the file. No code or placement changed.
 
 ## Process note
 
