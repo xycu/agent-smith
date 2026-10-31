@@ -116,7 +116,7 @@ Checked live (read-only, `gh` 2.103.3, inside this harness sandbox): `gh pr view
 - **Detail**:
   - "Every runtime outcome exits 0 with one JSON object" has no top-level `try/catch` in the contract. A `mkdtempSync` or `writeFileSync` failure (read-only temp dir) would exit 1 with a stack trace. Add the catch and one test.
   - Performance says "at most five `gh` calls" and lists four.
-  - The zero-width space in the A11 regex replacement and in the test expectation is a literal invisible character (two occurrences in `plan.md`). An implementer or editor can lose it. Write `​`.
+  - The zero-width space in the A11 regex replacement and in the test expectation is a literal invisible character (two occurrences in `plan.md`). An implementer or editor can lose it. Write `\u200b`.
   - The import audit grep (1.3) misses multi-line `import {` statements, `import("x")` and `require`. Grep for `from "` lines, `import(` and `require(` separately.
   - Truncation by `.length` counts UTF-16 units and can cut a surrogate pair; say "cut on a code point".
   - A skipped `report not found` after an archive should hint at `--report context/archive/...`.
