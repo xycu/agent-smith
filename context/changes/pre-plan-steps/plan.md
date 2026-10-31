@@ -414,7 +414,7 @@ None for the router: the pre-plan branch reads at most five small files per `nex
 
 ## Migration Notes
 
-A run in flight when the router is upgraded has a `plan` entry already or, at `standard`, a closed gate, so it never starts a pre-plan step; its RETHINK and REVISE handling is unchanged. A `thorough` run in flight with a plan and a RETHINK review gets the frame round on its next `next`. Old logs have no `verdict` on entries: Phase 4's REVISE count reads them as no earlier REVISE, so an old run never gets a `research-revise`. A project policy override that sets `rigor.budgetDelta` is untouched.
+A run in flight when the router is upgraded has a `plan` entry already or, at `standard`, a closed gate, so it never starts a pre-plan step; its RETHINK and REVISE handling is unchanged. A `thorough` run in flight with a plan and a RETHINK review gets the frame round on its next `next`. Old logs have no `verdict` on entries: Phase 4's REVISE count reads them as no earlier REVISE, so an old run never gets a `research-revise`. An in-flight standard run whose plan already has 6 or more phases is at `thorough` by the phase rule, so its next RETHINK starts the frame round, and a REVISE after one REVISE re-plan starts a research round; a standard run with fewer phases is unchanged. A project policy override that sets `rigor.budgetDelta` is untouched.
 
 ## References
 
@@ -508,14 +508,14 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [x] 4.1 Loop tests pass: `node --test skills/10x-pipeline/test/loops.test.mjs`
-- [x] 4.2 The reference paths fit the budget with one step to spare: `node --test --test-name-pattern="reference path" skills/10x-pipeline/test/loops.test.mjs`
-- [x] 4.3 A second RETHINK halts: `node --test --test-name-pattern="second RETHINK" skills/10x-pipeline/test/loops.test.mjs`
-- [x] 4.4 Characterization tests of Phase 1 still pass unchanged: `node --test skills/10x-pipeline/test/loops-existing.test.mjs && git diff --exit-code "$(git log --diff-filter=A --format=%H -1 -- skills/10x-pipeline/test/loops-existing.test.mjs)" HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
-- [x] 4.5 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 4.6 The budget deltas did not move: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const d=p.rigor.budgetDelta;if(d.lean!==-4||d.standard!==0||d.thorough!==4||p.limits.maxTotalSteps!==14)process.exit(1)'`
-- [x] 4.7 A standard or lean RETHINK behaves as on main: `node --test --test-name-pattern="below minRigor" skills/10x-pipeline/test/loops.test.mjs`
-- [x] 4.8 A failed re-plan after the frame round is retried: `node --test --test-name-pattern="failed plan-revise" skills/10x-pipeline/test/loops.test.mjs`
+- [x] 4.1 Loop tests pass: `node --test skills/10x-pipeline/test/loops.test.mjs` — e0b2e96
+- [x] 4.2 The reference paths fit the budget with one step to spare: `node --test --test-name-pattern="reference path" skills/10x-pipeline/test/loops.test.mjs` — e0b2e96
+- [x] 4.3 A second RETHINK halts: `node --test --test-name-pattern="second RETHINK" skills/10x-pipeline/test/loops.test.mjs` — e0b2e96
+- [x] 4.4 Characterization tests of Phase 1 still pass unchanged: `node --test skills/10x-pipeline/test/loops-existing.test.mjs && git diff --exit-code "$(git log --diff-filter=A --format=%H -1 -- skills/10x-pipeline/test/loops-existing.test.mjs)" HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs` — e0b2e96
+- [x] 4.5 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — e0b2e96
+- [x] 4.6 The budget deltas did not move: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const d=p.rigor.budgetDelta;if(d.lean!==-4||d.standard!==0||d.thorough!==4||p.limits.maxTotalSteps!==14)process.exit(1)'` — e0b2e96
+- [x] 4.7 A standard or lean RETHINK behaves as on main: `node --test --test-name-pattern="below minRigor" skills/10x-pipeline/test/loops.test.mjs` — e0b2e96
+- [x] 4.8 A failed re-plan after the frame round is retried: `node --test --test-name-pattern="failed plan-revise" skills/10x-pipeline/test/loops.test.mjs` — e0b2e96
 
 #### Manual
 
@@ -525,11 +525,11 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [ ] 5.1 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 5.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 5.3 Docs name the new behaviour and the loop gate: `grep -q "frame-rethink" docs/ADR/ADR-003-rigor-gated-routing.md && grep -q "Pre-plan steps" README.md && grep -q "pre-plan" skills/10x-pipeline/SKILL.md && grep -q "preplan.test.mjs" AGENTS.md && grep -q "loops.minRigor" README.md`
-- [ ] 5.4 ADR-003 marks the change implemented: `grep -E "pre-plan-steps.*implemented" docs/ADR/ADR-003-rigor-gated-routing.md`
-- [ ] 5.5 Router output is valid JSON for `init` and `status` in a scratch change folder (AGENTS.md check): `d=$(mktemp -d); mkdir -p "$d/context/changes/demo"; node -e 'require("fs").writeFileSync(process.argv[1],"---\nchange_id: demo\nstatus: planned\n---\n")' "$d/context/changes/demo/change.md"; R=$PWD/skills/10x-pipeline/scripts/route.mjs; (cd "$d" && node "$R" init demo --goal "fix typo" --rigor thorough | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))' && node "$R" status demo | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))')`
+- [x] 5.1 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 5.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 5.3 Docs name the new behaviour and the loop gate: `grep -q "frame-rethink" docs/ADR/ADR-003-rigor-gated-routing.md && grep -q "Pre-plan steps" README.md && grep -q "pre-plan" skills/10x-pipeline/SKILL.md && grep -q "preplan.test.mjs" AGENTS.md && grep -q "loops.minRigor" README.md`
+- [x] 5.4 ADR-003 marks the change implemented: `grep -E "pre-plan-steps.*implemented" docs/ADR/ADR-003-rigor-gated-routing.md`
+- [x] 5.5 Router output is valid JSON for `init` and `status` in a scratch change folder (AGENTS.md check): `d=$(mktemp -d); mkdir -p "$d/context/changes/demo"; node -e 'require("fs").writeFileSync(process.argv[1],"---\nchange_id: demo\nstatus: planned\n---\n")' "$d/context/changes/demo/change.md"; R=$PWD/skills/10x-pipeline/scripts/route.mjs; (cd "$d" && node "$R" init demo --goal "fix typo" --rigor thorough | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))' && node "$R" status demo | node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))')`
 
 #### Manual
 

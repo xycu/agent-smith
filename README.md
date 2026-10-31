@@ -24,6 +24,7 @@ Requirements in the target project:
 - The 10x toolkit skills: `10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`.
 - A change folder made with `/10x-new <change-id>`.
 - Node.js 18 or later. Churn risk also reads `git` history; without it the router flags no hot path. `--archive` needs a git work tree and the `10x-archive` skill.
+- The `10x-research` and `10x-frame` skills are used when a pre-plan gate opens or when a `thorough` run loops (see "Pre-plan steps"). A step whose skill is missing fails three times and halts the run. A run that stays at `standard` or `lean` runs no such step and needs neither skill.
 
 How routing works:
 
@@ -34,6 +35,7 @@ How routing works:
 - Effort floor: plan, plan review and implementation review ask questions, so they never run below the floor in `rigor.minEffort` for the run's rigor level. The floor beats the simple-change discount, and the report marks a step as simple only when the discount survived.
 - A step counts as failed when the subagent does not report `done` or the expected file did not change.
 - The archive step is not moved by any of these rules: the policy pins its tier.
+- At rigor `thorough` the router can run `research`, `domain-brief` and `frame` before the first plan, and a plan review `RETHINK` or a repeated `REVISE` can send the run back to `frame` or `research` once before the re-plan. Both are off below `thorough` by default. See "Pre-plan steps".
 - The run halts for a human after repeated failures, too many plan revisions or fix loops, or when the step budget is spent.
 
 Rigor:
@@ -59,6 +61,48 @@ Archive (opt-in):
 - `init`, `next` and `status --report` halt, and write nothing, for a change that is archived or stamped `status: archived` with its folder still in place.
 - `report.md` carries `Archive: requested - runs after this report was written`. Pending Manual rows are listed there as `Manual checks pending: N`, because this report is the only router file that survives the move. The archive step has no log entry, no usage figure and no report row, so the totals cover the steps before it.
 - A halt is never archived. A halt printed by the `done` branch or by the end of the run carries `archive: "skipped: ..."` and `committed`. `committed: false` means nothing was committed: the folder is uncommitted and `/10x-archive` needs a commit first. `committed: true` means the pre-archive commit exists locally and the router did not undo it; `next` repeats the checks safely after the cause is fixed, without a second commit. On that repeat the check that the commit touched only the change folder is skipped, because no new commit is made. Halts printed elsewhere carry neither field: a missing result file, a guard halt for an archived change, usage and flag errors, errors at `init` and `Router error:`.
+
+Pre-plan steps:
+
+- Three optional steps can run before the first `plan` step, in this order, and two loops can send a run back after plan review. Both sit under `preplan` in `policy.json`. Every gate and both loops default to rigor `thorough`. Their word lists and thresholds are uncalibrated: no run data exists yet.
+- They are reached by `--rigor thorough`, a `signals.rigor` in a step result, a plan of 6 or more phases, three failed steps or three hot paths. The pre-plan steps are decided once, before the first plan attempt, and a later rise does not open them. The loops read the run's current level: a standard run that rises to `thorough` mid-run gets the frame round on its next `RETHINK`. An in-flight standard run whose plan already has 6 or more phases starts the frame round on its next `RETHINK`. A run that stays at `standard` or `lean` behaves as before: no new step, no skip entry, and `RETHINK` and `REVISE` re-plan as described above.
+- A gate closed by the rigor level is silent. A gate that is open and does not run logs a skip with its reason, in `run.jsonl`, `status` and `report.md`. All three steps can skip in one call.
+
+| Step | Opens at | Runs when | Skipped when | Template |
+| --- | --- | --- | --- | --- |
+| `research` | `thorough` | always | `research.md` exists | `research`, or `research-with-map` when `context/map/repo-map.md` has `artifact: repo-map` in its frontmatter |
+| `domain-brief` | `thorough` | `aggregateGap` or `dependencyLeak` hits | a brief file exists (`refactor-invariant-aggregate.md` or `refactor-anti-corruption-layer.md`), or no signal | `domain-aggregate` when `aggregateGap` hits (it wins), else `domain-acl` |
+| `frame` | `thorough` | `framingDoubt` hits | `frame.md` exists, or no signal | `frame` |
+
+`frame` is pinned to one tier by `steps.frame` in the policy. Each step is verified by the file it writes: `research.md` needs `status` frontmatter, `frame.md` needs a `## Reframed` heading (the Confidence label is never read), and a brief needs `type: refactor-plan`. The file must also be newer than the step start. A failed attempt retries at the next tier and halts after three. The plan prompt lists the upstream artifacts that exist, so `/10x-plan` reads them.
+
+| Predicate | What it reads | Default |
+| --- | --- | --- |
+| `framingDoubt` | the goal, lowercased; a phrase matches where it starts at a word start. Or a `signals.rigor` on an earlier `research` or `domain-brief` result | `root cause`, `should we even`, `is this the right`, `challenge the assumption`, `rethink`, `before i plan`, `caused by`, `because`, `assuming` |
+| `dependencyLeak` | the goal, same matching | `vendor`, `sdk`, `third-party`, `third party`, `wrapper`, `adapter`, `leak`, `anti-corruption`, `swap out`, `external api` |
+| `aggregateGap` | the first existing of `context/domain/domain-distillation.md` and `context/domain/01-domain-distillation.md`, section `## Invariants and policies` up to the next `## ` line | rows with status `declared`, `ignored` or `contradicted` |
+| `repoMapExists`, `researchExists`, `frameExists`, `briefExists` | a file in the project or the change folder | n/a |
+
+- The skill's own triggers `fix`, `bug` and `broken` are left out of `framingDoubt` on purpose: they would open a frame step for `fix typo`. To add them, override `preplan.predicates.framingDoubt.goalWords` in `context/foundation/agent-smith-policy.json`. Arrays are replaced whole, so repeat the defaults:
+
+```json
+{ "preplan": { "predicates": { "framingDoubt": { "goalWords": ["root cause", "should we even", "is this the right", "challenge the assumption", "rethink", "before i plan", "caused by", "because", "assuming", "fix", "bug", "broken"] } } } }
+```
+
+- `aggregateGap` reads every pipe table in that section whose header has a cell starting with `invariant` or `policy` and a `status` cell. The status of a row is the first alphabetic word of the cell, without `*`, `_` and backticks (`**declared** (soft)` reads as `declared`). A row hits when a status in the list shares a whole word with the goal. The words come from the `candidate` column (when present), the invariant or policy cell and the `gap` cell, as lowercase letter tokens of at least 4 letters that are not in `preplan.predicates.aggregateGap.stopwords`. A `###` heading is not a word source, and lists such as "Code-only rules" are not read. No file, no section or no matching row is no hit.
+- `frame` runs unattended under a decision guide (`skills/10x-pipeline/prompts/frame-unattended.md`). A goal that names a task but no separate cause is confirmed as the problem statement and the run goes on. A `signals.needsHuman` in the result halts the run, whatever `frame.md` says.
+
+Loops (`preplan.loops.minRigor`, default `thorough`):
+
+- At or above `loops.minRigor`, a plan review `RETHINK` runs `frame` once (template `frame-rethink`), then re-plans. A second `RETHINK` after that re-plan halts for a human.
+- At or above it, a `REVISE` that needs a re-plan, after one earlier `REVISE` re-plan, runs `research` once (template `research-revise`), then re-plans.
+- A failed re-plan keeps spending a revision, as before, so `limits.maxPlanRevisions` still ends the run. `loops.rethinkToFrame`, `loops.reviseResearchAfter` and `loops.reviseResearchMax` set the counts; a value that is not a positive integer turns that loop off.
+- Below `loops.minRigor`, `RETHINK` and `REVISE` re-plan exactly as without these loops.
+
+Budget:
+
+- The steps count against the step budget; skips do not. At `standard` the reference worst path stays 12 of 14, as before. At `thorough` the reference worst path (three pre-plan steps, a `RETHINK` with a frame round, two fix loops) is 16 of 18, so one failed step still fits and two end the run with the budget spent. `lean` is not covered: its budget of 10 already could not hold the 12-step path when plan review runs.
+- A project that lowers a gate or `loops.minRigor` to `standard` has a standard worst path of 13 and no tolerance for a failed step. It should raise `rigor.budgetDelta.standard` to 1.
 
 Override any policy key per project in `context/foundation/agent-smith-policy.json`. Run state lives in `context/changes/<change-id>/agent-smith/`.
 
