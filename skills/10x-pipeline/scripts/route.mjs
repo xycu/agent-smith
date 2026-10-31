@@ -1084,6 +1084,20 @@ function promptText(policy, template) {
   }).join("\n");
 }
 
+// Every prompt of the policy must resolve before next() consumes last-result.json. A bad @prompts/ reference then ends
+// the call with a clear halt and leaves the result file and the log untouched, so the run is recoverable after the
+// policy is fixed.
+function checkPrompts(policy) {
+  const prompts = isObject(policy.prompts) ? policy.prompts : {};
+  for (const template of Object.keys(prompts)) {
+    try {
+      promptText(policy, template);
+    } catch (e) {
+      throw new Error(`${e instanceof Error ? e.message : String(e)}. The result file and the log are untouched: fix the policy and run next again.`);
+    }
+  }
+}
+
 // The upstream artifacts of preplan.artifacts that exist in the change folder, as a prompt line, else "".
 // Paths are project-relative, in the order of first appearance in the map.
 function artifactsLine(p, policy) {
@@ -1319,6 +1333,7 @@ function next(id, policy) {
   fs.mkdirSync(p.dir, { recursive: true });
   const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
+  checkPrompts(policy);
   attachResult(p, log, policy);
 
   const planNow = readPlan(p.plan);
