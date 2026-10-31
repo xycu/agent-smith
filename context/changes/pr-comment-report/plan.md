@@ -466,13 +466,13 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [x] 3.1 Docs consistency tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
-- [x] 3.2 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 3.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 3.4 Router and policy untouched
-- [x] 3.5 `SKILL.md` names no model, effort or tier added by this change
-- [x] 3.6 `init` and `status` still print valid JSON in a scratch change folder
-- [x] 3.9 SKILL.md loop structure: one `node $PR_COMMENT`, three `PR comment step` pointers, archive pointer before the archive subagent
+- [x] 3.1 Docs consistency tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs` — d395567
+- [x] 3.2 ADR rule lines follow the form: `node --test skills/10x-pipeline/test/rules.test.mjs` — d395567
+- [x] 3.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — d395567
+- [x] 3.4 Router and policy untouched — d395567
+- [x] 3.5 `SKILL.md` names no model, effort or tier added by this change — d395567
+- [x] 3.6 `init` and `status` still print valid JSON in a scratch change folder — d395567
+- [x] 3.9 SKILL.md loop structure: one `node $PR_COMMENT`, three `PR comment step` pointers, archive pointer before the archive subagent — d395567
 
 #### Manual
 
@@ -482,9 +482,9 @@ None. The flag is opt-in and nothing is stored. A project without `gh` is unaffe
 
 #### Automated
 
-- [ ] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 4.2 No Node 19+ API anywhere in the new files
-- [ ] 4.3 Router and policy have no commit from this branch
+- [x] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 4.2 No Node 19+ API anywhere in the new files
+- [x] 4.3 Router and policy have no commit from this branch
 
 #### Manual
 
