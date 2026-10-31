@@ -808,6 +808,55 @@ function render(tpl, vars) {
   return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
 }
 
+// ---- prompt text ------------------------------------------------------------
+
+const PROMPT_REF = /^@prompts\/[A-Za-z0-9._-]+\.md$/;
+
+// A prompt value is a string or an array of strings, joined with newlines. A part that is @prompts/<name>.md is
+// replaced by the trimmed text of that file under the skill directory. References resolve before render(), so a goal
+// text never injects one. Throws an Error naming the template when the key is missing or a reference does not
+// resolve; main turns it into a JSON halt.
+function promptText(policy, template) {
+  const value = policy.prompts?.[template];
+  const parts = typeof value === "string" ? [value] : Array.isArray(value) ? value : null;
+  if (!parts) throw new Error(`policy.prompts.${template} is missing or is not a string or an array of strings`);
+  return parts.map((part) => {
+    if (typeof part !== "string") throw new Error(`policy.prompts.${template} has a part that is not a string`);
+    if (!part.startsWith("@prompts/")) return part;
+    if (!PROMPT_REF.test(part)) throw new Error(`policy.prompts.${template} has a bad reference ${part}`);
+    try {
+      return fs.readFileSync(path.join(SKILL_DIR, part.slice(1)), "utf8").trim();
+    } catch {
+      throw new Error(`policy.prompts.${template} refers to ${part}, which cannot be read`);
+    }
+  }).join("\n");
+}
+
+// The upstream artifacts of preplan.artifacts that exist in the change folder, as a prompt line, else "".
+// Paths are project-relative, in the order of first appearance in the map.
+function artifactsLine(p, policy) {
+  const map = policy.preplan?.artifacts;
+  if (!isObject(map)) return "";
+  const found = [];
+  for (const file of Object.values(map)) {
+    if (typeof file !== "string" || !/^[A-Za-z0-9._-]+$/.test(file) || found.includes(file)) continue;
+    if (fs.existsSync(path.join(p.change, file))) found.push(file);
+  }
+  if (!found.length) return "";
+  const rel = found.map((file) => path.relative(ROOT, path.join(p.change, file)).split(path.sep).join("/"));
+  return `\nUpstream artifacts (read each fully before planning): ${rel.join(", ")}`;
+}
+
+// The frame authority rule for the re-plan prompt, only when frame.md exists. render() is a single pass, so the
+// change id is put into the rule here, before the rule is inserted as a variable.
+function authorityLine(p, policy, template) {
+  if (template !== "plan-revise") return "";
+  const mapped = policy.preplan?.artifacts?.frame;
+  const file = typeof mapped === "string" && mapped ? mapped : "frame.md";
+  if (!fs.existsSync(path.join(p.change, file))) return "";
+  return "\n" + render(promptText(policy, "frame-authority"), { id: path.basename(p.change) }).trim();
+}
+
 // ---- archive adapter ------------------------------------------------------
 
 const CREATED_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -1083,8 +1132,9 @@ function next(id, policy) {
 
   const { model, effort } = policy.ladder[tier];
   const template = d.template ?? d.step;
-  const prompt = render(policy.prompts[template], { id, goal: meta.goal, verdict: d.verdict ?? "" }).trim() +
-    "\n\n" + policy.prompts.suffix;
+  const prompt = render(promptText(policy, template), {
+    id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
+  }).trim() + "\n\n" + policy.prompts.suffix;
   const entry = {
     n: ran.length + 1,
     step: d.step,

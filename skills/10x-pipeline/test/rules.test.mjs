@@ -99,7 +99,8 @@ test("prose checker rejects stray keywords", () => {
 
 test("policy.json prompts follow the rule form", () => {
   const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
-  const lines = Object.values(policy.prompts).flatMap((s) => String(s).split("\n"));
+  // A prompt is a string or an array of strings; a part may be a @prompts/<file>.md reference (the files are checked below).
+  const lines = Object.values(policy.prompts).flatMap((s) => (Array.isArray(s) ? s : [s]).flatMap((part) => String(part).split("\n")));
   assert.deepEqual(lineProblems(lines, { strict: true }), []);
 });
 
