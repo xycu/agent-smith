@@ -199,6 +199,24 @@
     "impl-review-warn": [
       "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md. Do not fix findings. When the skill offers triage, choose to save and stop.",
       "@prompts/impl-review-warn.md"
+    ],
+    "plan-replan": [
+      "Run /10x-plan {id}\nThe implementation of context/changes/{id}/plan.md failed repeatedly. Revise that plan so the failed work can succeed. Last failure note: {failure}",
+      "- **GIVEN** a row of the `## Progress` section is ticked `[x]` **WHEN** you revise the plan **THEN** you **MUST NOT** untick, rename, renumber or delete it.",
+      "- **GIVEN** the failure note shows that pending work cannot be done as the plan says **WHEN** you revise the plan **THEN** you **MUST** change the pending rows and the phase text that carry that work, and add rows with the next free index for work the note shows is missing.",
+      "- **GIVEN** you save the revised plan **WHEN** you check the `## Progress` section **THEN** you **MUST** keep at least one pending `[ ]` Automated row.",
+      "- **GIVEN** you edit the `## Progress` section **WHEN** you save it **THEN** you **MUST** keep its contract: the phase headings, the `#### Automated` and `#### Manual` sections, the checkbox syntax and the step indices.",
+      "- **GIVEN** you revise the plan **WHEN** you finish **THEN** you **MUST NOT** change code, tests or any file outside the change folder.",
+      "- **GIVEN** the skill would ask the user a question **WHEN** you run unattended **THEN** you **MUST** decide from the failure note, the plan and the code, and list the decision as an assumption."
+    ],
+    "plan-rejected": [
+      "Run /10x-plan {id}\nThe implementation review returned {verdict}: see context/changes/{id}/reviews/impl-review.md. Revise context/changes/{id}/plan.md so that the findings of that review become work the plan covers.",
+      "- **GIVEN** a row of the `## Progress` section is ticked `[x]` **WHEN** you revise the plan **THEN** you **MUST NOT** untick, rename, renumber or delete it.",
+      "- **GIVEN** a finding of the review needs new work **WHEN** you revise the plan **THEN** you **MUST** add pending Automated rows with the next free index, in a new phase or at the end of the phase they belong to.",
+      "- **GIVEN** you save the revised plan **WHEN** you check the `## Progress` section **THEN** you **MUST** keep at least one pending `[ ]` Automated row.",
+      "- **GIVEN** you edit the `## Progress` section **WHEN** you save it **THEN** you **MUST** keep its contract: the phase headings, the `#### Automated` and `#### Manual` sections, the checkbox syntax and the step indices.",
+      "- **GIVEN** you revise the plan **WHEN** you finish **THEN** you **MUST NOT** change code, tests, the review file or any file outside the change folder.",
+      "- **GIVEN** the skill would ask the user a question **WHEN** you run unattended **THEN** you **MUST** decide from the review findings, the plan and the code, and list the decision as an assumption."
     ]
   },
   "executors": {
@@ -225,5 +243,15 @@
   "extraSteps": {
     "allowance": { "lean": 0, "standard": 2, "thorough": 3 },
     "cost": { "implement-segment": 1, "implement-e2e": 1, "implement-tdd": 1, "manual-verify": 1, "plan-rejected": 2 }
+  },
+  "codeReplan": {
+    "minRigor": "standard",
+    "afterFailures": 2,
+    "onRejected": true,
+    "rejectedMaxFixes": 0,
+    "max": 1,
+    "rejectedBump": 1,
+    "failureBump": 0,
+    "failureNoteMax": 300
   }
 }

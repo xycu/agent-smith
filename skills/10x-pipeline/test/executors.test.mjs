@@ -536,11 +536,13 @@ test("retry prompt rules", { skip: noGit }, () => {
 
 test("retry once then warn", { skip: noGit }, () => {
   // An earlier plain failure plus the failed e2e step make two failures; the retry decides whether a third counts.
+  // The failure re-plan (phase 4) would take the second failure first, so it is switched off here: this test is about the retry.
   const flow = (retryResult) => {
     const specs = [e2ePhase()];
     const project = e2eProject({
       specs,
       useGit: true,
+      policy: { codeReplan: { max: 0 } },
       log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", { ok: false, verified: false })],
     });
     start(project);
@@ -982,7 +984,7 @@ test("gate check fails when nothing is checked", () => {
   // The plan of this change passes for the phases whose tests exist (skipped once the change folder is archived).
   const real = path.join(REPO, "context/changes/phase-executors/plan.md");
   if (fs.existsSync(real)) {
-    for (const phase of [1, 2, 3]) {
+    for (const phase of [1, 2, 3, 4]) {
       const res = gateRun(real, phase);
       assert.equal(res.status, 0, `phase ${phase}: ${res.stderr}`);
     }

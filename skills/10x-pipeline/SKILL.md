@@ -109,5 +109,5 @@ How the tier moves (see `scripts/route.mjs`, `tierFor` and `decide`):
 - A noisy plan review (3+ warnings) = implement at +1. A clean `SOUND` = implement at -1.
 - Each failed or unverified attempt of the same step = +1, capped by `maxAttemptsPerStep`.
 - Impl review after retries or fixes = reviewer at +1.
-- Impl review `REJECTED` = fix at the last code tier +1. `NEEDS ATTENTION` = fix at the last code tier.
+- Impl review `REJECTED` before any `fix` = one re-plan per run at the plan tier +1, at rigor `standard` or higher and when the extra-step pool allows; otherwise, and for every later `REJECTED`, = fix at the last code tier +1. `NEEDS ATTENTION` = fix at the last code tier.
 - A step counts as failed when its reported status is not `done`, or the expected artifact did not change: `plan.md` with `## Progress`, a review file with a verdict, or new checked Automated rows.
