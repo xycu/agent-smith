@@ -1,0 +1,15 @@
+{
+  "ladder": [
+    { "model": "sonnet", "effort": "high" },
+    { "model": "sonnet", "effort": "high" },
+    { "model": "sonnet", "effort": "high" },
+    { "model": "sonnet", "effort": "high" },
+    { "model": "sonnet", "effort": "high" },
+    { "model": "sonnet", "effort": "high" },
+    { "model": "sonnet", "effort": "high" }
+  ],
+  "rigor": {
+    "fromGoal": { "short": "standard", "plain": "standard", "hard": "standard" },
+    "skipPlanReviewAt": []
+  }
+}
