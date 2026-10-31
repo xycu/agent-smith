@@ -1,6 +1,6 @@
 # ADR-001: Route model and effort from cheap deterministic signals first, add scored complexity only if data demands it
 
-- **Status:** Proposed
+- **Status:** Proposed. Phase 2 is pulled forward and no longer waits for Phase 1 data: see `ADR-007-llm-complexity-scorer-as-a-routed-step.md` (accepted 2026-10-31). Phase 1 is unchanged.
 - **Date:** 2026-10-29
 - **Deciders:** repository owner
 - **Origin:** a ChatGPT conversation titled "Assigning Change Complexity" (https://chatgpt.com/share/6ae3c815-27a4-83eb-8e9b-6cce1f91cdd8) proposed a full scoring scheme. After review the scheme was narrowed to the phased approach below.

@@ -221,9 +221,9 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **PRD refs:** FR-001, FR-003, FR-011
 - **Prerequisites:** S-03, S-10
 - **Parallel with:** S-05, S-06
-- **Blockers:** a new ADR that decides where the LLM call runs and supersedes the Phase 2 deferral in ADR-001. `AGENTS.md` and ADR-006 keep the router free of LLM and network calls.
+- **Blockers:** — (ADR-007 accepted 2026-10-31: the scorer is a `score` step in a cheap-model subagent that the router schedules; the router stays a script.) S-10 must merge first.
 - **Unknowns:**
-  - Where does the scorer run: an orchestrator-run subagent step that the router schedules, or inside `route.mjs`? The first keeps the router a script. — Owner: user. Block: yes.
+  - Where does the scorer run? Resolved 2026-10-31 by ADR-007: an orchestrator-run subagent step that the router schedules. — Owner: user. Block: no.
   - Which artifacts does the scorer read, and which scale does it use (ADR-001 sketches four factors, each 0 to 3)? — Owner: user. Block: no.
   - Does the scorer's own token cost eat the saving? It counts toward the `compare` totals. — Owner: user. Block: no.
 - **Risk:** The scorer spends tokens on every change, including the simple ones it should make cheaper. S-06's `compare` is the check. It edits `decide()` and the `signals` parsing in `route.mjs`, so it waits for S-10 to merge.
@@ -243,16 +243,16 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 | S-08       | phase-executors                | Route each plan phase to its executor                   | done                  | Archived 2026-10-31                     |
 | S-09       | archive-adapter                | Archive a finished run through the 10x-archive adapter  | done                  | Archived 2026-10-30                     |
 | S-10       | lesson-candidates              | Lesson candidates in the report                         | yes                   | Prerequisites done; change folder exists, no plan yet. Run `/10x-research lesson-candidates`, then `/10x-plan lesson-candidates` |
-| S-11       | llm-complexity-scorer          | Score change complexity with an LLM on a cheap model    | no                    | Needs S-10 merged and a new ADR (placement of the LLM call); then `/10x-new llm-complexity-scorer` |
+| S-11       | llm-complexity-scorer          | Score change complexity with an LLM on a cheap model    | no                    | Needs S-10 merged (ADR-007 accepted); then `/10x-new llm-complexity-scorer` |
 
 ## Open Roadmap Questions
 
 1. **What usage drop counts as success?** — Resolved 2026-10-31: 30% in raw tokens against the Sonnet-5.5 high-effort baseline, provisional until at least 5 comparable pairs exist. To make `compare` use it, set `compare.targetDropPercent` to 30 in `context/foundation/agent-smith-policy.json`. Owner: user. Block: none.
 2. **What does "a dep for other models" mean?** — Resolved 2026-10-31: other projects install the plugin. The `/agent-smith:10x-pipeline` command, the policy override file and the `run.jsonl` and `report.md` formats stay stable. Owner: user. Block: none.
-3. **Which artifacts does the router score, and who produces the score?** — Resolved 2026-10-31: an LLM scorer is built in this milestone as S-11. Which artifacts it reads and who produces the score are settled in S-11's research and the new ADR. Owner: user. Block: S-11.
+3. **Which artifacts does the router score, and who produces the score?** — Resolved 2026-10-31: an LLM scorer is built in this milestone as S-11. Which artifacts it reads and who produces the score are settled in S-11's research, within ADR-007. Owner: user. Block: S-11.
 4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (2026-10-30): the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. Not yet confirmed on a foreground Agent result: the real-run evidence for S-02 row 3.6 was archived unfilled. Decided 2026-10-31: verify on the next real run (S-10), then mark resolved. Owner: user. Block: none.
 5. **Is OpenSpec (FR-006) out of scope for this delivery?** — Resolved 2026-10-31: yes, it stays parked. Owner: user. Block: none.
-6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — Resolved 2026-10-31: the owner chose a cheap-model LLM step. Whether that is the router itself or a scorer step that the router schedules is open, and `AGENTS.md` and ADR-006 still describe a script-only router. A new ADR decides it before S-11 is planned. Owner: user. Block: S-11.
+6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — Resolved 2026-10-31: the owner chose a cheap-model LLM step. ADR-007 (accepted 2026-10-31) settles it as a scorer step that the router schedules; the router stays a script, so `AGENTS.md` and ADR-006 need no change. Owner: user. Block: none.
 7. **What are the expected target_scale.qps and target_scale.data_volume?** — Resolved 2026-10-31: qps 0 (one sequential run at a time); a few KB per run; hundreds of runs across a small team. Owner: user. Block: none.
 8. **Why now, and what is the current workaround and its cost?** — Resolved 2026-10-31: the weekly Claude usage limit runs out. The workaround is running every 10x step by hand on a fixed expensive model and effort. Owner: user. Block: none.
 9. **Confirm two assumptions.** — Resolved 2026-10-31: both confirmed (the change modifies the existing routing rule; there is no existing run data to carry over). Owner: user. Block: none.
