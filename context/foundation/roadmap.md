@@ -46,7 +46,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | done     |
 | S-03 | rigor-levels                 | have each change get a rigor level, with lean changes skipping plan-review and changes on often-changed paths always getting both reviews | S-01          | US-01, FR-002, FR-003, FR-010     | done |
 | S-04 | (merged into S-03)           | —                                                                                     | —             | —                                 | merged   |
-| S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | in-progress |
+| S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | proposed |
 | S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | proposed |
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | proposed |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | proposed |
