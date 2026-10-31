@@ -20,7 +20,7 @@ The work is split in five changes. This ADR is a skeleton: changes 1 and 4 are w
 | Part | Owning change | Status |
 | --- | --- | --- |
 | Rigor levels, churn risk, effort floor, skip entries, `signals` | `rigor-levels` (change 1) | implemented |
-| Pre-plan steps (research, legacy research, domain brief, frame), RETHINK/REVISE loops, frame authority over `needsHuman` | `pre-plan-steps` (change 2) | planned |
+| Pre-plan steps (research, legacy research, domain brief, frame), RETHINK/REVISE loops, frame authority over `needsHuman` | `pre-plan-steps` (change 2) | implemented |
 | Per-phase executors, manual-row automation, tdd/e2e fallback, third-attempt re-plan | `phase-executors` (change 3) | planned |
 | Archive adapter, `verify-archive`, git write decision for the change folder | `archive-adapter` (change 4) | described in "Archive adapter" |
 | Lesson candidates from the implementation review | `lesson-candidates` (change 5) | planned |
@@ -178,3 +178,107 @@ Rules for the PR comment:
 - `context/foundation/prd.md` FR-002, FR-003, FR-010; `context/foundation/roadmap.md` S-03
 - `docs/ADR/ADR-001-phased-complexity-routing.md`, `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md`, `docs/ADR/ADR-004-prompt-rules-as-scenarios.md`
 - Symbols: `resolveRigor`, `measureRisk`, `hotSet`, `tierFor`, `cleanSignals`, `decide` in `skills/10x-pipeline/scripts/route.mjs`
+
+## Pre-plan steps and loops
+
+Change 2 (`pre-plan-steps`, roadmap S-07) adds four optional steps before the first plan and two backward loops after plan review. Plan: `context/changes/pre-plan-steps/plan.md`; research: `context/changes/pre-plan-steps/research.md`. The code is in the section `pre-plan steps` of `route.mjs` (`preplanNext`, `replanNext`, `PREDICATES`, `aggregateGap`) and the data under `preplan` in `policy.json`. The word lists and thresholds are uncalibrated: no run data exists, and S-06 is where it can come from.
+
+### Gates
+
+Three step names carry the gates: `research`, `domain-brief` and `frame`. The legacy research prompt is a template variant of `research`, chosen when `context/map/repo-map.md` has `artifact: repo-map`. The domain brief has two templates, `domain-aggregate` and `domain-acl`. A gate is data: `minRigor`, an optional `when` list (any predicate hit opens it), a `skipIf` list (any hit skips), a default `template` and `variants` (first hit wins). Every gate defaults to `thorough`, so a `standard` or `lean` run keeps its first step. `frame` and `domain-brief` also need a predicate hit, so a plain `thorough` run does not pay for a frame step it does not need.
+
+- **GIVEN** the run level is below the `minRigor` of a pre-plan gate **WHEN** the router decides the first step **THEN** it **MUST** write no entry for that gate.
+- **GIVEN** a pre-plan gate is open **WHEN** its artifact already exists or its `when` predicates all miss **THEN** the router **MUST** log a skip entry with the step, the level and the cause.
+- **GIVEN** a plan attempt, failed or not, is in the log **WHEN** the router decides a step **THEN** it **MUST NOT** start a pre-plan step.
+
+A gate closed by rigor is silent because the step was never in that run's path. A skip entry exists to make a saving visible, and a closed gate saves nothing. Silent closing also keeps every skip count of a `standard` or `lean` run as it was. An open gate that does not run logs a skip, which `status` and `report.md` print like the plan review skip (no `risk` key). The pre-plan phase is decided once: a rise of the level after the first plan attempt does not open it, because the plan attempt is when the goal is read.
+
+### Predicates
+
+Predicates are pure and read-only. An unknown name, a malformed config or a read error is no hit and never a throw.
+
+- `framingDoubt`: a phrase of `goalWords` starts at a word start of the lowercased goal, or a `research` or `domain-brief` result of this run carries `signals.rigor`. Defaults: `root cause`, `should we even`, `is this the right`, `challenge the assumption`, `rethink`, `before i plan`, `caused by`, `because`, `assuming`.
+- `dependencyLeak`: the same match against `vendor`, `sdk`, `third-party`, `third party`, `wrapper`, `adapter`, `leak`, `anti-corruption`, `swap out`, `external api`.
+- `aggregateGap`: reads the real report format of `/10x-domain-distillation` (see below).
+- `repoMapExists`, `researchExists`, `frameExists`, `briefExists`: file checks.
+
+The skill description of `/10x-frame` lists `fix`, `bug` and `broken` as triggers, but its own text says to skip mechanical changes. A router that opened the frame step on the bare words would fire on `fix typo`. They are not in the default list. A project that wants them sets `preplan.predicates.framingDoubt.goalWords`; arrays are replaced whole.
+
+- **GIVEN** a goal whose only cause-shaped word is `fix`, `bug` or `broken` **WHEN** the router evaluates `framingDoubt` **THEN** the predicate **MUST NOT** hit with the default list.
+
+`aggregateGap` parser rule. The section runs from the line `## Invariants and policies` to the next line that starts with `## `, so `###` subsections are inside it. Every pipe table in it counts when a header cell starts with `invariant` or `policy` and another cell is `status`. The status of a row is the first alphabetic word of the status cell after removing `*`, `_` and backticks, lowercased, so `**enforced** (new worlds)` reads as `enforced`. A row hits when its status is in `statuses` (`declared`, `ignored`, `contradicted`) and a word of the row also occurs in the goal. The words are whole lowercase letter tokens of the `candidate` column (when the header has one), the invariant or policy cell and the `gap` cell, at least `minWordLength` letters long and not in `stopwords`. Bulleted lists such as "Code-only rules" are not tables and are ignored. A `###` heading is not a word source, because one heading word would then hit every row under it.
+
+- **GIVEN** a distillation table sits under a `###` heading **WHEN** `aggregateGap` collects the words of a row **THEN** it **MUST NOT** take a word from the heading.
+- **GIVEN** a row has a status outside the configured list **WHEN** `aggregateGap` reads the table **THEN** the row **MUST NOT** hit, whatever words it shares with the goal.
+
+### Verification by artifact
+
+A pre-plan step that reports `done` counts only when its file changed after the step started and has the shape the next step relies on. `research` needs `status` in the frontmatter (the three research prompts ask for it). `frame` needs a line that starts with `## Reframed`. A domain brief is checked against the file of its own template and needs `type: refactor-plan`. A failed attempt follows the existing failure rule: retry one tier higher, halt after `maxAttemptsPerStep`. A failed optional step does not silently continue.
+
+- **GIVEN** a pre-plan step reports `done` **WHEN** its artifact is missing, not newer than the step start or without the required shape **THEN** the router **MUST** count the step as failed.
+
+### Frame authority
+
+`frame` is pinned to one tier in `policy.json` and runs under a decision guide (`prompts/frame-unattended.md`) with one rule per ask point of the skill. The authority order is fixed.
+
+- **GIVEN** a step result carries `signals.needsHuman` **WHEN** `frame.md` exists and states any Confidence label **THEN** the router **MUST** halt the run.
+- **GIVEN** `frame.md` states a Confidence label **WHEN** the router verifies the step or picks the next one **THEN** it **MUST NOT** read the label.
+- **GIVEN** the goal names a task but no separate cause **WHEN** the frame step runs unattended **THEN** the subagent **MUST** confirm the goal as the problem statement, set Confidence to LOW and finish with status `done`.
+- **GIVEN** `frame.md` exists **WHEN** the router renders the `plan-revise` prompt **THEN** the frame authority line **MUST** win over the line that keeps step indices and titles.
+
+`needsHuman` is read in `next()` before `decide()`, so it wins over anything in `frame.md`. Only an empty goal with nothing in `change.md` to frame ends `blocked`. A LOW brief lists its verification step and does not raise rigor. `/10x-plan` refines an existing `plan.md` and its rule to treat the frame as authoritative is written for a fresh plan, so the re-plan prompt carries the rule itself, rendered with the real change id. It tells the planner that the Progress contract (format, numbering and checkbox syntax) applies to the result, and that phases and rows may change to match the reframed problem.
+
+### Loops
+
+The loop gate is `preplan.loops.minRigor`, default `thorough`. The level read is the run's current level. Without this gate every `RETHINK` at `standard` would run an unproven frame step at the pinned tier and "a standard run looks as before" would be false. Below the gate, `RETHINK` and `REVISE` re-plan with `plan-revise` exactly as before, with the same counting. A run that rises to `thorough` mid-run (a plan of 6 or more phases, three failed steps, three hot paths or `signals.rigor`) opens the loops from then on, and a `RETHINK` in a standard run that rises gets the frame round. A run that stays at `standard` or `lean` is unchanged.
+
+At the gate or above:
+
+- A plan review `RETHINK` runs `frame` once with the template `frame-rethink` (no bump, no revision consumed), then re-plans. A second `RETHINK` after a good re-plan halts for a human.
+- A `REVISE` that needs a re-plan, after one earlier `REVISE` re-plan, runs `research` once with the template `research-revise`, then re-plans. The earlier round is told from the `verdict` stored on `plan-revise` entries, so an old log without the key never gets this round.
+- `loops.rethinkToFrame`, `loops.reviseResearchAfter` and `loops.reviseResearchMax` hold the counts. A value that is not a positive integer turns that loop off.
+
+Counters. `revisions` counts every `plan-revise` entry, failed ones included, as on main: a failed re-plan leaves the review fresh and spends one revision. After a good `frame-rethink`, a failed re-plan is therefore retried once at the next tier and the second failure halts at `limits.maxPlanRevisions`. The halt for a second `RETHINK` counts only good re-plans after the last good `frame-rethink`. A failed `frame-rethink` has no `ok`, so it is retried by the same branch and halts after the attempt cap.
+
+- **GIVEN** a `plan-revise` step fails **WHEN** the router counts revisions **THEN** it **MUST** count the failed entry as a revision.
+- **GIVEN** the run level is below `preplan.loops.minRigor` **WHEN** plan review returns `RETHINK` or a `REVISE` that needs a re-plan **THEN** the router **MUST** return `plan-revise` and no `frame-rethink` or `research-revise` step.
+
+### Skip rule
+
+The skip loop in `next()` used to allow two skips in one call, so three gated-out pre-plan steps hit it. The invariant is one skip per step per call. A logged skip marks the step as handled, so no policy data can make `decide()` repeat one; the guard is defensive.
+
+- **GIVEN** `decide()` returns a skip for a step already skipped in this call **WHEN** `next()` handles it **THEN** the router **MUST** end the run with a router error instead of looping.
+
+### Step budget
+
+Pre-plan and loop steps count against the budget; skips do not. The reference paths below are failure-free walks and the tests assert one step to spare.
+
+| Level | Reference worst path | Executed steps | Budget | Failed steps tolerated |
+| --- | --- | --- | --- | --- |
+| `standard` | plan, review, two re-plans each with a review, implement, impl review, two fix rounds each with an impl review | 12 | 14 | 1 |
+| `thorough` | research, domain brief, frame, plan, review `RETHINK`, frame-rethink, plan-revise, review `REVISE`, plan-revise, review `SOUND`, implement, impl review, two fix rounds each with an impl review | 16 | 18 | 1 |
+
+`rigor.budgetDelta` and `limits` did not change. The thorough path with `research-revise` in place of the frame round is also 16. The standard path is today's, because the loops are gated at `thorough`. A project that lowers a gate or `loops.minRigor` to `standard` has a standard worst path of 13 and no failure tolerance, and should raise `rigor.budgetDelta.standard` to 1. `lean` is not covered: its budget of 10 already could not hold the 12-step path when plan review runs, and this change leaves that as it was.
+
+### Assumptions that carry a cost
+
+No human could answer the six open owner questions of the research. Each was decided from research evidence or the owner defaults of that run. The cost is what it takes to reverse the decision.
+
+| Decision | Assumption | Cost to reverse |
+| --- | --- | --- |
+| 1 | The gates of `research`, `domain-brief` and `frame` open at `thorough`; `frame` also needs `framingDoubt`. | Low: one `minRigor` per gate, plus the budget (decision 3). Each lowered gate adds a costly step to every run at that level. |
+| 2 | Legacy research is a template variant of `research`, not a second step. | Medium: a second step, its gate, a verification case and a skip rule for plain research. |
+| 3 | Pre-plan and loop steps count against the budget; `budgetDelta` stays at -4, 0, 4. | Low: data. A project can raise `rigor.budgetDelta.thorough`. |
+| 4 | A failed optional pre-plan step is retried and halts; it does not continue silently. | Medium: an `optional` flag, a skip after one failure, care for `rigor.fromFailures`. |
+| 5 | A LOW Confidence without `needsHuman` does not raise rigor, and the label is never read. | Low: one rigor input that reads `frame.md`. |
+| 6 | The three prompts that work on an existing `research.md` stay unwired (two stop as `blocked` without `ast-grep`). | Low: a template, a gate and a verification case each. |
+| 7 | A gate closed by rigor is silent; an open gate that does not run logs a skip. | Low: log closed gates too, which adds up to three rows to every `standard` and `lean` report. |
+| 8 | Pre-plan steps run only before the first plan attempt. | Low: drop the guard. |
+| 9 | The word lists are uncalibrated and `fix`, `bug`, `broken` are left out. | Low: data. |
+| 10 | The loops open at `thorough` only. | Low: set `loops.minRigor`; see the budget for the consequence. |
+| 11 | `research` and `domain-brief` start at tier 3; `frame` is pinned. Tiers are uncalibrated. | Low: data. |
+| 12 | The plan and re-plan prompts list the upstream artifacts that exist, including a `research.md` made by hand. | Low: remove the `{artifacts}` and `{authority}` variables. |
+| 13 | A failed re-plan after a good frame round spends a revision, as on main. | Low: the counting rule in `replanNext`. |
+| 14 | A goal with no separate cause is confirmed at LOW and the run goes on. | Low: guide text. |
+
+Three things are still open. Whether `/10x-plan` changes its approach to match `frame.md` on a re-plan, or patches the old plan, is checked by a manual run with a real `RETHINK`; if it patches, the authority line gets stronger before merge. Whether the guide holds for every ask point of `/10x-frame` is checked by unattended runs with a clear, a thin and an empty goal. Neither the word lists nor the tiers have run data behind them.

@@ -18,6 +18,8 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `skills/10x-pipeline/policy.json` — model ladder, base tiers, escalation, limits, prompt templates.
 - `skills/10x-pipeline/scripts/route.mjs` — router: `init`, `next`, `status`, `risk`, `verify-archive`.
 - `skills/10x-pipeline/test/` — `node:test` suite: `route.test.mjs`, `churn.test.mjs`, `archive.test.mjs`, `rules.test.mjs` and `helpers.mjs` (scratch projects, `run.jsonl` fixtures, hermetic git).
+- `skills/10x-pipeline/prompts/` — rule-form prompt files; `policy.json` references them as `@prompts/<file>.md`.
+- `skills/10x-pipeline/test/preplan.test.mjs`, `loops-existing.test.mjs` and `loops.test.mjs` — pre-plan gates and prompt wiring, the characterized RETHINK/REVISE loop (never edit it), and the new loops and budget reference paths.
 - `docs/ADR/` — architecture decision records (ADR-001 to ADR-004).
 - `context/` — 10x workflow docs: `changes/`, `archive/`, `foundation/`. See the README in each.
 - `assets/` — README header image only.
