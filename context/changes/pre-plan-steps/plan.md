@@ -490,15 +490,15 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [x] 3.1 Pre-plan tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 3.2 Three skips in one call work: `node --test --test-name-pattern="three skips in one call" skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 3.3 Existing routing, churn and archive tests keep their first step: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/churn.test.mjs skills/10x-pipeline/test/archive.test.mjs`
-- [x] 3.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 3.5 The router still adds no dependency and no new git write: `! (grep -nE '^import .* from "' skills/10x-pipeline/scripts/route.mjs | grep -v 'from "node:') && ! grep -nE "[\"']push[\"']|--no-verify" skills/10x-pipeline/scripts/route.mjs`
-- [x] 3.6 Node 18 ban list is respected in new code: `! grep -nE "toSorted|groupBy|import\.meta\.dirname|mock\.timers|partialDeepStrictEqual" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/loops.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs`
-- [x] 3.7 A plain `fix typo` goal opens no frame and does not halt: `node --test --test-name-pattern="framing doubt|thorough opens" skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 3.8 `aggregateGap` reads the real report format: `node --test --test-name-pattern="aggregateGap" skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 3.9 A pre-plan skip row prints in `status` and `report.md`: `node --test --test-name-pattern="pre-plan skip row" skills/10x-pipeline/test/preplan.test.mjs`
+- [x] 3.1 Pre-plan tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs` — 6fdf479
+- [x] 3.2 Three skips in one call work: `node --test --test-name-pattern="three skips in one call" skills/10x-pipeline/test/preplan.test.mjs` — 6fdf479
+- [x] 3.3 Existing routing, churn and archive tests keep their first step: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/churn.test.mjs skills/10x-pipeline/test/archive.test.mjs` — 6fdf479
+- [x] 3.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 6fdf479
+- [x] 3.5 The router still adds no dependency and no new git write: `! (grep -nE '^import .* from "' skills/10x-pipeline/scripts/route.mjs | grep -v 'from "node:') && ! grep -nE "[\"']push[\"']|--no-verify" skills/10x-pipeline/scripts/route.mjs` — 6fdf479
+- [x] 3.6 Node 18 ban list is respected in new code: `! grep -nE "toSorted|groupBy|import\.meta\.dirname|mock\.timers|partialDeepStrictEqual" skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/loops.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs` — 6fdf479
+- [x] 3.7 A plain `fix typo` goal opens no frame and does not halt: `node --test --test-name-pattern="framing doubt|thorough opens" skills/10x-pipeline/test/preplan.test.mjs` — 6fdf479
+- [x] 3.8 `aggregateGap` reads the real report format: `node --test --test-name-pattern="aggregateGap" skills/10x-pipeline/test/preplan.test.mjs` — 6fdf479
+- [x] 3.9 A pre-plan skip row prints in `status` and `report.md`: `node --test --test-name-pattern="pre-plan skip row" skills/10x-pipeline/test/preplan.test.mjs` — 6fdf479
 
 #### Manual
 
@@ -508,14 +508,14 @@ Plan review round 2 (`reviews/plan-review-2.md`, verdict SOUND, 3 warnings, 2 ob
 
 #### Automated
 
-- [ ] 4.1 Loop tests pass: `node --test skills/10x-pipeline/test/loops.test.mjs`
-- [ ] 4.2 The reference paths fit the budget with one step to spare: `node --test --test-name-pattern="reference path" skills/10x-pipeline/test/loops.test.mjs`
-- [ ] 4.3 A second RETHINK halts: `node --test --test-name-pattern="second RETHINK" skills/10x-pipeline/test/loops.test.mjs`
-- [ ] 4.4 Characterization tests of Phase 1 still pass unchanged: `node --test skills/10x-pipeline/test/loops-existing.test.mjs && git diff --exit-code "$(git log --diff-filter=A --format=%H -1 -- skills/10x-pipeline/test/loops-existing.test.mjs)" HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
-- [ ] 4.5 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 4.6 The budget deltas did not move: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const d=p.rigor.budgetDelta;if(d.lean!==-4||d.standard!==0||d.thorough!==4||p.limits.maxTotalSteps!==14)process.exit(1)'`
-- [ ] 4.7 A standard or lean RETHINK behaves as on main: `node --test --test-name-pattern="below minRigor" skills/10x-pipeline/test/loops.test.mjs`
-- [ ] 4.8 A failed re-plan after the frame round is retried: `node --test --test-name-pattern="failed plan-revise" skills/10x-pipeline/test/loops.test.mjs`
+- [x] 4.1 Loop tests pass: `node --test skills/10x-pipeline/test/loops.test.mjs`
+- [x] 4.2 The reference paths fit the budget with one step to spare: `node --test --test-name-pattern="reference path" skills/10x-pipeline/test/loops.test.mjs`
+- [x] 4.3 A second RETHINK halts: `node --test --test-name-pattern="second RETHINK" skills/10x-pipeline/test/loops.test.mjs`
+- [x] 4.4 Characterization tests of Phase 1 still pass unchanged: `node --test skills/10x-pipeline/test/loops-existing.test.mjs && git diff --exit-code "$(git log --diff-filter=A --format=%H -1 -- skills/10x-pipeline/test/loops-existing.test.mjs)" HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 4.5 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 4.6 The budget deltas did not move: `node -e 'const p=require("./skills/10x-pipeline/policy.json");const d=p.rigor.budgetDelta;if(d.lean!==-4||d.standard!==0||d.thorough!==4||p.limits.maxTotalSteps!==14)process.exit(1)'`
+- [x] 4.7 A standard or lean RETHINK behaves as on main: `node --test --test-name-pattern="below minRigor" skills/10x-pipeline/test/loops.test.mjs`
+- [x] 4.8 A failed re-plan after the frame round is retried: `node --test --test-name-pattern="failed plan-revise" skills/10x-pipeline/test/loops.test.mjs`
 
 #### Manual
 
