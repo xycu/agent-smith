@@ -437,11 +437,11 @@ None. No stored format changes. Runs made before this change compare fine if the
 
 #### Automated
 
-- [x] 1.1 Baseline file guard passes (exact keys, 7 x `sonnet`/`high`, length bound, rigor keys): `node --test --test-name-pattern="^1\.1 " skills/10x-pipeline/test/compare.test.mjs`
-- [x] 1.2 With the baseline file and no `--rigor` flag, a hard-keyword goal and a short goal both start at `sonnet`/`high` and `standard`, and the default policy gives a different result for each: `node --test --test-name-pattern="^1\.2 " skills/10x-pipeline/test/compare.test.mjs`
-- [x] 1.3 Plan review is skipped under the default policy and is not skipped under the baseline file for the same short goal and plan: `node --test --test-name-pattern="^1\.3 " skills/10x-pipeline/test/compare.test.mjs`
-- [x] 1.4 Usage intake tests pass (valid figures kept, invalid dropped, absent key stays absent): `node --test --test-name-pattern="^1\.4 " skills/10x-pipeline/test/compare.test.mjs`
-- [x] 1.5 `policy.json` and `baseline-policy.json` parse and `compare.targetDropPercent` is `null`; the full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 1.1 Baseline file guard passes (exact keys, 7 x `sonnet`/`high`, length bound, rigor keys): `node --test --test-name-pattern="^1\.1 " skills/10x-pipeline/test/compare.test.mjs` — c903874
+- [x] 1.2 With the baseline file and no `--rigor` flag, a hard-keyword goal and a short goal both start at `sonnet`/`high` and `standard`, and the default policy gives a different result for each: `node --test --test-name-pattern="^1\.2 " skills/10x-pipeline/test/compare.test.mjs` — c903874
+- [x] 1.3 Plan review is skipped under the default policy and is not skipped under the baseline file for the same short goal and plan: `node --test --test-name-pattern="^1\.3 " skills/10x-pipeline/test/compare.test.mjs` — c903874
+- [x] 1.4 Usage intake tests pass (valid figures kept, invalid dropped, absent key stays absent): `node --test --test-name-pattern="^1\.4 " skills/10x-pipeline/test/compare.test.mjs` — c903874
+- [x] 1.5 `policy.json` and `baseline-policy.json` parse and `compare.targetDropPercent` is `null`; the full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — c903874
 
 #### Manual
 
