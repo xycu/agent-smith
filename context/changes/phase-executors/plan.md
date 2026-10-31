@@ -613,7 +613,7 @@ Written during implementation (unattended). Row titles are not changed; where a 
 
 ### Deviations and decisions
 
-- **Phase 1, retry without a check**: for a retry entry whose `commitEvidence` is `null` (no git, unknown commit) the plan says "the count rule applies". A retry sets its rows back to `[ ]` and ticks them again, so `autoDone` ends equal to `before.autoDone` and the count rule could never pass. `verifyImplement` uses "every row of the entry's `retry` list is ticked again" for that case. A retry only exists after `uncommitted` ids were recorded, which needs git, so the case is rare.
+- **Phase 1, retry without a check**: for a retry entry whose `commitEvidence` is `null` (no git, unknown commit) the plan says "the count rule applies". A retry sets its rows back to `[ ]` and ticks them again, so `autoDone` ends equal to `before.autoDone` and the count rule could never pass. `verifyImplement` uses "every row of the entry's `retry` list is ticked again" for that case. A retry only exists after `uncommitted` ids were recorded, which needs git, so the case is rare. **Superseded by the Fix pass (F2):** a retry with a null check is now a neutral fallback with the warning.
 - **Phase 1, in-flight entries**: `newlyTicked(undefined, plan)` returns `[]`, so an entry without `before.done` records no `uncommitted` ids and checks no SHA suffix (the plan says the Phase 4 subset test is skipped for it; this keeps the same rule for Phase 1).
 - **Phase 2, docs deferred**: `SKILL.md` "How the tier moves", the `README.md` routing bullets and `AGENTS.md` are not touched in Phase 2, as the plan assigns them to Phase 6. The only tier-logic edit is the `d.interactive` term at the effort-floor test of `tierFor`; `pr-comment.test.mjs` stays green.
 - **Phase 2, fixtures**: the e2e fixtures (`e2eProject`, `writeSetup`, `planWith`, `advance`) live in `executors.test.mjs`, not in `phase-helpers.mjs`, which stays as Phase 1 left it. `helpers.mjs` is untouched.
@@ -637,6 +637,21 @@ Written during implementation (unattended). Row titles are not changed; where a 
 - **Phase 6, report and compare**: `buildReport` changed in the `const result =` line and the `rows` template line only, and `readSide` counts `failedAttempts` as `e.ok === false && !e.fallback`. Tests: "report shows fallback" and "executors smoke" in `executors.test.mjs`; the gate meta-test now checks phases 1 to 6.
 - **Phase 6, docs**: ADR-003 got the new section at the end of the file (after "Assumptions that carry a cost"), which keeps the PR comment span that `pr-comment.test.mjs` pins intact; the older budget sentences of ADR-003 and the README were updated where they gave the old deltas. The step budget advice to raise `budgetDelta.standard` to 1 is replaced by the new deltas.
 - **Gate rows in the agent harness**: the harness of the unattended run refuses compound shell commands that name git, so the git gate rows (1.11 and the later `merge-base` gates) were run from a saved script that holds the exact command text. The command in the row is unchanged.
+
+## Fix pass (implementation review 2026-10-31, verdict NEEDS ATTENTION, 0 critical, 3 warnings, 6 observations)
+
+Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkbox, title or SHA suffix was changed; Manual rows stay unticked.
+
+- F1 fixed: a newly ticked Manual row whose title no longer matches its baseline (a mangled evidence suffix) lands in `unproven`, so it reaches `manualUnproven` and the retry. Reproduced first; test "mangled evidence suffix is unproven" fails without the fix (scratch-copy mutation).
+- F2 fixed: a retry whose commit check is null (no git, no commit yet, unresolvable head) is a neutral fallback with its rows recorded as `uncommitted` and `evidenceUnavailable`; the review gets `impl-review-warn` with a note that commit evidence was unavailable. Not a failure. Supersedes the Phase 1 deviation "retry without a check". Test "retry without commit evidence warns" (three setups) and five mutants.
+- F3 kept: rows 1.10, 2.12, 3.10, 4.11, 5.11, 5.12, 5.13, 6.11 and 6.12 stay unticked; live runs and a human reading are still due before the archive.
+- F4 recorded: the commit check is per step, not per row; README, SKILL.md and ADR-003 say so.
+- F5 fixed: one rule in `prompts/manual-verify.md` for a command that never ends or waits for input (not run, row stays pending).
+- F6 recorded: the failure re-plan, at two trailing failures, can take the turn of the one retry, and a failed re-plan halts; noted in ADR-003 (Code re-plans).
+- F7 fixed: "lean unchanged" became "lean keeps its path and budget until a failure raises the rigor to `standard`" in README and ADR-003 (SKILL.md and AGENTS.md held no such claim). Titles of rows 2.16 and 6.18 are immutable and keep their old wording; read them with this note.
+- F8 recorded: gate rows 4.10 and 5.10 fail if re-run after Phase 6 (they passed at their phase; row 6.14 covers the final state). A note stands under row 5.10. `gateCheck` title matching is left as is.
+- F9 fixed: test "chrome step draws from the pool" pins the pool charge of a `manual-verify-chrome` entry (mutation turns it red).
+- S-10 touch points (`cleanSignals`, `prompts.suffix`, the tail of `buildReport`, the tail of `attachResult`) are untouched; router git use stays `rev-parse`, `merge-base --is-ancestor` and `log`.
 
 ## References
 
@@ -761,6 +776,7 @@ Written during implementation (unattended). Row titles are not changed; where a 
 - [x] 5.8 Rendered prompts name the evidence directory and the evidence suffix; the chrome prompt adds the ToolSearch rule and the unavailable fallback: `node --test --test-name-pattern "manual verify prompts" skills/10x-pipeline/test/manualverify.test.mjs` — d693d2c
 - [x] 5.9 Prompt rule form and wiring tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/preplan.test.mjs` — d693d2c
 - [x] 5.10 Full suite passes; no existing test file was edited in this phase (same diff gate as 4.10): `node --test skills/10x-pipeline/test/*.test.mjs && (set -e; b="$(git merge-base main HEAD)"; n="$( { git diff --name-only "$b" -- skills/10x-pipeline/test; git ls-files -o --exclude-standard -- skills/10x-pipeline/test; } | sort -u | grep -vE 'test/(executors|codereplan|manualverify|budget-executors)\.test\.mjs|test/phase-helpers\.mjs' || true)"; test "$n" = "skills/10x-pipeline/test/loops.test.mjs"; git diff -U0 "$b" -- skills/10x-pipeline/test/loops.test.mjs | awk '/^@@/{split($2,a,",");s=substr(a[1],2)+0;if(s<28||s>36)bad=1;h++}END{exit(bad||h<1)}')` — d693d2c
+  - Note (fix pass, F8): 5.10, like 4.10, passed at Phase 5 and fails if re-run after Phase 6, because `route.test.mjs` is then legitimately changed; row 6.14 covers the final state.
 - [x] 5.14 Only rows with a backticked command (or, with `--chrome`, a browser word) are eligible, and a row with a human word never is: `node --test --test-name-pattern "manual verify eligible rows" skills/10x-pipeline/test/manualverify.test.mjs` — d693d2c
 - [x] 5.15 A first attempt that leaves a bad tick is judged again by the retry against the first-attempt baseline; a failed attempt is neutral (no failure count, no rigor rise), the run goes on to impl-review after `maxAttempts`, and `done` lists `manualUnproven`: `node --test --test-name-pattern "manual verify retry baseline" skills/10x-pipeline/test/manualverify.test.mjs` — d693d2c
 - [x] 5.16 `--chrome foo` halts with a usage message: `node --test --test-name-pattern "chrome flag value" skills/10x-pipeline/test/manualverify.test.mjs` — d693d2c
