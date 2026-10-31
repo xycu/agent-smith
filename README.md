@@ -65,7 +65,8 @@ Archive (opt-in):
 Pre-plan steps:
 
 - Three optional steps can run before the first `plan` step, in this order, and two loops can send a run back after plan review. Both sit under `preplan` in `policy.json`. Every gate and both loops default to rigor `thorough`. Their word lists and thresholds are uncalibrated: no run data exists yet.
-- They are reached by `--rigor thorough`, a `signals.rigor` in a step result, a plan of 6 or more phases, three failed steps or three hot paths. The pre-plan steps are decided once, before the first plan attempt, and a later rise does not open them. The loops read the run's current level: a standard run that rises to `thorough` mid-run gets the frame round on its next `RETHINK`. An in-flight standard run whose plan already has 6 or more phases starts the frame round on its next `RETHINK`. A run that stays at `standard` or `lean` behaves as before: no new step, no skip entry, and `RETHINK` and `REVISE` re-plan as described above.
+- Pre-plan steps open only for a run that starts at `thorough`, for example `init <id> --rigor thorough`. They are decided once, before the first plan attempt. Every other way to reach `thorough` (a `signals.rigor` in a step result, a plan of 6 or more phases, three failed steps, three hot paths) needs a plan or a finished step first, so a later rise does not open them.
+- The loops read the run's current level, so any rise to `thorough` opens them from then on: a standard run that rises to `thorough` mid-run gets the frame round on its next `RETHINK`. An in-flight standard run whose plan already has 6 or more phases starts the frame round on its next `RETHINK`. A run that stays at `standard` or `lean` behaves as before: no new step, no skip entry, and `RETHINK` and `REVISE` re-plan as described above.
 - A gate closed by the rigor level is silent. A gate that is open and does not run logs a skip with its reason, in `run.jsonl`, `status` and `report.md`. All three steps can skip in one call.
 
 | Step | Opens at | Runs when | Skipped when | Template |
@@ -78,7 +79,7 @@ Pre-plan steps:
 
 | Predicate | What it reads | Default |
 | --- | --- | --- |
-| `framingDoubt` | the goal, lowercased; a phrase matches where it starts at a word start. Or a `signals.rigor` on an earlier `research` or `domain-brief` result | `root cause`, `should we even`, `is this the right`, `challenge the assumption`, `rethink`, `before i plan`, `caused by`, `because`, `assuming` |
+| `framingDoubt` | the goal, lowercased; a phrase matches where it starts at a word start. Or a `signals.rigor` on an earlier `research` or `domain-brief` result, whatever valid level it names (the key says the change is riskier than the goal suggested) | `root cause`, `should we even`, `is this the right`, `challenge the assumption`, `rethink`, `before i plan`, `caused by`, `because`, `assuming` |
 | `dependencyLeak` | the goal, same matching | `vendor`, `sdk`, `third-party`, `third party`, `wrapper`, `adapter`, `leak`, `anti-corruption`, `swap out`, `external api` |
 | `aggregateGap` | the first existing of `context/domain/domain-distillation.md` and `context/domain/01-domain-distillation.md`, section `## Invariants and policies` up to the next `## ` line | rows with status `declared`, `ignored` or `contradicted` |
 | `repoMapExists`, `researchExists`, `frameExists`, `briefExists` | a file in the project or the change folder | n/a |
