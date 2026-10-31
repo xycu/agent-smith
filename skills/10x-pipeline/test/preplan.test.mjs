@@ -193,6 +193,38 @@ test("a missing or malformed prompt reference ends in a JSON halt", () => {
   }
 });
 
+test("a bad prompt reference halts before the subagent result is consumed", () => {
+  const project = makeProject();
+  assert.equal(init(project, "fix typo").json.step, "plan");
+  const overrideFile = path.join(project.root, "context/foundation/agent-smith-policy.json");
+  const resultFile = path.join(project.agentDir, "last-result.json");
+  const bad = {
+    "missing file": ["@prompts/does-not-exist.md"],
+    "path out of the folder": ["@prompts/../README.md"],
+    "missing key": null,
+  };
+  // The broken prompt is one the next step does not use, so only the early check can catch it.
+  for (const [name, value] of Object.entries(bad)) {
+    fs.mkdirSync(path.dirname(overrideFile), { recursive: true });
+    fs.writeFileSync(overrideFile, JSON.stringify({ prompts: { "plan-review": value } }));
+    writeResult(project, { status: "done", note: "kept" });
+    const halted = next(project);
+    assert.equal(halted.status, 1, name);
+    assert.equal(halted.json.action, "halt", name);
+    assert.match(halted.json.reason, /^Router error: policy\.prompts\.plan-review /, name);
+    assert.match(halted.json.reason, /result file and the log are untouched/, name);
+    assert.ok(fs.existsSync(resultFile), `${name}: the result file is still there`);
+    assert.equal(readLogEntries(project).filter((e) => !e.skipped)[0].result, undefined, `${name}: the log entry has no result yet`);
+  }
+  // After the policy is fixed the same result is consumed and the run goes on.
+  fs.rmSync(overrideFile);
+  const resumed = next(project);
+  assert.equal(resumed.status, 0, resumed.stdout);
+  assert.equal(resumed.json.action, "run");
+  assert.equal(readLogEntries(project)[0].result.note, "kept");
+  assert.ok(!fs.existsSync(resultFile), "the result file is consumed once");
+});
+
 // ---- plan prompt: artifacts ------------------------------------------------------
 
 test("plan prompt without artifacts equals today's text", () => {
