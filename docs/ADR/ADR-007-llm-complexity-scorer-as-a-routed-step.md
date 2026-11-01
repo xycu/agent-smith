@@ -24,15 +24,25 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** a run whose rigor level is at or above `score.minRigor` in `policy.json` and no scoring file exists **WHEN** the router decides the step before the first `plan` **THEN** it **MUST** return the `score` step on the tier that `steps.score` pins in the policy.
 
-**GIVEN** a run below `score.minRigor` (the default is `standard`, so a `lean` run) **WHEN** the router reaches the same point **THEN** it **MUST NOT** run `score`, and it **MUST** log a skip with its reason in `run.jsonl`, `status` and `report.md`.
+**GIVEN** a run below `score.minRigor` (the default is `standard`, so a `lean` run) **WHEN** the router reaches the same point **THEN** it **MUST NOT** run `score`.
 
-**GIVEN** a `score` step **WHEN** the subagent finishes **THEN** it **MUST** have written `context/changes/<change-id>/complexity.json`, newer than the step start, with the schema below, and the router **MUST** accept the step only if that file passes the checks in the next rule.
+**GIVEN** a `score` step that the router skipped **WHEN** it logs the decision **THEN** the log entry **MUST** carry the reason in `run.jsonl`, `status` and `report.md`.
 
-**GIVEN** `complexity.json` **WHEN** the router validates it **THEN** every factor **MUST** have an integer score from 0 to 3 and a non-empty `evidence` string, `unknowns` **MUST** be an array, and `confidence` **MUST** be `low`, `medium` or `high`. The router **MUST NOT** judge whether the evidence is true.
+**GIVEN** a `score` step **WHEN** the subagent finishes **THEN** it **MUST** have written `context/changes/<change-id>/complexity.json`, newer than the step start, with the schema below.
 
-**GIVEN** a valid `complexity.json` **WHEN** the router chooses the tier of a later step **THEN** it **MAY** shift the tier of `plan` and `implement` by at most one rung up or down, using thresholds under `score` in `policy.json`. The shift **MUST NOT** go below the effort floor in `rigor.minEffort`, and it **MUST NOT** override the churn risk axis or lower the rigor level.
+**GIVEN** a `score` step that wrote `complexity.json` **WHEN** the router verifies the step **THEN** it **MUST** accept the step only if that file passes the checks in the next rule.
 
-**GIVEN** a `score` step that fails three times, or a `complexity.json` that fails validation after the retry **WHEN** the router decides the next step **THEN** it **MUST** skip scoring with the reason logged and go on with the deterministic signals. It **MUST NOT** halt the run, because the score only advises.
+**GIVEN** `complexity.json` **WHEN** the router validates it **THEN** every factor **MUST** have an integer score from 0 to 3 and a non-empty `evidence` string, `unknowns` must be an array, and `confidence` must be `low`, `medium` or `high`.
+
+**GIVEN** a `complexity.json` that passes those checks **WHEN** the router reads its evidence **THEN** it **MUST NOT** judge whether the evidence is true.
+
+**GIVEN** a valid `complexity.json` **WHEN** the router chooses the tier of a later step **THEN** it **MAY** shift the tier of `plan` and `implement` by at most one rung up or down, using thresholds under `score` in `policy.json`.
+
+**GIVEN** a tier shift from the score **WHEN** the router applies it **THEN** the shift **MUST NOT** go below the effort floor in `rigor.minEffort`, override the churn risk axis or lower the rigor level.
+
+**GIVEN** a `score` step that fails three times, or a `complexity.json` that fails validation after the retry **WHEN** the router decides the next step **THEN** it **MUST** skip scoring with the reason logged and go on with the deterministic signals.
+
+**GIVEN** a `score` step that failed **WHEN** the router has skipped scoring **THEN** it **MUST NOT** halt the run, because the score only advises.
 
 **GIVEN** a `score` result that carries `signals.needsHuman` **WHEN** the router reads it **THEN** it **MUST** halt the run once with a report, as for any other step.
 
