@@ -564,7 +564,7 @@ test("retry once then warn", { skip: noGit }, () => {
   assert.equal(lastEntry(done.project).template, "impl-review-warn");
   assert.ok(done.res.prompt.startsWith(`${PLAIN_REVIEW}\n`), done.res.prompt);
   assert.match(done.res.prompt, /rows 1\.1, 1\.2 are ticked in `plan\.md` with no code commit/);
-  assert.deepEqual(POLICY.prompts["impl-review-warn"], [POLICY.prompts["impl-review"][0], "@prompts/impl-review-warn.md", "@prompts/impl-review-lessons.md"]);
+  assert.deepEqual(POLICY.prompts["impl-review-warn"], [POLICY.prompts["impl-review"][0], "@prompts/impl-review-warn.md", "@prompts/impl-review-apply.md", "@prompts/impl-review-lessons.md"]);
   // A blocked retry (a legitimate zero-diff phase) is the same: no halt.
   const blocked = flow({ status: "blocked", note: "nothing left to change" });
   assert.equal(readLogEntries(blocked.project)[4].fallback, true);

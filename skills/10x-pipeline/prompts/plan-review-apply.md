@@ -1,0 +1,7 @@
+- **GIVEN** the plan review has findings **WHEN** a finding carries a clear suggested fix to `context/changes/{id}/plan.md` **THEN** you **MUST** apply that fix to `plan.md` yourself, for every CRITICAL, WARNING and observation, before you finish.
+- **GIVEN** the skill offers triage **WHEN** you choose **THEN** you **MUST** choose to apply every finding that has a clear fix, then save.
+- **GIVEN** you applied a fix **WHEN** you update the review file **THEN** you **MUST** mark that finding `Decision: APPLIED` and name the plan section you changed.
+- **GIVEN** a finding needs an owner decision or has no clear fix **WHEN** you triage **THEN** you **MUST NOT** guess a fix, and you leave it `Decision: PENDING` with the reason.
+- **GIVEN** you edit `plan.md` **WHEN** you apply fixes **THEN** you **MUST NOT** change the `## Progress` row indices, titles or ticked state.
+- **GIVEN** you applied fixes **WHEN** you write the verdict and the finding counts **THEN** you **MUST** keep them as measured on the plan before your edits.
+- **GIVEN** you apply fixes **WHEN** you pick files to edit **THEN** you **MUST NOT** touch any file except `plan.md`, `plan-brief.md` and the review file.

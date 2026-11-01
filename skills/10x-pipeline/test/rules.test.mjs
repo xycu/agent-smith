@@ -123,3 +123,11 @@ test("ADR rule lines follow the rule form", () => {
     assert.deepEqual(lineProblems(lines, { strict: false }), [], f);
   }
 });
+
+test("both review templates carry the apply-fixes rules", () => {
+  const POLICY = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+  const flat = (v) => (Array.isArray(v) ? v : [v]);
+  assert.ok(flat(POLICY.prompts["plan-review"]).includes("@prompts/plan-review-apply.md"));
+  for (const k of ["impl-review", "impl-review-warn"]) assert.ok(flat(POLICY.prompts[k]).includes("@prompts/impl-review-apply.md"), k);
+  for (const k of ["plan-review", "impl-review", "impl-review-warn"]) assert.doesNotMatch(flat(POLICY.prompts[k]).join("\n"), /Do not (apply fixes|fix findings)|choose to save and stop/, k);
+});
