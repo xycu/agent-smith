@@ -338,9 +338,9 @@ A run in flight keeps working: an old `run.jsonl` has no `lessonCandidates`, so 
 
 #### Automated
 
-- [x] 4.1 Whole suite passes, including the ADR rule-line check: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 4.2 No model or tier name was added to SKILL.md: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -Ei "opus|sonnet|haiku"` prints nothing
-- [x] 4.3 `init` and `status` against a scratch change folder print valid JSON: `node skills/10x-pipeline/scripts/route.mjs status <scratch-id>`
+- [x] 4.1 Whole suite passes, including the ADR rule-line check: `node --test skills/10x-pipeline/test/*.test.mjs` — 638e5f7
+- [x] 4.2 No model or tier name was added to SKILL.md: `git diff -U0 skills/10x-pipeline/SKILL.md | grep -Ei "opus|sonnet|haiku"` prints nothing — 638e5f7
+- [x] 4.3 `init` and `status` against a scratch change folder print valid JSON: `node skills/10x-pipeline/scripts/route.mjs status <scratch-id>` — 638e5f7
 
 #### Manual
 
