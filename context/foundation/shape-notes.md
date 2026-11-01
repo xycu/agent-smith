@@ -164,7 +164,7 @@ Change type: modifies the existing rule (assumed from the user's answer; not sta
 
 ## Forward: tech-stack
 
-- Router language: Node.js or Python; the user will decide later (user, 2026-10-29). Today's router is Node.js 18+ ESM.
+- Router language: Node.js or Python; the user will decide later (user, 2026-10-29). Today's router is Node.js 24+ ESM.
 
 ## Quality cross-check
 

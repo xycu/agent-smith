@@ -1,6 +1,6 @@
 # ADR-006: Node.js runtime floor follows security support
 
-- **Status:** Proposed
+- **Status:** Accepted (2026-11-01, repository owner)
 - **Date:** 2026-10-31
 - **Deciders:** repository owner
 - **Origin:** the `node-floor-24` change. Change folder: `context/changes/node-floor-24/change.md`.
