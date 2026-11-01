@@ -2,7 +2,7 @@
 
 Prompt templates for the optional pre-plan steps and the phase executors of `/agent-smith:10x-pipeline`. `policy.json` refers to a file as `@prompts/<file>.md`, alone or as one part of an array prompt, and the router resolves the reference before it fills `{id}` (change id), `{goal}` (goal text), `{verdict}` and, for the executor prompts, `{phase}`, `{lastPhase}`, `{retry}`, `{uncommitted}` and `{unproven}` (phase numbers and row ids), `{lessonMax}` and `{lessonChars}` (the lesson candidate limits from `policy.json` `lessons`) and `{evidence}` (empty unless the retry could not check for a commit), and appends `policy.json` `prompts.suffix`. A file in this folder is either wired (a policy prompt refers to it) or listed under "Not wired".
 
-Source: the 10xDevs 4.0 course prompts in `10xdevs4-content/.claude/prompts/`, in Polish. Each file was translated to English, shortened in caveman style with every negation, condition and number kept, and rewritten as rules in the form **GIVEN** context **WHEN** trigger **THEN** behavior, with one bold RFC 2119 keyword each (`MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY`). `frame-unattended.md`, `executor-e2e.md`, `executor-tdd.md`, `executor-retry.md`, `impl-review-warn.md`, `impl-review-lessons.md` and `manual-verify.md` are written for this pipeline and have no course source.
+Source: the 10xDevs 4.0 course prompts in `10xdevs4-content/.claude/prompts/`, in Polish. Each file was translated to English, shortened in caveman style with every negation, condition and number kept, and rewritten as rules in the form **GIVEN** context **WHEN** trigger **THEN** behavior, with one bold RFC 2119 keyword each (`MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY`). `frame-unattended.md`, `executor-e2e.md`, `executor-tdd.md`, `executor-retry.md`, `impl-review-warn.md`, `impl-review-lessons.md`, `plan-review-apply.md`, `impl-review-apply.md` and `manual-verify.md` are written for this pipeline and have no course source.
 
 ## Wired
 
@@ -17,6 +17,8 @@ Source: the 10xDevs 4.0 course prompts in `10xdevs4-content/.claude/prompts/`, i
 | `executor-retry.md` | none (this pipeline) | re-opens rows that were ticked without a code commit, once | `implement-retry` template |
 | `impl-review-warn.md` | none (this pipeline) | warns the implementation review about rows ticked without a code commit | `impl-review-warn` template |
 | `impl-review-lessons.md` | none (this pipeline) | asks the implementation review for lesson candidates in `signals.lessonCandidates` | `impl-review` and `impl-review-warn` templates |
+| `plan-review-apply.md` | none (this pipeline) | the plan review applies every finding with a clear fix to `plan.md` before it finishes | `plan-review` template |
+| `impl-review-apply.md` | none (this pipeline) | the implementation review applies every CRITICAL and WARNING with a clear fix to the code, tests it and commits | `impl-review` and `impl-review-warn` templates |
 | `manual-verify.md` | none (this pipeline) | lets a subagent tick only the Manual rows a command proves, each with an evidence file | `manual-verify` and `manual-verify-chrome` templates |
 
 ## Not wired

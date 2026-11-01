@@ -1,0 +1,7 @@
+- **GIVEN** the implementation review has findings **WHEN** a finding carries a clear suggested fix inside the plan's scope **THEN** you **MUST** apply that fix to the code yourself, for every CRITICAL and WARNING, before you finish.
+- **GIVEN** the skill offers triage **WHEN** you choose **THEN** you **MUST** choose to apply every finding that has a clear fix, then save.
+- **GIVEN** you applied fixes **WHEN** you finish **THEN** you **MUST** run the plan's automated success criteria and the test suite, then commit the fixes with a Conventional Commits message (`fix: ...`).
+- **GIVEN** you applied a fix **WHEN** you update the review file **THEN** you **MUST** mark that finding `Decision: APPLIED` and name the commit.
+- **GIVEN** a finding needs an owner decision, has no clear fix or lies outside the plan's scope **WHEN** you triage **THEN** you **MUST NOT** guess a fix, and you leave it `Decision: PENDING` with the reason.
+- **GIVEN** you applied fixes **WHEN** you write the verdict and the finding counts **THEN** you **MUST** keep them as measured on the code before your edits.
+- **GIVEN** you apply fixes **WHEN** you edit files **THEN** you **MUST NOT** edit `## Progress` in `plan.md`.

@@ -155,10 +155,14 @@
     "suffix": "You run as an unattended subagent. AskUserQuestion is unavailable. Do not commit unless the skill itself commits.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.\nFinish your reply with exactly one line. The `signals` object is optional:\nRESULT: {\"status\":\"done|blocked|failed\",\"note\":\"<one sentence>\",\"assumptions\":[\"...\"],\"signals\":{\"needsHuman\":\"<reason, only when blocked>\",\"rigor\":\"standard|thorough\"}}",
     "plan": "Run /10x-plan {id} {goal}{artifacts}\nWrite the plan to context/changes/{id}/plan.md with a valid ## Progress section.",
     "plan-revise": "Run /10x-plan {id}{artifacts}\nRevise the existing context/changes/{id}/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Keep the ## Progress contract, step indices and titles.{authority}",
-    "plan-review": "Run /10x-plan-review context/changes/{id}/plan.md\nSave the review to context/changes/{id}/reviews/plan-review.md. Do not apply fixes to the plan. When the skill offers triage, choose to save and stop.",
+    "plan-review": [
+      "Run /10x-plan-review context/changes/{id}/plan.md\nSave the review to context/changes/{id}/reviews/plan-review.md.",
+      "@prompts/plan-review-apply.md"
+    ],
     "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md. List pending #### Manual rows in your reply.",
     "impl-review": [
-      "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md. Do not fix findings. When the skill offers triage, choose to save and stop.",
+      "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md.",
+      "@prompts/impl-review-apply.md",
       "@prompts/impl-review-lessons.md"
     ],
     "fix": "Fix the findings in context/changes/{id}/reviews/impl-review.md (verdict: {verdict}). Fix every CRITICAL finding, then every WARNING with a clear fix. Stay inside the plan's scope. Run the plan's automated success criteria and the test suite. Commit with Conventional Commits (fix: ...). Do not edit ## Progress or the review file.",
@@ -205,8 +209,9 @@
       "@prompts/executor-retry.md"
     ],
     "impl-review-warn": [
-      "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md. Do not fix findings. When the skill offers triage, choose to save and stop.",
+      "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md.",
       "@prompts/impl-review-warn.md",
+      "@prompts/impl-review-apply.md",
       "@prompts/impl-review-lessons.md"
     ],
     "plan-replan": [

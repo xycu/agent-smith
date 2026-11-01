@@ -285,6 +285,6 @@ test("the impl-review-warn prompt carries the lesson rules after the warning rul
 });
 
 test("policy wires the lessons file into both review templates", () => {
-  assert.equal(POLICY.prompts["impl-review"][1], "@prompts/impl-review-lessons.md");
+  assert.equal(POLICY.prompts["impl-review"].at(-1),"@prompts/impl-review-lessons.md");
   assert.equal(POLICY.prompts["impl-review-warn"].at(-1), "@prompts/impl-review-lessons.md");
 });
