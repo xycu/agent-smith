@@ -1,10 +1,10 @@
 ---
 change_id: node-floor-24
 title: Raise the Node.js floor from 18 to 24
-status: implemented
+status: archived
 created: 2026-10-31
 updated: 2026-11-01
-archived_at: null
+archived_at: 2026-11-01T22:56:57Z
 ---
 
 ## Notes
