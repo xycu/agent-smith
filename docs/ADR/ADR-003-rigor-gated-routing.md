@@ -3,7 +3,7 @@
 - **Status:** Proposed
 - **Date:** 2026-10-30
 - **Deciders:** repository owner
-- **Origin:** research for `rigor-gated-routing`, split into four changes on 2026-10-30, later split into five (S-09 into `archive-adapter` and `lesson-candidates`). Research and owner decisions: `context/archive/2026-10-30-rigor-levels/research.md` (Follow-ups 1 to 3). Builds on ADR-001 (cheap deterministic signals first) and ADR-002 (change lifecycle, optional steps).
+- **Origin:** research for `rigor-gated-routing`, split into four changes on 2026-10-30, later split into five (S-09 into `archive-adapter` and `lesson-candidates`); change 5 is written up in "Lesson candidates". Research and owner decisions: `context/archive/2026-10-30-rigor-levels/research.md` (Follow-ups 1 to 3). Builds on ADR-001 (cheap deterministic signals first) and ADR-002 (change lifecycle, optional steps).
 
 ## Context
 
@@ -23,7 +23,7 @@ The work is split in five changes. This ADR is a skeleton: changes 1 and 4 are w
 | Pre-plan steps (research, legacy research, domain brief, frame), RETHINK/REVISE loops, frame authority over `needsHuman` | `pre-plan-steps` (change 2) | implemented |
 | Per-phase executors, manual-row automation, tdd/e2e fallback, third-attempt re-plan | `phase-executors` (change 3) | implemented (see "Phase executors and manual verification") |
 | Archive adapter, `verify-archive`, git write decision for the change folder | `archive-adapter` (change 4) | described in "Archive adapter" |
-| Lesson candidates from the implementation review | `lesson-candidates` (change 5) | planned |
+| Lesson candidates from the implementation review | `lesson-candidates` (change 5) | implemented (see "Lesson candidates") |
 
 Design of changes 2, 3 and 5 is in `context/archive/2026-10-30-rigor-levels/research.md`. The git write decision of change 4 is in "Archive adapter" below.
 
@@ -66,7 +66,7 @@ The report marks a step as simple only when the simple-change discount survived 
 
 ### Signals
 
-A step result may carry an optional `signals` object. The router keeps two keys and drops the rest: `rigor` (a level, raises) and `needsHuman` (a short text, halts the run once with a report; the ack is stored on the log entry). Signals cannot lower rigor, remove a step or add a skip.
+A step result may carry an optional `signals` object. The router keeps three keys and drops the rest: `rigor` (a level, raises), `needsHuman` (a short text, halts the run once with a report; the ack is stored on the log entry) and `lessonCandidates` (a few rule sentences, `impl-review` entries only; see "Lesson candidates"). Signals cannot lower rigor, remove a step or add a skip.
 
 - **GIVEN** a skill question the subagent cannot ask **WHEN** the skill would ask it **THEN** the subagent **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources) and cite the evidence.
 - **GIVEN** no evidence-backed call is possible **WHEN** the subagent would have to guess **THEN** it **MUST** report status `blocked` with `signals.needsHuman`.
@@ -175,6 +175,7 @@ Rules for the PR comment:
 
 - `context/archive/2026-10-30-rigor-levels/research.md` (Follow-ups 1 to 3), `context/archive/2026-10-30-rigor-levels/plan.md`
 - `context/changes/archive-adapter/research.md`, `context/changes/archive-adapter/plan.md`
+- `context/changes/lesson-candidates/plan.md` (change 5)
 - `context/foundation/prd.md` FR-002, FR-003, FR-010; `context/foundation/roadmap.md` S-03
 - `docs/ADR/ADR-001-phased-complexity-routing.md`, `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md`, `docs/ADR/ADR-004-prompt-rules-as-scenarios.md`
 - Symbols: `resolveRigor`, `measureRisk`, `hotSet`, `tierFor`, `cleanSignals`, `decide` in `skills/10x-pipeline/scripts/route.mjs`
@@ -397,3 +398,41 @@ Decided without a human. Each is overridable in `context/foundation/agent-smith-
 | 13 | A plan whose Progress headings are not `### Phase N` gets no phase list and plain routing; `--chrome` at `lean` is stored and ignored. | Low. |
 | 14 | `baseline-policy.json` stays as it is, so the baseline arm runs the new defaults unless the user overrides them. | Medium: edit `compare.test.mjs` and the baseline file together, or add a `compare` warning. |
 | 15 | The retry runs once; a retry that ends without a commit is a neutral fallback and the review prompt warns. | Low: data (`retry.max`). |
+
+## Lesson candidates
+
+Change 5 (`lesson-candidates`) lets the implementation review report lessons and lists them in `report.md`. `/10x-impl-review` has no lesson section of its own, so the router prompt asks for them. Plan: `context/changes/lesson-candidates/plan.md`. The code is `lessonLimits`, `cleanLessonCandidates` and `cleanSignals` (sanitizer) and `buildReport` (section) in `route.mjs`; the limits are under `lessons` in `policy.json`; the prompt is `prompts/impl-review-lessons.md`.
+
+### Carrier and sanitizer
+
+The carrier is `signals.lessonCandidates`, an array of strings in the `RESULT` line of an `impl-review` step. `cleanSignals` keeps it for that step only; a `plan`, `fix` or other step drops it. Each item is cleaned in this order: format characters (`\p{Cf}`, such as bidi overrides) removed; control characters and runs of whitespace replaced by one space; backticks replaced by `'`; trim. An item longer than `lessons.maxChars` (default 200) code points is cut to that length and, when the cut falls inside a word, back to the last space. Empty items and case-insensitive repeats are dropped, and the first `lessons.maxCandidates` (default 3) stay. A value that is not a positive safe integer reads as the default. `run.jsonl` holds only the cleaned list.
+
+### Prompt
+
+Both review templates (`impl-review` and `impl-review-warn`) end with `prompts/impl-review-lessons.md`. It states both caps (`{lessonMax}`, `{lessonChars}`, filled by `render`) and shows the `RESULT` fragment, so a cut is the exception. It tells the subagent to read `context/foundation/lessons.md` first, to skip rules already there, to report only a class of bug or pitfall that would recur in other changes and to leave the key out when nothing recurs.
+
+### Report section
+
+`report.md` gets `## Lesson candidates` after the skipped-steps section when at least one executed `impl-review` entry with `ok` true carries candidates. One line per candidate across those entries in log order, repeats dropped with the first step number kept: `- `/10x-lesson <seed>` (step <n>)`. With no candidates the report is as before. The report is the only router file that survives an archive, so the candidates survive it too.
+
+- **GIVEN** a pipeline subagent or the router holds a lesson candidate **WHEN** the run is unattended **THEN** the router and every pipeline subagent **MUST NOT** run `/10x-lesson` or write `context/foundation/lessons.md`.
+
+`/10x-lesson` is an interview with four questions of its own, so a human runs the command from the report.
+
+### Assumptions that carry a cost (change 5)
+
+Decided without a human. The caps are overridable in `context/foundation/agent-smith-policy.json`.
+
+| Decision | Assumption | Cost to reverse |
+| --- | --- | --- |
+| 1 | The carrier is `signals.lessonCandidates` (research follow-up 1), `impl-review` only. | Low: one condition in `cleanSignals`. |
+| 2 | At most 3 candidates per review, 200 code points each, policy keys `lessons.maxCandidates` and `lessons.maxChars`. | Low: data. |
+| 3 | The prompt states both limits and the fragment; an over-long candidate is cut on a word boundary, not dropped. | Low: one function. |
+| 4 | Every accepted `impl-review` counts, so a bug class a later `fix` repaired is still a lesson. | Low: one filter in `buildReport`. |
+| 5 | The bound is per review. A run lists at most 9 on the longest `standard` or `thorough` path (three reviews). There is no run-level cap. | Low: one `slice` in `buildReport`. |
+| 6 | The seed is untrusted subagent text, accepted: no Markdown or HTML escaping and no strip of a leading `/`. It sits in a code span, a human pastes it, and `/10x-lesson` writes nothing without a confirm. | Low: one function. |
+| 7 | An invalid limit falls back to the default; a project turns the feature off by overriding the `impl-review` prompts with plain strings. | Low: data. |
+| 8 | The router does not read `lessons.md` to drop duplicates; the prompt asks the subagent to. | Medium: the router would parse a file it does not own. |
+| 9 | Nothing is printed in the `done`, `archive` or `halt` JSON or in `status`; the report is the carrier. | Low. |
+
+Sources: `context/archive/2026-10-30-rigor-levels/research.md` (Follow-up 1), `context/changes/lesson-candidates/plan.md`.
