@@ -307,10 +307,53 @@ function cleanUsage(raw) {
   return Object.keys(clean).length ? clean : null;
 }
 
-// Keep only known signal keys with valid types: rigor (a level) and needsHuman (a short text).
+// Keep only known signal keys with valid types: rigor (a level), needsHuman (a short text) and,
+// for an impl-review entry only, lessonCandidates (a few short one-line rules).
 // Anything else is dropped. Returns null when nothing survives.
 const NEEDS_HUMAN_MAX = 300;
-function cleanSignals(raw, policy) {
+const LESSON_DEFAULTS = { maxCandidates: 3, maxChars: 200 };
+
+// The two lesson limits; a value that is not a positive safe integer reads as the default.
+function lessonLimits(policy) {
+  const cfg = isObject(policy?.lessons) ? policy.lessons : {};
+  const pick = (key) => (Number.isSafeInteger(cfg[key]) && cfg[key] > 0 ? cfg[key] : LESSON_DEFAULTS[key]);
+  return { maxCandidates: pick("maxCandidates"), maxChars: pick("maxChars") };
+}
+
+// One candidate seed: no format characters, one line, no backticks, cut on a word boundary.
+function cleanLessonCandidate(raw, maxChars) {
+  let text = raw
+    .replace(/\p{Cf}/gu, "")
+    .replace(/[\p{Cc}\s]+/gu, " ")
+    .replace(/`/g, "'")
+    .trim();
+  const chars = Array.from(text);
+  if (chars.length > maxChars) {
+    let kept = chars.slice(0, maxChars);
+    if (chars[maxChars] !== " " && kept.includes(" ")) kept = kept.slice(0, kept.lastIndexOf(" "));
+    text = kept.join("").trim();
+  }
+  return text;
+}
+
+function cleanLessonCandidates(raw, policy) {
+  if (!Array.isArray(raw)) return [];
+  const { maxCandidates, maxChars } = lessonLimits(policy);
+  const seen = new Set();
+  const clean = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const text = cleanLessonCandidate(item, maxChars);
+    const key = text.toLowerCase();
+    if (!text || seen.has(key)) continue;
+    seen.add(key);
+    clean.push(text);
+    if (clean.length === maxCandidates) break;
+  }
+  return clean;
+}
+
+function cleanSignals(raw, policy, step) {
   if (!isObject(raw)) return null;
   const clean = {};
   if (typeof raw.rigor === "string" && rigorLevels(policy).includes(raw.rigor)) clean.rigor = raw.rigor;
@@ -318,6 +361,10 @@ function cleanSignals(raw, policy) {
   else if (typeof raw.needsHuman === "string") {
     const text = raw.needsHuman.replace(/\s+/g, " ").trim().slice(0, NEEDS_HUMAN_MAX);
     if (text) clean.needsHuman = text;
+  }
+  if (step === "impl-review") {
+    const candidates = cleanLessonCandidates(raw.lessonCandidates, policy);
+    if (candidates.length) clean.lessonCandidates = candidates;
   }
   return Object.keys(clean).length ? clean : null;
 }
@@ -365,7 +412,7 @@ function attachResult(p, log, policy) {
   last.result = stored;
   const usage = cleanUsage(result.usage);
   if (usage) last.usage = usage;
-  const signals = cleanSignals(rawSignals, policy);
+  const signals = cleanSignals(rawSignals, policy, last.step);
   if (signals) last.signals = signals;
   last.verified = verified;
   last.ok = result.status === "done" && verified;

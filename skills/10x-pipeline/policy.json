@@ -76,6 +76,10 @@
     "maxPlanRevisions": 2,
     "maxFixLoops": 2
   },
+  "lessons": {
+    "maxCandidates": 3,
+    "maxChars": 200
+  },
   "compare": {
     "targetDropPercent": null
   },
