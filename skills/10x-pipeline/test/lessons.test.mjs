@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, planText, writePlan, writeReview, init, next, writeResult, readLogEntries,
+  cleanupAll, makeProject, planText, writePlan, writeReview, init, next, run, writeResult, readLogEntries,
+  writeLog, writeMetaFile, readReportFile, entry, skipEntry, gitInit, commitFiles, gitEnv, gitAvailable,
 } from "./helpers.mjs";
+import { pendingEntry } from "./phase-helpers.mjs";
 
 after(cleanupAll);
 
@@ -129,4 +131,106 @@ test("an invalid override falls back to the defaults", () => {
     assert.deepEqual(lessons(["a", "b", "c", "d"], { policy }), ["a", "b", "c"], String(bad));
     assert.equal(Array.from(lessons(["x".repeat(500)], { policy })[0]).length, 200, String(bad));
   }
+});
+
+// ---- report section ----------------------------------------------------------
+
+const HEADING = "## Lesson candidates";
+const noGit = !gitAvailable();
+
+// A finished-review project built from a hand-made log: plan, plan-review, implement, then the given extra entries.
+function logProject(extra, { archive = false } = {}) {
+  const project = makeProject({ plan: planText({ done: 1 }) });
+  fs.writeFileSync(path.join(project.changeDir, "change.md"), `---\nchange_id: demo\nstatus: implemented\ncreated: 2026-10-30\n---\n`);
+  writeReview(project, "plan-review");
+  writeReview(project, "impl-review", { verdict: "APPROVED" });
+  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), ...extra]);
+  writeMetaFile(project, { id: "demo", goal: "fix typo", ...(archive ? { archive: true } : {}) });
+  return project;
+}
+
+const withLessons = (n, list, over = {}) => entry(n, "impl-review", { signals: { lessonCandidates: list }, ...over });
+
+function statusReport(project) {
+  const res = run(project, ["status", project.id, "--report"]);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  return readReportFile(project);
+}
+
+test("a run that ends done lists the candidates with the step number", () => {
+  const project = logProject([withLessons(4, ["Always A.", "Never B."])]);
+  const res = next(project);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(res.json.action, "done");
+  const report = readReportFile(project);
+  assert.ok(report.includes(`${HEADING}\n\nCandidates from the implementation review. Run a command yourself; the pipeline never runs \`/10x-lesson\`.\n\n- \`/10x-lesson Always A.\` (step 4)\n- \`/10x-lesson Never B.\` (step 4)`), report);
+});
+
+test("an overlapping candidate in two reviews shows once, with the first step number", () => {
+  const project = logProject([withLessons(4, ["Always A."]), entry(5, "fix"), withLessons(6, ["always a.", "Never B."])]);
+  const report = statusReport(project);
+  assert.equal(report.split("/10x-lesson Always A.").length - 1, 1);
+  assert.match(report, /- `\/10x-lesson Always A\.` \(step 4\)/);
+  assert.match(report, /- `\/10x-lesson Never B\.` \(step 6\)/);
+});
+
+test("two reviews with three distinct candidates each list all six", () => {
+  const project = logProject([withLessons(4, ["a1", "a2", "a3"]), entry(5, "fix"), withLessons(6, ["b1", "b2", "b3"])]);
+  const report = statusReport(project);
+  assert.equal(report.match(/^- `\/10x-lesson /gm).length, 6);
+});
+
+test("a failed review contributes nothing", () => {
+  const project = logProject([withLessons(4, ["Always A."], { ok: false })]);
+  assert.ok(!statusReport(project).includes("Lesson candidates"));
+});
+
+test("a step other than impl-review contributes nothing", () => {
+  const project = logProject([entry(4, "fix", { signals: { lessonCandidates: ["Always A."] } })]);
+  assert.ok(!statusReport(project).includes("Lesson candidates"));
+});
+
+test("no candidates gives a report without any Lesson candidates text", () => {
+  const project = logProject([entry(4, "impl-review", { signals: { rigor: "standard" } })]);
+  assert.ok(!statusReport(project).includes("Lesson candidates"));
+  const bare = logProject([entry(4, "impl-review")]);
+  assert.ok(!statusReport(bare).includes("Lesson candidates"));
+});
+
+test("the section follows the skipped-steps section", () => {
+  const project = logProject([skipEntry("research", 3), withLessons(4, ["Always A."])]);
+  const report = statusReport(project);
+  assert.ok(report.indexOf("## Skipped steps") > 0);
+  assert.ok(report.indexOf(HEADING) > report.indexOf("## Skipped steps"));
+});
+
+test("status --report rewrites the section for a run in progress", () => {
+  const project = logProject([withLessons(4, ["Always A."])]);
+  const report = statusReport(project);
+  assert.match(report, /^Outcome: not ended$/m);
+  assert.match(report, /- `\/10x-lesson Always A\.` \(step 4\)/);
+});
+
+test("a halt report keeps the section", () => {
+  const project = logProject([withLessons(4, ["Always A."]), pendingEntry(5, "fix")]);
+  writeResult(project, { status: "blocked", note: "stop", signals: { needsHuman: "Which one?" } });
+  const res = next(project);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /needs a human/);
+  assert.match(readReportFile(project), /- `\/10x-lesson Always A\.` \(step 4\)/);
+});
+
+test("an --archive run has the section in the report before the archive action", { skip: noGit }, () => {
+  const project = logProject([withLessons(4, ["Always A."])], { archive: true });
+  gitInit(project);
+  commitFiles(project, ["README.md"]);
+  const res = run(project, ["next", project.id], { env: gitEnv(project) });
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(res.json.action, "archive");
+  assert.match(readReportFile(project), /- `\/10x-lesson Always A\.` \(step 4\)/);
+});
+
+test("candidate text goes through oneLine like other report text", () => {
+  const project = logProject([withLessons(4, ["Always  A\n  B."])]);
+  assert.match(statusReport(project), /- `\/10x-lesson Always A B\.` \(step 4\)/);
 });

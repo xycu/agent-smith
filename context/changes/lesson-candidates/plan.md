@@ -308,16 +308,16 @@ A run in flight keeps working: an old `run.jsonl` has no `lessonCandidates`, so 
 
 #### Automated
 
-- [x] 1.1 Sanitizer tests pass: `node --test skills/10x-pipeline/test/lessons.test.mjs`
-- [x] 1.2 Existing signal tests still pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [x] 1.3 `policy.json` parses: `node -e "JSON.parse(require('fs').readFileSync('skills/10x-pipeline/policy.json','utf8'))"`
+- [x] 1.1 Sanitizer tests pass: `node --test skills/10x-pipeline/test/lessons.test.mjs` — dc172dc
+- [x] 1.2 Existing signal tests still pass: `node --test skills/10x-pipeline/test/route.test.mjs` — dc172dc
+- [x] 1.3 `policy.json` parses: `node -e "JSON.parse(require('fs').readFileSync('skills/10x-pipeline/policy.json','utf8'))"` — dc172dc
 
 ### Phase 2: Report section
 
 #### Automated
 
-- [ ] 2.1 Report tests pass: `node --test skills/10x-pipeline/test/lessons.test.mjs`
-- [ ] 2.2 Report tests of earlier changes still pass: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs`
+- [x] 2.1 Report tests pass: `node --test skills/10x-pipeline/test/lessons.test.mjs`
+- [x] 2.2 Report tests of earlier changes still pass: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs`
 
 #### Manual
 

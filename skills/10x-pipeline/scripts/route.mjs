@@ -225,6 +225,35 @@ function archiveLines(id, meta, oneLine) {
   ];
 }
 
+// The "Lesson candidates" section: the cleaned candidates of every approved impl-review entry, in log order, repeats dropped.
+// Nothing here runs /10x-lesson; the human pastes a command. No candidates, no lines.
+function lessonLines(log, oneLine) {
+  const seen = new Set();
+  const bullets = [];
+  for (const e of log) {
+    if (e.step !== "impl-review" || e.ok !== true) continue;
+    const list = e.signals?.lessonCandidates;
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (typeof item !== "string") continue;
+      const seed = oneLine(item);
+      const key = seed.toLowerCase();
+      if (!seed || seen.has(key)) continue;
+      seen.add(key);
+      bullets.push(`- \`/10x-lesson ${seed}\` (step ${e.n})`);
+    }
+  }
+  if (!bullets.length) return [];
+  return [
+    "## Lesson candidates",
+    "",
+    "Candidates from the implementation review. Run a command yourself; the pipeline never runs `/10x-lesson`.",
+    "",
+    ...bullets,
+    "",
+  ];
+}
+
 function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
   const log = executed(fullLog);
@@ -261,6 +290,7 @@ function buildReport(id, meta, fullLog) {
       ...skips.map((e) => `| ${e.afterN} | ${e.step} | ${oneLine(e.reason).replace(/\|/g, "/")} | ${e.rigor ?? "-"} |`),
       "",
     ] : []),
+    ...lessonLines(log, oneLine),
   ].join("\n");
 }
 
