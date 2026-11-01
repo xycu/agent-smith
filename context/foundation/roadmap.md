@@ -3,7 +3,7 @@ project: agent-smith
 version: 1
 status: draft
 created: 2026-10-30
-updated: 2026-10-31
+updated: 2026-11-01
 prd_version: 1
 main_goal: speed
 top_blocker: decisions
@@ -52,7 +52,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | done |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | done |
 | S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
-| S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | proposed |
+| S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | in-progress |
 | S-11 | llm-complexity-scorer        | have change complexity scored by an LLM on a cheap model, with the scores stored with evidence and unknowns and used by the router | S-03, S-10    | FR-001, FR-003, FR-011            | proposed |
 
 ## Streams
@@ -212,7 +212,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Unknowns:**
   - Which lesson candidates does the impl-review report, given that it has no lesson-candidate section? The research proposes carrying them in RESULT `signals`. — Owner: user. Block: no.
 - **Risk:** The signal rides on the subagent's reply, so a weak prompt yields noise. `/10x-lesson` is interactive and is never run unattended.
-- **Status:** proposed
+- **Status:** in-progress
 
 ### S-11: LLM complexity scorer
 
@@ -242,7 +242,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 | S-07       | pre-plan-steps                 | Gate research, domain briefs and framing by rigor       | done                  | Archived 2026-10-31                     |
 | S-08       | phase-executors                | Route each plan phase to its executor                   | done                  | Archived 2026-10-31                     |
 | S-09       | archive-adapter                | Archive a finished run through the 10x-archive adapter  | done                  | Archived 2026-10-30                     |
-| S-10       | lesson-candidates              | Lesson candidates in the report                         | yes                   | Prerequisites done; change folder exists, no plan yet. Run `/10x-research lesson-candidates`, then `/10x-plan lesson-candidates` |
+| S-10       | lesson-candidates              | Lesson candidates in the report                         | done                  | Implemented and approved on branch `lesson-candidates` (2026-11-01); done once its PR is merged and the change is archived |
 | S-11       | llm-complexity-scorer          | Score change complexity with an LLM on a cheap model    | no                    | Needs S-10 merged (ADR-007 accepted); then `/10x-new llm-complexity-scorer` |
 
 ## Open Roadmap Questions

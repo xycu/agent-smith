@@ -1,7 +1,7 @@
 ---
 change_id: lesson-candidates
 title: Lesson candidates in the 10x pipeline report
-status: implemented
+status: impl_reviewed
 created: 2026-10-30
 updated: 2026-11-01
 archived_at: null

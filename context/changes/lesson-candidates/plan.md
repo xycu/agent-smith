@@ -43,7 +43,7 @@ The implementation review (`/10x-impl-review`) has no section for lessons. This 
 - Changing `baseline-policy.json`, `compare`, `pr-comment.mjs` or the PR comment format. The report is posted as it is, as for any report text.
 - Escaping Markdown or HTML inside a seed. The seed sits in a code span, where markup is literal; the backtick is the only character that could end the span, and it is replaced.
 - A policy switch that turns the feature off with a value of 0 (see Decisions).
-- Editing the roadmap: S-10 is already `planning` in the working tree, set at planning time. `/10x-implement` advances it.
+- Editing the roadmap: the planning step sets S-10 to `planning` in the working tree, and implementation advances it to `in-progress`.
 
 ## Implementation Approach
 
