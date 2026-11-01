@@ -52,7 +52,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | done |
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | done |
 | S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
-| S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | in-progress |
+| S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | done |
 | S-11 | llm-complexity-scorer        | have change complexity scored by an LLM on a cheap model, with the scores stored with evidence and unknowns and used by the router | S-03, S-10    | FR-001, FR-003, FR-011            | proposed |
 
 ## Streams
@@ -212,7 +212,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **Unknowns:**
   - Which lesson candidates does the impl-review report, given that it has no lesson-candidate section? The research proposes carrying them in RESULT `signals`. — Owner: user. Block: no.
 - **Risk:** The signal rides on the subagent's reply, so a weak prompt yields noise. `/10x-lesson` is interactive and is never run unattended.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-11: LLM complexity scorer
 
@@ -280,3 +280,4 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **S-07: user can have `/10x-research`, legacy research (when a repo map exists), a domain brief and `/10x-frame` run before the plan only when the rigor level and the subagent signals call for them, and have a plan-review RETHINK or a repeated REVISE loop back to frame or research.** — Archived 2026-10-31 → `context/archive/2026-10-30-pre-plan-steps/`. Lesson: —.
 - **S-06: user can compare the total usage of a routed run against a baseline run of the same change (a full run on Sonnet-5.5 at high effort).** — Archived 2026-10-31 → `context/archive/2026-10-31-baseline-usage-comparison/`. Lesson: —.
 - **S-08: user can have each plan phase run on `/10x-e2e`, `/10x-tdd` or `/10x-goal-implement` as it fits, with a blocked tdd or e2e run falling back to goal-implement, repeated failures and a REJECTED review re-planning, and manual checks automated (with Claude-in-Chrome where it helps) and backed by evidence.** — Archived 2026-10-31 → `context/archive/2026-10-30-phase-executors/`. Lesson: —.
+- **S-10: user can see lesson candidates from the impl-review in `report.md`, each with a ready `/10x-lesson <seed>` command.** — Archived 2026-11-01 → `context/archive/2026-10-30-lesson-candidates/`. Lesson: —.
