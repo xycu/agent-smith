@@ -15,7 +15,7 @@
 
 ## Decision
 
-The work is split in five changes. This ADR is a skeleton: changes 1 and 4 are written in full, changes 2, 3 and 5 only listed.
+The work is split in five changes. All five changes are written in full below.
 
 | Part | Owning change | Status |
 | --- | --- | --- |
@@ -413,7 +413,7 @@ Both review templates (`impl-review` and `impl-review-warn`) end with `prompts/i
 
 ### Report section
 
-`report.md` gets `## Lesson candidates` after the skipped-steps section when at least one executed `impl-review` entry with `ok` true carries candidates. One line per candidate across those entries in log order, repeats dropped with the first step number kept: `- `/10x-lesson <seed>` (step <n>)`. With no candidates the report is as before. The report is the only router file that survives an archive, so the candidates survive it too.
+`report.md` gets `## Lesson candidates` after the skipped-steps section when at least one executed `impl-review` entry with `ok` true carries candidates. One line per candidate across those entries in log order, repeats dropped with the first step number kept: ``- `/10x-lesson <seed>` (step <n>)``. With no candidates the report is as before. The report is the only router file that survives an archive, so the candidates survive it too.
 
 - **GIVEN** a pipeline subagent or the router holds a lesson candidate **WHEN** the run is unattended **THEN** the router and every pipeline subagent **MUST NOT** run `/10x-lesson` or write `context/foundation/lessons.md`.
 

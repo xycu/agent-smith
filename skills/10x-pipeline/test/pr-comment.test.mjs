@@ -369,7 +369,7 @@ test("viewer lookup fails closed: any /user failure is a skip with no comment ca
     { name: "403", answers: { user: { code: 1, err: "HTTP 403: Resource not accessible by integration\n" } }, args: [], reason: /viewer lookup failed: HTTP 403/ },
     { name: "exit without stderr", answers: { user: { code: 1 } }, args: [], reason: /viewer lookup failed: gh exited 1/ },
     { name: "empty login", answers: { user: { out: "\n" } }, args: [], reason: /viewer lookup failed: empty login/ },
-    { name: "timeout", answers: { user: { sleep: 5 } }, args: ["--timeout-ms", "300"], reason: /viewer lookup failed: gh timed out/ },
+    { name: "timeout", answers: { user: { sleep: 5 } }, args: ["--timeout-ms", "1500"], reason: /viewer lookup failed: gh timed out/ },
   ];
   for (const c of cases) {
     // A marker comment planted by another user is the case this protects against.
@@ -384,11 +384,11 @@ test("viewer lookup fails closed: any /user failure is a skip with no comment ca
 
 test("failures: a timed-out POST or PATCH is a skip that names the timeout", { skip: win }, () => {
   const post = postWorld({ answers: { post: { sleep: 5 } } });
-  assertSkip(runScript(post, ["demo", "--timeout-ms", "300"]), /^comment request failed: gh timed out$/);
+  assertSkip(runScript(post, ["demo", "--timeout-ms", "1500"]), /^comment request failed: gh timed out$/);
   assert.deepEqual(methodsOf(post), ["POST"]);
 
   const patch = postWorld({ comments: [entry(5, "bot", markerOf("demo"))], answers: { patch: { sleep: 5 } } });
-  assertSkip(runScript(patch, ["demo", "--timeout-ms", "300"]), /^comment request failed: gh timed out$/);
+  assertSkip(runScript(patch, ["demo", "--timeout-ms", "1500"]), /^comment request failed: gh timed out$/);
   assert.deepEqual(methodsOf(patch), ["PATCH"]);
 });
 
@@ -477,7 +477,7 @@ test("failures: lookup, POST and empty URL are skips and a failed lookup posts n
   assert.deepEqual(methodsOf(lookup), []);
 
   const slow = postWorld({ answers: { comments: { sleep: 5 } } });
-  assertSkip(runScript(slow, ["demo", "--timeout-ms", "300"]), /comment lookup failed: gh timed out/);
+  assertSkip(runScript(slow, ["demo", "--timeout-ms", "1500"]), /comment lookup failed: gh timed out/);
   assert.deepEqual(methodsOf(slow), []);
 
   const failedPost = postWorld({ answers: { post: { code: 1, err: "HTTP 403\n" } } });

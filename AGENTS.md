@@ -22,8 +22,9 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `skills/10x-pipeline/prompts/` — rule-form prompt files; `policy.json` references them as `@prompts/<file>.md`.
 - `skills/10x-pipeline/test/preplan.test.mjs`, `loops-existing.test.mjs` and `loops.test.mjs` — pre-plan gates and prompt wiring, the characterized RETHINK/REVISE loop (never edit it), and the new loops and budget reference paths.
 - `skills/10x-pipeline/test/executors.test.mjs`, `codereplan.test.mjs`, `manualverify.test.mjs`, `budget-executors.test.mjs` and `phase-helpers.mjs` — the phase-executors change: commit check, fallback, executor routing, retry, the report label (`executors.test.mjs`); code re-plans; `manual-verify` and `--chrome`; the budget derived from the longest legal path; and plan builders, log fixtures and `gateCheck` for the plan's Progress rows. `helpers.mjs` stays as it was.
-- `skills/10x-pipeline/prompts/executor-e2e.md`, `executor-tdd.md`, `executor-retry.md`, `impl-review-warn.md`, `impl-review-lessons.md` and `manual-verify.md` — prompts of the phase executors and `manual-verify`; see `prompts/README.md`.
-- `docs/ADR/` — architecture decision records (ADR-001 to ADR-006).
+- `skills/10x-pipeline/prompts/executor-e2e.md`, `executor-tdd.md`, `executor-retry.md`, `impl-review-warn.md` and `manual-verify.md` — prompts of the phase executors and `manual-verify`; see `prompts/README.md`.
+- `skills/10x-pipeline/prompts/impl-review-lessons.md` — suffix of both implementation review prompts that asks for lesson candidates; see `prompts/README.md`.
+- `docs/ADR/` — architecture decision records (ADR-001 to ADR-007).
 - `context/` — 10x workflow docs: `changes/`, `archive/`, `foundation/`. See the README in each.
 - `assets/` — README header image only.
 
