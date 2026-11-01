@@ -272,7 +272,7 @@ test("strict verify git edge cases", { skip: noGit }, () => {
 const POLICY = JSON.parse(fs.readFileSync(path.join(REPO, "skills/10x-pipeline/policy.json"), "utf8"));
 const fill = (text, id = "demo") => text.replace(/\{id\}/g, id).trim();
 const PLAIN_IMPLEMENT = `${fill(POLICY.prompts.implement)}\n\n${POLICY.prompts.suffix}`;
-const PLAIN_REVIEW = fill(POLICY.prompts["impl-review"]);
+const PLAIN_REVIEW = fill(POLICY.prompts["impl-review"][0]);
 
 const GOAL_ROW = "Parser keeps blank lines: `node --test test/parser.test.mjs`";
 const E2E_ROW = "Playwright spec covers the login flow: `npx playwright test tests/e2e/login.spec.ts`";
@@ -564,7 +564,7 @@ test("retry once then warn", { skip: noGit }, () => {
   assert.equal(lastEntry(done.project).template, "impl-review-warn");
   assert.ok(done.res.prompt.startsWith(`${PLAIN_REVIEW}\n`), done.res.prompt);
   assert.match(done.res.prompt, /rows 1\.1, 1\.2 are ticked in `plan\.md` with no code commit/);
-  assert.deepEqual(POLICY.prompts["impl-review-warn"], [POLICY.prompts["impl-review"], "@prompts/impl-review-warn.md"]);
+  assert.deepEqual(POLICY.prompts["impl-review-warn"], [POLICY.prompts["impl-review"][0], "@prompts/impl-review-warn.md", "@prompts/impl-review-lessons.md"]);
   // A blocked retry (a legitimate zero-diff phase) is the same: no halt.
   const blocked = flow({ status: "blocked", note: "nothing left to change" });
   assert.equal(readLogEntries(blocked.project)[4].fallback, true);

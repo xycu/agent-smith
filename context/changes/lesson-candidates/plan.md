@@ -316,8 +316,8 @@ A run in flight keeps working: an old `run.jsonl` has no `lessonCandidates`, so 
 
 #### Automated
 
-- [x] 2.1 Report tests pass: `node --test skills/10x-pipeline/test/lessons.test.mjs`
-- [x] 2.2 Report tests of earlier changes still pass: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs`
+- [x] 2.1 Report tests pass: `node --test skills/10x-pipeline/test/lessons.test.mjs` — e545631
+- [x] 2.2 Report tests of earlier changes still pass: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs` — e545631
 
 #### Manual
 
@@ -327,8 +327,8 @@ A run in flight keeps working: an old `run.jsonl` has no `lessonCandidates`, so 
 
 #### Automated
 
-- [ ] 3.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [ ] 3.2 New prompt follows the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 3.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.2 New prompt follows the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs`
 
 #### Manual
 
