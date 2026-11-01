@@ -1,0 +1,18 @@
+{
+  "id": "lesson-candidates",
+  "goal": "Carry lesson candidates from the impl-review, in RESULT signals, into report.md, each with a ready /10x-lesson <seed> command. impl-review has no lesson-candidate section, so its prompt asks the subagent for them. /10x-lesson never runs unattended. Update SKILL.md, the README and ADR-003.",
+  "baseSha": "07dcce15289461dd0ac155fffc171a38ea073fc7",
+  "rigor": {
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/test/executors.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.3 A scratch run with a fixture result shows the section in `report.md`, and the first command copy-pastes into the prompt as one line",
+      "3.3 A live implementation review in a real `/agent-smith:10x-pipeline` run returns sensible candidates (few, one sentence, recurring)",
+      "4.4 The README, `SKILL.md` and ADR-003 describe the same caps, the same key and the same \"never unattended\" rule"
+    ]
+  }
+}
