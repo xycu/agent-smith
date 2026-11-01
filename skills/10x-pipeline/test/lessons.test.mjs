@@ -234,3 +234,57 @@ test("candidate text goes through oneLine like other report text", () => {
   const project = logProject([withLessons(4, ["Always  A\n  B."])]);
   assert.match(statusReport(project), /- `\/10x-lesson Always A B\.` \(step 4\)/);
 });
+
+// ---- prompt wiring -------------------------------------------------------------
+
+const POLICY = JSON.parse(fs.readFileSync(new URL("../policy.json", import.meta.url), "utf8"));
+
+function assertLessonRules(prompt, max, chars) {
+  assert.match(prompt, /\*\*MAY\*\* add `signals\.lessonCandidates`/);
+  assert.ok(prompt.includes('"lessonCandidates":['), prompt);
+  assert.match(prompt, new RegExp(`an array of at most ${max} strings`));
+  assert.match(prompt, new RegExp(`of at most ${chars} characters`));
+  assert.match(prompt, /\*\*MUST NOT\*\* run `\/10x-lesson`/);
+  assert.doesNotMatch(prompt, /\{lessonMax\}|\{lessonChars\}/);
+}
+
+test("the impl-review prompt carries the lesson rules with the default limits", () => {
+  const project = makeProject({ plan: planText({ done: 1 }) });
+  writeReview(project, "plan-review");
+  const res = init(project, "fix typo");
+  assert.equal(res.json.step, "impl-review");
+  assert.equal(readLogEntries(project)[0].template, "impl-review");
+  assertLessonRules(res.json.prompt, 3, 200);
+  assert.ok(res.json.prompt.startsWith("Run /10x-impl-review context/changes/demo/plan.md\n"));
+});
+
+test("the impl-review prompt fills the overridden limits", () => {
+  const project = makeProject({ plan: planText({ done: 1 }), policy: { lessons: { maxCandidates: 2, maxChars: 120 } } });
+  writeReview(project, "plan-review");
+  const res = init(project, "fix typo");
+  assertLessonRules(res.json.prompt, 2, 120);
+});
+
+test("the impl-review-warn prompt carries the lesson rules after the warning rules", () => {
+  const project = makeProject({ plan: planText({ done: 1 }) });
+  writeReview(project, "plan-review");
+  writeLog(project, [
+    entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", { uncommitted: ["1.1"] }),
+    pendingEntry(4, "implement", { template: "implement-retry", retry: ["1.1"], phase: 1 }),
+  ]);
+  writeMetaFile(project, { id: "demo", goal: "fix typo" });
+  writeResult(project, { status: "blocked", note: "nothing left to change" });
+  const res = next(project);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(res.json.step, "impl-review");
+  const last = readLogEntries(project).at(-1);
+  assert.equal(last.template, "impl-review-warn");
+  assert.match(res.json.prompt, /no code commit behind them/);
+  assertLessonRules(res.json.prompt, 3, 200);
+  assert.ok(res.json.prompt.indexOf("## Rules") < res.json.prompt.indexOf("signals.lessonCandidates"));
+});
+
+test("policy wires the lessons file into both review templates", () => {
+  assert.equal(POLICY.prompts["impl-review"][1], "@prompts/impl-review-lessons.md");
+  assert.equal(POLICY.prompts["impl-review-warn"].at(-1), "@prompts/impl-review-lessons.md");
+});

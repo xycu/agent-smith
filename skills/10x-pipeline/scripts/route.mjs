@@ -1987,6 +1987,7 @@ function next(id, policy) {
     phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
     retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "), failure: d.failure ?? "",
     unproven: (d.unproven ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
+    lessonMax: String(lessonLimits(policy).maxCandidates), lessonChars: String(lessonLimits(policy).maxChars),
   }).trim() + "\n\n" + policy.prompts.suffix;
   const entry = {
     n: ran.length + 1,
