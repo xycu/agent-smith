@@ -42,7 +42,7 @@ The router prints one JSON object. Act on `action`:
   1. Print one line: `Step <n>: <step> on <model>/<effort>. <reason>`.
   2. Call the Agent tool with `subagent_type: general-purpose`, `model: <model>`, `effort: <effort>`, `run_in_background: false`, and `prompt` set to the router's `prompt`, copied verbatim.
   3. Find the last line of the subagent's reply that starts with `RESULT:`. Parse the JSON after it. If there is none, or it does not parse, use `{"status":"unknown","note":"no RESULT line"}`. Keep every key of the JSON as it is, including the optional `signals` object. Copy it untouched. The router validates it.
-  4. If the Agent result reports usage (total tokens, tool uses and duration), add `"usage":{"totalTokens":N,"toolUses":N,"durationMs":N}` to that JSON, with the figures copied exactly. Omit the key when no figure is reported. Write the JSON to the router's `resultFile` with the Write tool.
+  4. If the Agent result reports usage (total tokens, tool uses and duration), add `"usage":{"totalTokens":N,"toolUses":N,"durationMs":N}` to that JSON, with the figures copied exactly. Omit the key when no figure is reported. Do not wait for a figure that has not arrived; see the anti-stall rules. Write the JSON to the router's `resultFile` with the Write tool.
   5. Run `node $ROUTER next <change-id>` and repeat the loop with its output.
 - **`done`**: report the final verdict, the number of steps, and every entry in `manualPending` as a checklist for the human. When the output has `manualUnproven` or `uncommittedTicks`, list those row ids too, as ticks nobody proved. Then run `node $ROUTER status <change-id>` and show the model/effort used per step as a short list. Point the user to the router's `report` path (`report.md`); when the implementation review gave lesson candidates, that report also lists them, each with a ready `/10x-lesson` command for the user to run.
   Call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step. If the call errors, post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`.
@@ -57,6 +57,16 @@ The router prints one JSON object. Act on `action`:
      - On `archived: false`: print `reason` and the subagent's note, say the folder may be unchanged or half-archived, and STOP.
 - **`halt`**: report `reason` and the status output. A reason that says `needs a human` comes from the subagent, which found no evidence-backed answer. Show the quoted text. Point the user to the router's `report` path (`report.md`) when present. When the output has an `archive` field, say the change was not archived, then read `committed`: if `false`, say the folder is not committed and `/10x-archive` needs it committed first; if `true`, say the pre-archive commit exists locally, the router did not undo it, and `node $ROUTER next <change-id>` repeats the checks once the cause is fixed (the check of what the commit holds is not repeated, so the user should look at the commit with `git show --stat HEAD`). When the output has no `archive` field, say nothing about a commit or an archive. STOP. Do not try to recover on your own.
   Before you STOP, call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step. If the call errors, post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`.
+
+## Anti-stall rules
+
+These rules hold for every `run` step. Rule 1 also holds for the archive subagent: when its final report arrives, continue at step 4 of the `archive` branch. Rules 2 and 3 do not apply to it, because the `archive` action has no result file and no `next` call; a usage figure it reports goes only into the final message. A run has ended when the orchestrator has finished every step of its `done`, `archive` or `halt` branch.
+
+- **GIVEN** a `run` step **WHEN** the Agent tool returns a launch notice instead of a final report although `run_in_background` is `false` **THEN** the orchestrator **MUST** end its turn and continue the Loop at step 3 when the subagent's final report arrives, without starting another step or polling.
+- **GIVEN** the final report of a `run` step holds its `RESULT:` line **WHEN** no usage figure has arrived **THEN** the orchestrator **MUST** write the result file without `usage` and run `next` in the same turn.
+- **GIVEN** `next` ran for a `run` step **WHEN** a usage figure for that step arrives later **THEN** the orchestrator **MUST NOT** rewrite the result file or call `next` again, so the step keeps `-` for tokens in the report.
+- **GIVEN** the run has not ended in `done`, `archive` or `halt` and no STOP instruction of the Start or Loop sections applies (for example `archived: false` in the `archive` branch) **WHEN** the orchestrator would end its turn **THEN** it **MUST NOT** end it unless a launched subagent is still running.
+- **GIVEN** a run in this session **WHEN** the user asks what the run is doing **THEN** the orchestrator **MUST** state only what tool output in this session shows, and say so when nothing is running.
 
 ## PR comment (opt-in)
 
