@@ -205,7 +205,7 @@ Limits:
 
 Orchestrator anti-stall:
 
-- Five rules in `skills/10x-pipeline/SKILL.md` (section "Anti-stall rules") keep the orchestrator from stalling between steps. They hold for every `run` step.
+- Five rules in `skills/10x-pipeline/SKILL.md` (section "Anti-stall rules") keep the orchestrator from stalling between steps. The first three hold for every `run` step, the last two for the whole run.
 - If the Agent tool returns a launch notice because the subagent runs in the background, the orchestrator ends its turn and continues the Loop when the subagent's final report arrives. It starts no other step and does not poll. The same holds for the archive subagent.
 - If the final report holds its `RESULT:` line and no usage figure has arrived, the orchestrator writes the result file without `usage` and runs `next` in the same turn.
 - A usage figure that arrives after `next` ran is dropped: the result file is not rewritten and `next` is not called again. That step shows `-` for tokens in `report.md`, and `compare` counts the side as `usage-incomplete`.
