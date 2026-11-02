@@ -25,13 +25,15 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `skills/10x-pipeline/test/score.test.mjs` — the complexity score step (ADR-007): policy data, gate, file validation, failure skip, tier shift, report and status. A test turns the scorer on with `policy: { score: { minRigor: "standard" } }`.
 - `skills/10x-pipeline/test/provenance.test.mjs` — run provenance: the record in `meta.json`, hash stability, drift, legacy runs and the `compare` warnings. A test that changes a plugin file (a prompt, `plugin.json`, `agents/`) copies the plugin tree to a scratch directory, edits the copy and spawns the copy's `route.mjs`; it never edits a repository file.
 - `skills/10x-pipeline/test/agents.test.mjs` — restricted step agents: the `agent` field of the run output, the log entry and `status`, malformed `agents` blocks, the agent definition file, the provenance link and the `SKILL.md` dispatch line. A test turns it on with `policy: { score: { minRigor: "standard" }, agents: { restricted: true } }`; a test that edits `agents/score.md` uses a scratch copy of the plugin tree.
+- `skills/10x-pipeline/test/advisor.test.mjs` — the opt-in advisor (ADR-009): no advisor text with the default policy, its place in the prompts of the listed templates, the `advisor` log flag, malformed `advisor` blocks, the prompt file and the provenance link. A test turns it on with `policy: { advisor: { enabled: true } }`.
+- `skills/10x-pipeline/prompts/advisor.md` — rules that ask `plan` and `implement` to consult the advisor once before the `RESULT` line; appended only when `advisor.enabled` is `true` (`advisor.templates` in `policy.json`). It names no model; see `prompts/README.md`.
 - `agents/score.md` — plugin agent definition of the `score` step (`agent-smith:score`): `tools: Read, Grep, Glob, Write`, no `model` and no `effort`. The router names it only when `agents.restricted` is `true` (`agents.steps` in `policy.json`).
 - `skills/10x-pipeline/prompts/score.md` — rules and rubric of the `score` subagent, which writes `complexity.json`; see `prompts/README.md`.
 - `skills/10x-pipeline/prompts/executor-e2e.md`, `executor-tdd.md`, `executor-retry.md`, `impl-review-warn.md` and `manual-verify.md` — prompts of the phase executors and `manual-verify`; see `prompts/README.md`.
 - `skills/10x-pipeline/prompts/impl-review-lessons.md` — suffix of both implementation review prompts that asks for lesson candidates; see `prompts/README.md`.
 - `tools/version-check.mjs` — drift guard: `plugin.json`, both `marketplace.json` version fields and `.release-please-manifest.json` must be equal and valid SemVer. `tools/commit-lint.mjs` — Conventional Commits check for the subjects of a git range. Tests: `tools/test/*.test.mjs`.
 - `release-please-config.json`, `.release-please-manifest.json` — release-please configuration and the current version. `.github/workflows/ci.yml` — tests, version check and commit lint; `.github/workflows/release.yml` — the release PR. See ADR-008.
-- `docs/ADR/` — architecture decision records (ADR-001 to ADR-008).
+- `docs/ADR/` — architecture decision records (ADR-001 to ADR-009). ADR-009 covers run provenance, restricted step agents and the advisor flag.
 - `context/` — 10x workflow docs: `changes/`, `archive/`, `foundation/`. See the README in each.
 - `assets/` — README header image only.
 

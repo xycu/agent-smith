@@ -92,6 +92,10 @@
     "restricted": false,
     "steps": { "score": "agent-smith:score" }
   },
+  "advisor": {
+    "enabled": false,
+    "templates": ["plan", "implement", "implement-segment"]
+  },
   "archive": {
     "commitMessage": "chore({id}): commit change folder before archive",
     "gitTimeoutMs": 120000,
@@ -214,6 +218,7 @@
       "Score the complexity of change {id} before it is planned. Goal: {goal}{artifacts}",
       "@prompts/score.md"
     ],
+    "advisor": "@prompts/advisor.md",
     "domain-aggregate": "@prompts/invariant-aggregate-refactor.md",
     "domain-acl": "@prompts/anti-corruption-layer.md",
     "frame": [

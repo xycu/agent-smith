@@ -1903,6 +1903,20 @@ function stepAgent(policy, step) {
   return typeof name === "string" && name.trim() ? name : null;
 }
 
+// ---- opt-in advisor ---------------------------------------------------------------
+
+// Does this template get the advisor rules (prompts.advisor)? Only when advisor.enabled is the boolean true and
+// advisor.templates is an array of strings that names the template. A malformed block or list reads as off and never
+// throws. The flag only adds prompt text: the router reads no settings file, never checks that a consult happened and
+// never caps it.
+function advisorOn(policy, template) {
+  const c = policy.advisor;
+  if (!isObject(c) || c.enabled !== true) return false;
+  const list = c.templates;
+  if (!Array.isArray(list) || !list.every((t) => typeof t === "string")) return false;
+  return list.includes(template);
+}
+
 // ---- run provenance -------------------------------------------------------------
 
 // What a run ran with: the plugin version, one hash per merged-policy section (prompts by resolved text), a hash of the
@@ -2329,13 +2343,18 @@ function next(id, policy) {
 
   const { model, effort } = policy.ladder[tier];
   const template = d.template ?? d.step;
-  const prompt = render(promptText(policy, template), {
+  const vars = {
     id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
     phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
     retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "), failure: d.failure ?? "",
     unproven: (d.unproven ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
     lessonMax: String(lessonLimits(policy).maxCandidates), lessonChars: String(lessonLimits(policy).maxChars),
-  }).trim() + "\n\n" + policy.prompts.suffix;
+  };
+  // The rendered template, then the advisor rules for a listed template (advisor.enabled), then the generic suffix.
+  const advisor = advisorOn(policy, template);
+  const prompt = render(promptText(policy, template), vars).trim()
+    + (advisor ? "\n\n" + render(promptText(policy, "advisor"), vars).trim() : "")
+    + "\n\n" + policy.prompts.suffix;
   const agent = stepAgent(policy, d.step);
   const entry = {
     n: ran.length + 1,
@@ -2355,6 +2374,7 @@ function next(id, policy) {
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
   if (agent) entry.agent = agent; // the restricted agent type the step was dispatched with (agents.restricted)
+  if (advisor) entry.advisor = true; // the prompt carried the advisor rules (advisor.enabled); no consult is verified
   if (shifted) entry.scoreShift = shifted;
   if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
   if (d.executor) entry.executor = d.executor;

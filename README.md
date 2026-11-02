@@ -226,6 +226,15 @@ Restricted step agents (opt-in):
 - A/B reading: both arms run the same model and effort, and the restricted arm has fewer tools, so no token drop is expected and none is the criterion. The restriction earns the default `true` only when the restricted arm has no more failed `score` attempts than the unrestricted arm and no halts.
 - Provenance records the flag as `agents.restricted` in `flags`, the block as the `agents` section and the definition files as `agentFiles`, so `compare` warns when two arms differ in any of them.
 
+Advisor (opt-in):
+
+- `advisor.enabled` in the policy turns it on. It ships as `false`. Only the boolean `true` turns it on; a block of another shape, or an `advisor.templates` value that is not an array of strings, reads as off and never halts.
+- When it is on, the prompt of a step whose template `advisor.templates` names (shipped: `plan`, `implement`, `implement-segment`) gets the rules of `skills/10x-pipeline/prompts/advisor.md` after the step's own text and before the generic suffix, and its log entry gets `advisor: true`. The rules ask the subagent to consult the advisor once, after the plan draft or the implementation is complete and before the `RESULT` line, only when an advisor tool is available, to act on the advice or say why not, to leave the workers of `/10x-goal-implement` out of it, and to add one `assumptions` entry that says a consult happened. Re-plans, `implement-retry`, the tdd and e2e executors, reviews, `fix`, `score` and the pre-plan steps get no advisor text.
+- `advisor.enabled` cannot configure or cap the advisor. It only adds prompt text. The advisor is the native Claude Code tool, and your own `advisorModel` setting (or `--advisor`, `/advisor`) decides whether one exists and which model it is. The pairing rule applies: the advisor must rank at or above the step's model, so a Sonnet 5.5 step needs an advisor at or above Sonnet 5.5 (Fable, Opus 5 or later, or Sonnet 5.5), and Claude Code attaches no weaker one, without an error. With no advisor the rules tell the subagent to go on without it.
+- The router never reads a settings file, never checks that a consult happened and never caps the consults; Claude Code has no setting that caps or forces them. With `advisorModel` set, other steps of the session may consult the advisor on their own too.
+- Provenance records the flag as `advisor.enabled` in `flags` and the block as the `advisor` section. It cannot see `advisorModel`, so for an A/B pair record the advisor setting and the Claude Code version of both arms by hand; both arms need the same ones.
+- Whether the step's reported `totalTokens` includes the advisor's tokens is not known yet. The flag stays off until a live run settles it. The precondition and the A/B decision rule are in `docs/ADR/ADR-009-managed-agent-patterns.md`.
+
 Limits:
 
 - Subagents cannot use `AskUserQuestion`. Where a skill would ask, the subagent decides from researched best practice, cites the evidence and lists the decision as an assumption. With no evidence-backed answer it reports `blocked` with `signals.needsHuman`, and the router halts.
