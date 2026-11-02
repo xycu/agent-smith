@@ -1,7 +1,7 @@
 ---
 change_id: orchestrator-anti-stall
 title: Anti-stall rules for the 10x-pipeline orchestrator loop
-status: implemented
+status: impl_reviewed
 created: 2026-11-02
 updated: 2026-11-02
 archived_at: null
