@@ -2,6 +2,7 @@
 // The plugin version sits in several fields that must stay equal and be valid SemVer 2.0.0:
 //   .claude-plugin/plugin.json       -> version
 //   .claude-plugin/marketplace.json  -> metadata.version and plugins[0].version
+//   .release-please-manifest.json    -> "." (when the file exists)
 // release-please updates them together (release-please-config.json `extra-files`); this check fails
 // if a manual edit, a bad updater config or a partial revert makes them differ.
 // Plain node: built-ins only. Exit 0 when the fields agree, 1 otherwise.
@@ -39,6 +40,9 @@ export function collect(root = ROOT) {
     ["marketplace.json:metadata.version", marketplace.metadata?.version],
     ["marketplace.json:plugins[0].version", marketplace.plugins?.[0]?.version],
   ];
+  if (fs.existsSync(path.join(root, ".release-please-manifest.json"))) {
+    fields.push([".release-please-manifest.json:.", readJson(root, ".release-please-manifest.json")["."]]);
+  }
   for (const [label, value] of fields) {
     if (typeof value !== "string") throw new Error(`${label} is missing`);
   }

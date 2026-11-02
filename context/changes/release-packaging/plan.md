@@ -262,11 +262,11 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Automated
 
-- [x] 2.1 Lint tests pass: `node --test tools/test/commit-lint.test.mjs`
-- [x] 2.2 The branch's own commits pass the lint: `node tools/commit-lint.mjs main..HEAD`
-- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.4 Workflow names the Node 24 floor and both commands
-- [x] 2.6 Workflow is valid: `actionlint .github/workflows/ci.yml`
+- [x] 2.1 Lint tests pass: `node --test tools/test/commit-lint.test.mjs` — dbde326
+- [x] 2.2 The branch's own commits pass the lint: `node tools/commit-lint.mjs main..HEAD` — dbde326
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — dbde326
+- [x] 2.4 Workflow names the Node 24 floor and both commands — dbde326
+- [x] 2.6 Workflow is valid: `actionlint .github/workflows/ci.yml` — dbde326
 
 #### Manual
 
@@ -276,13 +276,13 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Automated
 
-- [ ] 3.1 Config files are valid JSON
-- [ ] 3.2 Guard and its tests pass with the manifest
-- [ ] 3.3 ADR rule lines pass the rule-form check: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.5 Docs name the new files
-- [ ] 3.6 Manifest version equals plugin version: `node tools/version-check.mjs`
-- [ ] 3.10 Release workflow is valid: `actionlint .github/workflows/release.yml`
+- [x] 3.1 Config files are valid JSON
+- [x] 3.2 Guard and its tests pass with the manifest
+- [x] 3.3 ADR rule lines pass the rule-form check: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.5 Docs name the new files
+- [x] 3.6 Manifest version equals plugin version: `node tools/version-check.mjs`
+- [x] 3.10 Release workflow is valid: `actionlint .github/workflows/release.yml`
 
 #### Manual
 

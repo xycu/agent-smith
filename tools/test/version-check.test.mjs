@@ -11,7 +11,7 @@ import { check } from "../version-check.mjs";
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../version-check.mjs");
 const created = [];
 
-function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry = "0.1.0" } = {}) {
+function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry = "0.1.0", manifest = null } = {}) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "vc-"));
   created.push(root);
   fs.mkdirSync(path.join(root, ".claude-plugin"));
@@ -20,6 +20,7 @@ function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry = "0.1.0" } = {}) {
     path.join(root, ".claude-plugin/marketplace.json"),
     JSON.stringify({ name: "x", metadata: { version: meta }, plugins: [{ name: "x", version: entry }] }),
   );
+  if (manifest !== null) fs.writeFileSync(path.join(root, ".release-please-manifest.json"), JSON.stringify({ ".": manifest }));
   return root;
 }
 
@@ -38,6 +39,16 @@ test("a drifted field is named", () => {
   assert.match(errors[0], /marketplace\.json:plugins\[0\]\.version/);
   const both = check(makeRoot({ meta: "0.3.0", entry: "0.2.0" }));
   assert.equal(both.length, 2);
+});
+
+test("the release-please manifest is checked when it exists", () => {
+  assert.deepEqual(check(makeRoot({ manifest: "0.1.0" })), []);
+  const errors = check(makeRoot({ manifest: "0.2.0" }));
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /\.release-please-manifest\.json:\./);
+  const missing = makeRoot();
+  fs.writeFileSync(path.join(missing, ".release-please-manifest.json"), "{}");
+  assert.match(check(missing)[0], /manifest\.json:\. is missing/);
 });
 
 test("a version that is not SemVer fails", () => {
