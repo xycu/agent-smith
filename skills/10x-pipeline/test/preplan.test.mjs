@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, planText, writeReview, init, next, run, writeLog, entry, writeResult,
-  readLogEntries, readMetaFile, readReportFile,
+  readLogEntries, readMetaFile, readReportFile, writeOverride,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -205,8 +205,7 @@ test("a bad prompt reference halts before the subagent result is consumed", () =
   };
   // The broken prompt is one the next step does not use, so only the early check can catch it.
   for (const [name, value] of Object.entries(bad)) {
-    fs.mkdirSync(path.dirname(overrideFile), { recursive: true });
-    fs.writeFileSync(overrideFile, JSON.stringify({ prompts: { "plan-review": value } }));
+    writeOverride(project, { prompts: { "plan-review": value } });
     writeResult(project, { status: "done", note: "kept" });
     const halted = next(project);
     assert.equal(halted.status, 1, name);
@@ -667,13 +666,11 @@ test("briefExists and the frame authority line follow the policy, not fixed name
 
   // The authority line follows the renamed frame artifact: reframe.md triggers it, frame.md does not.
   const renamed = replanProject();
-  fs.mkdirSync(path.join(renamed.root, "context/foundation"), { recursive: true });
-  fs.writeFileSync(path.join(renamed.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(policyOverride));
+  writeOverride(renamed, policyOverride);
   touch(renamed, "frame.md");
   assert.ok(!withoutSuffix(init(renamed, "fix typo", ["--rigor", "standard"]).json.prompt).includes("authoritative"));
   const named = replanProject();
-  fs.mkdirSync(path.join(named.root, "context/foundation"), { recursive: true });
-  fs.writeFileSync(path.join(named.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(policyOverride));
+  writeOverride(named, policyOverride);
   touch(named, "reframe.md");
   assert.ok(withoutSuffix(init(named, "fix typo", ["--rigor", "standard"]).json.prompt).includes("authoritative"));
 });
@@ -854,9 +851,7 @@ test("a failed pre-plan step is retried before skipIf, when and the rigor check"
   // (c) A policy that closes the gate under a run (an unknown minRigor reads as closed) does not drop a failed attempt.
   const closed = makeProject();
   assert.equal(start(closed, "fix typo").step, "research");
-  const overrideFile = path.join(closed.root, "context/foundation/agent-smith-policy.json");
-  fs.mkdirSync(path.dirname(overrideFile), { recursive: true });
-  fs.writeFileSync(overrideFile, JSON.stringify({ preplan: { gates: { research: { minRigor: "bogus" } } } }));
+  writeOverride(closed, { preplan: { gates: { research: { minRigor: "bogus" } } } });
   const retry = finish(closed, { status: "failed", note: "no luck" });
   assert.equal(retry.json.step, "research", "retried although the gate is now closed");
   assert.equal(lastRan(closed).tier, 4);
@@ -868,8 +863,7 @@ test("a failed pre-plan step is retried before skipIf, when and the rigor check"
   const first = start(brief, "Put an adapter around the vendor sdk");
   assert.equal(first.step, "domain-brief");
   assert.equal(first.template, "domain-acl");
-  fs.mkdirSync(path.join(brief.root, "context/foundation"), { recursive: true });
-  fs.writeFileSync(path.join(brief.root, "context/foundation/agent-smith-policy.json"), JSON.stringify({ preplan: { predicates: { dependencyLeak: { goalWords: ["zzz"] } } } }));
+  writeOverride(brief, { preplan: { predicates: { dependencyLeak: { goalWords: ["zzz"] } } } });
   const briefAgain = finish(brief, { status: "failed", note: "no luck" });
   assert.equal(briefAgain.json.step, "domain-brief");
   assert.equal(lastRan(brief).template, "domain-acl", "the retry keeps the template of the failed attempt");

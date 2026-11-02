@@ -18,7 +18,8 @@
     "research":     { "skill": "10x-research",      "baseTier": 3, "minTier": 2, "maxTier": 5, "interactive": true },
     "domain-brief": { "skill": null,                "baseTier": 3, "minTier": 3, "maxTier": 5, "interactive": true },
     "frame":        { "skill": "10x-frame",         "baseTier": 4, "minTier": 4, "maxTier": 4, "interactive": true },
-    "manual-verify": { "skill": null,               "baseTier": 3, "minTier": 2, "maxTier": 5 }
+    "manual-verify": { "skill": null,               "baseTier": 3, "minTier": 2, "maxTier": 5 },
+    "score":         { "skill": null,               "baseTier": 0, "minTier": 0, "maxTier": 1 }
   },
   "complexity": {
     "phaseThresholds": [3, 6],
@@ -151,6 +152,26 @@
       "reviseResearchMax": 1
     }
   },
+  "score": {
+    "minRigor": null,
+    "file": "complexity.json",
+    "schemaVersion": 1,
+    "maxBytes": 65536,
+    "scale": { "min": 0, "max": 3 },
+    "factors": {
+      "cognitive": ["ambiguity", "novelty", "coupling"],
+      "execution": ["discovery", "volume", "verification"]
+    },
+    "confidences": ["low", "medium", "high"],
+    "maxAttempts": 3,
+    "maxInvalid": 2,
+    "shift": {
+      "plan": { "sum": "cognitive", "templates": ["plan"], "up": 7, "down": null },
+      "implement": { "sum": "execution", "templates": ["implement", "implement-segment", "implement-tdd", "implement-e2e"], "up": 7, "down": 2 },
+      "downMinConfidence": "medium",
+      "downMaxUnknowns": 2
+    }
+  },
   "prompts": {
     "suffix": "You run as an unattended subagent. AskUserQuestion is unavailable. Do not commit unless the skill itself commits.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.\nFinish your reply with exactly one line. The `signals` object is optional:\nRESULT: {\"status\":\"done|blocked|failed\",\"note\":\"<one sentence>\",\"assumptions\":[\"...\"],\"signals\":{\"needsHuman\":\"<reason, only when blocked>\",\"rigor\":\"standard|thorough\"}}",
     "plan": "Run /10x-plan {id} {goal}{artifacts}\nWrite the plan to context/changes/{id}/plan.md with a valid ## Progress section.",
@@ -180,6 +201,10 @@
       "- **GIVEN** context/changes/{id}/research.md already holds findings **WHEN** you add the follow-up **THEN** you **MUST NOT** rewrite the earlier findings.",
       "- **GIVEN** the skill would ask the user a new question **WHEN** you run the follow-up **THEN** you **MUST NOT** ask it and you decide from the review findings.",
       "- **GIVEN** you save context/changes/{id}/research.md **WHEN** you write its first lines **THEN** you **MUST** start the file with YAML frontmatter that holds status: complete or status: partial."
+    ],
+    "score": [
+      "Score the complexity of change {id} before it is planned. Goal: {goal}{artifacts}",
+      "@prompts/score.md"
     ],
     "domain-aggregate": "@prompts/invariant-aggregate-refactor.md",
     "domain-acl": "@prompts/anti-corruption-layer.md",
