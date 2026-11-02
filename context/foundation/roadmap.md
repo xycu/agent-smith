@@ -9,7 +9,7 @@ main_goal: speed
 top_blocker: decisions
 milestone_id: cheaper-pipeline-routing
 milestone_seq: 1
-milestone_status: open
+milestone_status: done
 ---
 
 # Roadmap: agent-smith
@@ -20,13 +20,14 @@ milestone_status: open
 
 ## Milestone
 
-**M-1: Cheaper pipeline routing** — Status: open
+**M-1: Cheaper pipeline routing** — Status: done
 
 - **Intent:** Show that the pipeline picks a cheaper model and effort for a simple change than for a complex one, and that a report makes the difference visible and comparable to a full Sonnet-5.5 high-effort run.
 - **Source materials:** `context/foundation/prd.md` (v1), with the Phase 1 scope of `docs/ADR/ADR-001-phased-complexity-routing.md`.
 - **Done when:** every F-NN and S-NN below is `done`.
 - **Scope anchors:** FR-001 to FR-005, FR-007 to FR-011, US-01, US-02. Left out of this milestone: FR-006 (OpenSpec), nice-to-have.
 - **Scope extension (2026-10-31):** S-11 pulls FR-011 (LLM-scored complexity on a cheap model) into this milestone, by owner decision. It was parked as Phase 2 of `docs/ADR/ADR-001-phased-complexity-routing.md`.
+- **Off-roadmap change (2026-11-02):** `release-packaging` (release-please pipeline, Semantic Versioning, CI and commit lint; ADR-008) was done as a change with no slice, because it serves the plugin's install story and not the usage-drop claim. Archived 2026-11-02 → `context/archive/2026-11-02-release-packaging/`.
 - **Scope extension (2026-10-30):** S-07 to S-10 add the optional lifecycle steps of `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md` (diagrams 5, 6 and 7), gated by the rigor level from S-03 so they run only when worth their cost. Split from change `rigor-gated-routing`; shared research in `context/changes/rigor-levels/research.md`.
 
 ## Vision recap
@@ -242,8 +243,8 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 | S-07       | pre-plan-steps                 | Gate research, domain briefs and framing by rigor       | done                  | Archived 2026-10-31                     |
 | S-08       | phase-executors                | Route each plan phase to its executor                   | done                  | Archived 2026-10-31                     |
 | S-09       | archive-adapter                | Archive a finished run through the 10x-archive adapter  | done                  | Archived 2026-10-30                     |
-| S-10       | lesson-candidates              | Lesson candidates in the report                         | done                  | Implemented and approved on branch `lesson-candidates` (2026-11-01); done once its PR is merged and the change is archived |
-| S-11       | llm-complexity-scorer          | Score change complexity with an LLM on a cheap model    | no                    | Needs S-10 merged (ADR-007 accepted); then `/10x-new llm-complexity-scorer` |
+| S-10       | lesson-candidates              | Lesson candidates in the report                         | done                  | Archived 2026-11-01                     |
+| S-11       | llm-complexity-scorer          | Score change complexity with an LLM on a cheap model    | done                  | Archived 2026-11-02; scorer A/B check still pending (ADR-007 "A/B result") |
 
 ## Open Roadmap Questions
 
@@ -268,7 +269,9 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 
 ## Milestone History
 
-(Append-only. Empty on the first milestone.)
+(Append-only. Carried forward verbatim into each successor milestone's roadmap.)
+
+- **M-1: Cheaper pipeline routing** (`cheaper-pipeline-routing`) — closed 2026-11-02. Simple changes route to a cheaper model and effort, a report and `compare` show the difference against a Sonnet-5.5 high-effort baseline, and the optional lifecycle steps and the LLM scorer are built. Thresholds, the 30% target and the scorer A/B check are still uncalibrated: no real run data exists yet.
 
 ## Done
 
