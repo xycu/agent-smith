@@ -360,12 +360,12 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 #### Automated
 
-- [x] 3.1 With the default policy no prompt contains the advisor text, for every template
-- [x] 3.2 With `advisor.enabled: true` the prompts of `plan`, `implement` and `implement-segment` carry the advisor rules once, before the suffix, and the log entry has `advisor: true`; `plan-revise`, `plan-replan`, `plan-rejected`, `implement-retry`, executors, reviews, `fix`, `score` and pre-plan steps carry none
-- [x] 3.3 A malformed `advisor` block reads as off and never halts
-- [x] 3.4 `prompts/advisor.md` follows the rule form, names no model, and is listed in the `prompts/README.md` wired table
-- [x] 3.5 Provenance records `advisor.enabled` in `flags`, and flipping it changes the `advisor` section
-- [x] 3.6 ADR-009 rule lines follow the rule form and the whole suite passes
+- [x] 3.1 With the default policy no prompt contains the advisor text, for every template — 2ed5c8c
+- [x] 3.2 With `advisor.enabled: true` the prompts of `plan`, `implement` and `implement-segment` carry the advisor rules once, before the suffix, and the log entry has `advisor: true`; `plan-revise`, `plan-replan`, `plan-rejected`, `implement-retry`, executors, reviews, `fix`, `score` and pre-plan steps carry none — 2ed5c8c
+- [x] 3.3 A malformed `advisor` block reads as off and never halts — 2ed5c8c
+- [x] 3.4 `prompts/advisor.md` follows the rule form, names no model, and is listed in the `prompts/README.md` wired table — 2ed5c8c
+- [x] 3.5 Provenance records `advisor.enabled` in `flags`, and flipping it changes the `advisor` section — 2ed5c8c
+- [x] 3.6 ADR-009 rule lines follow the rule form and the whole suite passes — 2ed5c8c
 
 #### Manual
 
