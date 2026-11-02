@@ -1,0 +1,8 @@
+{
+  "sandbox": {
+    "network": {
+      "allowedDomains": ["github.com", "api.github.com", "*.githubusercontent.com"]
+    },
+    "excludedCommands": ["gh *", "git push *", "git fetch *", "git checkout *", "git switch *"]
+  }
+}
