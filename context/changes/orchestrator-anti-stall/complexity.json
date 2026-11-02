@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes five numbered rules for the Loop section; the optional route.mjs usage command is open but marked optional, so only a few details are open" },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/SKILL.md Loop section (lines 37-46) already has the step loop and result-file write; the rules adapt that existing pattern" },
+    "coupling": { "score": 2, "evidence": "SKILL.md Loop section is the core edit; the optional usage command in change.md would touch skills/10x-pipeline/scripts/route.mjs (result handling at lines ~482-483) and its tests, a second module" },
+    "discovery": { "score": 1, "evidence": "change.md and the goal name the Loop section; one grep of SKILL.md found the run_in_background, usage and next steps" },
+    "volume": { "score": 2, "evidence": "five GIVEN/WHEN/THEN rules in SKILL.md, plus optionally a route.mjs command and tests, which is 2 to 3 files" },
+    "verification": { "score": 2, "evidence": "the behaviour is orchestrator runtime (background Agent launch, late usage notice); the suite checks prompt rule form and router output, not SKILL.md loop behaviour, so a new harness or manual run is needed" }
+  },
+  "unknowns": [
+    "Whether the optional route.mjs usage command is in scope for this change or split out",
+    "Whether the background-launch notice can be reproduced in a test or only in a live run",
+    "Whether SKILL.md is covered by any existing rule-form test"
+  ],
+  "confidence": "medium"
+}
