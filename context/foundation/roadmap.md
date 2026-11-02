@@ -3,7 +3,7 @@ project: agent-smith
 version: 1
 status: draft
 created: 2026-10-30
-updated: 2026-11-01
+updated: 2026-11-02
 prd_version: 1
 main_goal: speed
 top_blocker: decisions
@@ -53,7 +53,7 @@ Running the 10x chain on expensive models and effort levels uses too much of the
 | S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | done |
 | S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
 | S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | done |
-| S-11 | llm-complexity-scorer        | have change complexity scored by an LLM on a cheap model, with the scores stored with evidence and unknowns and used by the router | S-03, S-10    | FR-001, FR-003, FR-011            | proposed |
+| S-11 | llm-complexity-scorer        | have change complexity scored by an LLM on a cheap model, with the scores stored with evidence and unknowns and used by the router | S-03, S-10    | FR-001, FR-003, FR-011            | done |
 
 ## Streams
 
@@ -227,7 +227,7 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
   - Which artifacts does the scorer read, and which scale does it use (ADR-001 sketches four factors, each 0 to 3)? — Owner: user. Block: no.
   - Does the scorer's own token cost eat the saving? It counts toward the `compare` totals. — Owner: user. Block: no.
 - **Risk:** The scorer spends tokens on every change, including the simple ones it should make cheaper. S-06's `compare` is the check. It edits `decide()` and the `signals` parsing in `route.mjs`, so it waits for S-10 to merge.
-- **Status:** proposed
+- **Status:** done
 
 ## Backlog Handoff
 
@@ -281,3 +281,4 @@ None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are 
 - **S-06: user can compare the total usage of a routed run against a baseline run of the same change (a full run on Sonnet-5.5 at high effort).** — Archived 2026-10-31 → `context/archive/2026-10-31-baseline-usage-comparison/`. Lesson: —.
 - **S-08: user can have each plan phase run on `/10x-e2e`, `/10x-tdd` or `/10x-goal-implement` as it fits, with a blocked tdd or e2e run falling back to goal-implement, repeated failures and a REJECTED review re-planning, and manual checks automated (with Claude-in-Chrome where it helps) and backed by evidence.** — Archived 2026-10-31 → `context/archive/2026-10-30-phase-executors/`. Lesson: —.
 - **S-10: user can see lesson candidates from the impl-review in `report.md`, each with a ready `/10x-lesson <seed>` command.** — Archived 2026-11-01 → `context/archive/2026-10-30-lesson-candidates/`. Lesson: —.
+- **S-11: user can have the complexity of a change scored by an LLM on a cheap model, with the scores stored with evidence and unknowns in a machine-readable file, and have the router use them next to the deterministic signals.** — Archived 2026-11-02 → `context/archive/2026-11-02-llm-complexity-scorer/`. Lesson: —.
