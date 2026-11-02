@@ -6,5 +6,17 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.4 The rubric anchors in `skills/10x-pipeline/prompts/score.md` read as four distinct levels for each of the six factors",
+      "2.5 In a scratch project at rigor `standard`, `init` returns the `score` step, and after a hand-written valid `complexity.json` and a result file `next` returns `plan`",
+      "3.4 The `Complexity score` section of a scratch run's `report.md` is clear enough to see why the plan and implement tiers moved",
+      "4.5 Running `compare` with `--unpinned` on two scratch change folders prints a readable result with a negative and a positive `dropPercent`",
+      "5.4 A live `/agent-smith:10x-pipeline` run on a scratch change at `standard` shows the scorer subagent writing a valid `complexity.json` on the pinned tier",
+      "5.5 At least 5 scorer on and off pairs are compared with `compare --unpinned` and the result, with the keep or turn-off decision, is written into ADR-007"
+    ]
   }
 }
