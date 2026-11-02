@@ -1,0 +1,47 @@
+name: CI
+
+# Runs the test suite and the two guards on every pull request and on pushes to main.
+# The repository rebase-merges, so commit subjects land on main and release-please reads them:
+# the `commits` job lints each commit of the pull request, not the title.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tests and version check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Test suite
+        run: node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs
+      - name: Check version fields are in lockstep
+        run: node tools/version-check.mjs
+
+  commits:
+    name: Conventional Commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Lint commit subjects
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node tools/commit-lint.mjs "$BASE..$HEAD"
