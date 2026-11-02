@@ -241,6 +241,16 @@ Limits:
 - `10x-goal-implement` spawns its own subagents. This needs `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` of 3 or more (the default since Claude Code v2.1.219).
 - `--chrome` hands a subagent the Chrome browser tools through ToolSearch. Whether a subagent can load and call them was not tested; when they are missing the `manual-verify` subagent leaves its rows unticked and the run goes on. `/10x-e2e` and `/10x-tdd` also run in a subagent and answer their own questions from the decision guides in `skills/10x-pipeline/prompts/`; no live run has been done.
 
+Orchestrator anti-stall:
+
+- Five rules in `skills/10x-pipeline/SKILL.md` (section "Anti-stall rules") keep the orchestrator from stalling between steps. They hold for every `run` step.
+- If the Agent tool returns a launch notice because the subagent runs in the background, the orchestrator ends its turn and continues the Loop when the subagent's final report arrives. It starts no other step and does not poll. The same holds for the archive subagent.
+- If the final report holds its `RESULT:` line and no usage figure has arrived, the orchestrator writes the result file without `usage` and runs `next` in the same turn.
+- A usage figure that arrives after `next` ran is dropped: the result file is not rewritten and `next` is not called again. That step shows `-` for tokens in `report.md`, and `compare` counts the side as `usage-incomplete`.
+- While the run has not ended in `done`, `archive` or `halt`, the orchestrator does not end its turn into an idle state, unless a launched subagent is still running.
+- When you ask what the run is doing, the orchestrator states only what tool output in this session shows, and says so when nothing is running.
+- Headless limit of the first rule. It relies on the host giving the orchestrator a new turn when a background subagent ends, as an interactive Claude Code session does. In a headless `claude -p` run the process is expected to end when the orchestrator ends its turn, and the background subagent most likely ends with it: the run exits early instead of stalling. This has not been verified in a live headless run. The interrupted step writes no result file, and the router logged the step when it returned it, so re-running `/agent-smith:10x-pipeline <change-id>` halts with `Step <n> (<step>) has no result. Write <resultFile> first.` Writing a result file with a status other than `done` there (for example `{"status":"failed","note":"interrupted"}`) and re-running counts the step as a failed attempt, which the router handles like any other failed step. A killed subagent may leave partial edits in the working tree; check `git status` before the re-run.
+
 PR comment (opt-in):
 
 - Needs the GitHub CLI `gh`, authenticated, and only with `--pr-comment`. Without the flag nothing is posted and `gh` is not needed. The permission a fine-grained token needs is not verified yet (pull requests or issues write is the expected one).

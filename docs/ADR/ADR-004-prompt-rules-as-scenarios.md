@@ -32,6 +32,7 @@ A `node:test` check enforces this: `skills/10x-pipeline/test/rules.test.mjs`. Ru
 - every string in `policy.json` `prompts`, line by line;
 - every `skills/10x-pipeline/prompts/*.md` except `README.md`;
 - the rule lines of `ADR-003` and `ADR-004`, outside fenced code blocks (ADR prose may discuss the keywords, and this ADR shows bad rules in a fence).
+- the `## Anti-stall rules` section of `skills/10x-pipeline/SKILL.md`, line by line with the strict prose check, like the prompts.
 
 Examples of bad rules, which the test rejects (they sit in a fence, so the ADR check skips them):
 
@@ -48,7 +49,7 @@ Examples of bad rules, which the test rejects (they sit in a fence, so the ADR c
 
 - No rule ids. life-to-lore keeps ids in a TypeScript `rule()` helper so evals can cite them. agent-smith has no such helper and no evals.
 - No `PROMPT_VERSION`. The router does not log a prompt version.
-- The checked files are the `policy.json` prompts and `skills/10x-pipeline/prompts/*.md`, plus the rule lines of two ADRs.
+- The checked files are the `policy.json` prompts and `skills/10x-pipeline/prompts/*.md`, plus the rule lines of two ADRs and the `## Anti-stall rules` section of `skills/10x-pipeline/SKILL.md`.
 - No `MUST` budget per prompt and no prose line count. Only the form is checked.
 
 ## Alternatives considered
