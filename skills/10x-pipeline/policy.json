@@ -88,6 +88,10 @@
     "ignore": ["compare", "provenance"],
     "expected": { "pinned": ["ladder", "rigor", "score"], "unpinned": ["score"] }
   },
+  "agents": {
+    "restricted": false,
+    "steps": { "score": "agent-smith:score" }
+  },
   "archive": {
     "commitMessage": "chore({id}): commit change folder before archive",
     "gitTimeoutMs": 120000,

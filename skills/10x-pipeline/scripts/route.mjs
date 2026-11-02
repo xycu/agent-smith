@@ -1891,6 +1891,18 @@ function artifactsLine(p, policy) {
   return `\nUpstream artifacts (read each fully before planning): ${rel.join(", ")}`;
 }
 
+// ---- restricted step agents -------------------------------------------------------
+
+// The agent type the orchestrator dispatches a step with: the value of agents.steps.<step> when agents.restricted is
+// the boolean true and that value is a non-blank string, else null. A malformed block reads as off and never throws.
+// There is no fallback to another type: a step without an agent gets no `agent` field at all.
+function stepAgent(policy, step) {
+  const c = policy.agents;
+  if (!isObject(c) || c.restricted !== true || !isObject(c.steps) || !Object.hasOwn(c.steps, step)) return null;
+  const name = c.steps[step];
+  return typeof name === "string" && name.trim() ? name : null;
+}
+
 // ---- run provenance -------------------------------------------------------------
 
 // What a run ran with: the plugin version, one hash per merged-policy section (prompts by resolved text), a hash of the
@@ -2324,6 +2336,7 @@ function next(id, policy) {
     unproven: (d.unproven ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
     lessonMax: String(lessonLimits(policy).maxCandidates), lessonChars: String(lessonLimits(policy).maxChars),
   }).trim() + "\n\n" + policy.prompts.suffix;
+  const agent = stepAgent(policy, d.step);
   const entry = {
     n: ran.length + 1,
     step: d.step,
@@ -2341,6 +2354,7 @@ function next(id, policy) {
   };
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
+  if (agent) entry.agent = agent; // the restricted agent type the step was dispatched with (agents.restricted)
   if (shifted) entry.scoreShift = shifted;
   if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
   if (d.executor) entry.executor = d.executor;
@@ -2356,6 +2370,7 @@ function next(id, policy) {
     action: "run",
     n: entry.n,
     step: d.step,
+    ...(agent ? { agent } : {}),
     model,
     effort,
     reason: `${d.reason}; tier ${tier} (${tierWhy})`,
@@ -2681,6 +2696,7 @@ function status(id, flags) {
       ...(e.score ? { score: e.score } : {}),
       ...(e.invalid ? { invalid: e.invalid } : {}),
       ...(e.scoreShift ? { scoreShift: e.scoreShift } : {}),
+      ...(typeof e.agent === "string" ? { agent: e.agent } : {}),
     })),
   };
   if (flags.report) {

@@ -40,7 +40,7 @@ The router prints one JSON object. Act on `action`:
 
 - **`run`** (the router may have skipped a step before this answer, for example plan review for a `lean` change. It logs the skip with its reason. You do nothing for a skipped step.)
   1. Print one line: `Step <n>: <step> on <model>/<effort>. <reason>`.
-  2. Call the Agent tool with `subagent_type: general-purpose`, `model: <model>`, `effort: <effort>`, `run_in_background: false`, and `prompt` set to the router's `prompt`, copied verbatim.
+  2. Call the Agent tool with `subagent_type` set to the router's `agent` when the output has one, else `general-purpose`, `model: <model>`, `effort: <effort>`, `run_in_background: false`, and `prompt` set to the router's `prompt`, copied verbatim. Never choose an agent type yourself. When the call fails, for example because the router's `agent` does not resolve, do not call it again with another type: go on with step 3, which records the step as `unknown`.
   3. Find the last line of the subagent's reply that starts with `RESULT:`. Parse the JSON after it. If there is none, or it does not parse, use `{"status":"unknown","note":"no RESULT line"}`. Keep every key of the JSON as it is, including the optional `signals` object. Copy it untouched. The router validates it.
   4. If the Agent result reports usage (total tokens, tool uses and duration), add `"usage":{"totalTokens":N,"toolUses":N,"durationMs":N}` to that JSON, with the figures copied exactly. Omit the key when no figure is reported. Write the JSON to the router's `resultFile` with the Write tool.
   5. Run `node $ROUTER next <change-id>` and repeat the loop with its output.

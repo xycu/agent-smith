@@ -215,6 +215,17 @@ Run provenance:
 - A flag is exempt when its first dot segment is an expected section, so `score.minRigor` raises no warning in either mode.
 - The expected sets come from the policy of the project that runs `compare`. A list that is not an array of strings reads as the default.
 
+Restricted step agents (opt-in):
+
+- `agents.restricted` in the policy turns it on. It ships as `false`. Only the boolean `true` turns it on; a block of another shape reads as off and never halts.
+- When it is on, a step that `agents.steps` maps to an agent type gets `agent: <type>` in its `run` output and its log entry, and `status` shows `agent` on that row. The orchestrator passes it as `subagent_type`; a step without the field runs as `general-purpose`, as before. A value that is not a non-blank string gives that step no agent. The `archive` action never carries `agent`.
+- The shipped map names only `score`: `agent-smith:score`, defined in `agents/score.md` at the plugin root. Its `tools` list is `Read`, `Grep`, `Glob` and `Write`, so the scorer can read and search the repository and write files, and cannot use `Bash`, `Edit`, `Skill`, `Agent` or web tools. The definition sets no `model` and no `effort`, so the router's model and effort for each call stay in control.
+- `Write` cannot be scoped to one path. The scorer can still write any file; only the prompt rule "change no other file" and the router's check of `complexity.json` hold it to that file. Plugin agents ignore `hooks`, so no hook can guard the path either.
+- No fallback. When the type does not resolve (the plugin is loaded under another name, or Claude Code is too old), the Agent call fails, the orchestrator records the step as `unknown` and does not retry it as `general-purpose`, and the router counts a failed `score` attempt. That is neutral, as for any failed scorer: a retry one tier up with the same agent, no step budget, no rigor rise, and a logged skip after 3 failed attempts. The run goes on.
+- The name `agent-smith:score` is inferred from the Claude Code docs and has not been checked in a live run. If it does not resolve, correct `agents.steps.score` in the project override; the router does not change.
+- A/B reading: both arms run the same model and effort, and the restricted arm has fewer tools, so no token drop is expected and none is the criterion. The restriction earns the default `true` only when the restricted arm has no more failed `score` attempts than the unrestricted arm and no halts.
+- Provenance records the flag as `agents.restricted` in `flags`, the block as the `agents` section and the definition files as `agentFiles`, so `compare` warns when two arms differ in any of them.
+
 Limits:
 
 - Subagents cannot use `AskUserQuestion`. Where a skill would ask, the subagent decides from researched best practice, cites the evidence and lists the decision as an assumption. With no evidence-backed answer it reports `blocked` with `signals.needsHuman`, and the router halts.
@@ -249,6 +260,7 @@ release-please-config.json        release-please config (extra-files list the ve
 tools/                            version-check.mjs, commit-lint.mjs and their tests
 skills/10x-pipeline/              orchestrator skill, policy, router
 skills/10x-pipeline/test/         node:test suite for the router and the prompt rule form
+agents/                           plugin agent definitions for restricted steps (score.md)
 docs/ADR/                         architecture decision records
 assets/                           README header image
 ```
