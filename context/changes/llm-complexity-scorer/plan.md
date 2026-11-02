@@ -434,10 +434,10 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [x] 4.1 Budget tests pass with the scorer in the longest path and in a three-failure skip: `node --test skills/10x-pipeline/test/budget-executors.test.mjs`
-- [x] 4.2 Baseline and `--unpinned` compare tests pass: `node --test skills/10x-pipeline/test/compare.test.mjs`
-- [x] 4.3 Loop tests that use the budget pass: `node --test skills/10x-pipeline/test/loops.test.mjs`
-- [x] 4.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 4.1 Budget tests pass with the scorer in the longest path and in a three-failure skip: `node --test skills/10x-pipeline/test/budget-executors.test.mjs` — 2e9c59f
+- [x] 4.2 Baseline and `--unpinned` compare tests pass: `node --test skills/10x-pipeline/test/compare.test.mjs` — 2e9c59f
+- [x] 4.3 Loop tests that use the budget pass: `node --test skills/10x-pipeline/test/loops.test.mjs` — 2e9c59f
+- [x] 4.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 2e9c59f
 
 #### Manual
 
@@ -447,9 +447,9 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [ ] 5.1 SKILL.md names no model: `! grep -nEi "haiku|sonnet|opus" skills/10x-pipeline/SKILL.md`
-- [ ] 5.2 ADR rule lines keep the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 5.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 5.1 SKILL.md names no model: `! grep -nEi "haiku|sonnet|opus" skills/10x-pipeline/SKILL.md`
+- [x] 5.2 ADR rule lines keep the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 5.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 
