@@ -447,9 +447,9 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [x] 5.1 SKILL.md names no model: `! grep -nEi "haiku|sonnet|opus" skills/10x-pipeline/SKILL.md`
-- [x] 5.2 ADR rule lines keep the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 5.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 5.1 SKILL.md names no model: `! grep -nEi "haiku|sonnet|opus" skills/10x-pipeline/SKILL.md` — fb34b88
+- [x] 5.2 ADR rule lines keep the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs` — fb34b88
+- [x] 5.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — fb34b88
 
 #### Manual
 

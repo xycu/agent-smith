@@ -1,7 +1,7 @@
 ---
 change_id: llm-complexity-scorer
 title: Score change complexity with an LLM on a cheap model
-status: implementing
+status: implemented
 created: 2026-11-02
 updated: 2026-11-02
 archived_at: null
