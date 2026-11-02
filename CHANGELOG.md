@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/xycu/agent-smith/compare/v0.4.0...v0.4.1) (2026-11-02)
+
+
+### Performance Improvements
+
+* **pipeline:** keep subagent replies short and drop unread reply text ([3fc1592](https://github.com/xycu/agent-smith/commit/3fc1592b0d42793752237dc4820f43d94fb4db25))
+
 ## [0.4.0](https://github.com/xycu/agent-smith/compare/v0.3.0...v0.4.0) (2026-11-02)
 
 
