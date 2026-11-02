@@ -1,10 +1,10 @@
 ---
 change_id: llm-complexity-scorer
 title: Score change complexity with an LLM on a cheap model
-status: impl_reviewed
+status: archived
 created: 2026-11-02
 updated: 2026-11-02
-archived_at: null
+archived_at: 2026-11-02T01:00:33Z
 ---
 
 ## Notes
