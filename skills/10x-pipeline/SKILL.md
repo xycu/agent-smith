@@ -60,7 +60,7 @@ The router prints one JSON object. Act on `action`:
 
 ## Anti-stall rules
 
-These rules hold for every `run` step. Rule 1 also holds for the archive subagent: when its final report arrives, continue at step 4 of the `archive` branch. Rules 2 and 3 do not apply to it, because the `archive` action has no result file and no `next` call; a usage figure it reports goes only into the final message. A run has ended when the orchestrator has finished every step of its `done`, `archive` or `halt` branch.
+Rules 1 to 3 hold for every `run` step. Rules 4 and 5 hold for the whole run, also while its `done`, `archive` or `halt` branch is being worked through. Rule 1 also holds for the archive subagent: when its final report arrives, continue at step 4 of the `archive` branch. Rules 2 and 3 do not apply to it, because the `archive` action has no result file and no `next` call; a usage figure it reports goes only into the final message. A run has ended when the orchestrator has finished every step of its `done`, `archive` or `halt` branch.
 
 - **GIVEN** a `run` step **WHEN** the Agent tool returns a launch notice instead of a final report although `run_in_background` is `false` **THEN** the orchestrator **MUST** end its turn and continue the Loop at step 3 when the subagent's final report arrives, without starting another step or polling.
 - **GIVEN** the final report of a `run` step holds its `RESULT:` line **WHEN** no usage figure has arrived **THEN** the orchestrator **MUST** write the result file without `usage` and run `next` in the same turn.
