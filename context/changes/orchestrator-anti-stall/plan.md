@@ -256,9 +256,9 @@ None. A run in flight reads the new SKILL.md on its next invocation; no router s
 
 #### Automated
 
-- [ ] 3.1 README group exists in the right place and names the five behaviors
-- [ ] 3.2 AGENTS.md lists the new test file
-- [ ] 3.3 Full suite passes after the documentation change
-- [ ] 3.4 Version fields untouched and valid
-- [ ] 3.5 ADR-004 lists the SKILL.md section in its checked scope
-- [ ] 3.6 README group states the headless limit of rule 1
+- [x] 3.1 README group exists in the right place and names the five behaviors
+- [x] 3.2 AGENTS.md lists the new test file
+- [x] 3.3 Full suite passes after the documentation change
+- [x] 3.4 Version fields untouched and valid
+- [x] 3.5 ADR-004 lists the SKILL.md section in its checked scope
+- [x] 3.6 README group states the headless limit of rule 1
