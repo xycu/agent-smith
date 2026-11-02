@@ -38,7 +38,9 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** a valid `complexity.json` **WHEN** the router chooses the tier of a later step **THEN** it **MAY** shift the tier of `plan` and `implement` by at most one rung up or down, using thresholds under `score` in `policy.json`.
 
-**GIVEN** a tier shift from the score **WHEN** the router applies it **THEN** the shift **MUST NOT** go below the effort floor in `rigor.minEffort`, override the churn risk axis or lower the rigor level.
+**GIVEN** a tier shift from the score **WHEN** the router applies it **THEN** the shift **MUST NOT** take an interactive step below the effort floor in `rigor.minEffort` (ADR-003), override the churn risk axis or lower the rigor level.
+
+Amended 2026-11-02 (S-11 plan, default reading taken in an unattended run; the owner has not confirmed it yet). The rule first named `rigor.minEffort` with no scope. ADR-003 ("Effort floor") puts the floor on interactive steps only, and `route.mjs` applies it there (`settle` in `tierFor`). So the floor bounds a shift on `plan`, `implement-tdd` and `implement-e2e`. A down shift on plain `implement` or a goal segment can reach the step's `minTier`, as the simple-change discount already can. The S-11 plan asked the owner to confirm this reading at the pause before Phase 3; until the owner does, it is the plan's default. The other reading, a floor on every shifted step, would turn the `implement` down shift off (`score.shift.implement.down: null`). "Override the churn risk axis" is read as: a down shift needs measured churn risk with no hot path. See "S-11 decisions".
 
 **GIVEN** a `score` step that fails three times, or a `complexity.json` that fails validation after the retry **WHEN** the router decides the next step **THEN** it **MUST** skip scoring with the reason logged and go on with the deterministic signals.
 
@@ -100,3 +102,33 @@ The router must stay deterministic and testable, and its hard rules keep it free
 | Score after the plan, from `plan.md` | not adopted | A richer input, but the plan has already run at an unscored tier, so the saving on the most expensive step is lost. Reconsider with reassessment. |
 | Keep Phase 1 signals only (ADR-001 as written) | rejected | Contradicts the owner's decision of 2026-10-31 to build FR-011 in M-1. |
 | Score at every rigor level | not adopted | A scorer that costs tokens on a `lean` change works against the usage goal. `score.minRigor` can lower this later. |
+
+## S-11 decisions
+
+Change `llm-complexity-scorer` (roadmap S-11) built this ADR. Plan: `context/changes/llm-complexity-scorer/plan.md` ("Decisions taken without a human"); research: `context/changes/llm-complexity-scorer/research.md`. The code is `readComplexity`, `scoreNext`, `scoreSummary`, `scoreShift`, `riskMeasured` and `tierFor` in `route.mjs`; the data is the `score` block and `steps.score` in `policy.json`; the prompt is `prompts/score.md`. Every threshold is uncalibrated.
+
+- Gate and tier. `score.minRigor` ships `standard`, so `standard` and `thorough` runs score and `lean` runs do not. `null` turns the step off. `steps.score` pins the lowest ladder rung (`baseTier` 0, `maxTier` 1), so a retry runs one rung up. The step runs after any pre-plan step and only while no `plan` attempt is logged, so a run that starts with a `plan.md` that has `## Progress` gets no score and no skip entry.
+- Outside the pool. The step does not draw from `extraSteps.allowance`, because the pool pays for executors that earn savings and an uncalibrated scorer must not starve them. It counts in the step budget, and `rigor.budgetDelta` rises by 1 at `standard` (+3) and `thorough` (+8). The budgets are 10, 17 and 22. The longest failure-free paths are 15 and 20, two steps under the budget.
+- Failed attempts use no budget. A `score` entry is `advisory`: when it fails it uses no step budget, raises no rigor and withholds no simple-change discount, but it still bumps its own retry tier. The successful attempt counts. Counting three failures would turn the longest path into a budget halt, and a failed scorer never halts the run. The step skips after 3 failed attempts (`score.maxAttempts`, capped by `escalation.maxAttemptsPerStep`) or 2 invalid files (`score.maxInvalid`). `compare` still counts failed `score` attempts in `failedAttempts`, because they cost tokens.
+- `signals.rigor` dropped. `cleanSignals` drops `rigor` from a `score` result and keeps `needsHuman`. `prompts/score.md` also forbids the key and wins over the generic suffix, which invites it. The score only advises, so it never moves the rigor level.
+- Effort floor on interactive steps. See the dated note under the floor rule above.
+- Churn risk axis. A down shift needs measured churn risk with no hot plan or diff path. "Measured" is the test of the `lean` plan-review skip, moved into `riskMeasured(risk)` so the two cannot drift: history readable, the plan names at least one path and every named path is classified. Up shifts have no guards.
+- `plan` up only. `score.shift.plan.down` is `null`. Churn risk is never measured before the first plan, and a hard-keyword goal keeps the plan's base tier on purpose. A cognitive sum of 7 or more moves the first plan (template `plan`) up one rung.
+- `implement` down guards. An execution sum of 7 or more moves `implement` up one rung. A sum of 2 or less moves it down one rung only when every guard holds: confidence `medium` or `high`, at most 2 unknowns, measured risk with no hot path, no failed step, no simple-change discount and no phase-count bump on the step. So the down shift acts only on a plan of 2 phases, or of 1 phase with more than 6 rows. The shift covers the templates `implement`, `implement-segment`, `implement-tdd` and `implement-e2e`; `plan-revise`, `plan-replan`, `plan-rejected`, `implement-retry` and every other step get none.
+- Effective shift. The shift goes into `tierFor` before the clamp and the floor. The log entry records `scoreShift: { sum, value, shift, effective }`, where `effective` is the final tier with the shift minus the final tier without it. `report.md` lists an absorbed shift as "not applied (clamp or floor)".
+- Shift read from the log. The router copies the scores into the `score` run entry, or into the skip entry when a valid file was already there (trusted as-is). Every later tier and the report read that copy. A later edit, deletion or corruption of `complexity.json` changes neither.
+- Measurement. `compare` adds `tokens.byTier`, keyed `<model>/<effort>`, because `byModel` cannot show an effort move. `compare --unpinned` waives only the `baseline-not-pinned` reason, adds the warning `baseline-unpinned` and gives the verdict `unpinned`. `complexity.json` is a produced file, so it is not in `inputFiles`. `baseline-policy.json` sets `score.minRigor` to `null`, so the pinned baseline arm never scores.
+
+### A/B decision rule
+
+Fixed before any run. Each pair is one change, with the scorer off as the baseline and the scorer on as the routed side, compared with `compare --unpinned`. The A/A pair has the scorer off on both arms. The arms alternate which runs first and run close in time. The scorer stays on only when all three hold over at least 5 comparable pairs:
+
+1. The median `dropPercent` is above 0.
+2. The median per-pair difference of opus tokens (on minus off, from `byModel`) is 0 or less, so a drop bought by moving work to the top model does not count.
+3. The median `dropPercent` is above the absolute `dropPercent` of one A/A pair, so the drop is larger than run-to-run spread.
+
+Any other outcome sets `score.minRigor` to `null` in `policy.json`, with no router change. That includes fewer than 5 comparable pairs, a missing A/A pair and a result inside the A/A spread (inconclusive). A pair that is not comparable is recorded with its reasons and does not count. Five pairs is the minimum of this ADR and a screen, not a significance test. The rule reads raw tokens and does not credit the `implement` effort move beyond the tokens it saves. The alternative "inconclusive keeps the scorer on at `standard`" was rejected, because it reverses the burden of proof in "Consequences".
+
+### A/B result
+
+Pending. A human runs the pairs and records here, per pair, `dropPercent`, `byModel` and `byTier` of both arms, and the reasons of every pair that is not comparable, then the keep or turn-off decision.
