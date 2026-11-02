@@ -34,6 +34,15 @@ const SETUP_MD = [
 ].join("\n");
 
 const MANUAL_ROW = "Run `node --version` and see a version";
+
+// A valid complexity.json whose sums trigger no tier shift: every factor scores 1, so both sums are 3.
+const SCORE = JSON.stringify({
+  schemaVersion: policy.score.schemaVersion,
+  factors: Object.fromEntries([...policy.score.factors.cognitive, ...policy.score.factors.execution]
+    .map((name) => [name, { score: 1, evidence: `goal phrase for ${name}` }])),
+  unknowns: [],
+  confidence: "medium",
+});
 const EVIDENCE = "evidence/out.txt";
 
 // The three kinds of phase the router tells apart.
@@ -127,9 +136,17 @@ function fixtureProject(fixture, { override = null, useGit = true } = {}) {
 }
 
 // Answers one run action with the files the real skill would leave, then reports the result through the router.
+// While `script.scoreFails` is above 0 a score step fails without a file.
 function answer(project, fixture, state, json, script) {
   const e = lastRan(project);
   switch (json.step) {
+    case "score":
+      if (script.scoreFails > 0) {
+        script.scoreFails--;
+        return finish(project, { status: "failed", note: "fixture scorer failure" });
+      }
+      put(project, policy.score.file, SCORE);
+      break;
     case "research": put(project, "research.md", RESEARCH); break;
     case "domain-brief": put(project, e.template === "domain-aggregate" ? "refactor-invariant-aggregate.md" : "refactor-anti-corruption-layer.md", BRIEF); break;
     case "frame": put(project, "frame.md", FRAME); break;
@@ -164,8 +181,10 @@ function answer(project, fixture, state, json, script) {
 }
 
 // A failure-free walk of the whole run. Returns the project, the last answer and the executed steps.
+// Every walk opts into the score step (score.minRigor "standard"), whatever the override says otherwise.
 function walkFixture(name, level, { override = null, script = longScript(level), useGit = true, goal = level === "thorough" ? THOROUGH_GOAL : GOAL, fixture = FIXTURES[name] } = {}) {
-  const project = fixtureProject(fixture, { override, useGit });
+  const merged = { ...(override ?? {}), score: { ...(override?.score ?? {}), minRigor: "standard" } };
+  const project = fixtureProject(fixture, { override: merged, useGit });
   const state = { done: new Set(), manualDone: false, rework: false };
   let res = init(project, goal, ["--rigor", level]);
   for (let i = 0; res.json.action === "run"; i++) {
@@ -191,7 +210,7 @@ function longest(level, options = {}) {
 }
 
 // The longest failure-free paths the policy table of the ADR names.
-const TABLE = { standard: 14, thorough: 19 };
+const TABLE = { standard: 15, thorough: 20 };
 
 // ---- tests ------------------------------------------------------------------
 
@@ -205,7 +224,7 @@ test("longest legal path", { skip: noGit }, () => {
     assert.equal(max, TABLE[level], `${level} table\n${detail}`);
     for (const [name, w] of Object.entries(per)) assert.ok(w.steps <= budgetOf(level) - 2, `${name}: ${w.steps} steps fit a budget of ${budgetOf(level)} with two to spare`);
   }
-  assert.deepEqual(policy.rigor.budgetDelta, { lean: -4, standard: 2, thorough: 7 });
+  assert.deepEqual(policy.rigor.budgetDelta, { lean: -4, standard: 3, thorough: 8 });
 });
 
 test("failure path fits", { skip: noGit }, () => {
@@ -213,11 +232,12 @@ test("failure path fits", { skip: noGit }, () => {
   const script = { ...longScript("standard"), planReviews: pairs([SOUND, SOUND]), implReviews: pairs([["NEEDS ATTENTION", CRITICAL], ["APPROVED", CLEAN]]), implementFails: 2 };
   const w = walkFixture("failure", "standard", { fixture, script });
   assert.equal(w.res.json.action, "done", `${w.res.stdout}\n${w.sequence.join(" ")}`);
-  // plan, plan-review (2), implement failed twice (4), plan-replan, plan-review (6), implement (7), manual-verify (8), impl-review, fix, impl-review (11).
+  // score (1), plan, plan-review (3), implement failed twice (5), plan-replan, plan-review (7), implement (8), manual-verify (9),
+  // impl-review, fix, impl-review (12).
   assert.deepEqual(w.sequence, [
-    "plan", "plan-review", "implement", "implement", "plan-replan", "plan-review", "implement", "manual-verify", "impl-review", "fix", "impl-review",
+    "score", "plan", "plan-review", "implement", "implement", "plan-replan", "plan-review", "implement", "manual-verify", "impl-review", "fix", "impl-review",
   ]);
-  assert.equal(w.steps, 11);
+  assert.equal(w.steps, 12);
   assert.ok(w.steps <= budgetOf("standard"), `${w.steps} steps fit a budget of ${budgetOf("standard")}`);
   assert.equal(statusOf(w.project).rigor, "standard");
 
@@ -260,5 +280,27 @@ test("raised cap exceeds budget", { skip: noGit }, () => {
     const detail = Object.entries(per).map(([name, w]) => `${name} ${w.steps}: ${w.sequence.join(" ")}`).join("\n");
     // One more pool step lengthens the longest path past the point the shipped delta leaves to spare.
     assert.ok(max > policy.limits.maxTotalSteps + policy.rigor.budgetDelta[level] - 2, `${level}: ${max}\n${detail}`);
+  }
+});
+
+test("scorer failures skip", { skip: noGit }, () => {
+  const attempts = Math.min(policy.score.maxAttempts, policy.escalation.maxAttemptsPerStep);
+  for (const level of ["standard", "thorough"]) {
+    for (const name of Object.keys(FIXTURES)) {
+      const w = walkFixture(name, level, { script: { ...longScript(level), scoreFails: attempts } });
+      const ran = ranOf(w.project);
+      const label = `${name} at ${level}: ${w.sequence.join(" ")}`;
+      assert.equal(w.res.json.action, "done", `${label}\n${w.res.stdout}`);
+      // The scorer failed every attempt, then the router logged a skip and went on to plan.
+      const scores = ran.filter((e) => e.step === "score");
+      assert.equal(scores.length, attempts, label);
+      assert.equal(scores.every((e) => e.ok === false && e.advisory === true), true, label);
+      assert.ok(readLogEntries(w.project).some((e) => e.skipped && e.step === "score"), `${label}: a score skip is logged`);
+      // Failed advisory entries use no budget: the counted steps leave one step to spare, the executed ones at most two over.
+      const counted = ran.filter((e) => !(e.advisory && e.ok === false)).length;
+      assert.ok(counted <= TABLE[level] - 1, `${label}: ${counted} counted steps`);
+      assert.ok(ran.length <= TABLE[level] + 2, `${label}: ${ran.length} executed steps`);
+      assert.equal(statusOf(w.project).rigor, level, `${label}: the level stays ${level}`);
+    }
   }
 });

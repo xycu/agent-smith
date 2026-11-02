@@ -11,5 +11,6 @@
   "rigor": {
     "fromGoal": { "short": "standard", "plain": "standard", "hard": "standard" },
     "skipPlanReviewAt": []
-  }
+  },
+  "score": { "minRigor": null }
 }

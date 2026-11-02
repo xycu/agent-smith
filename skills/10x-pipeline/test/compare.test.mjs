@@ -19,8 +19,9 @@ const DEFAULT = readJson("policy.json");
 
 // ---- 1.1 baseline file guard -----------------------------------------------------
 
-test("1.1 baseline file has exactly ladder and rigor, all sonnet/high, standard rigor, no plan-review skip", () => {
-  assert.deepEqual(Object.keys(BASELINE).sort(), ["ladder", "rigor"]);
+test("1.1 baseline file has exactly ladder, rigor and score, all sonnet/high, standard rigor, no plan-review skip, no scorer", () => {
+  assert.deepEqual(Object.keys(BASELINE).sort(), ["ladder", "rigor", "score"]);
+  assert.deepEqual(BASELINE.score, { minRigor: null });
   for (const tier of BASELINE.ladder) assert.deepEqual(tier, { model: "sonnet", effort: "high" });
   const highestMax = Math.max(...Object.values(DEFAULT.steps).map((s) => s.maxTier));
   assert.ok(BASELINE.ladder.length >= highestMax + 1, "ladder covers every step maxTier");
@@ -621,4 +622,140 @@ test("3.1 --format md prints the table, per-model lines, drop, target, verdict, 
   assert.equal(valueless.status, 1);
   assert.equal(valueless.json.action, "halt");
   assert.deepEqual([snapshot(baseline.base), snapshot(routed.base)], before);
+});
+
+// ---- llm-complexity-scorer, Phase 4: baseline arm and the scorer A/B -------------------
+
+const PLAIN = "Add a retry counter to the status output so the report shows how often each step ran again";
+
+// The override file written as the user copies it: the raw file, not through writeOverride.
+function copiedOverride(text) {
+  const project = makeProject();
+  fs.writeFileSync(path.join(project.root, "context/foundation/agent-smith-policy.json"), text);
+  return project;
+}
+
+test("4.2 a baseline-policy run at standard starts with plan, the shipped default with score", () => {
+  const baseline = copiedOverride(fs.readFileSync(path.join(SKILL_DIR, "baseline-policy.json"), "utf8"));
+  const res = init(baseline, PLAIN, ["--rigor", "standard"]);
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.step, "plan");
+  assert.equal(res.json.model, "sonnet");
+  assert.equal(res.json.effort, "high");
+  assert.equal(readMetaFile(baseline).rigor.level, "standard");
+  assert.ok(readLogEntries(baseline).every((e) => e.step !== "score"), "no score entry, run or skip");
+
+  const shipped = copiedOverride("{}");
+  const control = init(shipped, PLAIN, ["--rigor", "standard"]);
+  assert.equal(control.json.step, "score");
+});
+
+test("4.3 --unpinned waives only the pin, warns and reports the unpinned verdict", () => {
+  // Scorer off as baseline (a routed run on several tiers), scorer on as routed.
+  const baseline = side({ totals: [400, 600], over: { model: "opus", effort: "high" } });
+  const routed = side({ totals: [250, 350], policy: targetPolicy(10) });
+  const plain = compare(routed, baseline);
+  assert.equal(plain.json.comparable, false);
+  assert.ok(plain.json.reasons.includes("baseline-not-pinned"));
+
+  for (const flag of [["--unpinned"], ["--unpinned", "true"]]) {
+    const j = compare(routed, baseline, flag).json;
+    assert.equal(j.comparable, true, flag.join(" "));
+    assert.deepEqual(j.reasons, []);
+    assert.ok(j.warnings.includes("baseline-unpinned"));
+    assert.equal(j.pinned, false);
+    assert.equal(j.dropPercent, 40);
+    assert.equal(j.targetDropPercent, 10);
+    assert.equal(j.verdict, "unpinned");
+  }
+  // The scorer cost more: the drop is negative and prints as today.
+  const worse = compare(side({ totals: [1300] }), side({ totals: [1000], over: { model: "haiku" } }), ["--unpinned"]).json;
+  assert.equal(worse.dropPercent, -30);
+  assert.equal(worse.verdict, "unpinned");
+  // A pinned baseline under --unpinned also gets the warning and the verdict.
+  const pinned = compare(side({ totals: [600] }), side({ totals: [1000] }), ["--unpinned"]).json;
+  assert.equal(pinned.pinned, true);
+  assert.deepEqual(pinned.warnings, ["baseline-unpinned"]);
+  assert.equal(pinned.verdict, "unpinned");
+  // Every other reason stays.
+  const halted = compare(side({ totals: [50], meta: { outcome: { action: "halt" } } }), baseline, ["--unpinned"]).json;
+  assert.equal(halted.comparable, false);
+  assert.deepEqual(halted.reasons, ["outcome-not-done:routed"]);
+  assert.equal(halted.verdict, "not comparable");
+  assert.equal(halted.dropPercent, null);
+  const md = compare(routed, baseline, ["--unpinned", "--format", "md"]);
+  assert.equal(md.status, 0, md.stderr);
+  assert.ok(md.stdout.includes("Verdict: unpinned."), md.stdout);
+  assert.ok(md.stdout.includes("Warnings: baseline-unpinned"), md.stdout);
+});
+
+test("4.3 --unpinned false behaves as without the flag, and an invalid value halts before anything is read", () => {
+  const baseline = side({ totals: [1000], over: { model: "haiku" } });
+  const routed = side({ totals: [600] });
+  assert.deepEqual(compare(routed, baseline, ["--unpinned", "false"]).json, compare(routed, baseline).json);
+  const pinnedBase = side({ totals: [1000] });
+  assert.deepEqual(compare(routed, pinnedBase, ["--unpinned", "false"]).json, compare(routed, pinnedBase).json);
+
+  const before = [snapshot(baseline.base), snapshot(routed.base)];
+  for (const value of ["md", "yes", "1"]) {
+    const res = compare(routed, baseline, ["--unpinned", value]);
+    assert.equal(res.status, 1, value);
+    assert.equal(res.json.action, "halt");
+    assert.equal(res.json.reason, `Invalid --unpinned ${value}. Use --unpinned, --unpinned true or --unpinned false.`);
+  }
+  // Checked before the sides are read: a missing baseline still halts on the flag.
+  const early = run(routed, ["compare", "demo", "--baseline", "/nonexistent-dir", "--unpinned", "md"]);
+  assert.match(early.json.reason, /Invalid --unpinned md/);
+  assert.deepEqual([snapshot(baseline.base), snapshot(routed.base)], before);
+});
+
+test("4.3 tokens.byTier sums per model and effort, beside byModel, in JSON and Markdown", () => {
+  const routed = side({ totals: [100] });
+  writeLog(routed, [
+    entry(1, "score", { model: "haiku", effort: "low", advisory: true, ok: false, usage: { totalTokens: 5 } }),
+    entry(2, "score", { model: "haiku", effort: "low", advisory: true, usage: { totalTokens: 7 } }),
+    entry(3, "plan", { model: "opus", effort: "high", usage: { totalTokens: 100 } }),
+    entry(4, "implement", { model: "sonnet", effort: "medium", usage: { totalTokens: 40 } }),
+    entry(5, "impl-review", { model: "sonnet", effort: "high", usage: { totalTokens: 30 } }),
+    entry(6, "fix", { model: "sonnet", effort: "high", usage: { totalTokens: 20 } }),
+    entry(7, "fix", { effort: undefined, usage: { totalTokens: 1 } }),
+  ]);
+  const baseline = side({ totals: [400, 600] });
+  const res = compare(routed, baseline, ["--unpinned"]);
+  assert.equal(res.status, 0, res.stderr);
+  const t = res.json.routed.tokens;
+  assert.deepEqual(t.byTier, { "haiku/low": 12, "opus/high": 100, "sonnet/medium": 40, "sonnet/high": 50, "sonnet/unknown": 1 });
+  assert.deepEqual(t.byModel, { haiku: 12, opus: 100, sonnet: 91 });
+  assert.deepEqual(res.json.baseline.tokens.byTier, { "sonnet/high": 1000 });
+  // Failed score attempts still count as failed attempts.
+  assert.equal(res.json.routed.failedAttempts, 1);
+
+  const md = compare(routed, baseline, ["--unpinned", "--format", "md"]).stdout;
+  for (const text of [
+    "Tokens by model, baseline: sonnet 1000",
+    "Tokens by model, routed: haiku 12, opus 100, sonnet 91",
+    "Tokens by tier, baseline: sonnet/high 1000",
+    "Tokens by tier, routed: haiku/low 12, opus/high 100, sonnet/high 50, sonnet/medium 40, sonnet/unknown 1",
+  ]) assert.ok(md.includes(text), `${text}\n${md}`);
+  // Without the flag the byTier lines are there too.
+  const plainMd = compare(side({ totals: [600] }), baseline, ["--format", "md"]).stdout;
+  assert.ok(plainMd.includes("Tokens by tier, routed: sonnet/high 600"), plainMd);
+  assert.ok(plainMd.includes("Verdict: target not set"), plainMd);
+});
+
+test("4.3 a pair whose only file difference is complexity.json has no input-files-differ warning", () => {
+  const score = JSON.stringify({ schemaVersion: 1 });
+  const on = side({ totals: [600], files: { "research.md": "r\n", "complexity.json": score } });
+  const off = side({ totals: [1000], files: { "research.md": "r\n" } });
+  const res = compare(on, off, ["--unpinned"]);
+  assert.deepEqual(res.json.warnings, ["baseline-unpinned"]);
+  assert.equal(res.json.routed.inputFiles.includes("complexity.json"), false);
+  assert.deepEqual(compare(on, off).json.warnings, []);
+  // The file name comes from the score block of the policy compare loads.
+  const renamed = side({ totals: [600], files: { "research.md": "r\n", "score.json": score, "complexity.json": score }, policy: { score: { file: "score.json" } } });
+  const w = compare(renamed, off).json.warnings;
+  assert.deepEqual(w, ["input-files-differ:complexity.json"]);
+  // A malformed score block falls back to complexity.json.
+  const broken = side({ totals: [600], files: { "complexity.json": score }, policy: { score: { file: "../x" } } });
+  assert.deepEqual(compare(broken, off).json.warnings, ["input-files-differ:research.md"]);
 });
