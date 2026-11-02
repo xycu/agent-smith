@@ -1,0 +1,10 @@
+{
+  "id": "managed-agent-patterns",
+  "goal": "Add run provenance, tool-restricted step agents and an opt-in advisor, as described in change.md",
+  "rigor": {
+    "requested": "thorough",
+    "level": "thorough",
+    "by": "--rigor thorough"
+  },
+  "baseSha": "394b1be33a87d47e34f1b5bb7d04ccaab373640f"
+}

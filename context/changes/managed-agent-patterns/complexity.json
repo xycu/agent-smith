@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md fixes the three phases and their default-off flags, but research.md Open Questions 4 (advisor direction a/b/c) and 6 (restricted agents for research and frame, or score only) are unresolved product decisions" },
+    "novelty": { "score": 2, "evidence": "research.md: policy flags and meta.json merge follow existing patterns (ADR-007 style), but plugin agents/*.md with a tools allowlist and an advisor tied to user settings have no precedent in the repo" },
+    "coupling": { "score": 3, "evidence": "research.md Code References: route.mjs (init, compare, run output), policy.json, SKILL.md dispatch (subagent_type), meta.json read by compare, plugin manifest, plus a new run output field the orchestrator consumes" },
+    "discovery": { "score": 2, "evidence": "research.md names the router, policy and SKILL.md locations; plugin agent resolution (agent-smith:score), MCP filtering in restricted agents and advisor token attribution are areas not named in change.md and need a search or live check" },
+    "volume": { "score": 3, "evidence": "change.md: three phases touching route.mjs, policy.json, SKILL.md, README, compare, ADR-009, three agents/*.md files, provenance code and new tests; likely more than 10 files" },
+    "verification": { "score": 3, "evidence": "research.md: advisor token attribution and restricted-agent behaviour need a live Claude Code run; compare figures are nondeterministic token counts; no existing test covers agents/ or advisor" }
+  },
+  "unknowns": [
+    "Whether subagent_type agent-smith:score resolves for a marketplace-installed plugin and what the Agent call returns when it does not (research.md Open Question 1)",
+    "Whether a subagent's reported totalTokens includes advisor tokens or attributes them to the advisor model (research.md Phase 3, Open Question 4)",
+    "Advisor direction (a) prompt nudge on advisorModel, (b) nested Agent consult, or (c) drop phase 3 (research.md Open Question 4)",
+    "Whether a plugin agent tools list also filters MCP tools in a foreground subagent (research.md Open Question 7)",
+    "Whether restricting research and frame is worth shipping, or score only (research.md Open Question 6)"
+  ],
+  "confidence": "medium"
+}

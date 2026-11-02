@@ -184,7 +184,7 @@ Baseline comparison:
 - `dropPercent` is the exact drop rounded down to 2 decimals; the verdict uses exact tokens. Run `compare` from the project whose override file holds the target: `compare.targetDropPercent` is read from that project's policy, not from `--routed`'s. It ships as `null`, so the verdict is `target not set` until the owner fills it.
 - The unit is raw tokens, a proxy for the weekly limit. It understates savings from `haiku` steps and overstates a drop bought by moving work to `opus`. Orchestrator-session tokens are not counted; retries are counted.
 - One pair is an anecdote. Compare per-pair drops across several changes, run the two sides close in time and alternate which runs first. A halted or incomplete side makes the pair not comparable instead of being dropped. Read the warnings before trusting the number.
-- The baseline file keeps its keys, so the baseline arm runs the same phase executors, segments, `manual-verify` and re-plans as the routed arm. For a routing-only comparison add this to the baseline override by hand: `{"extraSteps": {"allowance": {"lean": 0, "standard": 0, "thorough": 0}}, "codeReplan": {"afterFailures": 0}}`. A pool allowance of 0 turns off segments, executors, `manual-verify` and the `REJECTED` re-plan, all of which draw from the pool; `afterFailures` 0 turns off the failure re-plan, which does not. The commit check, the retry and the fallback act only after an executor step ran, so with the allowance at 0 they never fire. `compare` does not warn when the two arms differ in these features.
+- The baseline file keeps its keys, so the baseline arm runs the same phase executors, segments, `manual-verify` and re-plans as the routed arm. For a routing-only comparison add this to the baseline override by hand: `{"extraSteps": {"allowance": {"lean": 0, "standard": 0, "thorough": 0}}, "codeReplan": {"afterFailures": 0}}`. A pool allowance of 0 turns off segments, executors, `manual-verify` and the `REJECTED` re-plan, all of which draw from the pool; `afterFailures` 0 turns off the failure re-plan, which does not. The commit check, the retry and the fallback act only after an executor step ran, so with the allowance at 0 they never fire. When both runs carry a provenance record, `compare` warns `provenance-differs:codeReplan,extraSteps` for these additions (see "Run provenance").
 - Keep the baseline worktree until `compare` has run, because its `run.jsonl` exists nowhere else; remove it with `git worktree remove <path>` afterwards.
 
 Scorer A/B check:
@@ -196,6 +196,24 @@ Scorer A/B check:
 - Alternate which arm runs first and run the two arms close in time.
 - Decision rule, fixed before any run. The scorer stays on only when all three hold over at least 5 comparable pairs: the median `dropPercent` is above 0; the median per-pair difference of `opus` tokens (on minus off, from `byModel`) is 0 or less; the median `dropPercent` is above the absolute A/A `dropPercent`. Any other outcome turns it off: fewer than 5 comparable pairs, no A/A pair, or a result inside the A/A spread. To turn it off, set `score.minRigor` to `null` in `policy.json`; the router does not change. A pair that is not comparable is recorded with its reasons and does not count.
 - Five pairs is a screen, not a significance test. The rule reads raw tokens and does not credit an effort move beyond the tokens it saves. The result goes into ADR-007 under "A/B result"; no pair has run yet.
+
+Run provenance:
+
+- `init` records what a run runs with in `meta.provenance`, once, while the run has no executed step: `schemaVersion` 1, `plugin` (the `version` of `.claude-plugin/plugin.json`), `sections` and `flags`.
+- `sections` holds one hash per section of the merged policy: the first 16 hex characters of a SHA-256 over JSON with sorted keys. `prompts` hashes the resolved text of every template, so an edit of a `prompts/*.md` file changes it. `agentFiles` hashes the `agents/*.md` files of the plugin.
+- The sections in `provenance.ignore` (default `compare` and `provenance`) are not hashed. Setting `compare.targetDropPercent` changes no hash.
+- `flags` holds `archive` and `chrome` from `meta.json`, `score.minRigor` from the merged policy (`null` when unset), `agents.restricted` and `advisor.enabled`. A flag that is missing or malformed reads `false`.
+- Computing the record never halts a run. An unreadable `plugin.json` gives `plugin: null`, a missing `agents/` folder gives `agentFiles: null`, and a prompt reference that does not resolve gives `prompts: null`; the run then halts at `next` as before.
+- The record is never rewritten, also on a resume. Each `next` hashes the sections again and adds every section that differs from the record to `provenance.drift`, sorted, each name once. `drift` is absent while empty. `plugin` and `flags` are not tracked for drift. `next` writes `meta.json` for drift only when the list changes.
+- A run whose log already holds executed steps and has no record, because it started before provenance existed, gets none. Nothing halts for a missing record.
+- `compare` prints the record of each side as `provenance` (`null` when absent) and appends these warnings after the others. They never change `comparable`, `reasons`, `dropPercent` or `verdict`.
+- `provenance-unknown:<side>`: exactly one side has no record. Two sides without a record stay silent.
+- `provenance-differs:<names>`: the sections, or `plugin`, that differ between the two records, sorted and comma-joined.
+- `flags-differ:<keys>`: the flags that differ.
+- `provenance-drift:<side>:<names>`: the `drift` list of that side.
+- Names the pair is expected to differ in raise no warning. Without `--unpinned` the set is `provenance.expected.pinned` (default `ladder`, `rigor` and `score`, the sections `baseline-policy.json` changes). With `--unpinned` it is `provenance.expected.unpinned` (default `score`, the scorer A/B arms). The mode follows the flag only, never the `pinned` value `compare` measures.
+- A flag is exempt when its first dot segment is an expected section, so `score.minRigor` raises no warning in either mode.
+- The expected sets come from the policy of the project that runs `compare`. A list that is not an array of strings reads as the default.
 
 Limits:
 
