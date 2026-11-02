@@ -216,11 +216,19 @@ PR comment (opt-in):
 - A change id is at most 100 characters for the script (the marker must fit in the comment head). The router has no such limit, so a longer id ends in `PR comment: skipped, script error`.
 - A run that ended before the pull request existed: open the pull request, check out its branch and run `node <plugin>/skills/10x-pipeline/scripts/pr-comment.mjs <change-id> [--report context/archive/<date>-<change-id>/agent-smith/report.md]` from the project root. The comment goes to the pull request of the branch checked out now, so run it from the branch of that pull request. The result prints the pull request url. `--report` accepts only a file named `report.md` inside a directory named `agent-smith`, whose first line is `# Run report: <change-id>`.
 
+## Versions and releases
+
+Versions follow [Semantic Versioning](https://semver.org). The plugin is on `0.x`, so the minor number can carry breaking changes until `1.0.0`. Releases are tagged `vX.Y.Z` with a changelog on the [Releases page](https://github.com/xycu/agent-smith/releases). release-please keeps one release PR current from the Conventional Commits on `main`; contributors do not edit the version fields. The rules are in `AGENTS.md` ("Commits", "Releases") and ADR-008.
+
 ## Layout
 
 ```
 .claude-plugin/plugin.json        plugin manifest
 .claude-plugin/marketplace.json   marketplace with this repo as its only plugin
+release-please-config.json        release-please config (extra-files list the version fields)
+.release-please-manifest.json     current released version
+.github/workflows/                ci.yml (tests, version check, commit lint) and release.yml
+tools/                            version-check.mjs, commit-lint.mjs and their tests
 skills/10x-pipeline/              orchestrator skill, policy, router
 skills/10x-pipeline/test/         node:test suite for the router and the prompt rule form
 docs/ADR/                         architecture decision records

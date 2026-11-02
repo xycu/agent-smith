@@ -13,7 +13,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 
 ## Project Structure
 
-- `.claude-plugin/plugin.json` — plugin manifest. `.claude-plugin/marketplace.json` — marketplace listing this repo as its only plugin. Keep `name`, `description` and `version` aligned between the two and with @README.md.
+- `.claude-plugin/plugin.json` — plugin manifest. `.claude-plugin/marketplace.json` — marketplace listing this repo as its only plugin. Keep `name` and `description` aligned between the two and with @README.md. `version` is set only by the release PR (see Releases); `tools/version-check.mjs` fails when the fields differ.
 - `skills/10x-pipeline/SKILL.md` — orchestrator instructions (the loop over router output).
 - `skills/10x-pipeline/policy.json` — model ladder, base tiers, escalation, limits, prompt templates.
 - `skills/10x-pipeline/baseline-policy.json` — per-project override that pins the baseline arm of `compare` (all tiers `sonnet`/`high`, `standard` rigor, no plan-review skip). Data the user copies; the router does not read it.
@@ -26,15 +26,18 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `skills/10x-pipeline/prompts/score.md` — rules and rubric of the `score` subagent, which writes `complexity.json`; see `prompts/README.md`.
 - `skills/10x-pipeline/prompts/executor-e2e.md`, `executor-tdd.md`, `executor-retry.md`, `impl-review-warn.md` and `manual-verify.md` — prompts of the phase executors and `manual-verify`; see `prompts/README.md`.
 - `skills/10x-pipeline/prompts/impl-review-lessons.md` — suffix of both implementation review prompts that asks for lesson candidates; see `prompts/README.md`.
-- `docs/ADR/` — architecture decision records (ADR-001 to ADR-007).
+- `tools/version-check.mjs` — drift guard: `plugin.json`, both `marketplace.json` version fields and `.release-please-manifest.json` must be equal and valid SemVer. `tools/commit-lint.mjs` — Conventional Commits check for the subjects of a git range. Tests: `tools/test/*.test.mjs`.
+- `release-please-config.json`, `.release-please-manifest.json` — release-please configuration and the current version. `.github/workflows/ci.yml` — tests, version check and commit lint; `.github/workflows/release.yml` — the release PR. See ADR-008.
+- `docs/ADR/` — architecture decision records (ADR-001 to ADR-008).
 - `context/` — 10x workflow docs: `changes/`, `archive/`, `foundation/`. See the README in each.
 - `assets/` — README header image only.
 
 ## Commands
 
-There is no build or lint setup. Run the tests with `node --test skills/10x-pipeline/test/*.test.mjs` (shell glob, Node 24 and later). Exercise the router from a project root that has `context/changes/<id>/change.md`:
+There is no build or lint setup. Run the tests with `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). Exercise the router from a project root that has `context/changes/<id>/change.md`:
 
 - `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive] [--chrome]` — start or resume a run. `--archive` makes `done` commit the change folder and return an `archive` action (`--archive false` turns it off). `--chrome` picks the `manual-verify` template that may use the Chrome tools (`--chrome false` turns it off).
+- `node tools/version-check.mjs` — exit 0 when every version field is equal and valid SemVer. `node tools/commit-lint.mjs <range>` (for example `main..HEAD`) — exit 0 when every commit subject in the range is a Conventional Commit.
 - `node skills/10x-pipeline/scripts/route.mjs next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `node skills/10x-pipeline/scripts/route.mjs status <id>` — print the per-step model and effort log.
 - `node skills/10x-pipeline/scripts/route.mjs risk <id>` — print churn hot paths, plan hits and diff hits; writes nothing.
@@ -51,8 +54,27 @@ There is no build or lint setup. Run the tests with `node --test skills/10x-pipe
 
 ## Testing
 
-Run `node --test skills/10x-pipeline/test/*.test.mjs` after any change to `route.mjs`, `policy.json` or a prompt. The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. New router and test code must run on Node 24 (ADR-006). Then run `init` and `status` against a scratch change folder and confirm the JSON output is valid.
+Run `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` after any change to `route.mjs`, `policy.json`, a prompt or `tools/`. The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. New router and test code must run on Node 24 (ADR-006). Then run `init` and `status` against a scratch change folder and confirm the JSON output is valid.
 
 ## Commits
 
-History has only two commits and sets no convention. The `fix` prompt in `policy.json` asks for Conventional Commits (`fix: ...`); use that style.
+Every commit subject follows [Conventional Commits](https://www.conventionalcommits.org/): `type(scope)!: description`, with `type` one of `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `perf`, `test`, `build`, `revert`. The `commits` job in `ci.yml` checks each commit of a pull request, because the owner rebase-merges and the subjects land on `main`. The type sets the SemVer bump (ADR-008):
+
+| Commit | Bump | Opens a release PR |
+| --- | --- | --- |
+| `fix:` | patch | yes |
+| `feat:` | minor | yes |
+| `!` after the type, or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0, major from 1.0.0 | yes |
+| `docs`, `chore`, `ci`, `test`, `build`, `refactor`, `perf`, `revert` | none | no |
+
+Add a `Co-Authored-By:` trailer for AI-assisted commits.
+
+## Releases
+
+Releases are made by [release-please](https://github.com/googleapis/release-please) in the release-PR model (`.github/workflows/release.yml`, `release-please-config.json`, `.release-please-manifest.json`; ADR-008). Every push to `main` updates one release PR. Merging it sets the version, creates the tag `vX.Y.Z` and publishes a GitHub Release with the changelog (`CHANGELOG.md`).
+
+- **One version, four fields.** `plugin.json` `version`, `marketplace.json` `metadata.version` and `plugins[0].version`, and the manifest `.` hold the same version. release-please updates them together; never edit them by hand. `tools/version-check.mjs` runs in `ci.yml` and fails on drift.
+- **Owner setting, once.** Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests". Without it `release.yml` fails when it opens the PR.
+- **No checks on the release PR.** A PR opened with `GITHUB_TOKEN` starts no other workflow. `main` has no required checks, so the owner merges it after reading the diff.
+- **Version line.** The version is `0.x` (SemVer initial development). To release `1.0.0`, put a `Release-As: 1.0.0` footer on a commit.
+- **Release type.** `docs`, `chore`, `ci`, `test` and `build` commits make no release PR; the next `feat` or `fix` does.

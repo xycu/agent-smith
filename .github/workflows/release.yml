@@ -1,0 +1,35 @@
+name: Release
+
+# release-please in its release-PR model: every push to main updates one standing release PR
+# that collects the changes. Merging that PR bumps the version (plugin.json and both version
+# fields of marketplace.json, via release-please-config.json `extra-files`), creates the
+# vX.Y.Z tag and publishes a GitHub Release with a generated changelog. The bump follows
+# Semantic Versioning from the Conventional Commits on main: fix: patch, feat: minor,
+# ! or BREAKING CHANGE: major (minor while the version is below 1.0.0).
+#
+# Auth: the default GITHUB_TOKEN. One-time owner setting: Settings -> Actions -> General ->
+# "Allow GitHub Actions to create and approve pull requests", or release-please cannot open the PR.
+# A PR opened with GITHUB_TOKEN starts no other workflow, so ci.yml does not run on the release PR;
+# main has no required checks, so that does not block the merge.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: Maintain release PR / publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
