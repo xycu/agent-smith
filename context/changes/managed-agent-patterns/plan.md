@@ -342,13 +342,13 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 #### Automated
 
-- [x] 2.1 With the default policy no `run` output and no log entry has an `agent` field
-- [x] 2.2 With `agents.restricted: true` the `score` run output and log entry carry `agent: "agent-smith:score"`, no other step does, and `status` shows it
-- [x] 2.3 A malformed `agents` block (restricted not `true`, `steps` not an object, a value that is not a non-empty string) reads as off and never halts
-- [x] 2.4 `agents/score.md` has `name`, `description` and `tools` exactly `Read, Grep, Glob, Write`, and no `model`, `effort`, `hooks`, `mcpServers` or `permissionMode` key; every value of `agents.steps` is `<plugin name>:<file>` for an existing `agents/<file>.md`
-- [x] 2.5 Editing `agents/score.md` changes the provenance `agentFiles` hash, and flipping `agents.restricted` changes the `agents` section and the `agents.restricted` flag
-- [x] 2.6 `SKILL.md` tells the orchestrator to use the router's `agent` as `subagent_type` when present and still names no model alias
-- [x] 2.7 The whole suite passes
+- [x] 2.1 With the default policy no `run` output and no log entry has an `agent` field — aa71d59
+- [x] 2.2 With `agents.restricted: true` the `score` run output and log entry carry `agent: "agent-smith:score"`, no other step does, and `status` shows it — aa71d59
+- [x] 2.3 A malformed `agents` block (restricted not `true`, `steps` not an object, a value that is not a non-empty string) reads as off and never halts — aa71d59
+- [x] 2.4 `agents/score.md` has `name`, `description` and `tools` exactly `Read, Grep, Glob, Write`, and no `model`, `effort`, `hooks`, `mcpServers` or `permissionMode` key; every value of `agents.steps` is `<plugin name>:<file>` for an existing `agents/<file>.md` — aa71d59
+- [x] 2.5 Editing `agents/score.md` changes the provenance `agentFiles` hash, and flipping `agents.restricted` changes the `agents` section and the `agents.restricted` flag — aa71d59
+- [x] 2.6 `SKILL.md` tells the orchestrator to use the router's `agent` as `subagent_type` when present and still names no model alias — aa71d59
+- [x] 2.7 The whole suite passes — aa71d59
 
 #### Manual
 
@@ -360,12 +360,12 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 #### Automated
 
-- [ ] 3.1 With the default policy no prompt contains the advisor text, for every template
-- [ ] 3.2 With `advisor.enabled: true` the prompts of `plan`, `implement` and `implement-segment` carry the advisor rules once, before the suffix, and the log entry has `advisor: true`; `plan-revise`, `plan-replan`, `plan-rejected`, `implement-retry`, executors, reviews, `fix`, `score` and pre-plan steps carry none
-- [ ] 3.3 A malformed `advisor` block reads as off and never halts
-- [ ] 3.4 `prompts/advisor.md` follows the rule form, names no model, and is listed in the `prompts/README.md` wired table
-- [ ] 3.5 Provenance records `advisor.enabled` in `flags`, and flipping it changes the `advisor` section
-- [ ] 3.6 ADR-009 rule lines follow the rule form and the whole suite passes
+- [x] 3.1 With the default policy no prompt contains the advisor text, for every template
+- [x] 3.2 With `advisor.enabled: true` the prompts of `plan`, `implement` and `implement-segment` carry the advisor rules once, before the suffix, and the log entry has `advisor: true`; `plan-revise`, `plan-replan`, `plan-rejected`, `implement-retry`, executors, reviews, `fix`, `score` and pre-plan steps carry none
+- [x] 3.3 A malformed `advisor` block reads as off and never halts
+- [x] 3.4 `prompts/advisor.md` follows the rule form, names no model, and is listed in the `prompts/README.md` wired table
+- [x] 3.5 Provenance records `advisor.enabled` in `flags`, and flipping it changes the `advisor` section
+- [x] 3.6 ADR-009 rule lines follow the rule form and the whole suite passes
 
 #### Manual
 
