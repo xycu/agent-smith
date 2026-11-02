@@ -114,6 +114,17 @@ test("skills/10x-pipeline/prompts/*.md follow the rule form", () => {
   }
 });
 
+test("SKILL.md anti-stall rules follow the rule form", () => {
+  const lines = fs.readFileSync(path.join(SKILL_DIR, "SKILL.md"), "utf8").split("\n");
+  const start = lines.findIndex((l) => l === "## Anti-stall rules");
+  assert.ok(start >= 0, "no ## Anti-stall rules section");
+  let end = start + 1;
+  while (end < lines.length && !lines[end].startsWith("## ")) end++;
+  const section = lines.slice(start + 1, end);
+  assert.ok(section.some((l) => l.includes("**GIVEN**")), "section has no rule line");
+  assert.deepEqual(lineProblems(section, { strict: true }), []);
+});
+
 test("ADR rule lines follow the rule form", () => {
   const dir = path.join(REPO, "docs/ADR");
   if (!fs.existsSync(dir)) return;
