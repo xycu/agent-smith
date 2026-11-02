@@ -257,6 +257,31 @@ function lessonLines(log, oneLine) {
   ];
 }
 
+// The complexity score section, from log entries only: the summary of the ok score entry or the skip entry, then one
+// line per entry whose tier the score moved. No summary, no section.
+function complexityLines(fullLog) {
+  const summary = scoreSummary(fullLog);
+  if (!summary) return [];
+  const source = executed(fullLog).find((e) => e.step === "score" && e.ok && e.score === summary);
+  const factors = isObject(summary.factors) ? Object.entries(summary.factors).map(([name, value]) => `${name} ${value}`).join(", ") : "-";
+  const shifts = executed(fullLog).filter((e) => isObject(e.scoreShift)).map((e) => {
+    const s = e.scoreShift;
+    return `- ${e.step} ${s.shift > 0 ? "+" : ""}${s.shift}${s.effective ? "" : " not applied (clamp or floor)"} (step ${e.n})`;
+  });
+  return [
+    "## Complexity score",
+    "",
+    `Scores: cognitive ${summary.cognitive}, execution ${summary.execution} (${factors})`,
+    `Confidence: ${summary.confidence} · Unknowns: ${summary.unknowns}`,
+    `Source: ${source ? `score step ${source.n}` : "an existing complexity file, trusted as-is"}`,
+    "",
+    ...(shifts.length
+      ? ["Tier shifts (cognitive moves plan, execution moves implement; one rung each):", "", ...shifts]
+      : ["No tier shift."]),
+    "",
+  ];
+}
+
 function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
   const log = executed(fullLog);
@@ -293,6 +318,7 @@ function buildReport(id, meta, fullLog) {
       ...skips.map((e) => `| ${e.afterN} | ${e.step} | ${oneLine(e.reason).replace(/\|/g, "/")} | ${e.rigor ?? "-"} |`),
       "",
     ] : []),
+    ...complexityLines(fullLog),
     ...lessonLines(log, oneLine),
   ].join("\n");
 }
@@ -759,6 +785,12 @@ function measureRisk(p, meta, log, policy) {
   return { source: set.source, hot: [...set.hot].sort(), planPaths: checked.length, unclassified, planHits, diffHits: [...new Set(diffHits)].sort(), hits, level };
 }
 
+// Churn risk was measured: history was readable, the plan names at least one path and every named path was matched
+// against the hot set. The lean plan-review skip and the score down shift share this test so the two cannot drift.
+function riskMeasured(risk) {
+  return isObject(risk) && risk.source !== "unavailable" && (risk.planPaths ?? 0) >= 1 && (risk.unclassified?.length ?? 0) === 0;
+}
+
 function decide(p, fullLog, policy, meta, ctx) {
   const E = policy.escalation;
   const L = policy.limits;
@@ -806,7 +838,7 @@ function decide(p, fullLog, policy, meta, ctx) {
       const source = ctx.risk?.source ?? "unavailable";
       const planPathCount = ctx.risk?.planPaths ?? 0;
       const unclassified = ctx.risk?.unclassified?.length ?? 0;
-      const measured = source !== "unavailable" && planPathCount >= 1 && unclassified === 0;
+      const measured = riskMeasured(ctx.risk);
       if (skippable && !codeRan && plan.autoDone === 0 && measured) {
         return {
           skip: {
@@ -1167,6 +1199,45 @@ function scoreNext(p, fullLog, policy, meta, ctx) {
     return { skip: { step: "score", reason: `${lead} skipped after ${why} (last: ${note}); going on with deterministic signals` } };
   }
   return { step: "score", template: "score", bump: 0, reason: `retry score: attempt ${mine.length} did not pass` };
+}
+
+// The score summary the router copied into the log: from the last ok score run entry, else from the score skip entry
+// (a valid file that was already there), else null. The file itself is never read again, so a later edit, deletion
+// or corruption of it changes neither a tier nor the report.
+function scoreSummary(fullLog) {
+  const ran = executed(fullLog).filter((e) => e.step === "score" && e.ok && isObject(e.score));
+  if (ran.length) return ran[ran.length - 1].score;
+  const skip = fullLog.filter((e) => e.skipped && e.step === "score" && isObject(e.score));
+  return skip.length ? skip[skip.length - 1].score : null;
+}
+
+// The tier shift of one step from the logged score. Returns { applies, sum, value, shift, why }: `applies` when a
+// summary exists and the step's template is listed under score.shift.<step>.templates; `shift` +1 at or above `up`,
+// -1 at or below `down` when every down guard holds, else 0. A threshold that is not a number turns that direction
+// off. Up shifts have no guards. Down guards: enough confidence, few unknowns, churn risk measured with no hot path,
+// no failed step, no simple-change discount and no phase-count bump on this step (ADR-007: the shift never overrides
+// the churn risk axis and sits next to the deterministic signals). The rigor level is never touched.
+function scoreShift(d, policy, summary, guards) {
+  const none = { applies: false, shift: 0 };
+  const cfg = scoreConfig(policy);
+  const S = cfg?.shift;
+  if (!isObject(summary) || !isObject(S)) return none;
+  const template = d.template ?? d.step;
+  const rule = S[d.step];
+  if (!["plan", "implement"].includes(d.step) || !isObject(rule) || !Array.isArray(rule.templates) || !rule.templates.includes(template)) return none;
+  const group = cfg.factors[rule.sum];
+  const value = summary[rule.sum];
+  if (!Array.isArray(group) || !Number.isFinite(value)) return none;
+  const why = `${rule.sum} ${value}/${cfg.scale.max * group.length}, confidence ${summary.confidence}`;
+  const res = { applies: true, sum: rule.sum, value, shift: 0, why };
+  if (Number.isFinite(rule.up) && value >= rule.up) return { ...res, shift: 1 };
+  if (!Number.isFinite(rule.down) || value > rule.down) return res;
+  const confidence = cfg.confidences.indexOf(summary.confidence);
+  const minConfidence = cfg.confidences.indexOf(S.downMinConfidence);
+  const held = minConfidence >= 0 && confidence >= minConfidence &&
+    Number.isFinite(S.downMaxUnknowns) && Number.isInteger(summary.unknowns) && summary.unknowns <= S.downMaxUnknowns &&
+    guards.riskClear === true && !guards.failed && !guards.discount && !guards.phaseBump;
+  return held ? { ...res, shift: -1 } : res;
 }
 
 // The re-plan branch of decide(): plan review said RETHINK, or REVISE with findings to fix, and no code ran yet.
@@ -1701,13 +1772,16 @@ function effortFloorTier(policy, name) {
   return idx < 0 ? policy.ladder.length - 1 : idx;
 }
 
-function tierFor(d, log, policy, plan, meta, level) {
+// `score` (optional) is { summary, riskClear }: the score summary from the log and whether churn risk was measured with
+// no hot path. Without it, or without a summary, the tier is what it was before the score step existed.
+function tierFor(d, log, policy, plan, meta, level, score = null) {
   const s = policy.steps[d.step];
   const C = policy.complexity;
   let tier = s.baseTier;
   const parts = [`base ${s.baseTier}`];
+  let cb = 0;
   if (C.appliesTo.includes(d.step)) {
-    const cb = C.phaseThresholds.filter((t) => plan.phases >= t).length;
+    cb = C.phaseThresholds.filter((t) => plan.phases >= t).length;
     if (cb) { tier += cb; parts.push(`+${cb} for ${plan.phases} phases`); }
   }
   if (d.bump) { tier += d.bump; parts.push(`${d.bump > 0 ? "+" : ""}${d.bump} from ${d.bumpWhy ?? "results"}`); }
@@ -1738,11 +1812,24 @@ function tierFor(d, log, policy, plan, meta, level) {
     }
     return { final, notes };
   };
+  // The score shift goes in before settle, so the clamp and, for interactive steps, the effort floor bound it.
+  const shifted = isObject(score) && score.summary
+    ? scoreShift(d, policy, score.summary, { riskClear: score.riskClear === true, failed: log.some(isFailure), discount: discount > 0, phaseBump: cb > 0 })
+    : { applies: false, shift: 0 };
+  if (shifted.applies && shifted.shift !== 0) tier += shifted.shift;
   const settled = settle(tier);
+  let scoreEntry;
+  if (shifted.applies && shifted.shift !== 0) {
+    // The effective shift is measured like the saved discount: the final tier with and without it.
+    const effective = settled.final - settle(tier - shifted.shift).final;
+    const sign = shifted.shift > 0 ? "+" : "";
+    parts.push(effective ? `${sign}${shifted.shift} score (${shifted.why})` : `${sign}${shifted.shift} score not applied (clamp or floor)`);
+    scoreEntry = { sum: shifted.sum, value: shifted.value, shift: shifted.shift, effective };
+  }
   parts.push(...settled.notes);
   // A discount that the clamp, the offset or the floor absorbed is no saving, so the report does not claim it.
   const saved = discount > 0 && settled.final < settle(tier + discount).final;
-  return { tier: settled.final, fails, simple: saved, tierWhy: parts.join(", ") };
+  return { tier: settled.final, fails, simple: saved, tierWhy: parts.join(", "), scoreShift: scoreEntry };
 }
 
 function render(tpl, vars) {
@@ -2079,7 +2166,9 @@ function next(id, policy) {
   }
 
   const plan = readPlan(p.plan);
-  const { tier, fails, simple, tierWhy } = tierFor(d, ran, policy, plan, meta, level);
+  // The score shift reads the summary from the log, never complexity.json.
+  const riskClear = riskMeasured(risk) && risk.hits.length === 0;
+  const { tier, fails, simple, tierWhy, scoreShift: shifted } = tierFor(d, ran, policy, plan, meta, level, { summary: scoreSummary(log), riskClear });
   if (fails >= policy.escalation.maxAttemptsPerStep) {
     return endRun(p, id, meta, log, { action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}` });
   }
@@ -2116,6 +2205,7 @@ function next(id, policy) {
   };
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
+  if (shifted) entry.scoreShift = shifted;
   if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
   if (d.executor) entry.executor = d.executor;
   if (Array.isArray(d.retry)) entry.retry = d.retry;
@@ -2416,11 +2506,17 @@ function status(id, flags) {
   const res = {
     change: id,
     rigor: readMeta(p.meta, {}).rigor?.level ?? null,
-    steps: log.map((e) => e.skipped ? { skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null } : ({
+    steps: log.map((e) => e.skipped ? {
+      skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null,
+      ...(e.score ? { score: e.score } : {}),
+    } : ({
       n: e.n, step: e.step, template: e.template ?? null, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
       ...(e.step === "manual-verify" ? { ticked: e.ticked?.length ?? 0, unproven: e.unproven?.length ?? 0 } : {}),
+      ...(e.score ? { score: e.score } : {}),
+      ...(e.invalid ? { invalid: e.invalid } : {}),
+      ...(e.scoreShift ? { scoreShift: e.scoreShift } : {}),
     })),
   };
   if (flags.report) {

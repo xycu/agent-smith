@@ -409,10 +409,10 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [x] 2.1 Gate tests pass: `node --test --test-name-pattern="score gate" skills/10x-pipeline/test/score.test.mjs`
-- [x] 2.2 Validation tests pass: `node --test --test-name-pattern="score validation" skills/10x-pipeline/test/score.test.mjs`
-- [x] 2.3 Failure tests pass: `node --test --test-name-pattern="score failure" skills/10x-pipeline/test/score.test.mjs`
-- [x] 2.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 2.1 Gate tests pass: `node --test --test-name-pattern="score gate" skills/10x-pipeline/test/score.test.mjs` — 306ca6f
+- [x] 2.2 Validation tests pass: `node --test --test-name-pattern="score validation" skills/10x-pipeline/test/score.test.mjs` — 306ca6f
+- [x] 2.3 Failure tests pass: `node --test --test-name-pattern="score failure" skills/10x-pipeline/test/score.test.mjs` — 306ca6f
+- [x] 2.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 306ca6f
 
 #### Manual
 
@@ -422,9 +422,9 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [ ] 3.1 Shift tests pass: `node --test --test-name-pattern="score shift" skills/10x-pipeline/test/score.test.mjs`
-- [ ] 3.2 Report and status tests pass: `node --test --test-name-pattern="score report" skills/10x-pipeline/test/score.test.mjs`
-- [ ] 3.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.1 Shift tests pass: `node --test --test-name-pattern="score shift" skills/10x-pipeline/test/score.test.mjs`
+- [x] 3.2 Report and status tests pass: `node --test --test-name-pattern="score report" skills/10x-pipeline/test/score.test.mjs`
+- [x] 3.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 

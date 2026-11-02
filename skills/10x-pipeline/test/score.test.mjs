@@ -1,7 +1,8 @@
 // Complexity score step of the llm-complexity-scorer change (ADR-007). Black-box through the CLI, plus data checks on
 // policy.json. Phase 1 covers the policy data, the scorer prompt and the test helper default (`score data`).
 // Phase 2 covers scheduling, verification by file, the log copy and the neutral failures (`score gate`,
-// `score validation`, `score failure`). These tests opt in with `policy: { score: { minRigor: "standard" } }`.
+// `score validation`, `score failure`). Phase 3 covers the tier shift read from the log and the report (`score shift`,
+// `score report`). These tests opt in with `policy: { score: { minRigor: "standard" } }`.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -9,7 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, init, next, run, writeOverride, writeResult, writeReview, planText, readMetaFile,
-  readLogEntries, readReportFile,
+  readLogEntries, readReportFile, gitAvailable, gitEnv, gitInit, commitFiles,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -190,9 +191,11 @@ function put(project, file, text, when = future()) {
   fs.utimesSync(abs, when, when);
 }
 
+// A project with a scratch git repository runs the router in the hermetic git environment.
+const envOf = (project) => (project.git ? { env: gitEnv(project) } : {});
 const finish = (project, result = { status: "done", note: "ok" }) => {
   writeResult(project, result);
-  return next(project);
+  return project.git ? run(project, ["next", project.id], envOf(project)) : next(project);
 };
 const ranOf = (project) => readLogEntries(project).filter((e) => !e.skipped);
 const skipsOf = (project) => readLogEntries(project).filter((e) => e.skipped);
@@ -499,4 +502,433 @@ test("score failure: a score result with needsHuman halts once with a report", (
   const again = next(project);
   assert.equal(again.json.action, "run");
   assert.equal(again.json.step, "score");
+});
+
+// ---- Phase 3 helpers: tiers from the logged score ----------------------------------
+
+const gitSkip = gitAvailable() ? false : "git is not installed";
+// GOAL is a short goal (25 words or fewer): its first plan sits on the effort floor. PLAIN_GOAL is longer.
+const PLAIN_GOAL = `${GOAL} and also lists, for every step that ran again, the note of the attempt that failed before it in one line`;
+const HARD_GOAL = "Refactor the status output so the report shows how often each step ran again after a failure";
+const ONE_WARNING = { findings: "0 critical, 1 warnings" };
+// Scores that move nothing (sums 3 and 3), a high cognitive sum, a high and a low execution sum.
+const QUIET = () => scoreFile();
+const HIGH_COGNITIVE = (over) => scoreFile({ ambiguity: 3, novelty: 3, coupling: 1 }, over);
+const HIGH_EXECUTION = (over) => scoreFile({ discovery: 3, volume: 3, verification: 1 }, over);
+const LOW_EXECUTION = (over) => scoreFile({ discovery: 0, volume: 0, verification: 1 }, over);
+const shiftOf = (e) => e.scoreShift;
+
+// 10 commits: f9.js and f4.js are hot, g1.js to g4.js are cold, README.md is excluded. Risk is measured for a plan
+// that names g1.js. Same shape as the churn tests.
+function coldRepo(project) {
+  gitInit(project);
+  for (let i = 1; i <= 9; i++) {
+    const files = ["f9.js"];
+    if (i <= 4) files.push("f4.js", `g${i}.js`);
+    commitFiles(project, files, { message: `c${i}` });
+  }
+  commitFiles(project, ["README.md"], { message: "c10" });
+  project.git = true;
+}
+
+function gitProject(policyOver = OPT_IN) {
+  const project = makeProject({ policy: policyOver });
+  coldRepo(project);
+  return project;
+}
+
+const twoPhases = (file = "g1.js") => planText({ phases: 2, files: file ? [`**File**: \`${file}\``] : [] });
+
+// Walks an opted-in project through score (with `value`), plan and plan review. Returns the response that follows
+// the plan review: the first implement step for a plan with pending rows.
+function toImplement(project, value, { plan = twoPhases(), goal = PLAIN_GOAL, rigor = "standard", review = ONE_WARNING } = {}) {
+  let res = run(project, ["init", project.id, "--goal", goal, "--rigor", rigor], envOf(project));
+  assert.equal(res.json?.step, "score", res.stdout);
+  putScore(project, value);
+  res = finish(project);
+  assert.equal(res.json.step, "plan", res.stdout);
+  put(project, "plan.md", plan);
+  res = finish(project);
+  assert.equal(res.json.step, "plan-review", res.stdout);
+  writeReview(project, "plan-review", review);
+  fs.utimesSync(path.join(project.changeDir, "reviews/plan-review.md"), future(), future());
+  return finish(project);
+}
+
+// The first plan step of an opted-in project at standard, scored with `value`.
+function firstPlan(value, { goal = PLAIN_GOAL, policyOver = OPT_IN } = {}) {
+  const project = makeProject({ policy: policyOver });
+  const res = init(project, goal, ["--rigor", "standard"]);
+  assert.equal(res.json.step, "score", res.stdout);
+  putScore(project, value);
+  const plan = finish(project);
+  assert.equal(plan.json.step, "plan", plan.stdout);
+  return { project, res: plan, e: lastRan(project) };
+}
+
+// ---- shift: up --------------------------------------------------------------------
+
+test("score shift: a cognitive sum of 7 moves a plain-goal first plan from 3 to 4", () => {
+  const control = firstPlan(scoreFile({ ambiguity: 3, novelty: 2, coupling: 1 })).e;
+  assert.equal(control.tier, 3, control.tierWhy);
+  assert.equal(shiftOf(control), undefined);
+
+  const { e } = firstPlan(HIGH_COGNITIVE());
+  assert.equal(e.tier, 4, e.tierWhy);
+  assert.deepEqual(shiftOf(e), { sum: "cognitive", value: 7, shift: 1, effective: 1 });
+  assert.match(e.tierWhy, /\+1 score \(cognitive 7\/9, confidence medium\)/);
+});
+
+test("score shift: a hard-keyword first plan moves from 4 to 5", () => {
+  const control = firstPlan(QUIET(), { goal: HARD_GOAL }).e;
+  assert.equal(control.tier, 4, control.tierWhy);
+  const { e } = firstPlan(HIGH_COGNITIVE(), { goal: HARD_GOAL });
+  assert.equal(e.tier, 5, e.tierWhy);
+  assert.equal(shiftOf(e).effective, 1);
+});
+
+test("score shift: the up shift has no guards: low confidence and 3 unknowns", () => {
+  const { e } = firstPlan(HIGH_COGNITIVE({ confidence: "low", unknowns: ["a", "b", "c"] }));
+  assert.equal(e.tier, 4, e.tierWhy);
+  assert.equal(shiftOf(e).shift, 1);
+});
+
+test("score shift: an execution sum of 7 moves implement up one rung", { skip: gitSkip }, () => {
+  const project = gitProject();
+  const res = toImplement(project, HIGH_EXECUTION());
+  assert.equal(res.json.step, "implement", res.stdout);
+  const e = lastRan(project);
+  assert.equal(e.tier, 4, e.tierWhy);
+  assert.deepEqual(shiftOf(e), { sum: "execution", value: 7, shift: 1, effective: 1 });
+});
+
+test("score shift: the implement up shift also applies with a hot path, unmeasured risk, a phase bump or a discount", { skip: gitSkip }, () => {
+  const hot = gitProject();
+  toImplement(hot, HIGH_EXECUTION(), { plan: twoPhases("f9.js") });
+  assert.equal(lastRan(hot).tier, 4, lastRan(hot).tierWhy);
+
+  const unmeasured = makeProject({ policy: OPT_IN });
+  toImplement(unmeasured, HIGH_EXECUTION());
+  assert.equal(lastRan(unmeasured).tier, 4, lastRan(unmeasured).tierWhy);
+
+  const phases = gitProject();
+  toImplement(phases, HIGH_EXECUTION(), { plan: planText({ phases: 3, files: ["**File**: `g1.js`"] }) });
+  assert.equal(lastRan(phases).tier, 5, lastRan(phases).tierWhy);
+
+  const discount = gitProject();
+  toImplement(discount, HIGH_EXECUTION(), { plan: planText({ phases: 1, files: ["**File**: `g1.js`"] }) });
+  const d = lastRan(discount);
+  assert.equal(d.tier, 3, d.tierWhy);
+  assert.equal(shiftOf(d).shift, 1);
+});
+
+// ---- shift: plan down is off ----------------------------------------------------------
+
+test("score shift: a low cognitive sum never moves the first plan down", () => {
+  const low = scoreFile({ ambiguity: 0, novelty: 0, coupling: 0 }, { confidence: "high" });
+  const { e } = firstPlan(low);
+  assert.equal(e.tier, 3, e.tierWhy);
+  assert.equal(shiftOf(e), undefined);
+  // An override threshold changes nothing: churn risk is never measured before the first plan.
+  const over = firstPlan(low, { policyOver: { score: { minRigor: "standard", shift: { plan: { down: 2 } } } } }).e;
+  assert.equal(over.tier, 3, over.tierWhy);
+  assert.equal(shiftOf(over), undefined);
+});
+
+// ---- shift: implement down ------------------------------------------------------------
+
+test("score shift: a low execution sum moves plain implement from 3 to 2 with measured risk and no hot path", { skip: gitSkip }, () => {
+  const project = gitProject();
+  const res = toImplement(project, LOW_EXECUTION());
+  assert.equal(res.json.step, "implement", res.stdout);
+  const e = lastRan(project);
+  assert.equal(e.template, "implement");
+  assert.equal(e.tier, 2, e.tierWhy);
+  assert.equal(e.model, policy.ladder[2].model);
+  assert.equal(e.effort, policy.ladder[2].effort);
+  assert.deepEqual(shiftOf(e), { sum: "execution", value: 1, shift: -1, effective: -1 });
+  assert.match(e.tierWhy, /-1 score \(execution 1\/9, confidence medium\)/);
+  assert.equal(readMetaFile(project).rigor.level, "standard");
+});
+
+// Each case must leave plain implement at tier 3 with no shift recorded.
+const noDown = [
+  ["confidence low", () => [gitProject(), LOW_EXECUTION({ confidence: "low" }), {}]],
+  ["3 unknowns", () => [gitProject(), LOW_EXECUTION({ unknowns: ["a", "b", "c"] }), {}]],
+  ["a hot plan path", () => [gitProject(), LOW_EXECUTION(), { plan: twoPhases("f9.js") }]],
+  ["risk unavailable (no git)", () => [makeProject({ policy: OPT_IN }), LOW_EXECUTION(), {}]],
+  ["a plan that names no path", () => [gitProject(), LOW_EXECUTION(), { plan: twoPhases(null) }]],
+  ["an unclassified plan token", () => [gitProject(), LOW_EXECUTION(), { plan: twoPhases("/etc/hosts") }]],
+];
+for (const [name, build] of noDown) {
+  test(`score shift: no implement down shift on ${name}`, { skip: gitSkip }, () => {
+    const [project, value, opts] = build();
+    const res = toImplement(project, value, opts);
+    assert.equal(res.json.step, "implement", res.stdout);
+    const e = lastRan(project);
+    assert.equal(e.tier, 3, `${name}: ${e.tierWhy}`);
+    assert.equal(shiftOf(e), undefined, name);
+    assert.doesNotMatch(e.tierWhy, /score/, name);
+  });
+}
+
+test("score shift: no implement down shift after a failed step", { skip: gitSkip }, () => {
+  const project = gitProject();
+  run(project, ["init", project.id, "--goal", GOAL, "--rigor", "standard"], envOf(project));
+  putScore(project, LOW_EXECUTION());
+  assert.equal(finish(project).json.step, "plan");
+  assert.equal(finish(project, { status: "failed", note: "no plan" }).json.step, "plan");
+  put(project, "plan.md", twoPhases());
+  assert.equal(finish(project).json.step, "plan-review");
+  writeReview(project, "plan-review", ONE_WARNING);
+  fs.utimesSync(path.join(project.changeDir, "reviews/plan-review.md"), future(), future());
+  assert.equal(finish(project).json.step, "implement");
+  const e = lastRan(project);
+  assert.equal(e.tier, 3, e.tierWhy);
+  assert.equal(shiftOf(e), undefined);
+});
+
+test("score shift: no implement down shift with a simple-change discount or a phase-count bump", { skip: gitSkip }, () => {
+  const simple = gitProject();
+  toImplement(simple, LOW_EXECUTION(), { plan: planText({ phases: 1, files: ["**File**: `g1.js`"] }) });
+  const s = lastRan(simple);
+  assert.equal(s.tier, 2, s.tierWhy);
+  assert.equal(s.simple, true);
+  assert.equal(shiftOf(s), undefined);
+
+  const bumped = gitProject();
+  toImplement(bumped, scoreFile({ discovery: 0, volume: 0, verification: 0 }, { confidence: "high" }), {
+    plan: planText({ phases: 3, files: ["**File**: `g1.js`"] }),
+  });
+  const b = lastRan(bumped);
+  assert.equal(b.tier, 4, b.tierWhy);
+  assert.equal(shiftOf(b), undefined);
+});
+
+test("score shift: no implement down shift once the diff touches a hot path", { skip: gitSkip }, () => {
+  const project = gitProject();
+  toImplement(project, LOW_EXECUTION());
+  assert.equal(lastRan(project).tier, 2, lastRan(project).tierWhy);
+  // The first implement step finishes phase 1 and commits a hot file; phase 2 is still pending.
+  put(project, "plan.md", planText({ phases: 2, done: 1, files: ["**File**: `g1.js`"] }));
+  commitFiles(project, ["f9.js"], { message: "touch hot" });
+  const res = finish(project);
+  assert.equal(res.json.step, "implement", res.stdout);
+  const e = lastRan(project);
+  assert.equal(e.tier, 3, e.tierWhy);
+  assert.equal(shiftOf(e), undefined);
+});
+
+// ---- shift: bounds ------------------------------------------------------------------
+
+// Two code phases whose rows name a test command: at thorough both go to the tdd executor.
+function tddPlan() {
+  const phase = (n) => `## Phase ${n}: Logic ${n}\n\n**File**: \`g${n}.js\`\n`;
+  const progress = (n) => `### Phase ${n}: Logic ${n}\n\n#### Automated\n\n- [ ] ${n}.1 Unit tests pass: \`node --test g${n}.test.mjs\`\n\n#### Manual\n\n- [ ] ${n}.9 Look at it\n`;
+  return `# Plan\n\n${phase(1)}\n${phase(2)}\n## Progress\n\n${progress(1)}\n${progress(2)}`;
+}
+
+test("score shift: an implement-tdd step at thorough never goes below the effort floor", { skip: gitSkip }, () => {
+  const project = gitProject();
+  put(project, "research.md", "---\nstatus: complete\n---\n# Research\n", past());
+  const res = toImplement(project, scoreFile({ discovery: 0, volume: 0, verification: 0 }, { confidence: "high" }), {
+    plan: tddPlan(), rigor: "thorough",
+  });
+  assert.equal(res.json.step, "implement", res.stdout);
+  const e = lastRan(project);
+  assert.equal(e.template, "implement-tdd");
+  assert.equal(e.tier, 3, e.tierWhy);
+  assert.deepEqual(shiftOf(e), { sum: "execution", value: 0, shift: -1, effective: 0 });
+  assert.match(e.tierWhy, /-1 score not applied \(clamp or floor\)/);
+});
+
+test("score shift: maxTier bounds the up shift and records effective 0", () => {
+  const nine = scoreFile({ ambiguity: 3, novelty: 3, coupling: 3 });
+  const { e } = firstPlan(nine, { goal: HARD_GOAL, policyOver: { ...OPT_IN, steps: { plan: { maxTier: 4 } } } });
+  assert.equal(e.tier, 4, e.tierWhy);
+  assert.deepEqual(shiftOf(e), { sum: "cognitive", value: 9, shift: 1, effective: 0 });
+  assert.match(e.tierWhy, /\+1 score not applied \(clamp or floor\)/);
+});
+
+// ---- shift: scope -------------------------------------------------------------------
+
+test("score shift: plan reads cognitive only and implement reads execution only", { skip: gitSkip }, () => {
+  // High execution, quiet cognitive: the plan stays, implement moves.
+  const project = gitProject();
+  toImplement(project, HIGH_EXECUTION());
+  const [plan, review, impl] = ranOf(project).slice(1);
+  assert.equal(plan.tier, 3, plan.tierWhy);
+  assert.equal(shiftOf(plan), undefined);
+  assert.equal(shiftOf(review), undefined);
+  assert.equal(shiftOf(impl).sum, "execution");
+  // High cognitive, quiet execution: the plan moves, implement stays.
+  const other = gitProject();
+  toImplement(other, HIGH_COGNITIVE());
+  const [plan2, , impl2] = ranOf(other).slice(1);
+  assert.equal(shiftOf(plan2).sum, "cognitive");
+  assert.equal(impl2.tier, 3, impl2.tierWhy);
+  assert.equal(shiftOf(impl2), undefined);
+});
+
+test("score shift: a plan-revise step and the review and fix steps get no shift", () => {
+  const all = scoreFile({ ambiguity: 3, novelty: 3, coupling: 3, discovery: 3, volume: 3, verification: 3 });
+  const project = makeProject({ policy: OPT_IN });
+  toImplement(project, all, { review: { verdict: "REVISE", findings: "1 critical, 0 warnings" } });
+  const revise = lastRan(project);
+  assert.equal(revise.template, "plan-revise");
+  assert.equal(shiftOf(revise), undefined);
+  assert.doesNotMatch(revise.tierWhy, /score/);
+
+  const done = makeProject({ policy: OPT_IN });
+  toImplement(done, all, { plan: planText({ phases: 2 }) });
+  put(done, "plan.md", planText({ phases: 2, done: 2 }));
+  let res = finish(done);
+  for (let i = 0; i < 3 && res.json.step !== "impl-review"; i++) res = finish(done);
+  assert.equal(res.json.step, "impl-review", res.stdout);
+  writeReview(done, "impl-review", { verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings" });
+  fs.utimesSync(path.join(done.changeDir, "reviews/impl-review.md"), future(), future());
+  res = finish(done);
+  assert.equal(res.json.step, "fix", res.stdout);
+  for (const e of ranOf(done).filter((x) => ["plan-review", "impl-review", "fix", "manual-verify"].includes(x.step))) {
+    assert.equal(shiftOf(e), undefined, e.step);
+  }
+});
+
+test("score shift: a retried first plan and a repeated implement keep the up shift on top of the failure bump", () => {
+  const project = makeProject({ policy: OPT_IN });
+  const all = scoreFile({ ambiguity: 3, novelty: 3, coupling: 3, discovery: 3, volume: 3, verification: 3 });
+  init(project, PLAIN_GOAL, ["--rigor", "standard"]);
+  putScore(project, all);
+  assert.equal(finish(project).json.step, "plan");
+  assert.equal(lastRan(project).tier, 4);
+  assert.equal(finish(project, { status: "failed", note: "no plan" }).json.step, "plan");
+  const retry = lastRan(project);
+  assert.equal(retry.template, "plan");
+  assert.equal(retry.tier, 5, retry.tierWhy);
+  assert.equal(shiftOf(retry).effective, 1);
+
+  put(project, "plan.md", twoPhases(null));
+  assert.equal(finish(project).json.step, "plan-review");
+  writeReview(project, "plan-review", ONE_WARNING);
+  fs.utimesSync(path.join(project.changeDir, "reviews/plan-review.md"), future(), future());
+  assert.equal(finish(project).json.step, "implement");
+  assert.equal(lastRan(project).tier, 4, lastRan(project).tierWhy);
+  assert.equal(finish(project, { status: "failed", note: "no rows" }).json.step, "implement");
+  const again = lastRan(project);
+  assert.equal(again.template, "implement");
+  assert.equal(again.tier, 5, again.tierWhy);
+  assert.equal(shiftOf(again).effective, 1);
+});
+
+// ---- shift: stability ---------------------------------------------------------------
+
+test("score shift: editing or deleting complexity.json after the score step changes neither tiers nor the report", () => {
+  const project = makeProject({ policy: OPT_IN });
+  init(project, PLAIN_GOAL, ["--rigor", "standard"]);
+  putScore(project, HIGH_COGNITIVE());
+  assert.equal(finish(project).json.step, "plan");
+  // A quiet file now: the logged copy still decides.
+  putScore(project, QUIET());
+  finish(project, { status: "failed", note: "no plan" });
+  assert.equal(lastRan(project).tier, 5, lastRan(project).tierWhy);
+  const report = () => {
+    const st = run(project, ["status", "demo", "--report"]);
+    assert.equal(st.status, 0, st.stdout);
+    return readReportFile(project);
+  };
+  const before = report();
+  fs.rmSync(path.join(project.changeDir, "complexity.json"));
+  finish(project, { status: "failed", note: "no plan again" });
+  assert.equal(lastRan(project).tier, 6, lastRan(project).tierWhy);
+  assert.equal(shiftOf(lastRan(project)).effective, 1);
+  const section = (text) => text.slice(text.indexOf("## Complexity score"));
+  assert.match(before, /## Complexity score/);
+  assert.equal(section(report()).split("\n").slice(0, 6).join("\n"), section(before).split("\n").slice(0, 6).join("\n"));
+});
+
+test("score shift: a run without a score summary has today's tiers and the same rigor", () => {
+  const walk = (project, failScore) => {
+    const res = init(project, GOAL, ["--rigor", "standard"]);
+    if (failScore) {
+      assert.equal(res.json.step, "score");
+      for (let i = 0; i < 3; i++) finish(project, { status: "failed", note: `fail ${i}` });
+    }
+    assert.equal(lastRan(project).step, "plan");
+    put(project, "plan.md", twoPhases(null));
+    finish(project);
+    writeReview(project, "plan-review", ONE_WARNING);
+    fs.utimesSync(path.join(project.changeDir, "reviews/plan-review.md"), future(), future());
+    finish(project);
+    return ranOf(project).filter((e) => e.step !== "score").map(({ step, template, tier, model, effort, tierWhy, simple }) => ({ step, template, tier, model, effort, tierWhy, simple }));
+  };
+  const off = makeProject();
+  const skipped = makeProject({ policy: OPT_IN });
+  assert.deepEqual(walk(skipped, true), walk(off, false));
+  assert.equal(readMetaFile(skipped).rigor.level, readMetaFile(off).rigor.level);
+});
+
+// ---- report -------------------------------------------------------------------------
+
+test("score report: the section lists the sums, the factors and every shift, and an absorbed shift reads not applied", { skip: gitSkip }, () => {
+  const nine = scoreFile({ ambiguity: 3, novelty: 3, coupling: 3, discovery: 0, volume: 0, verification: 0 }, { confidence: "high", unknowns: ["one"] });
+  const project = gitProject({ ...OPT_IN, steps: { plan: { maxTier: 4 } } });
+  toImplement(project, nine, { goal: HARD_GOAL });
+  const st = run(project, ["status", "demo", "--report"], envOf(project));
+  assert.equal(st.status, 0, st.stdout);
+  const report = readReportFile(project);
+  assert.match(report, /^## Complexity score$/m);
+  assert.match(report, /cognitive 9/);
+  assert.match(report, /execution 0/);
+  assert.match(report, /ambiguity 3, novelty 3, coupling 3, discovery 0, volume 0, verification 0/);
+  assert.match(report, /Confidence: high/);
+  assert.match(report, /Unknowns: 1/);
+  assert.match(report, /^- plan \+1 not applied \(clamp or floor\) \(step 2\)$/m);
+  assert.match(report, /^- implement -1 \(step 4\)$/m);
+  // The table still lists the score step.
+  assert.match(report, /^\| 1 \| score \| /m);
+});
+
+test("score report: no section without a score, a section from a skip with a valid file", () => {
+  const off = makeProject();
+  init(off, GOAL, ["--rigor", "standard"]);
+  run(off, ["status", "demo", "--report"]);
+  assert.doesNotMatch(readReportFile(off), /Complexity score/);
+
+  const failed = scoreProject();
+  for (let i = 0; i < 3; i++) finish(failed, { status: "failed", note: `fail ${i}` });
+  run(failed, ["status", "demo", "--report"]);
+  assert.doesNotMatch(readReportFile(failed), /Complexity score/);
+
+  const skipped = makeProject({ policy: OPT_IN });
+  putScore(skipped, HIGH_COGNITIVE(), past());
+  init(skipped, PLAIN_GOAL, ["--rigor", "standard"]);
+  run(skipped, ["status", "demo", "--report"]);
+  const report = readReportFile(skipped);
+  assert.match(report, /^## Complexity score$/m);
+  assert.match(report, /cognitive 7/);
+  assert.match(report, /^- plan \+1 \(step 1\)$/m);
+});
+
+test("score report: status shows the score, the skip summary, invalid and scoreShift", () => {
+  const project = scoreProject(OPT_IN, PLAIN_GOAL);
+  putScore(project, "{");
+  finish(project);
+  putScore(project, HIGH_COGNITIVE());
+  finish(project);
+  const st = run(project, ["status", "demo"]);
+  assert.equal(st.status, 0, st.stdout);
+  const [bad, good, plan] = st.json.steps;
+  assert.equal(bad.step, "score");
+  assert.equal(bad.invalid, "not valid JSON");
+  assert.equal(bad.score, undefined);
+  assert.deepEqual(good.score, summaryOf(HIGH_COGNITIVE()));
+  assert.equal(good.invalid, undefined);
+  assert.deepEqual(plan.scoreShift, { sum: "cognitive", value: 7, shift: 1, effective: 1 });
+  assert.equal(good.scoreShift, undefined);
+
+  const skipped = makeProject({ policy: OPT_IN });
+  putScore(skipped, QUIET(), past());
+  init(skipped, GOAL, ["--rigor", "standard"]);
+  const s = run(skipped, ["status", "demo"]).json.steps.find((x) => x.skipped && x.step === "score");
+  assert.deepEqual(s.score, summaryOf(QUIET()));
 });
