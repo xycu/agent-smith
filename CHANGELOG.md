@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/xycu/agent-smith/compare/v0.3.0...v0.4.0) (2026-11-02)
+
+
+### Features
+
+* **orchestrator-anti-stall:** anti-stall rules in SKILL.md (p1) ([26de3ee](https://github.com/xycu/agent-smith/commit/26de3ee1bc7dd96dac56c6e134a3c9e78a77ad46))
+
+
+### Bug Fixes
+
+* **orchestrator-anti-stall:** scope rules 4 and 5 to the whole run ([384705e](https://github.com/xycu/agent-smith/commit/384705ed30bbc0ad85e4ffe44ef704d3b6b4d103))
+
 ## [0.3.0](https://github.com/xycu/agent-smith/compare/v0.2.0...v0.3.0) (2026-11-02)
 
 
