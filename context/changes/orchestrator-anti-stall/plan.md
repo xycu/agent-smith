@@ -247,10 +247,10 @@ None. A run in flight reads the new SKILL.md on its next invocation; no router s
 
 #### Automated
 
-- [ ] 2.1 Rule-form tests pass
-- [ ] 2.2 Content tests pass
-- [ ] 2.3 Deliberate-break check: removing rule 3 in a scratch copy makes the content test fail
-- [ ] 2.4 Full suite passes
+- [x] 2.1 Rule-form tests pass
+- [x] 2.2 Content tests pass
+- [x] 2.3 Deliberate-break check: removing rule 3 in a scratch copy makes the content test fail
+- [x] 2.4 Full suite passes
 
 ### Phase 3: Documentation
 
