@@ -15,6 +15,9 @@ const SUBJECT = new RegExp(`^(${TYPES.join("|")})(\\([a-z0-9][a-z0-9._-]*\\))?!?
 // Returns an error string for an invalid subject and null for a valid one.
 export function lintSubject(subject) {
   if (subject.startsWith("Merge ")) return null;
+  // Git's default revert subject is: Revert "<original subject>". Accept it when the original is valid.
+  const revert = /^Revert "(.+)"$/.exec(subject);
+  if (revert) return lintSubject(revert[1]);
   if (SUBJECT.test(subject)) return null;
   return `expected "<type>(<scope>)!: <description>" with type one of ${TYPES.join(", ")}`;
 }

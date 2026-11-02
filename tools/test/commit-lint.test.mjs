@@ -56,13 +56,14 @@ test("valid subjects pass", () => {
     "docs(adr): split ADR-007 rule lines",
     "revert: x",
     "Merge branch 'main' into feature",
+    'Revert "feat: x"',
   ]) {
     assert.equal(lintSubject(subject), null, subject);
   }
 });
 
 test("invalid subjects fail", () => {
-  for (const subject of ["Update stuff", "feat:x", "feat(): x", "FEAT: x", "feat: ", "feature: x", "feat (x): y", "feat(Router): x"]) {
+  for (const subject of ["Update stuff", "feat:x", "feat(): x", "FEAT: x", "feat: ", "feature: x", "feat (x): y", "feat(Router): x", 'Revert "wip stuff"', 'Revert ""']) {
     assert.notEqual(lintSubject(subject), null, subject);
   }
 });

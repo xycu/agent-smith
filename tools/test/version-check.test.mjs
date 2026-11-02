@@ -11,7 +11,7 @@ import { check } from "../version-check.mjs";
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../version-check.mjs");
 const created = [];
 
-function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry = "0.1.0", manifest = null } = {}) {
+function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry = "0.1.0", manifest = "0.1.0" } = {}) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "vc-"));
   created.push(root);
   fs.mkdirSync(path.join(root, ".claude-plugin"));
@@ -30,7 +30,7 @@ test.after(() => {
 
 test("equal valid versions pass", () => {
   assert.deepEqual(check(makeRoot()), []);
-  assert.deepEqual(check(makeRoot({ plugin: "1.2.3-rc.1+build.5", meta: "1.2.3-rc.1+build.5", entry: "1.2.3-rc.1+build.5" })), []);
+  assert.deepEqual(check(makeRoot({ plugin: "1.2.3-rc.1+build.5", meta: "1.2.3-rc.1+build.5", entry: "1.2.3-rc.1+build.5", manifest: "1.2.3-rc.1+build.5" })), []);
 });
 
 test("a drifted field is named", () => {
@@ -41,8 +41,11 @@ test("a drifted field is named", () => {
   assert.equal(both.length, 2);
 });
 
-test("the release-please manifest is checked when it exists", () => {
+test("the release-please manifest is required and checked", () => {
   assert.deepEqual(check(makeRoot({ manifest: "0.1.0" })), []);
+  const absent = makeRoot();
+  fs.rmSync(path.join(absent, ".release-please-manifest.json"));
+  assert.match(check(absent)[0], /release-please-manifest\.json cannot be read/);
   const errors = check(makeRoot({ manifest: "0.2.0" }));
   assert.equal(errors.length, 1);
   assert.match(errors[0], /\.release-please-manifest\.json:\./);
@@ -51,9 +54,23 @@ test("the release-please manifest is checked when it exists", () => {
   assert.match(check(missing)[0], /manifest\.json:\. is missing/);
 });
 
+test("release-please-config.json updates every file the guard reads", () => {
+  const repo = path.resolve(path.dirname(SCRIPT), "..");
+  const config = JSON.parse(fs.readFileSync(path.join(repo, "release-please-config.json"), "utf8"));
+  const extra = config.packages["."]["extra-files"];
+  const byPath = new Map(extra.map((entry) => [entry.path, entry]));
+  assert.equal(byPath.get(".claude-plugin/plugin.json")?.jsonpath, "$.version");
+  // $..version reaches metadata.version and plugins[0].version, the two marketplace fields the guard reads.
+  assert.equal(byPath.get(".claude-plugin/marketplace.json")?.jsonpath, "$..version");
+  assert.equal(extra.length, 2);
+  const manifest = JSON.parse(fs.readFileSync(path.join(repo, ".claude-plugin/marketplace.json"), "utf8"));
+  const found = JSON.stringify(manifest).match(/"version"/g).length;
+  assert.equal(found, 2, "a new version key in marketplace.json is rewritten by $..version and must be guarded");
+});
+
 test("a version that is not SemVer fails", () => {
   for (const bad of ["1.0", "v1.0.0", "01.0.0", "1.0.0.0", ""]) {
-    const errors = check(makeRoot({ plugin: bad, meta: bad, entry: bad }));
+    const errors = check(makeRoot({ plugin: bad, meta: bad, entry: bad, manifest: bad }));
     assert.ok(errors.length >= 1, `"${bad}" must fail`);
     assert.match(errors[0], /not a SemVer 2\.0\.0 version/);
   }
