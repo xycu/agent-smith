@@ -163,11 +163,14 @@ function guardArchived(p, id) {
 
 // ---- run log --------------------------------------------------------------
 
-function paths(id) {
+// `complexity` is the score file of the policy's score block, or null when no policy is given or the block is malformed.
+function paths(id, policy = null) {
   const change = path.join(ROOT, "context/changes", id);
   const dir = path.join(change, "agent-smith");
+  const score = policy ? scoreConfig(policy) : null;
   return {
     change,
+    complexity: score ? path.join(change, score.file) : null,
     dir,
     meta: path.join(dir, "meta.json"),
     log: path.join(dir, "run.jsonl"),
@@ -337,7 +340,7 @@ function cleanUsage(raw) {
   return Object.keys(clean).length ? clean : null;
 }
 
-// Keep only known signal keys with valid types: rigor (a level), needsHuman (a short text) and,
+// Keep only known signal keys with valid types: rigor (a level; never for a score entry), needsHuman (a short text) and,
 // for an impl-review entry only, lessonCandidates (a few short one-line rules).
 // Anything else is dropped. Returns null when nothing survives.
 const NEEDS_HUMAN_MAX = 300;
@@ -386,7 +389,8 @@ function cleanLessonCandidates(raw, policy) {
 function cleanSignals(raw, policy, step) {
   if (!isObject(raw)) return null;
   const clean = {};
-  if (typeof raw.rigor === "string" && rigorLevels(policy).includes(raw.rigor)) clean.rigor = raw.rigor;
+  // The score only advises (ADR-007): a score result never raises the rigor level, whatever the generic suffix invites.
+  if (step !== "score" && typeof raw.rigor === "string" && rigorLevels(policy).includes(raw.rigor)) clean.rigor = raw.rigor;
   if (raw.needsHuman === true) clean.needsHuman = "The subagent asked for a human (no reason given).";
   else if (typeof raw.needsHuman === "string") {
     const text = raw.needsHuman.replace(/\s+/g, " ").trim().slice(0, NEEDS_HUMAN_MAX);
@@ -433,6 +437,14 @@ function attachResult(p, log, policy) {
       verified = file !== null && mtime(file) > last.startedAt && frontmatterField(file, "type") === "refactor-plan";
       break;
     }
+    case "score": {
+      // The file must be newer than the step start and pass the shape checks. The evidence is never judged.
+      const read = readComplexity(p, policy);
+      verified = read.ok && mtime(p.complexity) > last.startedAt;
+      if (read.ok && verified) last.score = read.data;
+      if (!read.ok && read.exists) last.invalid = read.error;
+      break;
+    }
     case "implement": verified = verifyImplement(last, plan, result, p, policy); break;
     case "manual-verify": verified = verifyManual(last, ran, plan, result, p, policy); break;
     default: verified = true; // fix: trust status, the next impl-review checks the code
@@ -458,8 +470,12 @@ function lastIdx(log, names, okOnly = true) {
   return -1;
 }
 
-// A failed step. A fallback entry (an executor that handed the phase back) is neutral, not a failure.
-const isFailure = (e) => e.ok === false && !e.fallback;
+// A failed step. A fallback entry (an executor that handed the phase back) is neutral, not a failure, and so is an
+// advisory entry (a score attempt: the score only advises, so its failure raises no rigor and withholds no discount).
+const isFailure = (e) => e.ok === false && !e.fallback && !e.advisory;
+
+// A failed advisory entry uses no step budget; the score's own attempt cap bounds its cost.
+const budgetSteps = (log) => executed(log).filter((e) => !(e.advisory && e.ok === false)).length;
 
 function trailingFailures(log, step) {
   let n = 0;
@@ -758,6 +774,8 @@ function decide(p, fullLog, policy, meta, ctx) {
   if (!plan.exists || !plan.hasProgress) {
     const pre = preplanNext(p, fullLog, policy, meta, ctx);
     if (pre) return pre;
+    const score = scoreNext(p, fullLog, policy, meta, ctx);
+    if (score) return score;
     const { kind, keyword } = goalClass(meta.goal, policy);
     const B = policy.complexity.firstPlan?.bump ?? {};
     return {
@@ -1058,6 +1076,97 @@ function preplanNext(p, fullLog, policy, meta, ctx) {
     return { step, template, bump: 0, reason: `${lead} runs (${hits.length ? hits.join("; ") : `gate open, template ${template}`})` };
   }
   return null;
+}
+
+// ---- complexity score (ADR-007) -------------------------------------------------
+
+// The score block of the policy, or null when it is malformed. A malformed block turns the step off and never throws.
+function scoreConfig(policy) {
+  const c = policy?.score;
+  if (!isObject(c) || !isObject(policy.steps?.score)) return null;
+  const posInt = (v) => Number.isSafeInteger(v) && v > 0;
+  const names = (v) => Array.isArray(v) && v.length > 0 && v.every((s) => typeof s === "string" && s);
+  if (typeof c.file !== "string" || !ARTIFACT_NAME.test(c.file) || /^\.+$/.test(c.file)) return null;
+  if (!Number.isSafeInteger(c.schemaVersion) || !posInt(c.maxBytes) || !posInt(c.maxAttempts) || !posInt(c.maxInvalid)) return null;
+  if (!isObject(c.scale) || !Number.isSafeInteger(c.scale.min) || !Number.isSafeInteger(c.scale.max) || c.scale.min > c.scale.max) return null;
+  if (!isObject(c.factors) || !names(c.factors.cognitive) || !names(c.factors.execution) || !names(c.confidences)) return null;
+  return c;
+}
+
+// Reads and validates the score file of the change folder. Checks the shape only and never judges the evidence.
+// Returns { ok: true, data } with the log summary (factor scores, the two sums, confidence, unknowns count; no
+// evidence text), or { ok: false, error, exists }. Extra keys are ignored.
+function readComplexity(p, policy) {
+  const cfg = scoreConfig(policy);
+  if (!cfg) return { ok: false, error: "score policy is malformed", exists: false };
+  const file = path.join(p.change, cfg.file);
+  const bad = (error) => ({ ok: false, error, exists: true });
+  let st;
+  try { st = fs.lstatSync(file); } catch { return { ok: false, error: `no ${cfg.file}`, exists: false }; }
+  if (!st.isFile()) return bad(st.isSymbolicLink() ? "a symlink, not a regular file" : "not a regular file");
+  if (st.size > cfg.maxBytes) return bad(`larger than ${cfg.maxBytes} bytes`);
+  let doc;
+  try { doc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { return bad("not valid JSON"); }
+  if (!isObject(doc)) return bad("not a JSON object");
+  if (doc.schemaVersion !== cfg.schemaVersion) return bad(`schemaVersion is not ${cfg.schemaVersion}`);
+  if (!isObject(doc.factors)) return bad("factors is not an object");
+  const factors = {};
+  for (const name of [...cfg.factors.cognitive, ...cfg.factors.execution]) {
+    const f = doc.factors[name];
+    if (!isObject(f)) return bad(`factor ${name} is missing`);
+    if (!Number.isInteger(f.score) || f.score < cfg.scale.min || f.score > cfg.scale.max) {
+      return bad(`factor ${name} score is not an integer from ${cfg.scale.min} to ${cfg.scale.max}`);
+    }
+    if (typeof f.evidence !== "string" || !f.evidence.trim()) return bad(`factor ${name} has no evidence`);
+    factors[name] = f.score;
+  }
+  if (!Array.isArray(doc.unknowns)) return bad("unknowns is not an array");
+  if (!cfg.confidences.includes(doc.confidence)) return bad(`confidence is not one of ${cfg.confidences.join(", ")}`);
+  const sum = (group) => cfg.factors[group].reduce((total, name) => total + factors[name], 0);
+  return {
+    ok: true,
+    data: {
+      schemaVersion: doc.schemaVersion,
+      factors,
+      cognitive: sum("cognitive"),
+      execution: sum("execution"),
+      confidence: doc.confidence,
+      unknowns: doc.unknowns.length,
+    },
+  };
+}
+
+// The score branch of the "no plan yet" case, asked after the pre-plan steps. Same shape as preplanNext: null,
+// { skip: { step, reason, score? } } or a step. Closed (silent) below score.minRigor, with a malformed block and once
+// any plan attempt is logged. A valid file that is there before the first attempt is trusted as-is and skips the
+// step. Failed attempts retry up to the attempt cap or the invalid-file cap, then the step skips: it never halts.
+function scoreNext(p, fullLog, policy, meta, ctx) {
+  const cfg = scoreConfig(policy);
+  if (!cfg) return null;
+  const levels = rigorLevels(policy);
+  const at = levels.indexOf(ctx.level);
+  const min = levels.indexOf(cfg.minRigor);
+  if (min < 0 || at < min) return null;
+  const ran = executed(fullLog);
+  if (ran.some((e) => e.step === "plan")) return null;
+  const mine = ran.filter((e) => e.step === "score");
+  if (mine.some((e) => e.ok)) return null;
+  if (fullLog.some((e) => e.skipped && e.step === "score")) return null;
+  const lead = `rigor ${ctx.level}: score`;
+  if (!mine.length) {
+    const read = readComplexity(p, policy);
+    if (read.ok) return { skip: { step: "score", reason: `${lead} skipped (${cfg.file} exists and is valid; trusted as-is)`, score: read.data } };
+    return { step: "score", template: "score", bump: 0, reason: `${lead} runs` };
+  }
+  const cap = Math.min(cfg.maxAttempts, policy.escalation.maxAttemptsPerStep);
+  const invalid = mine.filter((e) => e.invalid).length;
+  const last = mine[mine.length - 1];
+  if (mine.length >= cap || invalid >= cfg.maxInvalid) {
+    const why = invalid >= cfg.maxInvalid ? `${invalid} invalid ${cfg.file}` : `${mine.length} failed attempts`;
+    const note = last.invalid ?? last.result?.note ?? "none";
+    return { skip: { step: "score", reason: `${lead} skipped after ${why} (last: ${note}); going on with deterministic signals` } };
+  }
+  return { step: "score", template: "score", bump: 0, reason: `retry score: attempt ${mine.length} did not pass` };
 }
 
 // The re-plan branch of decide(): plan review said RETHINK, or REVISE with findings to fix, and no code ran yet.
@@ -1907,7 +2016,7 @@ function archiveDone(p, id, meta, log, policy, level, d) {
 }
 
 function next(id, policy) {
-  const p = paths(id);
+  const p = paths(id, policy);
   guardArchived(p, id);
   fs.mkdirSync(p.dir, { recursive: true });
   const meta = readMeta(p.meta, { id, goal: "" });
@@ -1933,7 +2042,7 @@ function next(id, policy) {
   }
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
-  if (executed(log).length >= budget) {
+  if (budgetSteps(log) >= budget) {
     return endRun(p, id, meta, log, { action: "halt", reason: `Step budget ${budget} spent.` });
   }
 
@@ -1955,6 +2064,7 @@ function next(id, policy) {
       reason: d.skip.reason,
       rigor: level,
       risk: d.skip.risk,
+      score: d.skip.score,
       afterN: executed(log).length,
       at: Date.now(),
     });
@@ -2005,6 +2115,7 @@ function next(id, policy) {
     before: { autoDone: plan.autoDone, ...beforeExtra(policy, template, plan) },
   };
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
+  if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
   if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
   if (d.executor) entry.executor = d.executor;
   if (Array.isArray(d.retry)) entry.retry = d.retry;

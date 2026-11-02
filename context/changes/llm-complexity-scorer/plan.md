@@ -397,9 +397,9 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [x] 1.1 Policy data tests pass: `node --test --test-name-pattern="score data" skills/10x-pipeline/test/score.test.mjs`
-- [x] 1.2 Prompt rule form and wiring tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/preplan.test.mjs`
-- [x] 1.3 The whole suite passes with the default-off helper: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 1.1 Policy data tests pass: `node --test --test-name-pattern="score data" skills/10x-pipeline/test/score.test.mjs` — 493377e
+- [x] 1.2 Prompt rule form and wiring tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/preplan.test.mjs` — 493377e
+- [x] 1.3 The whole suite passes with the default-off helper: `node --test skills/10x-pipeline/test/*.test.mjs` — 493377e
 
 #### Manual
 
@@ -409,10 +409,10 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [ ] 2.1 Gate tests pass: `node --test --test-name-pattern="score gate" skills/10x-pipeline/test/score.test.mjs`
-- [ ] 2.2 Validation tests pass: `node --test --test-name-pattern="score validation" skills/10x-pipeline/test/score.test.mjs`
-- [ ] 2.3 Failure tests pass: `node --test --test-name-pattern="score failure" skills/10x-pipeline/test/score.test.mjs`
-- [ ] 2.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 2.1 Gate tests pass: `node --test --test-name-pattern="score gate" skills/10x-pipeline/test/score.test.mjs`
+- [x] 2.2 Validation tests pass: `node --test --test-name-pattern="score validation" skills/10x-pipeline/test/score.test.mjs`
+- [x] 2.3 Failure tests pass: `node --test --test-name-pattern="score failure" skills/10x-pipeline/test/score.test.mjs`
+- [x] 2.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 
