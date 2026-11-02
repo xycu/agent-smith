@@ -325,13 +325,13 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 #### Automated
 
-- [x] 1.1 A fresh `init` writes `meta.provenance` with `schemaVersion`, `plugin`, a hash for every merged-policy section except the ignored ones, `prompts`, `agentFiles` and `flags`
-- [x] 1.2 The hashes are stable across two runs with identical inputs; editing `prompts/score.md` changes only `prompts`; changing `compare.targetDropPercent` changes nothing
-- [x] 1.3 A resume keeps the stored record; a policy edit between steps adds its section to `provenance.drift` once at the next `next` and leaves the stored hashes untouched
-- [x] 1.4 A run whose log already holds executed steps and has no record gets none, and the missing record never halts `init`, `next` or `compare`
-- [x] 1.5 `compare` stays silent when both sides lack provenance and warns `provenance-unknown:<side>` when exactly one does
-- [x] 1.6 `compare` warns `provenance-differs`, `flags-differ` and `provenance-drift` as specified, exempts `ladder`, `rigor` and `score` for a pinned pair and only `score` for an `--unpinned` pair, and leaves `comparable`, `reasons` and `verdict` unchanged
-- [x] 1.7 The whole suite passes
+- [x] 1.1 A fresh `init` writes `meta.provenance` with `schemaVersion`, `plugin`, a hash for every merged-policy section except the ignored ones, `prompts`, `agentFiles` and `flags` — 1f181f5
+- [x] 1.2 The hashes are stable across two runs with identical inputs; editing `prompts/score.md` changes only `prompts`; changing `compare.targetDropPercent` changes nothing — 1f181f5
+- [x] 1.3 A resume keeps the stored record; a policy edit between steps adds its section to `provenance.drift` once at the next `next` and leaves the stored hashes untouched — 1f181f5
+- [x] 1.4 A run whose log already holds executed steps and has no record gets none, and the missing record never halts `init`, `next` or `compare` — 1f181f5
+- [x] 1.5 `compare` stays silent when both sides lack provenance and warns `provenance-unknown:<side>` when exactly one does — 1f181f5
+- [x] 1.6 `compare` warns `provenance-differs`, `flags-differ` and `provenance-drift` as specified, exempts `ladder`, `rigor` and `score` for a pinned pair and only `score` for an `--unpinned` pair, and leaves `comparable`, `reasons` and `verdict` unchanged — 1f181f5
+- [x] 1.7 The whole suite passes — 1f181f5
 
 #### Manual
 
@@ -342,13 +342,13 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 #### Automated
 
-- [ ] 2.1 With the default policy no `run` output and no log entry has an `agent` field
-- [ ] 2.2 With `agents.restricted: true` the `score` run output and log entry carry `agent: "agent-smith:score"`, no other step does, and `status` shows it
-- [ ] 2.3 A malformed `agents` block (restricted not `true`, `steps` not an object, a value that is not a non-empty string) reads as off and never halts
-- [ ] 2.4 `agents/score.md` has `name`, `description` and `tools` exactly `Read, Grep, Glob, Write`, and no `model`, `effort`, `hooks`, `mcpServers` or `permissionMode` key; every value of `agents.steps` is `<plugin name>:<file>` for an existing `agents/<file>.md`
-- [ ] 2.5 Editing `agents/score.md` changes the provenance `agentFiles` hash, and flipping `agents.restricted` changes the `agents` section and the `agents.restricted` flag
-- [ ] 2.6 `SKILL.md` tells the orchestrator to use the router's `agent` as `subagent_type` when present and still names no model alias
-- [ ] 2.7 The whole suite passes
+- [x] 2.1 With the default policy no `run` output and no log entry has an `agent` field
+- [x] 2.2 With `agents.restricted: true` the `score` run output and log entry carry `agent: "agent-smith:score"`, no other step does, and `status` shows it
+- [x] 2.3 A malformed `agents` block (restricted not `true`, `steps` not an object, a value that is not a non-empty string) reads as off and never halts
+- [x] 2.4 `agents/score.md` has `name`, `description` and `tools` exactly `Read, Grep, Glob, Write`, and no `model`, `effort`, `hooks`, `mcpServers` or `permissionMode` key; every value of `agents.steps` is `<plugin name>:<file>` for an existing `agents/<file>.md`
+- [x] 2.5 Editing `agents/score.md` changes the provenance `agentFiles` hash, and flipping `agents.restricted` changes the `agents` section and the `agents.restricted` flag
+- [x] 2.6 `SKILL.md` tells the orchestrator to use the router's `agent` as `subagent_type` when present and still names no model alias
+- [x] 2.7 The whole suite passes
 
 #### Manual
 
