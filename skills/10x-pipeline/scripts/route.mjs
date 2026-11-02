@@ -13,6 +13,7 @@
 //                                      # --unpinned: the baseline is a routed run too (scorer off), for the scorer A/B
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
@@ -1890,6 +1891,138 @@ function artifactsLine(p, policy) {
   return `\nUpstream artifacts (read each fully before planning): ${rel.join(", ")}`;
 }
 
+// ---- run provenance -------------------------------------------------------------
+
+// What a run ran with: the plugin version, one hash per merged-policy section (prompts by resolved text), a hash of the
+// plugin's agent definitions and the flags in force. Recorded once in meta.json and read by compare. Every input is
+// only read; computing the record never throws, so it never halts init or next.
+const PLUGIN_ROOT = path.resolve(SKILL_DIR, "../..");
+const PROVENANCE_DEFAULTS = { ignore: ["compare", "provenance"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } };
+
+// The provenance block of the policy. A list that is not an array of strings reads as the shipped default.
+function provenanceConfig(policy) {
+  const c = isObject(policy?.provenance) ? policy.provenance : {};
+  const e = isObject(c.expected) ? c.expected : {};
+  const list = (v, fallback) => (Array.isArray(v) && v.every((s) => typeof s === "string") ? v : fallback);
+  return {
+    ignore: list(c.ignore, PROVENANCE_DEFAULTS.ignore),
+    expected: { pinned: list(e.pinned, PROVENANCE_DEFAULTS.expected.pinned), unpinned: list(e.unpinned, PROVENANCE_DEFAULTS.expected.unpinned) },
+  };
+}
+
+// JSON with the keys of every object sorted, so key order never changes a hash.
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (isObject(value)) return `{${Object.keys(value).sort().map((k) => `${JSON.stringify(k)}:${canonicalJson(value[k])}`).join(",")}}`;
+  return JSON.stringify(value) ?? "null";
+}
+
+const hash16 = (text) => crypto.createHash("sha256").update(text).digest("hex").slice(0, 16);
+
+// The resolved text of every template, keyed by template. null when a reference does not resolve: checkPrompts
+// halts at next for that, as before.
+function promptsHash(policy) {
+  const texts = {};
+  try {
+    for (const template of Object.keys(isObject(policy.prompts) ? policy.prompts : {})) texts[template] = promptText(policy, template);
+  } catch { return null; }
+  return hash16(canonicalJson(texts));
+}
+
+// The <plugin root>/agents/*.md files, keyed by file name. null when the folder is missing or a file is unreadable.
+function agentFilesHash() {
+  const dir = path.join(PLUGIN_ROOT, "agents");
+  try {
+    const files = {};
+    for (const d of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (!d.isDirectory() && d.name.endsWith(".md")) files[d.name] = fs.readFileSync(path.join(dir, d.name), "utf8");
+    }
+    return hash16(canonicalJson(files));
+  } catch { return null; }
+}
+
+// The version of the plugin manifest, only read (release-please owns it). null when the file is unreadable.
+function pluginVersion() {
+  const manifest = readJson(path.join(PLUGIN_ROOT, ".claude-plugin/plugin.json"), null);
+  return isObject(manifest) && typeof manifest.version === "string" ? manifest.version : null;
+}
+
+// One hash per section of the merged policy except the ignored ones, plus agentFiles, sorted by name.
+function provenanceSections(policy) {
+  const ignore = new Set(provenanceConfig(policy).ignore);
+  const sections = {};
+  for (const key of Object.keys(policy)) {
+    if (!ignore.has(key)) sections[key] = key === "prompts" ? promptsHash(policy) : hash16(canonicalJson(policy[key]));
+  }
+  sections.agentFiles = agentFilesHash();
+  return Object.fromEntries(Object.entries(sections).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
+}
+
+// The flags in force. A flag the policy lacks or malforms reads false; archive and chrome come from meta.json.
+function provenanceFlags(policy, meta) {
+  const minRigor = isObject(policy.score) ? policy.score.minRigor : null;
+  return {
+    archive: meta.archive === true,
+    chrome: meta.chrome === true,
+    "score.minRigor": typeof minRigor === "string" ? minRigor : null,
+    "agents.restricted": isObject(policy.agents) && policy.agents.restricted === true,
+    "advisor.enabled": isObject(policy.advisor) && policy.advisor.enabled === true,
+  };
+}
+
+// The record init stores. null only if something unexpected throws: a run then has no record and reads as unknown.
+function provenanceRecord(policy, meta) {
+  try {
+    return { schemaVersion: 1, plugin: pluginVersion(), sections: provenanceSections(policy), flags: provenanceFlags(policy, meta) };
+  } catch { return null; }
+}
+
+// Adds every section whose hash differs from the record to provenance.drift (sorted, each name once, omitted while
+// empty). The recorded hashes are never touched, and a run without a record gets none. Returns true when drift
+// changed, so the caller writes meta.json. plugin and flags are not drift-tracked.
+function recordDrift(meta, policy) {
+  const rec = meta.provenance;
+  if (!isObject(rec) || !isObject(rec.sections)) return false;
+  try {
+    const ignore = new Set(provenanceConfig(policy).ignore);
+    const now = provenanceSections(policy);
+    const had = Array.isArray(rec.drift) ? rec.drift.filter((s) => typeof s === "string") : [];
+    const changed = [...new Set([...Object.keys(rec.sections), ...Object.keys(now)])]
+      .filter((name) => !ignore.has(name) && rec.sections[name] !== now[name]);
+    const drift = [...new Set([...had, ...changed])].sort();
+    const old = JSON.stringify(rec.drift);
+    if (drift.length) rec.drift = drift;
+    else delete rec.drift;
+    return JSON.stringify(rec.drift) !== old;
+  } catch { return false; }
+}
+
+// The provenance warnings of a compare pair, in the order of `sides`. Two sides without a record stay silent (two runs
+// from before provenance existed). A name of `expected` exempts that section, and a flag whose first dot segment it
+// names. Warnings only: they never change comparable, reasons or the verdict.
+function provenanceWarnings(sides, expected) {
+  const warnings = [];
+  const missing = sides.filter(([, rec]) => rec === null);
+  if (missing.length === 1) warnings.push(`provenance-unknown:${missing[0][0]}`);
+  if (!missing.length) {
+    const [b, r] = sides.map(([, rec]) => rec);
+    const exempt = new Set(expected);
+    const differ = (x, y) => canonicalJson(x ?? null) !== canonicalJson(y ?? null);
+    const keyed = (rec, key) => (isObject(rec[key]) ? rec[key] : {});
+    const names = (key) => [...new Set([...Object.keys(keyed(b, key)), ...Object.keys(keyed(r, key))])];
+    const sections = names("sections").filter((n) => !exempt.has(n) && differ(keyed(b, "sections")[n], keyed(r, "sections")[n]));
+    if (!exempt.has("plugin") && differ(b.plugin, r.plugin)) sections.push("plugin");
+    if (sections.length) warnings.push(`provenance-differs:${sections.sort().join(",")}`);
+    const flags = names("flags").filter((k) => !exempt.has(k) && !exempt.has(k.split(".")[0]) && differ(keyed(b, "flags")[k], keyed(r, "flags")[k]));
+    if (flags.length) warnings.push(`flags-differ:${flags.sort().join(",")}`);
+  }
+  for (const [name, rec] of sides) {
+    const drift = rec !== null && Array.isArray(rec.drift) ? [...new Set(rec.drift.filter((s) => typeof s === "string"))].sort() : [];
+    if (drift.length) warnings.push(`provenance-drift:${name}:${drift.join(",")}`);
+  }
+  return warnings;
+}
+
 // The frame authority rule for the re-plan prompt, only when frame.md exists. render() is a single pass, so the
 // change id is put into the rule here, before the rule is inserted as a variable.
 function authorityLine(p, policy, template) {
@@ -2115,7 +2248,9 @@ function next(id, policy) {
   const planNow = readPlan(p.plan);
   const risk = planNow.exists ? measureRisk(p, meta, log, policy) : null;
   const { level, changed } = resolveRigor(meta, log, policy, planNow, risk);
-  if (changed) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  // A policy, prompt or agent edit since the record adds its section to provenance.drift; meta.json is written only then.
+  const drifted = recordDrift(meta, policy);
+  if (changed || drifted) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
 
   // A subagent that cannot decide from evidence stops the run once. The ack lives on the log entry.
   const ranNow = executed(log);
@@ -2367,6 +2502,7 @@ function readSide(dirArg, id, side, producedFile) {
     baseSha: typeof meta.baseSha === "string" ? meta.baseSha : null,
     rigor: meta.rigor?.level ?? null,
     outcome: meta.outcome?.action ?? null,
+    provenance: isObject(meta.provenance) ? meta.provenance : null,
     steps: steps.length,
     skipped,
     failedAttempts: steps.filter((e) => e.ok === false && !e.fallback).length,
@@ -2446,6 +2582,9 @@ function comparePair(id, flags, policy) {
     if (differ.length) warnings.push(`input-files-differ:${differ.join(",")}`);
   }
   for (const [name, s] of sides) if (s.alsoArchived) warnings.push(`archive-also-present:${name}`);
+  // The expected set follows the flag, never baseline.pinned: a pinned baseline changes ladder, rigor and score by design.
+  const expected = provenanceConfig(policy).expected[unpinned ? "unpinned" : "pinned"];
+  warnings.push(...provenanceWarnings(sides.map(([name, s]) => [name, s.provenance]), expected));
 
   const comparable = reasons.length === 0;
   let dropPercent = null;
@@ -2620,6 +2759,12 @@ function main() {
       delete meta.baseSha;
       const head = (gitOut(["rev-parse", "HEAD"]) ?? "").trim();
       if (SHA_RE.test(head)) meta.baseSha = head;
+    }
+    // What the run runs with: recorded at the first init of a run with no executed step, kept on resume, never
+    // rewritten. A run with executed steps and no record (started before provenance existed) gets none.
+    if (meta.provenance === undefined && executed(readLog(p.log)).length === 0) {
+      const record = provenanceRecord(policy, meta);
+      if (record) meta.provenance = record;
     }
     fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
     next(id, policy);
