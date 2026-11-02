@@ -60,13 +60,13 @@ Run `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` afte
 
 Every commit subject follows [Conventional Commits](https://www.conventionalcommits.org/): `type(scope)!: description`, with `type` one of `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `perf`, `test`, `build`, `revert`. The `commits` job in `ci.yml` checks each commit of a pull request, because the owner rebase-merges and the subjects land on `main`. The type sets the SemVer bump (ADR-008):
 
-| Commit | Bump | Opens a release PR |
-| --- | --- | --- |
-| `fix:` | patch | yes |
-| `feat:` | minor | yes |
-| `!` after the type, or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0, major from 1.0.0 | yes |
-| `docs`, `chore`, `ci`, `test`, `build`, `refactor`, `perf`, `revert` | none | no |
+| Commit | Bump |
+| --- | --- |
+| `feat:` | minor |
+| `!` after the type, or a `BREAKING CHANGE:` footer | minor while the version is below 1.0.0, major from 1.0.0 |
+| any other type | patch (release-please's default when a release has no `feat` or breaking commit) |
 
+Whether a commit opens a release PR on its own depends on release-please's changelog sections: by default `docs`, `chore`, `refactor`, `test`, `build` and `ci` are hidden, `feat`, `fix`, `perf` and `revert` are shown. That part is not tested here; the first release PR confirms it.
 Add a `Co-Authored-By:` trailer for AI-assisted commits.
 
 ## Releases
@@ -77,4 +77,4 @@ Releases are made by [release-please](https://github.com/googleapis/release-plea
 - **Owner setting, once.** Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests". Without it `release.yml` fails when it opens the PR.
 - **No checks on the release PR.** A PR opened with `GITHUB_TOKEN` starts no other workflow. `main` has no required checks, so the owner merges it after reading the diff.
 - **Version line.** The version is `0.x` (SemVer initial development). To release `1.0.0`, put a `Release-As: 1.0.0` footer on a commit.
-- **Release type.** `docs`, `chore`, `ci`, `test` and `build` commits make no release PR; the next `feat` or `fix` does.
+- **Release type.** A run of only hidden-section commits (`docs`, `chore`, `ci`, `test`, `build`, `refactor`) is expected to open no release PR; the next `feat` or `fix` does.

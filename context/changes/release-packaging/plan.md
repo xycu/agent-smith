@@ -276,13 +276,13 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Automated
 
-- [x] 3.1 Config files are valid JSON
-- [x] 3.2 Guard and its tests pass with the manifest
-- [x] 3.3 ADR rule lines pass the rule-form check: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 3.5 Docs name the new files
-- [x] 3.6 Manifest version equals plugin version: `node tools/version-check.mjs`
-- [x] 3.10 Release workflow is valid: `actionlint .github/workflows/release.yml`
+- [x] 3.1 Config files are valid JSON — 8cdbe4a
+- [x] 3.2 Guard and its tests pass with the manifest — 8cdbe4a
+- [x] 3.3 ADR rule lines pass the rule-form check: `node --test skills/10x-pipeline/test/rules.test.mjs` — 8cdbe4a
+- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 8cdbe4a
+- [x] 3.5 Docs name the new files — 8cdbe4a
+- [x] 3.6 Manifest version equals plugin version: `node tools/version-check.mjs` — 8cdbe4a
+- [x] 3.10 Release workflow is valid: `actionlint .github/workflows/release.yml` — 8cdbe4a
 
 #### Manual
 

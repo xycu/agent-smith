@@ -19,9 +19,9 @@ Releases follow Semantic Versioning 2.0.0 and are made by release-please from Co
 
 Rules, written as scenarios (the form of ADR-004):
 
-**GIVEN** a commit on `main` **WHEN** its type is `fix` **THEN** release-please **MUST** bump the patch number.
-
 **GIVEN** a commit on `main` **WHEN** its type is `feat` **THEN** release-please **MUST** bump the minor number.
+
+**GIVEN** a release with no `feat` and no breaking commit **WHEN** release-please computes the version **THEN** it **MUST** bump the patch number.
 
 **GIVEN** a commit with `!` after its type or a `BREAKING CHANGE:` footer **WHEN** the version is below 1.0.0 **THEN** release-please **MUST** bump the minor number.
 
@@ -37,12 +37,12 @@ Rules, written as scenarios (the form of ADR-004):
 
 ## Consequences
 
-- The first release comes from the history after `bootstrap-sha` (`9503c35`). Only `feat`, `fix` and breaking commits open a release PR; `docs`, `chore`, `ci`, `test` and `build` do not.
+- The first release comes from the history after `bootstrap-sha` (`9503c35`). release-please shows `feat`, `fix`, `perf` and `revert` in the changelog and hides `docs`, `chore`, `refactor`, `test`, `build` and `ci` by default; a run of only hidden commits is expected to open no release PR (to be confirmed by the first release PR).
 - The plugin stays on a `0.x` version, so semver.org item 4 applies: anything may change. Breaking changes bump minor until the owner cuts 1.0.0.
 - The release PR is opened with `GITHUB_TOKEN`, so no other workflow runs on it. This is acceptable because `main` has no required checks.
 - The owner must switch on "Allow GitHub Actions to create and approve pull requests" once. Until then `release.yml` fails when it tries to open the PR.
 - The commit lint reads subjects only; it does not check the body or the `BREAKING CHANGE:` footer. A breaking change without `!` or a footer is released as the type it was committed with.
-- The workflows run only on GitHub, so `ci.yml` and `release.yml` are checked locally with `actionlint` and proven by the first pull request and the first release PR.
+- The workflows run only on GitHub. `ci.yml` and `release.yml` were checked with `actionlint` at implementation time; no workflow runs it, so the first pull request and the first release PR are the real proof.
 
 ## Alternatives considered
 

@@ -1,7 +1,7 @@
 ---
 change_id: release-packaging
 title: Copy hegel-skill packaging and distribution with Semantic Versioning
-status: implementing
+status: impl_reviewed
 created: 2026-11-02
 updated: 2026-11-02
 archived_at: null
