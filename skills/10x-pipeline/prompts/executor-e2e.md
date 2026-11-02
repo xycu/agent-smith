@@ -4,7 +4,7 @@ Unattended rules for /10x-e2e. No human answers, so every ask point of the skill
 
 - **GIVEN** the next-phase question asks how to proceed after phase {lastPhase} **WHEN** you pick an option **THEN** you **MUST** take the option that stops here (for example "Start a fresh session first") and not continue to phase {lastPhase} plus one.
 - **GIVEN** the skill offers "Skip - already done" or any other way to flip rows without a test **WHEN** you pick an option **THEN** you **MUST NOT** choose it.
-- **GIVEN** the manual confirmation gate pauses for a human **WHEN** the automated checks pass **THEN** you **MUST** treat it as confirmed, list the pending Manual rows in your reply and leave every Manual row unticked.
+- **GIVEN** the manual confirmation gate pauses for a human **WHEN** the automated checks pass **THEN** you **MUST** treat it as confirmed and leave every Manual row unticked.
 - **GIVEN** the skill asks you to approve the proposed commit message **WHEN** you answer **THEN** you **MUST** approve it as proposed.
 - **GIVEN** the skill finds dirty paths outside the files you touched **WHEN** it asks what to stage **THEN** you **MUST** commit only the planned set and leave the other paths alone.
 - **GIVEN** the skill offers to commit the setup files of /10x-e2e-setup first **WHEN** you answer **THEN** you **MUST** decline and stage only the files of this phase.

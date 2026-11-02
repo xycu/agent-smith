@@ -185,14 +185,14 @@
     }
   },
   "prompts": {
-    "suffix": "You run as an unattended subagent. AskUserQuestion is unavailable. Do not commit unless the skill itself commits.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.\nFinish your reply with exactly one line. The `signals` object is optional:\nRESULT: {\"status\":\"done|blocked|failed\",\"note\":\"<one sentence>\",\"assumptions\":[\"...\"],\"signals\":{\"needsHuman\":\"<reason, only when blocked>\",\"rigor\":\"standard|thorough\"}}",
+    "suffix": "You run as an unattended subagent. AskUserQuestion is unavailable. Do not commit unless the skill itself commits.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.\n- **GIVEN** the files and commits you wrote hold the work **WHEN** you write your reply **THEN** you **MUST** keep the text before the RESULT line to a short status, because the orchestrator reads only the RESULT line.\nFinish your reply with exactly one line. The `signals` object is optional:\nRESULT: {\"status\":\"done|blocked|failed\",\"note\":\"<one sentence>\",\"assumptions\":[\"...\"],\"signals\":{\"needsHuman\":\"<reason, only when blocked>\",\"rigor\":\"standard|thorough\"}}",
     "plan": "Run /10x-plan {id} {goal}{artifacts}\nWrite the plan to context/changes/{id}/plan.md with a valid ## Progress section.",
     "plan-revise": "Run /10x-plan {id}{artifacts}\nRevise the existing context/changes/{id}/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Keep the ## Progress contract, step indices and titles.{authority}",
     "plan-review": [
       "Run /10x-plan-review context/changes/{id}/plan.md\nSave the review to context/changes/{id}/reviews/plan-review.md.",
       "@prompts/plan-review-apply.md"
     ],
-    "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md. List pending #### Manual rows in your reply.",
+    "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md.",
     "impl-review": [
       "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md.",
       "@prompts/impl-review-apply.md",
@@ -231,7 +231,7 @@
     ],
     "frame-authority": "- **GIVEN** context/changes/{id}/frame.md is listed under the upstream artifacts **WHEN** you revise the plan **THEN** you **MUST** treat its reframed problem statement as authoritative: rework every phase and row that contradicts it, and apply the Progress contract (format, numbering and checkbox syntax) to the result, because this rule wins over the line that keeps step indices and titles.",
     "implement-segment": [
-      "Run /10x-goal-implement {id} phase {phase}\nImplement every pending #### Automated row of phases {phase} to {lastPhase} in context/changes/{id}/plan.md. List pending #### Manual rows in your reply.",
+      "Run /10x-goal-implement {id} phase {phase}\nImplement every pending #### Automated row of phases {phase} to {lastPhase} in context/changes/{id}/plan.md.",
       "- **GIVEN** phase {lastPhase} is done **WHEN** later phases still have pending rows **THEN** you **MUST NOT** start them."
     ],
     "implement-e2e": [

@@ -578,15 +578,16 @@ test("a RESULT without signals behaves as before", () => {
   assert.equal(readLogEntries(project)[0].needsHumanAck, undefined);
 });
 
-test("the plan prompt carries the three rules and the RESULT line with signals", () => {
+test("the plan prompt carries the four rules and the RESULT line with signals", () => {
   const project = makeProject();
   const res = init(project, "fix typo");
   const prompt = res.json.prompt;
   const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
-  assert.equal(rules.length, 3);
+  assert.equal(rules.length, 4);
   assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
   assert.match(rules[1], /`signals\.needsHuman`/);
   assert.match(rules[2], /\*\*MAY\*\* add `signals\.rigor`/);
+  assert.match(rules[3], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
   const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
   assert.match(prompt, /`signals` object is optional/);
