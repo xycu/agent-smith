@@ -236,8 +236,8 @@ None. A run in flight reads the new SKILL.md on its next invocation; no router s
 
 #### Automated
 
-- [x] 1.1 The section exists once, between `## Loop` and `## PR comment (opt-in)`
-- [x] 1.2 Existing SKILL.md tests still pass
+- [x] 1.1 The section exists once, between `## Loop` and `## PR comment (opt-in)` — 8b16d48
+- [x] 1.2 Existing SKILL.md tests still pass — 8b16d48
 
 #### Manual
 
@@ -247,18 +247,18 @@ None. A run in flight reads the new SKILL.md on its next invocation; no router s
 
 #### Automated
 
-- [x] 2.1 Rule-form tests pass
-- [x] 2.2 Content tests pass
-- [x] 2.3 Deliberate-break check: removing rule 3 in a scratch copy makes the content test fail
-- [x] 2.4 Full suite passes
+- [x] 2.1 Rule-form tests pass — d76c6e8
+- [x] 2.2 Content tests pass — d76c6e8
+- [x] 2.3 Deliberate-break check: removing rule 3 in a scratch copy makes the content test fail — d76c6e8
+- [x] 2.4 Full suite passes — d76c6e8
 
 ### Phase 3: Documentation
 
 #### Automated
 
-- [x] 3.1 README group exists in the right place and names the five behaviors
-- [x] 3.2 AGENTS.md lists the new test file
-- [x] 3.3 Full suite passes after the documentation change
-- [x] 3.4 Version fields untouched and valid
-- [x] 3.5 ADR-004 lists the SKILL.md section in its checked scope
-- [x] 3.6 README group states the headless limit of rule 1
+- [x] 3.1 README group exists in the right place and names the five behaviors — fc27c88
+- [x] 3.2 AGENTS.md lists the new test file — fc27c88
+- [x] 3.3 Full suite passes after the documentation change — fc27c88
+- [x] 3.4 Version fields untouched and valid — fc27c88
+- [x] 3.5 ADR-004 lists the SKILL.md section in its checked scope — fc27c88
+- [x] 3.6 README group states the headless limit of rule 1 — fc27c88
