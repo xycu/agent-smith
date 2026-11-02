@@ -1,16 +1,18 @@
 {
   "name": "agent-smith",
-  "owner": { "name": "xycu" },
+  "owner": {
+    "name": "xycu"
+  },
   "metadata": {
     "description": "Marketplace hosting the agent-smith plugin.",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "agent-smith",
       "source": "./",
       "description": "Orchestrates AI SDLC skill chains with dynamic model and effort routing",
-      "version": "0.1.0"
+      "version": "0.2.0"
     }
   ]
 }
