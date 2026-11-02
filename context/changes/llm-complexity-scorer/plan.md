@@ -422,9 +422,9 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [x] 3.1 Shift tests pass: `node --test --test-name-pattern="score shift" skills/10x-pipeline/test/score.test.mjs`
-- [x] 3.2 Report and status tests pass: `node --test --test-name-pattern="score report" skills/10x-pipeline/test/score.test.mjs`
-- [x] 3.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 3.1 Shift tests pass: `node --test --test-name-pattern="score shift" skills/10x-pipeline/test/score.test.mjs` — 5011789
+- [x] 3.2 Report and status tests pass: `node --test --test-name-pattern="score report" skills/10x-pipeline/test/score.test.mjs` — 5011789
+- [x] 3.3 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs` — 5011789
 
 #### Manual
 
@@ -434,10 +434,10 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Automated
 
-- [ ] 4.1 Budget tests pass with the scorer in the longest path and in a three-failure skip: `node --test skills/10x-pipeline/test/budget-executors.test.mjs`
-- [ ] 4.2 Baseline and `--unpinned` compare tests pass: `node --test skills/10x-pipeline/test/compare.test.mjs`
-- [ ] 4.3 Loop tests that use the budget pass: `node --test skills/10x-pipeline/test/loops.test.mjs`
-- [ ] 4.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
+- [x] 4.1 Budget tests pass with the scorer in the longest path and in a three-failure skip: `node --test skills/10x-pipeline/test/budget-executors.test.mjs`
+- [x] 4.2 Baseline and `--unpinned` compare tests pass: `node --test skills/10x-pipeline/test/compare.test.mjs`
+- [x] 4.3 Loop tests that use the budget pass: `node --test skills/10x-pipeline/test/loops.test.mjs`
+- [x] 4.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs`
 
 #### Manual
 

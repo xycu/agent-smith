@@ -9,7 +9,8 @@
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
-//   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>]   # read-only: usage of a routed run against a baseline run
+//   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]   # read-only: usage of a routed run against a baseline run
+//                                      # --unpinned: the baseline is a routed run too (scorer off), for the scorer A/B
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
 import fs from "node:fs";
@@ -2318,7 +2319,8 @@ function locateSide(dirArg, id, side) {
   return halt(`${side}: no run.jsonl found for ${id}. Looked in: ${tried.map((t) => path.join(t, "run.jsonl")).join(", ")}.`);
 }
 
-function readSide(dirArg, id, side) {
+// `producedFile` is the score file of the policy compare loads: a produced file, dropped from inputFiles like plan.md.
+function readSide(dirArg, id, side, producedFile) {
   const found = locateSide(dirArg, id, side);
   const log = readLog(path.join(found.dir, "run.jsonl")).filter(isObject); // readLog lets a JSON array through
   const meta = readMeta(path.join(found.dir, "meta.json"), {});
@@ -2335,12 +2337,16 @@ function readSide(dirArg, id, side) {
     }
     return { total, stepsWithFigures: withFigures };
   };
+  // Tokens per model alias, and per tier as <model>/<effort>: byModel cannot show an effort move.
   const byModel = {};
+  const byTier = {};
   for (const e of steps) {
     const v = e.usage?.totalTokens;
     if (!validFigure(v)) continue;
     const model = typeof e.model === "string" && e.model ? e.model : "unknown";
+    const effort = typeof e.effort === "string" && e.effort ? e.effort : "unknown";
     byModel[model] = (byModel[model] ?? 0) + v;
+    byTier[`${model}/${effort}`] = (byTier[`${model}/${effort}`] ?? 0) + v;
   }
   const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
   let plan = null;
@@ -2350,7 +2356,8 @@ function readSide(dirArg, id, side) {
     if (pl.exists) plan = { phases: pl.phases, rows: pl.rows };
     try {
       inputFiles = fs.readdirSync(changeDir, { withFileTypes: true })
-        .filter((d) => d.isFile() && d.name !== "plan.md" && d.name !== "plan-brief.md").map((d) => d.name).sort();
+        .filter((d) => d.isFile() && d.name !== "plan.md" && d.name !== "plan-brief.md" && d.name !== producedFile)
+        .map((d) => d.name).sort();
     } catch { inputFiles = null; }
   }
   return {
@@ -2365,7 +2372,7 @@ function readSide(dirArg, id, side) {
     failedAttempts: steps.filter((e) => e.ok === false && !e.fallback).length,
     plan,
     inputFiles,
-    tokens: { ...figure("totalTokens"), byModel },
+    tokens: { ...figure("totalTokens"), byModel, byTier },
     toolUses: figure("toolUses"),
     durationMs: figure("durationMs"),
     alsoArchived: found.alsoArchived,
@@ -2392,9 +2399,16 @@ function comparePair(id, flags, policy) {
   for (const key of ["baseline", "routed", "format"]) {
     if (flags[key] !== undefined && typeof flags[key] !== "string") halt(`Missing value for --${key}.`);
   }
-  if (flags.baseline === undefined) halt("compare needs --baseline <dir>: compare <change-id> --baseline <dir> [--routed <dir>] [--format md].");
+  if (flags.baseline === undefined) halt("compare needs --baseline <dir>: compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned].");
   if (flags.format !== undefined && flags.format !== "json" && flags.format !== "md") {
     halt(`Invalid --format ${flags.format}. Use json or md.`);
+  }
+  // --unpinned is checked like --archive of init: a bare flag or "true" turns it on, "false" turns it off.
+  let unpinned = false;
+  if (flags.unpinned !== undefined) {
+    if (flags.unpinned === true || flags.unpinned === "true") unpinned = true;
+    else if (flags.unpinned === "false") unpinned = false;
+    else halt(`Invalid --unpinned ${flags.unpinned}. Use --unpinned, --unpinned true or --unpinned false.`);
   }
   let target = policy.compare?.targetDropPercent;
   if (target === undefined) target = null;
@@ -2402,12 +2416,16 @@ function comparePair(id, flags, policy) {
     halt(`Invalid compare.targetDropPercent ${JSON.stringify(target)}. Use null or a number from 0 to 100.`);
   }
 
-  const baseline = readSide(flags.baseline, id, "baseline");
-  const routed = readSide(typeof flags.routed === "string" ? flags.routed : ROOT, id, "routed");
+  // The score file is produced by the run, so only the scorer-on arm of an A/B pair has it.
+  const producedFile = scoreConfig(policy)?.file ?? "complexity.json";
+  const baseline = readSide(flags.baseline, id, "baseline", producedFile);
+  const routed = readSide(typeof flags.routed === "string" ? flags.routed : ROOT, id, "routed", producedFile);
 
   const reasons = [];
   const warnings = [];
-  if (baseline.steps > 0 && !baseline.pinned) reasons.push("baseline-not-pinned");
+  // --unpinned waives only the pin: the baseline of a scorer A/B pair is a routed run with the scorer off.
+  if (baseline.steps > 0 && !baseline.pinned && !unpinned) reasons.push("baseline-not-pinned");
+  if (unpinned) warnings.push("baseline-unpinned");
   const sides = [["baseline", baseline], ["routed", routed]];
   for (const [name, s] of sides) {
     if (s.steps === 0) reasons.push(`no-steps:${name}`);
@@ -2435,7 +2453,8 @@ function comparePair(id, flags, policy) {
   if (comparable) {
     const diff = baseline.tokens.total - routed.tokens.total;
     dropPercent = dropPercentOf(diff, baseline.tokens.total);
-    verdict = target === null ? "target not set" : dropMet(diff, baseline.tokens.total, target) ? "met" : "not met";
+    if (unpinned) verdict = "unpinned";
+    else verdict = target === null ? "target not set" : dropMet(diff, baseline.tokens.total, target) ? "met" : "not met";
   }
   const strip = ({ alsoArchived, pinned, ...rest }) => rest;
   return {
@@ -2462,6 +2481,10 @@ function compareMarkdown(pair) {
     const names = Object.keys(s.tokens.byModel).sort();
     return names.length ? names.map((m) => `${m} ${s.tokens.byModel[m]}`).join(", ") : "none";
   };
+  const tiers = (s) => {
+    const names = Object.keys(s.tokens.byTier).sort();
+    return names.length ? names.map((t) => `${t} ${s.tokens.byTier[t]}`).join(", ") : "none";
+  };
   return [
     `# Usage comparison: ${pair.change}`,
     "",
@@ -2480,6 +2503,8 @@ function compareMarkdown(pair) {
     "",
     `Tokens by model, baseline: ${models(b)}`,
     `Tokens by model, routed: ${models(r)}`,
+    `Tokens by tier, baseline: ${tiers(b)}`,
+    `Tokens by tier, routed: ${tiers(r)}`,
     "",
     `Baseline pinned to sonnet at high effort: ${pair.pinned ? "yes" : "no"}`,
     `Drop: ${pair.dropPercent === null ? "none" : `${pair.dropPercent}%`} (rounded down to 2 decimals; the verdict uses exact tokens)`,
@@ -2537,7 +2562,7 @@ function halt(reason) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]");
   }
   const policy = loadPolicy();
   const flags = parseFlags(rest);

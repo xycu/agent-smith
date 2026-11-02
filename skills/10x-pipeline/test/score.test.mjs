@@ -31,9 +31,9 @@ test("score data: step pins a cheap tier and is not interactive", () => {
   assert.deepEqual(policy.steps.score, { skill: null, baseTier: 0, minTier: 0, maxTier: 1 });
 });
 
-test("score data: score block ships off with the shift thresholds", () => {
+test("score data: score block ships on at standard with the shift thresholds", () => {
   assert.deepEqual(policy.score, {
-    minRigor: null,
+    minRigor: "standard",
     file: "complexity.json",
     schemaVersion: 1,
     maxBytes: 65536,
@@ -52,7 +52,7 @@ test("score data: score block ships off with the shift thresholds", () => {
       downMaxUnknowns: 2,
     },
   });
-  assert.equal(policy.score.minRigor, null);
+  assert.equal(policy.score.minRigor, "standard");
   assert.equal(policy.score.shift.plan.down, null);
   // The file name must pass the artifact-name pattern the router uses for change-folder files.
   assert.match(policy.score.file, /^[A-Za-z0-9._-]+$/);
@@ -213,13 +213,20 @@ function scoreProject(policyOver = OPT_IN, goal = GOAL) {
 
 // ---- gate -------------------------------------------------------------------------
 
-test("score gate: the shipped default, lean and minRigor null run no score and log no skip", () => {
-  // The shipped default: an override file with no score key, written without the helper.
+test("score gate: the shipped default runs score at standard; lean and minRigor null run no score and log no skip", () => {
+  // The shipped default (minRigor "standard"): an override file with no score key, written without the helper.
   const shipped = makeProject();
   fs.writeFileSync(path.join(shipped.root, "context/foundation/agent-smith-policy.json"), "{}");
   const a = init(shipped, GOAL, ["--rigor", "standard"]);
-  assert.equal(a.json.step, "plan");
+  assert.equal(a.json.step, "score");
   assert.deepEqual(skipsOf(shipped), []);
+  // The shipped default at lean: no score and no skip.
+  const shippedLean = makeProject();
+  fs.writeFileSync(path.join(shippedLean.root, "context/foundation/agent-smith-policy.json"), "{}");
+  const a2 = init(shippedLean, "fix typo");
+  assert.equal(a2.json.step, "plan");
+  assert.equal(readMetaFile(shippedLean).rigor.level, "lean");
+  assert.deepEqual(skipsOf(shippedLean), []);
 
   // Opted in at standard, but the run is lean.
   const lean = makeProject({ policy: OPT_IN });
