@@ -31,11 +31,19 @@ export function makeProject({ id = "demo", plan = null, policy = null, change = 
     planFile: path.join(changeDir, "plan.md"),
   };
   if (plan !== null) writePlan(project, plan);
-  if (policy) {
-    fs.mkdirSync(path.join(root, "context/foundation"), { recursive: true });
-    fs.writeFileSync(path.join(root, "context/foundation/agent-smith-policy.json"), JSON.stringify(policy));
-  }
+  writeOverride(project, policy ?? {});
   return project;
+}
+
+// Writes the project override file, context/foundation/agent-smith-policy.json. It merges in `score.minRigor: null`
+// unless the policy has its own `score` key, so the score step stays off and existing tests keep `plan` as the first
+// step whatever the shipped default is. Shallow merge only: a test-provided `score` block wins whole. A test that
+// wants the scorer opts in with `policy: { score: { minRigor: "standard" } }`.
+export function writeOverride(project, policy = {}) {
+  const file = path.join(project.root, "context/foundation/agent-smith-policy.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const value = Object.hasOwn(policy, "score") ? policy : { ...policy, score: { minRigor: null } };
+  fs.writeFileSync(file, JSON.stringify(value));
 }
 
 export function writePlan(project, text) {

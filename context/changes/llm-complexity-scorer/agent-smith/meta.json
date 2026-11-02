@@ -1,0 +1,10 @@
+{
+  "id": "llm-complexity-scorer",
+  "goal": "Have the complexity of a change scored by an LLM on a cheap model in a score step the router schedules (ADR-007), store the scores with evidence and unknowns in a machine-readable file, and have the router use them next to the deterministic signals (FR-001, FR-003, FR-011)",
+  "archive": true,
+  "baseSha": "c0e217b9b07bc8aae8f8311e931a09ca0e296f53",
+  "rigor": {
+    "level": "thorough",
+    "by": "signals"
+  }
+}
