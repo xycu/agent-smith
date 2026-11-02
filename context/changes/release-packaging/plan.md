@@ -129,7 +129,7 @@ Enforce Conventional Commits on the commits of a pull request and run the tests 
 - The branch's own commits pass the lint: `node tools/commit-lint.mjs main..HEAD`
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - Workflow is valid: `actionlint .github/workflows/ci.yml`
-- Workflow names the Node 24 floor and both commands: `grep -c "node-version: 24" .github/workflows/ci.yml` prints 1 and `grep -c "commit-lint.mjs" .github/workflows/ci.yml` prints 1 or more
+- Workflow names the Node 24 floor and both commands: `grep -c "node-version: 24" .github/workflows/ci.yml` prints 2 (one per job) and `grep -c "commit-lint.mjs" .github/workflows/ci.yml` prints 1 or more
 
 #### Manual Verification:
 
@@ -248,11 +248,11 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Automated
 
-- [x] 1.1 Guard tests pass: `node --test tools/test/version-check.test.mjs`
-- [x] 1.2 Guard passes on the repo: `node tools/version-check.mjs`
-- [x] 1.3 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs`
-- [x] 1.4 Both manifests stay valid JSON
-- [x] 1.5 Claude Code accepts the manifests: `claude plugin validate .` reports `Validation passed`
+- [x] 1.1 Guard tests pass: `node --test tools/test/version-check.test.mjs` — c667e37
+- [x] 1.2 Guard passes on the repo: `node tools/version-check.mjs` — c667e37
+- [x] 1.3 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs` — c667e37
+- [x] 1.4 Both manifests stay valid JSON — c667e37
+- [x] 1.5 Claude Code accepts the manifests: `claude plugin validate .` reports `Validation passed` — c667e37
 
 #### Manual
 
@@ -262,11 +262,11 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Automated
 
-- [ ] 2.1 Lint tests pass: `node --test tools/test/commit-lint.test.mjs`
-- [ ] 2.2 The branch's own commits pass the lint: `node tools/commit-lint.mjs main..HEAD`
-- [ ] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.4 Workflow names the Node 24 floor and both commands
-- [ ] 2.6 Workflow is valid: `actionlint .github/workflows/ci.yml`
+- [x] 2.1 Lint tests pass: `node --test tools/test/commit-lint.test.mjs`
+- [x] 2.2 The branch's own commits pass the lint: `node tools/commit-lint.mjs main..HEAD`
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.4 Workflow names the Node 24 floor and both commands
+- [x] 2.6 Workflow is valid: `actionlint .github/workflows/ci.yml`
 
 #### Manual
 
