@@ -50,7 +50,13 @@
   },
   "review": {
     "reviseToleranceWarnings": 1,
-    "fixOnNeedsAttention": true
+    "fixOnNeedsAttention": true,
+    "openFindings": {
+      "enabled": true,
+      "closedDecisions": ["APPLIED", "FIXED", "ACCEPTED", "SKIPPED", "DISMISSED"],
+      "onOpen": "halt"
+    },
+    "confirmRounds": { "lean": 0, "standard": 0, "thorough": 0 }
   },
   "rigor": {
     "levels": ["lean", "standard", "thorough"],

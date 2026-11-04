@@ -110,8 +110,40 @@ function readPlan(file) {
   return res;
 }
 
+// The findings of a review: one record per "### F<n>" block, which runs to the next "## " or "### " heading. The severity
+// is the first of CRITICAL, WARNING and OBSERVATION on the block's Severity line (emoji ignored); a block that names none
+// reads as a warning, so an unreadable severity is never cleaner than it is. The decision is the first run of ASCII
+// letters after "**Decision**:", upper-cased ("APPLIED - abc1234" reads APPLIED, "ACCEPTED-AS-RULE: x" reads ACCEPTED),
+// or null when the line is missing. Nothing here judges whether a decision is true.
+function readFindings(text) {
+  const findings = [];
+  let cur = null;
+  const flush = () => {
+    if (!cur) return;
+    const body = cur.lines.join("\n");
+    const sev = body.match(/\*\*Severity\*\*[^\n]*/);
+    const word = sev ? sev[0].match(/CRITICAL|WARNING|OBSERVATION/i) : null;
+    const dec = body.match(/\*\*Decision(?:\*\*:|:\*\*)[ \t]*([A-Za-z]+)/);
+    findings.push({
+      id: cur.id,
+      severity: word ? word[0].toLowerCase() : "warning",
+      decision: dec ? dec[1].toUpperCase() : null,
+    });
+    cur = null;
+  };
+  for (const line of text.split("\n")) {
+    if (/^#{2,3}\s/.test(line)) {
+      flush();
+      const h = line.match(/^###\s+(F\d+)\b/);
+      if (h) cur = { id: h[1], lines: [] };
+    } else if (cur) cur.lines.push(line);
+  }
+  flush();
+  return findings;
+}
+
 function readReview(file) {
-  const res = { exists: false, verdict: null, critical: 0, warnings: 0, mtime: 0 };
+  const res = { exists: false, verdict: null, critical: 0, warnings: 0, findings: [], mtime: 0 };
   if (!fs.existsSync(file)) return res;
   res.exists = true;
   res.mtime = mtime(file);
@@ -123,6 +155,47 @@ function readReview(file) {
     res.critical = Number((f[0].match(/(\d+)\s*critical/i) || [0, 0])[1]);
     res.warnings = Number((f[0].match(/(\d+)\s*warnings?/i) || [0, 0])[1]);
   }
+  res.findings = readFindings(text);
+  return res;
+}
+
+// The open-findings keys of the policy, read tolerantly: a value of the wrong shape reads as the shipped default and never
+// halts, except a non-boolean `enabled`, which reads as off. The words are upper-cased to match readFindings.
+const DEFAULT_CLOSED_DECISIONS = ["APPLIED", "FIXED", "ACCEPTED", "SKIPPED", "DISMISSED"];
+function openFindingsConfig(policy) {
+  const c = policy?.review?.openFindings;
+  if (!isObject(c)) return { enabled: true, closed: new Set(DEFAULT_CLOSED_DECISIONS) };
+  const words = Array.isArray(c.closedDecisions) && c.closedDecisions.every((w) => typeof w === "string" && w.trim() !== "")
+    ? c.closedDecisions.map((w) => w.trim().toUpperCase())
+    : DEFAULT_CLOSED_DECISIONS;
+  return { enabled: c.enabled === true, closed: new Set(words) };
+}
+
+// What is still open in a review. `aware` is false (and the caller uses the measured header counts) unless the feature is on
+// and at least one finding carries a Decision line. A missing, PENDING or unknown decision is open; observations never count.
+// A header count above the parsed blocks adds the difference as open (`unparsed`), so a review that lists fewer blocks than it
+// claims is never read as cleaner than it says.
+function openCounts(review, policy) {
+  const res = { aware: false, openCritical: 0, openWarnings: 0, applied: 0, ids: [], unparsed: 0 };
+  const cfg = openFindingsConfig(policy);
+  const findings = review.findings ?? [];
+  if (!cfg.enabled || !findings.some((f) => f.decision !== null)) return res;
+  res.aware = true;
+  let parsedCritical = 0;
+  let parsedWarnings = 0;
+  for (const f of findings) {
+    if (f.severity === "observation") continue;
+    if (f.severity === "critical") parsedCritical++; else parsedWarnings++;
+    if (f.decision === "APPLIED" || f.decision === "FIXED") res.applied++;
+    if (f.decision !== null && cfg.closed.has(f.decision)) continue;
+    res.ids.push(f.id);
+    if (f.severity === "critical") res.openCritical++; else res.openWarnings++;
+  }
+  const extraCritical = Math.max(0, review.critical - parsedCritical);
+  const extraWarnings = Math.max(0, review.warnings - parsedWarnings);
+  res.openCritical += extraCritical;
+  res.openWarnings += extraWarnings;
+  res.unparsed = extraCritical + extraWarnings;
   return res;
 }
 
@@ -452,6 +525,15 @@ function cleanSignals(raw, policy, step) {
   return Object.keys(clean).length ? clean : null;
 }
 
+// The review counts kept in the log entry: the verdict and the measured header counts, plus the open pair for a review
+// with Decision lines. Later reads (status, the report) use this copy, so a later edit of the review file changes nothing.
+function reviewRecord(read, policy) {
+  const rec = { verdict: read.verdict, critical: read.critical, warnings: read.warnings };
+  const open = openCounts(read, policy);
+  if (open.aware) { rec.openCritical = open.openCritical; rec.openWarnings = open.openWarnings; }
+  return rec;
+}
+
 function attachResult(p, log, policy) {
   const ran = executed(log);
   const last = ran[ran.length - 1];
@@ -467,8 +549,14 @@ function attachResult(p, log, policy) {
   let verified;
   switch (last.step) {
     case "plan": verified = plan.hasProgress && plan.mtime > last.startedAt && (!CODE_REPLANS.includes(last.template) || verifyCodeReplan(last, plan)); break;
-    case "plan-review": verified = mtime(p.planReview) > last.startedAt && readReview(p.planReview).verdict !== null; break;
-    case "impl-review": verified = mtime(p.implReview) > last.startedAt && readReview(p.implReview).verdict !== null; break;
+    case "plan-review":
+    case "impl-review": {
+      const file = last.step === "plan-review" ? p.planReview : p.implReview;
+      const read = readReview(file);
+      verified = mtime(file) > last.startedAt && read.verdict !== null;
+      if (verified) last.review = reviewRecord(read, policy);
+      break;
+    }
     case "research": {
       const file = preplanFile(p, policy, last);
       verified = file !== null && mtime(file) > last.startedAt && frontmatterField(file, "status") !== null;
@@ -3122,6 +3210,7 @@ function status(id, flags) {
       ...(e.invalid ? { invalid: e.invalid } : {}),
       ...(e.scoreShift ? { scoreShift: e.scoreShift } : {}),
       ...(typeof e.agent === "string" ? { agent: e.agent } : {}),
+      ...(isObject(e.review) ? { review: e.review } : {}),
       ...(typeof e.commit === "string" ? { commit: e.commit.slice(0, 7) } : {}),
       ...(typeof e.rolledBack === "string" ? { rolledBack: e.rolledBack } : {}),
       ...(typeof e.kept === "string" ? { kept: e.kept } : {}),
