@@ -1811,6 +1811,16 @@ function tierFor(d, log, policy, plan, meta, level, score = null) {
       const floor = effortFloorTier(policy, minEffort);
       if (final < floor) final = floor;
       notes.push(`floor ${minEffort} (tier ${floor})`);
+      // The ladder need not be ordered by effort, so the index floor alone can leave the step on a rung whose own
+      // effort is below the floor. Move up past such rungs; an effort name missing from effortOrder counts as below.
+      const order = Array.isArray(policy.rigor?.effortOrder) ? policy.rigor.effortOrder : [];
+      const want = order.indexOf(minEffort);
+      const top = policy.ladder.length - 1;
+      if (want >= 0) {
+        const landed = final;
+        while (final < top && order.indexOf(policy.ladder[final].effort) < want) final++;
+        if (final !== landed) notes.push(`skips ${policy.ladder[landed].effort} rung (tier ${final})`);
+      }
     }
     return { final, notes };
   };

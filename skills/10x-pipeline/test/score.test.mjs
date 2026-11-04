@@ -575,28 +575,28 @@ function firstPlan(value, { goal = PLAIN_GOAL, policyOver = OPT_IN } = {}) {
 
 // ---- shift: up --------------------------------------------------------------------
 
-test("score shift: a cognitive sum of 7 moves a plain-goal first plan from 3 to 4", () => {
+test("score shift: a cognitive sum of 7 moves a plain-goal first plan from 3 to 5", () => {
   const control = firstPlan(scoreFile({ ambiguity: 3, novelty: 2, coupling: 1 })).e;
   assert.equal(control.tier, 3, control.tierWhy);
   assert.equal(shiftOf(control), undefined);
 
   const { e } = firstPlan(HIGH_COGNITIVE());
-  assert.equal(e.tier, 4, e.tierWhy);
-  assert.deepEqual(shiftOf(e), { sum: "cognitive", value: 7, shift: 1, effective: 1 });
+  assert.equal(e.tier, 5, e.tierWhy);
+  assert.deepEqual(shiftOf(e), { sum: "cognitive", value: 7, shift: 1, effective: 2 });
   assert.match(e.tierWhy, /\+1 score \(cognitive 7\/9, confidence medium\)/);
 });
 
-test("score shift: a hard-keyword first plan moves from 4 to 5", () => {
+test("score shift: a hard-keyword first plan moves from 5 to 6", () => {
   const control = firstPlan(QUIET(), { goal: HARD_GOAL }).e;
-  assert.equal(control.tier, 4, control.tierWhy);
+  assert.equal(control.tier, 5, control.tierWhy);
   const { e } = firstPlan(HIGH_COGNITIVE(), { goal: HARD_GOAL });
-  assert.equal(e.tier, 5, e.tierWhy);
+  assert.equal(e.tier, 6, e.tierWhy);
   assert.equal(shiftOf(e).effective, 1);
 });
 
 test("score shift: the up shift has no guards: low confidence and 3 unknowns", () => {
   const { e } = firstPlan(HIGH_COGNITIVE({ confidence: "low", unknowns: ["a", "b", "c"] }));
-  assert.equal(e.tier, 4, e.tierWhy);
+  assert.equal(e.tier, 5, e.tierWhy);
   assert.equal(shiftOf(e).shift, 1);
 });
 
@@ -752,7 +752,7 @@ test("score shift: an implement-tdd step at thorough never goes below the effort
 test("score shift: maxTier bounds the up shift and records effective 0", () => {
   const nine = scoreFile({ ambiguity: 3, novelty: 3, coupling: 3 });
   const { e } = firstPlan(nine, { goal: HARD_GOAL, policyOver: { ...OPT_IN, steps: { plan: { maxTier: 4 } } } });
-  assert.equal(e.tier, 4, e.tierWhy);
+  assert.equal(e.tier, 5, e.tierWhy);
   assert.deepEqual(shiftOf(e), { sum: "cognitive", value: 9, shift: 1, effective: 0 });
   assert.match(e.tierWhy, /\+1 score not applied \(clamp or floor\)/);
 });
@@ -807,12 +807,12 @@ test("score shift: a retried first plan and a repeated implement keep the up shi
   init(project, PLAIN_GOAL, ["--rigor", "standard"]);
   putScore(project, all);
   assert.equal(finish(project).json.step, "plan");
-  assert.equal(lastRan(project).tier, 4);
+  assert.equal(lastRan(project).tier, 5);
   assert.equal(finish(project, { status: "failed", note: "no plan" }).json.step, "plan");
   const retry = lastRan(project);
   assert.equal(retry.template, "plan");
   assert.equal(retry.tier, 5, retry.tierWhy);
-  assert.equal(shiftOf(retry).effective, 1);
+  assert.equal(shiftOf(retry).effective, 0);
 
   put(project, "plan.md", twoPhases(null));
   assert.equal(finish(project).json.step, "plan-review");
@@ -930,7 +930,7 @@ test("score report: status shows the score, the skip summary, invalid and scoreS
   assert.equal(bad.score, undefined);
   assert.deepEqual(good.score, summaryOf(HIGH_COGNITIVE()));
   assert.equal(good.invalid, undefined);
-  assert.deepEqual(plan.scoreShift, { sum: "cognitive", value: 7, shift: 1, effective: 1 });
+  assert.deepEqual(plan.scoreShift, { sum: "cognitive", value: 7, shift: 1, effective: 2 });
   assert.equal(good.scoreShift, undefined);
 
   const skipped = makeProject({ policy: OPT_IN });

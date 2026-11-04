@@ -43,7 +43,7 @@ test("existing loop: RETHINK with no checked Automated row re-plans at +2 from r
   assert.match(res.json.prompt, /verdict: RETHINK/);
   const last = readLogEntries(project).pop();
   assert.equal(last.template, "plan-revise");
-  assert.equal(last.tier, 6);
+  assert.equal(last.tier, 7);
   assert.match(last.tierWhy, /\+2 from results/);
 });
 
@@ -66,7 +66,7 @@ test("existing loop: REVISE with one critical re-plans at +1 from results", () =
   assert.match(res.json.prompt, /verdict: REVISE/);
   const last = readLogEntries(project).pop();
   assert.equal(last.template, "plan-revise");
-  assert.equal(last.tier, 5);
+  assert.equal(last.tier, 6);
   assert.match(last.tierWhy, /\+1 from results/);
 });
 

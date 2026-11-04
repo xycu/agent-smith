@@ -125,7 +125,7 @@ How the tier moves (see `scripts/route.mjs`, `tierFor` and `decide`):
 - Lesson candidates: the implementation review can end its `RESULT` `signals` with `lessonCandidates`, a list of rule sentences. The router keeps at most `lessons.maxCandidates` per review, each cut to `lessons.maxChars` code points, and lists them in `report.md` under `## Lesson candidates`. Both caps sit in the `lessons` block of the policy.
 
 - Plan size: +1 tier per `phaseThresholds` entry reached by the phase count in `## Progress`.
-- First plan, from the goal text (changes relative to the plan step's base): a short goal (at most `firstPlan.maxWords` words, no hard keyword) = -1 plus the simple-change discount. A goal with a hard keyword from `firstPlan.hardKeywords` = no reduction, whatever its length. Any other goal, including an empty one = -1.
+- First plan, from the goal text (changes relative to the plan step's base): a short goal (at most `firstPlan.maxWords` words, no hard keyword) = -2 plus the simple-change discount. A goal with a hard keyword from `firstPlan.hardKeywords` = no reduction, whatever its length. Any other goal, including an empty one = -2.
 - A simple change (at most 1 phase and 6 `## Progress` rows) = -1 on plan review, implement and implementation review. The step's `minTier` can absorb the discount, for example implement after a clean `SOUND` review. The discount is withheld after any failed step, so the first retry of a discounted step moves up 2 tiers (the lost discount plus the failure).
 - Plan review `RETHINK` = re-plan at +2. `REVISE` with criticals or too many warnings = re-plan at +1.
 - A noisy plan review (3+ warnings) = implement at +1. A clean `SOUND` = implement at -1.

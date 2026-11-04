@@ -46,9 +46,9 @@ function replanProject(id = "demo") {
 test("preplan data: steps, gates, artifacts and loops", () => {
   const pp = policy.preplan;
   assert.deepEqual(pp.order, ["research", "domain-brief", "frame"]);
-  assert.deepEqual(policy.steps.research, { skill: "10x-research", baseTier: 3, minTier: 2, maxTier: 5, interactive: true });
-  assert.deepEqual(policy.steps["domain-brief"], { skill: null, baseTier: 3, minTier: 3, maxTier: 5, interactive: true });
-  assert.deepEqual(policy.steps.frame, { skill: "10x-frame", baseTier: 4, minTier: 4, maxTier: 4, interactive: true });
+  assert.deepEqual(policy.steps.research, { skill: "10x-research", baseTier: 3, minTier: 2, maxTier: 6, interactive: true });
+  assert.deepEqual(policy.steps["domain-brief"], { skill: null, baseTier: 3, minTier: 3, maxTier: 6, interactive: true });
+  assert.deepEqual(policy.steps.frame, { skill: "10x-frame", baseTier: 5, minTier: 5, maxTier: 5, interactive: true });
   for (const step of pp.order) assert.equal(pp.gates[step].minRigor, "thorough", step);
   assert.deepEqual(pp.gates.research.skipIf, ["researchExists"]);
   assert.deepEqual(pp.gates["domain-brief"].when, ["aggregateGap", "dependencyLeak"]);
@@ -805,7 +805,7 @@ test("failed research is retried at the next tier and halts after three failures
   assert.equal(second.status, 0);
   assert.equal(second.json.step, "research");
   assert.equal(lastRan(project).template, "research-with-map");
-  assert.equal(lastRan(project).tier, 4);
+  assert.equal(lastRan(project).tier, 5);
   assert.match(lastRan(project).tierWhy, /\+1 for 1 failed attempt\(s\)/);
 
   const third = finish(project, { status: "failed", note: "again" });
@@ -830,7 +830,7 @@ test("a failed pre-plan step is retried before skipIf, when and the rigor check"
   assert.equal(again.json.action, "run");
   assert.equal(again.json.step, "research", "retried, not skipped and not passed on to plan");
   assert.deepEqual(skipsOf(research), []);
-  assert.equal(lastRan(research).tier, 4);
+  assert.equal(lastRan(research).tier, 5);
   assert.equal(finish(research).json.step, "research");
   const halted = finish(research);
   assert.equal(halted.json.action, "halt");
@@ -854,7 +854,7 @@ test("a failed pre-plan step is retried before skipIf, when and the rigor check"
   writeOverride(closed, { preplan: { gates: { research: { minRigor: "bogus" } } } });
   const retry = finish(closed, { status: "failed", note: "no luck" });
   assert.equal(retry.json.step, "research", "retried although the gate is now closed");
-  assert.equal(lastRan(closed).tier, 4);
+  assert.equal(lastRan(closed).tier, 5);
   assert.deepEqual(skipsOf(closed), []);
 
   // (d) A failed domain brief is retried when its `when` signal is gone.
@@ -921,17 +921,17 @@ test("frame stays at opus/high on retry", () => {
   put(project, "research.md", RESEARCH);
   const first = start(project, "Logins fail because the cache is stale");
   assert.equal(first.step, "frame");
-  assert.equal(lastRan(project).tier, 4);
+  assert.equal(lastRan(project).tier, 5);
 
   for (const note of ["one", "two"]) {
     const res = finish(project, { status: "failed", note });
     assert.equal(res.json.step, "frame", note);
     assert.equal(res.json.model, "opus", note);
     assert.equal(res.json.effort, "high", note);
-    assert.equal(lastRan(project).tier, 4, note);
+    assert.equal(lastRan(project).tier, 5, note);
     assert.equal(lastRan(project).template, "frame", note);
   }
-  assert.match(lastRan(project).tierWhy, /clamped to 4/);
+  assert.match(lastRan(project).tierWhy, /clamped to 5/);
   const halted = finish(project, { status: "failed", note: "three" });
   assert.equal(halted.json.action, "halt");
   assert.match(halted.json.reason, /frame failed 3 times in a row/);

@@ -440,9 +440,9 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [ ] 1.1 New ladder test passes: `node --test skills/10x-pipeline/test/ladder.test.mjs`
-- [ ] 1.2 Compare and provenance tests pass with the 8-rung baseline: `node --test skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
-- [ ] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 New ladder test passes: `node --test skills/10x-pipeline/test/ladder.test.mjs`
+- [x] 1.2 Compare and provenance tests pass with the 8-rung baseline: `node --test skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
