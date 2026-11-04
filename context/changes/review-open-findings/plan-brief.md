@@ -18,7 +18,7 @@ A review with Decision lines routes on open findings: all applied goes on, an op
 
 | Decision | Choice | Why (1 sentence) | Source |
 | --- | --- | --- | --- |
-| Open means | PENDING, missing or unknown Decision; APPLIED, ACCEPTED, SKIPPED, DISMISSED are closed (`closedDecisions`) | A human who triages in the review skill must be able to resume the run without editing words to APPLIED | Plan (adapts change.md "not APPLIED") |
+| Open means | PENDING, missing or unknown Decision; APPLIED, FIXED (the review skills' triage word), ACCEPTED, SKIPPED, DISMISSED are closed (`closedDecisions`) | A human who triages in the review skill must be able to resume the run without editing words to APPLIED | Plan (adapts change.md "not APPLIED") |
 | Open finding after REVISE or NEEDS ATTENTION | Halt for a human; `onOpen: "retry"` restores re-plan or `fix` | A re-plan subagent must not decide an owner question, as it did in the `worktree-step-commits` run | Change notes #4 |
 | RETHINK and REJECTED | Routing unchanged | They judge the approach, not a local fix, and `loops-existing.test.mjs` characterizes them | Change notes #3 |
 | No Decision lines | Fall back to today's counts, same `reason` text | Keeps every existing test and plain-string prompt overrides valid with no edit | Change notes #7 |
