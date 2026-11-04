@@ -344,11 +344,11 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Automated
 
-- [x] 4.1 Report and status tests pass: `node --test skills/10x-pipeline/test/openfindings.test.mjs`
-- [x] 4.2 ADR and prompt form checks pass: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 4.4 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
-- [x] 4.5 Version fields consistent: `node tools/version-check.mjs`
+- [x] 4.1 Report and status tests pass: `node --test skills/10x-pipeline/test/openfindings.test.mjs` — a7c261e
+- [x] 4.2 ADR and prompt form checks pass: `node --test skills/10x-pipeline/test/rules.test.mjs` — a7c261e
+- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — a7c261e
+- [x] 4.4 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs` — a7c261e
+- [x] 4.5 Version fields consistent: `node tools/version-check.mjs` — a7c261e
 
 #### Manual
 
