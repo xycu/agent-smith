@@ -39,10 +39,13 @@ export function makeProject({ id = "demo", plan = null, policy = null, change = 
 // unless the policy has its own `score` key, so the score step stays off and existing tests keep `plan` as the first
 // step whatever the shipped default is. Shallow merge only: a test-provided `score` block wins whole. A test that
 // wants the scorer opts in with `policy: { score: { minRigor: "standard" } }`.
+// It also merges in `isolation.require: false` unless the policy has its own `isolation` key, so scratch projects
+// outside a linked worktree run as before; a test that wants the gate gives its own `isolation` block.
 export function writeOverride(project, policy = {}) {
   const file = path.join(project.root, "context/foundation/agent-smith-policy.json");
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  const value = Object.hasOwn(policy, "score") ? policy : { ...policy, score: { minRigor: null } };
+  let value = Object.hasOwn(policy, "score") ? policy : { ...policy, score: { minRigor: null } };
+  if (!Object.hasOwn(value, "isolation")) value = { ...value, isolation: { require: false } };
   fs.writeFileSync(file, JSON.stringify(value));
 }
 

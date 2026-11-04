@@ -2112,11 +2112,66 @@ function gitMessage(res) {
 
 // The halt text when `rev-parse --is-inside-work-tree` did not answer "true". A git that is missing or timed out
 // is reported as such, not as "not a work tree".
-function notWorkTree(inside, timeout) {
-  if (inside.timedOut) return `--archive needs a git work tree, but git timed out after ${timeout} ms while checking ${ROOT}.`;
-  if (inside.status === 127) return `--archive needs a git work tree, but git could not be run: ${gitMessage(inside)}.`;
-  if (inside.status !== 0) return `--archive needs a git work tree and ${ROOT} is not one: ${gitMessage(inside)}.`;
-  return `--archive needs a git work tree and ${ROOT} is not one.`;
+function notWorkTree(inside, timeout, need = "--archive needs") {
+  if (inside.timedOut) return `${need} a git work tree, but git timed out after ${timeout} ms while checking ${ROOT}.`;
+  if (inside.status === 127) return `${need} a git work tree, but git could not be run: ${gitMessage(inside)}.`;
+  if (inside.status !== 0) return `${need} a git work tree and ${ROOT} is not one: ${gitMessage(inside)}.`;
+  return `${need} a git work tree and ${ROOT} is not one.`;
+}
+
+// ---- run isolation ----------------------------------------------------------
+
+const ISOLATION_OFF = '{ "isolation": { "require": false } } in context/foundation/agent-smith-policy.json';
+
+// Is the run isolation gate on? Only the boolean true turns it on; a block of another shape reads as off.
+const isolationOn = (policy) => isObject(policy.isolation) && policy.isolation.require === true;
+
+// The isolation checks of init, all reads. Returns the short branch name, or halts and writes nothing.
+// A linked worktree has a git dir that differs from the common dir; both are compared as absolute paths, because
+// from a subdirectory of the main checkout the plain forms differ as strings (/abs/.git and ../.git).
+function isolationCheck(id, policy, prev, fresh) {
+  const c = policy.isolation;
+  const timeout = c.gitTimeoutMs;
+  const g = (args) => runGit(args, { timeout });
+  const stop = (reason) => halt(`${reason} Nothing was written.`);
+  const inside = g(["rev-parse", "--is-inside-work-tree"]);
+  if (inside.status !== 0 || inside.stdout.trim() !== "true") {
+    stop(`${notWorkTree(inside, timeout, "Run isolation (isolation.require) needs")} To run without isolation, set ${ISOLATION_OFF}.`);
+  }
+  const gitDir = g(["rev-parse", "--path-format=absolute", "--git-dir"]);
+  const commonDir = g(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  if (gitDir.status !== 0 || commonDir.status !== 0) {
+    stop(`Run isolation cannot tell whether ${ROOT} is a linked worktree: ${gitMessage(gitDir.status !== 0 ? gitDir : commonDir)}.`);
+  }
+  if (path.resolve(gitDir.stdout.trim()) === path.resolve(commonDir.stdout.trim())) {
+    stop(`Run isolation needs a linked git worktree on a run branch, and ${ROOT} is in the main checkout. ` +
+      `The orchestrator creates the worktree (.claude/worktrees/agent-smith-${id}); to run in the main checkout, for example to finish an in-flight run, set ${ISOLATION_OFF}.`);
+  }
+  const head = g(["symbolic-ref", "-q", "--short", "HEAD"]);
+  const branch = head.status === 0 ? head.stdout.trim() : "";
+  if (!branch) stop("HEAD is detached; run isolation needs the run worktree on its run branch.");
+  const defaults = Array.isArray(c.defaultBranches) ? c.defaultBranches.filter((b) => typeof b === "string" && b) : [];
+  const originHead = g(["symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"]);
+  const originName = originHead.status === 0 ? originHead.stdout.trim().replace(/^origin\//, "") : "";
+  if (originName) defaults.push(originName);
+  if (defaults.includes(branch)) stop(`Branch ${branch} is a default branch; run isolation needs a run branch of its own.`);
+  const prefix = typeof c.branchPrefix === "string" ? c.branchPrefix : "agent-smith/";
+  if (!branch.startsWith(prefix)) stop(`Branch ${branch} does not start with ${prefix}; run isolation needs the run branch ${prefix}${id}.`);
+  const ignored = ignoredProbePaths(id, { timeout });
+  if (ignored.length) stop(`Run isolation needs git to track the change folder, but git ignores ${ignored.join(", ")}. Fix .gitignore.`);
+  if (prev.isolated === true && typeof prev.branch === "string" && prev.branch !== branch) {
+    stop(`This run started on branch ${prev.branch} and HEAD is on ${branch}; resume it on ${prev.branch}.`);
+  }
+  if (!fresh && prev.isolated !== true) {
+    stop(`This run has executed steps and was not started isolated, so it cannot become isolated now. To finish it, set ${ISOLATION_OFF}.`);
+  }
+  return branch;
+}
+
+// The working-directory rules put before every prompt of an isolated run, with a blank line after them, else "".
+function worktreeLine(policy, meta) {
+  if (meta.isolated !== true) return "";
+  return render(promptText(policy, "worktree"), { workdir: ROOT }).trim() + "\n\n";
 }
 
 const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone by the router. A resume makes no commit, " +
@@ -2257,7 +2312,7 @@ function archiveDone(p, id, meta, log, policy, level, d) {
     const head = g(["rev-parse", "--short", "HEAD"]);
     commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : "HEAD";
   }
-  const prompt = render(policy.prompts.archive, { id }).trim() + "\n\n" + policy.prompts.suffix;
+  const prompt = worktreeLine(policy, meta) + render(policy.prompts.archive, { id }).trim() + "\n\n" + policy.prompts.suffix;
   return out({
     action: "archive",
     model: target.model,
@@ -2360,9 +2415,10 @@ function next(id, policy) {
     unproven: (d.unproven ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
     lessonMax: String(lessonLimits(policy).maxCandidates), lessonChars: String(lessonLimits(policy).maxChars),
   };
-  // The rendered template, then the advisor rules for a listed template (advisor.enabled), then the generic suffix.
+  // The working-directory rules of an isolated run (meta.isolated), the rendered template, then the advisor rules for a
+  // listed template (advisor.enabled), then the generic suffix.
   const advisor = advisorOn(policy, template);
-  const prompt = render(promptText(policy, template), vars).trim()
+  const prompt = worktreeLine(policy, meta) + render(promptText(policy, template), vars).trim()
     + (advisor ? "\n\n" + render(promptText(policy, "advisor"), vars).trim() : "")
     + "\n\n" + policy.prompts.suffix;
   const agent = stepAgent(policy, d.step);
@@ -2787,6 +2843,10 @@ function main() {
         halt(`--archive needs git to track the change folder, but git ignores ${ignored.join(", ")}. Fix .gitignore or run without --archive. Nothing was written.`);
       }
     }
+    // Run isolation (isolation.require true) is checked before anything is written. meta.isolated and meta.branch are
+    // set only at an init whose log has no executed entry, so a run is isolated from its first step or not at all.
+    const fresh = executed(readLog(p.log)).length === 0;
+    const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh) : null;
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
     const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
@@ -2795,6 +2855,7 @@ function main() {
     if (!isObject(prev.rigor)) delete meta.rigor;
     if (archive !== undefined) meta.archive = archive;
     if (chrome !== undefined) meta.chrome = chrome;
+    if (branch !== null && fresh) { meta.isolated = true; meta.branch = branch; }
     if (flags.rigor !== undefined) {
       // On resume --rigor can raise the requested level, never lower it.
       const old = isObject(prev.rigor) && levels.includes(prev.rigor.requested) ? prev.rigor.requested : flags.rigor;

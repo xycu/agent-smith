@@ -440,9 +440,9 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [x] 1.1 New ladder test passes: `node --test skills/10x-pipeline/test/ladder.test.mjs`
-- [x] 1.2 Compare and provenance tests pass with the 8-rung baseline: `node --test skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
-- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 New ladder test passes: `node --test skills/10x-pipeline/test/ladder.test.mjs` — 4d8950c
+- [x] 1.2 Compare and provenance tests pass with the 8-rung baseline: `node --test skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/provenance.test.mjs` — 4d8950c
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 4d8950c
 
 #### Manual
 
@@ -452,10 +452,10 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [ ] 2.1 Isolation tests pass (main checkout halts, linked worktree on `agent-smith/x` passes, detached halts, default branch halts, require false unchanged): `node --test skills/10x-pipeline/test/isolation.test.mjs`
-- [ ] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 2.3 Skill content test passes: `node --test skills/10x-pipeline/test/skill-loop.test.mjs`
-- [ ] 2.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 Isolation tests pass (main checkout halts, linked worktree on `agent-smith/x` passes, detached halts, default branch halts, require false unchanged): `node --test skills/10x-pipeline/test/isolation.test.mjs`
+- [x] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 2.3 Skill content test passes: `node --test skills/10x-pipeline/test/skill-loop.test.mjs`
+- [x] 2.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
