@@ -304,3 +304,127 @@ test("scorer failures skip", { skip: noGit }, () => {
     }
   }
 });
+
+// ---- review-open-findings, phase 3: the confirmation round ------------------
+// The walker above writes header-only reviews, which are unaware and never confirm. These cases write Decision-bearing
+// reviews with a local writer, so helpers.mjs and the cases above stay as they are.
+
+// A Decision-bearing review whose findings are all APPLIED; the header counts stay as measured before the edits.
+function awareReviewText(verdict) {
+  return [
+    "# Review", "",
+    `- **Verdict**: ${verdict}`,
+    "- **Findings**: 1 critical, 1 warnings", "",
+    "## Findings", "",
+    "### F1 — First", "", "- **Severity**: ❌ CRITICAL", "- **Decision**: APPLIED — abc1234", "",
+    "### F2 — Second", "", "- **Severity**: ⚠️ WARNING", "- **Decision**: APPLIED", "",
+  ].join("\n");
+}
+
+function awareReview(project, name, verdict) {
+  const abs = path.join(project.changeDir, "reviews", `${name}.md`);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, awareReviewText(verdict));
+  const when = future();
+  fs.utimesSync(abs, when, when);
+}
+
+// The saturating shape: longScript's loop reviews stay header-only, and the review that ends each loop (the SOUND plan
+// review, the APPROVED implementation review) becomes an aware REVISE / NEEDS ATTENTION with every finding APPLIED, so it
+// goes on exactly as that review did. With confirmRounds N it is followed by N confirmation reviews, which the script
+// answers with the same aware review; the last one exhausts the cap.
+function confirmScript(level, rounds) {
+  const base = longScript(level);
+  const aware = (verdict) => Array.from({ length: rounds + 1 }, () => ({ verdict, aware: true }));
+  return { ...base, planReviews: [...base.planReviews.slice(0, -1), ...aware("REVISE")], implReviews: [...base.implReviews.slice(0, -1), ...aware("NEEDS ATTENTION")] };
+}
+
+// Answers a review step with a scripted aware review when the next script entry is one; everything else goes through the
+// walker of the cases above.
+function answerAware(project, fixture, state, json, script) {
+  const queue = json.step === "plan-review" ? script.planReviews : json.step === "impl-review" ? script.implReviews : null;
+  if (queue && queue[0]?.aware) {
+    const r = queue.shift();
+    awareReview(project, json.step, r.verdict);
+    return finish(project);
+  }
+  return answer(project, fixture, state, json, script);
+}
+
+function walkAware(name, level, { override = null, script, goal = level === "thorough" ? THOROUGH_GOAL : GOAL, fixture = FIXTURES[name] } = {}) {
+  const merged = { ...(override ?? {}), score: { ...(override?.score ?? {}), minRigor: "standard" } };
+  const project = fixtureProject(fixture, { override: merged, useGit: true });
+  const state = { done: new Set(), manualDone: false, rework: false };
+  let res = init(project, goal, ["--rigor", level]);
+  for (let i = 0; res.json.action === "run"; i++) {
+    assert.ok(i < 40, `${name}: the walk ends`);
+    res = answerAware(project, fixture, state, res.json, script);
+  }
+  return { project, res, steps: ranOf(project).length, sequence: sequence(project) };
+}
+
+// The confirmation round on at `rounds` for `level`, with `budgetDelta` raised by 2 per round (the documented answer) unless asked otherwise.
+const confirmOverride = (level, rounds, { raise = true } = {}) => ({
+  review: { confirmRounds: { [level]: rounds } },
+  ...(raise ? { rigor: { budgetDelta: { ...policy.rigor.budgetDelta, [level]: policy.rigor.budgetDelta[level] + 2 * rounds } } } : {}),
+});
+
+const confirmCount = (w, template) => w.sequence.filter((s) => s === template).length;
+
+test("confirm rounds ship off and the aware saturating shape keeps the longest legal path", { skip: noGit }, () => {
+  assert.deepEqual(policy.review.confirmRounds, { lean: 0, standard: 0, thorough: 0 });
+  for (const level of ["standard", "thorough"]) {
+    let max = 0;
+    for (const name of Object.keys(FIXTURES)) {
+      const w = walkAware(name, level, { script: confirmScript(level, 0) });
+      assert.equal(w.res.json.action, "done", `${name} at ${level}: ${w.res.stdout}\n${w.sequence.join(" ")}`);
+      assert.equal(confirmCount(w, "plan-review-confirm") + confirmCount(w, "impl-review-confirm"), 0, `${name}: no confirmation with the shipped policy\n${w.sequence.join(" ")}`);
+      assert.equal(ranOf(w.project).every((e) => e.ok), true, `${name}: every step was ok`);
+      max = Math.max(max, w.steps);
+    }
+    // The aware reviews end the loops the way SOUND and APPROVED did, so the longest path is today's.
+    assert.equal(max, TABLE[level], `${level}: the shipped path is unchanged`);
+  }
+});
+
+test("each confirm round adds one plan-review and one impl-review step, which a budgetDelta raised by 2 per round holds", { skip: noGit }, () => {
+  for (const [level, rounds, names] of [
+    ["standard", 1, Object.keys(FIXTURES)],
+    ["thorough", 1, Object.keys(FIXTURES)],
+    ["standard", 2, ["F-full"]],
+    ["thorough", 2, ["F-full"]],
+  ]) {
+    let max = 0;
+    for (const name of names) {
+      const off = walkAware(name, level, { script: confirmScript(level, 0) });
+      const on = walkAware(name, level, { override: confirmOverride(level, rounds), script: confirmScript(level, rounds) });
+      const label = `${name} at ${level}, ${rounds} round(s)\n${on.sequence.join(" ")}`;
+      assert.equal(on.res.json.action, "done", `${label}\n${on.res.stdout}`);
+      assert.equal(confirmCount(on, "plan-review-confirm"), rounds, label);
+      assert.equal(confirmCount(on, "impl-review-confirm"), rounds, label);
+      assert.equal(on.steps, off.steps + 2 * rounds, label);
+      assert.equal(ranOf(on.project).every((e) => e.ok), true, label);
+      assert.equal(statusOf(on.project).rigor, level, label);
+      max = Math.max(max, on.steps);
+    }
+    const budget = budgetOf(level, { ...policy, rigor: { ...policy.rigor, budgetDelta: confirmOverride(level, rounds).rigor.budgetDelta } });
+    assert.equal(max, TABLE[level] + 2 * rounds, `${level} x${rounds}: the longest path grows by two steps per round`);
+    // The raised delta keeps one failed step and its retry to spare, as the shipped one does with the round off.
+    assert.ok(max <= budget - 2, `${level} x${rounds}: ${max} steps fit a budget of ${budget} with two to spare`);
+  }
+});
+
+test("a confirm round with the shipped budgetDelta passes the point that leaves a failed step and its retry to spare", { skip: noGit }, () => {
+  for (const level of ["standard", "thorough"]) {
+    const spare = policy.limits.maxTotalSteps + policy.rigor.budgetDelta[level] - 2;
+    let max = 0;
+    for (const name of Object.keys(FIXTURES)) {
+      const w = walkAware(name, level, { override: confirmOverride(level, 1, { raise: false }), script: confirmScript(level, 1) });
+      // The walk ends in done at the budget, or in the budget halt; it never runs past the budget.
+      assert.ok(w.res.json.action === "done" || /Step budget \d+ spent/.test(w.res.json.reason ?? ""), `${name} at ${level}: ${w.res.stdout}\n${w.sequence.join(" ")}`);
+      assert.ok(w.steps <= budgetOf(level), `${name}: ${w.steps} steps stay inside the budget`);
+      max = Math.max(max, w.steps);
+    }
+    assert.ok(max > spare, `${level}: ${max} steps pass the ${spare} the shipped delta leaves room for`);
+  }
+});

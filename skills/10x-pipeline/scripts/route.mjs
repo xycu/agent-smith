@@ -912,6 +912,30 @@ function openOverTolerance(oc, policy) {
   return oc.openCritical > 0 || oc.openWarnings > policy.review.reviseToleranceWarnings;
 }
 
+// review.confirmRounds[<level>], read tolerantly: a value that is not a non-negative integer reads as the shipped default
+// (0, off). It caps the confirmation reviews of each kind per run.
+function confirmRounds(policy, level) {
+  const v = policy?.review?.confirmRounds?.[level];
+  return Number.isInteger(v) && v >= 0 ? v : 0;
+}
+
+// The confirmation round: an extra review of the same kind (same step name, so freshness and the tier policy of the review
+// apply; only the template differs) after an aware review that applied fixes and left nothing open. The caller has checked
+// the verdict, `applied` and the open counts. The count is every executed entry with the confirm template, failed ones
+// included, so N is a hard cap and a confirmation that applied fixes again schedules the next one only below it.
+function confirmNext(kind, label, log, policy, level, oc) {
+  const cap = confirmRounds(policy, level);
+  const template = `${kind}-review-confirm`;
+  const ran = log.filter((e) => e.template === template).length;
+  if (ran >= cap) return null;
+  return {
+    step: `${kind}-review`,
+    template,
+    bump: 0,
+    reason: `${label} applied ${oc.applied} fix(es) and left nothing open: confirmation round ${ran + 1} of ${cap}: self-applied fixes unchecked`,
+  };
+}
+
 // "A, B or C" for the Decision words a halt text offers.
 function joinWords(words) {
   if (words.length <= 1) return words.join("");
@@ -1015,6 +1039,11 @@ function decide(p, fullLog, policy, meta, ctx) {
     }
     return replanNext(log, pr, policy, ctx.level);
   }
+  // Nothing open after a REVISE that applied fixes: with review.confirmRounds above 0, a confirmation review first.
+  if (prAware && plan.autoDone === 0 && prOpen.applied > 0 && prOpen.openCritical === 0 && prOpen.openWarnings === 0) {
+    const confirm = confirmNext("plan", `plan review ${pr.verdict}`, log, policy, ctx.level, prOpen);
+    if (confirm) return confirm;
+  }
 
   const lastRan = log[log.length - 1];
   if (lastRan?.template === "plan-replan" && !lastRan.ok) {
@@ -1079,6 +1108,12 @@ function decide(p, fullLog, policy, meta, ctx) {
       bump: ir.verdict === "REJECTED" ? E.rejectedBump : 0,
       reason: `impl review ${ir.verdict} (${ir.critical} critical, ${ir.warnings} warnings)${irAware ? `; open ${irOpen.openCritical} critical, ${irOpen.openWarnings} warnings` : ""}`,
     };
+  }
+
+  // Nothing open after a NEEDS ATTENTION that applied fixes: with review.confirmRounds above 0, a confirmation review first.
+  if (irAware && irOpen.applied > 0 && irOpen.openCritical === 0 && irOpen.openWarnings === 0) {
+    const confirm = confirmNext("impl", `impl review ${ir.verdict}`, log, policy, ctx.level, irOpen);
+    if (confirm) return confirm;
   }
 
   return {

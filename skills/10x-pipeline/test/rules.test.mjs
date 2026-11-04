@@ -142,3 +142,13 @@ test("both review templates carry the apply-fixes rules", () => {
   for (const k of ["impl-review", "impl-review-warn"]) assert.ok(flat(POLICY.prompts[k]).includes("@prompts/impl-review-apply.md"), k);
   for (const k of ["plan-review", "impl-review", "impl-review-warn"]) assert.doesNotMatch(flat(POLICY.prompts[k]).join("\n"), /Do not (apply fixes|fix findings)|choose to save and stop/, k);
 });
+
+test("both confirm templates carry their apply-fixes rules", () => {
+  const POLICY = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+  const flat = (v) => (Array.isArray(v) ? v : [v]);
+  assert.ok(flat(POLICY.prompts["plan-review-confirm"]).includes("@prompts/plan-review-apply.md"));
+  assert.ok(flat(POLICY.prompts["plan-review-confirm"]).includes("@prompts/plan-review-confirm.md"));
+  assert.ok(flat(POLICY.prompts["impl-review-confirm"]).includes("@prompts/impl-review-apply.md"));
+  assert.ok(flat(POLICY.prompts["impl-review-confirm"]).includes("@prompts/impl-review-confirm.md"));
+  for (const k of ["plan-review-confirm", "impl-review-confirm"]) assert.doesNotMatch(flat(POLICY.prompts[k]).join("\n"), /Do not (apply fixes|fix findings)|choose to save and stop/, k);
+});

@@ -208,6 +208,11 @@
       "Run /10x-plan-review context/changes/{id}/plan.md\nSave the review to context/changes/{id}/reviews/plan-review.md.",
       "@prompts/plan-review-apply.md"
     ],
+    "plan-review-confirm": [
+      "Run /10x-plan-review context/changes/{id}/plan.md\nSave the review to context/changes/{id}/reviews/plan-review.md.",
+      "@prompts/plan-review-confirm.md",
+      "@prompts/plan-review-apply.md"
+    ],
     "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md.",
     "impl-review": [
       "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md.",
@@ -258,6 +263,12 @@
     "implement-tdd": [
       "Run /10x-tdd {id} phase {phase}",
       "@prompts/executor-tdd.md"
+    ],
+    "impl-review-confirm": [
+      "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md.",
+      "@prompts/impl-review-confirm.md",
+      "@prompts/impl-review-apply.md",
+      "@prompts/impl-review-lessons.md"
     ],
     "implement-retry": [
       "Run /10x-goal-implement {id} phase {phase}",
