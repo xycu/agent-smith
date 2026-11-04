@@ -503,9 +503,9 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [x] 6.1 Version and commit lint tools pass: `node tools/version-check.mjs && node tools/commit-lint.mjs main..HEAD`
-- [x] 6.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 6.3 Docs name the new rule: `grep -n "refs/agent-smith" AGENTS.md README.md docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md`
+- [x] 6.1 Version and commit lint tools pass: `node tools/version-check.mjs && node tools/commit-lint.mjs main..HEAD` — ecf6147
+- [x] 6.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — ecf6147
+- [x] 6.3 Docs name the new rule: `grep -n "refs/agent-smith" AGENTS.md README.md docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md` — ecf6147
 
 #### Manual
 
