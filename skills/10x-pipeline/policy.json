@@ -109,7 +109,7 @@
     "branchPrefix": "agent-smith/",
     "gitTimeoutMs": 120000,
     "commit": { "message": "chore({id}): step {n} {step}", "startMessage": "chore({id}): start run" },
-    "rollback": { "ref": "refs/agent-smith/{id}/failed-{n}" }
+    "rollback": { "ref": "refs/agent-smith/{id}/{run}/failed-{n}" }
   },
   "preplan": {
     "order": ["research", "domain-brief", "frame"],

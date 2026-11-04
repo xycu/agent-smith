@@ -43,7 +43,11 @@ Rules, written as scenarios (the form of ADR-004):
 
 ### Failed-step rollback
 
-**GIVEN** an isolated run whose last step failed, has a `startSha`, carries no `uncommitted` list and no `signals.needsHuman`, and was not rolled back or kept before **WHEN** `next` runs **THEN** the router **MUST** snapshot the worktree under `refs/agent-smith/<id>/failed-<n>` with plumbing (`git add -A`, `write-tree`, `commit-tree -p HEAD`, `update-ref`), reset the worktree with `git reset --hard <startSha>`, set back the file times `decide` compares, and write the router state back, all before risk, rigor and `decide` read the files.
+**GIVEN** an isolated run whose last step failed, has a `startSha`, carries no `uncommitted` list and no `signals.needsHuman`, and was not rolled back or kept before **WHEN** `next` runs **THEN** the router **MUST** snapshot the worktree under `refs/agent-smith/<id>/<run>/failed-<n>` with plumbing (`git add -A`, `write-tree`, `commit-tree -p HEAD`, `update-ref`), reset the worktree with `git reset --hard <startSha>`, set back the file times `decide` compares, and write the router state back, all before risk, rigor and `decide` read the files.
+
+**GIVEN** a side ref **WHEN** the router names it **THEN** `<run>` **MUST** be the first 12 hex characters of the run's start commit (`meta.startCommit`, or the `startSha` of the run's first step when the start commit was empty), so two runs of one change id in one repository never share a ref.
+
+**GIVEN** an isolated run **WHEN** `next` creates a step entry and `git rev-parse HEAD` fails, times out after `isolation.gitTimeoutMs` or prints no hash **THEN** the router **MUST** halt before it logs the step and name the cause, because a step without a `startSha` cannot be rolled back.
 
 **GIVEN** the cwd is not a linked worktree on `meta.branch` **WHEN** a rollback would run **THEN** the router **MUST** halt before any git write.
 
@@ -55,7 +59,7 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** an isolated run and a step whose template `escalation.firstAttempt.templates` lists **WHEN** that step has no failed entry in the run and no simple-change discount applies **THEN** the router **MUST** lower its tier by `escalation.firstAttempt.drop` before the clamp and the effort floor.
 
-**GIVEN** a first-attempt drop that survived the clamp and the floor **WHEN** that attempt fails **THEN** the router **MUST NOT** count the failure for `rigor.fromFailures` or the step budget.
+**GIVEN** a first-attempt drop that survived the score shift, the clamp and the floor (the final tier is below the tier the step gets without the drop and without the shift) **WHEN** that attempt fails **THEN** the router **MUST NOT** count the failure for `rigor.fromFailures` or the step budget.
 
 **GIVEN** a failed cheap first attempt **WHEN** the router computes the retry tier, checks `maxAttemptsPerStep` or counts implement failures for the code re-plan **THEN** it **MUST** count the failure as any other.
 
@@ -69,15 +73,18 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** an interactive step at a level with `rigor.minEffort` **WHEN** the floor is applied **THEN** the router **MUST** also move the step up past a rung whose own effort ranks below the floor, so ADR-003's effort guarantee holds on a ladder that is not ordered by effort.
 
+**GIVEN** an interactive step with a floor **WHEN** it failed `k` times in a row **THEN** the router **MUST** move it `k` rungs up counting only rungs whose effort clears the floor (a below-floor rung it starts on or passes is skipped for free), so each failed attempt still raises its effort: a step that starts on `sonnet/high` runs `opus/high` on its second attempt and `opus/xhigh` on its third, as before the inserted rung.
+
 ### What each rule covers
 
-- Allowed git writes of the router, all in the run worktree except the archive commit: the start commit of the first `init`, the step commits, the side-ref snapshot (`git add -A`, `write-tree`, `commit-tree`, `update-ref`), the `git reset --hard <startSha>` of the rollback and the two resets of its undo, and the pre-archive commit of ADR-003. A failed start or step commit runs a `git reset` of the router's own add. A failed rollback halts and leaves what it staged; the side ref, once made, keeps the edits.
+- Allowed git writes of the router, all in the run worktree except the archive commit: the start commit of the first `init`, the step commits, the side-ref snapshot under `refs/agent-smith/<id>/<run>/failed-<n>` (`git add -A`, `write-tree`, `commit-tree`, `update-ref`), the `git reset --hard <startSha>` of the rollback and the two resets of its undo, and the pre-archive commit of ADR-003. A failed start or step commit runs a `git reset` of the router's own add. A failed rollback halts and leaves what it staged; the side ref, once made, keeps the edits.
 - The side ref is made with plumbing, so no hook runs on it. Step and start commits run every hook and signing.
 - `startSha` is HEAD when the entry is created, so a file that is untracked or modified at step start is staged by the snapshot and removed or reverted by the reset. The start commit keeps the orchestrator's copy of the change folder (`research.md`, `frame.md`, a ready `plan.md`, an edited `change.md`) out of reach of the first rollback.
 - File times: each entry of an isolated run records `before.mtimes` for `plan.md`, `reviews/plan-review.md` and `reviews/impl-review.md` (0 when absent). The rollback sets them back after the reset; the undo sets the times the failed step left. A run that starts with a reviewed plan therefore keeps its review fresh after a rolled-back implement, and a rolled-back plan review that rewrote its file runs again.
 - Not rolled back: a `blocked` fallback step, a failed `score` attempt, an entry with `uncommitted` rows (the `implement-retry` step needs those ticks and that code), an entry with `signals.needsHuman` (the run halts on it). What a fallback or a failed score attempt leaves goes into the next successful step's commit; when the next step fails instead, its rollback resets those leftovers too, and its side ref keeps them.
 - `report.md` lists rolled-back and kept steps under `## Rolled-back steps` with their side ref; `status` shows `rolledBack`, `kept` and the short `commit`.
-- `escalation.firstAttempt` ships `{ "drop": 1, "templates": ["implement", "implement-segment", "implement-tdd", "implement-e2e"] }`. `implement-retry`, re-plans and `fix` never get it. A drop the clamp or the floor absorbed (a tdd or e2e step on the floor, a step on its `minTier`) sets no `cheap` flag, reads `-1 first attempt not applied (clamp or floor)` in `tierWhy`, and its failure counts as usual. The retry of a cheap attempt runs two tiers above it.
+- `escalation.firstAttempt` ships `{ "drop": 1, "templates": ["implement", "implement-segment", "implement-tdd", "implement-e2e"] }`. `implement-retry`, re-plans and `fix` never get it. A drop the clamp or the floor absorbed (a tdd or e2e step on the floor, a step on its `minTier`) sets no `cheap` flag, reads `-1 first attempt not applied (clamp or floor)` in `tierWhy`, and its failure counts as usual. A drop that an execution-sum up shift cancels (+1 and -1, so the step runs on the tier it gets without both) sets no `cheap` flag either and reads `-1 first attempt not applied (cancelled by the score shift)`. The retry of a cheap attempt runs two tiers above it.
+- Intended interactions of a failed cheap attempt (owner decision, review F10): it is neutral only for `rigor.fromFailures` and the step budget. It still counts as a failed implement attempt everywhere else, so the implementation review that follows it runs one tier up (the `struggled` bump), the simple-change discount is withheld for the rest of the run, and the score down shift is blocked for the rest of the run (both read "no failed step").
 
 ## Decisions taken for the owner
 
@@ -88,6 +95,15 @@ The run took three decisions that the change notes did not settle. Each is rever
 | The plain first-plan bump `complexity.firstPlan.bump.plain` is -2 instead of -1, so a short or plain goal keeps its first plan on `sonnet/high` (`sonnet/medium` for a short goal at `lean`) | the PRD goal of a lower weekly usage and FR-003; README "Baseline comparison" on Opus tokens; the scorer A/B rule that turns the scorer off when Opus tokens rise; the change notes describe the rung as a shift of tier indexes | `{ "complexity": { "firstPlan": { "bump": { "plain": -1 } } } }` in the project override puts the plain-goal first plan on `opus/medium` |
 | A failed cheap first attempt is outside `rigor.fromFailures` and the step budget, as a failed `score` attempt is | the change notes ask for a neutral failure; README "Budget" sizes each level for one failed step and its retry, which a planned cheap failure would use up; a `lean` run keeps its budget of 10 | `{ "escalation": { "firstAttempt": { "drop": 0 } } }` turns the drop off, and with it the exception |
 | `loops-existing.test.mjs`, the characterization of the RETHINK/REVISE loop, got one edit: the two tier literals 6 to 7 and 5 to 6 | the file pins model and effort routes (`opus/max`, `opus/xhigh`), which the renumbering keeps; the change notes list tests among the places whose tier indexes shift; no check compares the file's bytes; `ladder.test.mjs` pins both routes by name | not by an override: a ladder that keeps the old indexes no longer exists once the rung is inserted. The owner decides whether the rule "never edit it" holds with this one recorded exception (`AGENTS.md`, test list) |
+
+## Owner decisions after the implementation review
+
+The owner decided four findings of `reviews/impl-review.md`:
+
+- F1, escalation: each failed attempt of an interactive step moves it to the next rung that clears its effort floor. Without this a step that starts on `sonnet/high` ran `opus/high` on both its second and third attempt, because +1 landed on `opus/medium`, which the floor skipped, and +2 landed on `opus/high`. Paths of the Phase 1 table that change: an interactive base-3 step (`impl-review`, `research`, a plain-goal first plan) at `standard` or `thorough` climbs 3, 5, 6 (`sonnet/high`, `opus/high`, `opus/xhigh`); the 3-5 phase `impl-review` and a plain-goal first plan with a score up shift reach 6 on their first retry; `plan-review` (base 2, below the floor) keeps 3, 3, 5 (`sonnet/high`, `sonnet/high`, `opus/high`), the route it had on the 7-rung ladder: the floor lifts it to `sonnet/high` on its first and second attempt, so its first failure moves it from base 2 to the rung the floor already gave it. A non-interactive step and a ladder ordered by effort are unchanged.
+- F3, side-ref name: `isolation.rollback.ref` ships `refs/agent-smith/{id}/{run}/failed-{n}`, `{run}` being the 12-character run token above. The baseline and scorer A/B arms run one change id in one repository, and a re-run after a deleted branch reuses the id, so `n` alone collided.
+- F9, `startSha`: read with `isolation.gitTimeoutMs`; a failure halts the run before the step is logged.
+- F10, the first-attempt drop: `cheap` needs a net drop after the score shift, the clamp and the floor; the other interactions are listed under "What each rule covers" as intended.
 
 ## Reset target
 
@@ -136,7 +152,7 @@ All pending. A human runs each check with the plugin installed from the branch a
 | --- | --- | --- |
 | Live check 1 | In a live run the subagent edits files only under the worktree, not in the main checkout, and Edit and Write under `.claude/worktrees/` do not prompt in `acceptEdits`. | Pending |
 | Live check 2 | `git log --oneline` in a run worktree shows the start commit and one `chore(<id>): step <n> <step>` commit per step that left changes, and the subjects pass `node tools/commit-lint.mjs`. | Pending |
-| Live check 3 | After a forced failed step, `git show refs/agent-smith/<id>/failed-<n> --stat` lists the partial edits and `git status` in the worktree is clean. | Pending |
+| Live check 3 | After a forced failed step, `git show refs/agent-smith/<id>/<run>/failed-<n> --stat` lists the partial edits and `git status` in the worktree is clean. | Pending |
 
 ## Decision rule
 

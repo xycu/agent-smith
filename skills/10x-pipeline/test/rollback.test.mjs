@@ -1,5 +1,5 @@
 // Failed-step rollback (worktree-step-commits, Phase 4): a failed step of an isolated run is snapshotted under
-// refs/agent-smith/<id>/failed-<n> and the worktree is reset to its startSha before the next step is decided; a halt
+// refs/agent-smith/<id>/<run token>/failed-<n> and the worktree is reset to its startSha before the next step is decided; a halt
 // in the same call undoes the reset. Real linked worktrees in scratch repositories, hermetic git.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
@@ -16,7 +16,14 @@ after(cleanupAll);
 const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
 const ON = { isolation: { require: true } };
 const skip = !gitAvailable() && "git is not available";
-const REF = (n) => `refs/agent-smith/demo/failed-${n}`;
+// The side ref of step n: refs/agent-smith/<id>/<run token>/failed-<n>, the token being the first 12 hex characters
+// of meta.startCommit, or of the first logged startSha when init staged nothing.
+const runToken = (project) => {
+  const meta = JSON.parse(fs.readFileSync(path.join(project.agentDir, "meta.json"), "utf8"));
+  const sha = typeof meta.startCommit === "string" ? meta.startCommit : readLogEntries(project).find((e) => e.startSha)?.startSha;
+  return String(sha).slice(0, 12);
+};
+const REF = (project, n) => `refs/agent-smith/demo/${runToken(project)}/failed-${n}`;
 
 function repo({ policy = ON } = {}) {
   const project = makeProject({ policy });
@@ -88,12 +95,12 @@ test("4.1 a failed step is snapshotted with untracked files and reset to startSh
   assert.equal(res.json.action, "run");
   assert.equal(res.json.step, "plan");
   // The side ref holds the partial files; its parent is the head the step left.
-  assert.ok(refExists(wt, REF(1)));
-  assert.equal(showFile(wt, REF(1), "src/new.js"), "export const half = 1;");
-  assert.match(showFile(wt, REF(1), `${CHANGE}/plan.md`), /## Progress/);
-  assert.match(showFile(wt, REF(1), `${CHANGE}/change.md`), /half-done edit/);
-  assert.equal(gw(wt, ["rev-parse", `${REF(1)}^`]), start);
-  assert.equal(gw(wt, ["log", "-1", "--format=%s", REF(1)]), "agent-smith: failed step 1 (plan)");
+  assert.ok(refExists(wt, REF(wt, 1)));
+  assert.equal(showFile(wt, REF(wt, 1), "src/new.js"), "export const half = 1;");
+  assert.match(showFile(wt, REF(wt, 1), `${CHANGE}/plan.md`), /## Progress/);
+  assert.match(showFile(wt, REF(wt, 1), `${CHANGE}/change.md`), /half-done edit/);
+  assert.equal(gw(wt, ["rev-parse", `${REF(wt, 1)}^`]), start);
+  assert.equal(gw(wt, ["log", "-1", "--format=%s", REF(wt, 1)]), "agent-smith: failed step 1 (plan)");
   // The worktree is at startSha.
   assert.equal(head(wt), start);
   assert.equal(fs.existsSync(path.join(wt.top, "src/new.js")), false);
@@ -104,13 +111,43 @@ test("4.1 a failed step is snapshotted with untracked files and reset to startSh
   const entries = readLogEntries(wt);
   assert.equal(entries.length, 2);
   assert.equal(entries[0].result.note, "ran out of road");
-  assert.equal(entries[0].rolledBack, REF(1));
+  assert.equal(entries[0].rolledBack, REF(wt, 1));
   assert.equal(entries[1].startSha, start);
   // status and report.md list the rolled-back step.
   const st = run(wt, ["status", "demo", "--report"], { env: gitEnv(wt) });
-  assert.equal(st.json.steps[0].rolledBack, REF(1));
+  assert.equal(st.json.steps[0].rolledBack, REF(wt, 1));
   assert.match(readReportFile(wt), /^## Rolled-back steps$/m);
-  assert.match(readReportFile(wt), new RegExp(`^- step 1 plan: \`${REF(1)}\` rolled back to ${start.slice(0, 7)}$`, "m"));
+  assert.match(readReportFile(wt), new RegExp(`^- step 1 plan: \`${REF(wt, 1)}\` rolled back to ${start.slice(0, 7)}$`, "m"));
+});
+
+test("4.1 the side ref carries the run token: an earlier run's ref of the same id and step stays as it was", { skip }, () => {
+  const { wt } = freshRun();
+  const meta = JSON.parse(fs.readFileSync(path.join(wt.agentDir, "meta.json"), "utf8"));
+  assert.match(meta.startCommit, /^[0-9a-f]{40,64}$/);
+  // A ref an earlier run of change `demo` left for its step 1, under its own token.
+  const earlier = "refs/agent-smith/demo/aaaaaaaaaaaa/failed-1";
+  const old = head(wt);
+  gw(wt, ["update-ref", earlier, old]);
+  fs.writeFileSync(path.join(wt.top, "partial.txt"), "half\n");
+  writeResult(wt, { status: "failed", note: "x" });
+  const res = nextIn(wt);
+  assert.equal(res.json.step, "plan", res.stdout);
+  const ref = readLogEntries(wt)[0].rolledBack;
+  assert.equal(ref, `refs/agent-smith/demo/${meta.startCommit.slice(0, 12)}/failed-1`);
+  assert.equal(showFile(wt, ref, "partial.txt"), "half");
+  assert.equal(gw(wt, ["rev-parse", earlier]), old, "the earlier run's ref is not overwritten");
+});
+
+test("4.1 an isolated run that cannot read the start commit of a step halts before logging it", { skip }, () => {
+  // meta.isolated in a project that is not a git repository: rev-parse HEAD fails, so the step would have no startSha.
+  const project = makeProject({ policy: ON });
+  writeMetaFile(project, { id: "demo", goal: GOAL, isolated: true, branch: "agent-smith/demo", startCommit: null });
+  writeLog(project, [entry(1, "plan", { commit: null, ok: true, verified: true, result: { status: "done", note: "ok" } })]);
+  writePlan(project, planText({ phases: 1 }));
+  const res = nextIn(project);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /^Cannot read the start commit of step 2 \(plan-review\) of an isolated run: git rev-parse HEAD failed: .+\. Fix git in the run worktree, then run next again\.$/);
+  assert.equal(readLogEntries(project).length, 1, "the step is not logged");
 });
 
 test("4.1 a failed step that left a staged file is snapshotted with it", { skip }, () => {
@@ -120,7 +157,7 @@ test("4.1 a failed step that left a staged file is snapshotted with it", { skip 
   writeResult(wt, { status: "failed", note: "hook said no" });
   const res = nextIn(wt);
   assert.equal(res.json.action, "run", res.stdout);
-  assert.equal(showFile(wt, REF(1), "staged.txt"), "staged by the step");
+  assert.equal(showFile(wt, REF(wt, 1), "staged.txt"), "staged by the step");
   assert.equal(fs.existsSync(path.join(wt.top, "staged.txt")), false);
   gw(wt, ["diff", "--cached", "--quiet"]);
 });
@@ -136,7 +173,7 @@ test("4.1 a failed implement that ticked every row is followed by implement, fro
   assert.equal(res.json.action, "run", res.stdout);
   assert.equal(res.json.step, "implement");
   const entries = readLogEntries(wt);
-  assert.equal(entries[2].rolledBack, REF(3));
+  assert.equal(entries[2].rolledBack, REF(wt, 3));
   assert.equal(entries[3].step, "implement");
   assert.equal(entries[3].before.autoDone, 0);
   assert.equal(head(wt), start);
@@ -157,8 +194,8 @@ test("4.1 commits the failed step made itself leave the branch and stay reachabl
   const res = nextIn(wt);
   assert.equal(res.json.step, "implement", res.stdout);
   assert.equal(head(wt), start);
-  assert.ok(ancestor(wt, phase, REF(3)), "the phase commit is an ancestor of the side ref");
-  assert.equal(gw(wt, ["rev-parse", `${REF(3)}^`]), phase);
+  assert.ok(ancestor(wt, phase, REF(wt, 3)), "the phase commit is an ancestor of the side ref");
+  assert.equal(gw(wt, ["rev-parse", `${REF(wt, 3)}^`]), phase);
   assert.equal(fs.existsSync(path.join(wt.top, "a.js")), false);
   assert.equal(readLogEntries(wt)[3].before.autoDone, 0);
 });
@@ -172,7 +209,7 @@ test("4.1 a failed first step keeps the inputs the start commit holds", { skip }
   writeResult(wt, { status: "failed", note: "no plan" });
   const res = nextIn(wt);
   assert.equal(res.json.action, "run", res.stdout);
-  assert.equal(readLogEntries(wt)[0].rolledBack, REF(1));
+  assert.equal(readLogEntries(wt)[0].rolledBack, REF(wt, 1));
   assert.match(fs.readFileSync(path.join(wt.changeDir, "research.md"), "utf8"), /status: complete/);
   assert.match(fs.readFileSync(path.join(wt.changeDir, "change.md"), "utf8"), /Notes copied from the main checkout/);
 });
@@ -232,7 +269,7 @@ test("4.1 a failed tdd entry with uncommitted rows is not reset; implement-retry
   assert.match(res.json.reason, /ticked without a code commit \(1\.1\)/);
   assert.equal(readLogEntries(wt)[3].template, "implement-retry");
   assert.equal(Object.hasOwn(readLogEntries(wt)[2], "rolledBack"), false);
-  assert.equal(refExists(wt, REF(3)), false);
+  assert.equal(refExists(wt, REF(wt, 3)), false);
   assert.ok(fs.existsSync(path.join(wt.top, "code.js")));
   assert.match(fs.readFileSync(wt.planFile, "utf8"), /- \[x\] 1\.1/);
 });
@@ -249,10 +286,10 @@ test("4.1 a second implement failure followed by plan-replan is reset", { skip }
   const res = nextIn(wt);
   assert.equal(res.json.action, "run", res.stdout);
   assert.equal(readLogEntries(wt)[4].template, "plan-replan");
-  assert.equal(readLogEntries(wt)[3].rolledBack, REF(4));
+  assert.equal(readLogEntries(wt)[3].rolledBack, REF(wt, 4));
   assert.equal(head(wt), start);
   assert.equal(fs.existsSync(path.join(wt.top, "two.js")), false);
-  assert.equal(showFile(wt, REF(4), "two.js"), "2");
+  assert.equal(showFile(wt, REF(wt, 4), "two.js"), "2");
 });
 
 test("4.1 the failure that hits the attempt cap halts with its partial edits back, kept, and is not reset again", { skip }, () => {
@@ -278,7 +315,7 @@ test("4.1 the failure that hits the attempt cap halts with its partial edits bac
   assert.match(res.json.reason, /plan failed 3 times in a row/);
   // The branch is at the head the failed step left and the worktree holds the partial edits.
   assert.equal(head(wt), start);
-  assert.ok(refExists(wt, REF(3)));
+  assert.ok(refExists(wt, REF(wt, 3)));
   assert.ok(fs.existsSync(path.join(wt.top, "new.txt")));
   assert.ok(status(wt).includes("?? new.txt"), status(wt).join(", "));
   assert.match(fs.readFileSync(path.join(wt.changeDir, "change.md"), "utf8"), /edited by attempt 3/);
@@ -287,15 +324,15 @@ test("4.1 the failure that hits the attempt cap halts with its partial edits bac
   assert.ok(near(at(IMPL_REVIEW(wt)), times.implReview));
   const entries = readLogEntries(wt);
   assert.equal(entries.length, 3);
-  assert.equal(entries[2].kept, REF(3));
+  assert.equal(entries[2].kept, REF(wt, 3));
   assert.equal(Object.hasOwn(entries[2], "rolledBack"), false);
-  assert.match(readReportFile(wt), new RegExp(`^- step 3 plan: \`${REF(3)}\` kept \\(run halted\\)$`, "m"));
+  assert.match(readReportFile(wt), new RegExp(`^- step 3 plan: \`${REF(wt, 3)}\` kept \\(run halted\\)$`, "m"));
   // A later next does not reset again: the kept edits (a plan and a clean review) decide the next step.
   const again = nextIn(wt);
   assert.equal(again.json.action, "run", again.stdout);
   assert.equal(again.json.step, "implement");
   assert.ok(fs.existsSync(path.join(wt.top, "new.txt")));
-  assert.equal(readLogEntries(wt)[2].kept, REF(3));
+  assert.equal(readLogEntries(wt)[2].kept, REF(wt, 3));
 });
 
 test("4.1 a router error after the rollback undoes it: partial edits back, entry kept", { skip }, () => {
@@ -314,7 +351,7 @@ test("4.1 a router error after the rollback undoes it: partial edits back, entry
   assert.equal(head(wt), start);
   assert.ok(fs.existsSync(path.join(wt.top, "partial.txt")));
   const last = readLogEntries(wt).at(-1);
-  assert.equal(last.kept, REF(last.n));
+  assert.equal(last.kept, REF(wt, last.n));
   assert.equal(Object.hasOwn(last, "rolledBack"), false);
 });
 
@@ -345,7 +382,7 @@ test("4.1 the main checkout is refused: no reset there", { skip }, () => {
   assert.match(res.json.reason, /is the main checkout, not the run worktree/);
   assert.ok(fs.existsSync(path.join(main.root, "partial.txt")));
   assert.equal(head(main), start);
-  assert.equal(refExists(main, REF(1)), false);
+  assert.equal(refExists(main, REF(main, 1)), false);
 });
 
 test("4.1 require false: no reset", { skip }, () => {
@@ -357,5 +394,5 @@ test("4.1 require false: no reset", { skip }, () => {
   assert.equal(res.json.action, "run", res.stdout);
   assert.ok(fs.existsSync(path.join(main.root, "partial.txt")));
   assert.equal(Object.hasOwn(readLogEntries(main)[0], "rolledBack"), false);
-  assert.equal(refExists(main, REF(1)), false);
+  assert.equal(refExists(main, REF(main, 1)), false);
 });

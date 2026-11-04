@@ -813,8 +813,10 @@ test("score shift: a retried first plan and a repeated implement keep the up shi
   assert.equal(finish(project, { status: "failed", note: "no plan" }).json.step, "plan");
   const retry = lastRan(project);
   assert.equal(retry.template, "plan");
-  assert.equal(retry.tier, 5, retry.tierWhy);
-  assert.equal(shiftOf(retry).effective, 0);
+  // The failure bump counts only rungs that clear the effort floor: 3 + 1 score lands on opus/medium, which the floor
+  // skips for free, then the failure moves one rung on to opus/xhigh. Without the shift the retry would be opus/high.
+  assert.equal(retry.tier, 6, retry.tierWhy);
+  assert.equal(shiftOf(retry).effective, 1);
 
   put(project, "plan.md", twoPhases(null));
   assert.equal(finish(project).json.step, "plan-review");
@@ -839,7 +841,7 @@ test("score shift: editing or deleting complexity.json after the score step chan
   // A quiet file now: the logged copy still decides.
   putScore(project, QUIET());
   finish(project, { status: "failed", note: "no plan" });
-  assert.equal(lastRan(project).tier, 5, lastRan(project).tierWhy);
+  assert.equal(lastRan(project).tier, 6, lastRan(project).tierWhy);
   const report = () => {
     const st = run(project, ["status", "demo", "--report"]);
     assert.equal(st.status, 0, st.stdout);
@@ -848,7 +850,7 @@ test("score shift: editing or deleting complexity.json after the score step chan
   const before = report();
   fs.rmSync(path.join(project.changeDir, "complexity.json"));
   finish(project, { status: "failed", note: "no plan again" });
-  assert.equal(lastRan(project).tier, 6, lastRan(project).tierWhy);
+  assert.equal(lastRan(project).tier, 7, lastRan(project).tierWhy);
   assert.equal(shiftOf(lastRan(project)).effective, 1);
   const section = (text) => text.slice(text.indexOf("## Complexity score"));
   assert.match(before, /## Complexity score/);

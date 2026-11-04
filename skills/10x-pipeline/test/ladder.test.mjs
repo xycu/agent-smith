@@ -252,6 +252,53 @@ test("ladder: an interactive base-3 step after one failure at standard and thoro
   }
 });
 
+// ---- escalation keeps climbing (F1): a failure counts only rungs that clear the floor -----
+
+test("ladder: an interactive base-3 step after two failures at standard and thorough reaches opus/xhigh", () => {
+  for (const rigor of ["standard", "thorough"]) {
+    const { json, e } = start(staged({
+      phases: 2, done: 2,
+      log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"),
+        entry(4, "impl-review", failed), entry(5, "impl-review", failed)],
+    }), GOAL, rigor);
+    assert.equal(json.step, "impl-review", rigor);
+    assert.deepEqual(route(e), ["opus", "xhigh"], rigor);
+    assert.equal(e.tier, 6, e.tierWhy);
+    assert.match(e.tierWhy, /\+2 for 2 failed attempt\(s\)/, rigor);
+  }
+});
+
+test("ladder: a plain-goal first plan climbs sonnet/high, opus/high, opus/xhigh over three attempts", () => {
+  const project = makeProject();
+  const tiers = [start(project, GOAL, "standard").e];
+  tiers.push(finish(project, { status: "failed", note: "no plan" }).e);
+  tiers.push(finish(project, { status: "failed", note: "no plan again" }).e);
+  assert.deepEqual(tiers.map(route), [["sonnet", "high"], ["opus", "high"], ["opus", "xhigh"]]);
+  assert.deepEqual(tiers.map((e) => e.tier), [3, 5, 6]);
+  assert.match(tiers[2].tierWhy, /\+2 for 2 failed attempt\(s\)/);
+});
+
+test("ladder: impl-review with 3 phases after one failure reaches opus/xhigh, its maxTier", () => {
+  for (const fails of [1, 2]) {
+    const log = [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")];
+    for (let i = 0; i < fails; i++) log.push(entry(4 + i, "impl-review", failed));
+    const { json, e } = start(staged({ phases: 3, done: 3, log }), GOAL, "standard");
+    assert.equal(json.step, "impl-review");
+    assert.deepEqual(route(e), ["opus", "xhigh"], `${fails} failures: ${e.tierWhy}`);
+    assert.equal(e.tier, 6, e.tierWhy);
+  }
+});
+
+test("ladder: a non-interactive base-3 step still climbs one rung per failure", () => {
+  const { e } = start(staged({
+    phases: 2, log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", failed), entry(4, "implement", failed)],
+    policy: { codeReplan: { afterFailures: 0 } },
+  }), GOAL, "standard");
+  assert.equal(e.template, "implement");
+  assert.deepEqual(route(e), ["opus", "high"]);
+  assert.equal(e.tier, 5, e.tierWhy);
+});
+
 // ---- the effort-rung floor ------------------------------------------------------------
 
 test("ladder: no interactive step lands on a rung whose effort is below the floor of its level", () => {

@@ -1812,17 +1812,42 @@ function tierFor(d, log, policy, plan, meta, level, score = null) {
   }
   if (d.bump) { tier += d.bump; parts.push(`${d.bump > 0 ? "+" : ""}${d.bump} from ${d.bumpWhy ?? "results"}`); }
   const fails = trailingFailures(log, d.step);
-  if (fails) { tier += fails * policy.escalation.perFailure; parts.push(`+${fails * policy.escalation.perFailure} for ${fails} failed attempt(s)`); }
+  // The failure bump goes in inside settle (below), so an interactive step can count it in rungs that clear its floor.
+  const failBump = fails * policy.escalation.perFailure;
+  if (fails) parts.push(`+${failBump} for ${fails} failed attempt(s)`);
   const { simple, why } = simpleSignal(d, plan, log, meta, policy);
   const discount = simple ? C.simple.discount[d.step] ?? 0 : 0;
   if (discount > 0) { tier -= discount; parts.push(`-${discount} simple change (${why})`); }
   const offset = policy.rigor?.tierOffset?.[level]?.[d.step];
   const minEffort = policy.rigor?.minEffort?.[level];
-  // Rigor offset, last-code floor, clamp, then the effort floor. Returns the final tier and what it did.
+  const interactive = Boolean(s.interactive || d.interactive) && typeof minEffort === "string";
+  const order = Array.isArray(policy.rigor?.effortOrder) ? policy.rigor.effortOrder : [];
+  const want = interactive ? order.indexOf(minEffort) : -1;
+  const top = policy.ladder.length - 1;
+  const floorIdx = interactive ? effortFloorTier(policy, minEffort) : 0;
+  // A rung at or above the index floor whose own effort is below the floor: the effort floor never lets a step stay there.
+  const belowFloor = (i) => want >= 0 && i >= floorIdx && i <= top && order.indexOf(policy.ladder[i].effort) < want;
+  // The failure bump of an interactive step counts only rungs that clear its effort floor, so each failed attempt reaches
+  // a rung the step can run on. A start on such a rung first moves past it at no cost. On a ladder ordered by effort no
+  // rung is skipped, so this is plain addition. Returns the tier and the rung it skipped, if any.
+  const addFailures = (t) => {
+    if (!failBump || want < 0) return { t: t + failBump, skipped: null };
+    let pos = t;
+    let skipped = null;
+    while (pos < top && belowFloor(pos)) { skipped = skipped ?? pos; pos++; }
+    for (let k = 0; k < failBump && pos < top; k++) {
+      pos++;
+      while (pos < top && belowFloor(pos)) { skipped = skipped ?? pos; pos++; }
+    }
+    return { t: pos, skipped };
+  };
+  // Rigor offset, failure bump, last-code floor, clamp, then the effort floor. Returns the final tier and what it did.
   const settle = (start) => {
     const notes = [];
     let t = start;
     if (Number.isInteger(offset) && offset !== 0) { t += offset; notes.push(`${offset > 0 ? "+" : ""}${offset} rigor ${level}`); }
+    const bumped = addFailures(t);
+    t = bumped.t;
     if (d.floorTier !== undefined && t < d.floorTier + (d.bump || 0)) {
       t = d.floorTier + (d.bump || 0);
       notes.push(`floor at last code tier ${d.floorTier}`);
@@ -1830,20 +1855,17 @@ function tierFor(d, log, policy, plan, meta, level, score = null) {
     const clamped = Math.max(s.minTier ?? 0, Math.min(s.maxTier ?? policy.ladder.length - 1, t, policy.ladder.length - 1));
     if (clamped !== t) notes.push(`clamped to ${clamped}`);
     let final = clamped;
-    if ((s.interactive || d.interactive) && typeof minEffort === "string") {
+    if (interactive) {
       // Applied last, so the floor wins over maxTier and over every discount.
-      const floor = effortFloorTier(policy, minEffort);
-      if (final < floor) final = floor;
-      notes.push(`floor ${minEffort} (tier ${floor})`);
+      if (final < floorIdx) final = floorIdx;
+      notes.push(`floor ${minEffort} (tier ${floorIdx})`);
       // The ladder need not be ordered by effort, so the index floor alone can leave the step on a rung whose own
       // effort is below the floor. Move up past such rungs; an effort name missing from effortOrder counts as below.
-      const order = Array.isArray(policy.rigor?.effortOrder) ? policy.rigor.effortOrder : [];
-      const want = order.indexOf(minEffort);
-      const top = policy.ladder.length - 1;
       if (want >= 0) {
         const landed = final;
         while (final < top && order.indexOf(policy.ladder[final].effort) < want) final++;
         if (final !== landed) notes.push(`skips ${policy.ladder[landed].effort} rung (tier ${final})`);
+        else if (bumped.skipped !== null && final === t) notes.push(`skips ${policy.ladder[bumped.skipped].effort} rung (tier ${final})`);
       }
     }
     return { final, notes };
@@ -1858,9 +1880,16 @@ function tierFor(d, log, policy, plan, meta, level, score = null) {
     : { applies: false, shift: 0 };
   if (shifted.applies && shifted.shift !== 0) tier += shifted.shift;
   const settled = settle(tier);
-  // Measured like the saved discount: a drop that the clamp or the floor absorbed is no cheaper attempt.
-  const cheap = drop > 0 && settled.final < settle(tier + drop).final;
-  if (drop > 0) parts.push(cheap ? `-${drop} first attempt` : `-${drop} first attempt not applied (clamp or floor)`);
+  // Measured like the saved discount, net of the score shift: a drop that the clamp or the floor absorbed, or that an up
+  // shift cancelled, is no cheaper attempt, so its failure counts for rigor and budget like any other.
+  const applied = shifted.applies ? shifted.shift : 0;
+  const survived = drop > 0 && settled.final < settle(tier + drop).final;
+  const cheap = survived && settled.final < settle(tier + drop - applied).final;
+  if (drop > 0) {
+    parts.push(cheap ? `-${drop} first attempt`
+      : survived ? `-${drop} first attempt not applied (cancelled by the score shift)`
+        : `-${drop} first attempt not applied (clamp or floor)`);
+  }
   let scoreEntry;
   if (shifted.applies && shifted.shift !== 0) {
     // The effective shift is measured like the saved discount: the final tier with and without it.
@@ -2376,6 +2405,17 @@ function writeState(p, meta, log) {
   fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
 }
 
+// The run token of the side ref ({run} in policy.isolation.rollback.ref): the first RUN_TOKEN_LENGTH hex characters
+// of the run's start commit, so two runs of one change id never share a ref. The start commit is meta.startCommit, or,
+// when init staged nothing (null), the startSha of the run's first step, which is HEAD at init; the failed step's own
+// startSha is the last resort for a log without either.
+const RUN_TOKEN_LENGTH = 12;
+function runToken(meta, ran, last) {
+  const first = ran.find((e) => typeof e.startSha === "string" && SHA_RE.test(e.startSha))?.startSha;
+  const sha = [meta.startCommit, first, last.startSha].find((s) => typeof s === "string" && SHA_RE.test(s));
+  return sha.slice(0, RUN_TOKEN_LENGTH);
+}
+
 // The rollback of a failed step of an isolated run, right after attachResult and before risk, rigor and decide, so
 // the next step is chosen from the restored files. Eligible: a failure (not a fallback, not advisory) with a
 // startSha, no `uncommitted` list (the implement-retry that follows needs those ticks), no signals.needsHuman, not
@@ -2404,7 +2444,7 @@ function rollback(p, id, meta, log, policy) {
   const unsafe = gitSafety(g, timeout, { emptyIndex: false, need: "A rollback needs" });
   if (unsafe) stop(unsafe);
   const tpl = policy.isolation?.rollback?.ref;
-  ref = typeof tpl === "string" ? render(tpl, { id, n: String(last.n) }).trim() : "";
+  ref = typeof tpl === "string" ? render(tpl, { id, run: runToken(meta, ran, last), n: String(last.n) }).trim() : "";
   // Only the router's own namespace: refs/heads, refs/tags and refs/remotes are shared by every worktree of the repo.
   if (!ref.startsWith("refs/agent-smith/")) stop("policy.isolation.rollback.ref must render to a ref under refs/agent-smith/.");
   const left = fileTimes(p); // the times the failed step left, for the undo on halt
@@ -2720,9 +2760,18 @@ function next(id, policy) {
     before: { autoDone: plan.autoDone, ...beforeExtra(policy, template, plan) },
   };
   // The commit the step of an isolated run starts from: HEAD when the entry is created, after the step commit above.
+  // A head that cannot be read (git missing, a timeout, no commit) halts before the step is logged: a step without a
+  // startSha could not be rolled back.
   if (meta.isolated === true) {
-    const startSha = (gitOut(["rev-parse", "HEAD"]) ?? "").trim();
-    if (SHA_RE.test(startSha)) entry.startSha = startSha;
+    const head = runGit(["rev-parse", "HEAD"], { timeout: policy.isolation?.gitTimeoutMs });
+    const startSha = head.status === 0 ? head.stdout.trim() : "";
+    if (!SHA_RE.test(startSha)) {
+      const why = head.timedOut ? `git timed out after ${policy.isolation?.gitTimeoutMs} ms`
+        : head.status !== 0 ? `git rev-parse HEAD failed: ${gitMessage(head).replace(/\.$/, "")}`
+          : `git rev-parse HEAD printed "${startSha.slice(0, 80)}"`;
+      return end({ action: "halt", reason: `Cannot read the start commit of step ${entry.n} (${d.step}) of an isolated run: ${why}. Fix git in the run worktree, then run next again.`, steps: ran.length });
+    }
+    entry.startSha = startSha;
     // The file times decide compares, so a rollback can set them back after the reset (0 when a file is absent).
     entry.before.mtimes = fileTimes(p);
   }
@@ -2731,7 +2780,7 @@ function next(id, policy) {
   if (agent) entry.agent = agent; // the restricted agent type the step was dispatched with (agents.restricted)
   if (advisor) entry.advisor = true; // the prompt carried the advisor rules (advisor.enabled); no consult is verified
   if (shifted) entry.scoreShift = shifted;
-  if (cheap) entry.cheap = true; // the first-attempt drop survived the clamp and the floor
+  if (cheap) entry.cheap = true; // the first-attempt drop survived the score shift, the clamp and the floor
   if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
   if (d.executor) entry.executor = d.executor;
   if (Array.isArray(d.retry)) entry.retry = d.retry;

@@ -108,6 +108,7 @@ Tier math is additive (`tierFor`: base, bumps, failures, discount), so a relativ
 | `plan-review` with 6+ phases (+2) | 4 `opus/high` | 5 `opus/high` (effort floor skips 4) |
 | A non-interactive base-3 step after one failure (+1) | 4 `opus/high` | 4 `opus/medium` |
 | An interactive base-3 step after one failure (+1), `standard` or `thorough` | 4 `opus/high` | 5 `opus/high` (effort floor skips 4) |
+| An interactive base-3 step after two failures (+2), `standard` or `thorough` (review F1, owner decision) | 5 `opus/xhigh` | 6 `opus/xhigh` (failures count only rungs that clear the floor) |
 
 The ladder is no longer ordered by effort (`sonnet/high` at 3, `opus/medium` at 4). `effortFloorTier` returns the lowest index with enough effort (3), so a tier-index floor alone would let an interactive step run on `opus/medium`, which breaks ADR-003 ("the router **MUST** pick a tier with effort `high` or above" at `standard` and `thorough`). The floor therefore also moves a step up from a rung whose own effort is below `minEffort` (plan review 2 F3).
 
