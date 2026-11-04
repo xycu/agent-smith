@@ -525,7 +525,8 @@ const isFailure = (e) => e.ok === false && !e.fallback && !e.advisory;
 
 // A failed advisory entry uses no step budget; the score's own attempt cap bounds its cost.
 // A failed advisory entry (score) and a failed cheap first attempt (escalation.firstAttempt) use no budget.
-const budgetSteps = (log) => executed(log).filter((e) => !((e.advisory || e.cheap) && e.ok === false)).length;
+// A cheap fallback (a blocked tdd or e2e step) is no failure, so it uses budget like any other fallback.
+const budgetSteps = (log) => executed(log).filter((e) => !((e.advisory && e.ok === false) || (e.cheap && isFailure(e)))).length;
 
 function trailingFailures(log, step) {
   let n = 0;
@@ -2404,7 +2405,8 @@ function rollback(p, id, meta, log, policy) {
   if (unsafe) stop(unsafe);
   const tpl = policy.isolation?.rollback?.ref;
   ref = typeof tpl === "string" ? render(tpl, { id, n: String(last.n) }).trim() : "";
-  if (!ref.startsWith("refs/")) stop("policy.isolation.rollback.ref must render to a ref under refs/.");
+  // Only the router's own namespace: refs/heads, refs/tags and refs/remotes are shared by every worktree of the repo.
+  if (!ref.startsWith("refs/agent-smith/")) stop("policy.isolation.rollback.ref must render to a ref under refs/agent-smith/.");
   const left = fileTimes(p); // the times the failed step left, for the undo on halt
   const step = (args) => {
     const res = g(args);
@@ -2417,9 +2419,11 @@ function rollback(p, id, meta, log, policy) {
   step(["update-ref", ref, snapshot]); // a ref of that name from an earlier attempt is overwritten
   refMade = true;
   step(["reset", "-q", "--hard", last.startSha]);
-  setTimes(p, last.before?.mtimes);
+  // The reset replaced run.jsonl and meta.json with their startSha versions: write the state back first, so a failure
+  // while setting the file times cannot lose the log.
   last.rolledBack = ref;
   writeState(p, meta, log);
+  setTimes(p, last.before?.mtimes);
   return { ref, left, last, g };
 }
 
@@ -2427,11 +2431,18 @@ function rollback(p, id, meta, log, policy) {
 // human. The branch goes back to the head the failed step left, the worktree holds the snapshot (files the step added
 // are untracked again, staged files come back unstaged), the router state and the file times the step left are
 // written back, and the entry says `kept`. Returns null or the git failure.
+// The undo of a rollback made by this call of next, for main's catch: set after the rollback, cleared by every halt
+// that runs the undo itself.
+let undoOnError = null;
+
 function undoRollback(p, meta, log, rb) {
   const hard = rb.g(["reset", "-q", "--hard", rb.ref]);
   if (hard.status !== 0) return `git reset --hard ${rb.ref} failed: ${gitMessage(hard)}.`;
   const mixed = rb.g(["reset", "-q", `${rb.ref}^`]);
-  if (mixed.status !== 0) return `git reset ${rb.ref}^ failed: ${gitMessage(mixed)}.`;
+  if (mixed.status !== 0) {
+    return `git reset ${rb.ref}^ failed: ${gitMessage(mixed)}. The run branch now points at the snapshot commit of ${rb.ref}; ` +
+      `run git reset -q ${rb.ref}^ in the run worktree before resuming.`;
+  }
   delete rb.last.rolledBack;
   rb.last.kept = rb.ref;
   writeState(p, meta, log);
@@ -2596,7 +2607,10 @@ function next(id, policy) {
   // An isolated run rolls a failed step back before risk, rigor and decide read the files. When this call ends in a
   // halt instead of a next step, the rollback is undone first, so the partial edits stay for a human.
   const rb = rollback(p, id, meta, log, policy);
+  // A router error later in this call ends it in main's catch, which runs the same undo.
+  if (rb) undoOnError = () => undoRollback(p, meta, log, rb);
   const end = (result) => {
+    undoOnError = null;
     if (rb && result.action === "halt") {
       const failed = undoRollback(p, meta, log, rb);
       if (failed) result = { ...result, reason: `${result.reason} The rollback was not undone: ${failed} The partial edits are kept under ${rb.ref}.` };
@@ -3177,5 +3191,14 @@ try {
   main();
 } catch (e) {
   // Never a stack trace: a bad policy or a bad file ends the run with JSON.
-  halt(`Router error: ${e instanceof Error ? e.message : String(e)}`);
+  let reason = `Router error: ${e instanceof Error ? e.message : String(e)}`;
+  // A rollback made earlier in this call is undone, as on any other halt, so the partial edits stay for a human.
+  if (undoOnError) {
+    const undo = undoOnError;
+    undoOnError = null;
+    let failed;
+    try { failed = undo(); } catch (u) { failed = u instanceof Error ? u.message : String(u); }
+    reason += failed ? ` The rollback was not undone: ${failed}` : " The rollback of the failed step was undone; its partial edits are back in the worktree.";
+  }
+  halt(reason);
 }
