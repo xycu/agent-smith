@@ -452,10 +452,10 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [x] 2.1 Isolation tests pass (main checkout halts, linked worktree on `agent-smith/x` passes, detached halts, default branch halts, require false unchanged): `node --test skills/10x-pipeline/test/isolation.test.mjs`
-- [x] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 2.3 Skill content test passes: `node --test skills/10x-pipeline/test/skill-loop.test.mjs`
-- [x] 2.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 Isolation tests pass (main checkout halts, linked worktree on `agent-smith/x` passes, detached halts, default branch halts, require false unchanged): `node --test skills/10x-pipeline/test/isolation.test.mjs` — 58ea2e2
+- [x] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs` — 58ea2e2
+- [x] 2.3 Skill content test passes: `node --test skills/10x-pipeline/test/skill-loop.test.mjs` — 58ea2e2
+- [x] 2.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 58ea2e2
 
 #### Manual
 
@@ -465,10 +465,10 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [ ] 3.1 Step commit tests pass (commit made, empty commit skipped, failed step not committed, hook failure halts and unstages, `startSha` logged, require false makes no commit): `node --test skills/10x-pipeline/test/stepcommit.test.mjs`
-- [ ] 3.2 Archive tests unchanged: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [ ] 3.3 Commit evidence of tdd/e2e unaffected by router commits: `node --test skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 Step commit tests pass (commit made, empty commit skipped, failed step not committed, hook failure halts and unstages, `startSha` logged, require false makes no commit): `node --test skills/10x-pipeline/test/stepcommit.test.mjs`
+- [x] 3.2 Archive tests unchanged: `node --test skills/10x-pipeline/test/archive.test.mjs`
+- [x] 3.3 Commit evidence of tdd/e2e unaffected by router commits: `node --test skills/10x-pipeline/test/executors.test.mjs`
+- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 

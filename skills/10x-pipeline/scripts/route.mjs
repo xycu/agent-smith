@@ -292,7 +292,9 @@ function buildReport(id, meta, fullLog) {
   const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
   const tokens = (e) => (typeof e.usage?.totalTokens === "number" ? e.usage.totalTokens : null);
   const rows = log.map((e) => {
-    const result = e.result ? (e.ok ? "ok" : e.fallback ? "fallback" : "failed") : "-";
+    const shown = e.result ? (e.ok ? "ok" : e.fallback ? "fallback" : "failed") : "-";
+    // The step commit of an isolated run, short.
+    const result = typeof e.commit === "string" ? `${shown} (${e.commit.slice(0, 7)})` : shown;
     const t = tokens(e);
     return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |`;
   });
@@ -2119,6 +2121,34 @@ function notWorkTree(inside, timeout, need = "--archive needs") {
   return `${need} a git work tree and ${ROOT} is not one.`;
 }
 
+// The git safety checks shared by the pre-archive commit, the start and step commits of an isolated run and the
+// rollback, all reads: a work tree, git ignoring a router file (only with `id`), a symbolic HEAD, no merge, rebase,
+// cherry-pick or revert in progress and, unless `emptyIndex` is false, an empty index. Returns null or the reason.
+function gitSafety(g, timeout, { id = null, emptyIndex = true, need } = {}) {
+  const inside = g(["rev-parse", "--is-inside-work-tree"]);
+  if (inside.status !== 0 || inside.stdout.trim() !== "true") return notWorkTree(inside, timeout, need);
+  if (id !== null) {
+    const ignoredProbes = ignoredProbePaths(id, { timeout });
+    if (ignoredProbes.length) return `git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`;
+  }
+  if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) return "HEAD is detached; check out a branch first.";
+  for (const name of IN_PROGRESS) {
+    const where = g(["rev-parse", "--git-path", name]);
+    if (where.status === 0 && fs.existsSync(path.resolve(ROOT, where.stdout.trim()))) {
+      return `A merge, rebase, cherry-pick or revert is in progress (${name} exists); finish or abort it first.`;
+    }
+  }
+  if (emptyIndex) {
+    const staged = g(["diff", "--cached", "--quiet"]);
+    if (staged.status === 1) {
+      const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
+      return `The index holds staged changes: ${listNames(names)} (paths relative to the git root). Commit or unstage them first.`;
+    }
+    if (staged.status !== 0) return `git diff --cached failed: ${gitMessage(staged)}`;
+  }
+  return null;
+}
+
 // ---- run isolation ----------------------------------------------------------
 
 const ISOLATION_OFF = '{ "isolation": { "require": false } } in context/foundation/agent-smith-policy.json';
@@ -2174,6 +2204,118 @@ function worktreeLine(policy, meta) {
   return render(promptText(policy, "worktree"), { workdir: ROOT }).trim() + "\n\n";
 }
 
+// Checked before every git write of an isolated run: the cwd is a linked worktree and HEAD is on meta.branch, so
+// the router never commits to or resets the main checkout or another branch. Returns null or the reason; reads only.
+function runBranchReason(g, meta) {
+  const gitDir = g(["rev-parse", "--path-format=absolute", "--git-dir"]);
+  const commonDir = g(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  if (gitDir.status !== 0 || commonDir.status !== 0) {
+    return `Cannot tell whether ${ROOT} is the run worktree: ${gitMessage(gitDir.status !== 0 ? gitDir : commonDir)}.`;
+  }
+  if (path.resolve(gitDir.stdout.trim()) === path.resolve(commonDir.stdout.trim())) {
+    return `${ROOT} is the main checkout, not the run worktree; the router never writes git state there.`;
+  }
+  const head = g(["symbolic-ref", "-q", "--short", "HEAD"]);
+  const branch = head.status === 0 ? head.stdout.trim() : "";
+  if (branch !== meta.branch) return `HEAD is on ${branch || "a detached commit"}, not on the run branch ${meta.branch}.`;
+  return null;
+}
+
+// The rendered commit subject of policy.isolation.commit[key], or null when the template is not a non-blank string.
+function isolationMessage(policy, key, vars) {
+  const tpl = policy.isolation?.commit?.[key];
+  if (typeof tpl !== "string") return null;
+  return render(tpl, vars).trim() || null;
+}
+
+// Stages and commits for an isolated run: `git add` of `rel` (the change folder) or of the whole worktree, a commit
+// when the index is not empty, then the post-commit checks of the archive path (index empty; with `rel`, the commit
+// holds only that folder and the folder is clean). Hooks and signing apply; never --no-verify, never a push.
+// Returns { commit } (the full hash, or null when nothing was staged) or { error, commit? }: `commit` is set only
+// when the commit exists, else the router's own add was unstaged.
+function routerCommit(g, timeout, { rel = null, message }) {
+  const failed = (what, res) => {
+    const reset = g(rel ? ["reset", "-q", "--", rel] : ["reset", "-q"]);
+    const note = res.timedOut ? ` git timed out after ${timeout} ms; a hook child may still run and an index.lock may remain.` : "";
+    return {
+      error: `git ${what} failed: ${gitMessage(res)}.${note} The router's own add was ` +
+        `${reset.status === 0 ? "unstaged again" : `not unstaged (git reset failed: ${gitMessage(reset)})`}. Nothing was committed.`,
+    };
+  };
+  const added = g(rel ? ["add", "--", rel] : ["add", "-A"]);
+  if (added.status !== 0) return failed("add", added);
+  const check = g(["diff", "--cached", "--quiet"]);
+  if (check.status === 0) return { commit: null };
+  if (check.status !== 1) return failed("diff --cached", check);
+  const made = g(rel ? ["commit", "-m", message, "--", rel] : ["commit", "-m", message]);
+  if (made.status !== 0) return failed("commit", made);
+  const head = g(["rev-parse", "HEAD"]);
+  const commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : null;
+  const after = (reason) => ({ error: `${reason} The commit ${commit ? commit.slice(0, 7) : "HEAD"} exists and the router does not undo it.`, commit });
+  const left = g(["diff", "--cached", "--quiet"]);
+  if (left.status !== 0) {
+    const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
+    return after(`The index is not empty after the commit (a hook staged something): ${listNames(names)} (paths relative to the git root).`);
+  }
+  if (rel) {
+    const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
+    const shown = g(["show", "--name-only", "-z", "--format=", "HEAD"]);
+    if (shown.status !== 0) return after(`Cannot list the commit: ${gitMessage(shown)}`);
+    const extra = shown.stdout.split("\0").filter(Boolean).filter((name) => !name.startsWith(`${prefix}${rel}/`));
+    if (extra.length) return after(`The commit holds paths outside ${rel}: ${listNames(extra)} (paths relative to the git root).`);
+    const unclean = statusEntries(["--", `${rel}/`], { timeout });
+    if (unclean === null) return after("Cannot read the status of the change folder.");
+    if (unclean.length) return after(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => e.file))}.`);
+  }
+  return { commit };
+}
+
+// The start commit of the first init of an isolated run: the change folder as the orchestrator copied it, plus
+// meta.json, so the first step's startSha holds the run's inputs. meta.startCommit is the guard (the hash, or null
+// when nothing was staged); a git failure leaves it absent, so the next init retries. Halts on any failure.
+function startCommit(p, id, meta, policy) {
+  const timeout = policy.isolation?.gitTimeoutMs;
+  const g = (args) => runGit(args, { timeout });
+  const stop = (reason) => halt(`The start commit of the run was not made: ${reason}`);
+  const where = runBranchReason(g, meta);
+  if (where) stop(where);
+  const unsafe = gitSafety(g, timeout, { need: "The start commit needs" });
+  if (unsafe) stop(unsafe);
+  const message = isolationMessage(policy, "startMessage", { id });
+  if (message === null) stop("policy.isolation.commit.startMessage must be a non-blank string.");
+  const res = routerCommit(g, timeout, { rel: `context/changes/${id}`, message });
+  if (res.commit !== undefined) {
+    meta.startCommit = res.commit;
+    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  }
+  if (res.error) stop(res.error);
+}
+
+// The step commit of an isolated run: right after attachResult, when the last executed entry is ok and has no
+// `commit` key, everything the step left is committed (run.jsonl first, so the commit holds the step's result).
+// The entry gets `commit` (the hash, or null for an empty index), so a resume never commits again under its name;
+// a failure before the commit leaves the key absent, so the resume retries. Halts on any failure.
+function stepCommit(p, id, meta, log, policy) {
+  if (meta.isolated !== true) return;
+  const ran = executed(log);
+  const last = ran[ran.length - 1];
+  if (!last || last.ok !== true || Object.hasOwn(last, "commit")) return;
+  const timeout = policy.isolation?.gitTimeoutMs;
+  const g = (args) => runGit(args, { timeout });
+  writeLog(p.log, log);
+  const stop = (reason) => endRun(p, id, meta, log, { action: "halt", reason: `Step commit of step ${last.n} (${last.step}): ${reason}`, steps: ran.length });
+  const where = runBranchReason(g, meta);
+  if (where) stop(where);
+  const unsafe = gitSafety(g, timeout, { need: "A step commit needs" });
+  if (unsafe) stop(unsafe);
+  const message = isolationMessage(policy, "message", { id, n: String(last.n), step: last.step });
+  if (message === null) stop("policy.isolation.commit.message must be a non-blank string.");
+  const res = routerCommit(g, timeout, { message });
+  if (res.commit !== undefined) last.commit = res.commit;
+  if (res.error) stop(res.error);
+  writeLog(p.log, log);
+}
+
 const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone by the router. A resume makes no commit, " +
   "so the check that the commit touched only the change folder (post-commit check 2) is not repeated; clearing the index " +
   "does not remove a path the commit already holds (amend the commit, or accept it). `next` repeats safely after the cause is fixed.";
@@ -2190,7 +2332,14 @@ function archiveDone(p, id, meta, log, policy, level, d) {
   // 1. Already committed and clean (a resume).
   const tracked = g(["ls-files", "--error-unmatch", "--", `${rel}/agent-smith/report.md`]).status === 0;
   const dirty = tracked ? statusEntries(["--", `${rel}/`], { timeout }) : null;
-  const committed = tracked && dirty !== null && dirty.length === 0;
+  let committed = tracked && dirty !== null && dirty.length === 0;
+  // In an isolated run a step commit can take report.md and leave the folder clean, so the folder counts as committed
+  // only when HEAD is the pre-archive commit itself.
+  if (committed && meta.isolated === true) {
+    const tpl = policy.archive?.commitMessage;
+    const subject = g(["log", "-1", "--format=%s"]);
+    committed = typeof tpl === "string" && subject.status === 0 && subject.stdout.trim() === render(tpl, { id }).trim();
+  }
 
   // 2. Pre-checks. Kind A (folder not committed) writes the run's end state, kind B prints only.
   const precheck = (reason) => {
@@ -2199,24 +2348,8 @@ function archiveDone(p, id, meta, log, policy, level, d) {
     }
     return endRun(p, id, meta, log, { action: "halt", reason: `${reason} Nothing was committed.`, steps: ran.length });
   };
-  const inside = g(["rev-parse", "--is-inside-work-tree"]);
-  if (inside.status !== 0 || inside.stdout.trim() !== "true") precheck(notWorkTree(inside, timeout));
-  const ignoredProbes = ignoredProbePaths(id, { timeout });
-  if (ignoredProbes.length) precheck(`git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`);
-  if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) precheck("HEAD is detached; check out a branch first.");
-  for (const name of IN_PROGRESS) {
-    const where = g(["rev-parse", "--git-path", name]);
-    if (where.status === 0 && fs.existsSync(path.resolve(ROOT, where.stdout.trim()))) {
-      precheck(`A merge, rebase, cherry-pick or revert is in progress (${name} exists); finish or abort it first.`);
-    }
-  }
-  const staged = g(["diff", "--cached", "--quiet"]);
-  if (staged.status === 1) {
-    const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
-    precheck(`The index holds staged changes: ${listNames(names)} (paths relative to the git root). Commit or unstage them first.`);
-  } else if (staged.status !== 0) {
-    precheck(`git diff --cached failed: ${gitMessage(staged)}`);
-  }
+  const unsafe = gitSafety(g, timeout, { id });
+  if (unsafe) precheck(unsafe);
   const created = createdValue(path.join(p.change, "change.md"));
   if (created === null || !CREATED_RE.test(created)) {
     precheck(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
@@ -2335,6 +2468,8 @@ function next(id, policy) {
   const log = readLog(p.log);
   checkPrompts(policy);
   attachResult(p, log, policy);
+  // An isolated run commits what a successful step left before risk, rigor and decide read the files.
+  stepCommit(p, id, meta, log, policy);
 
   const planNow = readPlan(p.plan);
   const risk = planNow.exists ? measureRisk(p, meta, log, policy) : null;
@@ -2437,6 +2572,11 @@ function next(id, policy) {
     startedAt: Date.now(),
     before: { autoDone: plan.autoDone, ...beforeExtra(policy, template, plan) },
   };
+  // The commit the step of an isolated run starts from: HEAD when the entry is created, after the step commit above.
+  if (meta.isolated === true) {
+    const startSha = (gitOut(["rev-parse", "HEAD"]) ?? "").trim();
+    if (SHA_RE.test(startSha)) entry.startSha = startSha;
+  }
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
   if (agent) entry.agent = agent; // the restricted agent type the step was dispatched with (agents.restricted)
@@ -2783,6 +2923,7 @@ function status(id, flags) {
       ...(e.invalid ? { invalid: e.invalid } : {}),
       ...(e.scoreShift ? { scoreShift: e.scoreShift } : {}),
       ...(typeof e.agent === "string" ? { agent: e.agent } : {}),
+      ...(typeof e.commit === "string" ? { commit: e.commit.slice(0, 7) } : {}),
     })),
   };
   if (flags.report) {
@@ -2874,6 +3015,10 @@ function main() {
       if (record) meta.provenance = record;
     }
     fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    // The start commit of an isolated run, after baseSha and the meta.json write and before the first entry exists.
+    if (meta.isolated === true && !Object.hasOwn(meta, "startCommit") && executed(readLog(p.log)).length === 0) {
+      startCommit(p, id, meta, policy);
+    }
     next(id, policy);
   } else if (cmd === "next") {
     next(id, policy);
