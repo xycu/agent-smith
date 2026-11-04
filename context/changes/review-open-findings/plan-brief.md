@@ -12,19 +12,19 @@ The router sends a run back to a re-plan or a `fix` from the pre-edit counts in 
 
 ## Desired End State
 
-A review with Decision lines routes on open findings: all applied goes on, an open critical or too many open warnings halts with the finding ids. A review with no Decision lines routes exactly as today. `review.confirmRounds` (default 0) can add one more review of the same kind after a review that applied fixes and left nothing open. The log, `status` and `report.md` show measured and open counts.
+A review with Decision lines routes on open findings: all applied goes on, an open critical or too many open warnings halts with the finding ids. A review with no Decision lines routes exactly as today. `review.confirmRounds` (default 0) can add up to N more reviews of the same kind per run after a review that applied fixes and left nothing open. A halt names the open finding ids and the way back in: set the Decision lines or triage with the review skill, commit the edit in an isolated run, run again. The log, `status` and `report.md` show measured and open counts.
 
 ## Key Decisions Made
 
 | Decision | Choice | Why (1 sentence) | Source |
 | --- | --- | --- | --- |
-| Open means | PENDING, missing or unknown Decision; APPLIED, FIXED (the review skills' triage word), ACCEPTED, SKIPPED, DISMISSED are closed (`closedDecisions`) | A human who triages in the review skill must be able to resume the run without editing words to APPLIED | Plan (adapts change.md "not APPLIED") |
+| Open means | PENDING, missing or unknown Decision; APPLIED, FIXED (the review skills' triage word), ACCEPTED, SKIPPED, DISMISSED are closed (`closedDecisions`). The word is the first run of letters, so `ACCEPTED-AS-RULE` reads ACCEPTED | A human who triages in the review skill must be able to resume the run without editing words to APPLIED | Plan (adapts change.md "not APPLIED") |
 | Open finding after REVISE or NEEDS ATTENTION | Halt for a human; `onOpen: "retry"` restores re-plan or `fix` | A re-plan subagent must not decide an owner question, as it did in the `worktree-step-commits` run | Change notes #4 |
 | RETHINK and REJECTED | Routing unchanged | They judge the approach, not a local fix, and `loops-existing.test.mjs` characterizes them | Change notes #3 |
 | No Decision lines | Fall back to today's counts, same `reason` text | Keeps every existing test and plain-string prompt overrides valid with no edit | Change notes #7 |
 | Header counts the parse cannot match | Count the surplus as open | A review that lists fewer blocks than its header must not read cleaner than it says | Plan |
 | Confirmation round | Opt-in, per rigor level, default 0 at every level, hard cap per review kind per run | Budgets are sized for the shipped longest path, so shipping it on would break them | Plan (change notes: "perhaps 1 at thorough") |
-| Confirmation finds something | Same open-findings rule: open halts (or re-plans on `retry`), applied goes on, no second confirmation | One rule to explain, and the cap bounds cost | Plan |
+| Confirmation finds something | Same open-findings rule: open halts (or re-plans on `retry`), applied goes on; another confirmation only while the per-run cap N allows (none with N = 1) | One rule to explain, and the cap bounds cost (+2 steps per round, so `budgetDelta` +2 per round) | Plan |
 | Confirmation mechanics | Same step name, new template (`plan-review-confirm`, `impl-review-confirm`) | Freshness checks and tier policy key on the step name | Plan |
 | Counts in log | `review` field on review entries, measured and open; noisy-review bump keeps measured counts | Tier bumps stay as calibrated; open counts sit beside them | Change notes #6 |
 | Decision-word contract | Apply prompts require Severity and a Decision of APPLIED or PENDING with a reason | The router now depends on those lines | Plan |
