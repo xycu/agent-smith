@@ -19,7 +19,7 @@ A review with Decision lines routes on open findings: all applied goes on, an op
 | Decision | Choice | Why (1 sentence) | Source |
 | --- | --- | --- | --- |
 | Open means | PENDING, missing or unknown Decision; APPLIED, FIXED (the review skills' triage word), ACCEPTED, SKIPPED, DISMISSED are closed (`closedDecisions`). The word is the first run of letters, so `ACCEPTED-AS-RULE` reads ACCEPTED | A human who triages in the review skill must be able to resume the run without editing words to APPLIED | Plan (adapts change.md "not APPLIED") |
-| Open finding after REVISE or NEEDS ATTENTION | Halt for a human; `onOpen: "retry"` restores re-plan or `fix` | A re-plan subagent must not decide an owner question, as it did in the `worktree-step-commits` run | Change notes #4 |
+| Open finding after REVISE or NEEDS ATTENTION | Halt for a human; `onOpen: "retry"` re-plans or runs `fix` on open findings above the tolerance (full opt-out: `openFindings.enabled: false`). Under `halt`, the REVISE-to-research loop and `maxPlanRevisions` no longer see a REVISE that has Decision lines | A re-plan subagent must not decide an owner question, as it did in the `worktree-step-commits` run | Change notes #4 |
 | RETHINK and REJECTED | Routing unchanged | They judge the approach, not a local fix, and `loops-existing.test.mjs` characterizes them | Change notes #3 |
 | No Decision lines | Fall back to today's counts, same `reason` text | Keeps every existing test and plain-string prompt overrides valid with no edit | Change notes #7 |
 | Header counts the parse cannot match | Count the surplus as open | A review that lists fewer blocks than its header must not read cleaner than it says | Plan |

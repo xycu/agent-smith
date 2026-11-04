@@ -2,10 +2,10 @@
 # Plan Review: Route Reviews on Open Findings, With a Confirmation Round
 
 - **Plan**: context/changes/review-open-findings/plan.md
-- **Mode**: Deep (grounding against `route.mjs`, `policy.json`, tests and archived reviews, done inline)
+- **Mode**: Deep (grounding against `route.mjs`, `policy.json`, tests, prompts and archived reviews, done inline)
 - **Date**: 2026-11-04
-- **Verdict**: REVISE
-- **Findings**: 0 critical, 4 warnings, 2 observations
+- **Verdict**: SOUND
+- **Findings**: 0 critical, 1 warning, 4 observations
 
 ## Verdicts
 
@@ -15,70 +15,60 @@
 | Lean Execution | PASS |
 | Architectural Fitness | PASS |
 | Blind Spots | WARNING |
-| Plan Completeness | WARNING |
+| Plan Completeness | PASS |
 
 ## Grounding
 
-Grounding: 14/14 paths and line refs checked (`route.mjs:113-127`, `:820-948`, `:442-503`, `:1274`, `:3107`, `SKILL.md:142`, `:147`, `README.md:40`, `helpers.mjs:74`, `rules.test.mjs:131`, `budget-executors.test.mjs:198-290`, archived reviews) ✓, symbols `readReview`, `decide`, `replanNext`, `attachResult`, `reviseToleranceWarnings`, `fixOnNeedsAttention` ✓, brief↔plan ✓, Progress↔Phase ✓ (one `## Progress`, 4 phases, every criterion has a row).
+Grounding: 16/16 paths and line refs checked (`route.mjs` `readReview:113`, `decide:820`, `attachResult:455`, `replanNext:1274`, `reviewWarning:1599`, status projection `:3107`; `SKILL.md:142`, `:147`; `README.md:40`; `helpers.mjs:74`; `rules.test.mjs:128-145`; `meta.baseSha` = `5333a53`; archived reviews; Decision-word counts in the archive) ✓, symbols `readReview`, `decide`, `replanNext`, `attachResult`, `trailingFailures`, `reviseToleranceWarnings`, `fixOnNeedsAttention` ✓, brief↔plan ✓, Progress↔Phase ✓ (one `## Progress`, 4 phases, every criterion has a row, no checkbox outside Progress). The round-4 `worktree-step-commits` plan review parses as 3 criticals/warnings, all `APPLIED`, header counts equal to blocks (manual row 1.6 holds).
 
 ## Findings
 
-### F1 — Human triage writes `FIXED`, which `closedDecisions` does not list
+### F1 — Under the default `halt`, the REVISE-to-research loop and `maxPlanRevisions` no longer see a REVISE
 
 - **Severity**: ⚠️ WARNING
 - **Impact**: 🏃 LOW — quick decision; fix is obvious and narrowly scoped
 - **Dimension**: Blind Spots
-- **Location**: Current State Analysis (Decision words); Phase 1 §1 and §2 (`closedDecisions`, `applied`)
-- **Detail**: The plan says human triage in `/10x-plan-review` writes `APPLIED`, `SKIPPED`, `ACCEPTED` or `DISMISSED`. The skill's Step 7 says "Mark FIXED", and the archived reviews hold 67 `FIXED` against 28 `APPLIED` Decision lines. `FIXED` is not in the default `closedDecisions`, so it reads as an unknown word, which is open. A human who triages a halted run through the skill and resumes would be halted again on every finding they fixed. `applied` (exactly `APPLIED`) would also miss them.
-- **Fix**: Add `FIXED` to the default `closedDecisions` and count `APPLIED` and `FIXED` in `applied`.
-- **Decision**: APPLIED — Current State Analysis (Decision words bullet); Phase 1 §1 Contract (closed list and `applied`); Phase 1 §2 Contract (policy default list); Testing Strategy parser cases; `plan-brief.md` Key Decisions ("Open means" row).
+- **Location**: Phase 2 §1 (plan review routing); Phase 4 §3 and §4 (README, ADR); Migration Notes
+- **Detail**: `replanNext` (`route.mjs:1274-1325`) holds branch (d), the REVISE-to-research loop, and the revision cap, and it is reached only when a `REVISE` needs a re-plan. With an aware review and the default `onOpen: "halt"` the plan sends such a `REVISE` to a halt or to implement, never to `replanNext`. So for a review with Decision lines the loop `preplan.loops.reviseResearchAfter` and the REVISE side of `limits.maxPlanRevisions` are dead by default. "What We're NOT Doing" says research-round routing does not change, and the README `Loops` bullet describes the loop with no condition. Neither the plan nor its docs said that the loop now acts only on unaware reviews or with `onOpen: "retry"`.
+- **Fix**: State it in the README (also in the `Loops` bullet), in ADR-011 and in the Migration Notes.
+- **Decision**: APPLIED — Phase 4 §3 Intent (README text, `Loops` bullet); Phase 4 §4 Intent (ADR consequence); Migration Notes (new bullet); `plan-brief.md` Key Decisions ("Open finding after REVISE or NEEDS ATTENTION" row).
 
-### F2 — The halt gives the owner no way back in
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision; fix is obvious and narrowly scoped
-- **Dimension**: Plan Completeness
-- **Location**: Phase 2 §1 and §2 Contract (halt texts)
-- **Detail**: Both halt texts name the open findings and say "Needs a human". Nothing says what resumes the run: the router re-reads the review file, so the owner must set the `Decision` lines (or triage with the review skill) and run again. Manual criterion 2.6 asks for owner-facing wording, and the unparsed surplus (header counts the parse cannot match) has no id to name.
-- **Fix**: Append the resume sentence (file, accepted Decision words, `/10x-plan-review <path>`) to both halt texts and name unlisted header counts as a number.
-- **Decision**: APPLIED — Phase 2 §1 Contract (halt text); Phase 2 §2 Contract (halt text); Phase 1 §1 Contract (`ids` lists parsed blocks only).
-
-### F3 — The review log field has no verdict, but the report line needs it
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision; fix is obvious and narrowly scoped
-- **Dimension**: Plan Completeness
-- **Location**: Phase 1 §3 Contract vs Phase 4 §1 Contract
-- **Detail**: Phase 4's report line is `- step <n> <step>: <VERDICT>, ...`, but `entry.review` holds only the four counts, and a review entry carries no other verdict field (only `fix` entries get `verdict`). `buildReport` would have to re-read a review file that a later round has overwritten, which is the wrong figure for an earlier round.
-- **Fix**: Store `verdict` in `entry.review`.
-- **Decision**: APPLIED — Phase 1 §3 Contract.
-
-### F4 — The "loops-existing untouched" check compares against `HEAD`, which moves in an isolated run
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🔎 MEDIUM — real tradeoff; pause to reason through it
-- **Dimension**: Blind Spots
-- **Location**: Desired End State (Verify); every phase's Automated row `git diff --exit-code HEAD -- .../loops-existing.test.mjs`
-- **Detail**: This run is isolated, and each successful step is committed (`chore(<id>): step <n> <step>`). After a step that edited `loops-existing.test.mjs` and committed, `git diff HEAD` is empty, so rows 1.3, 2.4, 3.5 and 4.4 pass while the hard rule (AGENTS.md, change.md Constraints) is broken. The check only proves the current step did not touch it.
-- **Fix**: Compare against the branch point (`meta.baseSha`, or `main`). The Progress row text cannot change (titles are fixed), so the plan states the stronger check in the Desired End State and Testing Strategy and tells the implementer to run it at the end of each phase.
-- **Decision**: APPLIED — Desired End State (Verify bullet); Testing Strategy, Integration Tests (added bullet with the `meta.baseSha` command). The four Progress rows keep their text. Owner may later reword the rows if titles may change.
-
-### F5 — The tolerance key and the end of the automatic `fix` change meaning for implementation review
+### F2 — "`onOpen: "retry"` restores the old reaction" overstates it
 
 - **Severity**: 💡 OBSERVATION
 - **Impact**: 🏃 LOW — quick decision; fix is obvious and narrowly scoped
 - **Dimension**: Blind Spots
-- **Location**: Phase 2 §2; Phase 4 §3 and §4
-- **Detail**: `review.reviseToleranceWarnings` bounds only the plan review today. The plan reuses it for `NEEDS ATTENTION`, so with the shipped value 1 an open warning goes to done with no `fix`, and under the default `onOpen: "halt"` an aware `NEEDS ATTENTION` never runs `fix` (before, `fixOnNeedsAttention: true` always did). The README and ADR text in Phase 4 did not say so.
-- **Fix**: Say it in the README and ADR-011 intents; the tolerated open warnings stay visible in `## Review findings`.
-- **Decision**: APPLIED — Phase 4 §3 Intent (README and AGENTS.md); Phase 4 §4 Intent (ADR).
+- **Location**: Desired End State (`onOpen` bullet); `plan-brief.md` Key Decisions
+- **Detail**: The old code ran `fix` on every `NEEDS ATTENTION` while `fixOnNeedsAttention` was `true`, and re-planned an all-applied `REVISE`. With `retry` the plan runs `fix` or a re-plan only for open findings above the tolerance, and states in Phase 2 §2 that `fixOnNeedsAttention` applies only to an unaware review. A reader of the End State would expect the old behaviour back, and the only switch that gives it is `openFindings.enabled: false`.
+- **Fix**: Reword the bullet to say what `retry` does and name `enabled: false` as the full opt-out.
+- **Decision**: APPLIED — Desired End State (`onOpen` bullet); `plan-brief.md` Key Decisions.
 
-### F6 — A finding block with an unreadable severity is counted nowhere
+### F3 — The `reason` suffix for open counts does not say which re-plan reasons carry it
+
+- **Severity**: 💡 OBSERVATION
+- **Impact**: 🏃 LOW — quick decision; fix is obvious and narrowly scoped
+- **Dimension**: Plan Completeness
+- **Location**: Phase 2 §1 Contract
+- **Detail**: A `retry` re-plan can return `research-revise` (branch d) or `plan-revise` (branch e); each builds its own `reason` string, and `replanNext` has no access to the open counts. The Contract named one reason and no way to pass the counts, so the implementer would guess whether the research reason changes.
+- **Fix**: Pass the open counts to `replanNext` as an optional argument and name the two reasons that take the suffix and the one that does not.
+- **Decision**: APPLIED — Phase 2 §1 Contract.
+
+### F4 — The `## Review findings` counts go stale after an owner edit
 
 - **Severity**: 💡 OBSERVATION
 - **Impact**: 🏃 LOW — quick decision; fix is obvious and narrowly scoped
 - **Dimension**: Blind Spots
-- **Location**: Phase 1 §1 Contract (parser)
-- **Detail**: `Severity` is "the first of CRITICAL, WARNING, OBSERVATION" on the line. A block whose line names none (a typo, a translated label) matches no count, so an open one would not stop the run. The plan's own rule for unparsed header counts reads the unknown conservatively.
-- **Fix**: Count such a block as a WARNING and add a parser test case.
-- **Decision**: APPLIED — Phase 1 §1 Contract (new bullet); Testing Strategy parser cases.
+- **Location**: Phase 4 §1 Contract
+- **Detail**: The counts are stored in the log entry when the step ends, while `decide` reads the review file live. After a halt on an open finding the owner sets the Decision and resumes; the report then still shows that finding as open for the step that was routed past it. That reads as a router bug.
+- **Fix**: State in the Contract that the counts are those of the step's end and that the section says so in one line.
+- **Decision**: APPLIED — Phase 4 §1 Contract.
+
+### F5 — An upgraded in-flight run shows provenance drift
+
+- **Severity**: 💡 OBSERVATION
+- **Impact**: 🏃 LOW — quick decision; fix is obvious and narrowly scoped
+- **Dimension**: Blind Spots
+- **Location**: Migration Notes
+- **Detail**: The plan adds `review` policy keys, edits two apply prompts and adds templates. `provenance` hashes the `review` and `prompts` sections and each `next` records a differing section in `provenance.drift`, so a run that spans the upgrade gets `drift: [prompts, review]` and `compare` warns. It changes no routing, but the Migration Notes said nothing about it.
+- **Fix**: Add one Migration Notes bullet.
+- **Decision**: APPLIED — Migration Notes (new bullet).
