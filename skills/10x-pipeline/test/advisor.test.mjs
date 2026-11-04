@@ -569,7 +569,7 @@ test("3.6 README and AGENTS.md describe the advisor flag", () => {
   assert.match(block, /record the advisor setting and the Claude Code version of both arms by hand/);
   assert.match(block, /ADR-009/);
   const agents = readRepo("AGENTS.md");
-  for (const part of ["`skills/10x-pipeline/prompts/advisor.md`", "`skills/10x-pipeline/test/advisor.test.mjs`", "(ADR-001 to ADR-009)"]) {
+  for (const part of ["`skills/10x-pipeline/prompts/advisor.md`", "`skills/10x-pipeline/test/advisor.test.mjs`", "(ADR-001 to ADR-010)"]) {
     assert.ok(agents.includes(part), part);
   }
 });
