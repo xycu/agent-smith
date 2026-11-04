@@ -524,7 +524,8 @@ function lastIdx(log, names, okOnly = true) {
 const isFailure = (e) => e.ok === false && !e.fallback && !e.advisory;
 
 // A failed advisory entry uses no step budget; the score's own attempt cap bounds its cost.
-const budgetSteps = (log) => executed(log).filter((e) => !(e.advisory && e.ok === false)).length;
+// A failed advisory entry (score) and a failed cheap first attempt (escalation.firstAttempt) use no budget.
+const budgetSteps = (log) => executed(log).filter((e) => !((e.advisory || e.cheap) && e.ok === false)).length;
 
 function trailingFailures(log, step) {
   let n = 0;
@@ -593,7 +594,8 @@ function rigorInputs(meta, log, policy, plan, risk) {
   const fromPhases = Array.isArray(R.fromPhases) ? R.fromPhases : [];
   if (reached && fromPhases.length) add(fromPhases[Math.min(reached, fromPhases.length) - 1], `phases ${plan.phases}`);
 
-  const failed = log.filter(isFailure).length;
+  // A failed cheap first attempt is neutral for the level: the retry runs above it anyway.
+  const failed = log.filter((e) => isFailure(e) && !e.cheap).length;
   for (const rule of Array.isArray(R.fromFailures) ? R.fromFailures : []) {
     if (isObject(rule) && failed >= rule.minFailed) add(rule.level, `failed steps ${failed}`);
   }
@@ -1845,12 +1847,19 @@ function tierFor(d, log, policy, plan, meta, level, score = null) {
     }
     return { final, notes };
   };
+  // The cheaper first attempt of an isolated run (a failed one is rolled back): the retry pays the failure bump on the base.
+  const drop = firstAttemptDrop(d, log, policy, meta, fails, discount);
+  tier -= drop;
   // The score shift goes in before settle, so the clamp and, for interactive steps, the effort floor bound it.
+  // The first-attempt drop counts as a discount for its guards: no down shift stacks on it.
   const shifted = isObject(score) && score.summary
-    ? scoreShift(d, policy, score.summary, { riskClear: score.riskClear === true, failed: log.some(isFailure), discount: discount > 0, phaseBump: cb > 0 })
+    ? scoreShift(d, policy, score.summary, { riskClear: score.riskClear === true, failed: log.some(isFailure), discount: discount > 0 || drop > 0, phaseBump: cb > 0 })
     : { applies: false, shift: 0 };
   if (shifted.applies && shifted.shift !== 0) tier += shifted.shift;
   const settled = settle(tier);
+  // Measured like the saved discount: a drop that the clamp or the floor absorbed is no cheaper attempt.
+  const cheap = drop > 0 && settled.final < settle(tier + drop).final;
+  if (drop > 0) parts.push(cheap ? `-${drop} first attempt` : `-${drop} first attempt not applied (clamp or floor)`);
   let scoreEntry;
   if (shifted.applies && shifted.shift !== 0) {
     // The effective shift is measured like the saved discount: the final tier with and without it.
@@ -1862,7 +1871,18 @@ function tierFor(d, log, policy, plan, meta, level, score = null) {
   parts.push(...settled.notes);
   // A discount that the clamp, the offset or the floor absorbed is no saving, so the report does not claim it.
   const saved = discount > 0 && settled.final < settle(tier + discount).final;
-  return { tier: settled.final, fails, simple: saved, tierWhy: parts.join(", "), scoreShift: scoreEntry };
+  return { tier: settled.final, fails, simple: saved, cheap, tierWhy: parts.join(", "), scoreShift: scoreEntry };
+}
+
+// The tier drop of a first attempt (escalation.firstAttempt), or 0. Only in an isolated run, for a listed template, when
+// the step has no earlier failed entry and no trailing failure, and no simple-change discount applies. A `drop` that is
+// not a positive integer, or a block of another shape, turns it off.
+function firstAttemptDrop(d, log, policy, meta, fails, discount) {
+  const cfg = policy.escalation?.firstAttempt;
+  if (meta.isolated !== true || !isObject(cfg) || !Number.isInteger(cfg.drop) || cfg.drop <= 0) return 0;
+  if (!Array.isArray(cfg.templates) || !cfg.templates.includes(d.template ?? d.step)) return 0;
+  if (fails !== 0 || discount > 0 || log.some((e) => e.step === d.step && isFailure(e))) return 0;
+  return cfg.drop;
 }
 
 function render(tpl, vars) {
@@ -2643,7 +2663,7 @@ function next(id, policy) {
   const plan = readPlan(p.plan);
   // The score shift reads the summary from the log, never complexity.json.
   const riskClear = riskMeasured(risk) && risk.hits.length === 0;
-  const { tier, fails, simple, tierWhy, scoreShift: shifted } = tierFor(d, ran, policy, plan, meta, level, { summary: scoreSummary(log), riskClear });
+  const { tier, fails, simple, cheap, tierWhy, scoreShift: shifted } = tierFor(d, ran, policy, plan, meta, level, { summary: scoreSummary(log), riskClear });
   if (fails >= policy.escalation.maxAttemptsPerStep) {
     return end({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}` });
   }
@@ -2697,6 +2717,7 @@ function next(id, policy) {
   if (agent) entry.agent = agent; // the restricted agent type the step was dispatched with (agents.restricted)
   if (advisor) entry.advisor = true; // the prompt carried the advisor rules (advisor.enabled); no consult is verified
   if (shifted) entry.scoreShift = shifted;
+  if (cheap) entry.cheap = true; // the first-attempt drop survived the clamp and the floor
   if (d.phase !== undefined) { entry.phase = d.phase; entry.lastPhase = d.lastPhase; }
   if (d.executor) entry.executor = d.executor;
   if (Array.isArray(d.retry)) entry.retry = d.retry;

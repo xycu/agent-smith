@@ -478,9 +478,9 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [x] 4.1 Rollback tests pass (ref holds partial files incl. untracked, worktree at `startSha`, router files intact, commits made by the step stay reachable, main checkout refused, final failure not reset, require false no reset): `node --test skills/10x-pipeline/test/rollback.test.mjs`
-- [x] 4.2 Re-plan and loop tests unchanged: `node --test skills/10x-pipeline/test/codereplan.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs`
-- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 4.1 Rollback tests pass (ref holds partial files incl. untracked, worktree at `startSha`, router files intact, commits made by the step stay reachable, main checkout refused, final failure not reset, require false no reset): `node --test skills/10x-pipeline/test/rollback.test.mjs` — aa79104
+- [x] 4.2 Re-plan and loop tests unchanged: `node --test skills/10x-pipeline/test/codereplan.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs` — aa79104
+- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — aa79104
 
 #### Manual
 
@@ -490,10 +490,10 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [ ] 5.1 First-attempt tests pass (drop applied, no stacking with discount, retry two tiers above first, tdd/e2e floor holds, failure does not raise rigor, `drop: 0` and not isolated unchanged, no down shift stacking): `node --test skills/10x-pipeline/test/firstattempt.test.mjs`
-- [ ] 5.2 Score tests pass: `node --test skills/10x-pipeline/test/score.test.mjs`
-- [ ] 5.3 Budget tests pass: `node --test skills/10x-pipeline/test/budget-executors.test.mjs skills/10x-pipeline/test/route.test.mjs`
-- [ ] 5.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 5.1 First-attempt tests pass (drop applied, no stacking with discount, retry two tiers above first, tdd/e2e floor holds, failure does not raise rigor, `drop: 0` and not isolated unchanged, no down shift stacking): `node --test skills/10x-pipeline/test/firstattempt.test.mjs`
+- [x] 5.2 Score tests pass: `node --test skills/10x-pipeline/test/score.test.mjs`
+- [x] 5.3 Budget tests pass: `node --test skills/10x-pipeline/test/budget-executors.test.mjs skills/10x-pipeline/test/route.test.mjs`
+- [x] 5.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
