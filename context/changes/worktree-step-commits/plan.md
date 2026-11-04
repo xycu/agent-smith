@@ -490,10 +490,10 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [x] 5.1 First-attempt tests pass (drop applied, no stacking with discount, retry two tiers above first, tdd/e2e floor holds, failure does not raise rigor, `drop: 0` and not isolated unchanged, no down shift stacking): `node --test skills/10x-pipeline/test/firstattempt.test.mjs`
-- [x] 5.2 Score tests pass: `node --test skills/10x-pipeline/test/score.test.mjs`
-- [x] 5.3 Budget tests pass: `node --test skills/10x-pipeline/test/budget-executors.test.mjs skills/10x-pipeline/test/route.test.mjs`
-- [x] 5.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 5.1 First-attempt tests pass (drop applied, no stacking with discount, retry two tiers above first, tdd/e2e floor holds, failure does not raise rigor, `drop: 0` and not isolated unchanged, no down shift stacking): `node --test skills/10x-pipeline/test/firstattempt.test.mjs` — 2f9e48f
+- [x] 5.2 Score tests pass: `node --test skills/10x-pipeline/test/score.test.mjs` — 2f9e48f
+- [x] 5.3 Budget tests pass: `node --test skills/10x-pipeline/test/budget-executors.test.mjs skills/10x-pipeline/test/route.test.mjs` — 2f9e48f
+- [x] 5.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 2f9e48f
 
 #### Manual
 
@@ -503,9 +503,9 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [ ] 6.1 Version and commit lint tools pass: `node tools/version-check.mjs && node tools/commit-lint.mjs main..HEAD`
-- [ ] 6.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 6.3 Docs name the new rule: `grep -n "refs/agent-smith" AGENTS.md README.md docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md`
+- [x] 6.1 Version and commit lint tools pass: `node tools/version-check.mjs && node tools/commit-lint.mjs main..HEAD`
+- [x] 6.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 6.3 Docs name the new rule: `grep -n "refs/agent-smith" AGENTS.md README.md docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md`
 
 #### Manual
 
