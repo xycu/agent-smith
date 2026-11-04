@@ -1,0 +1,272 @@
+// Per-step commits (worktree-step-commits, Phase 3): the start commit of the first init of an isolated run, one
+// commit per successful step, startSha and commit on the log entries, and the archive "already committed" test of
+// an isolated run. Real linked worktrees in scratch repositories, hermetic git.
+import test, { after } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, writePlan,
+  writeReview, readLogEntries, readMetaFile, readReportFile, entry, planText,
+} from "./helpers.mjs";
+
+after(cleanupAll);
+
+const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
+const ON = { isolation: { require: true } };
+const skip = !gitAvailable() && "git is not available";
+
+// A scratch repository whose main checkout holds the committed project (change folder and override).
+function repo({ policy = ON } = {}) {
+  const project = makeProject({ policy });
+  gitInit(project);
+  git(project, ["add", "-A"]);
+  git(project, ["commit", "-q", "-m", "chore: project"]);
+  project.top = project.base;
+  return project;
+}
+
+// A linked worktree of `main` under .claude/worktrees/ on agent-smith/<id>, as the orchestrator makes it.
+function worktree(main) {
+  const top = path.join(main.base, ".claude/worktrees", `agent-smith-${main.id}`);
+  git(main, ["worktree", "add", "-q", "-b", `agent-smith/${main.id}`, top]);
+  const changeDir = path.join(top, "context/changes", main.id);
+  return {
+    id: main.id, base: main.base, top, root: top, changeDir,
+    agentDir: path.join(changeDir, "agent-smith"), planFile: path.join(changeDir, "plan.md"),
+  };
+}
+
+const gw = (wt, args) => git(wt, ["-C", wt.top, ...args]);
+const initIn = (project, extra = []) => run(project, ["init", project.id, "--goal", GOAL, ...extra], { env: gitEnv(project) });
+const nextIn = (project) => run(project, ["next", project.id], { env: gitEnv(project) });
+const head = (wt) => gw(wt, ["rev-parse", "HEAD"]);
+const subject = (wt) => gw(wt, ["log", "-1", "--format=%s"]);
+const count = (wt) => Number(gw(wt, ["rev-list", "--count", "HEAD"]));
+const names = (wt) => gw(wt, ["show", "--name-only", "--format=", "HEAD"]).split("\n").filter(Boolean);
+const indexEmpty = (wt) => { gw(wt, ["diff", "--cached", "--quiet"]); return true; };
+
+function writeHook(project, name, script) {
+  const dir = path.join(project.base, ".git/hooks");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, name), `#!/bin/sh\n${script}\n`, { mode: 0o755 });
+}
+const dropHook = (project, name) => fs.rmSync(path.join(project.base, ".git/hooks", name), { force: true });
+
+// An isolated run after its first init, with the plan step answered as done.
+function planDone(wt) {
+  writePlan(wt, planText({ phases: 1, rowsPerPhase: 1 }));
+  writeResult(wt, { status: "done", note: "planned" });
+}
+
+function freshRun() {
+  const main = repo();
+  const wt = worktree(main);
+  const res = initIn(wt);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  return { main, wt, res };
+}
+
+test("3.1 a fresh isolated init commits the copied change folder after baseSha; the first startSha is that commit", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  // The orchestrator's copy: an untracked research.md and a modified change.md.
+  fs.writeFileSync(path.join(wt.changeDir, "research.md"), "---\nstatus: complete\n---\n# Research\n");
+  fs.appendFileSync(path.join(wt.changeDir, "change.md"), "\nNotes copied from the main checkout.\n");
+  const base = head(wt);
+  const res = initIn(wt);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  const meta = readMetaFile(wt);
+  assert.equal(meta.baseSha, base);
+  assert.equal(meta.startCommit, head(wt));
+  assert.equal(subject(wt), "chore(demo): start run");
+  assert.equal(gw(wt, ["rev-parse", "HEAD^"]), base);
+  const held = names(wt);
+  for (const f of ["research.md", "change.md", "agent-smith/meta.json"]) assert.ok(held.includes(`context/changes/demo/${f}`), f);
+  assert.equal(held.includes("context/changes/demo/agent-smith/run.jsonl"), false, "the first entry is written after the commit");
+  assert.ok(held.every((n) => n.startsWith("context/changes/demo/")), held.join(", "));
+  const [first] = readLogEntries(wt);
+  assert.equal(first.startSha, meta.startCommit);
+  assert.ok(indexEmpty(wt));
+});
+
+test("3.1 a resume makes no start commit", { skip }, () => {
+  const { wt } = freshRun();
+  const before = count(wt);
+  writeResult(wt, { status: "failed", note: "no plan" });
+  const again = initIn(wt);
+  assert.equal(again.status, 0, again.stdout + again.stderr);
+  assert.equal(count(wt), before);
+  assert.equal(readMetaFile(wt).startCommit, readLogEntries(wt)[0].startSha);
+});
+
+test("3.1 after a hook rejected the start commit, the next init makes it", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  fs.writeFileSync(path.join(wt.changeDir, "research.md"), "---\nstatus: complete\n---\n");
+  writeHook(main, "pre-commit", "echo no commits today >&2\nexit 1");
+  const base = count(wt);
+  const res = initIn(wt);
+  assert.equal(res.status, 1, res.stdout);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /git commit failed: .*no commits today/);
+  assert.match(res.json.reason, /unstaged again/);
+  assert.equal(count(wt), base);
+  assert.ok(indexEmpty(wt));
+  assert.equal(Object.hasOwn(readMetaFile(wt), "startCommit"), false);
+  assert.deepEqual(readLogEntries(wt), []);
+  dropHook(main, "pre-commit");
+  const again = initIn(wt);
+  assert.equal(again.status, 0, again.stdout + again.stderr);
+  assert.equal(subject(wt), "chore(demo): start run");
+  assert.equal(readMetaFile(wt).startCommit, head(wt));
+  assert.equal(readLogEntries(wt)[0].startSha, head(wt));
+});
+
+test("3.1 a successful step is committed; the entry records commit and the next entry starts there", { skip }, () => {
+  const { wt } = freshRun();
+  planDone(wt);
+  const res = nextIn(wt);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(res.json.action, "run");
+  const sha = head(wt);
+  assert.equal(subject(wt), "chore(demo): step 1 plan");
+  const held = names(wt);
+  for (const f of ["plan.md", "agent-smith/run.jsonl"]) assert.ok(held.includes(`context/changes/demo/${f}`), f);
+  // The commit holds the step's own result; its commit hash lands in the following commit.
+  const committedLog = gw(wt, ["show", "HEAD:context/changes/demo/agent-smith/run.jsonl"]);
+  assert.match(committedLog, /"ok":true/);
+  assert.doesNotMatch(committedLog, /"commit":/);
+  const entries = readLogEntries(wt);
+  assert.equal(entries[0].commit, sha);
+  assert.equal(entries[1].startSha, sha);
+  assert.ok(indexEmpty(wt));
+  // status and report.md show the short commit.
+  const st = run(wt, ["status", "demo", "--report"], { env: gitEnv(wt) });
+  assert.equal(st.status, 0, st.stdout);
+  assert.equal(st.json.steps[0].commit, sha.slice(0, 7));
+  assert.equal(st.json.steps[1].commit, undefined);
+  assert.match(readReportFile(wt), new RegExp(`^\\| 1 \\| plan \\| .* \\| ok \\(${sha.slice(0, 7)}\\) \\| - \\|$`, "m"));
+});
+
+test("3.1 an ok entry whose state is already committed gets commit null and no empty commit", { skip }, () => {
+  const { wt } = freshRun();
+  const start = head(wt);
+  writePlan(wt, planText({ phases: 1, rowsPerPhase: 1 }));
+  writeLog(wt, [entry(1, "plan", { startSha: start })]);
+  gw(wt, ["add", "-A"]);
+  gw(wt, ["commit", "-q", "-m", "chore: by hand"]);
+  const before = count(wt);
+  const res = nextIn(wt);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(count(wt), before);
+  assert.equal(readLogEntries(wt)[0].commit, null);
+});
+
+test("3.1 a failed step is not committed", { skip }, () => {
+  const { wt } = freshRun();
+  const before = head(wt);
+  writeResult(wt, { status: "failed", note: "no plan" });
+  const res = nextIn(wt);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(head(wt), before);
+  assert.equal(Object.hasOwn(readLogEntries(wt)[0], "commit"), false);
+});
+
+test("3.1 a hook failure halts and unstages; the resume commits", { skip }, () => {
+  const { main, wt } = freshRun();
+  const before = head(wt);
+  planDone(wt);
+  writeHook(main, "pre-commit", "echo hook says no >&2\nexit 1");
+  const res = nextIn(wt);
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /git commit failed: .*hook says no/);
+  assert.match(res.json.reason, /unstaged again/);
+  assert.equal(head(wt), before);
+  assert.ok(indexEmpty(wt));
+  const entries = readLogEntries(wt);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].ok, true);
+  assert.equal(Object.hasOwn(entries[0], "commit"), false);
+  dropHook(main, "pre-commit");
+  const again = nextIn(wt);
+  assert.equal(again.json.action, "run", again.stdout);
+  assert.equal(subject(wt), "chore(demo): step 1 plan");
+  assert.equal(readLogEntries(wt)[0].commit, head(wt));
+});
+
+test("3.1 staged files at the end of a step halt and are named; no commit key is set", { skip }, () => {
+  const { wt } = freshRun();
+  const before = head(wt);
+  planDone(wt);
+  fs.writeFileSync(path.join(wt.top, "other.txt"), "staged by the step\n");
+  gw(wt, ["add", "other.txt"]);
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /The index holds staged changes: other\.txt/);
+  assert.equal(head(wt), before);
+  assert.equal(Object.hasOwn(readLogEntries(wt)[0], "commit"), false);
+});
+
+test("3.1 HEAD off the run branch halts before any write", { skip }, () => {
+  const { wt } = freshRun();
+  planDone(wt);
+  gw(wt, ["checkout", "-q", "-b", "agent-smith/other"]);
+  const before = head(wt);
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /HEAD is on agent-smith\/other, not on the run branch agent-smith\/demo/);
+  assert.equal(head(wt), before);
+  assert.equal(Object.hasOwn(readLogEntries(wt)[0], "commit"), false);
+});
+
+test("3.1 require false makes no commit and logs no startSha", { skip }, () => {
+  const main = repo({ policy: {} });
+  const before = count(main);
+  const res = initIn(main);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  planDone(main);
+  const second = nextIn(main);
+  assert.equal(second.json.action, "run", second.stdout);
+  assert.equal(count(main), before);
+  const entries = readLogEntries(main);
+  for (const e of entries) {
+    assert.equal(Object.hasOwn(e, "startSha"), false);
+    assert.equal(Object.hasOwn(e, "commit"), false);
+  }
+  assert.equal(Object.hasOwn(readMetaFile(main), "startCommit"), false);
+});
+
+test("3.1 an isolated --archive run whose report a step commit took reports committed false when the archive pre-check fails", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  // A finished isolated run that halted once (report.md written) and resumed: the step commits took every file,
+  // so report.md is tracked and the folder is clean, but no pre-archive commit exists. change.md has no created line.
+  writePlan(wt, planText({ phases: 1, rowsPerPhase: 1, done: 1 }));
+  writeReview(wt, "plan-review", { verdict: "SOUND" });
+  writeReview(wt, "impl-review", { verdict: "APPROVED" });
+  const start = head(wt);
+  writeLog(wt, [
+    entry(1, "plan", { startSha: start, commit: null }), entry(2, "plan-review", { startSha: start, commit: null }),
+    entry(3, "implement", { startSha: start, commit: null }), entry(4, "impl-review", { startSha: start, commit: null }),
+  ]);
+  writeMetaFile(wt, { id: "demo", goal: GOAL, archive: true, isolated: true, branch: "agent-smith/demo", startCommit: null });
+  // The first done halts on the pre-check and writes report.md and meta.json; a step commit takes them by hand.
+  const first = nextIn(wt);
+  assert.equal(first.json.committed, false, first.stdout);
+  gw(wt, ["add", "-A"]);
+  gw(wt, ["commit", "-q", "-m", "chore(demo): step 4 impl-review"]);
+  assert.equal(gw(wt, ["status", "--porcelain"]), "");
+  const before = count(wt);
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /created: YYYY-MM-DD/);
+  assert.match(res.json.reason, /Nothing was committed\./);
+  assert.equal(res.json.committed, false);
+  assert.doesNotMatch(res.json.reason, /pre-archive commit exists/);
+  assert.equal(count(wt), before);
+  // The end state is written (kind A), not only printed.
+  assert.equal(readMetaFile(wt).outcome.action, "halt");
+  assert.match(readReportFile(wt), /^Outcome: halt/m);
+});
