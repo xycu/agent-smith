@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/xycu/agent-smith/compare/v0.5.0...v0.6.0) (2026-11-04)
+
+
+### Features
+
+* **review-open-findings:** add opt-in confirmation review round (p3) ([59b7db8](https://github.com/xycu/agent-smith/commit/59b7db83f2a4d9a42ed85a55537f643cf109acc3))
+* **review-open-findings:** parse review findings and log the counts (p1) ([86a78fa](https://github.com/xycu/agent-smith/commit/86a78fa4c5ccef7dc3694b23920242120428130b))
+* **review-open-findings:** route reviews on open findings (p2) ([5d90c95](https://github.com/xycu/agent-smith/commit/5d90c957317cfa5442043b0c88c969158de37e5f))
+
+
+### Bug Fixes
+
+* **review-open-findings:** read bold or backticked Decision words and the **Severity:** label ([5bae57f](https://github.com/xycu/agent-smith/commit/5bae57ffc33668f0d31cbc45e214c6fd85064517))
+
 ## [0.5.0](https://github.com/xycu/agent-smith/compare/v0.4.1...v0.5.0) (2026-11-04)
 
 
