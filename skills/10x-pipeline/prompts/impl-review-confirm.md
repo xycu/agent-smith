@@ -1,0 +1,8 @@
+- **GIVEN** this is a confirmation round and `context/changes/{id}/reviews/impl-review.md` holds the report of the previous round **WHEN** you start **THEN** you **MUST** read that report first, including every `Decision` line and the commits it names.
+- **GIVEN** the previous round marked findings `APPLIED` **WHEN** you review **THEN** you **MUST** treat each one as a claim and check it against the current code and tests.
+- **GIVEN** an `APPLIED` fix is missing, partial, wrong or has no passing test in the current code **WHEN** you write the review **THEN** you **MUST** report it as a new finding of this round.
+- **GIVEN** this is a confirmation round **WHEN** you review **THEN** you **MUST** review the full plan against the current code, not only the places the previous round changed.
+- **GIVEN** the skill would ask you which review to run or whether to start over **WHEN** the previous report exists **THEN** you **MUST** run a fresh review of the current code and overwrite the review file.
+- **GIVEN** you save the review file **WHEN** you write the `**Verdict**` and `**Findings**` lines **THEN** you **MUST** measure them on the findings of this round only, with one `### F<n>` block for each finding counted.
+- **GIVEN** a finding of the previous round still holds in the current code **WHEN** you write the review **THEN** you **MUST** report it again as a finding of this round.
+- **GIVEN** a finding of the previous round still holds in the current code **WHEN** you write the review **THEN** you **MUST NOT** carry it over as closed.

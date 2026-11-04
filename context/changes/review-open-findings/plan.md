@@ -315,10 +315,10 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Automated
 
-- [x] 2.1 Routing tests pass (all APPLIED goes on, open critical halts, open warnings at and above tolerance, pending observation ignored, `retry` mode, RETHINK and REJECTED unchanged, unaware fixture unchanged, unparsed header count open): `node --test skills/10x-pipeline/test/openfindings.test.mjs`
-- [x] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.4 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 2.1 Routing tests pass (all APPLIED goes on, open critical halts, open warnings at and above tolerance, pending observation ignored, `retry` mode, RETHINK and REJECTED unchanged, unaware fixture unchanged, unparsed header count open): `node --test skills/10x-pipeline/test/openfindings.test.mjs` — 92500ba
+- [x] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs` — 92500ba
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 92500ba
+- [x] 2.4 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs` — 92500ba
 
 #### Manual
 
@@ -329,11 +329,11 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Automated
 
-- [ ] 3.1 Confirmation tests pass (off by default, runs once with `confirmRounds: 1`, no second confirmation, skipped for RETHINK, REJECTED, unaware review and open findings, open finding after a confirmation halts, confirmation that applies fixes goes on, a failed confirmation still counts): `node --test skills/10x-pipeline/test/openfindings.test.mjs`
-- [ ] 3.2 Budget tests pass: `node --test skills/10x-pipeline/test/budget-executors.test.mjs`
-- [ ] 3.3 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.5 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 3.1 Confirmation tests pass (off by default, runs once with `confirmRounds: 1`, no second confirmation, skipped for RETHINK, REJECTED, unaware review and open findings, open finding after a confirmation halts, confirmation that applies fixes goes on, a failed confirmation still counts): `node --test skills/10x-pipeline/test/openfindings.test.mjs`
+- [x] 3.2 Budget tests pass: `node --test skills/10x-pipeline/test/budget-executors.test.mjs`
+- [x] 3.3 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.5 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
 
 #### Manual
 

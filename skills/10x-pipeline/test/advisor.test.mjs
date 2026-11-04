@@ -148,6 +148,14 @@ function retried(policy) {
   return { project, res: advance(project, [e2ePhase], [1]) };
 }
 
+// A review whose findings are all APPLIED, so the router asks for a confirmation round instead of going on.
+function appliedReview(project, name, verdict) {
+  const abs = path.join(project.changeDir, "reviews", `${name}.md`);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, `# Review\n\n- **Verdict**: ${verdict}\n- **Findings**: 1 critical, 0 warnings\n\n### F1 — Something\n\n- **Severity**: ❌ CRITICAL\n- **Decision**: APPLIED — abc1234\n`);
+  fs.utimesSync(abs, future(), future());
+}
+
 const DONE_PLAN = buildPlan([{ auto: [{ text: "row one", done: true }, { text: "row two", done: true }] }]);
 const OPEN_PLAN = buildPlan([{ auto: [{ text: "row one", done: true }, "row two"] }]);
 const failed = (n) => entry(n, "implement", { ok: false, verified: false, result: { status: "failed", note: "boom" } });
@@ -231,6 +239,16 @@ const CASES = [
   { template: "impl-review-warn", git: true, make: (policy) => {
     const { project } = retried(policy);
     return { project, res: advance(project, [e2ePhase], [1], { status: "done", note: "nothing to change" }) };
+  } },
+  { template: "plan-review-confirm", make: (policy) => {
+    const project = staged({ ...policy, review: { confirmRounds: { standard: 1 } } }, { log: BASE });
+    appliedReview(project, "plan-review", "REVISE");
+    return { project, res: standard(project, "fix typo") };
+  } },
+  { template: "impl-review-confirm", make: (policy) => {
+    const project = staged({ ...policy, review: { confirmRounds: { standard: 1 } } }, { plan: planText({ done: 1 }), reviews: [["plan-review", "SOUND"]], log: REVIEWED });
+    appliedReview(project, "impl-review", "NEEDS ATTENTION");
+    return { project, res: standard(project, "fix typo") };
   } },
   { template: "plan-replan", make: (policy) => {
     const project = staged(policy, { plan: OPEN_PLAN, reviews: [["plan-review", "SOUND"]], log: [...BASE, failed(3), failed(4)] });

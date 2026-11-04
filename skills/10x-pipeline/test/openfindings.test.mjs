@@ -794,3 +794,277 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
     assert.ok(res.json.reason.endsWith(", then run again. Commit the edit in the run worktree first: a failed step rolls back uncommitted edits."), res.json.reason);
   });
 });
+
+// ---- Phase 3: the confirmation round ---------------------------------------
+
+const CONFIRM_ON = (n, level = "standard") => ({ review: { confirmRounds: { [level]: n } } });
+const APPLIED_PLAN = reviewText({
+  findings: "1 critical, 1 warnings",
+  blocks: [block("F1", CRIT, "APPLIED — plan.md section 2"), block("F2", WARN, "APPLIED")],
+});
+const APPLIED_IMPL = reviewText({
+  verdict: "NEEDS ATTENTION",
+  findings: "1 critical, 1 warnings",
+  blocks: [block("F1", CRIT, "APPLIED — abc1234"), block("F2", WARN, "APPLIED")],
+});
+const planConfirm = (n, over = {}) => entry(n, "plan-review", { template: "plan-review-confirm", ...over });
+const implConfirm = (n, over = {}) => entry(n, "impl-review", { template: "impl-review-confirm", ...over });
+const FAILED = { ok: false, verified: false, result: { status: "failed", note: "fixture" } };
+
+// A plan-review log with `confirms` confirmation entries after the first review, resumed by `init`.
+function confirmPlan(text, { policy = CONFIRM_ON(1), confirms = [], rigor = "standard" } = {}) {
+  return routePlan(text, { policy, rigor, log: [entry(1, "plan"), entry(2, "plan-review"), ...confirms.map((over, i) => planConfirm(3 + i, over))] });
+}
+
+function confirmImpl(text, { policy = CONFIRM_ON(1), confirms = [], rigor = "standard" } = {}) {
+  const project = makeProject({ plan: planText({ done: 1 }), policy });
+  writeReview(project, "plan-review", { verdict: "SOUND" });
+  writeReviewFile(project, "impl-review", text);
+  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), ...confirms.map((over, i) => implConfirm(5 + i, over))]);
+  return { project, res: init(project, GOAL, ["--rigor", rigor]) };
+}
+
+describe("plan review confirmation round", () => {
+  test("off by default: an all-applied REVISE goes straight on to implement", () => {
+    const { project, res } = routePlan(APPLIED_PLAN);
+    assert.equal(res.json.step, "implement");
+    assert.equal(readLogEntries(project).some((e) => e.template === "plan-review-confirm"), false);
+  });
+
+  test("confirmRounds 1 runs one confirmation review under the plan-review step, with the confirm prompt", () => {
+    const { project, res } = confirmPlan(APPLIED_PLAN);
+    assert.equal(res.json.action, "run", res.stdout);
+    assert.equal(res.json.step, "plan-review");
+    const logged = lastEntry(project);
+    assert.equal(logged.step, "plan-review");
+    assert.equal(logged.template, "plan-review-confirm");
+    assert.match(res.json.reason, /^plan review REVISE applied 2 fix\(es\) and left nothing open: confirmation round 1 of 1: self-applied fixes unchecked;/);
+    assert.match(res.json.prompt, /Run \/10x-plan-review context\/changes\/demo\/plan\.md/);
+    assert.match(res.json.prompt, /confirmation round/);
+    assert.match(res.json.prompt, /`\*\*Decision\*\*` line/, "the apply rules ride along");
+  });
+
+  test("the confirmation runs on the tier of a plan review, with no bump", () => {
+    const { project } = confirmPlan(APPLIED_PLAN);
+    const logged = lastEntry(project);
+    assert.ok(Number.isInteger(logged.tier));
+    assert.doesNotMatch(logged.tierWhy, /from results/);
+  });
+
+  test("with confirmRounds 1 the confirmation's own entry exhausts the cap: a second all-applied REVISE goes on", () => {
+    const { project, res } = confirmPlan(APPLIED_PLAN, { confirms: [{}] });
+    assert.equal(res.json.step, "implement");
+    assert.equal(readLogEntries(project).filter((e) => e.template === "plan-review-confirm").length, 1);
+  });
+
+  test("confirmRounds 2 chains a second confirmation after one that applied fixes and left nothing open, then stops", () => {
+    const first = confirmPlan(APPLIED_PLAN, { policy: CONFIRM_ON(2) });
+    assert.equal(lastEntry(first.project).template, "plan-review-confirm");
+    assert.match(first.res.json.reason, /confirmation round 1 of 2/);
+    const second = confirmPlan(APPLIED_PLAN, { policy: CONFIRM_ON(2), confirms: [{}] });
+    assert.equal(second.res.json.step, "plan-review");
+    assert.equal(lastEntry(second.project).template, "plan-review-confirm");
+    assert.match(second.res.json.reason, /confirmation round 2 of 2/);
+    const third = confirmPlan(APPLIED_PLAN, { policy: CONFIRM_ON(2), confirms: [{}, {}] });
+    assert.equal(third.res.json.step, "implement");
+  });
+
+  test("a confirmation that applied nothing does not chain a second one", () => {
+    const text = reviewText({ findings: "0 critical, 0 warnings", blocks: [block("F1", OBS, "PENDING — style only")] });
+    const { res } = confirmPlan(text, { policy: CONFIRM_ON(2), confirms: [{}] });
+    assert.equal(res.json.step, "implement");
+  });
+
+  test("a confirmation that applies fixes and leaves nothing open goes on once the cap is spent", () => {
+    const { res } = confirmPlan(APPLIED_PLAN, { confirms: [{}] });
+    assert.equal(res.json.action, "run");
+    assert.equal(res.json.step, "implement");
+  });
+
+  test("a failed confirmation still counts toward the cap", () => {
+    const { project, res } = confirmPlan(APPLIED_PLAN, { confirms: [FAILED] });
+    assert.equal(res.json.step, "implement");
+    assert.equal(readLogEntries(project).filter((e) => e.template === "plan-review-confirm").length, 1);
+    const chained = confirmPlan(APPLIED_PLAN, { policy: CONFIRM_ON(2), confirms: [FAILED] });
+    assert.equal(lastEntry(chained.project).template, "plan-review-confirm", "a second round is still allowed below the cap");
+    assert.match(chained.res.json.reason, /confirmation round 2 of 2/);
+  });
+
+  test("an open critical after a confirmation halts, and retry mode re-plans", () => {
+    const text = reviewText({ findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "PENDING — wrong fix")] });
+    const halted = confirmPlan(text, { confirms: [{}] });
+    assert.equal(halted.res.json.action, "halt");
+    assert.match(halted.res.json.reason, /^Plan review REVISE left 1 open critical and 0 open warnings \(F1\)\./);
+    const retried = confirmPlan(text, { confirms: [{}], policy: { review: { ...CONFIRM_ON(1).review, openFindings: { onOpen: "retry" } } } });
+    assert.equal(retried.res.json.step, "plan");
+    assert.equal(lastEntry(retried.project).template, "plan-revise");
+  });
+
+  test("open findings on the first review skip the confirmation", () => {
+    const text = reviewText({
+      findings: "1 critical, 1 warnings",
+      blocks: [block("F1", CRIT, "APPLIED"), block("F2", WARN, "PENDING — owner decision")],
+    });
+    const { res } = confirmPlan(text);
+    assert.equal(res.json.step, "implement", "one open warning is within the tolerance, but not nothing open");
+    const over = confirmPlan(reviewText({ findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "PENDING")] }));
+    assert.equal(over.res.json.action, "halt");
+  });
+
+  test("RETHINK skips the confirmation", () => {
+    const { project, res } = confirmPlan(reviewText({ verdict: "RETHINK", findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "APPLIED")] }));
+    assert.equal(res.json.step, "plan");
+    assert.equal(lastEntry(project).template, "plan-revise");
+  });
+
+  test("a SOUND review with applied findings skips the confirmation", () => {
+    const { res } = confirmPlan(reviewText({ verdict: "SOUND", findings: "0 critical, 1 warnings", blocks: [block("F1", WARN, "APPLIED")] }));
+    assert.equal(res.json.step, "implement");
+  });
+
+  test("an unaware review (no Decision lines) skips the confirmation", () => {
+    const { project, res } = confirmPlan("# Review\n\n- **Verdict**: REVISE\n- **Findings**: 0 critical, 0 warnings\n");
+    assert.equal(res.json.step, "implement");
+    assert.equal(readLogEntries(project).some((e) => e.template === "plan-review-confirm"), false);
+    const off = confirmPlan(APPLIED_PLAN, { policy: { review: { ...CONFIRM_ON(1).review, openFindings: { enabled: false } } } });
+    assert.equal(off.res.json.step, "plan", "openFindings.enabled false routes on the header counts, no confirmation");
+  });
+
+  test("the round is read per rigor level", () => {
+    const other = confirmPlan(APPLIED_PLAN, { policy: CONFIRM_ON(1, "thorough") });
+    assert.equal(other.res.json.step, "implement");
+    const same = confirmPlan(APPLIED_PLAN, { policy: CONFIRM_ON(1, "thorough"), rigor: "thorough" });
+    assert.equal(lastEntry(same.project).template, "plan-review-confirm");
+  });
+
+  test("the gate acts only before any automated row is done", () => {
+    const project = makeProject({ plan: planText({ done: 1 }), policy: CONFIRM_ON(1) });
+    writeReviewFile(project, "plan-review", APPLIED_PLAN);
+    writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+    const res = init(project, GOAL, ["--rigor", "standard"]);
+    assert.notEqual(lastEntry(project).template, "plan-review-confirm", res.stdout);
+  });
+
+  for (const [name, value] of [
+    ["negative", { standard: -1 }],
+    ["a string", { standard: "two" }],
+    ["a fraction", { standard: 1.5 }],
+    ["null", { standard: null }],
+    ["a list", { standard: [1] }],
+    ["a string block", "1"],
+    ["null block", null],
+    ["a list block", [1]],
+  ]) {
+    test(`a confirmRounds that is ${name} reads 0 and never halts`, () => {
+      const { res } = confirmPlan(APPLIED_PLAN, { policy: { review: { confirmRounds: value } } });
+      assert.equal(res.json.action, "run", res.stdout + res.stderr);
+      assert.equal(res.json.step, "implement");
+    });
+  }
+});
+
+describe("implementation review confirmation round", () => {
+  test("off by default: an all-applied NEEDS ATTENTION is done", () => {
+    const { res } = confirmImpl(APPLIED_IMPL, { policy: {} });
+    assert.equal(res.json.action, "done");
+  });
+
+  test("confirmRounds 1 runs one confirmation review under the impl-review step, with the confirm prompt", () => {
+    const { project, res } = confirmImpl(APPLIED_IMPL);
+    assert.equal(res.json.action, "run", res.stdout);
+    assert.equal(res.json.step, "impl-review");
+    const logged = lastEntry(project);
+    assert.equal(logged.step, "impl-review");
+    assert.equal(logged.template, "impl-review-confirm");
+    assert.match(res.json.reason, /^impl review NEEDS ATTENTION applied 2 fix\(es\) and left nothing open: confirmation round 1 of 1: self-applied fixes unchecked;/);
+    assert.match(res.json.prompt, /Run \/10x-impl-review context\/changes\/demo\/plan\.md/);
+    assert.match(res.json.prompt, /confirmation round/);
+    assert.match(res.json.prompt, /lessonCandidates/, "the lessons rules ride along");
+    assert.match(res.json.prompt, /`\*\*Decision\*\*` line/, "the apply rules ride along");
+  });
+
+  test("with confirmRounds 1 the confirmation's own entry exhausts the cap: the run is done", () => {
+    const { project, res } = confirmImpl(APPLIED_IMPL, { confirms: [{}] });
+    assert.equal(res.json.action, "done");
+    assert.equal(readLogEntries(project).filter((e) => e.template === "impl-review-confirm").length, 1);
+  });
+
+  test("confirmRounds 2 chains a second confirmation after one that applied fixes and left nothing open, then stops", () => {
+    const second = confirmImpl(APPLIED_IMPL, { policy: CONFIRM_ON(2), confirms: [{}] });
+    assert.equal(second.res.json.step, "impl-review");
+    assert.match(second.res.json.reason, /confirmation round 2 of 2/);
+    const third = confirmImpl(APPLIED_IMPL, { policy: CONFIRM_ON(2), confirms: [{}, {}] });
+    assert.equal(third.res.json.action, "done");
+    const none = confirmImpl(reviewText({ verdict: "NEEDS ATTENTION", findings: "0 critical, 0 warnings", blocks: [block("F1", OBS, "PENDING")] }), { policy: CONFIRM_ON(2), confirms: [{}] });
+    assert.equal(none.res.json.action, "done", "a confirmation that applied nothing chains no second one");
+  });
+
+  test("a failed confirmation still counts toward the cap", () => {
+    const { res } = confirmImpl(APPLIED_IMPL, { confirms: [FAILED] });
+    assert.equal(res.json.action, "done");
+    const chained = confirmImpl(APPLIED_IMPL, { policy: CONFIRM_ON(2), confirms: [FAILED] });
+    assert.equal(chained.res.json.step, "impl-review");
+    assert.match(chained.res.json.reason, /confirmation round 2 of 2/);
+  });
+
+  test("an open critical after a confirmation halts, and retry mode runs fix", () => {
+    const text = reviewText({ verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings", blocks: [block("F2", CRIT, "PENDING")] });
+    const halted = confirmImpl(text, { confirms: [{}] });
+    assert.equal(halted.res.json.action, "halt");
+    assert.match(halted.res.json.reason, /^Implementation review NEEDS ATTENTION left 1 open critical and 0 open warnings \(F2\)\./);
+    const retried = confirmImpl(text, { confirms: [{}], policy: { review: { ...CONFIRM_ON(1).review, openFindings: { onOpen: "retry" } } } });
+    assert.equal(retried.res.json.step, "fix");
+  });
+
+  test("open findings on the first review skip the confirmation", () => {
+    const text = reviewText({
+      verdict: "NEEDS ATTENTION",
+      findings: "1 critical, 1 warnings",
+      blocks: [block("F1", CRIT, "APPLIED"), block("F2", WARN, "PENDING — owner decision")],
+    });
+    assert.equal(confirmImpl(text).res.json.action, "done", "one open warning is within the tolerance, but not nothing open");
+    const over = confirmImpl(reviewText({ verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "PENDING")] }));
+    assert.equal(over.res.json.action, "halt");
+  });
+
+  test("REJECTED skips the confirmation and keeps its routing (the code re-plan at standard, fix at lean)", () => {
+    const text = reviewText({ verdict: "REJECTED", findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "APPLIED")] });
+    const standard = confirmImpl(text);
+    assert.equal(lastEntry(standard.project).template, "plan-rejected");
+    assert.doesNotMatch(standard.res.json.reason, /confirmation/);
+    const lean = confirmImpl(text, { policy: CONFIRM_ON(1, "lean"), rigor: "lean" });
+    assert.equal(lean.res.json.step, "fix");
+    assert.doesNotMatch(lean.res.json.reason, /confirmation/);
+  });
+
+  test("an APPROVED review with applied findings skips the confirmation", () => {
+    const { res } = confirmImpl(reviewText({ verdict: "APPROVED", findings: "0 critical, 1 warnings", blocks: [block("F1", WARN, "APPLIED")] }));
+    assert.equal(res.json.action, "done");
+  });
+
+  test("an unaware review (no Decision lines) skips the confirmation", () => {
+    const header = "# Review\n\n- **Verdict**: NEEDS ATTENTION\n- **Findings**: 0 critical, 1 warnings\n";
+    const { res } = confirmImpl(header);
+    assert.equal(res.json.step, "fix", "the old fixOnNeedsAttention routing, no confirmation");
+    assert.doesNotMatch(res.json.reason, /confirmation/);
+  });
+
+  test("a confirmRounds that is malformed reads 0 and never halts", () => {
+    for (const value of [{ standard: -1 }, { standard: "two" }, { standard: 1.5 }, "1", null]) {
+      const { res } = confirmImpl(APPLIED_IMPL, { policy: { review: { confirmRounds: value } } });
+      assert.equal(res.json.action, "done", JSON.stringify(value));
+    }
+  });
+});
+
+describe("confirm templates", () => {
+  test("the shipped confirm templates exist and carry the base review text, the confirm rules and the apply rules", () => {
+    const flat = (v) => (Array.isArray(v) ? v : [v]);
+    for (const [kind, extra] of [["plan", []], ["impl", ["@prompts/impl-review-lessons.md"]]]) {
+      const parts = flat(shipped.prompts[`${kind}-review-confirm`]);
+      assert.deepEqual(parts.slice(1), [`@prompts/${kind}-review-confirm.md`, `@prompts/${kind}-review-apply.md`, ...extra]);
+      assert.equal(parts[0], flat(shipped.prompts[`${kind}-review`])[0], "the same base review text as the first round");
+      assert.equal(shipped.steps[`${kind}-review`].skill !== null, true);
+    }
+  });
+});
