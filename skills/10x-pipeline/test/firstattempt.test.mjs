@@ -114,6 +114,20 @@ test("5.1 a lean run whose cheap attempt fails stays lean and keeps its budget o
   assert.equal(readMetaFile(project).rigor.level, "lean");
 });
 
+test("5.1 a cheap fallback is no failure: it uses step budget", () => {
+  // Nine steps logged, one of them a cheap tdd step that ended blocked (a fallback), and the tenth waiting: at lean the
+  // budget of 10 is spent once the tenth has its result, because only a cheap failure uses no budget.
+  const log = [entry(1, "plan", { commit: null }), entry(2, "plan-review", { commit: null })];
+  log.push(entry(3, "implement", { commit: null, template: "implement-tdd", cheap: true, ok: false, fallback: true, result: { status: "blocked", note: "no runner" } }));
+  for (let n = 4; n <= 9; n++) log.push(entry(n, "implement", { commit: null }));
+  log.push(pendingEntry(10, "implement", { commit: null }));
+  const project = fixture({ rigor: "lean", log, plan: planText({ phases: 2, rowsPerPhase: 2, done: 1 }) });
+  writeResult(project, { status: "done", note: "one row" });
+  const res = next(project);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /Step budget 10 spent/);
+});
+
 test("5.1 a drop that the clamp absorbed sets no cheap flag and its failure counts for rigor", () => {
   // A clean plan review already moves implement to its minTier of 2.
   const { project, e } = firstImplement({ rigor: "lean", review: { findings: "0 critical, 0 warnings" } });

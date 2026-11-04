@@ -298,6 +298,42 @@ test("4.1 the failure that hits the attempt cap halts with its partial edits bac
   assert.equal(readLogEntries(wt)[2].kept, REF(3));
 });
 
+test("4.1 a router error after the rollback undoes it: partial edits back, entry kept", { skip }, () => {
+  const { wt } = freshRun();
+  toImplement(wt, planText({ phases: 1, rowsPerPhase: 2 }));
+  const start = head(wt);
+  fs.writeFileSync(path.join(wt.top, "partial.txt"), "partial work\n");
+  // A malformed complexity block makes the tier math throw after the rollback ran.
+  const override = path.join(wt.top, "context/foundation/agent-smith-policy.json");
+  const current = JSON.parse(fs.readFileSync(override, "utf8"));
+  fs.writeFileSync(override, JSON.stringify({ ...current, complexity: { appliesTo: null } }));
+  writeResult(wt, { status: "failed", note: "boom" });
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /^Router error: .*The rollback of the failed step was undone/);
+  assert.equal(head(wt), start);
+  assert.ok(fs.existsSync(path.join(wt.top, "partial.txt")));
+  const last = readLogEntries(wt).at(-1);
+  assert.equal(last.kept, REF(last.n));
+  assert.equal(Object.hasOwn(last, "rolledBack"), false);
+});
+
+test("4.1 a rollback ref outside refs/agent-smith/ halts before any git write", { skip }, () => {
+  // refs/heads/* is shared by every worktree of the repository: such a ref would move or create another branch.
+  const main = repo({ policy: { isolation: { require: true, rollback: { ref: "refs/heads/elsewhere" } } } });
+  const wt = worktree(main);
+  assert.equal(initIn(wt).status, 0);
+  const start = head(wt);
+  fs.writeFileSync(path.join(wt.top, "partial.txt"), "partial work\n");
+  writeResult(wt, { status: "failed", note: "boom" });
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /must render to a ref under refs\/agent-smith\//);
+  assert.equal(refExists(wt, "refs/heads/elsewhere"), false);
+  assert.equal(head(wt), start);
+  assert.ok(status(wt).includes("?? partial.txt"), status(wt).join(", "));
+});
+
 test("4.1 the main checkout is refused: no reset there", { skip }, () => {
   const main = repo();
   const start = head(main);
