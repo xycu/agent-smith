@@ -1,0 +1,14 @@
+{
+  "id": "worktree-step-commits",
+  "goal": "Isolated worktree runs, per-step commits, opus/medium tier and cheaper first implement attempts",
+  "archive": true,
+  "baseSha": "62ada19edf0d0f7af9734bf299b5fb1a0c45767b",
+  "rigor": {
+    "level": "thorough",
+    "by": "phases 6, signals, hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/test/archive.test.mjs +6"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Plan still REVISE after 3 revisions. Needs a human."
+  }
+}
