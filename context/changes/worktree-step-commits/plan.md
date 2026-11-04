@@ -465,10 +465,10 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [x] 3.1 Step commit tests pass (commit made, empty commit skipped, failed step not committed, hook failure halts and unstages, `startSha` logged, require false makes no commit): `node --test skills/10x-pipeline/test/stepcommit.test.mjs`
-- [x] 3.2 Archive tests unchanged: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [x] 3.3 Commit evidence of tdd/e2e unaffected by router commits: `node --test skills/10x-pipeline/test/executors.test.mjs`
-- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 Step commit tests pass (commit made, empty commit skipped, failed step not committed, hook failure halts and unstages, `startSha` logged, require false makes no commit): `node --test skills/10x-pipeline/test/stepcommit.test.mjs` — e35f8d0
+- [x] 3.2 Archive tests unchanged: `node --test skills/10x-pipeline/test/archive.test.mjs` — e35f8d0
+- [x] 3.3 Commit evidence of tdd/e2e unaffected by router commits: `node --test skills/10x-pipeline/test/executors.test.mjs` — e35f8d0
+- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — e35f8d0
 
 #### Manual
 
@@ -478,9 +478,9 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Automated
 
-- [ ] 4.1 Rollback tests pass (ref holds partial files incl. untracked, worktree at `startSha`, router files intact, commits made by the step stay reachable, main checkout refused, final failure not reset, require false no reset): `node --test skills/10x-pipeline/test/rollback.test.mjs`
-- [ ] 4.2 Re-plan and loop tests unchanged: `node --test skills/10x-pipeline/test/codereplan.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs`
-- [ ] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 4.1 Rollback tests pass (ref holds partial files incl. untracked, worktree at `startSha`, router files intact, commits made by the step stay reachable, main checkout refused, final failure not reset, require false no reset): `node --test skills/10x-pipeline/test/rollback.test.mjs`
+- [x] 4.2 Re-plan and loop tests unchanged: `node --test skills/10x-pipeline/test/codereplan.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 

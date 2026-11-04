@@ -322,9 +322,28 @@ function buildReport(id, meta, fullLog) {
       ...skips.map((e) => `| ${e.afterN} | ${e.step} | ${oneLine(e.reason).replace(/\|/g, "/")} | ${e.rigor ?? "-"} |`),
       "",
     ] : []),
+    ...rollbackLines(log),
     ...complexityLines(fullLog),
     ...lessonLines(log, oneLine),
   ].join("\n");
+}
+
+// The "Rolled-back steps" section of an isolated run: one line per failed step whose partial edits sit under a side
+// ref, reset away (rolledBack) or left in the worktree because the run halted (kept). None, no section.
+function rollbackLines(log) {
+  const rows = log.filter((e) => typeof e.rolledBack === "string" || typeof e.kept === "string").map((e) =>
+    typeof e.kept === "string"
+      ? `- step ${e.n} ${e.step}: \`${e.kept}\` kept (run halted)`
+      : `- step ${e.n} ${e.step}: \`${e.rolledBack}\` rolled back to ${String(e.startSha).slice(0, 7)}`);
+  if (!rows.length) return [];
+  return [
+    "## Rolled-back steps",
+    "",
+    "Partial edits of failed steps, kept under a side ref. Inspect one with `git show --stat <ref>`.",
+    "",
+    ...rows,
+    "",
+  ];
 }
 
 // Returns the report path relative to the project root.
@@ -2316,6 +2335,90 @@ function stepCommit(p, id, meta, log, policy) {
   writeLog(p.log, log);
 }
 
+// The files whose times decide compares while no plan or plan-review step is logged, keyed as in before.mtimes.
+const timedFiles = (p) => ({ plan: p.plan, planReview: p.planReview, implReview: p.implReview });
+const fileTimes = (p) => Object.fromEntries(Object.entries(timedFiles(p)).map(([key, file]) => [key, mtime(file)]));
+
+// Sets each file that exists and has a recorded time above 0 back to that time (fs.utimesSync, no git).
+function setTimes(p, times) {
+  if (!isObject(times)) return;
+  for (const [key, file] of Object.entries(timedFiles(p))) {
+    const t = times[key];
+    if (typeof t === "number" && Number.isFinite(t) && t > 0 && fs.existsSync(file)) fs.utimesSync(file, t / 1000, t / 1000);
+  }
+}
+
+// run.jsonl and meta.json as next holds them in memory, written back after a reset changed them on disk.
+function writeState(p, meta, log) {
+  fs.mkdirSync(p.dir, { recursive: true });
+  writeLog(p.log, log);
+  fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+}
+
+// The rollback of a failed step of an isolated run, right after attachResult and before risk, rigor and decide, so
+// the next step is chosen from the restored files. Eligible: a failure (not a fallback, not advisory) with a
+// startSha, no `uncommitted` list (the implement-retry that follows needs those ticks), no signals.needsHuman, not
+// rolled back or kept before. The partial state, staged and untracked files included, becomes a commit under the side
+// ref (plumbing: no hook runs); then the worktree is hard-reset to startSha (no git clean; ignored files stay), the
+// file times decide compares are set back to the step start and the router state is written back.
+// Returns null when nothing was rolled back, else what the undo on halt needs. Halts on any failure.
+function rollback(p, id, meta, log, policy) {
+  if (meta.isolated !== true) return null;
+  const ran = executed(log);
+  const last = ran[ran.length - 1];
+  if (!last || !isFailure(last) || typeof last.startSha !== "string" || !SHA_RE.test(last.startSha)) return null;
+  if (Object.hasOwn(last, "uncommitted") || last.signals?.needsHuman || last.rolledBack || last.kept) return null;
+  const timeout = policy.isolation?.gitTimeoutMs;
+  const g = (args) => runGit(args, { timeout });
+  let ref = null;
+  let refMade = false;
+  const stop = (reason) => endRun(p, id, meta, log, {
+    action: "halt",
+    reason: `Rollback of step ${last.n} (${last.step}): ${reason}${refMade ? ` The partial edits are kept under ${ref}.` : ""}`,
+    steps: ran.length,
+  });
+  const where = runBranchReason(g, meta);
+  if (where) stop(where);
+  // A failed step may leave staged files (a hook rejected its own commit): the snapshot takes them.
+  const unsafe = gitSafety(g, timeout, { emptyIndex: false, need: "A rollback needs" });
+  if (unsafe) stop(unsafe);
+  const tpl = policy.isolation?.rollback?.ref;
+  ref = typeof tpl === "string" ? render(tpl, { id, n: String(last.n) }).trim() : "";
+  if (!ref.startsWith("refs/")) stop("policy.isolation.rollback.ref must render to a ref under refs/.");
+  const left = fileTimes(p); // the times the failed step left, for the undo on halt
+  const step = (args) => {
+    const res = g(args);
+    if (res.status !== 0) stop(`git ${args[0]} failed: ${gitMessage(res)}.`);
+    return res.stdout.trim();
+  };
+  step(["add", "-A"]);
+  const tree = step(["write-tree"]);
+  const snapshot = step(["commit-tree", tree, "-p", "HEAD", "-m", `agent-smith: failed step ${last.n} (${last.step})`]);
+  step(["update-ref", ref, snapshot]); // a ref of that name from an earlier attempt is overwritten
+  refMade = true;
+  step(["reset", "-q", "--hard", last.startSha]);
+  setTimes(p, last.before?.mtimes);
+  last.rolledBack = ref;
+  writeState(p, meta, log);
+  return { ref, left, last, g };
+}
+
+// The undo on halt: the next call that rolled back ends in a halt, so the final failure keeps its partial edits for a
+// human. The branch goes back to the head the failed step left, the worktree holds the snapshot (files the step added
+// are untracked again, staged files come back unstaged), the router state and the file times the step left are
+// written back, and the entry says `kept`. Returns null or the git failure.
+function undoRollback(p, meta, log, rb) {
+  const hard = rb.g(["reset", "-q", "--hard", rb.ref]);
+  if (hard.status !== 0) return `git reset --hard ${rb.ref} failed: ${gitMessage(hard)}.`;
+  const mixed = rb.g(["reset", "-q", `${rb.ref}^`]);
+  if (mixed.status !== 0) return `git reset ${rb.ref}^ failed: ${gitMessage(mixed)}.`;
+  delete rb.last.rolledBack;
+  rb.last.kept = rb.ref;
+  writeState(p, meta, log);
+  setTimes(p, rb.left);
+  return null;
+}
+
 const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone by the router. A resume makes no commit, " +
   "so the check that the commit touched only the change folder (post-commit check 2) is not repeated; clearing the index " +
   "does not remove a path the commit already holds (amend the commit, or accept it). `next` repeats safely after the cause is fixed.";
@@ -2470,6 +2573,16 @@ function next(id, policy) {
   attachResult(p, log, policy);
   // An isolated run commits what a successful step left before risk, rigor and decide read the files.
   stepCommit(p, id, meta, log, policy);
+  // An isolated run rolls a failed step back before risk, rigor and decide read the files. When this call ends in a
+  // halt instead of a next step, the rollback is undone first, so the partial edits stay for a human.
+  const rb = rollback(p, id, meta, log, policy);
+  const end = (result) => {
+    if (rb && result.action === "halt") {
+      const failed = undoRollback(p, meta, log, rb);
+      if (failed) result = { ...result, reason: `${result.reason} The rollback was not undone: ${failed} The partial edits are kept under ${rb.ref}.` };
+    }
+    return endRun(p, id, meta, log, result);
+  };
 
   const planNow = readPlan(p.plan);
   const risk = planNow.exists ? measureRisk(p, meta, log, policy) : null;
@@ -2483,7 +2596,7 @@ function next(id, policy) {
   const lastRan = ranNow[ranNow.length - 1];
   if (lastRan?.signals?.needsHuman && !lastRan.needsHumanAck) {
     lastRan.needsHumanAck = true;
-    return endRun(p, id, meta, log, {
+    return end({
       action: "halt",
       reason: `Step ${lastRan.n} (${lastRan.step}) needs a human: ${lastRan.signals.needsHuman}`,
       steps: ranNow.length,
@@ -2492,7 +2605,7 @@ function next(id, policy) {
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
   if (budgetSteps(log) >= budget) {
-    return endRun(p, id, meta, log, { action: "halt", reason: `Step budget ${budget} spent.` });
+    return end({ action: "halt", reason: `Step budget ${budget} spent.` });
   }
 
   // decide() may skip a step: log the skip and ask again. A step is skipped at most once per call, because a
@@ -2504,7 +2617,7 @@ function next(id, policy) {
     d = decide(p, log, policy, meta, { level, risk });
     if (!d.skip) break;
     if (skippedNow.has(d.skip.step)) {
-      return endRun(p, id, meta, log, { action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
+      return end({ action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
     }
     skippedNow.add(d.skip.step);
     log.push({
@@ -2522,7 +2635,7 @@ function next(id, policy) {
   const ran = executed(log);
   if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d);
   if (d.halt || d.done) {
-    return endRun(p, id, meta, log, d.done
+    return end(d.done
       ? { action: "done", reason: d.reason, manualPending: d.manualPending, ...doneNotes(d), steps: ran.length }
       : { action: "halt", reason: d.halt, steps: ran.length });
   }
@@ -2532,7 +2645,7 @@ function next(id, policy) {
   const riskClear = riskMeasured(risk) && risk.hits.length === 0;
   const { tier, fails, simple, tierWhy, scoreShift: shifted } = tierFor(d, ran, policy, plan, meta, level, { summary: scoreSummary(log), riskClear });
   if (fails >= policy.escalation.maxAttemptsPerStep) {
-    return endRun(p, id, meta, log, { action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}` });
+    return end({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}` });
   }
 
   // A continued run must not keep the outcome of an earlier end.
@@ -2576,6 +2689,8 @@ function next(id, policy) {
   if (meta.isolated === true) {
     const startSha = (gitOut(["rev-parse", "HEAD"]) ?? "").trim();
     if (SHA_RE.test(startSha)) entry.startSha = startSha;
+    // The file times decide compares, so a rollback can set them back after the reset (0 when a file is absent).
+    entry.before.mtimes = fileTimes(p);
   }
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
@@ -2924,6 +3039,8 @@ function status(id, flags) {
       ...(e.scoreShift ? { scoreShift: e.scoreShift } : {}),
       ...(typeof e.agent === "string" ? { agent: e.agent } : {}),
       ...(typeof e.commit === "string" ? { commit: e.commit.slice(0, 7) } : {}),
+      ...(typeof e.rolledBack === "string" ? { rolledBack: e.rolledBack } : {}),
+      ...(typeof e.kept === "string" ? { kept: e.kept } : {}),
     })),
   };
   if (flags.report) {
