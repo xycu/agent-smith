@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.5.0](https://github.com/xycu/agent-smith/compare/v0.4.1...v0.5.0) (2026-11-04)
+
+
+### ⚠ BREAKING CHANGES
+
+* **worktree-step-commits:** a run started in the main checkout halts at init; set { "isolation": { "require": false } } in the project override to keep the old behaviour.
+
+### Features
+
+* **worktree-step-commits:** cheaper first implement attempt (p5) ([1cf0004](https://github.com/xycu/agent-smith/commit/1cf0004a38adf921217e886ed46547b106e35a3a))
+* **worktree-step-commits:** failed-step rollback (p4) ([9a31a68](https://github.com/xycu/agent-smith/commit/9a31a68fc1b00cc1e2c2d706cc16ed07b4fbf9c7))
+* **worktree-step-commits:** opus/medium rung and renumbering (p1) ([98605ce](https://github.com/xycu/agent-smith/commit/98605ce36560c62da42e47c55b6b764dceeacbaf))
+* **worktree-step-commits:** per-step commits (p3) ([c720b00](https://github.com/xycu/agent-smith/commit/c720b00e73609d6a1914ec83c92b9f18f3ffea75))
+* **worktree-step-commits:** run isolation gate (p2) ([edb2ec1](https://github.com/xycu/agent-smith/commit/edb2ec142aef5c812fc6b8b7355c1f8408eeb7d5))
+
+
+### Bug Fixes
+
+* **worktree-step-commits:** keep interactive escalation, run token in side ref, startSha halt, net cheap drop ([f864d1e](https://github.com/xycu/agent-smith/commit/f864d1efc9735473cd8cbae5dcfab17faaf9d43a))
+* **worktree-step-commits:** rollback ref namespace, undo on router error, state before file times ([97bbdd3](https://github.com/xycu/agent-smith/commit/97bbdd392b5000be3bc11e2c7af04b74e8ad7139))
+
 ## [0.4.1](https://github.com/xycu/agent-smith/compare/v0.4.0...v0.4.1) (2026-11-02)
 
 
