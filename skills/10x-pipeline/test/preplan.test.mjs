@@ -810,7 +810,7 @@ test("failed research is retried at the next tier and halts after three failures
 
   const third = finish(project, { status: "failed", note: "again" });
   assert.equal(third.json.step, "research");
-  assert.equal(lastRan(project).tier, 5);
+  assert.equal(lastRan(project).tier, 6, "the third attempt reaches the step's maxTier");
   assert.equal(skipsOf(project).length, 0, "a retry writes no skip");
 
   const last = finish(project, { status: "failed", note: "third time" });

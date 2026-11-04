@@ -63,7 +63,7 @@ test("2.1 policy.json ships the isolation block on, and the worktree prompt wire
     branchPrefix: "agent-smith/",
     gitTimeoutMs: 120000,
     commit: { message: "chore({id}): step {n} {step}", startMessage: "chore({id}): start run" },
-    rollback: { ref: "refs/agent-smith/{id}/failed-{n}" },
+    rollback: { ref: "refs/agent-smith/{id}/{run}/failed-{n}" },
   });
   assert.equal(POLICY.prompts.worktree, "@prompts/worktree.md");
   assert.ok(RULES.includes("{workdir}"));
