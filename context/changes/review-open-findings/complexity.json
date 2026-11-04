@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md Notes: outcome fixed (route on open findings, add stopping rule), but confirmation round outcome (re-plan, go on or halt) and tolerance value are left open for the plan" },
+    "novelty": { "score": 1, "evidence": "change.md Problem 1: adapts existing readReview, decide and REVISE/NEEDS ATTENTION routing in route.mjs; the new Decision parsing and stopping rule extend existing patterns" },
+    "coupling": { "score": 2, "evidence": "change.md: route.mjs decide and readReview, prompts/plan-review-apply.md and impl-review-apply.md, policy.json, SKILL.md, README.md, budget and loop tests; log counts feed tier bumps, status, report" },
+    "discovery": { "score": 1, "evidence": "change.md names route.mjs:113-127, 859-860, 900-901 and the two apply prompts; remaining checks (report, compare, budget tests) follow from those with one search" },
+    "volume": { "score": 2, "evidence": "change.md: about 6 files (route.mjs, two prompts, policy.json, SKILL.md, README.md) plus test updates, moderate new code" },
+    "verification": { "score": 1, "evidence": "change.md Constraints: existing loops-existing.test.mjs and budget tests cover routing; new Decision parsing and confirmation round need a few new tests" }
+  },
+  "unknowns": ["whether a confirmation round that finds new criticals re-plans, goes on or halts (change.md leaves it to the plan)", "whether any other consumer besides readReview reads the Decision lines", "whether budget tests break when a confirmation round adds a step"],
+  "confidence": "medium"
+}
