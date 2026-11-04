@@ -1,7 +1,7 @@
 ---
 change_id: review-open-findings
 title: Route plan and implementation reviews on open findings, with a stopping rule for review rounds
-status: new
+status: planned
 created: 2026-11-04
 updated: 2026-11-04
 archived_at: null
