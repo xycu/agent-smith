@@ -45,7 +45,8 @@
     "noisyPlanReviewWarnings": 3,
     "noisyPlanReviewBump": 1,
     "hardChangeReviewerBump": 1,
-    "cleanReviewDrop": 1
+    "cleanReviewDrop": 1,
+    "firstAttempt": { "drop": 1, "templates": ["implement", "implement-segment", "implement-tdd", "implement-e2e"] }
   },
   "review": {
     "reviseToleranceWarnings": 1,
