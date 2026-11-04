@@ -41,7 +41,7 @@
   },
   "startCommit": "93b726833cf080aaca785c376012359081155a5c",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/test/executors.test.mjs +2"
   }
 }
