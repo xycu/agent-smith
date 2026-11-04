@@ -29,6 +29,7 @@ Owner decisions (2026-11-05):
 4. The first attempt runs on `sonnet/medium` (ladder index 2).
 5. A row whose claim is covered by an automated test (a unit, integration or E2E test that runs green) counts as verified. The evidence is the test run output plus the test file and test name that cover the row.
 6. The subagent uses every tool it has: Bash, Read/Grep, scratch projects, the test runner, git (read-only), and the Claude in Chrome tools for browser rows.
+7. When no existing command or test proves a row, the subagent writes a throw-away test script for it (owner, 2026-11-05: "for manual verification steps it is a good practice to create a throw-away tests scripts if needed"). The script lives in a scratch directory outside the repository tree, or under `context/changes/<id>/evidence/`, never in the source or test tree. Its source and its output are saved as evidence, so the check can be rerun.
 
 Starting points for the plan (proposals, not decisions):
 
