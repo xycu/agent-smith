@@ -160,15 +160,16 @@ function readReview(file) {
 }
 
 // The open-findings keys of the policy, read tolerantly: a value of the wrong shape reads as the shipped default and never
-// halts, except a non-boolean `enabled`, which reads as off. The words are upper-cased to match readFindings.
+// halts, except a non-boolean `enabled`, which reads as off. The words are upper-cased to match readFindings. `onOpen` is
+// "retry" only when it says so; anything else reads "halt".
 const DEFAULT_CLOSED_DECISIONS = ["APPLIED", "FIXED", "ACCEPTED", "SKIPPED", "DISMISSED"];
 function openFindingsConfig(policy) {
   const c = policy?.review?.openFindings;
-  if (!isObject(c)) return { enabled: true, closed: new Set(DEFAULT_CLOSED_DECISIONS) };
+  if (!isObject(c)) return { enabled: true, closed: new Set(DEFAULT_CLOSED_DECISIONS), onOpen: "halt" };
   const words = Array.isArray(c.closedDecisions) && c.closedDecisions.every((w) => typeof w === "string" && w.trim() !== "")
     ? c.closedDecisions.map((w) => w.trim().toUpperCase())
     : DEFAULT_CLOSED_DECISIONS;
-  return { enabled: c.enabled === true, closed: new Set(words) };
+  return { enabled: c.enabled === true, closed: new Set(words), onOpen: c.onOpen === "retry" ? "retry" : "halt" };
 }
 
 // What is still open in a review. `aware` is false (and the caller uses the measured header counts) unless the feature is on
@@ -905,6 +906,34 @@ function riskMeasured(risk) {
   return isObject(risk) && risk.source !== "unavailable" && (risk.planPaths ?? 0) >= 1 && (risk.unclassified?.length ?? 0) === 0;
 }
 
+// The open findings of an aware review are over the line when one is critical or the open warnings exceed the shared
+// tolerance (review.reviseToleranceWarnings, for both reviews).
+function openOverTolerance(oc, policy) {
+  return oc.openCritical > 0 || oc.openWarnings > policy.review.reviseToleranceWarnings;
+}
+
+// "A, B or C" for the Decision words a halt text offers.
+function joinWords(words) {
+  if (words.length <= 1) return words.join("");
+  return `${words.slice(0, -1).join(", ")} or ${words[words.length - 1]}`;
+}
+
+// The halt of an aware review that left open findings: what is open, then the way back in (set the Decision lines or triage
+// with the review skill), plus the findings the header counts without a block, plus, in an isolated run, the commit rule
+// (the next failed step rolls back to its startSha and would restore the open lines).
+function openFindingsHalt(label, skillName, file, oc, policy, meta) {
+  const rel = path.relative(ROOT, file);
+  const ids = oc.ids.length ? ` (${oc.ids.join(", ")})` : "";
+  let text = `${label} left ${oc.openCritical} open critical and ${oc.openWarnings} open warnings${ids}. Needs a human.`;
+  if (oc.unparsed > 0) {
+    text += ` Plus ${oc.unparsed} counted in the Findings header with no ### F<n> block: add a block with a Decision line for each, or lower the header count.`;
+  }
+  const words = joinWords([...openFindingsConfig(policy).closed]);
+  text += ` Set each finding's Decision in ${rel} (${words}) or triage with /${skillName} ${rel}, then run again.`;
+  if (meta.isolated === true) text += " Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.";
+  return { halt: text };
+}
+
 function decide(p, fullLog, policy, meta, ctx) {
   const E = policy.escalation;
   const L = policy.limits;
@@ -967,10 +996,25 @@ function decide(p, fullLog, policy, meta, ctx) {
     }
   }
 
+  // A REVISE with Decision lines routes on its open findings: nothing open (within the tolerance) goes on, anything else
+  // halts, or re-plans under onOpen "retry". A review without Decision lines keeps the measured header counts. RETHINK
+  // never reads the open counts.
+  const prOpen = openCounts(pr, policy);
+  const prAware = prOpen.aware && pr.verdict === "REVISE";
   const needsReplan =
     pr.verdict === "RETHINK" ||
-    (pr.verdict === "REVISE" && (pr.critical > 0 || pr.warnings > policy.review.reviseToleranceWarnings));
-  if (needsReplan && plan.autoDone === 0) return replanNext(log, pr, policy, ctx.level);
+    (pr.verdict === "REVISE" && (prAware
+      ? openOverTolerance(prOpen, policy)
+      : pr.critical > 0 || pr.warnings > policy.review.reviseToleranceWarnings));
+  if (needsReplan && plan.autoDone === 0) {
+    if (prAware) {
+      if (openFindingsConfig(policy).onOpen !== "retry") {
+        return openFindingsHalt("Plan review REVISE", "10x-plan-review", p.planReview, prOpen, policy, meta);
+      }
+      return replanNext(log, pr, policy, ctx.level, prOpen);
+    }
+    return replanNext(log, pr, policy, ctx.level);
+  }
 
   const lastRan = log[log.length - 1];
   if (lastRan?.template === "plan-replan" && !lastRan.ok) {
@@ -1008,9 +1052,19 @@ function decide(p, fullLog, policy, meta, ctx) {
     };
   }
 
+  // A NEEDS ATTENTION with Decision lines routes on its open findings: nothing open (within the tolerance) is done, anything
+  // else halts, or runs fix under onOpen "retry". review.fixOnNeedsAttention applies only to a review without Decision
+  // lines. REJECTED never reads the open counts.
+  const irOpen = openCounts(ir, policy);
+  const irAware = irOpen.aware && ir.verdict === "NEEDS ATTENTION";
+  const irOver = irAware && openOverTolerance(irOpen, policy);
+  const retryOpen = openFindingsConfig(policy).onOpen === "retry";
+  if (irOver && !retryOpen) {
+    return openFindingsHalt("Implementation review NEEDS ATTENTION", "10x-impl-review", p.implReview, irOpen, policy, meta);
+  }
   const needsFix =
     ir.verdict === "REJECTED" ||
-    (ir.verdict === "NEEDS ATTENTION" && (ir.critical > 0 || policy.review.fixOnNeedsAttention));
+    (ir.verdict === "NEEDS ATTENTION" && (irAware ? irOver : ir.critical > 0 || policy.review.fixOnNeedsAttention));
   if (needsFix) {
     const replan = ir.verdict === "REJECTED" ? codeReplanNext("rejected", log, policy, ctx, { fixes: count("fix") }) : null;
     if (replan) return replan;
@@ -1023,7 +1077,7 @@ function decide(p, fullLog, policy, meta, ctx) {
       verdict: ir.verdict,
       floorTier: lastCode ? lastCode.tier : undefined,
       bump: ir.verdict === "REJECTED" ? E.rejectedBump : 0,
-      reason: `impl review ${ir.verdict} (${ir.critical} critical, ${ir.warnings} warnings)`,
+      reason: `impl review ${ir.verdict} (${ir.critical} critical, ${ir.warnings} warnings)${irAware ? `; open ${irOpen.openCritical} critical, ${irOpen.openWarnings} warnings` : ""}`,
     };
   }
 
@@ -1359,7 +1413,7 @@ function scoreShift(d, policy, summary, guards) {
 // only the last branch applies, which is the behaviour from before the loops existed. Non-integer loop values
 // disable that loop. Revisions count every plan-revise entry, failed ones included: a failed re-plan leaves the
 // review fresh and spends one revision.
-function replanNext(log, pr, policy, level) {
+function replanNext(log, pr, policy, level, oc = null) {
   const E = policy.escalation;
   const L = policy.limits;
   const loops = isObject(policy.preplan?.loops) ? policy.preplan.loops : {};
@@ -1368,6 +1422,8 @@ function replanNext(log, pr, policy, level) {
   const posInt = (v) => Number.isInteger(v) && v > 0;
   const okFrames = log.filter((e) => e.template === "frame-rethink" && e.ok);
   const revisions = log.filter((e) => e.template === "plan-revise").length;
+  // The open counts of an aware REVISE (onOpen "retry"), as a suffix inside the parentheses of both REVISE reasons.
+  const openNote = oc ? `; open ${oc.openCritical} critical, ${oc.openWarnings} warnings` : "";
 
   // (a) A second RETHINK after the frame round and a good re-plan needs a human.
   if (open && pr.verdict === "RETHINK" && posInt(loops.rethinkToFrame) && okFrames.length >= loops.rethinkToFrame) {
@@ -1398,7 +1454,7 @@ function replanNext(log, pr, policy, level) {
         template: "research-revise",
         verdict: pr.verdict,
         bump: 0,
-        reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings) after ${revised} REVISE re-plan(s): research round before the re-plan`,
+        reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings${openNote}) after ${revised} REVISE re-plan(s): research round before the re-plan`,
       };
     }
   }
@@ -1408,7 +1464,7 @@ function replanNext(log, pr, policy, level) {
     template: "plan-revise",
     verdict: pr.verdict,
     bump: pr.verdict === "RETHINK" ? E.rethinkBump : E.reviseBump,
-    reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings)`,
+    reason: `plan review ${pr.verdict} (${pr.critical} critical, ${pr.warnings} warnings${openNote})`,
   };
 }
 

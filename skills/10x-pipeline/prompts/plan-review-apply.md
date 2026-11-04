@@ -5,3 +5,8 @@
 - **GIVEN** you edit `plan.md` **WHEN** you apply fixes **THEN** you **MUST NOT** change the `## Progress` row indices, titles or ticked state.
 - **GIVEN** you applied fixes **WHEN** you write the verdict and the finding counts **THEN** you **MUST** keep them as measured on the plan before your edits.
 - **GIVEN** you apply fixes **WHEN** you pick files to edit **THEN** you **MUST NOT** touch any file except `plan.md`, `plan-brief.md` and the review file.
+- **GIVEN** the review file lists findings **WHEN** you write or update it **THEN** you **MUST** write each finding as its own `### F<n>` block, numbered `F1`, `F2` and so on, because the router reads no other heading as a finding.
+- **GIVEN** a finding block **WHEN** you save the review file **THEN** you **MUST** keep its `**Severity**` line and its `**Decision**` line in that block, for every CRITICAL, WARNING and observation.
+- **GIVEN** a finding block **WHEN** you write its `**Decision**` line **THEN** you **MUST** start the line with the single word `APPLIED` or `PENDING`, and no other word.
+- **GIVEN** a finding is `Decision: PENDING` **WHEN** you write its line **THEN** you **MUST** state on that line why it stays open and what the owner has to decide.
+- **GIVEN** the `**Findings**` header counts **WHEN** you mark findings `APPLIED` **THEN** you **MUST NOT** lower those counts, because they stay as measured before your edits and the router reads the open state from the `**Decision**` lines.
