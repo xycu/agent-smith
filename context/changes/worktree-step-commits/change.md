@@ -1,7 +1,7 @@
 ---
 change_id: worktree-step-commits
 title: Isolated worktree runs, per-step commits, opus/medium tier and cheaper first implement attempts
-status: planned
+status: implementing
 created: 2026-11-03
 updated: 2026-11-04
 archived_at: null

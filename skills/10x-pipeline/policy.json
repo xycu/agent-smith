@@ -4,21 +4,22 @@
     { "model": "sonnet", "effort": "low" },
     { "model": "sonnet", "effort": "medium" },
     { "model": "sonnet", "effort": "high" },
+    { "model": "opus",   "effort": "medium" },
     { "model": "opus",   "effort": "high" },
     { "model": "opus",   "effort": "xhigh" },
     { "model": "opus",   "effort": "max" }
   ],
   "steps": {
-    "plan":        { "skill": "10x-plan",           "baseTier": 4, "minTier": 2, "maxTier": 6, "interactive": true },
-    "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 1, "maxTier": 5, "interactive": true },
-    "implement":   { "skill": "10x-goal-implement", "baseTier": 3, "minTier": 2, "maxTier": 6 },
-    "impl-review": { "skill": "10x-impl-review",    "baseTier": 3, "minTier": 2, "maxTier": 5, "interactive": true },
-    "fix":         { "skill": null,                 "baseTier": 3, "minTier": 2, "maxTier": 6 },
+    "plan":        { "skill": "10x-plan",           "baseTier": 5, "minTier": 2, "maxTier": 7, "interactive": true },
+    "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 1, "maxTier": 6, "interactive": true },
+    "implement":   { "skill": "10x-goal-implement", "baseTier": 3, "minTier": 2, "maxTier": 7 },
+    "impl-review": { "skill": "10x-impl-review",    "baseTier": 3, "minTier": 2, "maxTier": 6, "interactive": true },
+    "fix":         { "skill": null,                 "baseTier": 3, "minTier": 2, "maxTier": 7 },
     "archive":     { "skill": "10x-archive",        "baseTier": 3, "minTier": 3, "maxTier": 3, "interactive": true },
-    "research":     { "skill": "10x-research",      "baseTier": 3, "minTier": 2, "maxTier": 5, "interactive": true },
-    "domain-brief": { "skill": null,                "baseTier": 3, "minTier": 3, "maxTier": 5, "interactive": true },
-    "frame":        { "skill": "10x-frame",         "baseTier": 4, "minTier": 4, "maxTier": 4, "interactive": true },
-    "manual-verify": { "skill": null,               "baseTier": 3, "minTier": 2, "maxTier": 5 },
+    "research":     { "skill": "10x-research",      "baseTier": 3, "minTier": 2, "maxTier": 6, "interactive": true },
+    "domain-brief": { "skill": null,                "baseTier": 3, "minTier": 3, "maxTier": 6, "interactive": true },
+    "frame":        { "skill": "10x-frame",         "baseTier": 5, "minTier": 5, "maxTier": 5, "interactive": true },
+    "manual-verify": { "skill": null,               "baseTier": 3, "minTier": 2, "maxTier": 6 },
     "score":         { "skill": null,               "baseTier": 0, "minTier": 0, "maxTier": 1 }
   },
   "complexity": {
@@ -27,7 +28,7 @@
     "firstPlan": {
       "maxWords": 25,
       "hardKeywords": ["refactor", "migrat", "rewrit", "redesign", "architectur", "securit", "authenticat", "schema"],
-      "bump": { "plain": -1, "hard": 0 }
+      "bump": { "plain": -2, "hard": 0 }
     },
     "simple": {
       "maxPhases": 1,

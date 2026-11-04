@@ -111,7 +111,7 @@ test("RETHINK runs frame-rethink once, then plan-revise", () => {
   const frame = lastRan(project);
   assert.equal(frame.template, "frame-rethink");
   assert.equal(frame.verdict, "RETHINK");
-  assert.equal(frame.tier, 4);
+  assert.equal(frame.tier, 5);
   assert.doesNotMatch(frame.tierWhy, /from results/, "the frame step takes no bump");
   assert.equal(ranOf(project).filter((e) => e.template === "plan-revise").length, 0, "the frame step consumes no revision");
 
@@ -149,7 +149,7 @@ test("RETHINK below minRigor behaves as on main", () => {
     assert.match(res.json.prompt, /verdict: RETHINK/, rigor);
     assert.equal(lastRan(project).template, "plan-revise", rigor);
     assert.equal(ranOf(project).some((e) => e.template === "frame-rethink"), false, rigor);
-    if (rigor === "standard") assert.equal(lastRan(project).tier, 6);
+    if (rigor === "standard") assert.equal(lastRan(project).tier, 7);
   }
   const open = reviewed("RETHINK", "2 critical, 0 warnings", BASE);
   assert.equal(start(open, "thorough").json.step, "frame");
@@ -395,7 +395,7 @@ test("frame-rethink without a frame.md writes a new brief and is verified like a
   assert.equal(ranOf(project).find((e) => e.template === "frame-rethink").verified, false);
   assert.equal(ranOf(project).find((e) => e.template === "frame-rethink").ok, false);
   assert.equal(none.json.step, "frame");
-  assert.equal(lastRan(project).tier, 4);
+  assert.equal(lastRan(project).tier, 5);
 
   // A brief without the Reframed heading fails too.
   put(project, "frame.md", "# Frame Brief: demo\n\nNo reframed heading.\n");
