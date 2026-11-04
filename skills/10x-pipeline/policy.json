@@ -102,6 +102,14 @@
     "gitTimeoutMs": 120000,
     "haltOnManualPending": false
   },
+  "isolation": {
+    "require": true,
+    "defaultBranches": ["main", "master"],
+    "branchPrefix": "agent-smith/",
+    "gitTimeoutMs": 120000,
+    "commit": { "message": "chore({id}): step {n} {step}", "startMessage": "chore({id}): start run" },
+    "rollback": { "ref": "refs/agent-smith/{id}/failed-{n}" }
+  },
   "preplan": {
     "order": ["research", "domain-brief", "frame"],
     "gates": {
@@ -220,6 +228,7 @@
       "@prompts/score.md"
     ],
     "advisor": "@prompts/advisor.md",
+    "worktree": "@prompts/worktree.md",
     "domain-aggregate": "@prompts/invariant-aggregate-refactor.md",
     "domain-acl": "@prompts/anti-corruption-layer.md",
     "frame": [

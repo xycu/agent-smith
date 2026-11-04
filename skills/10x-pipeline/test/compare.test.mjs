@@ -629,9 +629,11 @@ test("3.1 --format md prints the table, per-model lines, drop, target, verdict, 
 const PLAIN = "Add a retry counter to the status output so the report shows how often each step ran again";
 
 // The override file written as the user copies it: the raw file, not through writeOverride.
+// Run isolation is turned off on top of it, so the scratch project needs no linked worktree.
 function copiedOverride(text) {
   const project = makeProject();
-  fs.writeFileSync(path.join(project.root, "context/foundation/agent-smith-policy.json"), text);
+  const value = { ...JSON.parse(text), isolation: { require: false } };
+  fs.writeFileSync(path.join(project.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(value));
   return project;
 }
 

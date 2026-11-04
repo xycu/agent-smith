@@ -21,6 +21,7 @@ const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "
 const SUFFIX = policy.prompts.suffix;
 const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
 
+const ISOLATION_OFF = { isolation: { require: false } };
 const parts = (value) => (Array.isArray(value) ? value : [value]);
 const readOverride = (project) =>
   JSON.parse(fs.readFileSync(path.join(project.root, "context/foundation/agent-smith-policy.json"), "utf8"));
@@ -125,7 +126,7 @@ test("score data: scorer prompt carries the rules and a four-level rubric per fa
 
 test("score data: makeProject keeps plan as the first step at standard", () => {
   const project = makeProject();
-  assert.deepEqual(readOverride(project), { score: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { score: { minRigor: null }, isolation: { require: false } });
   const res = init(project, GOAL, ["--rigor", "standard"]);
   assert.equal(res.status, 0, res.stdout);
   assert.equal(res.json.step, "plan");
@@ -134,9 +135,9 @@ test("score data: makeProject keeps plan as the first step at standard", () => {
 
 test("score data: an override replaced through writeOverride keeps plan first", () => {
   const project = makeProject({ policy: { lessons: { maxCandidates: 2 } } });
-  assert.deepEqual(readOverride(project), { lessons: { maxCandidates: 2 }, score: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { lessons: { maxCandidates: 2 }, score: { minRigor: null }, isolation: { require: false } });
   writeOverride(project, { limits: { maxPlanRevisions: 1 } });
-  assert.deepEqual(readOverride(project), { limits: { maxPlanRevisions: 1 }, score: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { limits: { maxPlanRevisions: 1 }, score: { minRigor: null }, isolation: { require: false } });
   const res = init(project, GOAL, ["--rigor", "standard"]);
   assert.equal(res.status, 0, res.stdout);
   assert.equal(res.json.step, "plan");
@@ -144,9 +145,9 @@ test("score data: an override replaced through writeOverride keeps plan first", 
 
 test("score data: a test-provided score block wins whole", () => {
   const project = makeProject({ policy: { score: { minRigor: "standard" } } });
-  assert.deepEqual(readOverride(project), { score: { minRigor: "standard" } });
+  assert.deepEqual(readOverride(project), { score: { minRigor: "standard" }, isolation: { require: false } });
   writeOverride(project, { score: { maxAttempts: 2 } });
-  assert.deepEqual(readOverride(project), { score: { maxAttempts: 2 } });
+  assert.deepEqual(readOverride(project), { score: { maxAttempts: 2 }, isolation: { require: false } });
 });
 
 // ---- Phase 2 helpers: the score step through the CLI ------------------------------
@@ -215,14 +216,15 @@ function scoreProject(policyOver = OPT_IN, goal = GOAL) {
 
 test("score gate: the shipped default runs score at standard; lean and minRigor null run no score and log no skip", () => {
   // The shipped default (minRigor "standard"): an override file with no score key, written without the helper.
+  // It turns run isolation off only, so the scratch project needs no linked worktree.
   const shipped = makeProject();
-  fs.writeFileSync(path.join(shipped.root, "context/foundation/agent-smith-policy.json"), "{}");
+  fs.writeFileSync(path.join(shipped.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(ISOLATION_OFF));
   const a = init(shipped, GOAL, ["--rigor", "standard"]);
   assert.equal(a.json.step, "score");
   assert.deepEqual(skipsOf(shipped), []);
   // The shipped default at lean: no score and no skip.
   const shippedLean = makeProject();
-  fs.writeFileSync(path.join(shippedLean.root, "context/foundation/agent-smith-policy.json"), "{}");
+  fs.writeFileSync(path.join(shippedLean.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(ISOLATION_OFF));
   const a2 = init(shippedLean, "fix typo");
   assert.equal(a2.json.step, "plan");
   assert.equal(readMetaFile(shippedLean).rigor.level, "lean");
