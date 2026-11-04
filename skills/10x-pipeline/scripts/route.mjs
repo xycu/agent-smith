@@ -113,17 +113,18 @@ function readPlan(file) {
 // The findings of a review: one record per "### F<n>" block, which runs to the next "## " or "### " heading. The severity
 // is the first of CRITICAL, WARNING and OBSERVATION on the block's Severity line (emoji ignored); a block that names none
 // reads as a warning, so an unreadable severity is never cleaner than it is. The decision is the first run of ASCII
-// letters after "**Decision**:", upper-cased ("APPLIED - abc1234" reads APPLIED, "ACCEPTED-AS-RULE: x" reads ACCEPTED),
-// or null when the line is missing. Nothing here judges whether a decision is true.
+// letters after "**Decision**:" on that line, upper-cased ("APPLIED - abc1234" reads APPLIED, "**APPLIED**" and "`APPLIED`"
+// read APPLIED, "ACCEPTED-AS-RULE: x" reads ACCEPTED), or null when the line is missing or has no letters. Both label forms,
+// "**Severity**:" and "**Severity:**", are read. Nothing here judges whether a decision is true.
 function readFindings(text) {
   const findings = [];
   let cur = null;
   const flush = () => {
     if (!cur) return;
     const body = cur.lines.join("\n");
-    const sev = body.match(/\*\*Severity\*\*[^\n]*/);
+    const sev = body.match(/\*\*Severity(?:\*\*|:\*\*)[^\n]*/);
     const word = sev ? sev[0].match(/CRITICAL|WARNING|OBSERVATION/i) : null;
-    const dec = body.match(/\*\*Decision(?:\*\*:|:\*\*)[ \t]*([A-Za-z]+)/);
+    const dec = body.match(/\*\*Decision(?:\*\*:|:\*\*)[^A-Za-z\n]*([A-Za-z]+)/);
     findings.push({
       id: cur.id,
       severity: word ? word[0].toLowerCase() : "warning",

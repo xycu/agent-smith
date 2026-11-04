@@ -136,6 +136,15 @@ describe("parser: findings, decisions and open counts", () => {
     assert.equal(review.openWarnings, 0);
   });
 
+  test("a Decision word in bold or backticks and a **Severity:** label are read", () => {
+    const text = `# Review\n\n- **Verdict**: REVISE\n- **Findings**: 1 critical, 1 warnings\n\n## Findings\n\n`
+      + `### F1 — Bold\n\n- **Severity:** ${CRIT}\n- **Decision**: **APPLIED** — abc1234\n\n`
+      + `### F2 — Code\n\n- **Severity**: ${WARN}\n- **Decision:** \`APPLIED\`\n\n`
+      + `### F3 — Empty\n\n- **Severity**: ${OBS}\n- **Decision**: —\n`;
+    const { review } = observe(text);
+    assert.deepEqual(review, { verdict: "REVISE", critical: 1, warnings: 1, openCritical: 0, openWarnings: 0 });
+  });
+
   test("a block ends at the next heading, so a later block's Decision is not read into an earlier one", () => {
     const text = reviewText({
       findings: "0 critical, 2 warnings",
