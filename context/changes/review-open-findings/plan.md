@@ -301,10 +301,10 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Automated
 
-- [x] 1.1 Parser and fallback tests pass: `node --test skills/10x-pipeline/test/openfindings.test.mjs`
-- [x] 1.2 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 1.3 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
-- [x] 1.4 Version fields consistent: `node tools/version-check.mjs`
+- [x] 1.1 Parser and fallback tests pass: `node --test skills/10x-pipeline/test/openfindings.test.mjs` — 772c65b
+- [x] 1.2 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 772c65b
+- [x] 1.3 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs` — 772c65b
+- [x] 1.4 Version fields consistent: `node tools/version-check.mjs` — 772c65b
 
 #### Manual
 
@@ -315,10 +315,10 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Automated
 
-- [ ] 2.1 Routing tests pass (all APPLIED goes on, open critical halts, open warnings at and above tolerance, pending observation ignored, `retry` mode, RETHINK and REJECTED unchanged, unaware fixture unchanged, unparsed header count open): `node --test skills/10x-pipeline/test/openfindings.test.mjs`
-- [ ] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.4 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 2.1 Routing tests pass (all APPLIED goes on, open critical halts, open warnings at and above tolerance, pending observation ignored, `retry` mode, RETHINK and REJECTED unchanged, unaware fixture unchanged, unparsed header count open): `node --test skills/10x-pipeline/test/openfindings.test.mjs`
+- [x] 2.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.4 Characterization file untouched: `git diff --exit-code HEAD -- skills/10x-pipeline/test/loops-existing.test.mjs`
 
 #### Manual
 
