@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, planText, writeReview, run, init, next, writeLog, entry, writeResult, readLogEntries,
-  git, gitAvailable, gitEnv, gitInit, writePlan,
+  git, gitAvailable, gitEnv, gitInit, writePlan, writeMetaFile, readReportFile,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -1066,5 +1066,137 @@ describe("confirm templates", () => {
       assert.equal(parts[0], flat(shipped.prompts[`${kind}-review`])[0], "the same base review text as the first round");
       assert.equal(shipped.steps[`${kind}-review`].skill !== null, true);
     }
+  });
+});
+
+// ---- Phase 4: the report section ----------------------------------------------------------
+
+const HEADING = "## Review findings";
+const STALE_NOTE = "Counts as recorded when each review step ended; later edits of a review file are not reflected.";
+
+// A run that holds the given entries (plan, plan-review, implement, impl-review ... as the caller builds them) and a meta
+// file, so `status --report` can write the report.
+function reportProject(entries) {
+  const project = makeProject({ plan: planText({ done: 1 }) });
+  writeMetaFile(project, { id: "demo", goal: "fix typo" });
+  writeLog(project, entries);
+  return project;
+}
+
+function reportOf(project) {
+  const res = run(project, ["status", project.id, "--report"]);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  return readReportFile(project);
+}
+
+// The lines of the "Review findings" section, heading and blank lines left out.
+function sectionOf(report) {
+  const start = report.indexOf(HEADING);
+  assert.ok(start >= 0, `no ${HEADING} in:\n${report}`);
+  const rest = report.slice(start + HEADING.length);
+  const end = rest.search(/\n## /);
+  return (end < 0 ? rest : rest.slice(0, end)).split("\n").filter((l) => l.trim() !== "");
+}
+
+describe("report: Review findings section", () => {
+  test("one line per review entry, with the open part only for an aware review", () => {
+    const project = reportProject([
+      entry(1, "plan"),
+      entry(2, "plan-review", { review: { verdict: "REVISE", critical: 1, warnings: 2, openCritical: 0, openWarnings: 1 } }),
+      entry(3, "implement"),
+      entry(4, "impl-review", { review: { verdict: "NEEDS ATTENTION", critical: 0, warnings: 3 } }),
+    ]);
+    const lines = sectionOf(reportOf(project));
+    assert.deepEqual(lines.slice(1), [
+      "- step 2 plan-review: REVISE, 1 critical, 2 warnings measured; 0 critical, 1 warnings open",
+      "- step 4 impl-review: NEEDS ATTENTION, 0 critical, 3 warnings measured",
+    ]);
+  });
+
+  test("a confirmation review is labelled", () => {
+    const project = reportProject([
+      entry(1, "plan"),
+      entry(2, "plan-review", { review: { verdict: "REVISE", critical: 1, warnings: 0, openCritical: 0, openWarnings: 0 } }),
+      entry(3, "plan-review", { template: "plan-review-confirm", review: { verdict: "SOUND", critical: 0, warnings: 0, openCritical: 0, openWarnings: 0 } }),
+      entry(4, "implement"),
+      entry(5, "impl-review", { review: { verdict: "NEEDS ATTENTION", critical: 0, warnings: 1, openCritical: 0, openWarnings: 0 } }),
+      entry(6, "impl-review", { template: "impl-review-confirm", review: { verdict: "APPROVED", critical: 0, warnings: 0, openCritical: 0, openWarnings: 0 } }),
+    ]);
+    const lines = sectionOf(reportOf(project)).slice(1);
+    assert.equal(lines[0], "- step 2 plan-review: REVISE, 1 critical, 0 warnings measured; 0 critical, 0 warnings open");
+    assert.equal(lines[1], "- step 3 plan-review (confirmation): SOUND, 0 critical, 0 warnings measured; 0 critical, 0 warnings open");
+    assert.equal(lines[2], "- step 5 impl-review: NEEDS ATTENTION, 0 critical, 1 warnings measured; 0 critical, 0 warnings open");
+    assert.equal(lines[3], "- step 6 impl-review (confirmation): APPROVED, 0 critical, 0 warnings measured; 0 critical, 0 warnings open");
+  });
+
+  test("the section says in one line that later edits of a review file are not reflected", () => {
+    const project = reportProject([entry(1, "plan"), entry(2, "plan-review", { review: { verdict: "SOUND", critical: 0, warnings: 0 } })]);
+    const lines = sectionOf(reportOf(project));
+    assert.equal(lines[0], STALE_NOTE);
+    assert.equal(lines.filter((l) => !l.startsWith("- ")).length, 1, "exactly one prose line");
+  });
+
+  test("no review entry gives no section", () => {
+    const project = reportProject([entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+    const report = reportOf(project);
+    assert.ok(!report.includes("Review findings"), report);
+  });
+
+  test("a review value that is not an object adds no line and no section", () => {
+    const project = reportProject([entry(1, "plan"), entry(2, "plan-review", { review: "bad" })]);
+    assert.ok(!reportOf(project).includes(HEADING));
+  });
+
+  test("the section follows Rolled-back steps", () => {
+    const project = reportProject([
+      entry(1, "plan"),
+      entry(2, "plan-review", { review: { verdict: "SOUND", critical: 0, warnings: 0 } }),
+      entry(3, "implement", { ok: false, rolledBack: "refs/agent-smith/demo/abc/failed-1", startSha: "abcdef1234567" }),
+    ]);
+    const report = reportOf(project);
+    assert.ok(report.indexOf("## Rolled-back steps") > 0);
+    assert.ok(report.indexOf(HEADING) > report.indexOf("## Rolled-back steps"));
+  });
+
+  test("the section names no tier, model or effort", () => {
+    const project = reportProject([
+      entry(1, "plan"),
+      entry(2, "plan-review", { review: { verdict: "REVISE", critical: 1, warnings: 1, openCritical: 1, openWarnings: 0 } }),
+      entry(3, "plan-review", { template: "plan-review-confirm", review: { verdict: "SOUND", critical: 0, warnings: 0, openCritical: 0, openWarnings: 0 } }),
+    ]);
+    const text = sectionOf(reportOf(project)).join("\n");
+    assert.doesNotMatch(text, /\b(tier|model|effort|opus|sonnet|haiku)\b/i);
+  });
+
+  test("a review step run through next lands in the report with the counts stored at that time", () => {
+    const { project, entry: logged } = observe(reviewText({
+      findings: "1 critical, 2 warnings",
+      blocks: [block("F1", CRIT, "APPLIED"), block("F2", WARN, "PENDING"), block("F3", WARN, "APPLIED")],
+    }), { policy: { review: { reviseToleranceWarnings: 1 } } });
+    assert.deepEqual(logged.review, { verdict: "REVISE", critical: 1, warnings: 2, openCritical: 0, openWarnings: 1 });
+    // The owner closes the last finding after the step ended: the report still shows the stored counts.
+    const file = path.join(project.changeDir, "reviews", "plan-review.md");
+    fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("**Decision**: PENDING", "**Decision**: APPLIED"));
+    writeMetaFile(project, { id: "demo", goal: "fix typo" });
+    const lines = sectionOf(reportOf(project)).slice(1);
+    const row = lines.find((l) => l.startsWith("- step 2 plan-review"));
+    assert.equal(row, "- step 2 plan-review: REVISE, 1 critical, 2 warnings measured; 0 critical, 1 warnings open");
+  });
+
+  test("a run that ends in done writes the section into report.md", () => {
+    const project = makeProject({ plan: planText({ done: 1 }) });
+    writeReview(project, "plan-review", { verdict: "SOUND" });
+    writeReviewFile(project, "impl-review", reviewText({
+      verdict: "NEEDS ATTENTION",
+      findings: "0 critical, 1 warnings",
+      blocks: [block("F1", WARN, "PENDING")],
+    }));
+    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review", {
+      review: { verdict: "NEEDS ATTENTION", critical: 0, warnings: 1, openCritical: 0, openWarnings: 1 },
+    })]);
+    const res = init(project, GOAL, ["--rigor", "standard"]);
+    assert.equal(res.json.action, "done", res.stdout);
+    assert.ok(res.json.report, "the done output names the report");
+    assert.ok(sectionOf(readReportFile(project)).includes("- step 4 impl-review: NEEDS ATTENTION, 0 critical, 1 warnings measured; 0 critical, 1 warnings open"));
   });
 });

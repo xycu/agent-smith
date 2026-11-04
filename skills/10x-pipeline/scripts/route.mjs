@@ -397,6 +397,7 @@ function buildReport(id, meta, fullLog) {
       "",
     ] : []),
     ...rollbackLines(log),
+    ...reviewLines(log),
     ...complexityLines(fullLog),
     ...lessonLines(log, oneLine),
   ].join("\n");
@@ -414,6 +415,31 @@ function rollbackLines(log) {
     "## Rolled-back steps",
     "",
     "Partial edits of failed steps, kept under a side ref. Inspect one with `git show --stat <ref>`.",
+    "",
+    ...rows,
+    "",
+  ];
+}
+
+// The "Review findings" section: one line per executed review step that logged a `review` field, with the counts measured
+// from the header and, for a review with Decision lines, the findings still open. The figures are the ones stored when the
+// step ended, so the section says that a later edit of a review file is not reflected. None, no section.
+function reviewLines(log) {
+  const count = (n) => (Number.isInteger(n) && n >= 0 ? n : 0);
+  const rows = log.filter((e) => isObject(e.review)).map((e) => {
+    const r = e.review;
+    const confirm = e.template === `${e.step}-confirm` ? " (confirmation)" : "";
+    const verdict = typeof r.verdict === "string" && r.verdict !== "" ? r.verdict : "-";
+    const open = Number.isInteger(r.openCritical) && Number.isInteger(r.openWarnings)
+      ? `; ${r.openCritical} critical, ${r.openWarnings} warnings open`
+      : "";
+    return `- step ${e.n} ${e.step}${confirm}: ${verdict}, ${count(r.critical)} critical, ${count(r.warnings)} warnings measured${open}`;
+  });
+  if (!rows.length) return [];
+  return [
+    "## Review findings",
+    "",
+    "Counts as recorded when each review step ended; later edits of a review file are not reflected.",
     "",
     ...rows,
     "",
