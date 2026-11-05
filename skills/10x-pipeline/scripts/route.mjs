@@ -4,7 +4,7 @@
 // review verdicts) plus the run log. The orchestrator never picks a model itself.
 //
 // Usage (run from the project root):
-//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome]
+//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome [false]]   # Chrome is on unless --chrome false
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
@@ -1898,7 +1898,8 @@ function manualVerifyNext(plan, log, policy, ctx, meta) {
   const bump = runs.length && posInt(cfg.retryBump) ? cfg.retryBump : 0;
   return {
     step: "manual-verify",
-    template: meta?.chrome === true ? "manual-verify-chrome" : "manual-verify",
+    // Chrome is on unless the run stored --chrome false: an absent value and a run from before the default read on.
+    template: meta?.chrome === false ? "manual-verify-nochrome" : "manual-verify",
     bump,
     ...(bump ? { bumpWhy: `manual-verify retry after ${runs.length} attempt(s)` } : {}),
     unproven: retry,
@@ -2381,12 +2382,13 @@ function provenanceSections(policy) {
   return Object.fromEntries(Object.entries(sections).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
-// The flags in force. A flag the policy lacks or malforms reads false; archive and chrome come from meta.json.
+// The flags in force. A flag the policy lacks or malforms reads false; archive and chrome come from meta.json, and chrome
+// records the effective setting: on unless meta.chrome is false.
 function provenanceFlags(policy, meta) {
   const minRigor = isObject(policy.score) ? policy.score.minRigor : null;
   return {
     archive: meta.archive === true,
-    chrome: meta.chrome === true,
+    chrome: meta.chrome !== false,
     "score.minRigor": typeof minRigor === "string" ? minRigor : null,
     "agents.restricted": isObject(policy.agents) && policy.agents.restricted === true,
     "advisor.enabled": isObject(policy.advisor) && policy.advisor.enabled === true,
@@ -3471,7 +3473,7 @@ function halt(reason) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]");
   }
   const policy = loadPolicy();
   const flags = parseFlags(rest);
@@ -3489,7 +3491,8 @@ function main() {
       else if (flags.archive === "false") archive = false;
       else halt(`Invalid --archive ${flags.archive}. Use --archive, --archive true or --archive false.`);
     }
-    // --chrome is checked before anything is written, like --archive: a bare flag or "true" turns it on, "false" turns it off.
+    // --chrome is checked before anything is written, like --archive: a bare flag or "true" stores true, "false" stores false.
+    // Chrome is on by default, so only a stored false turns the Chrome rules off; a resume without the flag keeps the value.
     let chrome;
     if (flags.chrome !== undefined) {
       if (flags.chrome === true || flags.chrome === "true") chrome = true;

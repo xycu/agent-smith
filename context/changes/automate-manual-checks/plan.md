@@ -332,10 +332,10 @@ The policy and the prompts change, so a run in flight records `provenance.drift`
 
 #### Automated
 
-- [x] 2.1 Evidence kind, ledger and output tests pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs`
-- [x] 2.2 Archive and report tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/route.test.mjs`
-- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.4 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 2.1 Evidence kind, ledger and output tests pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs` — 8c009a6
+- [x] 2.2 Archive and report tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/route.test.mjs` — 8c009a6
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 8c009a6
+- [x] 2.4 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs` — 8c009a6
 
 #### Manual
 
@@ -346,11 +346,11 @@ The policy and the prompts change, so a run in flight records `provenance.drift`
 
 #### Automated
 
-- [ ] 3.1 Prompt and Chrome-default tests pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs`
-- [ ] 3.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 3.3 Provenance and advisor tests pass: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/advisor.test.mjs`
-- [ ] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.5 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 3.1 Prompt and Chrome-default tests pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs`
+- [x] 3.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 3.3 Provenance and advisor tests pass: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/advisor.test.mjs`
+- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.5 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs`
 
 #### Manual
 
