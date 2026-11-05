@@ -348,6 +348,9 @@
   "manualVerify": {
     "minRigor": "lean",
     "maxAttempts": 2,
-    "retryBump": 1
+    "retryBump": 1,
+    "evidenceKinds": ["command", "test", "script", "browser", "judgment"],
+    "unprovenFile": "unproven.md",
+    "reasonMaxChars": 200
   }
 }

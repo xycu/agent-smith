@@ -297,10 +297,12 @@ function archiveLines(id, meta, oneLine) {
   const notes = doneNotes(o);
   const unproven = notes.uncommittedTicks ?? [];
   const manualUnproven = notes.manualUnproven ?? [];
+  const notProved = notes.manualNotProved ?? [];
   return [
     `Archive: requested - runs after this report was written; see the commit "chore(archive): close ${id}"`,
     ...(pending.length ? [`Manual checks pending: ${pending.length}`, ...pending.map((row) => `- ${oneLine(row)}`)] : []),
     ...(manualUnproven.length ? [`Manual checks unproven: ${manualUnproven.length}`, ...manualUnproven.map((row) => `- ${oneLine(row)}`)] : []),
+    ...(notProved.length ? [`Manual checks not proved: ${notProved.length}`, ...notProved.map((row) => `- ${oneLine(row)}`)] : []),
     ...(unproven.length ? [`Ticked without a commit: ${unproven.length}`, ...unproven.map((row) => `- ${oneLine(row)}`)] : []),
   ];
 }
@@ -399,6 +401,7 @@ function buildReport(id, meta, fullLog) {
     ] : []),
     ...rollbackLines(log),
     ...reviewLines(log),
+    ...manualCheckLines(log, oneLine),
     ...complexityLines(fullLog),
     ...lessonLines(log, oneLine),
   ].join("\n");
@@ -443,6 +446,41 @@ function reviewLines(log) {
     "Counts as recorded when each review step ended; later edits of a review file are not reflected.",
     "",
     ...rows,
+    "",
+  ];
+}
+
+// The "Manual checks" section, from log entries only: the rows the last manual-verify entry counts as proved, grouped by
+// evidence kind, then the rows it left pending with the merged reasons. Titles come from the first entry's baseline.
+// No manual-verify entry, no section.
+function manualCheckLines(log, oneLine) {
+  const runs = log.filter((e) => e.step === "manual-verify");
+  if (!runs.length) return [];
+  const last = runs[runs.length - 1];
+  const base = Array.isArray(runs[0].before?.manual) ? runs[0].before.manual : [];
+  const titles = new Map(base.filter((r) => isObject(r) && typeof r.id === "string").map((r) => [r.id, String(r.text ?? "")]));
+  const label = (id) => {
+    const text = withoutEvidence(oneLine(titles.get(id) ?? ""));
+    const title = text === id ? "" : text.startsWith(`${id} `) ? text.slice(id.length + 1) : text;
+    return `${oneLine(id)}${title ? ` ${title}` : ""}`;
+  };
+  const proved = (Array.isArray(last.proved) ? last.proved : []).filter((r) => isObject(r) && typeof r.id === "string");
+  const kinds = [...new Set(proved.map((r) => String(r.kind ?? "other")))];
+  const provedRows = kinds.flatMap((kind) => proved.filter((r) => String(r.kind ?? "other") === kind)
+    .map((r) => `- ${label(r.id)} — ${kind} (${oneLine(r.file)})`));
+  const reasons = mergedReasons(log);
+  const pending = (Array.isArray(last.pending) ? last.pending : []).filter((id) => typeof id === "string");
+  const pendingRows = pending.map((id) => `- ${label(id)} — not proved: ${oneLine(reasons.get(id) ?? "no reason recorded")}`);
+  return [
+    "## Manual checks",
+    "",
+    "Rows as recorded when the last manual-verify step ended. The kind comes from the evidence file name; the router never reads the content.",
+    "",
+    `Proved: ${provedRows.length}`,
+    ...(provedRows.length ? ["", ...provedRows] : []),
+    "",
+    `Not proved: ${pendingRows.length}`,
+    ...(pendingRows.length ? ["", ...pendingRows] : []),
     "",
   ];
 }
@@ -1147,7 +1185,11 @@ function decide(p, fullLog, policy, meta, ctx) {
     done: true,
     reason: `impl review ${ir.verdict ?? "APPROVED"}`,
     manualPending: plan.manualPending,
-    ...doneNotes({ uncommittedTicks: unprovenTicks(log, plan, policy), manualUnproven: manualUnprovenIds(log, plan) }),
+    ...doneNotes({
+      uncommittedTicks: unprovenTicks(log, plan, policy),
+      manualUnproven: manualUnprovenIds(log, plan),
+      manualNotProved: manualNotProvedRows(log, plan),
+    }),
   };
 }
 
@@ -1814,7 +1856,7 @@ function reviewWarning(log, plan, policy) {
 // The non-empty note keys of a done result, so a run that ends clean carries none.
 function doneNotes(d) {
   const notes = {};
-  for (const key of ["uncommittedTicks", "manualUnproven"]) {
+  for (const key of ["uncommittedTicks", "manualUnproven", "manualNotProved"]) {
     if (Array.isArray(d?.[key]) && d[key].length) notes[key] = d[key];
   }
   return notes;
@@ -1879,6 +1921,79 @@ function evidenceOk(changeDir, token, since) {
   } catch { return false; }
 }
 
+// The display-only knobs of the step. A value of the wrong shape reads as the default and never halts.
+const MANUAL_DEFAULTS = { evidenceKinds: ["command", "test", "script", "browser", "judgment"], unprovenFile: "unproven.md", reasonMaxChars: 200 };
+// The unproved reasons file is read only up to this size; a larger file gives no reasons.
+const UNPROVEN_MAX_BYTES = 65536;
+
+function manualVerifyOptions(policy) {
+  const cfg = isObject(policy?.manualVerify) ? policy.manualVerify : {};
+  const kinds = Array.isArray(cfg.evidenceKinds) && cfg.evidenceKinds.length && cfg.evidenceKinds.every((k) => typeof k === "string" && k.trim() !== "")
+    ? cfg.evidenceKinds.map((k) => k.trim().toLowerCase())
+    : MANUAL_DEFAULTS.evidenceKinds;
+  const file = typeof cfg.unprovenFile === "string" && /^[A-Za-z0-9._-]+$/.test(cfg.unprovenFile) && cfg.unprovenFile !== "." && cfg.unprovenFile !== ".."
+    ? cfg.unprovenFile
+    : MANUAL_DEFAULTS.unprovenFile;
+  const max = Number.isSafeInteger(cfg.reasonMaxChars) && cfg.reasonMaxChars > 0 ? cfg.reasonMaxChars : MANUAL_DEFAULTS.reasonMaxChars;
+  return { evidenceKinds: kinds, unprovenFile: file, reasonMaxChars: max };
+}
+
+// The kind of an evidence file: the part of its base name before the first "-", lower-cased, when it is a known kind.
+// Any other prefix, and a base name with no prefix, reads "other".
+function evidenceKind(token, kinds) {
+  const base = token.split("/").pop() ?? "";
+  const at = base.indexOf("-");
+  if (at <= 0) return "other";
+  const prefix = base.slice(0, at).toLowerCase();
+  return kinds.includes(prefix) ? prefix : "other";
+}
+
+// The reasons of evidence/<unprovenFile>, for display only: { <row id>: <reason> } for each `- <row id> — <reason>` line
+// that names a Manual row of the plan. The file counts only when it is a regular file inside the real evidence folder, at
+// most UNPROVEN_MAX_BYTES, and newer than `since`. Anything else gives no reasons; nothing here changes `ok`.
+function readUnprovenReasons(changeDir, policy, since, ids) {
+  const { unprovenFile, reasonMaxChars } = manualVerifyOptions(policy);
+  let text;
+  try {
+    const dir = path.join(changeDir, "evidence");
+    const dirStat = fs.lstatSync(dir);
+    if (!dirStat.isDirectory() || dirStat.isSymbolicLink()) return {};
+    const file = path.join(dir, unprovenFile);
+    const st = fs.lstatSync(file);
+    if (!st.isFile() || st.size > UNPROVEN_MAX_BYTES || !(st.mtimeMs > since)) return {};
+    if (!fs.realpathSync(file).startsWith(path.join(fs.realpathSync(changeDir), "evidence") + path.sep)) return {};
+    text = fs.readFileSync(file, "utf8");
+  } catch { return {}; }
+  const reasons = new Map();
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^\s*[-*]\s+(.+?)\s+—\s+(.+)$/);
+    if (!m) continue;
+    const id = m[1].replace(/^[`*_]+|[`*_]+$/g, "").trim();
+    if (!ids.has(id)) continue;
+    const clean = m[2].replace(/\p{Cf}/gu, "").replace(/[\p{Cc}\s]+/gu, " ").replace(/`/g, "'").trim();
+    const reason = Array.from(clean).slice(0, reasonMaxChars).join("").trim();
+    if (reason) reasons.set(id, reason);
+  }
+  return Object.fromEntries(reasons);
+}
+
+// The reasons of every manual-verify entry, merged in log order (a later entry wins).
+function mergedReasons(log) {
+  const merged = new Map();
+  for (const e of log) {
+    if (e.skipped || e.step !== "manual-verify" || !isObject(e.reasons)) continue;
+    for (const [id, reason] of Object.entries(e.reasons)) if (typeof reason === "string" && reason) merged.set(id, reason);
+  }
+  return merged;
+}
+
+// One line per Manual row still pending after at least one manual-verify entry ran, with its reason. Empty when the step never ran.
+function manualNotProvedRows(log, plan) {
+  if (!log.some((e) => !e.skipped && e.step === "manual-verify")) return [];
+  const reasons = mergedReasons(log);
+  return manualRows(plan).filter((r) => !r.done).map((r) => `${r.text} — not proved: ${reasons.get(r.id) ?? "no reason recorded"}`);
+}
+
 // Verification of a manual-verify entry against the first entry of its trailing streak (a retry judges the first
 // attempt's ticks again). Sets last.ticked and last.unproven; a step that is not ok is a neutral fallback entry.
 function verifyManual(last, ran, plan, result, p, policy) {
@@ -1896,6 +2011,8 @@ function verifyManual(last, ran, plan, result, p, policy) {
   }
   const ticked = [];
   const unproven = [];
+  const proved = [];
+  const kinds = manualVerifyOptions(policy).evidenceKinds;
   for (const b of baseManual) {
     const r = nowManual.get(b.id);
     if (!r || withoutEvidence(r.text) !== withoutEvidence(b.text) || (b.done && !r.done)) {
@@ -1906,11 +2023,17 @@ function verifyManual(last, ran, plan, result, p, policy) {
     }
     if (b.done || !r.done) continue;
     const token = r.text.match(EVIDENCE_SUFFIX_RE)?.[1];
-    if (token && evidenceOk(p.change, token, first.startedAt ?? 0)) ticked.push(b.id);
-    else unproven.push(b.id);
+    if (token && evidenceOk(p.change, token, first.startedAt ?? 0)) {
+      ticked.push(b.id);
+      proved.push({ id: b.id, kind: evidenceKind(token, kinds), file: token });
+    } else unproven.push(b.id);
   }
   last.ticked = ticked;
   last.unproven = unproven;
+  last.proved = proved;
+  last.pending = manualRows(plan).filter((r) => !r.done).map((r) => r.id);
+  const reasons = readUnprovenReasons(p.change, policy, last.startedAt ?? 0, new Set(manualRows(plan).map((r) => r.id)));
+  if (Object.keys(reasons).length) last.reasons = reasons;
   const verified = intact && unproven.length === 0;
   if (!(result.status === "done" && verified)) last.fallback = true;
   return verified;
@@ -3310,7 +3433,16 @@ function status(id, flags) {
       n: e.n, step: e.step, template: e.template ?? null, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
-      ...(e.step === "manual-verify" ? { ticked: e.ticked?.length ?? 0, unproven: e.unproven?.length ?? 0 } : {}),
+      ...(e.step === "manual-verify" ? {
+        ticked: e.ticked?.length ?? 0,
+        unproven: e.unproven?.length ?? 0,
+        proved: (Array.isArray(e.proved) ? e.proved : []).reduce((acc, r) => {
+          const kind = isObject(r) && typeof r.kind === "string" ? r.kind : "other";
+          acc[kind] = (acc[kind] ?? 0) + 1;
+          return acc;
+        }, {}),
+        pending: Array.isArray(e.pending) ? e.pending.length : 0,
+      } : {}),
       ...(e.score ? { score: e.score } : {}),
       ...(e.invalid ? { invalid: e.invalid } : {}),
       ...(e.scoreShift ? { scoreShift: e.scoreShift } : {}),

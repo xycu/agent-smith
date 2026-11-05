@@ -43,8 +43,8 @@ const start = (project, rigor = "standard", extra = []) => init(project, GOAL, [
 const lastEntry = (project) => readLogEntries(project).at(-1);
 
 // A project with a pending manual-verify entry (step 4) whose baseline is the plan `manual`/`auto`. `over` replaces entry fields.
-function verifying({ manual = [A, B], auto = AUTO, chrome = false, over = {} } = {}) {
-  const project = mvProject({ manual, auto });
+function verifying({ manual = [A, B], auto = AUTO, chrome = false, over = {}, policy = null } = {}) {
+  const project = mvProject({ manual, auto, policy });
   writeMetaFile(project, { id: project.id, goal: GOAL, rigor: { requested: "standard" }, ...(chrome ? { chrome: true } : {}) });
   const before = { autoDone: 1, head: null, done: ["1.1"], manual: withId(manual, auto.length), auto: withId(auto, 0) };
   writeLog(project, [
@@ -540,4 +540,225 @@ test("manual unproven reaches outputs", { skip: noGit }, () => {
   assert.equal("manualUnproven" in ok.json.summary, false);
   assert.equal("manualUnproven" in readMetaFile(clean).outcome, false);
   assert.doesNotMatch(readReportFile(clean), /Manual checks unproven/);
+});
+
+// ---- evidence kinds and unproved reasons ---------------------------------------
+
+// Writes the unproved reasons file of a project (evidence/<name>) and returns its path.
+const ledger = (project, lines, name = "unproven.md") => evidence(project, name, Array.isArray(lines) ? lines.join("\n") + "\n" : lines);
+
+test("manual verify evidence kind", () => {
+  const kindOf = (token, policy = null) => {
+    const project = verifying({ manual: [A], policy });
+    save(project, [ticked(A, token)]);
+    evidence(project, token.slice("evidence/".length));
+    const { e } = finish(project);
+    assert.equal(e.ok, true, `${token}: ${JSON.stringify(e)}`);
+    assert.deepEqual(e.ticked, ["1.2"], token);
+    assert.equal(e.proved.length, 1, token);
+    assert.deepEqual(e.proved[0], { id: "1.2", kind: e.proved[0].kind, file: token }, token);
+    return e.proved[0].kind;
+  };
+  // Each known prefix.
+  for (const kind of ["command", "test", "script", "browser", "judgment"]) {
+    assert.equal(kindOf(`evidence/${kind}-1.2.txt`), kind, kind);
+  }
+  // The prefix is lower-cased; an unknown prefix and a base name with no prefix read "other", and the row is still ticked.
+  assert.equal(kindOf("evidence/Test-1.2.txt"), "test");
+  assert.equal(kindOf("evidence/log-1.2.txt"), "other");
+  assert.equal(kindOf("evidence/judgment.md"), "other");
+  assert.equal(kindOf("evidence/-1.2.txt"), "other");
+  // A subfolder path: the kind comes from the base name, not from the folder.
+  assert.equal(kindOf("evidence/sub/script-check.sh"), "script");
+  assert.equal(kindOf("evidence/test-runs/out.txt"), "other");
+  // A policy list replaces the default; a list of the wrong shape reads as the default and never halts.
+  assert.equal(kindOf("evidence/custom-1.2.txt", { manualVerify: { evidenceKinds: ["custom"] } }), "custom");
+  assert.equal(kindOf("evidence/test-1.2.txt", { manualVerify: { evidenceKinds: ["custom"] } }), "other");
+  for (const bad of ["test", [], [1], [""], null, { test: true }]) {
+    assert.equal(kindOf("evidence/test-1.2.txt", { manualVerify: { evidenceKinds: bad } }), "test", JSON.stringify(bad));
+  }
+  // A tick without valid evidence is not proved; an untouched row is listed as pending.
+  const project = verifying({ manual: [A, B] });
+  save(project, [ticked(A, "evidence/command-missing.txt"), B]);
+  const { e } = finish(project);
+  assert.deepEqual(e.proved, []);
+  assert.deepEqual(e.unproven, ["1.2"]);
+  assert.deepEqual(e.pending, ["1.3"]);
+});
+
+test("manual verify unproven ledger", () => {
+  // Runs one manual-verify step with the plan untouched and the given ledger; returns the finished entry.
+  const withLedger = (write, { policy = null, manual = [A, B] } = {}) => {
+    const project = verifying({ manual, policy });
+    if (write) write(project);
+    return finish(project).e;
+  };
+  // A valid file: each `- <row id> — <reason>` line that names a Manual row; other lines are ignored.
+  const valid = withLedger((pr) => ledger(pr, [
+    "# Unproved rows",
+    "",
+    "- 1.3 — needs a live pipeline run",
+    "- 1.2 — Chrome is not connected",
+    "- 9.9 — not a row of the plan",
+    "- 1.3 - a hyphen is not the separator",
+    "1.3 — no bullet",
+    "- 1.3 —",
+  ]));
+  assert.equal(valid.ok, true, JSON.stringify(valid));
+  assert.deepEqual(valid.reasons, { "1.2": "Chrome is not connected", "1.3": "needs a live pipeline run" });
+  // Reasons are one line, without backticks or format characters, and cut to reasonMaxChars code points.
+  const cleaned = withLedger((pr) => ledger(pr, ["- 1.3 — run `node -e 1`​\tand   see"]));
+  assert.deepEqual(cleaned.reasons, { "1.3": "run 'node -e 1' and see" });
+  const long = withLedger((pr) => ledger(pr, [`- 1.3 — ${"é".repeat(300)}`]));
+  assert.equal(Array.from(long.reasons["1.3"]).length, 200);
+  const short = withLedger((pr) => ledger(pr, ["- 1.3 — abcdefghijklmnop"]), { policy: { manualVerify: { reasonMaxChars: 5 } } });
+  assert.deepEqual(short.reasons, { "1.3": "abcde" });
+  const badMax = withLedger((pr) => ledger(pr, [`- 1.3 — ${"x".repeat(250)}`]), { policy: { manualVerify: { reasonMaxChars: "ten" } } });
+  assert.equal(badMax.reasons["1.3"].length, 200, "a malformed reasonMaxChars reads as the default");
+  // A missing, stale, oversized, symlinked or malformed file gives no reasons and never changes ok.
+  const none = {
+    "a missing file": null,
+    "a stale file": (pr) => fs.utimesSync(ledger(pr, ["- 1.3 — old"]), 1, 1),
+    "an oversized file": (pr) => ledger(pr, `- 1.3 — big\n${"x".repeat(70000)}\n`),
+    "a directory": (pr) => fs.mkdirSync(path.join(pr.changeDir, "evidence/unproven.md"), { recursive: true }),
+    "a symlink": (pr) => {
+      const real = ledger(pr, ["- 1.3 — linked"], "real.md");
+      fs.symlinkSync(real, path.join(pr.changeDir, "evidence/unproven.md"));
+    },
+    "no valid line": (pr) => ledger(pr, ["1.3: no bullet", "- 1.3 – an en dash"]),
+  };
+  for (const [what, write] of Object.entries(none)) {
+    const e = withLedger(write);
+    assert.equal(e.reasons, undefined, what);
+    assert.equal(e.ok, true, what);
+  }
+  // A ledger next to a failed step is still read and the step stays not ok.
+  const failedProject = verifying({ manual: [A, B] });
+  ledger(failedProject, ["- 1.3 — blocked"]);
+  const failed = finish(failedProject, 3, { status: "failed", note: "x" }).e;
+  assert.equal(failed.ok, false);
+  assert.deepEqual(failed.reasons, { "1.3": "blocked" });
+  // The file name comes from the policy; one of the wrong shape reads as the default.
+  assert.deepEqual(withLedger((pr) => ledger(pr, ["- 1.3 — custom"], "why.md"), { policy: { manualVerify: { unprovenFile: "why.md" } } }).reasons, { "1.3": "custom" });
+  assert.deepEqual(withLedger((pr) => ledger(pr, ["- 1.3 — default"]), { policy: { manualVerify: { unprovenFile: "../plan.md" } } }).reasons, { "1.3": "default" });
+  assert.deepEqual(withLedger((pr) => ledger(pr, ["- 1.3 — default"]), { policy: { manualVerify: { unprovenFile: 7 } } }).reasons, { "1.3": "default" });
+});
+
+test("manual verify reasons merge", () => {
+  const project = verifying({ manual: [A, B] });
+  // First attempt: nothing ticked, a reason for each row.
+  ledger(project, ["- 1.2 — first reason", "- 1.3 — only in the first attempt"]);
+  const first = finish(project);
+  assert.deepEqual(first.e.reasons, { "1.2": "first reason", "1.3": "only in the first attempt" });
+  assert.equal(first.res.json.step, "manual-verify");
+  // Second attempt: row 1.3 is proved, row 1.2 gets a new reason (the later entry wins).
+  save(project, [A, ticked(B, "evidence/command-b.txt")]);
+  evidence(project, "command-b.txt");
+  const later = Date.now() / 1000 + 5;
+  fs.utimesSync(ledger(project, ["- 1.2 — second reason"]), later, later);
+  const second = finish(project, 4);
+  assert.equal(second.e.ok, true, JSON.stringify(second.e));
+  assert.deepEqual(second.e.reasons, { "1.2": "second reason" });
+  assert.deepEqual(second.e.proved, [{ id: "1.3", kind: "command", file: "evidence/command-b.txt" }]);
+  assert.deepEqual(second.e.pending, ["1.2"]);
+  assert.equal(second.res.json.step, "impl-review");
+
+  // The run ends done; only the row still pending is listed, with the merged reason. manualPending is unchanged.
+  writeReview(project, "impl-review", { verdict: "APPROVED" });
+  const end = finish(project, 5);
+  assert.equal(end.res.json.action, "done", end.res.stdout);
+  const notProved = [`1.2 ${A} — not proved: second reason`];
+  assert.deepEqual(end.res.json.manualNotProved, notProved);
+  assert.deepEqual(end.res.json.manualPending, [`1.2 ${A}`]);
+  assert.deepEqual(readMetaFile(project).outcome.manualNotProved, notProved);
+  assert.equal("manualUnproven" in end.res.json, false);
+
+  // report.md: the section lists the proved row by kind and the pending row with its reason, after the review findings.
+  const report = readReportFile(project);
+  const section = report.slice(report.indexOf("## Manual checks"));
+  assert.ok(report.indexOf("## Review findings") >= 0 && report.indexOf("## Review findings") < report.indexOf("## Manual checks"), report);
+  assert.match(section, /^Proved: 1$/m);
+  assert.ok(section.includes(`- 1.3 ${B} — command (evidence/command-b.txt)`), section);
+  assert.match(section, /^Not proved: 1$/m);
+  assert.ok(section.includes(`- 1.2 ${A} — not proved: second reason`), section);
+  assert.doesNotMatch(section, /only in the first attempt/);
+
+  // status: proved per kind and pending, next to ticked and unproven.
+  const rows = run(project, ["status", project.id]).json.steps.filter((s) => s.step === "manual-verify");
+  assert.deepEqual(rows.map((s) => [s.ticked, s.unproven, s.proved, s.pending]), [[0, 0, {}, 2], [1, 0, { command: 1 }, 1]]);
+  const other = run(project, ["status", project.id]).json.steps.find((s) => s.step === "impl-review");
+  assert.equal("proved" in other, false);
+});
+
+test("manual checks report section", () => {
+  const before = { autoDone: 1, manual: withId([A, B, "Look at it"], 1), auto: withId(AUTO, 0) };
+  const project = mvProject({ manual: [ticked(A, "evidence/judgment-1.2.md"), B, ticked("Look at it", "evidence/x.txt")] });
+  writeMetaFile(project, { id: project.id, goal: GOAL, rigor: { requested: "standard" } });
+  writeLog(project, [
+    entry(1, "score", { score: { cognitive: 2, execution: 2, factors: { ambiguity: 1 }, confidence: "medium", unknowns: 0 } }),
+    entry(2, "plan"), entry(3, "plan-review", { review: { verdict: "SOUND", critical: 0, warnings: 0 } }), entry(4, "implement"),
+    entry(5, "manual-verify", {
+      before, ticked: ["1.2", "1.4"], unproven: [], pending: ["1.3"],
+      proved: [{ id: "1.2", kind: "judgment", file: "evidence/judgment-1.2.md" }, { id: "1.4", kind: "other", file: "evidence/x.txt" }],
+    }),
+  ]);
+  run(project, ["status", project.id, "--report"]);
+  const report = readReportFile(project);
+  const at = (h) => report.indexOf(h);
+  assert.ok(at("## Review findings") < at("## Manual checks") && at("## Manual checks") < at("## Complexity score"), report);
+  const section = report.slice(at("## Manual checks"), at("## Complexity score"));
+  assert.ok(section.includes(`- 1.2 ${A} — judgment (evidence/judgment-1.2.md)`), section);
+  assert.ok(section.includes("- 1.4 Look at it — other (evidence/x.txt)"), section);
+  assert.ok(section.includes(`- 1.3 ${B} — not proved: no reason recorded`), section);
+  // No manual-verify entry, no section.
+  const none = mvProject();
+  writeMetaFile(none, { id: none.id, goal: GOAL });
+  run(none, ["status", none.id, "--report"]);
+  assert.doesNotMatch(readReportFile(none), /## Manual checks/);
+});
+
+test("manual not proved reaches outputs", { skip: noGit }, () => {
+  const before = { autoDone: 1, manual: withId([A, B], 1), auto: withId(AUTO, 0) };
+  const mv = entry(4, "manual-verify", {
+    template: "manual-verify", before, ticked: ["1.2"], unproven: [], pending: ["1.3"],
+    proved: [{ id: "1.2", kind: "command", file: "evidence/command-a.txt" }],
+    reasons: { "1.2": "proved later", "1.3": "needs a browser" },
+  });
+  // The unprovenProject fixture with row 1.2 proved, row 1.3 pending and, unless withStep is false, the manual-verify entry.
+  const project = (archive, withStep = true) => {
+    const pr = unprovenProject(archive);
+    writePlan(pr, planOf([ticked(A, "evidence/command-a.txt"), B]));
+    writeLog(pr, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), ...(withStep ? [mv] : []), entry(withStep ? 5 : 4, "impl-review")]);
+    return pr;
+  };
+  const notProved = [`1.3 ${B} — not proved: needs a browser`];
+
+  // Without --archive: the done output and meta.outcome.
+  const plain = project(false);
+  const done = run(plain, ["next", plain.id], { env: gitEnv(plain) });
+  assert.equal(done.json.action, "done", done.stdout);
+  assert.deepEqual(done.json.manualNotProved, notProved);
+  assert.deepEqual(done.json.manualPending, [`1.3 ${B}`]);
+  assert.deepEqual(readMetaFile(plain).outcome.manualNotProved, notProved);
+  assert.doesNotMatch(readReportFile(plain), /Manual checks not proved/);
+  assert.match(readReportFile(plain), /^## Manual checks$/m);
+
+  // With --archive: the archive summary and the report lines, next to the unchanged pending lines.
+  const archived = project(true);
+  const res = run(archived, ["next", archived.id], { env: gitEnv(archived) });
+  assert.equal(res.json.action, "archive", res.stdout);
+  assert.deepEqual(res.json.summary.manualNotProved, notProved);
+  assert.deepEqual(res.json.summary.manualPending, [`1.3 ${B}`]);
+  assert.deepEqual(readMetaFile(archived).outcome.manualNotProved, notProved);
+  const report = readReportFile(archived);
+  assert.match(report, /^Manual checks pending: 1$/m);
+  assert.ok(report.includes(`Manual checks not proved: 1\n- 1.3 ${B} — not proved: needs a browser`), report);
+
+  // A run where the step never ran has none of the new keys or lines.
+  const never = project(true, false);
+  const plainRes = run(never, ["next", never.id], { env: gitEnv(never) });
+  assert.equal(plainRes.json.action, "archive", plainRes.stdout);
+  assert.equal("manualNotProved" in plainRes.json.summary, false);
+  assert.equal("manualNotProved" in readMetaFile(never).outcome, false);
+  assert.doesNotMatch(readReportFile(never), /Manual checks not proved|## Manual checks/);
 });
