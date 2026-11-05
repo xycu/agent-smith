@@ -19,7 +19,7 @@
     "research":     { "skill": "10x-research",      "baseTier": 3, "minTier": 2, "maxTier": 6, "interactive": true },
     "domain-brief": { "skill": null,                "baseTier": 3, "minTier": 3, "maxTier": 6, "interactive": true },
     "frame":        { "skill": "10x-frame",         "baseTier": 5, "minTier": 5, "maxTier": 5, "interactive": true },
-    "manual-verify": { "skill": null,               "baseTier": 3, "minTier": 2, "maxTier": 6 },
+    "manual-verify": { "skill": null,               "baseTier": 2, "minTier": 2, "maxTier": 6 },
     "score":         { "skill": null,               "baseTier": 0, "minTier": 0, "maxTier": 1 }
   },
   "complexity": {
@@ -64,7 +64,7 @@
     "fromPhases": ["standard", "thorough"],
     "fromFailures": [{ "minFailed": 1, "level": "standard" }, { "minFailed": 3, "level": "thorough" }],
     "skipPlanReviewAt": ["lean"],
-    "budgetDelta": { "lean": -4, "standard": 3, "thorough": 8 },
+    "budgetDelta": { "lean": -2, "standard": 5, "thorough": 10 },
     "effortOrder": ["low", "medium", "high", "xhigh", "max"],
     "minEffort": { "lean": "medium", "standard": "high", "thorough": "high" },
     "tierOffset": { "lean": { "impl-review": -1 } }
@@ -333,7 +333,7 @@
   },
   "extraSteps": {
     "allowance": { "lean": 0, "standard": 2, "thorough": 3 },
-    "cost": { "implement-segment": 1, "implement-e2e": 1, "implement-tdd": 1, "manual-verify": 1, "plan-rejected": 2 }
+    "cost": { "implement-segment": 1, "implement-e2e": 1, "implement-tdd": 1, "plan-rejected": 2 }
   },
   "codeReplan": {
     "minRigor": "standard",
@@ -346,11 +346,8 @@
     "failureNoteMax": 300
   },
   "manualVerify": {
-    "minRigor": "standard",
-    "maxRuns": 1,
+    "minRigor": "lean",
     "maxAttempts": 2,
-    "commandWords": ["node", "npm", "npx", "pnpm", "yarn", "make", "grep", "git", "curl", "diff", "test", "ls", "cat", "sh", "bash", "python", "python3"],
-    "humanWords": ["reviewer", "human", "person", "owner", "reads", "reading", "judge", "looks"],
-    "browserWords": ["browser", "page", "click", "screen", "chrome", "dom"]
+    "retryBump": 1
   }
 }

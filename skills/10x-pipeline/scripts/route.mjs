@@ -1660,8 +1660,9 @@ const extraCost = (policy, template) => {
 };
 
 // What the extra-step pool of this level still holds: the allowance minus the cost of every executed entry, any outcome.
+// A manual-verify entry is outside the pool and costs nothing, whatever an override says.
 function extrasLeft(log, policy, level) {
-  return extraAllowance(policy, level) - log.reduce((sum, e) => sum + extraCost(policy, e.step === "manual-verify" ? e.step : e.template), 0);
+  return extraAllowance(policy, level) - log.reduce((sum, e) => sum + (e.step === "manual-verify" ? 0 : extraCost(policy, e.template)), 0);
 }
 
 // An executor already failed or handed back a phase it covered: it is not chosen for that phase again.
@@ -1825,23 +1826,6 @@ function doneNotes(d) {
 const EVIDENCE_SUFFIX_RE = /\s+—\s+evidence:\s*(\S+)$/;
 const withoutEvidence = (text) => text.replace(EVIDENCE_SUFFIX_RE, "");
 
-// Can a command (or, with --chrome, the browser) prove this Manual row? A row with a human word is never eligible; a
-// prefix hit on a human word only keeps a row pending, which is the safe direction. A browser word must match whole.
-function manualEligible(text, meta, policy) {
-  const cfg = policy.manualVerify;
-  if (!isObject(cfg)) return false;
-  const row = withoutEvidence(String(text ?? ""));
-  if (goalPhrase(row, wordList(cfg.humanWords)) !== null) return false;
-  const commands = wordList(cfg.commandWords).map((w) => w.toLowerCase());
-  for (const m of row.matchAll(/`([^`]+)`/g)) {
-    const first = m[1].trim().split(/\s+/)[0].toLowerCase();
-    if (commands.includes(first)) return true;
-  }
-  if (meta?.chrome !== true) return false;
-  const browser = wordList(cfg.browserWords).map((w) => w.toLowerCase());
-  return (row.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).some((w) => browser.includes(w));
-}
-
 const manualRows = (plan) => plan.phaseList.flatMap((ph) => ph.manual);
 
 // Manual rows the last manual-verify entry ticked without valid evidence that are still ticked. Empty when that entry was ok.
@@ -1852,27 +1836,31 @@ function manualUnprovenIds(log, plan) {
   return last.unproven.filter((id) => done.has(id));
 }
 
-// The manual-verify step, or null. It runs before the first impl-review pass that finds an eligible pending Manual row
-// (or a row the last attempt ticked without valid evidence), at most `maxRuns` ok runs and `maxAttempts` runs, and only
-// when the extra-step pool pays for it. A failed attempt is a neutral entry, so the run always goes on to impl-review.
+// The manual-verify step, or null. It runs before the first impl-review that finds a pending Manual row (or a row
+// the last attempt ticked without valid evidence), at a level at or above `minRigor`, while fewer than `maxAttempts`
+// entries exist. It is outside the extra-step pool. A retry (any earlier entry, ok or not) runs `retryBump` tiers up. A
+// failed attempt is a neutral entry, so the run always goes on to impl-review.
 function manualVerifyNext(plan, log, policy, ctx, meta) {
   const cfg = policy.manualVerify;
   const posInt = (v) => Number.isInteger(v) && v > 0;
-  if (!isObject(cfg) || !posInt(cfg.maxRuns) || !posInt(cfg.maxAttempts) || plan.autoPending > 0) return null;
+  if (!isObject(cfg) || !posInt(cfg.maxAttempts) || plan.autoPending > 0) return null;
   const levels = rigorLevels(policy);
   if (levels.indexOf(ctx.level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(ctx.level) < levels.indexOf(cfg.minRigor)) return null;
   const runs = log.filter((e) => e.step === "manual-verify");
-  if (runs.filter((e) => e.ok).length >= cfg.maxRuns || runs.length >= cfg.maxAttempts) return null;
-  if (extraAllowance(policy, ctx.level) <= 0 || extrasLeft(log, policy, ctx.level) < extraCost(policy, "manual-verify")) return null;
+  // Only before the first implementation review: no re-run after a fix.
+  if (runs.length >= cfg.maxAttempts || log.some((e) => e.step === "impl-review")) return null;
   const rows = manualRows(plan);
+  const pending = rows.filter((r) => !r.done).length;
   const retry = manualUnprovenIds(log, plan);
-  if (!rows.some((r) => !r.done && manualEligible(r.text, meta, policy)) && !retry.length) return null;
+  if (!pending && !retry.length) return null;
+  const bump = runs.length && posInt(cfg.retryBump) ? cfg.retryBump : 0;
   return {
     step: "manual-verify",
     template: meta?.chrome === true ? "manual-verify-chrome" : "manual-verify",
-    bump: 0,
+    bump,
+    ...(bump ? { bumpWhy: `manual-verify retry after ${runs.length} attempt(s)` } : {}),
     unproven: retry,
-    reason: `${rows.filter((r) => !r.done).length} manual rows pending; ${retry.length ? `${retry.length} unproven tick(s) to settle` : "command-checkable rows can be proved"}`,
+    reason: `${pending} manual rows pending; ${retry.length ? `${retry.length} unproven tick(s) to settle` : runs.length ? "retry for the rows still pending" : "every pending row is in scope"}`,
   };
 }
 
@@ -1899,7 +1887,6 @@ function verifyManual(last, ran, plan, result, p, policy) {
   const first = streak[0] ?? last;
   const baseManual = Array.isArray(first.before?.manual) ? first.before.manual : [];
   const baseAuto = Array.isArray(first.before?.auto) ? first.before.auto : [];
-  const meta = readMeta(p.meta, {});
   const nowManual = new Map(manualRows(plan).map((r) => [r.id, r]));
   const nowAuto = new Map(plan.phaseList.flatMap((ph) => ph.auto).map((r) => [r.id, r]));
   let intact = manualRows(plan).length === baseManual.length && nowAuto.size === baseAuto.length;
@@ -1919,7 +1906,7 @@ function verifyManual(last, ran, plan, result, p, policy) {
     }
     if (b.done || !r.done) continue;
     const token = r.text.match(EVIDENCE_SUFFIX_RE)?.[1];
-    if (manualEligible(b.text, meta, policy) && token && evidenceOk(p.change, token, first.startedAt ?? 0)) ticked.push(b.id);
+    if (token && evidenceOk(p.change, token, first.startedAt ?? 0)) ticked.push(b.id);
     else unproven.push(b.id);
   }
   last.ticked = ticked;

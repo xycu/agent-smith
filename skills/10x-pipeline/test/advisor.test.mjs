@@ -260,11 +260,11 @@ const CASES = [
     return { project, res: standard(project) };
   } },
   { template: "manual-verify", make: (policy) => {
-    const project = staged(policy, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
+    const project = staged({ ...policy, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
     return { project, res: standard(project) };
   } },
   { template: "manual-verify-chrome", make: (policy) => {
-    const project = staged(policy, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
+    const project = staged({ ...policy, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
     return { project, res: standard(project, "Parse blank lines", ["--chrome"]) };
   } },
 ];

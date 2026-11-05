@@ -139,17 +139,17 @@ test("5.1 a lean run whose cheap attempt fails stays lean and keeps its budget o
 });
 
 test("5.1 a cheap fallback is no failure: it uses step budget", { skip: gitSkip }, () => {
-  // Nine steps logged, one of them a cheap tdd step that ended blocked (a fallback), and the tenth waiting: at lean the
-  // budget of 10 is spent once the tenth has its result, because only a cheap failure uses no budget.
+  // Eleven steps logged, one of them a cheap tdd step that ended blocked (a fallback), and the twelfth waiting: at lean the
+  // budget of 12 is spent once the twelfth has its result, because only a cheap failure uses no budget.
   const log = [entry(1, "plan", { commit: null }), entry(2, "plan-review", { commit: null })];
   log.push(entry(3, "implement", { commit: null, template: "implement-tdd", cheap: true, ok: false, fallback: true, result: { status: "blocked", note: "no runner" } }));
-  for (let n = 4; n <= 9; n++) log.push(entry(n, "implement", { commit: null }));
-  log.push(pendingEntry(10, "implement", { commit: null }));
+  for (let n = 4; n <= 11; n++) log.push(entry(n, "implement", { commit: null }));
+  log.push(pendingEntry(12, "implement", { commit: null }));
   const project = fixture({ rigor: "lean", log, plan: planText({ phases: 2, rowsPerPhase: 2, done: 1 }) });
   writeResult(project, { status: "done", note: "one row" });
   const res = nextStep(project);
   assert.equal(res.json.action, "halt", res.stdout);
-  assert.match(res.json.reason, /Step budget 10 spent/);
+  assert.match(res.json.reason, /Step budget 12 spent/);
 });
 
 test("5.1 a drop that the clamp absorbed sets no cheap flag and its failure counts for rigor", { skip: gitSkip }, () => {

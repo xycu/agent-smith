@@ -52,14 +52,20 @@ const KINDS = {
   tdd: { name: "Tokenizer", files: ["`src/tokenizer.mjs`"], rows: ["Tokenizer splits words: `node --test test/tokenizer.test.mjs`", "Tokenizer drops marks: `node --test test/tokenizer.test.mjs`"] },
 };
 
-// A saturating plan shape: the phase kinds in order and whether a command-checkable Manual row exists (in phase 1).
+// A saturating plan shape: the phase kinds in order and whether a Manual row exists (in phase 1). `manual: true` is a row
+// the first manual-verify attempt proves; `manual: "pending"` is a row it leaves pending through both attempts, so the
+// walk contains the retry.
 const FIXTURES = {
   "F-full": { phases: ["goal", "e2e", "tdd", "goal"], manual: true },
+  "F-full-pending": { phases: ["goal", "e2e", "tdd", "goal"], manual: "pending" },
   "F-e2e": { phases: ["e2e", "goal"], manual: true },
+  "F-e2e-pending": { phases: ["e2e", "goal"], manual: "pending" },
   "F-seg": { phases: ["goal", "e2e"], manual: false },
   "F-tdd": { phases: ["tdd", "goal"], manual: true },
+  "F-tdd-pending": { phases: ["tdd", "goal"], manual: "pending" },
   "F-rej": { phases: ["goal", "goal"], manual: false },
   "F-rej-manual": { phases: ["goal", "goal"], manual: true },
+  "F-rej-pending": { phases: ["goal", "goal"], manual: "pending" },
 };
 
 // The plan as the walker keeps it: which phases are done, whether the manual row is ticked, whether a re-plan added a phase.
@@ -169,6 +175,7 @@ function answer(project, fixture, state, json, script) {
       break;
     }
     case "manual-verify":
+      if (fixture.manual === "pending") break; // the row stays pending: the attempt ends done with no tick
       state.manualDone = true;
       put(project, EVIDENCE, "output\n");
       put(project, "plan.md", render(fixture, state));
@@ -181,9 +188,16 @@ function answer(project, fixture, state, json, script) {
 }
 
 // A failure-free walk of the whole run. Returns the project, the last answer and the executed steps.
-// Every walk opts into the score step (score.minRigor "standard"), whatever the override says otherwise.
+// Every walk opts into the score step (score.minRigor "standard") and the manual-verify step (manualVerify.minRigor
+// "lean"), whatever the override says otherwise.
+const optIn = (override) => ({
+  ...(override ?? {}),
+  score: { ...(override?.score ?? {}), minRigor: "standard" },
+  manualVerify: { ...(override?.manualVerify ?? {}), minRigor: "lean" },
+});
+
 function walkFixture(name, level, { override = null, script = longScript(level), useGit = true, goal = level === "thorough" ? THOROUGH_GOAL : GOAL, fixture = FIXTURES[name] } = {}) {
-  const merged = { ...(override ?? {}), score: { ...(override?.score ?? {}), minRigor: "standard" } };
+  const merged = optIn(override);
   const project = fixtureProject(fixture, { override: merged, useGit });
   const state = { done: new Set(), manualDone: false, rework: false };
   let res = init(project, goal, ["--rigor", level]);
@@ -210,7 +224,8 @@ function longest(level, options = {}) {
 }
 
 // The longest failure-free paths the policy table of the ADR names.
-const TABLE = { standard: 15, thorough: 20 };
+// manual-verify is outside the pool, so its attempt and its retry add two steps to the paths of every level.
+const TABLE = { lean: 10, standard: 17, thorough: 22 };
 
 // ---- tests ------------------------------------------------------------------
 
@@ -224,7 +239,7 @@ test("longest legal path", { skip: noGit }, () => {
     assert.equal(max, TABLE[level], `${level} table\n${detail}`);
     for (const [name, w] of Object.entries(per)) assert.ok(w.steps <= budgetOf(level) - 2, `${name}: ${w.steps} steps fit a budget of ${budgetOf(level)} with two to spare`);
   }
-  assert.deepEqual(policy.rigor.budgetDelta, { lean: -4, standard: 3, thorough: 8 });
+  assert.deepEqual(policy.rigor.budgetDelta, { lean: -2, standard: 5, thorough: 10 });
 });
 
 test("failure path fits", { skip: noGit }, () => {
@@ -241,15 +256,17 @@ test("failure path fits", { skip: noGit }, () => {
   assert.ok(w.steps <= budgetOf("standard"), `${w.steps} steps fit a budget of ${budgetOf("standard")}`);
   assert.equal(statusOf(w.project).rigor, "standard");
 
-  // Stacked with a maxed plan loop and every fix loop the same run ends in the budget halt, never past it.
-  const stacked = walkFixture("stacked", "standard", { fixture, script: { ...longScript("standard"), implementFails: 2, implReviews: pairs([["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["APPROVED", CLEAN]]) } });
+  // Stacked with a maxed plan loop and every fix loop the same run ends in the budget halt, never past it. The budget
+  // has room for the manual-verify attempt and its retry, so this run adds a segment and an e2e phase and a Manual row
+  // that stays pending through both attempts to reach it.
+  const stacked = walkFixture("stacked", "standard", { fixture: { phases: ["goal", "e2e"], manual: "pending" }, script: { ...longScript("standard"), implementFails: 2, implReviews: pairs([["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["APPROVED", CLEAN]]) } });
   assert.equal(stacked.res.json.action, "halt", `${stacked.res.stdout}\n${stacked.sequence.join(" ")}`);
   assert.match(stacked.res.json.reason, /Step budget \d+ spent/);
   assert.ok(stacked.steps <= budgetOf(statusOf(stacked.project).rigor), `${stacked.steps} steps stay inside the budget`);
 });
 
-test("lean unchanged", () => {
-  assert.equal(policy.rigor.budgetDelta.lean, -4);
+test("lean runs manual-verify and no pool step", () => {
+  assert.equal(policy.rigor.budgetDelta.lean, -2);
   assert.equal(policy.extraSteps.allowance.lean, 0);
   const script = () => ({
     planReviews: pairs([SOUND]),
@@ -257,26 +274,46 @@ test("lean unchanged", () => {
     implementFails: 0,
   });
   const goal = "fix typo";
-  // The same walk with and without e2e rows, a valid setup and an eligible Manual row.
+  // The same walk with and without e2e rows, a valid setup and a Manual row: one the first attempt proves, and one that
+  // stays pending through both attempts.
   const plain = walkFixture("plain", "lean", { fixture: FIXTURES["F-rej"], script: script(), goal, useGit: false });
-  const rich = walkFixture("rich", "lean", { fixture: { phases: ["goal", "e2e"], manual: true }, script: script(), goal, useGit: false });
-  assert.equal(plain.res.json.action, "done", plain.res.stdout);
-  assert.equal(rich.res.json.action, "done", rich.res.stdout);
-  assert.deepEqual(rich.sequence, plain.sequence);
-  assert.equal(rich.steps, plain.steps);
-  assert.ok(rich.steps <= budgetOf("lean") - 2, `${rich.steps} lean steps fit a budget of ${budgetOf("lean")}`);
-  for (const w of [plain, rich]) {
+  const proved = walkFixture("proved", "lean", { fixture: { phases: ["goal", "e2e"], manual: true }, script: script(), goal, useGit: false });
+  const pending = walkFixture("pending", "lean", { fixture: { phases: ["goal", "e2e"], manual: "pending" }, script: script(), goal, useGit: false });
+  for (const w of [plain, proved, pending]) assert.equal(w.res.json.action, "done", `${w.res.stdout}\n${w.sequence.join(" ")}`);
+  // manual-verify is the only difference: one attempt, or the attempt and its retry.
+  const withoutVerify = (w) => w.sequence.filter((s) => s !== "manual-verify");
+  assert.deepEqual(withoutVerify(proved), plain.sequence);
+  assert.deepEqual(withoutVerify(pending), plain.sequence);
+  assert.equal(proved.sequence.filter((s) => s === "manual-verify").length, 1, proved.sequence.join(" "));
+  assert.equal(pending.sequence.filter((s) => s === "manual-verify").length, 2, pending.sequence.join(" "));
+  assert.equal(pending.steps, plain.steps + 2);
+  // The pending walk is the longest lean path of this script; the shipped lean delta leaves two steps to spare.
+  assert.equal(pending.steps, policy.limits.maxTotalSteps + policy.rigor.budgetDelta.lean - 2, pending.sequence.join(" "));
+  assert.equal(pending.steps, TABLE.lean, pending.sequence.join(" "));
+  for (const w of [plain, proved, pending]) {
     const impl = ranOf(w.project).filter((e) => e.step === "implement");
     assert.equal(impl.every((e) => e.template === "implement"), true, "no executor or segment at lean");
-    assert.equal(ranOf(w.project).some((e) => e.step === "manual-verify" || e.template === "plan-rejected"), false);
+    assert.equal(ranOf(w.project).some((e) => e.template === "plan-rejected" || e.template === "plan-replan"), false, "no re-plan at lean");
     assert.equal(statusOf(w.project).rigor, "lean");
   }
 });
 
+// manual-verify left the pool, so at thorough no saturating fixture above spends a fourth pool step. This shape does:
+// a segment and a tdd phase (2), then the plan-rejected re-plan (2) that a pool of 3 cannot pay for. Walked only here.
+const RAISED_EXTRA = { thorough: { "F-seg-tdd-pending": { phases: ["goal", "tdd", "goal"], manual: "pending" } } };
+
 test("raised cap exceeds budget", { skip: noGit }, () => {
   for (const level of ["standard", "thorough"]) {
     const raised = { extraSteps: { allowance: { [level]: policy.extraSteps.allowance[level] + 1 } } };
-    const { max, per } = longest(level, { override: raised });
+    const found = longest(level, { override: raised });
+    const per = { ...found.per };
+    for (const [name, fixture] of Object.entries(RAISED_EXTRA[level] ?? {})) {
+      const shipped = walkFixture(name, level, { fixture });
+      assert.equal(shipped.res.json.action, "done", `${name} at ${level}: ${shipped.res.stdout}\n${shipped.sequence.join(" ")}`);
+      assert.ok(shipped.steps <= TABLE[level], `${name}: ${shipped.steps} steps with the shipped pool stay inside the table`);
+      per[name] = walkFixture(name, level, { override: raised, fixture });
+    }
+    const max = Math.max(...Object.values(per).map((w) => w.steps));
     const detail = Object.entries(per).map(([name, w]) => `${name} ${w.steps}: ${w.sequence.join(" ")}`).join("\n");
     // One more pool step lengthens the longest path past the point the shipped delta leaves to spare.
     assert.ok(max > policy.limits.maxTotalSteps + policy.rigor.budgetDelta[level] - 2, `${level}: ${max}\n${detail}`);
@@ -352,7 +389,7 @@ function answerAware(project, fixture, state, json, script) {
 }
 
 function walkAware(name, level, { override = null, script, goal = level === "thorough" ? THOROUGH_GOAL : GOAL, fixture = FIXTURES[name] } = {}) {
-  const merged = { ...(override ?? {}), score: { ...(override?.score ?? {}), minRigor: "standard" } };
+  const merged = optIn(override);
   const project = fixtureProject(fixture, { override: merged, useGit: true });
   const state = { done: new Set(), manualDone: false, rework: false };
   let res = init(project, goal, ["--rigor", level]);
@@ -391,8 +428,8 @@ test("each confirm round adds one plan-review and one impl-review step, which a 
   for (const [level, rounds, names] of [
     ["standard", 1, Object.keys(FIXTURES)],
     ["thorough", 1, Object.keys(FIXTURES)],
-    ["standard", 2, ["F-full"]],
-    ["thorough", 2, ["F-full"]],
+    ["standard", 2, ["F-full-pending"]],
+    ["thorough", 2, ["F-full-pending"]],
   ]) {
     let max = 0;
     for (const name of names) {

@@ -29,8 +29,11 @@ const withId = (specs, offset) => specs.map((s, i) => {
 const planOf = (manual, auto = AUTO) => buildPlan([{ auto, manual }]);
 
 // A project whose implement step is done: a fresh SOUND plan review, a plan with the Manual rows `manual` and a log.
+// It opts into the step (`manualVerify.minRigor: "lean"`, which writeOverride would otherwise turn off); a test's own
+// `manualVerify` keys are merged over that.
 function mvProject({ manual = [A], log = null, policy = null, auto = AUTO } = {}) {
-  const project = makeProject({ plan: planOf(manual, auto), policy });
+  const merged = { ...(policy ?? {}), manualVerify: { minRigor: "lean", ...(policy?.manualVerify ?? {}) } };
+  const project = makeProject({ plan: planOf(manual, auto), policy: merged });
   writeReview(project, "plan-review", { verdict: "SOUND" });
   writeLog(project, log ?? [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
   return project;
@@ -77,48 +80,69 @@ test("manual verify placement", () => {
   const e = lastEntry(project);
   assert.equal(e.template, "manual-verify");
   assert.equal(e.skill, null);
-  assert.equal(e.tier, 3);
+  assert.equal(e.tier, 2);
+  assert.equal(e.model, "sonnet");
+  assert.equal(e.effort, "medium");
   assert.deepEqual(e.before.manual, withId([A], 1));
   assert.deepEqual(e.before.auto, withId(AUTO, 0));
   assert.match(res.prompt, /Rows rejected by the router last time: none/);
 
-  // thorough has a pool too; lean has none, so the step never runs there, with or without --chrome.
-  assert.equal(start(mvProject(), "thorough").json.step, "manual-verify");
-  assert.equal(start(mvProject(), "lean").json.step, "impl-review");
-  assert.equal(start(mvProject(), "lean", ["--chrome"]).json.step, "impl-review");
+  // Every level runs the step, lean included, with or without --chrome.
+  for (const level of ["lean", "standard", "thorough"]) {
+    const at = mvProject();
+    assert.equal(start(at, level).json.step, "manual-verify", level);
+    assert.equal(lastEntry(at).tier, 2, `${level}: first attempt on tier 2`);
+  }
+  assert.equal(start(mvProject(), "lean", ["--chrome"]).json.step, "manual-verify");
   // A pending Automated row comes first.
   const pending = mvProject({ auto: [{ text: "row one", done: false }] });
   assert.equal(start(pending).json.step, "implement");
-  // A pool that is spent keeps the step away.
-  const spent = mvProject({ policy: { extraSteps: { allowance: { standard: 0 } } } });
-  assert.equal(start(spent).json.step, "impl-review");
+  // A pool of 0 does not keep the step away: it is outside the pool.
+  const spent = mvProject({ policy: { extraSteps: { allowance: { lean: 0, standard: 0, thorough: 0 } } } });
+  assert.equal(start(spent).json.step, "manual-verify");
+  // The shipped policy runs it too; minRigor null, a minRigor that is not a level or a non-positive maxAttempts turns it off.
+  assert.equal(start(mvProject({ policy: { manualVerify: { minRigor: null } } })).json.step, "impl-review");
+  assert.equal(start(mvProject({ policy: { manualVerify: { minRigor: "bogus" } } })).json.step, "impl-review");
+  assert.equal(start(mvProject({ policy: { manualVerify: { maxAttempts: 0 } } })).json.step, "impl-review");
 });
 
-test("manual verify not repeated", () => {
-  // No eligible row: the plan's own Manual row needs a person.
-  assert.equal(start(mvProject({ manual: ["Look at it", HUMAN] })).json.step, "impl-review");
-  // An ok run takes maxRuns, whatever is still pending.
-  const ok = mvProject({ log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "manual-verify", { ticked: [], unproven: [] })] });
-  assert.equal(start(ok).json.step, "impl-review");
-  // Two attempts that failed take maxAttempts.
+test("manual verify attempts", () => {
+  const head = [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")];
+  const okRun = (n) => entry(n, "manual-verify", { ticked: [], unproven: [] });
   const failed = (n) => entry(n, "manual-verify", { ok: false, verified: false, fallback: true, ticked: [], unproven: [] });
-  const two = mvProject({ log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), failed(4), failed(5)] });
-  assert.equal(start(two).json.step, "impl-review");
-  // One failed attempt leaves a retry.
-  const one = mvProject({ log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), failed(4)] });
-  assert.equal(start(one).json.step, "manual-verify");
-  // A non-positive maxRuns turns the step off.
-  assert.equal(start(mvProject({ policy: { manualVerify: { maxRuns: 0 } } })).json.step, "impl-review");
+  // No step when every Manual row is ticked.
+  assert.equal(start(mvProject({ manual: [ticked(A)] })).json.step, "impl-review");
+  assert.equal(start(mvProject({ manual: [ticked(A)], log: [...head, okRun(4)] })).json.step, "impl-review");
+  // An ok attempt that left rows pending is followed by one retry, one tier up.
+  const ok = mvProject({ log: [...head, okRun(4)] });
+  const retry = start(ok).json;
+  assert.equal(retry.step, "manual-verify", JSON.stringify(retry));
+  assert.equal(lastEntry(ok).tier, 3);
+  assert.equal(retry.model, "sonnet");
+  assert.equal(retry.effort, "high");
+  assert.match(lastEntry(ok).tierWhy, /\+1 from manual-verify retry/);
+  // One failed attempt leaves a retry too.
+  assert.equal(start(mvProject({ log: [...head, failed(4)] })).json.step, "manual-verify");
+  // Two attempts end it, whatever they left.
+  assert.equal(start(mvProject({ log: [...head, okRun(4), okRun(5)] })).json.step, "impl-review");
+  assert.equal(start(mvProject({ log: [...head, failed(4), failed(5)] })).json.step, "impl-review");
+  // retryBump 0 keeps the retry on the first attempt's tier.
+  const flat = mvProject({ log: [...head, okRun(4)], policy: { manualVerify: { retryBump: 0 } } });
+  assert.equal(start(flat).json.step, "manual-verify");
+  assert.equal(lastEntry(flat).tier, 2);
 });
 
 test("manual verify before impl review", () => {
   const project = mvProject();
   assert.equal(start(project).json.step, "manual-verify");
-  // The finished step changes nothing: zero ticks. Impl-review runs right after it.
+  // The finished step changes nothing: zero ticks. The row is still pending, so one retry runs, then impl-review.
   const { res, e } = finish(project);
   assert.equal(e.ok, true);
-  assert.equal(res.json.step, "impl-review");
-  // A fix after the review does not bring the step back, with an eligible row still pending.
+  assert.equal(res.json.step, "manual-verify");
+  const second = finish(project, 4);
+  assert.equal(second.e.ok, true);
+  assert.equal(second.res.json.step, "impl-review");
+  // A fix after the review does not bring the step back, with a row still pending and an attempt left.
   const fixed = mvProject({
     log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "manual-verify", { ticked: [], unproven: [] }), entry(5, "impl-review"), entry(6, "fix")],
   });
@@ -133,39 +157,32 @@ function eligible(text, chrome = false, level = "standard") {
   return start(project, level, chrome ? ["--chrome"] : []).json.step.startsWith("manual-verify");
 }
 
-test("manual verify eligible rows", () => {
-  for (const [text, want] of [
-    ["Run `node --version`", true],
-    ["Run `npm test` and see it pass", true],
-    ["Run `NODE --version` and see it", true],
-    ["Run `foo --bar` and see it", false],
-    ["Run node --version and see it", false],
-    [HUMAN, false],
-    ["Run `node -e 1` and judge the result", false],
-    ["A person runs `node --version`", false],
-    ["Look at it", false],
-  ]) assert.equal(eligible(text), want, text);
-  // A browser row needs --chrome; a human word still wins there.
-  assert.equal(eligible("Check that the browser shows the form"), false);
-  assert.equal(eligible("Check that the browser shows the form", true), true);
-  assert.equal(eligible("A person checks the browser", true), false);
-  // A ticked row with a command but a human word is unproven.
-  const project = verifying({ manual: [HUMAN] });
-  save(project, [ticked(HUMAN)]);
+test("manual verify every row eligible", () => {
+  // Any pending Manual row makes the step run: a command, no command, a human word, an owner row, a browser row.
+  for (const text of [
+    "Run `node --version`",
+    "Run `foo --bar` and see it",
+    "Run node --version and see it",
+    HUMAN,
+    "Run `node -e 1` and judge the result",
+    "A person runs `node --version`",
+    "Look at it",
+    "The owner confirms the wording",
+    "Check that the browser shows the form",
+    "Open the domain list and check it",
+  ]) {
+    assert.equal(eligible(text), true, text);
+    assert.equal(eligible(text, true), true, `${text} (--chrome)`);
+  }
+  assert.equal(eligible("Look at it", false, "lean"), true, "lean");
+  // A ticked row with a human word and valid evidence counts as ticked.
+  const project = verifying({ manual: [HUMAN, "Look at it"] });
+  save(project, [ticked(HUMAN), ticked("Look at it")]);
   evidence(project, "out.txt");
   const { e } = finish(project);
-  assert.equal(e.ok, false);
-  assert.deepEqual(e.unproven, ["1.2"]);
-});
-
-test("browser words whole word", () => {
-  for (const [text, want] of [
-    ["Open the domain list and check it", false],
-    ["Open the pages list and check it", false],
-    ["Open the page and check the title", true],
-    ["Click Save and check the screen", true],
-  ]) assert.equal(eligible(text, true), want, text);
-  assert.equal(eligible("Open the page and check the title", false), false);
+  assert.equal(e.ok, true, JSON.stringify(e));
+  assert.deepEqual(e.ticked, ["1.2", "1.3"]);
+  assert.deepEqual(e.unproven, []);
 });
 
 // ---- verification -------------------------------------------------------------
@@ -262,7 +279,12 @@ test("zero ticks is done", () => {
   assert.deepEqual(e.ticked, []);
   assert.deepEqual(e.unproven, []);
   assert.equal(e.fallback, undefined);
-  assert.equal(res.json.step, "impl-review");
+  // Rows are still pending, so one retry follows; a step that ticked every row goes on to impl-review.
+  assert.equal(res.json.step, "manual-verify");
+  const all = verifying();
+  save(all, [ticked(A), ticked(B)]);
+  evidence(all, "out.txt");
+  assert.equal(finish(all).res.json.step, "impl-review");
   // A status that is not done is not ok, even with nothing changed, and it is neutral.
   const blocked = verifying();
   const b = finish(blocked, 3, { status: "failed", note: "nope" }).e;
@@ -342,6 +364,9 @@ test("manual verify retry baseline", () => {
   assert.equal(first.res.json.step, "manual-verify");
   assert.match(first.res.json.prompt, /Rows rejected by the router last time: 1\.2/);
   assert.doesNotMatch(lastEntry(project).tierWhy, /failed attempt/);
+  // The retry runs one tier up from the retry bump, not from a failure bump.
+  assert.equal(lastEntry(project).tier, 3);
+  assert.match(lastEntry(project).tierWhy, /\+1 from manual-verify retry/);
   assert.equal(readMetaFile(project).rigor.level, "standard");
 
   // The retry leaves the bad tick: judged against the first baseline, it fails again, and the run goes on.
@@ -401,18 +426,29 @@ test("chrome flag", () => {
   assert.equal(lastEntry(off).template, "manual-verify");
 });
 
-test("chrome step draws from the pool", () => {
-  // A manual-verify-chrome entry has no cost key of its own; the pool charges it by its step name, like manual-verify.
-  const failed = (template) => entry(4, "manual-verify", { template, ok: false, verified: false, fallback: true, ticked: [], unproven: [] });
-  const log = (template) => [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), failed(template)];
-  const pool = (n) => ({ extraSteps: { allowance: { lean: 0, standard: n, thorough: n } } });
+test("neither manual verify template is charged to the pool", () => {
+  // Neither template costs anything from the pool, whatever an override says.
+  const failed = (n, template) => entry(n, "manual-verify", { template, ok: false, verified: false, fallback: true, ticked: [], unproven: [] });
+  const log = (template) => [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), failed(4, template)];
+  const pool = (n, cost = {}) => ({ extraSteps: { allowance: { lean: 0, standard: n, thorough: n }, cost } });
   for (const [template, extra] of [["manual-verify", []], ["manual-verify-chrome", ["--chrome"]]]) {
-    // A pool of 1 is spent by the failed attempt: no retry, whatever the template.
-    const spent = mvProject({ log: log(template), policy: pool(1) });
-    assert.equal(start(spent, "standard", extra).json.step, "impl-review", `${template}: spent pool`);
-    // A pool of 2 still pays for the retry.
-    const room = mvProject({ log: log(template), policy: pool(2) });
-    assert.equal(start(room, "standard", extra).json.step, "manual-verify", `${template}: pool with room`);
+    // A pool of 1, or of 0, does not stop the retry.
+    for (const n of [0, 1]) {
+      const room = mvProject({ log: log(template), policy: pool(n) });
+      assert.equal(start(room, "standard", extra).json.step, "manual-verify", `${template}: pool ${n}`);
+    }
+    // Two failed attempts leave the pool as it was: a first REJECTED review still gets the plan-rejected re-plan (cost 2
+    // of the standard pool of 2), with or without a cost key for the step.
+    for (const cost of [{}, { "manual-verify": 2, "manual-verify-chrome": 2 }]) {
+      const project = mvProject({
+        log: [...log(template), failed(5, template), entry(6, "impl-review")],
+        policy: { extraSteps: { allowance: { lean: 0, standard: 2, thorough: 3 }, cost: { "plan-rejected": 2, ...cost } } },
+      });
+      writeReview(project, "impl-review", { verdict: "REJECTED", findings: "1 critical, 0 warnings" });
+      const res = start(project, "standard", extra).json;
+      assert.equal(res.step, "plan", `${template}: ${JSON.stringify(res)}`);
+      assert.equal(lastEntry(project).template, "plan-rejected", `${template} ${JSON.stringify(cost)}`);
+    }
   }
 });
 

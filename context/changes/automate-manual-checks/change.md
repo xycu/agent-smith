@@ -1,7 +1,7 @@
 ---
 change_id: automate-manual-checks
 title: Verify every Manual row automatically in a dedicated subagent, Chrome included
-status: planned
+status: implementing
 created: 2026-11-05
 updated: 2026-11-05
 archived_at: null
