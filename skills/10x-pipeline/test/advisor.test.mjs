@@ -263,9 +263,9 @@ const CASES = [
     const project = staged({ ...policy, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
     return { project, res: standard(project) };
   } },
-  { template: "manual-verify-chrome", make: (policy) => {
+  { template: "manual-verify-nochrome", make: (policy) => {
     const project = staged({ ...policy, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
-    return { project, res: standard(project, "Parse blank lines", ["--chrome"]) };
+    return { project, res: standard(project, "Parse blank lines", ["--chrome", "false"]) };
   } },
 ];
 const CASE = Object.fromEntries(CASES.map((c) => [c.template, c]));

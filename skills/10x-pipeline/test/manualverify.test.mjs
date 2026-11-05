@@ -399,31 +399,45 @@ test("manual verify retry baseline", () => {
 // ---- --chrome -----------------------------------------------------------------
 
 test("chrome flag", () => {
+  // Chrome is on by default: a run that stored no value gets the template with the Chrome rules.
+  const plain = mvProject();
+  start(plain);
+  assert.equal(readMetaFile(plain).chrome, undefined);
+  assert.equal(lastEntry(plain).template, "manual-verify");
+  // --chrome and --chrome true store true and change nothing in effect.
   const project = mvProject();
   const res = start(project, "standard", ["--chrome"]).json;
   assert.equal(readMetaFile(project).chrome, true);
   assert.equal(res.step, "manual-verify");
-  assert.equal(lastEntry(project).template, "manual-verify-chrome");
-  // The step is metered like the plain one.
-  const plain = mvProject();
-  start(plain);
-  assert.equal(lastEntry(plain).template, "manual-verify");
-  assert.equal(readMetaFile(plain).chrome, undefined);
+  assert.equal(lastEntry(project).template, "manual-verify");
+  const bare = mvProject();
+  start(bare, "standard", ["--chrome", "true"]);
+  assert.equal(readMetaFile(bare).chrome, true);
+  assert.equal(lastEntry(bare).template, "manual-verify");
+  // A stored true that a run from before this change left reads on as well.
+  const legacy = verifying({ chrome: true });
+  save(legacy, [A, B]);
+  assert.equal(finish(legacy).res.json.step, "manual-verify");
+  assert.equal(lastEntry(legacy).template, "manual-verify");
 
-  // A resume without the flag keeps it, "true" is the bare flag, and "false" clears it.
+  // --chrome false stores false and selects the template without the Chrome rules.
+  const off = mvProject();
+  const offRes = start(off, "standard", ["--chrome", "false"]).json;
+  assert.equal(readMetaFile(off).chrome, false);
+  assert.equal(offRes.step, "manual-verify");
+  assert.equal(lastEntry(off).template, "manual-verify-nochrome");
+
+  // A resume without the flag keeps the stored value, and a later flag changes it.
+  writeResult(off, { status: "done", note: "x" });
+  init(off, GOAL);
+  assert.equal(readMetaFile(off).chrome, false);
+  assert.equal(lastEntry(off).template, "manual-verify-nochrome", "the retry keeps the no-Chrome template");
   writeResult(project, { status: "done", note: "x" });
   init(project, GOAL);
   assert.equal(readMetaFile(project).chrome, true);
   writeResult(project, { status: "done", note: "x" });
-  init(project, GOAL, ["--chrome", "true"]);
-  assert.equal(readMetaFile(project).chrome, true);
-  writeResult(project, { status: "done", note: "x" });
   init(project, GOAL, ["--chrome", "false"]);
   assert.equal(readMetaFile(project).chrome, false);
-  // With the flag off the plain template is chosen again.
-  const off = mvProject();
-  start(off, "standard", ["--chrome", "false"]);
-  assert.equal(lastEntry(off).template, "manual-verify");
 });
 
 test("neither manual verify template is charged to the pool", () => {
@@ -431,7 +445,7 @@ test("neither manual verify template is charged to the pool", () => {
   const failed = (n, template) => entry(n, "manual-verify", { template, ok: false, verified: false, fallback: true, ticked: [], unproven: [] });
   const log = (template) => [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), failed(4, template)];
   const pool = (n, cost = {}) => ({ extraSteps: { allowance: { lean: 0, standard: n, thorough: n }, cost } });
-  for (const [template, extra] of [["manual-verify", []], ["manual-verify-chrome", ["--chrome"]]]) {
+  for (const [template, extra] of [["manual-verify", []], ["manual-verify-nochrome", ["--chrome", "false"]]]) {
     // A pool of 1, or of 0, does not stop the retry.
     for (const n of [0, 1]) {
       const room = mvProject({ log: log(template), policy: pool(n) });
@@ -439,7 +453,7 @@ test("neither manual verify template is charged to the pool", () => {
     }
     // Two failed attempts leave the pool as it was: a first REJECTED review still gets the plan-rejected re-plan (cost 2
     // of the standard pool of 2), with or without a cost key for the step.
-    for (const cost of [{}, { "manual-verify": 2, "manual-verify-chrome": 2 }]) {
+    for (const cost of [{}, { "manual-verify": 2, "manual-verify-nochrome": 2 }]) {
       const project = mvProject({
         log: [...log(template), failed(5, template), entry(6, "impl-review")],
         policy: { extraSteps: { allowance: { lean: 0, standard: 2, thorough: 3 }, cost: { "plan-rejected": 2, ...cost } } },
@@ -463,26 +477,63 @@ test("chrome flag value", () => {
 });
 
 test("manual verify prompts", () => {
-  const plain = mvProject();
-  const prompt = start(plain).json.prompt;
-  assert.match(prompt, /^Check the pending #### Manual rows of context\/changes\/demo\/plan\.md/);
-  assert.ok(prompt.includes("`context/changes/demo/evidence/<name>`"));
+  const project = mvProject();
+  const prompt = start(project).json.prompt;
+  assert.match(prompt, /^Prove the pending #### Manual rows of context\/changes\/demo\/plan\.md on your own/);
+  assert.doesNotMatch(prompt, /that a command can prove/);
+  assert.match(prompt, /start with no memory of earlier steps/);
+  // Every pending row is in scope, read, judge and owner rows included.
+  assert.match(prompt, /pending `\[ \]` \*\*WHEN\*\*[^\n]*\*\*MUST\*\* treat it as in scope, including a row that asks a person to read, judge, look at or confirm something and a row that asks the owner for a decision/);
+  // A covering green test is evidence, its first line names the test file and the test name.
+  assert.match(prompt, /automated test covers the claim[^\n]*run that test now, tick the row only if it passes[^\n]*`test-` evidence whose first line names the test file and the test name/);
+  // A command is run and the row is ticked only when the output proves it.
+  assert.match(prompt, /names a command \*\*WHEN\*\* you run that command \*\*THEN\*\* you \*\*MUST\*\* tick the row only if the output proves what the row says/);
+  // A throw-away script lives outside the repository or under evidence/, never in the source or test tree.
+  assert.match(prompt, /throw-away script[^\n]*`mktemp -d`, or under `context\/changes\/demo\/evidence\/`, never in the source tree or the test tree/);
+  assert.match(prompt, /save the script source and its output as `script-` evidence/);
+  // A judgment quotes what it checked.
+  assert.match(prompt, /`judgment-` evidence file that quotes the text or behaviour you checked and gives your reasoning/);
+  // Evidence kinds, the tick suffix and the size limit.
+  assert.ok(prompt.includes("one of `command-`, `test-`, `script-`, `browser-` or `judgment-`"));
+  assert.ok(prompt.includes("`context/changes/demo/evidence/<name>` (not empty, under 1 MB)"));
   assert.ok(prompt.includes("` — evidence: evidence/<name>`"));
-  assert.ok(!prompt.includes("ToolSearch"));
-  assert.match(prompt, /MUST NOT\*\* tick it/);
+  // The ledger of unproved rows.
+  assert.ok(prompt.includes("`context/changes/demo/evidence/unproven.md` as `- <row id> — <reason>`"));
+  assert.match(prompt, /rewrite the whole file so that it lists every row still pending, and only those/);
+  assert.match(prompt, /`evidence\/unproven\.md` exists from an earlier attempt \*\*WHEN\*\* you start \*\*THEN\*\* you \*\*MUST\*\* read it first/);
+  // plan.md hygiene.
+  assert.match(prompt, /\*\*MUST NOT\*\* change a row title, an Automated row or a commit SHA suffix/);
+  assert.match(prompt, /\*\*MUST NOT\*\* untick it/);
+  assert.match(prompt, /rejected last time: none \*\*WHEN\*\*/);
+  // Safety rules.
+  assert.match(prompt, /push, deploy, publish or post to an external service[^\n]*\*\*MUST NOT\*\* run it/);
+  assert.match(prompt, /outside the run root and your scratch directory \*\*THEN\*\* you \*\*MUST NOT\*\* write it/);
+  assert.match(prompt, /not plan\.md and not under `context\/changes\/demo\/evidence\/` \*\*THEN\*\* you \*\*MUST NOT\*\* write it/);
+  assert.match(prompt, /only read-only git commands: never `git reset`, `git commit`, `git checkout`/);
+  assert.match(prompt, /delete a branch, a worktree or a ref[^\n]*\*\*MUST NOT\*\* run it/);
+  assert.match(prompt, /start it in the background with its output sent to a file, and stop it before the step ends/);
+  assert.match(prompt, /credential, a token, an environment dump or personal data[^\n]*\*\*MUST\*\* redact that part first/);
   // A command that never ends or waits for input is not run, and its row stays pending (a hang costs the step).
   const never = /never ends by itself or waits for input[^\n]*\*\*MUST NOT\*\* run it and you leave the row at `\[ \]`/;
   assert.match(prompt, never);
+  assert.match(prompt, /\*\*MUST NOT\*\* print a plain-text question or wait for input/);
+  // The default template carries the Chrome rules.
+  assert.ok(prompt.includes("ToolSearch"));
+  assert.ok(prompt.includes("mcp__claude-in-chrome__*"));
+  assert.match(prompt, /as `browser-` evidence under `context\/changes\/demo\/evidence\/`/);
+  assert.match(prompt, /\*\*MUST NOT\*\* open a page that is neither local nor named by the row, sign in, submit a form to an external service or enter a credential/);
+  assert.match(prompt, /unavailable or the extension is not connected[^\n]*\*\*MUST NOT\*\* wait for a connection or ask for one: prove the row another way, such as a covering test, or leave it at `\[ \]`/);
 
-  const chrome = mvProject();
-  const cp = start(chrome, "standard", ["--chrome"]).json.prompt;
-  assert.ok(cp.includes("context/changes/demo/evidence/<name>"));
-  assert.ok(cp.includes("evidence: evidence/<name>"));
-  assert.ok(cp.includes("ToolSearch"));
-  assert.ok(cp.includes("mcp__claude-in-chrome__*"));
-  assert.match(cp, never);
-  assert.match(cp, /unavailable or the extension is not connected/);
-  assert.match(cp, /leave that row unticked and finish with status `done`/);
+  // --chrome false: the same rules without the Chrome tools, plus the rule that they are off.
+  const off = mvProject();
+  const np = start(off, "standard", ["--chrome", "false"]).json.prompt;
+  assert.equal(np.split("\n")[0], prompt.split("\n")[0]);
+  assert.ok(!np.includes("ToolSearch"));
+  assert.ok(!np.includes("mcp__claude-in-chrome__"));
+  assert.match(np, never);
+  assert.ok(np.includes("` — evidence: evidence/<name>`"));
+  assert.ok(np.includes("`context/changes/demo/evidence/unproven.md`"));
+  assert.match(np, /Chrome tools are off for this run[^\n]*\*\*MUST NOT\*\* use a browser tool: prove the row another way[^\n]*`Chrome tools are off`/);
 
   // After a failed attempt the retry prompt names the rejected rows.
   const retry = verifying({ manual: [A, B] });

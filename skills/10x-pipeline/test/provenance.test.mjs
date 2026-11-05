@@ -21,7 +21,8 @@ const DEFAULT = readJson(path.join(SKILL_DIR, "policy.json"));
 const BASELINE = readJson(path.join(SKILL_DIR, "baseline-policy.json"));
 const PLUGIN = readJson(path.join(REPO, ".claude-plugin/plugin.json"));
 const HEX16 = /^[0-9a-f]{16}$/;
-const NO_FLAGS = { archive: false, chrome: false, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
+// chrome is the effective setting: on unless the run stored --chrome false.
+const NO_FLAGS = { archive: false, chrome: true, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
 
 const copies = [];
 after(() => {
@@ -212,12 +213,13 @@ test("1.3 a resume keeps the record, and a policy edit between steps adds its se
   const rec = readMetaFile(project).provenance;
   assert.ok(isObject(rec));
 
-  // A resume with --chrome consumes the plan result. The record, its flags included, stays as written.
+  // A resume with --chrome false consumes the plan result and changes the stored value. The record, its flags included,
+  // stays as written.
   finishPlan(project);
-  const resumed = init(project, "fix typo", ["--chrome"]);
+  const resumed = init(project, "fix typo", ["--chrome", "false"]);
   assert.equal(resumed.status, 0, resumed.stdout);
   assert.equal(resumed.json.step, "plan-review");
-  assert.equal(readMetaFile(project).chrome, true);
+  assert.equal(readMetaFile(project).chrome, false);
   assert.deepEqual(readMetaFile(project).provenance, rec);
 
   // A policy edit between steps: the next `next` names the section, the hashes stay.
@@ -421,7 +423,7 @@ test("1.6 the expected set comes from the policy of the project that runs compar
 
 test("1.6 provenance never changes comparable, reasons, dropPercent or the verdict", () => {
   const rec = freshRecord();
-  const other = changed(rec, { plugin: "9.9.9", sections: { steps: "3".repeat(16) }, flags: { chrome: true }, drift: ["limits"] });
+  const other = changed(rec, { plugin: "9.9.9", sections: { steps: "3".repeat(16) }, flags: { chrome: false }, drift: ["limits"] });
   const target = { compare: { targetDropPercent: 30 } };
   const cases = [
     [{ policy: target }, { totals: [1000] }],
