@@ -344,6 +344,8 @@ A re-plan counts against the step budget and uses one of the `maxFixLoops`. A `R
 
 ### Manual verification
 
+Superseded by ADR-012 (`automate-manual-checks`): every pending Manual row is in scope at every rigor level, the step is outside the extra-step pool, and Chrome is on by default. The text below is the change 3 history.
+
 `manual-verify` is a step of its own (`policy.steps["manual-verify"]`, no skill) that runs once before the first implementation review at `standard` or above, when no Automated row is pending and a pending Manual row is eligible. A row is eligible when it has a backticked command whose first word is in `manualVerify.commandWords` and no word that starts with one of `humanWords`; with `--chrome` a row with a whole-word `browserWords` hit is eligible too. The subagent runs the command, saves the output under `context/changes/<id>/evidence/<name>` and ticks the row with the suffix ` — evidence: evidence/<name>`.
 
 - **GIVEN** a Manual row is ticked after the step **WHEN** its suffix does not name a non-empty regular file inside the real `evidence` folder written after the step started **THEN** the router **MUST** record the tick as unproven.
@@ -383,7 +385,7 @@ Decided without a human. Each is overridable in `context/foundation/agent-smith-
 
 | Decision | Assumption | Cost to reverse |
 | --- | --- | --- |
-| 1 | `--chrome` is an `init` flag stored in `meta.json`; the orchestrator does not probe tools; Chrome use in a subagent is untested. | Low: remove the flag and the chrome template. |
+| 1 | `--chrome` is an `init` flag stored in `meta.json`; the orchestrator does not probe tools; Chrome use in a subagent is untested. Superseded by ADR-012: Chrome is on by default and `--chrome false` turns it off. | Low: remove the flag and the chrome template. |
 | 2 | `manual-verify` runs from `standard`, once (`maxRuns` 1), at most two attempts, zero ticks is `done`, a failed attempt is neutral. | Low: data. |
 | 3 | A ticked Manual row needs a valid evidence file; the content is not read; unproven ticks are listed, not undone. | Medium: reading evidence or undoing ticks needs the router to edit `plan.md`, which it never does. |
 | 4 | The strict commit check covers `implement-tdd`, `implement-e2e` and the retry; plain `implement` and `implement-segment` keep the count rule. | Medium: a commit check on goal-implement plus a policy escape. |
