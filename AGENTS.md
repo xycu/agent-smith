@@ -46,7 +46,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 
 There is no build or lint setup. Run the tests with `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). Exercise the router from a project root that has `context/changes/<id>/change.md`:
 
-- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive] [--chrome]` — start or resume a run. `--archive` makes `done` commit the change folder and return an `archive` action (`--archive false` turns it off). `--chrome` picks the `manual-verify` template that may use the Chrome tools (`--chrome false` turns it off).
+- `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive] [--chrome false]` — start or resume a run. `--archive` makes `done` commit the change folder and return an `archive` action (`--archive false` turns it off). The `manual-verify` template may use the Chrome tools by default; `--chrome false` picks the `manual-verify-nochrome` template, and `--chrome` or `--chrome true` changes nothing in effect.
 - `node tools/version-check.mjs` — exit 0 when every version field is equal and valid SemVer. `node tools/commit-lint.mjs <range>` (for example `main..HEAD`) — exit 0 when every commit subject in the range is a Conventional Commit.
 - `node skills/10x-pipeline/scripts/route.mjs next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `node skills/10x-pipeline/scripts/route.mjs status <id>` — print the per-step model and effort log.
