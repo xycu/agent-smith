@@ -6,7 +6,7 @@ description: >
   model and effort from the previous results: review verdicts, finding counts,
   plan size, failed attempts. Use when the user wants an orchestrated or adaptive
   10x run, "run the whole chain", "pipeline this change", or dynamic model routing.
-argument-hint: <change-id> [goal text] [--archive] [--chrome] [--pr-comment]
+argument-hint: <change-id> [goal text] [--archive] [--chrome false] [--pr-comment]
 allowed-tools:
   - Agent
   - Bash
@@ -26,7 +26,7 @@ PR comment script: `PR_COMMENT=<this skill's base directory>/scripts/pr-comment.
 
 ## Start
 
-1. Parse the arguments: `<change-id>` (required, kebab-case), optional goal text, and the optional flags `--archive` and `--chrome`. Remove each flag from the goal text. Pass it on to `init` only when the user gave it. Parse the optional flag `--pr-comment` the same way, remove it from the goal text, and never pass it to `init`.
+1. Parse the arguments: `<change-id>` (required, kebab-case), optional goal text, and the optional flags `--archive` and `--chrome`. Each may carry the value `true` or `false` right after it, as in `--chrome false`. Remove each flag and its value from the goal text. Pass it on to `init`, with its value, only when the user gave it. Parse the optional flag `--pr-comment` the same way, remove it from the goal text, and never pass it to `init`.
 2. If `context/changes/<change-id>/change.md` is missing, first run `node $ROUTER verify-archive <change-id>` (no `--path`) from the project root. When it reports `archived: true`, tell the user where the change was archived and STOP. When it lists `ambiguous` archive folders, show them to the user and STOP: the id was archived more than once and the user picks the folder. Otherwise tell the user to run `/10x-new <change-id>` and STOP. If the 10x skills (`10x-plan`, `10x-plan-review`, `10x-goal-implement`, `10x-impl-review`) are not available in this project, tell the user to install the 10x toolkit first and STOP.
 3. Run isolation: each run works in its own git worktree on the branch `agent-smith/<change-id>`. Names: `<root>` is the project root (the directory this session started in, where `context/` lives), `<prefix>` is what `git -C "<root>" rev-parse --show-prefix` prints (empty at the repository top level), `<worktree>` is `<root>/.claude/worktrees/agent-smith-<change-id>`, and the run root is `<worktree>/<prefix>`. Keep `<root>` and the run root as absolute paths. The worktree stays under `<root>`, because Claude Code resets a `cd` that leaves the project directory.
    - Opt-out first: when `git -C "<root>" rev-parse --is-inside-work-tree` does not print `true`, or `<root>/context/foundation/agent-smith-policy.json` sets `isolation.require` to a value other than `true`, create nothing and copy nothing. The run root is `<root>`, as before isolation existed. Without git and with `isolation.require` on, the router's halt at `init` names the override.
