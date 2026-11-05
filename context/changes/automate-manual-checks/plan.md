@@ -361,10 +361,10 @@ The policy and the prompts change, so a run in flight records `provenance.drift`
 
 #### Automated
 
-- [x] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 4.2 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs`
-- [x] 4.3 Version fields consistent: `node tools/version-check.mjs`
-- [x] 4.4 ADR-012 exists: `test -f docs/ADR/ADR-012-automate-manual-checks.md`
+- [x] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — d9d076c
+- [x] 4.2 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs` — d9d076c
+- [x] 4.3 Version fields consistent: `node tools/version-check.mjs` — d9d076c
+- [x] 4.4 ADR-012 exists: `test -f docs/ADR/ADR-012-automate-manual-checks.md` — d9d076c
 
 #### Manual
 
