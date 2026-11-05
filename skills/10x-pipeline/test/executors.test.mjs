@@ -680,15 +680,15 @@ test("lean keeps plain implement", () => {
   const walked = advance(withSetup, specs, [1]);
   const baseWalk = advance(without, specs, [1]);
   assert.deepEqual(walked.json, baseWalk.json);
-  // The lean budget stays 10: nine executed steps still run, ten halt.
-  for (const [count, action] of [[9, "run"], [10, "halt"]]) {
+  // The lean budget is 12: eleven executed steps still run, twelve halt.
+  for (const [count, action] of [[11, "run"], [12, "halt"]]) {
     const project = e2eProject({ specs });
     const log = [entry(1, "plan"), entry(2, "plan-review")];
     for (let n = 3; n <= count; n++) log.push(entry(n, "implement", { template: "implement" }));
     writeLog(project, log);
     const res = start(project, "lean", "fix typo");
     assert.equal(res.json.action, action, `${count} steps: ${res.stdout}`);
-    if (action === "halt") assert.match(res.json.reason, /Step budget 10 spent/);
+    if (action === "halt") assert.match(res.json.reason, /Step budget 12 spent/);
   }
 });
 

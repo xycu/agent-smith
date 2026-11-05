@@ -41,11 +41,15 @@ export function makeProject({ id = "demo", plan = null, policy = null, change = 
 // wants the scorer opts in with `policy: { score: { minRigor: "standard" } }`.
 // It also merges in `isolation.require: false` unless the policy has its own `isolation` key, so scratch projects
 // outside a linked worktree run as before; a test that wants the gate gives its own `isolation` block.
+// It also merges in `manualVerify.minRigor: null` unless the policy has its own `manualVerify` key, so the
+// manual-verify step stays off and existing tests keep their paths; a test that wants the step opts in with
+// `policy: { manualVerify: { minRigor: "lean" } }`.
 export function writeOverride(project, policy = {}) {
   const file = path.join(project.root, "context/foundation/agent-smith-policy.json");
   fs.mkdirSync(path.dirname(file), { recursive: true });
   let value = Object.hasOwn(policy, "score") ? policy : { ...policy, score: { minRigor: null } };
   if (!Object.hasOwn(value, "isolation")) value = { ...value, isolation: { require: false } };
+  if (!Object.hasOwn(value, "manualVerify")) value = { ...value, manualVerify: { minRigor: null } };
   fs.writeFileSync(file, JSON.stringify(value));
 }
 

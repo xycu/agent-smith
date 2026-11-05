@@ -31,7 +31,7 @@ const PINS = {
   research: { base: ["sonnet", "high"], min: ["sonnet", "medium"], max: ["opus", "xhigh"] },
   "domain-brief": { base: ["sonnet", "high"], min: ["sonnet", "high"], max: ["opus", "xhigh"] },
   frame: { base: ["opus", "high"], min: ["opus", "high"], max: ["opus", "high"] },
-  "manual-verify": { base: ["sonnet", "high"], min: ["sonnet", "medium"], max: ["opus", "xhigh"] },
+  "manual-verify": { base: ["sonnet", "medium"], min: ["sonnet", "medium"], max: ["opus", "xhigh"] },
   score: { base: ["haiku", "low"], min: ["haiku", "low"], max: ["sonnet", "low"] },
 };
 
