@@ -346,11 +346,11 @@ The policy and the prompts change, so a run in flight records `provenance.drift`
 
 #### Automated
 
-- [x] 3.1 Prompt and Chrome-default tests pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs`
-- [x] 3.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 3.3 Provenance and advisor tests pass: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/advisor.test.mjs`
-- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 3.5 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 3.1 Prompt and Chrome-default tests pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs` — 79d417e
+- [x] 3.2 Prompt rule form passes: `node --test skills/10x-pipeline/test/rules.test.mjs` — 79d417e
+- [x] 3.3 Provenance and advisor tests pass: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/advisor.test.mjs` — 79d417e
+- [x] 3.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 79d417e
+- [x] 3.5 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs` — 79d417e
 
 #### Manual
 
@@ -361,10 +361,10 @@ The policy and the prompts change, so a run in flight records `provenance.drift`
 
 #### Automated
 
-- [ ] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 4.2 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs`
-- [ ] 4.3 Version fields consistent: `node tools/version-check.mjs`
-- [ ] 4.4 ADR-012 exists: `test -f docs/ADR/ADR-012-automate-manual-checks.md`
+- [x] 4.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 4.2 Characterization file untouched since the branch point: `git diff --exit-code a1d7a98 -- skills/10x-pipeline/test/loops-existing.test.mjs`
+- [x] 4.3 Version fields consistent: `node tools/version-check.mjs`
+- [x] 4.4 ADR-012 exists: `test -f docs/ADR/ADR-012-automate-manual-checks.md`
 
 #### Manual
 
