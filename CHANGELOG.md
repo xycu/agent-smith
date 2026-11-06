@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/xycu/agent-smith/compare/v0.6.0...v0.7.0) (2026-11-06)
+
+
+### Features
+
+* **automate-manual-checks:** every row, every level, outside the pool (p1) ([907c3f2](https://github.com/xycu/agent-smith/commit/907c3f2e77426ae911456d7277e1fc20ee41211d))
+* **automate-manual-checks:** record evidence kind and unproved reasons (p2) ([5e4732a](https://github.com/xycu/agent-smith/commit/5e4732a5ff0a50149d4c1b8d1f6ca29b3c8a4802))
+* **automate-manual-checks:** the prompt, and Chrome on by default (p3) ([eb0619b](https://github.com/xycu/agent-smith/commit/eb0619ba791275f46eb8be0d21ec3e6d3acdf611))
+
+
+### Bug Fixes
+
+* **automate-manual-checks:** document --chrome false in the skill entry and AGENTS.md ([68a3aa7](https://github.com/xycu/agent-smith/commit/68a3aa75596f240382c98ce0aedfb1f12b40a3db))
+
 ## [0.6.0](https://github.com/xycu/agent-smith/compare/v0.5.0...v0.6.0) (2026-11-04)
 
 
