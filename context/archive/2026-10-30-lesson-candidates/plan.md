@@ -321,7 +321,7 @@ A run in flight keeps working: an old `run.jsonl` has no `lessonCandidates`, so 
 
 #### Manual
 
-- [ ] 2.3 A scratch run with a fixture result shows the section in `report.md`, and the first command copy-pastes into the prompt as one line
+- [x] 2.3 A scratch run with a fixture result shows the section in `report.md`, and the first command copy-pastes into the prompt as one line
 
 ### Phase 3: Prompt wiring
 
@@ -344,4 +344,4 @@ A run in flight keeps working: an old `run.jsonl` has no `lessonCandidates`, so 
 
 #### Manual
 
-- [ ] 4.4 The README, `SKILL.md` and ADR-003 describe the same caps, the same key and the same "never unattended" rule
+- [x] 4.4 The README, `SKILL.md` and ADR-003 describe the same caps, the same key and the same "never unattended" rule

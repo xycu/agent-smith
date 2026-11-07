@@ -270,7 +270,7 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Manual
 
-- [ ] 2.5 The CI run on the opened pull request shows `test` and `commits` green
+- [x] 2.5 The CI run on the opened pull request shows `test` and `commits` green
 
 ### Phase 3: Release pipeline and docs
 
@@ -286,6 +286,6 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Manual
 
-- [ ] 3.7 The owner enables the Actions setting "Allow GitHub Actions to create and approve pull requests"
-- [ ] 3.8 After the PR merges, the `Release` run on `main` succeeds and opens a release PR titled `chore(main): release 0.2.0`
-- [ ] 3.9 Merging the release PR creates tag `v0.2.0` and a GitHub Release, and the three version fields read `0.2.0`
+- [x] 3.7 The owner enables the Actions setting "Allow GitHub Actions to create and approve pull requests"
+- [x] 3.8 After the PR merges, the `Release` run on `main` succeeds and opens a release PR titled `chore(main): release 0.2.0`
+- [x] 3.9 Merging the release PR creates tag `v0.2.0` and a GitHub Release, and the three version fields read `0.2.0`

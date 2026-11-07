@@ -403,7 +403,7 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Manual
 
-- [ ] 1.4 The rubric anchors in `skills/10x-pipeline/prompts/score.md` read as four distinct levels for each of the six factors
+- [x] 1.4 The rubric anchors in `skills/10x-pipeline/prompts/score.md` read as four distinct levels for each of the six factors
 
 ### Phase 2: Schedule, verify and fail safely
 
@@ -416,7 +416,7 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Manual
 
-- [ ] 2.5 In a scratch project at rigor `standard`, `init` returns the `score` step, and after a hand-written valid `complexity.json` and a result file `next` returns `plan`
+- [x] 2.5 In a scratch project at rigor `standard`, `init` returns the `score` step, and after a hand-written valid `complexity.json` and a result file `next` returns `plan`
 
 ### Phase 3: Use the scores in the tier and the report
 
@@ -441,7 +441,7 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Manual
 
-- [ ] 4.5 Running `compare` with `--unpinned` on two scratch change folders prints a readable result with a negative and a positive `dropPercent`
+- [x] 4.5 Running `compare` with `--unpinned` on two scratch change folders prints a readable result with a negative and a positive `dropPercent`
 
 ### Phase 5: Docs, ADR notes and the A/B check
 
