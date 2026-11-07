@@ -1,6 +1,6 @@
 # ADR-004: Prompt rules as GIVEN/WHEN/THEN scenarios with one RFC 2119 keyword
 
-- **Status:** Proposed
+- **Status:** Accepted (owner, 2026-11-07)
 - **Date:** 2026-10-30
 - **Deciders:** repository owner
 - **Origin:** life-to-lore `ADR-012-prompt-rules-as-scenarios.md` (accepted 2026-10-21) and `CLAUDE.md:28` of that repository, adopted here by the `rigor-levels` change. Research: `context/changes/rigor-levels/research.md` (Follow-up 2, decision 1).
