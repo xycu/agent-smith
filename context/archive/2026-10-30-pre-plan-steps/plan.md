@@ -488,8 +488,8 @@ The implementation review (`reviews/impl-review.md`, NEEDS ATTENTION: 0 critical
 
 #### Manual
 
-- [ ] 1.4 Reading `loops-existing.test.mjs` top to bottom, each test name states one rule of today's RETHINK/REVISE behaviour and none depends on Phase 3 or 4 code
-- [ ] 1.5 `git log --oneline` shows the commit of `loops-existing.test.mjs` before the commit of the `verdict` change, so the tests were green on unmodified logic
+- [x] 1.4 Reading `loops-existing.test.mjs` top to bottom, each test name states one rule of today's RETHINK/REVISE behaviour and none depends on Phase 3 or 4 code
+- [x] 1.5 `git log --oneline` shows the commit of `loops-existing.test.mjs` before the commit of the `verdict` change, so the tests were green on unmodified logic
 
 ### Phase 2: Policy data and prompt wiring
 
@@ -505,10 +505,10 @@ The implementation review (`reviews/impl-review.md`, NEEDS ATTENTION: 0 critical
 
 #### Manual
 
-- [ ] 2.8 `prompts/frame-unattended.md` reads as one rule per ask point and a human can map each rule to a step of `~/.claude/skills/10x-frame/SKILL.md`
+- [x] 2.8 `prompts/frame-unattended.md` reads as one rule per ask point and a human can map each rule to a step of `~/.claude/skills/10x-frame/SKILL.md`
 - [ ] 2.9 Unattended `/10x-frame` with a bug-shaped goal (for example `Logins fail after a password reset because the token cache is stale; fix the cache`), run with the router's prompt assembled by hand (`prompts.frame` with `{id}` and `{goal}` filled, the guide file, then `prompts.suffix`): the subagent never calls `AskUserQuestion` or waits for input, never runs `pbcopy`, `frame.md` has a `## Reframed (or Confirmed) Problem Statement` and exactly one Confidence label, and the RESULT line carries `assumptions` that cite evidence
 - [ ] 2.10 Unattended `/10x-frame`, run as in the previous row, with goal `fix typo` and a `change.md` without notes ends `done` with a confirmed problem statement and Confidence LOW, not `blocked`
-- [ ] 2.11 Unattended `/10x-frame`, run as in the previous row, with an empty goal and a `change.md` without notes ends `blocked` with `signals.needsHuman`
+- [x] 2.11 Unattended `/10x-frame`, run as in the previous row, with an empty goal and a `change.md` without notes ends `blocked` with `signals.needsHuman`
 
 ### Phase 3: Pre-plan gates, verification by artifact, skip-cap fix
 
@@ -526,7 +526,7 @@ The implementation review (`reviews/impl-review.md`, NEEDS ATTENTION: 0 critical
 
 #### Manual
 
-- [ ] 3.10 The skip reasons in `status` of a scratch `--rigor thorough` run read clearly: each names the step, the level and the missing signal or the existing artifact
+- [x] 3.10 The skip reasons in `status` of a scratch `--rigor thorough` run read clearly: each names the step, the level and the missing signal or the existing artifact
 
 ### Phase 4: Backward loops and the budget reference paths
 
@@ -543,7 +543,7 @@ The implementation review (`reviews/impl-review.md`, NEEDS ATTENTION: 0 critical
 
 #### Manual
 
-- [ ] 4.9 In the `route.mjs` diff of this phase, the only new logic in `decide()` is the call to `replanNext`, and branch (e) of `replanNext` is the code that stood in `decide()` before, unchanged
+- [x] 4.9 In the `route.mjs` diff of this phase, the only new logic in `decide()` is the call to `replanNext`, and branch (e) of `replanNext` is the code that stood in `decide()` before, unchanged
 
 ### Phase 5: Documentation, ADR-003 and checks with a real pipeline
 
@@ -559,7 +559,7 @@ The implementation review (`reviews/impl-review.md`, NEEDS ATTENTION: 0 critical
 
 - [ ] 5.6 A real `--rigor thorough` pipeline run with a repo map and a distillation fixture goes research-with-map, domain brief, frame, plan, the plan prompt lists the artifacts, and `research.md` starts with frontmatter that holds `status:`
 - [ ] 5.7 A real RETHINK, frame, re-plan run at `--rigor thorough` (a scratch change whose plan contradicts the code, so the real `/10x-plan-review` returns RETHINK): record in the review file or the PR text what `/10x-plan` did with `frame.md`, that is, whether the re-plan changed its approach to match the reframed problem statement or patched the old plan; if it patched, strengthen the `frame-authority` line before merging
-- [ ] 5.8 `README.md` reads correctly for a user who never uses `--rigor thorough`: the new text says the pre-plan steps and loops are `thorough` only, and a standard or lean run needs no new skill and shows no new step
+- [x] 5.8 `README.md` reads correctly for a user who never uses `--rigor thorough`: the new text says the pre-plan steps and loops are `thorough` only, and a standard or lean run needs no new skill and shows no new step
 - [ ] 5.9 A real second `REVISE` at `--rigor thorough` runs the real `/10x-research` as `research-revise`: `research.md` keeps the earlier findings, keeps `status` in its frontmatter and gets a new `last_updated`, and the step is verified. Live only: the router side is tested with synthetic files (fix pass, unverified behavior 1)
 - [ ] 5.10 A real thorough run for each domain template, once with a distillation fixture that makes `aggregateGap` hit (`domain-aggregate`) and once with a goal that names a vendor SDK (`domain-acl`): each real prompt writes its own folder file (`refactor-invariant-aggregate.md` or `refactor-anti-corruption-layer.md`) with `type: refactor-plan`, and the step is verified. Live only: the tests check the prompt wording and the verification, not the skill (fix pass, unverified behavior 2)
 - [ ] 5.11 A real `RETHINK` at `--rigor thorough` on a run whose frame step was skipped (no `frame.md`): the `frame-rethink` step writes a new `frame.md` with a `## Reframed` heading under the guide, and the re-plan prompt then lists it. Live only: the tests drive the router, not `/10x-frame` (fix pass, unverified behavior 3)
