@@ -470,7 +470,7 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Manual
 
-- [ ] 1.3 In a scratch folder with a hand-made `context/archive/2026-10-30-demo/change.md` (`status: archived`), `verify-archive demo` prints `archived: true`, and `init demo` halts without creating `context/changes/`
+- [x] 1.3 In a scratch folder with a hand-made `context/archive/2026-10-30-demo/change.md` (`status: archived`), `verify-archive demo` prints `archived: true`, and `init demo` halts without creating `context/changes/`
 
 ### Phase 2: Archive policy data and the `--archive` flag
 
@@ -483,8 +483,8 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Manual
 
-- [ ] 2.5 In a scratch git repo, `init demo --goal "fix typo" --archive` returns a `run` for `plan` and `meta.json` holds `"archive": true`; in a folder without git the same command halts with a clear reason
-- [ ] 2.6 The `prompts.archive` text reads as one rule per line, each with one bold keyword (nine rules, including the SHA history rule and the blocking-warning precedence rule)
+- [x] 2.5 In a scratch git repo, `init demo --goal "fix typo" --archive` returns a `run` for `plan` and `meta.json` holds `"archive": true`; in a folder without git the same command halts with a clear reason
+- [x] 2.6 The `prompts.archive` text reads as one rule per line, each with one bold keyword (nine rules, including the SHA history rule and the blocking-warning precedence rule)
 
 ### Phase 3: The `done` branch — commit, clean check, `archive` action
 
@@ -498,10 +498,10 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 #### Manual
 
-- [ ] 3.5 In a scratch git repo, a finished run with `--archive` leaves one new commit `chore(demo): commit change folder before archive` and `git status` clean for the change folder
-- [ ] 3.6 `route.mjs next demo` prints an `archive` action whose prompt lists the archive rules and whose `archivePath` matches `change.md` `created`
-- [ ] 3.7 In a scratch repo with a `pre-commit` hook that stages an unrelated file, `next demo` halts after the commit, names the extra path, and leaves `meta.json` and `report.md` unchanged by the halt
-- [ ] 3.8 In a scratch repo with `reviews/` in `.gitignore` and a non-ASCII file name in the change folder, `next demo` returns `archive` with `ignored` naming `reviews/` and does not halt
+- [x] 3.5 In a scratch git repo, a finished run with `--archive` leaves one new commit `chore(demo): commit change folder before archive` and `git status` clean for the change folder
+- [x] 3.6 `route.mjs next demo` prints an `archive` action whose prompt lists the archive rules and whose `archivePath` matches `change.md` `created`
+- [x] 3.7 In a scratch repo with a `pre-commit` hook that stages an unrelated file, `next demo` halts after the commit, names the extra path, and leaves `meta.json` and `report.md` unchanged by the halt
+- [x] 3.8 In a scratch repo with `reviews/` in `.gitignore` and a non-ASCII file name in the change folder, `next demo` returns `archive` with `ignored` naming `reviews/` and does not halt
 
 ### Phase 4: Orchestrator loop, documentation and end-to-end run
 
@@ -521,6 +521,6 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 - [ ] 4.8 End to end on a throwaway git repo with a trivial change: `/agent-smith:10x-pipeline demo "fix typo" --archive` ends with commits `chore(demo): commit change folder before archive` and `chore(archive): close demo`, `verify-archive demo` prints `archived: true`, and `context/archive/<date>-demo/agent-smith/report.md` exists
 - [ ] 4.9 In that run the archive subagent, which has no question tool and so takes the skill's plain-text path, answered the warnings prompt with `Continue archiving` (pending Manual rows trigger it), did not stop with `blocked` and ended with a `RESULT:` line; its `assumptions` and the pending Manual rows appear in the final message and the Manual rows in the archived `report.md`. The throwaway repo has no remote and an unmerged branch, and the Progress rows carry SHA suffixes from the implement step (if they do not, add one by hand before the run), so the run also exercises the SHA history check: the subagent did not ask the user to identify a remote, branch or commit, and its `assumptions` carry the SHA diagnostics
 - [ ] 4.10 A second run with a deliberately staged file halts before any commit and the output says the run was not archived
-- [ ] 4.11 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same sequence (pre-checks, commit, clean check, action, verify)
-- [ ] 4.12 PRD FR-008 and ADR-003 agree on the git decision
-- [ ] 4.13 The S-09 row and item in `context/foundation/roadmap.md` say "commit the change folder" and nothing else in that file changed except the `planning` status
+- [x] 4.11 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same sequence (pre-checks, commit, clean check, action, verify)
+- [x] 4.12 PRD FR-008 and ADR-003 agree on the git decision
+- [x] 4.13 The S-09 row and item in `context/foundation/roadmap.md` say "commit the change folder" and nothing else in that file changed except the `planning` status
