@@ -460,7 +460,7 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Manual
 
-- [ ] 2.5 In a live run the subagent edits files only under the worktree path, not the main checkout (confirms the prompt line works when the Agent tool does not inherit the shell directory).
+- [x] 2.5 In a live run the subagent edits files only under the worktree path, not the main checkout (confirms the prompt line works when the Agent tool does not inherit the shell directory).
 
 ### Phase 3: Per-step commits
 
