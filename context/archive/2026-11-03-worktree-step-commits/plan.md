@@ -447,7 +447,7 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Manual
 
-- [ ] 1.4 `node skills/10x-pipeline/scripts/route.mjs init <id>` on a scratch change prints the same first-step model and effort as before the change.
+- [x] 1.4 `node skills/10x-pipeline/scripts/route.mjs init <id>` on a scratch change prints the same first-step model and effort as before the change.
 
 ### Phase 2: Run isolation gate
 
@@ -473,7 +473,7 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Manual
 
-- [ ] 3.5 `git log --oneline` in a real run worktree shows one `chore(<id>): step <n> <step>` commit per step that left changes, and the subjects pass `node tools/commit-lint.mjs`.
+- [x] 3.5 `git log --oneline` in a real run worktree shows one `chore(<id>): step <n> <step>` commit per step that left changes, and the subjects pass `node tools/commit-lint.mjs`.
 
 ### Phase 4: Failed-step rollback
 
@@ -485,7 +485,7 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Manual
 
-- [ ] 4.4 After a forced failed step in a scratch worktree run, `git show refs/agent-smith/<id>/failed-1 --stat` lists the partial edits and `git status` in the worktree is clean.
+- [x] 4.4 After a forced failed step in a scratch worktree run, `git show refs/agent-smith/<id>/failed-1 --stat` lists the partial edits and `git status` in the worktree is clean.
 
 ### Phase 5: Cheaper first implement attempt
 
@@ -498,7 +498,7 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Manual
 
-- [ ] 5.5 `status` of a scratch run shows the first implement entry one tier below the pre-change value and the retry at base plus one.
+- [x] 5.5 `status` of a scratch run shows the first implement entry one tier below the pre-change value and the retry at base plus one.
 
 ### Phase 6: ADR-010, AGENTS.md rule and docs
 

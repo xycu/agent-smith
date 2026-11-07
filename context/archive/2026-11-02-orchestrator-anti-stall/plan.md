@@ -241,7 +241,7 @@ None. A run in flight reads the new SKILL.md on its next invocation; no router s
 
 #### Manual
 
-- [ ] 1.3 Each of the five behaviors in `change.md` appears as exactly one rule, in order, without contradicting the Loop steps
+- [x] 1.3 Each of the five behaviors in `change.md` appears as exactly one rule, in order, without contradicting the Loop steps
 
 ### Phase 2: Tests for the rules
 

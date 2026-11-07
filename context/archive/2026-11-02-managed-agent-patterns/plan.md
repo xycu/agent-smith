@@ -335,8 +335,8 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 #### Manual
 
-- [ ] 1.8 `init` and `status` on a scratch change folder print valid JSON, and the resulting `meta.json` holds a readable `provenance` object
-- [ ] 1.9 The README provenance text and the corrected "Baseline comparison" sentence read correctly and match the warning names the router prints
+- [x] 1.8 `init` and `status` on a scratch change folder print valid JSON, and the resulting `meta.json` holds a readable `provenance` object
+- [x] 1.9 The README provenance text and the corrected "Baseline comparison" sentence read correctly and match the warning names the router prints
 
 ### Phase 2: Tool-restricted step agents
 
@@ -354,7 +354,7 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 - [ ] 2.8 Live check 1: install the plugin from this branch, set `agents.restricted: true` in a scratch project override, run a `standard` pipeline; the score step starts as `agent-smith:score` and writes a valid `complexity.json`. If the type does not resolve, record the Agent error text and correct `agents.steps.score`
 - [ ] 2.9 Live check 2: in that restricted run the subagent cannot call `Bash`, `Edit` or an MCP tool; record the observed behavior for MCP tools in ADR-009 (the docs describe only the background case)
-- [ ] 2.10 The README restricted-agents text and the `AGENTS.md` and README layout lists read correctly
+- [x] 2.10 The README restricted-agents text and the `AGENTS.md` and README layout lists read correctly
 
 ### Phase 3: Opt-in advisor and ADR-009
 
@@ -371,4 +371,4 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 - [ ] 3.7 Live check P0: with `advisorModel` set, run one `plan` step with `advisor.enabled: true`; record in ADR-009 whether the step consulted and whether the Agent result's `totalTokens` includes the advisor's tokens
 - [ ] 3.8 The owner reads ADR-009, confirms or changes the unattended readings (score-only agents, prompt rule over the user's `advisorModel`, the two decision rules) and sets its status
-- [ ] 3.9 The README advisor text states that `advisor.enabled` cannot configure or cap the advisor
+- [x] 3.9 The README advisor text states that `advisor.enabled` cannot configure or cap the advisor
