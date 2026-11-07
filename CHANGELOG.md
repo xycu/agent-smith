@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/xycu/agent-smith/compare/v0.7.0...v0.7.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **pipeline:** name the rerun command in the open-findings halt ([cfee7d6](https://github.com/xycu/agent-smith/commit/cfee7d630816ed9d76e737e2cbfcf62e865a884f))
+
 ## [0.7.0](https://github.com/xycu/agent-smith/compare/v0.6.0...v0.7.0) (2026-11-06)
 
 
