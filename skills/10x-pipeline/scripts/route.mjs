@@ -1018,7 +1018,7 @@ function openFindingsHalt(label, skillName, file, oc, policy, meta) {
     text += ` Plus ${oc.unparsed} counted in the Findings header with no ### F<n> block: add a block with a Decision line for each, or lower the header count.`;
   }
   const words = joinWords([...openFindingsConfig(policy).closed]);
-  text += ` Set each finding's Decision in ${rel} (${words}) or triage with /${skillName} ${rel}, then run again.`;
+  text += ` Set each finding's Decision in ${rel} (${words}) or triage with /${skillName} ${rel}, then run /agent-smith:10x-pipeline ${meta.id} again.`;
   if (meta.isolated === true) text += " Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.";
   return { halt: text };
 }

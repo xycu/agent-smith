@@ -597,7 +597,7 @@ describe("plan review halt text", () => {
     const rel = "context/changes/demo/reviews/plan-review.md";
     assert.equal(
       res.json.reason,
-      `Plan review REVISE left 1 open critical and 0 open warnings (F1). Needs a human. Set each finding's Decision in ${rel} (APPLIED, FIXED, ACCEPTED, SKIPPED or DISMISSED) or triage with /10x-plan-review ${rel}, then run again.`,
+      `Plan review REVISE left 1 open critical and 0 open warnings (F1). Needs a human. Set each finding's Decision in ${rel} (APPLIED, FIXED, ACCEPTED, SKIPPED or DISMISSED) or triage with /10x-plan-review ${rel}, then run /agent-smith:10x-pipeline demo again.`,
     );
   });
 
@@ -763,7 +763,7 @@ describe("implementation review routing on open findings", () => {
     const { res } = routeImpl(text);
     assert.equal(
       res.json.reason,
-      `Implementation review NEEDS ATTENTION left 1 open critical and 0 open warnings (F1). Needs a human. Set each finding's Decision in ${rel} (APPLIED, FIXED, ACCEPTED, SKIPPED or DISMISSED) or triage with /10x-impl-review ${rel}, then run again.`,
+      `Implementation review NEEDS ATTENTION left 1 open critical and 0 open warnings (F1). Needs a human. Set each finding's Decision in ${rel} (APPLIED, FIXED, ACCEPTED, SKIPPED or DISMISSED) or triage with /10x-impl-review ${rel}, then run /agent-smith:10x-pipeline demo again.`,
     );
     const custom = routeImpl(text, { policy: { review: { openFindings: { closedDecisions: ["applied", "waived"] } } } });
     assert.match(custom.res.json.reason, /\(APPLIED or WAIVED\)/);
@@ -800,7 +800,7 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
     const res = run(wt, ["next", "demo"], { env });
     assert.equal(res.json.action, "halt", res.stdout + res.stderr);
     assert.match(res.json.reason, /^Plan review REVISE left 1 open critical and 0 open warnings \(F1\)\. Needs a human\./);
-    assert.ok(res.json.reason.endsWith(", then run again. Commit the edit in the run worktree first: a failed step rolls back uncommitted edits."), res.json.reason);
+    assert.ok(res.json.reason.endsWith(" again. Commit the edit in the run worktree first: a failed step rolls back uncommitted edits."), res.json.reason);
   });
 });
 
