@@ -539,7 +539,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Manual
 
-- [ ] 1.3 ADR-004 reads clearly, credits life-to-lore ADR-012, and lists the differences from it
+- [x] 1.3 ADR-004 reads clearly, credits life-to-lore ADR-012, and lists the differences from it
 
 ### Phase 2: Rigor core — level, persistence, budget, effort floor
 
@@ -551,7 +551,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Manual
 
-- [ ] 2.4 In a scratch change folder, `init <id> --goal "fix typo"` returns a `run` for `plan` and the tier text mentions the effort floor; `status` shows the rigor level and `meta.json` holds `rigor`
+- [x] 2.4 In a scratch change folder, `init <id> --goal "fix typo"` returns a `run` for `plan` and the tier text mentions the effort floor; `status` shows the rigor level and `meta.json` holds `rigor`
 - [ ] 2.5 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (`npx` fetches a run-time Node, not a repo dependency). If Node 18 cannot be run, record the status as unverified in the PR
 
 ### Phase 3: Churn risk paths
@@ -563,7 +563,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Manual
 
-- [ ] 3.3 `node skills/10x-pipeline/scripts/route.mjs risk rigor-levels` on this repo lists `route.mjs` and `policy.json` among the hot paths and no `context/**` or `*.md` path (counts differ from the research dry run because the history moved)
+- [x] 3.3 `node skills/10x-pipeline/scripts/route.mjs risk rigor-levels` on this repo lists `route.mjs` and `policy.json` among the hot paths and no `context/**` or `*.md` path (counts differ from the research dry run because the history moved)
 - [ ] 3.4 The churn tests pass on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/churn.test.mjs` (unverified status goes into the PR if Node 18 cannot be run)
 
 ### Phase 4: Skip entries and the `lean` plan-review skip
@@ -575,7 +575,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Manual
 
-- [ ] 4.3 On a scratch lean run, after the plan step's result is written, `next` returns `implement` and `report.md` lists the skipped plan-review with its reason
+- [x] 4.3 On a scratch lean run, after the plan step's result is written, `next` returns `implement` and `report.md` lists the skipped plan-review with its reason
 
 ### Phase 5: RESULT `signals` and the prompt suffix rules
 
@@ -587,7 +587,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Manual
 
-- [ ] 5.4 The `prompt` returned for a `plan` step reads clearly: three rules, then the RESULT line with `signals`
+- [x] 5.4 The `prompt` returned for a `plan` step reads clearly: three rules, then the RESULT line with `signals`
 
 ### Phase 6: Docs and cross-file sync
 
@@ -602,9 +602,9 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 
 #### Manual
 
-- [ ] 6.7 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same rules (inputs, levels, skip, floor, budget)
+- [x] 6.7 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same rules (inputs, levels, skip, floor, budget)
 - [ ] 6.8 ADR-003 is readable as a skeleton: change 1 complete, changes 2 to 4 only listed
-- [ ] 6.9 PRD FR-002, FR-010 and Open Question 11 read consistently with the roadmap's S-03 text
+- [x] 6.9 PRD FR-002, FR-010 and Open Question 11 read consistently with the roadmap's S-03 text
 - [ ] 6.10 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (or the PR states it is unverified)
-- [ ] 6.11 The `change.md` scope bullet on signals matches the shipped `needsHuman` stop
-- [ ] 6.12 PRD FR-010 keeps its "halts for a human at the highest level" tail as a dated deferral
+- [x] 6.11 The `change.md` scope bullet on signals matches the shipped `needsHuman` stop
+- [x] 6.12 PRD FR-010 keeps its "halts for a human at the highest level" tail as a dated deferral
