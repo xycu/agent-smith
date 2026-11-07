@@ -1,6 +1,6 @@
 # ADR-011: Route reviews on open findings, halt on a pending owner decision, and add an opt-in confirmation round
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (owner, 2026-11-07)
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `review-open-findings`; the repository owner confirms or changes the readings below
 - **Origin:** change `review-open-findings` (`context/changes/review-open-findings/change.md`, `plan.md` and `reviews/plan-review.md`). It changes the `REVISE` and `NEEDS ATTENTION` gates of `decide` (ADR-003, ADR-001) and leaves `RETHINK`, `REJECTED`, the frame round and the research round as they were.
