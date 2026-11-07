@@ -308,8 +308,8 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Manual
 
-- [ ] 1.5 `init` and `status` against a scratch change folder print valid JSON, and `status` shows `review` on a review row that has Decision lines.
-- [ ] 1.6 The parser reads the round-4 `reviews/plan-review.md` of the archived `worktree-step-commits` change (copied into a scratch project) as 0 open critical and 0 open warnings.
+- [x] 1.5 `init` and `status` against a scratch change folder print valid JSON, and `status` shows `review` on a review row that has Decision lines.
+- [x] 1.6 The parser reads the round-4 `reviews/plan-review.md` of the archived `worktree-step-commits` change (copied into a scratch project) as 0 open critical and 0 open warnings.
 
 ### Phase 2: Route on open findings and make the Decision lines reliable
 
@@ -322,8 +322,8 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Manual
 
-- [ ] 2.5 A scratch run whose plan review is `REVISE` with one critical marked `APPLIED` goes from `plan-review` to `implement` in one `next` call, and with that critical `PENDING` halts with a readable message naming `F1`.
-- [ ] 2.6 The halt message is understandable without reading the code (owner-facing wording check).
+- [x] 2.5 A scratch run whose plan review is `REVISE` with one critical marked `APPLIED` goes from `plan-review` to `implement` in one `next` call, and with that critical `PENDING` halts with a readable message naming `F1`.
+- [x] 2.6 The halt message is understandable without reading the code (owner-facing wording check).
 
 ### Phase 3: Confirmation round
 
@@ -337,8 +337,8 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Manual
 
-- [ ] 3.6 With `{"review":{"confirmRounds":{"standard":1}}}` in a scratch override, a `REVISE` review that applied its only critical returns a `plan-review` step with template `plan-review-confirm` at the next `next`, and the prompt names the confirmation round.
-- [ ] 3.7 The confirm prompts read as instructions a subagent can follow without the review skill's questions.
+- [x] 3.6 With `{"review":{"confirmRounds":{"standard":1}}}` in a scratch override, a `REVISE` review that applied its only critical returns a `plan-review` step with template `plan-review-confirm` at the next `next`, and the prompt names the confirmation round.
+- [x] 3.7 The confirm prompts read as instructions a subagent can follow without the review skill's questions.
 
 ### Phase 4: Surface the counts and update the docs
 
@@ -352,5 +352,5 @@ None. One more regex pass over a review file that the router already reads on ev
 
 #### Manual
 
-- [ ] 4.6 README, `SKILL.md` and ADR-011 describe the same gates and the same defaults.
-- [ ] 4.7 `status --report` on a scratch run with Decision-bearing reviews prints the `## Review findings` section.
+- [x] 4.6 README, `SKILL.md` and ADR-011 describe the same gates and the same defaults.
+- [x] 4.7 `status --report` on a scratch run with Decision-bearing reviews prints the `## Review findings` section.
