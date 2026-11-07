@@ -53,7 +53,7 @@ At `lean`, a fresh plan skips plan-review, but only when risk was measured (sour
 
 ### Step budget
 
-The budget is `limits.maxTotalSteps` plus `rigor.budgetDelta` for the level (-4, +2, +7; change 3 raised the last two from 0 and +4, see "Phase executors and manual verification"), at least 1. Skip entries use none.
+The budget is `limits.maxTotalSteps` plus `rigor.budgetDelta` for the level (-4, +2, +7; change 3 raised the last two from 0 and +4, see "Phase executors and manual verification"), at least 1. Skip entries use none. Current values are -2, +5 and +10, so the budgets are 12, 19 and 24 (ADR-012 moved them; the numbers in this ADR are the ones at the time of each change).
 
 ### Effort floor
 
@@ -360,7 +360,7 @@ An attempt with zero ticks is `done`. A failed attempt is a neutral fallback ent
 
 ### Budget
 
-`rigor.budgetDelta` becomes -4 (`lean`, the same value as before), +2 and +7, so the budgets are 10, 16 and 21. The delta is the smallest at which the longest legal path of each level completes with one failed step and its retry to spare. A test lets the router walk saturating fixtures at each level and asserts `longest path === maxTotalSteps + delta - 2`; a second walk with every pool allowance raised by one must exceed it, so a policy that raises a pool without raising the delta fails the first test.
+`rigor.budgetDelta` becomes -4 (`lean`, the same value as before), +2 and +7, so the budgets are 10, 16 and 21 (ADR-012 later set -2, +5 and +10: 12, 19 and 24). The delta is the smallest at which the longest legal path of each level completes with one failed step and its retry to spare. A test lets the router walk saturating fixtures at each level and asserts `longest path === maxTotalSteps + delta - 2`; a second walk with every pool allowance raised by one must exceed it, so a policy that raises a pool without raising the delta fails the first test.
 
 | Level | Longest legal path (executed steps) | Steps | Budget |
 | --- | --- | --- | --- |
