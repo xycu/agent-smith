@@ -520,7 +520,7 @@ Existing `meta.json` files have no `archive` key and behave as before. The re-en
 
 - [x] 4.8 End to end on a throwaway git repo with a trivial change: `/agent-smith:10x-pipeline demo "fix typo" --archive` ends with commits `chore(demo): commit change folder before archive` and `chore(archive): close demo`, `verify-archive demo` prints `archived: true`, and `context/archive/<date>-demo/agent-smith/report.md` exists
 - [x] 4.9 In that run the archive subagent, which has no question tool and so takes the skill's plain-text path, answered the warnings prompt with `Continue archiving` (pending Manual rows trigger it), did not stop with `blocked` and ended with a `RESULT:` line; its `assumptions` and the pending Manual rows appear in the final message and the Manual rows in the archived `report.md`. The throwaway repo has no remote and an unmerged branch, and the Progress rows carry SHA suffixes from the implement step (if they do not, add one by hand before the run), so the run also exercises the SHA history check: the subagent did not ask the user to identify a remote, branch or commit, and its `assumptions` carry the SHA diagnostics
-- [ ] 4.10 A second run with a deliberately staged file halts before any commit and the output says the run was not archived
+- [x] 4.10 A second run with a deliberately staged file halts before any commit and the output says the run was not archived
 - [x] 4.11 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same sequence (pre-checks, commit, clean check, action, verify)
 - [x] 4.12 PRD FR-008 and ADR-003 agree on the git decision
 - [x] 4.13 The S-09 row and item in `context/foundation/roadmap.md` say "commit the change folder" and nothing else in that file changed except the `planning` status
