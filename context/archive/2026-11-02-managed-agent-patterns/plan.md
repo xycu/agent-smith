@@ -352,8 +352,8 @@ None for data. A run started before this change has no `provenance`; it is read 
 
 #### Manual
 
-- [ ] 2.8 Live check 1: install the plugin from this branch, set `agents.restricted: true` in a scratch project override, run a `standard` pipeline; the score step starts as `agent-smith:score` and writes a valid `complexity.json`. If the type does not resolve, record the Agent error text and correct `agents.steps.score`
-- [ ] 2.9 Live check 2: in that restricted run the subagent cannot call `Bash`, `Edit` or an MCP tool; record the observed behavior for MCP tools in ADR-009 (the docs describe only the background case)
+- [x] 2.8 Live check 1: install the plugin from this branch, set `agents.restricted: true` in a scratch project override, run a `standard` pipeline; the score step starts as `agent-smith:score` and writes a valid `complexity.json`. If the type does not resolve, record the Agent error text and correct `agents.steps.score` — live run 2026-11-08 in a scratch project: step 1 ran as `agent-smith:score`, the type resolved, the subagent wrote a `complexity.json` the router verified, then returned `plan`; recorded in ADR-009 (plugin 0.7.0 from the plugin cache, not a branch)
+- [x] 2.9 Live check 2: in that restricted run the subagent cannot call `Bash`, `Edit` or an MCP tool; record the observed behavior for MCP tools in ADR-009 (the docs describe only the background case) — probe of the same agent type 2026-11-08: it reported only Read, Write, Grep, Glob and the hand-back tool, no Bash, Edit or mcp__ tool (self-report, background case); recorded in ADR-009
 - [x] 2.10 The README restricted-agents text and the `AGENTS.md` and README layout lists read correctly
 
 ### Phase 3: Opt-in advisor and ADR-009
