@@ -77,9 +77,9 @@ Prompt rules follow ADR-004.
 
 Change 4 (`archive-adapter`, roadmap S-09) lets a finished run commit its change folder and archive the change through `/10x-archive`. `/10x-archive` stays unchanged. The adapter is opt-in: `init <id> --archive` stores `archive: true` in `meta.json`, a resume keeps it and `--archive false` turns it off.
 
-Git facts. The router already reads git: `rev-parse HEAD` for `baseSha`, and `log` and `diff` for churn risk (see "Churn risk"). With `--archive` it also writes, which is its first git write. At `done` it commits the whole `context/changes/<id>/` folder, including `agent-smith/`, as `chore(<id>): commit change folder before archive`. This settles the FR-008 deferral ("git handling is decided downstream"). Without the flag the router writes nothing to git.
+Git facts. The router already reads git: `rev-parse HEAD` for `baseSha`, and `log` and `diff` for churn risk (see "Churn risk"). With `--archive` it also writes, which is its first git write. At `done` it commits the whole `context/changes/<id>/` folder, including `agent-smith/`, as `chore(<id>): commit change folder before archive`. This settles the FR-008 deferral ("git handling is decided downstream"). Without the flag the router writes nothing to git. ADR-010 amends this: a run in its own worktree (`meta.isolated`) also makes start and step commits and rolls a failed step back.
 
-- The router's git writes are limited to `git add` and `git commit` on the change folder and a `git reset` of its own add after a failure. The only `-c` option is the display setting `core.quotePath=false`, so hooks, signing and identity are the caller's. It never passes `--no-verify` and never pushes.
+- The router's git writes are limited to `git add` and `git commit` on the change folder and a `git reset` of its own add after a failure. The only `-c` option is the display setting `core.quotePath=false`, so hooks, signing and identity are the caller's. It never passes `--no-verify` and never pushes. This list holds for a run that is not isolated; ADR-010 adds the writes of an isolated run.
 - The commit lands on the current branch. Protected branches are not detected; a refused commit is a failed git command and halts.
 - The commit holds every file in the folder that git does not ignore. Ignored files outside the four probe files (`agent-smith/run.jsonl`, `meta.json`, `report.md` and `change.md`) are reported in the `archive` action, stay out of history, and still move with the folder. A probe file that git ignores is refused, at `init` and again at `done`.
 - Before the commit the router halts if anything is staged, HEAD is detached, a merge, rebase, cherry-pick or revert is in progress, `change.md` has no valid `created` (read as `/10x-archive` reads it, so the archive path matches the skill's destination), or the archive destination exists. `archive.haltOnManualPending` (default `false`) adds a halt for pending Manual rows.
@@ -118,7 +118,7 @@ Consequences of the adapter:
 
 Rules for the adapter:
 
-- **GIVEN** a run started without `--archive` **WHEN** the router reaches `done` **THEN** it **MUST NOT** run a git command that writes the index or history.
+- **GIVEN** a run started without `--archive` **WHEN** the router reaches `done` **THEN** it **MUST NOT** run a git command that writes the index or history. This rule holds for a run that is not isolated; ADR-010 amends it for an isolated run.
 - **GIVEN** `--archive` is set **WHEN** anything is staged, HEAD is detached or a merge or rebase is in progress **THEN** the router **MUST** halt before it commits.
 - **GIVEN** a git command fails during the pre-archive commit **WHEN** the router handles the failure **THEN** it **MUST** halt with the git message and skip the archive.
 - **GIVEN** the router commits the change folder **WHEN** a commit hook fails **THEN** the router **MUST NOT** pass `--no-verify`.
@@ -371,15 +371,17 @@ Superseded by ADR-012: the Chrome tools are on by default, `init <id> --chrome f
 | `standard` | plan loop of 6, implement, impl-review (`REJECTED`), `plan-rejected`, plan-review, implement, impl-review, fix, impl-review | 14 | 16 |
 | `thorough` | research, domain brief, frame, plan, review `RETHINK`, frame-rethink, plan-revise, review, plan-revise, review (10), `implement-segment`, `implement-e2e`, `implement-tdd`, plain tail (4), then 5 | 19 | 21 |
 | `thorough` | the same 10, implement, `manual-verify`, impl-review (`REJECTED`), `plan-rejected`, plan-review, implement, impl-review, fix, impl-review | 19 | 21 |
-| `lean` | keeps its path and budget until a failure raises the rigor to `standard`: while the level is `lean` the pool is empty, so no extra step exists; after the rise the `standard` rows apply | as before | 10 |
+| `lean` | keeps its path and budget until a failure raises the rigor to `standard`: while the level is `lean` the pool is empty, so no pool step exists (ADR-012 adds `manual-verify` at `lean`, outside the pool); after the rise the `standard` rows apply | as before | 10 |
 
-Failure paths are not part of the reference set. A path with a failed plan loop, two failed implement steps and a re-plan still ends in `Step budget spent` by design, as it did before. One failure path is proved to fit at `standard`: plan, plan-review, implement failed twice, `plan-replan`, plan-review, implement, `manual-verify`, impl-review, fix, impl-review (11 steps of 16).
+The table is the change 3 history. ADR-012 sets the current figures: budgets of 12, 19 and 24, and longest failure-free paths of 10, 17 and 22 steps (README, "Budget").
+
+Failure paths are not part of the reference set. A path with a failed plan loop, two failed implement steps and a re-plan still ends in `Step budget spent` by design, as it did before. One failure path is proved to fit at `standard`: plan, plan-review, implement failed twice, `plan-replan`, plan-review, implement, `manual-verify`, impl-review, fix, impl-review (11 steps of 16 at change 3; with ADR-012 it is 12 steps of 19).
 
 A project that overrides `rigor.budgetDelta` keeps its values. With a pool allowance above 0 and an old delta, the budget can halt a run that uses extras.
 
 ### Baseline comparison gap
 
-`baseline-policy.json` is not changed, because `compare.test.mjs` pins its keys. The baseline arm therefore runs the same defaults, including segments, `manual-verify` and the re-plans, unless the user adds an override by hand (the README has the text). `compare` does not warn when the two arms differ in these features.
+`baseline-policy.json` is not changed, because `compare.test.mjs` pins its keys. The baseline arm therefore runs the same defaults, including segments, `manual-verify` and the re-plans, unless the user adds an override by hand (the README has the text). At the time of change 3 `compare` did not warn when the two arms differed in these features; with a provenance record (ADR-009) it warns `provenance-differs:<sections>`.
 
 ### Assumptions that carry a cost (change 3)
 
@@ -392,7 +394,7 @@ Decided without a human. Each is overridable in `context/foundation/agent-smith-
 | 3 | A ticked Manual row needs a valid evidence file; the content is not read; unproven ticks are listed, not undone. | Medium: reading evidence or undoing ticks needs the router to edit `plan.md`, which it never does. |
 | 4 | The strict commit check covers `implement-tdd`, `implement-e2e` and the retry; plain `implement` and `implement-segment` keep the count rule. | Medium: a commit check on goal-implement plus a policy escape. |
 | 5 | Commit evidence is a commit in `before.head..HEAD` that touched a path outside the change folder and the exclude globs; an amend or a rewriting hook reads as a failure and goes through the retry. | Low: one function. |
-| 6 | The re-plan triggers at two trailing implement failures or at a first `REJECTED` review, shares one cap, costs a fix loop and a halt follows a failed `plan-replan`. | Low: data (`codeReplan`). |
+| 6 | The re-plan triggers at two trailing implement failures or at a first `REJECTED` review, shares one cap, a `plan-rejected` re-plan costs a fix loop (a `plan-replan` does not) and a halt follows a failed `plan-replan`. | Low: data (`codeReplan`). |
 | 7 | E2E has no rigor gate but needs pool allowance, so a run that stays at `lean` runs no executor (one that rises to `standard` gets the pool from then on); tdd is gated at `thorough`. | Low: data. |
 | 8 | One pool replaces a cap per feature; a segment the pool cannot follow with its special executor is not started. | Low: data; a larger pool needs a larger delta, which the test derives. |
 | 9 | The deltas are +2 and +7. Superseded by ADR-012: -2, +5 and +10. | Low: data. |
