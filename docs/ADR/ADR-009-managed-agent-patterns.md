@@ -1,6 +1,6 @@
 # ADR-009: Record run provenance, opt in to tool-restricted step agents and to an advisor prompt rule, and keep the router a script
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending)
 - **Date:** 2026-11-02
 - **Deciders:** unattended pipeline run of change `managed-agent-patterns`; the repository owner confirms or changes the readings below
 - **Origin:** change `managed-agent-patterns` (`context/changes/managed-agent-patterns/change.md`, `plan.md` and `research.md`). Three patterns from the Managed Agents docs, adapted to a local Claude Code plugin: run provenance, tool-restricted agents and the advisor.
@@ -13,7 +13,7 @@
 - Claude Code has a native advisor: a server-side tool configured by the user's `advisorModel` setting, the `--advisor` flag or `/advisor`. Subagents inherit it and apply the same pairing check against their own model. No setting caps or forces its calls, and a plugin cannot turn it on: the plugin manifest `settings` key honors only `agent` and `subagentStatusLine`, and agent frontmatter has no advisor field (`research.md`, Phase 3).
 - The advisor pairing rule: the advisor ranks at or above the model of the session or subagent. Claude Code attaches no advisor that ranks below it, with no error.
 - Nothing read during research says whether a subagent's reported `totalTokens` includes the advisor's tokens. `compare` sums those figures, so an advisor arm could look cheaper than it is.
-- The run was unattended. Every decision here is evidence-backed and was listed as an assumption of the step that took it; the owner has not read them yet.
+- The run was unattended. Every decision here is evidence-backed and was listed as an assumption of the step that took it; the owner read them and confirmed them on 2026-11-08.
 
 ## Decision
 

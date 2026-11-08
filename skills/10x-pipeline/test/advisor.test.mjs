@@ -556,7 +556,7 @@ test("3.6 ADR-009 rule lines follow the rule form and the decision rules are fix
   });
   assert.ok(rules.length >= 12, `ADR-009 has its rule lines (${rules.length})`);
   for (const line of rules) assert.deepEqual(ruleProblems(line), [], line);
-  assert.match(adr, /^- \*\*Status:\*\* Proposed/m);
+  assert.match(adr, /^- \*\*Status:\*\* Accepted/m);
   for (const heading of ["## Context", "## Decision", "## Consequences", "## Alternatives considered", "## Live checks", "### A/B result"]) {
     assert.ok(adr.split("\n").includes(heading), heading);
   }
