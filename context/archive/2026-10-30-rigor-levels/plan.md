@@ -552,7 +552,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 #### Manual
 
 - [x] 2.4 In a scratch change folder, `init <id> --goal "fix typo"` returns a `run` for `plan` and the tier text mentions the effort floor; `status` shows the rigor level and `meta.json` holds `rigor`
-- [ ] 2.5 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (`npx` fetches a run-time Node, not a repo dependency). If Node 18 cannot be run, record the status as unverified in the PR — obsolete: Node 18 is no longer supported (ADR-006, floor Node 24); the suite fails on Node 18, so this check is not run
+- [x] 2.5 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (`npx` fetches a run-time Node, not a repo dependency). If Node 18 cannot be run, record the status as unverified in the PR — obsolete: Node 18 is no longer supported (ADR-006, floor Node 24); the suite fails on Node 18, so this check is not run
 
 ### Phase 3: Churn risk paths
 
@@ -564,7 +564,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 #### Manual
 
 - [x] 3.3 `node skills/10x-pipeline/scripts/route.mjs risk rigor-levels` on this repo lists `route.mjs` and `policy.json` among the hot paths and no `context/**` or `*.md` path (counts differ from the research dry run because the history moved)
-- [ ] 3.4 The churn tests pass on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/churn.test.mjs` (unverified status goes into the PR if Node 18 cannot be run) — obsolete: Node 18 is no longer supported (ADR-006, floor Node 24); the suite fails on Node 18, so this check is not run
+- [x] 3.4 The churn tests pass on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/churn.test.mjs` (unverified status goes into the PR if Node 18 cannot be run) — obsolete: Node 18 is no longer supported (ADR-006, floor Node 24); the suite fails on Node 18, so this check is not run
 
 ### Phase 4: Skip entries and the `lean` plan-review skip
 
@@ -603,8 +603,8 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 #### Manual
 
 - [x] 6.7 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same rules (inputs, levels, skip, floor, budget)
-- [ ] 6.8 ADR-003 is readable as a skeleton: change 1 complete, changes 2 to 4 only listed — superseded: ADR-003 now describes changes 1 to 5, so the skeleton state this row checks no longer exists
+- [x] 6.8 ADR-003 is readable as a skeleton: change 1 complete, changes 2 to 4 only listed — superseded: ADR-003 now describes changes 1 to 5, so the skeleton state this row checks no longer exists
 - [x] 6.9 PRD FR-002, FR-010 and Open Question 11 read consistently with the roadmap's S-03 text
-- [ ] 6.10 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (or the PR states it is unverified) — obsolete: Node 18 is no longer supported (ADR-006, floor Node 24); the suite fails on Node 18, so this check is not run
+- [x] 6.10 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (or the PR states it is unverified) — obsolete: Node 18 is no longer supported (ADR-006, floor Node 24); the suite fails on Node 18, so this check is not run
 - [x] 6.11 The `change.md` scope bullet on signals matches the shipped `needsHuman` stop
 - [x] 6.12 PRD FR-010 keeps its "halts for a human at the highest level" tail as a dated deferral
