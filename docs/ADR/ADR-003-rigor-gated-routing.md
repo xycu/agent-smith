@@ -127,7 +127,7 @@ Rules for the adapter:
 
 ### PR comment
 
-Change 5 (`pr-comment-report`, roadmap S-05, PRD FR-005) lets a finished run post its `report.md` as a comment on the pull request. It is opt-in: the skill takes `--pr-comment`, and without it nothing is posted.
+The `pr-comment-report` change (roadmap S-05, PRD FR-005) lets a finished run post its `report.md` as a comment on the pull request. It is opt-in: the skill takes `--pr-comment`, and without it nothing is posted.
 
 Decision. A separate script, `skills/10x-pipeline/scripts/pr-comment.mjs`, does the work. The orchestrator runs it with Bash at the end of a run (`done`, `archive` before the move, `halt` with a `report`). The router stays free of network calls, and `policy.json` has no new key. The flag is not stored in `meta.json`: the orchestrator keeps it as a task named `PR comment: <change-id>` and reads it at each end of the run, so it cannot leak to another run or change, and a missing task tool means no post.
 
@@ -259,7 +259,7 @@ Pre-plan and loop steps count against the budget; skips do not. The reference pa
 | `standard` | plan, review, two re-plans each with a review, implement, impl review, two fix rounds each with an impl review | 12 | 14 | 1 |
 | `thorough` | research, domain brief, frame, plan, review `RETHINK`, frame-rethink, plan-revise, review `REVISE`, plan-revise, review `SOUND`, implement, impl review, two fix rounds each with an impl review | 16 | 18 | 1 |
 
-At the time of this change `rigor.budgetDelta` and `limits` did not change (change 3 later raised the deltas, so the budgets are now 16 and 21; the section "Phase executors and manual verification" has the current table). The thorough path with `research-revise` in place of the frame round is also 16. The standard path is today's, because the loops are gated at `thorough`. A project that lowers a gate or `loops.minRigor` to `standard` has a standard worst path of 13 and, at the old delta of 0, no failure tolerance; the delta of 2 from change 3 covers it. `lean` is not covered: its budget of 10 already could not hold the 12-step path when plan review runs, and this change leaves that as it was.
+At the time of this change `rigor.budgetDelta` and `limits` did not change (change 3 later raised the deltas, so the budgets were then 16 and 21, and ADR-012 set them to 19 and 24; the section "Phase executors and manual verification" has the change 3 table and ADR-012 the current paths). The thorough path with `research-revise` in place of the frame round is also 16. The standard path is today's, because the loops are gated at `thorough`. A project that lowers a gate or `loops.minRigor` to `standard` has a standard worst path of 13 and, at the old delta of 0, no failure tolerance; the delta of 2 from change 3 covers it. `lean` is not covered: its budget of 10 already could not hold the 12-step path when plan review runs, and this change leaves that as it was.
 
 ### Assumptions that carry a cost
 
@@ -308,10 +308,10 @@ One pool per level replaces a cap per feature. Every executed entry spends its c
 | Level | Allowance | Cost 1 each | Cost 2 |
 | --- | --- | --- | --- |
 | `lean` | 0 | | |
-| `standard` | 2 | `implement-segment`, `implement-e2e`, `implement-tdd`, `manual-verify` | `plan-rejected` |
+| `standard` | 2 | `implement-segment`, `implement-e2e`, `implement-tdd` | `plan-rejected` |
 | `thorough` | 3 | the same | the same |
 
-With a pool of 2 at `standard`, two segments, a segment and `manual-verify`, or the `REJECTED` re-plan each use all of it, so the three cannot add up. Without the pool the same features would sum to 17 steps at `standard` and 21 at `thorough`.
+With a pool of 2 at `standard`, two segments or the `REJECTED` re-plan each use all of it, so they cannot add up. `manual-verify` is outside the pool (ADR-012): it charges nothing, and a pool of 0 does not keep it away. At the time of change 3 `manual-verify` was in the pool, and without the pool the same features would have summed to 17 steps at `standard` and 21 at `thorough`.
 
 ### Strict verification and fallback
 
@@ -340,7 +340,7 @@ Two triggers run the `plan` step with a new template, at rigor `standard` or abo
 - **GIVEN** the first implementation review returns `REJECTED` before any fix step and the pool holds 2 **WHEN** the router picks the next step **THEN** the router **MUST** run `plan` with the template `plan-rejected`.
 - **GIVEN** a `plan-replan` step fails **WHEN** the router handles the result **THEN** the router **MUST** halt the run.
 
-A re-plan counts against the step budget and uses one of the `maxFixLoops`. A `REJECTED` review after a fix keeps today's path, which is another fix. Plan review follows a re-plan like any other plan. Order: the failure re-plan fires at exactly two trailing implement failures and costs nothing from the pool, so when those failures left rows ticked without a commit it takes the turn of the one `implement-retry`, and a failed re-plan then halts the run in a case where the retry would have fitted. This follows the plan and is recorded, not changed.
+A re-plan counts against the step budget. A `plan-rejected` re-plan also counts as one fix loop against `maxFixLoops`; a `plan-replan` does not. A `REJECTED` review after a fix keeps today's path, which is another fix. Plan review follows a re-plan like any other plan. Order: the failure re-plan fires at exactly two trailing implement failures and costs nothing from the pool, so when those failures left rows ticked without a commit it takes the turn of the one `implement-retry`, and a failed re-plan then halts the run in a case where the retry would have fitted. This follows the plan and is recorded, not changed.
 
 ### Manual verification
 
