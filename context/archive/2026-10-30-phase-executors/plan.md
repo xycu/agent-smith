@@ -818,5 +818,5 @@ Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkb
 
 #### Manual
 
-- [ ] 6.11 A reviewer reads ADR-003, `SKILL.md` and `README.md` side by side and confirms they describe the same executor, fallback, re-plan, manual-verify and budget rules.
+- [x] 6.11 A reviewer reads ADR-003, `SKILL.md` and `README.md` side by side and confirms they describe the same executor, fallback, re-plan, manual-verify and budget rules. — reviewed on main after #47 by a fresh reviewer pass: no contradiction between ADR-003, SKILL.md and README.md on executors, fallback, re-plans, manual-verify and budget (review of 2026-11-08)
 - [x] 6.12 A full router-driven pipeline run on a scratch project (a mixed plan, `--chrome` off) ends `done` with the step log showing the segment templates and the `manual-verify` step. Record the step list in the Progress row.
