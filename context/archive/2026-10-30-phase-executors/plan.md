@@ -737,7 +737,7 @@ Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkb
 
 #### Manual
 
-- [ ] 3.10 Run `/10x-tdd` unattended at `--rigor thorough` in a scratch project with a test runner and one pure-logic phase, through the router: the tdd step stops after its phase, never picks "Skip", commits, or ends `blocked`. Record the result in the Progress row.
+- [x] 3.10 Run `/10x-tdd` unattended at `--rigor thorough` in a scratch project with a test runner and one pure-logic phase, through the router: the tdd step stops after its phase, never picks "Skip", commits, or ends `blocked`. Record the result in the Progress row.
 
 ### Phase 4: Re-plan after repeated failures or REJECTED
 
@@ -787,7 +787,7 @@ Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkb
 
 #### Manual
 
-- [ ] 5.11 Run a router-driven `manual-verify` step with `--chrome` on a scratch plan with one browser-checkable Manual row and a connected Chrome extension: confirm the subagent loads the Chrome tools, ticks the row with an evidence suffix and a file under `context/changes/<id>/evidence/`. Record the outcome in the Progress row.
+- [x] 5.11 Run a router-driven `manual-verify` step with `--chrome` on a scratch plan with one browser-checkable Manual row and a connected Chrome extension: confirm the subagent loads the Chrome tools, ticks the row with an evidence suffix and a file under `context/changes/<id>/evidence/`. Record the outcome in the Progress row.
 - [ ] 5.12 Run the same step with no Chrome extension connected: confirm it ends `done` with zero ticks and no hang.
 - [ ] 5.13 Run a router-driven `manual-verify` step without `--chrome` on a plan whose Manual row a shell command can prove: confirm one tick with an evidence suffix and that a row needing a person stays pending.
 
@@ -819,4 +819,4 @@ Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkb
 #### Manual
 
 - [ ] 6.11 A reviewer reads ADR-003, `SKILL.md` and `README.md` side by side and confirms they describe the same executor, fallback, re-plan, manual-verify and budget rules.
-- [ ] 6.12 A full router-driven pipeline run on a scratch project (a mixed plan, `--chrome` off) ends `done` with the step log showing the segment templates and the `manual-verify` step. Record the step list in the Progress row.
+- [x] 6.12 A full router-driven pipeline run on a scratch project (a mixed plan, `--chrome` off) ends `done` with the step log showing the segment templates and the `manual-verify` step. Record the step list in the Progress row.
