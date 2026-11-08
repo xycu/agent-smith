@@ -1,6 +1,6 @@
 # ADR-010: Run every change in its own worktree, commit each step, roll back a failed step, and make the first implement attempt cheaper
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending)
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `worktree-step-commits`; the repository owner confirms or changes the readings below
 - **Origin:** change `worktree-step-commits` (`context/changes/worktree-step-commits/change.md`, `plan.md`, `research.md` and `reviews/plan-review.md`). It widens the router's git-write rule in `AGENTS.md` (Hard Rules), which before this change allowed only the pre-archive commit of ADR-003 ("Archive adapter"). That commit is unchanged.
@@ -13,7 +13,7 @@
 - The ladder had 7 rungs, with no Opus rung below `high` effort. A move up from `sonnet/high` went straight to `opus/high`.
 - The project counts Opus tokens as cost (`prd.md`, README "Baseline comparison", the scorer A/B rule of ADR-007). The first implement attempt ran on the base tier although a failed attempt is retried one tier up anyway.
 - A subagent starts in the main conversation's working directory, and a subagent never carries a `cd` over. Claude Code resets the main shell after a `cd` outside the project directory, and the Bash sandbox writes only under the working directory (research F1).
-- The run was unattended. Every decision here is evidence-backed and was listed as an assumption of the step that took it; the owner has not read them yet.
+- The run was unattended. Every decision here is evidence-backed and was listed as an assumption of the step that took it; the owner read them and confirmed them on 2026-11-08.
 
 ## Decision
 
