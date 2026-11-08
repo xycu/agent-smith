@@ -460,7 +460,7 @@ Decisions on `reviews/impl-review.md`, taken without a human. Fixed items change
 
 #### Manual
 
-- [ ] 1.9 Live read-only check, run by a human: a branch with no PR skips with `no pull request for this branch` (`GH_LIVE=1`, test reports `ok`, not `skipped`)
+- [x] 1.9 Live read-only check, run by a human: a branch with no PR skips with `no pull request for this branch` (`GH_LIVE=1`, test reports `ok`, not `skipped`)
 
 ### Phase 2: Create or update the comment
 
@@ -475,7 +475,7 @@ Decisions on `reviews/impl-review.md`, taken without a human. Fixed items change
 
 #### Manual
 
-- [ ] 2.9 Live projection check, run by a human: the real `gh --jq` output over a 183-comment issue is one parseable object per line (`GH_LIVE=1`, test reports `ok`, not `skipped`)
+- [x] 2.9 Live projection check, run by a human: the real `gh --jq` output over a 183-comment issue is one parseable object per line (`GH_LIVE=1`, test reports `ok`, not `skipped`)
 
 ### Phase 3: Wire the flag into the loop and document it
 
@@ -503,10 +503,10 @@ Decisions on `reviews/impl-review.md`, taken without a human. Fixed items change
 
 #### Manual
 
-- [ ] 4.4 First run on a throwaway open PR creates one marker comment and the tables render
-- [ ] 4.5 Second run updates the same comment and creates no new one
-- [ ] 4.6 The human's own last comment is not touched
-- [ ] 4.9 A body written with `-F body=@file` arrives byte for byte
+- [x] 4.4 First run on a throwaway open PR creates one marker comment and the tables render
+- [x] 4.5 Second run updates the same comment and creates no new one
+- [x] 4.6 The human's own last comment is not touched
+- [x] 4.9 A body written with `-F body=@file` arrives byte for byte
 - [ ] 4.11 Fine-grained token permission recorded in the README; integration token without `/user` updates with `match: "marker-only"`
 - [ ] 4.12 A real pipeline run with `--pr-comment`, and with `--archive --pr-comment`, posts before the archive step and adds no file to the archived folder
-- [ ] 4.16 Live read-only checks pass again at the end of the change, run by a human (`GH_LIVE=1`, both live tests report `ok`, none `skipped`)
+- [x] 4.16 Live read-only checks pass again at the end of the change, run by a human (`GH_LIVE=1`, both live tests report `ok`, none `skipped`)
