@@ -356,6 +356,8 @@ An attempt with zero ticks is `done`. A failed attempt is a neutral fallback ent
 
 ### `--chrome`
 
+Superseded by ADR-012: the Chrome tools are on by default, `init <id> --chrome false` stores `false` and selects the template `manual-verify-nochrome`, and `--chrome` or `--chrome true` changes nothing in effect. The text below is the change 3 history.
+
 `init <id> --chrome` stores `chrome: true` in `meta.json`; a resume keeps it and `--chrome false` clears it. It selects the template `manual-verify-chrome`, whose prompt tells the subagent to load the `mcp__claude-in-chrome__*` tools through ToolSearch and to leave the row unticked and finish `done` when they are unavailable. The orchestrator does not probe for the tools. A subagent saw the tools as deferred; no call was tested.
 
 ### Budget
@@ -386,18 +388,18 @@ Decided without a human. Each is overridable in `context/foundation/agent-smith-
 | Decision | Assumption | Cost to reverse |
 | --- | --- | --- |
 | 1 | `--chrome` is an `init` flag stored in `meta.json`; the orchestrator does not probe tools; Chrome use in a subagent is untested. Superseded by ADR-012: Chrome is on by default and `--chrome false` turns it off. | Low: remove the flag and the chrome template. |
-| 2 | `manual-verify` runs from `standard`, once (`maxRuns` 1), at most two attempts, zero ticks is `done`, a failed attempt is neutral. | Low: data. |
+| 2 | `manual-verify` runs from `standard`, once (`maxRuns` 1), at most two attempts, zero ticks is `done`, a failed attempt is neutral. Superseded by ADR-012: it runs at every rigor level and has no `maxRuns`. | Low: data. |
 | 3 | A ticked Manual row needs a valid evidence file; the content is not read; unproven ticks are listed, not undone. | Medium: reading evidence or undoing ticks needs the router to edit `plan.md`, which it never does. |
 | 4 | The strict commit check covers `implement-tdd`, `implement-e2e` and the retry; plain `implement` and `implement-segment` keep the count rule. | Medium: a commit check on goal-implement plus a policy escape. |
 | 5 | Commit evidence is a commit in `before.head..HEAD` that touched a path outside the change folder and the exclude globs; an amend or a rewriting hook reads as a failure and goes through the retry. | Low: one function. |
 | 6 | The re-plan triggers at two trailing implement failures or at a first `REJECTED` review, shares one cap, costs a fix loop and a halt follows a failed `plan-replan`. | Low: data (`codeReplan`). |
 | 7 | E2E has no rigor gate but needs pool allowance, so a run that stays at `lean` runs no executor (one that rises to `standard` gets the pool from then on); tdd is gated at `thorough`. | Low: data. |
 | 8 | One pool replaces a cap per feature; a segment the pool cannot follow with its special executor is not started. | Low: data; a larger pool needs a larger delta, which the test derives. |
-| 9 | The deltas are +2 and +7. | Low: data. |
+| 9 | The deltas are +2 and +7. Superseded by ADR-012: -2, +5 and +10. | Low: data. |
 | 10 | A fallback entry neither counts nor ends a failure streak. | Low: one helper. |
 | 11 | Row words, extension lists, test words, command words and human words are uncalibrated. | Low: data. |
 | 12 | A live tdd, e2e or goal-implement run, a real E2E project, any Chrome call and a segment that stops after its last phase are not verified. | n/a: Manual rows cover them. |
-| 13 | A plan whose Progress headings are not `### Phase N` gets no phase list and plain routing; `--chrome` at `lean` is stored and ignored. | Low. |
+| 13 | A plan whose Progress headings are not `### Phase N` gets no phase list and plain routing; `--chrome` at `lean` is stored and ignored. Superseded by ADR-012: Chrome is on by default and `manual-verify` runs at `lean`. | Low. |
 | 14 | `baseline-policy.json` stays as it is, so the baseline arm runs the new defaults unless the user overrides them. | Medium: edit `compare.test.mjs` and the baseline file together, or add a `compare` warning. |
 | 15 | The retry runs once; a retry that ends without a commit is a neutral fallback and the review prompt warns. | Low: data (`retry.max`). |
 
