@@ -603,7 +603,7 @@ Revised after `reviews/plan-review.md` (verdict REVISE, 2026-10-30). All finding
 #### Manual
 
 - [x] 6.7 `SKILL.md`, `README.md`, ADR-003 and `route.mjs` describe the same rules (inputs, levels, skip, floor, budget)
-- [ ] 6.8 ADR-003 is readable as a skeleton: change 1 complete, changes 2 to 4 only listed
+- [ ] 6.8 ADR-003 is readable as a skeleton: change 1 complete, changes 2 to 4 only listed — superseded: ADR-003 now describes changes 1 to 5, so the skeleton state this row checks no longer exists
 - [x] 6.9 PRD FR-002, FR-010 and Open Question 11 read consistently with the roadmap's S-03 text
 - [ ] 6.10 The whole suite passes on Node 18: `npx -y node@18 --test skills/10x-pipeline/test/*.test.mjs` (or the PR states it is unverified) — obsolete: Node 18 is no longer supported (ADR-006, floor Node 24); the suite fails on Node 18, so this check is not run
 - [x] 6.11 The `change.md` scope bullet on signals matches the shipped `needsHuman` stop

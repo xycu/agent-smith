@@ -789,7 +789,7 @@ Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkb
 
 - [x] 5.11 Run a router-driven `manual-verify` step with `--chrome` on a scratch plan with one browser-checkable Manual row and a connected Chrome extension: confirm the subagent loads the Chrome tools, ticks the row with an evidence suffix and a file under `context/changes/<id>/evidence/`. Record the outcome in the Progress row.
 - [ ] 5.12 Run the same step with no Chrome extension connected: confirm it ends `done` with zero ticks and no hang.
-- [ ] 5.13 Run a router-driven `manual-verify` step without `--chrome` on a plan whose Manual row a shell command can prove: confirm one tick with an evidence suffix and that a row needing a person stays pending.
+- [ ] 5.13 Run a router-driven `manual-verify` step without `--chrome` on a plan whose Manual row a shell command can prove: confirm one tick with an evidence suffix and that a row needing a person stays pending. — superseded by ADR-012: a row that needs a person is judged and ticked with `judgment-` evidence, not left pending, so this check is not met as written
 
 ### Phase 6: Budget from the longest legal path, report label, docs and scope gates
 
