@@ -508,5 +508,5 @@ Decisions on `reviews/impl-review.md`, taken without a human. Fixed items change
 - [x] 4.6 The human's own last comment is not touched
 - [x] 4.9 A body written with `-F body=@file` arrives byte for byte
 - [ ] 4.11 Fine-grained token permission recorded in the README; integration token without `/user` updates with `match: "marker-only"`
-- [ ] 4.12 A real pipeline run with `--pr-comment`, and with `--archive --pr-comment`, posts before the archive step and adds no file to the archived folder
+- [x] 4.12 A real pipeline run with `--pr-comment`, and with `--archive --pr-comment`, posts before the archive step and adds no file to the archived folder — live-pr-e (`--pr-comment`, PR #51 comment 6728061467, posted by the orchestrator); live-pr-d (`--archive --pr-comment`, comment 6728183737 posted before the archive subagent, archive 95c271a holds the same 7 files as before the move)
 - [x] 4.16 Live read-only checks pass again at the end of the change, run by a human (`GH_LIVE=1`, both live tests report `ok`, none `skipped`)
