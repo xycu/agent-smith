@@ -428,7 +428,7 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Manual
 
-- [ ] 3.4 The `Complexity score` section of a scratch run's `report.md` is clear enough to see why the plan and implement tiers moved
+- [x] 3.4 The `Complexity score` section of a scratch run's `report.md` is clear enough to see why the plan and implement tiers moved
 
 ### Phase 4: Budget, baseline arm, compare
 

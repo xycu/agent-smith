@@ -687,7 +687,7 @@ Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkb
 
 #### Manual
 
-- [ ] 1.10 A reviewer confirms by reading the diff that the router's git use in this phase is limited to `rev-parse`, `merge-base --is-ancestor` and `log` (not only the lines the smoke check 1.11 matches), and that `readPlan` kept every existing field type.
+- [x] 1.10 A reviewer confirms by reading the diff that the router's git use in this phase is limited to `rev-parse`, `merge-base --is-ancestor` and `log` (not only the lines the smoke check 1.11 matches), and that `readPlan` kept every existing field type.
 
 ### Phase 2: Phase list routing with `/10x-e2e`, segments and the retry
 
@@ -760,7 +760,7 @@ Decisions are also recorded in `reviews/impl-review.md`. No Progress row, checkb
 
 #### Manual
 
-- [ ] 4.11 A reviewer reads the `plan-replan` and `plan-rejected` prompts and confirms that each rule can be followed by a subagent that cannot ask questions.
+- [x] 4.11 A reviewer reads the `plan-replan` and `plan-rejected` prompts and confirms that each rule can be followed by a subagent that cannot ask questions.
 
 ### Phase 5: `manual-verify` step and `--chrome`
 

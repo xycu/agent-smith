@@ -491,7 +491,7 @@ Decisions on `reviews/impl-review.md`, taken without a human. Fixed items change
 
 #### Manual
 
-- [ ] 3.8 README and AGENTS.md read correctly next to the S-06 and S-07 edits if they have merged
+- [x] 3.8 README and AGENTS.md read correctly next to the S-06 and S-07 edits if they have merged
 
 ### Phase 4: Verify against a real pull request
 
