@@ -561,7 +561,8 @@ test("3.6 ADR-009 rule lines follow the rule form and the decision rules are fix
     assert.ok(adr.split("\n").includes(heading), heading);
   }
   assert.match(adr, /### A\/B result\n\nPending\./);
-  for (const check of ["Live check 1", "Live check 2", "Live check P0"]) assert.match(adr, new RegExp(`\\| ${check} \\|.*\\| Pending \\|`));
+  for (const check of ["Live check 1", "Live check 2"]) assert.match(adr, new RegExp(`\\| ${check} \\|.*\\| Done 2026-11-08`));
+  assert.match(adr, /\| Live check P0 \|.*\| Pending \|/);
   // The advisor rule: precondition P0 and the four conditions over at least 5 comparable pairs.
   assert.match(adr, /`totalTokens` includes the advisor's tokens\. If it does not, no advisor pair can be read and `advisor\.enabled` stays `false`/);
   assert.match(adr, /at least 5 comparable pairs/);

@@ -86,12 +86,12 @@ Rules, written as scenarios (the form of ADR-004):
 
 ## Live checks
 
-All pending. A human runs each check with the plugin installed from the branch and records the result here.
+Checks 1 and 2 are done; check P0 is pending. A human runs each check with the plugin installed from the branch and records the result here.
 
 | Check | What it settles | Result |
 | --- | --- | --- |
-| Live check 1 | With `agents.restricted: true` in a scratch project override, a `standard` run starts the `score` step as `agent-smith:score` and it writes a valid `complexity.json`. If the type does not resolve, record the Agent error text and correct `agents.steps.score`. | Pending |
-| Live check 2 | In that restricted run the subagent cannot call `Bash`, `Edit` or an MCP tool. Record the observed behavior for MCP tools in a foreground subagent; the docs describe only the background case. | Pending |
+| Live check 1 | With `agents.restricted: true` in a scratch project override, a `standard` run starts the `score` step as `agent-smith:score` and it writes a valid `complexity.json`. If the type does not resolve, record the Agent error text and correct `agents.steps.score`. | Done 2026-11-08 with plugin 0.7.0 from the plugin cache, scratch project, `standard` rigor: the router returned `agent: "agent-smith:score"` for step 1 and logged it; the Agent call resolved the type and the subagent wrote a `complexity.json` the router verified (`ok`, `verified`), then returned `plan`. The Agent tool returned a launch notice, so the call ran in the background. |
+| Live check 2 | In that restricted run the subagent cannot call `Bash`, `Edit` or an MCP tool. Record the observed behavior for MCP tools in a foreground subagent; the docs describe only the background case. | Done 2026-11-08, by a probe call of the same agent type: the subagent reported the tools Read, Write, Grep, Glob and the hand-back tool, and no Bash, Edit, ToolSearch or `mcp__*` tool, so it could call none. This is the subagent's own report. The call returned a launch notice, so this is the background case; the foreground case was not observed. |
 | Live check P0 | With `advisorModel` set, one `plan` step with `advisor.enabled: true`: did the step consult, and does the Agent result's `totalTokens` include the advisor's tokens? | Pending |
 
 ## Decision rules
