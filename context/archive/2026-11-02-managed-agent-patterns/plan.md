@@ -370,5 +370,5 @@ None for data. A run started before this change has no `provenance`; it is read 
 #### Manual
 
 - [ ] 3.7 Live check P0: with `advisorModel` set, run one `plan` step with `advisor.enabled: true`; record in ADR-009 whether the step consulted and whether the Agent result's `totalTokens` includes the advisor's tokens
-- [ ] 3.8 The owner reads ADR-009, confirms or changes the unattended readings (score-only agents, prompt rule over the user's `advisorModel`, the two decision rules) and sets its status
+- [x] 3.8 The owner reads ADR-009, confirms or changes the unattended readings (score-only agents, prompt rule over the user's `advisorModel`, the two decision rules) and sets its status — owner confirmed in chat on 2026-11-08; ADR-009 status set to Accepted
 - [x] 3.9 The README advisor text states that `advisor.enabled` cannot configure or cap the advisor
