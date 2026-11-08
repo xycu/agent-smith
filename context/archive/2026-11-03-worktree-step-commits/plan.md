@@ -510,4 +510,4 @@ Shipped `isolation.require: true` halts a run started in the main checkout. Over
 
 #### Manual
 
-- [ ] 6.4 Owner reads ADR-010 and the AGENTS.md rule rewrite and confirms the widened git-write boundary.
+- [x] 6.4 Owner reads ADR-010 and the AGENTS.md rule rewrite and confirms the widened git-write boundary. — owner confirmed in chat on 2026-11-08
