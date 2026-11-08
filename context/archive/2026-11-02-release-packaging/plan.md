@@ -256,7 +256,7 @@ The first release follows `0.1.0` with `bump-minor-pre-major: true`: a `feat:` c
 
 #### Manual
 
-- [ ] 1.6 `/plugin marketplace add ./` in a Claude Code session accepts the edited marketplace file
+- [x] 1.6 `/plugin marketplace add ./` in a Claude Code session accepts the edited marketplace file
 
 ### Phase 2: Commit lint and CI
 
