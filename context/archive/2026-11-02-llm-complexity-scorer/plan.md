@@ -453,5 +453,5 @@ None. Nobody uses the plugin yet (PRD Constraints). The step is off through Phas
 
 #### Manual
 
-- [ ] 5.4 A live `/agent-smith:10x-pipeline` run on a scratch change at `standard` shows the scorer subagent writing a valid `complexity.json` on the pinned tier
+- [x] 5.4 A live `/agent-smith:10x-pipeline` run on a scratch change at `standard` shows the scorer subagent writing a valid `complexity.json` on the pinned tier
 - [ ] 5.5 At least 5 scorer on and off pairs are compared with `compare --unpinned` and the result, with the keep or turn-off decision, is written into ADR-007
