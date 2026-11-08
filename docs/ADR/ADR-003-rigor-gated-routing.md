@@ -286,7 +286,7 @@ Three things are still open, and none of them has been verified against the real
 
 ## Phase executors and manual verification
 
-Change 3 (`phase-executors`) lets the router pick a different executor per phase of the plan, checks that an executor really committed code, re-plans after code ran and proves Manual rows with commands. Plan: `context/changes/phase-executors/plan.md`; research: `context/changes/phase-executors/research.md`. The code is in the sections `extra steps and executor choice`, `manual verification` and `code re-plans` of `route.mjs`; the data is under `executors`, `extraSteps`, `codeReplan` and `manualVerify` in `policy.json`. The word lists, extension lists and thresholds are uncalibrated: no run data exists. Nothing here was run against a live `/10x-e2e`, `/10x-tdd`, `/10x-goal-implement` or Chrome session; the tests drive the router only.
+Change 3 (`phase-executors`) lets the router pick a different executor per phase of the plan, checks that an executor really committed code, re-plans after code ran and proves Manual rows with commands (command rows only; ADR-012 later widened this to every Manual row). Plan: `context/changes/phase-executors/plan.md`; research: `context/changes/phase-executors/research.md`. The code is in the sections `extra steps and executor choice`, `manual verification` and `code re-plans` of `route.mjs`; the data is under `executors`, `extraSteps`, `codeReplan` and `manualVerify` in `policy.json`. The word lists, extension lists and thresholds are uncalibrated: no run data exists. Nothing here was run against a live `/10x-e2e`, `/10x-tdd`, `/10x-goal-implement` or Chrome session; the tests drive the router only.
 
 ### Executor choice and segments
 
