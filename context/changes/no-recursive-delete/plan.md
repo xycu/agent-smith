@@ -329,11 +329,11 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Automated
 
-- [x] 4.1 Guard test passes: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
-- [x] 4.2 ADR rule lines follow the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 4.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 4.4 Version fields still agree: `node tools/version-check.mjs`
-- [x] 4.5 Deliberate break: add `fs.rmSync(x, { recursive: true })` to a scratch copy of a scanned file and the guard reports it (covered by the sample strings in the guard test)
+- [x] 4.1 Guard test passes: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — 9634b03
+- [x] 4.2 ADR rule lines follow the rule form: `node --test skills/10x-pipeline/test/rules.test.mjs` — 9634b03
+- [x] 4.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 9634b03
+- [x] 4.4 Version fields still agree: `node tools/version-check.mjs` — 9634b03
+- [x] 4.5 Deliberate break: add `fs.rmSync(x, { recursive: true })` to a scratch copy of a scanned file and the guard reports it (covered by the sample strings in the guard test) — 9634b03
 
 #### Manual
 
