@@ -72,5 +72,5 @@ The new module `scripts/openspec.mjs` sits between `steps.mjs` and `flow.mjs` in
 ## Success Criteria (Summary)
 
 - A small OpenSpec change runs end to end through `/agent-smith:openspec-pipeline`, unattended, and ends `done` or archived with a `report.md`.
-- The full existing suite passes unedited, so the 10x chain is unchanged.
+- The full existing suite passes, with only data lines added to `ladder.test.mjs` and `advisor.test.mjs` for the new policy keys, so the 10x chain is unchanged.
 - ADR-013 shows the four precondition results with evidence.
