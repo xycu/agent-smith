@@ -179,6 +179,7 @@ Rules for the PR comment:
 - `context/foundation/prd.md` FR-002, FR-003, FR-010; `context/foundation/roadmap.md` S-03
 - `docs/ADR/ADR-001-phased-complexity-routing.md`, `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md`, `docs/ADR/ADR-004-prompt-rules-as-scenarios.md`
 - Symbols: `resolveRigor`, `measureRisk`, `hotSet`, `tierFor`, `cleanSignals`, `decide` in `skills/10x-pipeline/scripts/route.mjs`
+- Amended 2026-11-09 (`context/archive/2026-11-09-split-route-mjs/`): `route.mjs` was split into modules with no behavior change. `resolveRigor`, `measureRisk` and `hotSet` now live in `state.mjs`, `tierFor` in `steps.mjs`, `cleanSignals` and `decide` in `flow.mjs`. Other ADRs that name `route.mjs` for a symbol follow the same move; `grep -n "^function <name>" skills/10x-pipeline/scripts/*.mjs` finds it.
 
 ## Pre-plan steps and loops
 
