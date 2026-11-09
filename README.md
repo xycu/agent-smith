@@ -12,7 +12,7 @@ A Claude Code plugin that runs your [10xDevs](https://10xdevs.pl) or [OpenSpec](
 - 🧠 **Smart model routing.** Simple steps run on cheaper tiers, hard steps get more power. Automatically.
 - 🧼 **Fresh context every step.** Each step starts clean from the files on disk.
 - 🛠️ **Reviews that fix.** Reviews apply clear fixes themselves. You only decide what truly needs you.
-- 🛡️ **Safe by design.** Its own git worktree, a commit per step, automatic rollback and retry on failure.
+- 🛡️ **Safe by design.** Its own git worktree, a commit per step, automatic rollback and retry on failure. The branch ends pushed with a pull request for your review, never merged (ADR-017).
 - 🎚️ **Rigor that fits.** `lean`, `standard` or `thorough`, rising with risk: more research, scoring and checks where they pay off.
 - 🔍 **Proof for manual checks.** Evidence saved for every Manual row it proves (10xDevs).
 - 📊 **A report to share.** Model, tokens and result per step, posted to your PR with `--pr-comment`.
@@ -55,7 +55,7 @@ Needs: the skills `openspec-propose`, `openspec-apply-change` and `openspec-veri
 
 Needs: the skills `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-impl-review`, Node.js 24+ and `git`.
 
-💡 Each run works in its own worktree on the branch `agent-smith/<change-id>`. Running without a worktree: see [Run isolation](docs/REFERENCE.md).
+💡 Each run works in its own worktree on the branch `agent-smith/<change-id>`, and ends with that branch pushed and a pull request open for human review. agent-smith never merges it. Needs a `github.com` remote and `gh` for the pull request. Running without a worktree (no push, no pull request): see [Run isolation](docs/REFERENCE.md).
 
 ## 🎛️ Options
 
