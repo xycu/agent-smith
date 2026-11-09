@@ -338,16 +338,16 @@ None. One log read and write per call. In the archive state the git calls are th
 
 #### Automated
 
-- [x] 2.1 Archive-path tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
-- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.3 Provenance and baseline tests still pass with the new policy key: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/compare.test.mjs`
+- [x] 2.1 Archive-path tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs` — 3dbaff5
+- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 3dbaff5
+- [x] 2.3 Provenance and baseline tests still pass with the new policy key: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/compare.test.mjs` — 3dbaff5
 
 ### Phase 3: Orchestrator skills
 
 #### Automated
 
-- [ ] 3.1 Skill tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
-- [ ] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 Skill tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
+- [x] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
