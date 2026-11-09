@@ -62,7 +62,7 @@ Policy key, the stored prompt, the neutral intake and its cap, wired into `next(
 
 **Intent**: Keep the exact prompt the orchestrator received while the step is pending, so a rerun can return it unchanged, and drop it once the step has a result.
 
-**Contract**: log entry field `pendingPrompt` (string). Set where `entry` is built, before `log.push`. `attachResult` deletes it right after it reads the result file (every status). It never reaches `status`, the report, `compare` or a step commit.
+**Contract**: log entry field `pendingPrompt` (string). Set where `entry` is built, before `log.push`. `attachResult` deletes it right after it reads the result file (every status). It never reaches `status`, the report, `compare` or a step commit (`stepCommit` rewrites `run.jsonl` from the in-memory log before it commits). One accepted exception: `rollback` runs `git add -A` before any rewrite of `run.jsonl`, so the snapshot under `refs/agent-smith/` of a failed step still holds the on-disk entry with its `pendingPrompt`; the prompt is already in the orchestrator's conversation and the ref is local, so the plan does not add a log write before the snapshot.
 
 #### 3. Neutral intake
 
@@ -73,8 +73,8 @@ Policy key, the stored prompt, the neutral intake and its cap, wired into `next(
 **Contract**:
 - Constant status string `orchestrator-error`; `signals`, `usage` and every other key of that result are ignored.
 - Rerun: consume the result file; push `{ at: Date.now(), note }` onto `entry.neutralRetries`, with `note` a single line cut to 200 characters (empty when absent); write the log; delete a stale `meta.outcome` as `route.mjs:155` does; print `{ action: "run", n, step, agent?, model, effort, reason, prompt, resultFile, neutralRetry: { count, cap } }`. `reason` is the logged `reason; tier <tier> (<tierWhy>)` text, `prompt` is `pendingPrompt`, `agent` is the entry's `agent` field. No new entry, no change to tier, `startedAt`, `startSha`, `before`, `rigor` or any count.
-- Cap: `neutralRetries.length >= maxNeutralRetries` halts through `endRun` with `Step <n> (<step>) hit <count> orchestrator faults in a row (limits.maxNeutralRetries <cap>). Needs a human. Fix the harness, then write a result file with the real status (the router verifies the step by its files) or raise limits.maxNeutralRetries in context/foundation/agent-smith-policy.json, then run next again.` The file is consumed.
-- Entry without a stored `pendingPrompt` (logged before this change): halt with a text that says the step cannot be rerun unchanged and to write a `failed` result to count the attempt; the file is left in place.
+- Cap: `neutralRetries.length >= maxNeutralRetries` halts through `endRun` with `Step <n> (<step>) hit its limit of <cap> neutral reruns after orchestrator faults (limits.maxNeutralRetries). Needs a human. Fix the harness, then either write a result file with the real status (the router verifies the step by its files), or raise limits.maxNeutralRetries in context/foundation/agent-smith-policy.json and write the orchestrator-error result file again, then run next.` The file is consumed, so the text must name the second write: a `next` with no file halts with the missing-result text.
+- Entry without a stored `pendingPrompt` (logged before this change): a plain halt through `halt()` as the missing-result halt does (no `endRun`, no report, no `meta.outcome`), with a text that says the step cannot be rerun unchanged and to write a `failed` result to count the attempt; the file is left in place.
 - No pending entry (the last entry has a result), or the cap is 0: fall through unchanged.
 - Rollback, step commit, rigor, budget and `decide` are not reached on a rerun, so none of them can fire.
 
@@ -176,9 +176,9 @@ Tell both orchestrators when to declare the fault, and document the rules and th
 
 **File**: `skills/10x-pipeline/SKILL.md` and `skills/openspec-pipeline/SKILL.md` (`run` branch of `## Loop`)
 
-**Intent**: The orchestrator writes `{"status":"orchestrator-error","note":"<what happened>"}` as the result file, and runs `next` as usual, when the fault is its own: the Agent call could not start for a reason that is not the router's `agent`, the prompt could not be passed whole, or no report came back at all. It prints the rerun line with `neutralRetry`. It keeps the `unknown` result for an unresolved agent type and for a reply with no `RESULT:` line.
+**Intent**: The orchestrator writes `{"status":"orchestrator-error","note":"<what happened>"}` as the result file, and runs `next` as usual, when the fault is its own and no subagent of the step is running: the Agent call was refused or errored before any subagent started and the cause is not the router's `agent`, the prompt could not be passed whole (for example it was truncated), or the Agent call returned neither a reply nor an error. It prints the rerun line with `neutralRetry`. It keeps the `unknown` result for an unresolved agent type (the router's `agent`) and for any reply that came back without a parsable `RESULT:` line.
 
-**Contract**: add text inside step 2 and step 3 of the `run` branch without changing the start of step 3 (`openspec-skill.test.mjs:119`); the `## Anti-stall rules` section stays untouched and equal in both skills; no model, effort or tier word beyond what the skill already documents; the same rule in both skills. The `Print one line` step mentions the optional `neutralRetry`.
+**Contract**: the current step 2 sentence "When the call fails ... go on with step 3, which records the step as `unknown`" is split into the two cases above, so the two skills never give both statuses for one fault; add the text inside step 2 and step 3 of the `run` branch without changing the start of step 3 (`openspec-skill.test.mjs:119`, the regex on the text "3. Find the last line of the subagent's reply that starts with"); the `## Anti-stall rules` section stays untouched and equal in both skills; the same rule in both skills. The new text must avoid every word `openspec-skill.test.mjs` scans the whole OpenSpec skill for (the ladder's model aliases and effort levels, `fable`, `tier`, `tiers`), so it says "the same prompt" and never "the same tier"; the 10x skill follows the same wording. The `Print one line` step mentions the optional `neutralRetry`.
 
 #### 2. Reference
 
@@ -186,7 +186,7 @@ Tell both orchestrators when to declare the fault, and document the rules and th
 
 **Intent**: Document the status, the guarantees, the cap, the fields and the limits.
 
-**Contract**: a section "Neutral rerun after an orchestrator fault" in the 10x part and one pointer line in the OpenSpec part; rewrite the sentence in "Headless limit of the first rule" that recommends `{"status":"failed","note":"interrupted"}` to recommend the new status; add to "Budget" that neutral reruns use no budget; upgrade note for `provenance.drift` of `limits`. Mention that a rerun after a lost report continues over the lost run's edits.
+**Contract**: a section "Neutral rerun after an orchestrator fault" in the 10x part and one pointer line in the OpenSpec part; rewrite the sentence in "Headless limit of the first rule" that recommends `{"status":"failed","note":"interrupted"}` to recommend the new status; add to "Budget" that neutral reruns use no budget; upgrade note for `provenance.drift` of `limits`. Mention that a rerun after a lost report continues over the lost run's edits, and that the orchestrator declares `orchestrator-error` only when no subagent of that step can still be running: a background subagent that outlives the declaration would edit the same files as the rerun, which is why the router does not re-emit the step on a missing file by itself (D1 of ADR-015 says the same).
 
 #### 3. Repository guide
 
