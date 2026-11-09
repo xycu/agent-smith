@@ -332,7 +332,7 @@ A run in flight keeps working: an old `run.jsonl` has no `lessonCandidates`, so 
 
 #### Manual
 
-- [ ] 3.3 A live implementation review in a real `/agent-smith:10x-pipeline` run returns sensible candidates (few, one sentence, recurring)
+- [x] 3.3 A live implementation review in a real `/agent-smith:10x-pipeline` run returns sensible candidates (few, one sentence, recurring) — verified 2026-11-09 by step 10 of the `openspec-pipeline` run: 2 candidates, one sentence each in rule form, both recurring; listed in `## Lesson candidates` of its `report.md` and recorded in `context/foundation/lessons.md`
 
 ### Phase 4: Docs
 
