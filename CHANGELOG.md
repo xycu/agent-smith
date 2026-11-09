@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.0](https://github.com/xycu/agent-smith/compare/v0.7.1...v0.8.0) (2026-11-09)
+
+
+### Features
+
+* **openspec-pipeline:** archive and read-only commands (p4) ([4714cd7](https://github.com/xycu/agent-smith/commit/4714cd7aa81831e123df0868c5c27bf0eaa2787e))
+* **openspec-pipeline:** chain switch, run state and routing order (p2) ([8ee62e6](https://github.com/xycu/agent-smith/commit/8ee62e68cb25623a0c0f175e2ac252fdb3b3126f))
+* **openspec-pipeline:** skill and documentation (p5) ([b5e9229](https://github.com/xycu/agent-smith/commit/b5e922990de8b49aaba1baf0adc23c3165aeb003))
+* **openspec-pipeline:** step verification, verdict and fix loop (p3) ([7627434](https://github.com/xycu/agent-smith/commit/7627434f98c1a685240c8a6e33bb6a49265368b1))
+
+
+### Bug Fixes
+
+* **openspec-pipeline:** apply implementation review fixes ([454ce03](https://github.com/xycu/agent-smith/commit/454ce0394cbc55313ccb41c5df0d341c7d45257a))
+* **openspec-pipeline:** apply implementation review retry fixes ([63d082c](https://github.com/xycu/agent-smith/commit/63d082c8a4b7fb0e1d9f41e53f0b17b3414040c7))
+
 ## [0.7.1](https://github.com/xycu/agent-smith/compare/v0.7.0...v0.7.1) (2026-11-07)
 
 
