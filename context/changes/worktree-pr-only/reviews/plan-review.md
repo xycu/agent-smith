@@ -40,7 +40,7 @@ Grounding: 12/12 paths and line claims checked (pr-comment.mjs runGh/findPullReq
   - Tradeoff: breaking change (`feat!`) for projects without git; touches router and policy, which the plan keeps out of scope.
   - Confidence: MED — blast radius not surveyed.
   - Blind spot: tests that rely on `isolation: { require: false }`.
-- **Decision**: PENDING — owner has to choose between keeping the opt-out (Fix A, as planned) and removing it (Fix B); it changes scope, so the review does not guess.
+- **Decision**: ACCEPTED — owner: keep opt-out (Fix A); ADR-017 records it as the only exception.
 
 ### F2 — Base branch is the default branch even when the run was branched from a feature branch
 
@@ -124,4 +124,4 @@ Grounding: 12/12 paths and line claims checked (pr-comment.mjs runGh/findPullReq
 - **Location**: Phase 3, change 1; Progress titles
 - **Detail**: `docs/ADR/` ends at ADR-013 and no document in the repository reserves 014 to 016. The number appears in Progress row titles, which the review must not change.
 - **Fix**: Either renumber to the next free number or state why 014 to 016 are skipped.
-- **Decision**: PENDING — the owner has to confirm the number (it may be reserved for in-flight changes); renaming would touch Progress titles, which this review does not edit.
+- **Decision**: ACCEPTED — owner: ADR-014 to ADR-016 reserved by parallel changes.

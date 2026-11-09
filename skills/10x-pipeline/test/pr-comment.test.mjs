@@ -278,6 +278,38 @@ test("--report inside a directory named agent-smith is accepted", { skip: win },
   assert.equal(res.json.pr, PR_URL);
 });
 
+test("--pr <url>: gh pr view is called with the url and the comment goes to that pull request", { skip: win }, () => {
+  const other = "https://github.com/acme/widgets/pull/12";
+  const w = world({ answers: { "pr-view": { out: JSON.stringify({ number: 12, url: other, state: "OPEN", isDraft: false }) }, user: { out: "bot\n" }, comments: { out: "" }, post: { out: `${other}#issuecomment-1\n` } } });
+  const res = runScript(w, ["demo", "--pr", other]);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.action, "created");
+  assert.equal(res.json.pr, other);
+  assert.deepEqual(calls(w)[0], ["pr", "view", other, "--json", "number,url,state,isDraft"]);
+  assert.equal(calls(w)[3][3], "repos/acme/widgets/issues/12/comments");
+});
+
+test("--pr <url>: a host other than github.com and a malformed value are usage errors", { skip: win }, () => {
+  const w = world({ answers: { "pr-view": { out: PR_OPEN } } });
+  const cases = {
+    "non-GitHub host": "https://ghe.example.com/acme/widgets/pull/7",
+    "not a pull request url": "https://github.com/acme/widgets/issues/7",
+    "trailing path": "https://github.com/acme/widgets/pull/7/files",
+    "plain number": "7",
+    "http scheme": "http://github.com/acme/widgets/pull/7",
+  };
+  for (const [name, value] of Object.entries(cases)) {
+    const res = runScript(w, ["demo", "--pr", value]);
+    assert.equal(res.status, 2, `${name}: ${res.stdout}${res.stderr}`);
+    assert.equal(res.stdout, "", name);
+    assert.match(res.stderr, /--pr must be a pull request url/, name);
+  }
+  const missing = runScript(w, ["demo", "--pr"]);
+  assert.equal(missing.status, 2);
+  assert.match(missing.stderr, /--pr needs a value/);
+  assert.deepEqual(calls(w), []);
+});
+
 test("every skip prints one parseable JSON object with the six keys and exits 0", { skip: win }, () => {
   const w = world({ answers: { "pr-view": { code: 1, err: 'no pull requests found for branch "x"\n' } } });
   const res = runScript(w, ["demo"]);
@@ -623,7 +655,7 @@ test("mutation: without the author comparison a foreign marker comment would be 
 
 test("guard: router scripts never call gh and policy.json has no prComment key", () => {
   const skill = path.resolve(path.dirname(SCRIPT), "..");
-  const scripts = fs.readdirSync(path.join(skill, "scripts")).filter((f) => f.endsWith(".mjs") && f !== "pr-comment.mjs");
+  const scripts = fs.readdirSync(path.join(skill, "scripts")).filter((f) => f.endsWith(".mjs") && f !== "pr-comment.mjs" && f !== "open-pr.mjs");
   assert.ok(scripts.includes("route.mjs"));
   for (const file of scripts) {
     const source = fs.readFileSync(path.join(skill, "scripts", file), "utf8");
