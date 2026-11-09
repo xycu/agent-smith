@@ -9,3 +9,4 @@ Unattended rules for the retry of rows that were ticked without a commit. The ro
 - **GIVEN** phase {lastPhase} is done **WHEN** later phases still have pending rows **THEN** you **MUST NOT** start them.
 - **GIVEN** a phase has nothing left to change **WHEN** this is the last attempt **THEN** you **MUST** finish with status `blocked` and a note that gives the reason, because the router then goes on to the implementation review with the rows named.
 - **GIVEN** the skill would ask a question **WHEN** you run unattended **THEN** you **MUST NOT** print a plain-text question or wait for input, and you decide from the plan and the code.
+- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.
