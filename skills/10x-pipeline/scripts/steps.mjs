@@ -261,7 +261,7 @@ export function reviewWarning(log, plan, policy) {
 // The non-empty note keys of a done result, so a run that ends clean carries none.
 export function doneNotes(d) {
   const notes = {};
-  for (const key of ["uncommittedTicks", "manualUnproven", "manualNotProved"]) {
+  for (const key of ["uncommittedTicks", "manualUnproven", "manualUnprovenWhy", "manualNotProved"]) {
     if (Array.isArray(d?.[key]) && d[key].length) notes[key] = d[key];
   }
   return notes;
@@ -281,6 +281,16 @@ export function manualUnprovenIds(log, plan) {
   if (!last || last.ok || !Array.isArray(last.unproven)) return [];
   const done = new Set(manualRows(plan).filter((r) => r.done).map((r) => r.id));
   return last.unproven.filter((id) => done.has(id));
+}
+
+// One line per still-ticked unproven Manual row that the last manual-verify entry rejected for its evidence kind:
+// `<row text without the evidence suffix> — <reason>`, in plan order. Empty when no tick was rejected for its kind.
+export function manualUnprovenWhyRows(log, plan) {
+  const last = [...log].reverse().find((e) => e.step === "manual-verify");
+  const why = isObject(last?.unprovenWhy) ? last.unprovenWhy : {};
+  const ids = new Set(manualUnprovenIds(log, plan));
+  return manualRows(plan).filter((r) => ids.has(r.id) && typeof why[r.id] === "string" && why[r.id])
+    .map((r) => `${withoutEvidence(r.text)} — ${why[r.id]}`);
 }
 
 // The manual-verify step, or null. It runs before the first impl-review that finds a pending Manual row (or a row

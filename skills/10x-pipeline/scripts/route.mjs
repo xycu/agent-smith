@@ -643,6 +643,8 @@ function status(id, flags, chain = "10x") {
           return acc;
         }, {}),
         pending: Array.isArray(e.pending) ? e.pending.length : 0,
+        ...(Array.isArray(e.browserRows) ? { browserRows: e.browserRows.length } : {}),
+        ...(isObject(e.unprovenWhy) ? { unprovenWhy: e.unprovenWhy } : {}),
       } : {}),
       ...(e.score ? { score: e.score } : {}),
       ...(e.invalid ? { invalid: e.invalid } : {}),

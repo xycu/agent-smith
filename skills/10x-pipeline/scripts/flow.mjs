@@ -8,7 +8,7 @@ import {
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
   verifyImplement, executorNext, retryRows, unprovenTicks, retryNext, reviewWarning, doneNotes, withoutEvidence,
-  manualUnprovenIds, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
+  manualUnprovenIds, manualUnprovenWhyRows, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
   verifyCodeReplan,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "./openspec.mjs";
@@ -25,6 +25,7 @@ function archiveLines(id, meta, oneLine) {
   const notes = doneNotes(o);
   const unproven = notes.uncommittedTicks ?? [];
   const manualUnproven = notes.manualUnproven ?? [];
+  const unprovenWhy = notes.manualUnprovenWhy ?? [];
   const notProved = notes.manualNotProved ?? [];
   // An OpenSpec run is archived by the OpenSpec CLI (ADR-013 D5), not by /10x-archive.
   const requested = meta.chain === "openspec"
@@ -34,6 +35,7 @@ function archiveLines(id, meta, oneLine) {
     requested,
     ...(pending.length ? [`Manual checks pending: ${pending.length}`, ...pending.map((row) => `- ${oneLine(row)}`)] : []),
     ...(manualUnproven.length ? [`Manual checks unproven: ${manualUnproven.length}`, ...manualUnproven.map((row) => `- ${oneLine(row)}`)] : []),
+    ...(unprovenWhy.length ? [`Manual checks unproven, reasons: ${unprovenWhy.length}`, ...unprovenWhy.map((row) => `- ${oneLine(row)}`)] : []),
     ...(notProved.length ? [`Manual checks not proved: ${notProved.length}`, ...notProved.map((row) => `- ${oneLine(row)}`)] : []),
     ...(unproven.length ? [`Ticked without a commit: ${unproven.length}`, ...unproven.map((row) => `- ${oneLine(row)}`)] : []),
   ];
@@ -242,17 +244,22 @@ function manualCheckLines(log, oneLine) {
     const title = text === id ? "" : text.startsWith(`${id} `) ? text.slice(id.length + 1) : text;
     return `${oneLine(id)}${title ? ` ${title}` : ""}`;
   };
+  const browser = new Set((Array.isArray(last.browserRows) ? last.browserRows : []).filter((id) => typeof id === "string"));
+  const mark = (id) => (browser.has(id) ? " [browser row]" : "");
   const proved = (Array.isArray(last.proved) ? last.proved : []).filter((r) => isObject(r) && typeof r.id === "string");
   const kinds = [...new Set(proved.map((r) => String(r.kind ?? "other")))];
   const provedRows = kinds.flatMap((kind) => proved.filter((r) => String(r.kind ?? "other") === kind)
-    .map((r) => `- ${label(r.id)} — ${kind} (${oneLine(r.file)})`));
+    .map((r) => `- ${label(r.id)}${mark(r.id)} — ${kind} (${oneLine(r.file)})`));
   const reasons = mergedReasons(log);
   const pending = (Array.isArray(last.pending) ? last.pending : []).filter((id) => typeof id === "string");
-  const pendingRows = pending.map((id) => `- ${label(id)} — not proved: ${oneLine(reasons.get(id) ?? "no reason recorded")}`);
+  const pendingRows = pending.map((id) => `- ${label(id)}${mark(id)} — not proved: ${oneLine(reasons.get(id) ?? "no reason recorded")}`);
+  const why = isObject(last.unprovenWhy) ? last.unprovenWhy : {};
+  const unprovenRows = (Array.isArray(last.unproven) ? last.unproven : []).filter((id) => typeof id === "string")
+    .map((id) => `- ${label(id)}${mark(id)} — unproven: ${oneLine(typeof why[id] === "string" && why[id] ? why[id] : "no valid evidence")}`);
   return [
     "## Manual checks",
     "",
-    "Rows as recorded when the last manual-verify step ended. The kind comes from the evidence file name; the router never reads the content.",
+    "Rows as recorded when the last manual-verify step ended. The kind comes from the evidence file name; the router never reads the content. Only browser, test, command or script evidence proves a browser row.",
     "",
     `Proved: ${provedRows.length}`,
     ...(provedRows.length ? ["", ...provedRows] : []),
@@ -260,6 +267,7 @@ function manualCheckLines(log, oneLine) {
     `Not proved: ${pendingRows.length}`,
     ...(pendingRows.length ? ["", ...pendingRows] : []),
     "",
+    ...(unprovenRows.length ? [`Unproven: ${unprovenRows.length}`, "", ...unprovenRows, ""] : []),
   ];
 }
 
@@ -734,6 +742,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
     ...doneNotes({
       uncommittedTicks: unprovenTicks(log, plan, policy),
       manualUnproven: manualUnprovenIds(log, plan),
+      manualUnprovenWhy: manualUnprovenWhyRows(log, plan),
       manualNotProved: manualNotProvedRows(log, plan),
     }),
   };

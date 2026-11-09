@@ -306,20 +306,20 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Automated
 
-- [x] 1.1 Defaults and wrong shapes: `node --test --test-name-pattern="browser row words and proof kinds" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 1.2 A judgment or other tick on a browser row is unproven: `node --test --test-name-pattern="browser row judgment tick is unproven" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 1.3 Proof kinds that count: `node --test --test-name-pattern="browser row proved by browser test command or script" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 1.4 The evidence suffix is not matched: `node --test --test-name-pattern="evidence file name does not make a browser row" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 1.5 The existing step tests still pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs skills/10x-pipeline/test/budget-executors.test.mjs` passes
+- [x] 1.1 Defaults and wrong shapes: `node --test --test-name-pattern="browser row words and proof kinds" skills/10x-pipeline/test/manualverify.test.mjs` passes — e9690d7
+- [x] 1.2 A judgment or other tick on a browser row is unproven: `node --test --test-name-pattern="browser row judgment tick is unproven" skills/10x-pipeline/test/manualverify.test.mjs` passes — e9690d7
+- [x] 1.3 Proof kinds that count: `node --test --test-name-pattern="browser row proved by browser test command or script" skills/10x-pipeline/test/manualverify.test.mjs` passes — e9690d7
+- [x] 1.4 The evidence suffix is not matched: `node --test --test-name-pattern="evidence file name does not make a browser row" skills/10x-pipeline/test/manualverify.test.mjs` passes — e9690d7
+- [x] 1.5 The existing step tests still pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs skills/10x-pipeline/test/budget-executors.test.mjs` passes — e9690d7
 
 ### Phase 2: Outputs and report
 
 #### Automated
 
-- [ ] 2.1 Reasons reach every output: `node --test --test-name-pattern="unproven why reaches outputs" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 2.2 The report marks browser rows: `node --test --test-name-pattern="manual checks report marks browser rows" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 2.3 The earlier output and report tests pass unchanged: `node --test --test-name-pattern="manual unproven reaches outputs|manual not proved reaches outputs|manual checks report section" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 2.4 The suite stays green: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 2.1 Reasons reach every output: `node --test --test-name-pattern="unproven why reaches outputs" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 2.2 The report marks browser rows: `node --test --test-name-pattern="manual checks report marks browser rows" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 2.3 The earlier output and report tests pass unchanged: `node --test --test-name-pattern="manual unproven reaches outputs|manual not proved reaches outputs|manual checks report section" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 2.4 The suite stays green: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
 
 ### Phase 3: Templates and prompt file
 
