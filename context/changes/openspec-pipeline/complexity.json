@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md Scope fixes the outcome (ADR-013 D1-D12), but research.md Open Questions 1-12 leave the seam, verdict format, archive path and state location open." },
+    "novelty": { "score": 2, "evidence": "research.md section 4: a second chain on the shared router has no precedent in the repo; the engine is reusable, the decision core is not." },
+    "coupling": { "score": 3, "evidence": "research.md section 4: paths(), decide(), attachResult(), compare locateSide and the override file are shared by all 10x callers; the stable surface in prd.md:122 must not break." },
+    "discovery": { "score": 2, "evidence": "research.md section 4 maps the 10x literals (context/changes, context/archive) in route.mjs and the scripts/ modules; some sites, such as the init ignore probe and helpers.mjs, were found only by inference." },
+    "volume": { "score": 3, "evidence": "change.md Scope: new chain switch across router modules, skills/openspec-pipeline/, four steps, policy keys, prompts, a new test helper, ADR-013 and docs; well over 10 files." },
+    "verification": { "score": 3, "evidence": "change.md 'To be researched' items 1-4 are unverified live checks; research.md Open Questions 6-7 need a live probe of unattended OpenSpec skills; no harness exists for the OpenSpec CLI or verify verdict." }
+  },
+  "unknowns": [
+    "Whether a subagent in .claude/worktrees/agent-smith-openspec-pipeline can call untracked .claude/skills/openspec-* (change.md precondition 1; research.md Open Question 7)",
+    "Whether skills/openspec-pipeline/SKILL.md reaches ../10x-pipeline/scripts/route.mjs from an installed plugin (precondition 2; research.md Open Question 7)",
+    "Whether propose, apply and openspec archive stop with blocked and needsHuman in an unattended subagent (precondition 3; research.md Open Question 6)",
+    "Whether Claude Code finds a second skill under skills/ without a manifest list (precondition 4; research.md Open Question 12)",
+    "Verify verdict file format and its mapping to continue or stop (research.md Open Question 4)",
+    "Archive path: skill with rule answers or openspec archive --yes --json (research.md Open Question 5)",
+    "Whether the openspec CLI tolerates an agent-smith/ folder inside openspec/changes/<name>/ (research.md Open Question 3)",
+    "Whether the router reads OpenSpec state by file or by calling the openspec CLI (research.md Open Question 2)",
+    "Which rigor, score, executor and manual-verify features apply to tasks.md with no phases (research.md Open Question 9)",
+    "Name collisions between a 10x change and an OpenSpec change of the same name (research.md Open Question 8)"
+  ],
+  "confidence": "medium"
+}
