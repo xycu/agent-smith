@@ -145,3 +145,43 @@ test("every os- step has a template, and every os- template resolves to existing
   }
   assert.ok(POLICY.prompts["os-apply-fix"].join("\n").includes("{findings}"));
 });
+
+// ---- Pull request (always), ADR-017 ---------------------------------------------------------
+
+const PR_HEADING = "## Pull request (always)";
+
+test("the OPEN_PR line points at the shared open-pr script, which exists", () => {
+  const line = lines.find((l) => l.startsWith("Pull request script: "));
+  assert.ok(line && line.includes("`OPEN_PR=<this skill's base directory>/../10x-pipeline/scripts/open-pr.mjs`"), line);
+  assert.ok(fs.statSync(path.resolve(OS_SKILL_DIR, "../10x-pipeline/scripts/open-pr.mjs")).isFile());
+  // The PR comment line keeps its shape.
+  assert.ok(lines.some((l) => l.startsWith("PR comment script: ")));
+});
+
+test("the pull request section follows ## PR comment (opt-in) and calls the script with --chain openspec", () => {
+  const c = lines.indexOf("## PR comment (opt-in)");
+  const p = lines.indexOf(PR_HEADING);
+  assert.ok(c >= 0 && p > c, "pull request section is not after the PR comment section");
+  const text = section(lines, PR_HEADING).join("\n");
+  assert.match(text, /`cd "<run root>" && node \$OPEN_PR <change-name> --chain openspec`/);
+  for (const m of skill.matchAll(/node \$OPEN_PR[^`]*/g)) assert.match(m[0], /--chain openspec/, m[0]);
+  assert.match(text, /Pull request: NOT pushed, <reason>\. Branch agent-smith\/<change-name> is local only: <manual>/);
+  assert.match(text, /never merges/);
+  assert.ok(!text.includes("**GIVEN**"));
+});
+
+test("done, archive and halt run the pull request step before the PR comment step and before any STOP", () => {
+  for (const name of ["done", "archive", "halt"]) {
+    const text = branch(name);
+    const pr = text.indexOf("do the pull request step");
+    const comment = text.indexOf("do the PR comment step");
+    assert.ok(pr >= 0, `${name} has no pull request step`);
+    assert.ok(comment > pr, `${name}: the PR comment step is not after the pull request step`);
+  }
+  const archive = branch("archive");
+  const step5 = archive.slice(archive.indexOf("\n  5. "));
+  assert.ok(step5.indexOf("do the pull request step") >= 0, "the pull request step is not in step 5");
+  assert.ok(step5.indexOf("do the pull request step") < step5.indexOf("On `archived: false`"), "pull request step after the STOP of archived: false");
+  assert.ok(!archive.slice(0, archive.indexOf("\n  5. ")).includes("PR comment step"), "the PR comment step is still before the move");
+  assert.match(branch("halt"), /Before you STOP, do the pull request step\. Then call TaskList\./);
+});

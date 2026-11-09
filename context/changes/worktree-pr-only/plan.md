@@ -226,10 +226,10 @@ None for run state: no policy or `meta.json` change, so no provenance drift. Run
 
 #### Automated
 
-- [x] 1.1 Script tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs`
-- [x] 1.2 Comment script tests pass with the new `--pr` cases: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
-- [x] 1.3 Usage error exits 2 and a main-checkout run prints one JSON skip with exit 0: `node skills/10x-pipeline/scripts/open-pr.mjs 'Bad Id'; node skills/10x-pipeline/scripts/open-pr.mjs some-id`
-- [x] 1.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 Script tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs` — d764a23
+- [x] 1.2 Comment script tests pass with the new `--pr` cases: `node --test skills/10x-pipeline/test/pr-comment.test.mjs` — d764a23
+- [x] 1.3 Usage error exits 2 and a main-checkout run prints one JSON skip with exit 0: `node skills/10x-pipeline/scripts/open-pr.mjs 'Bad Id'; node skills/10x-pipeline/scripts/open-pr.mjs some-id` — d764a23
+- [x] 1.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — d764a23
 
 #### Manual
 
@@ -239,8 +239,8 @@ None for run state: no policy or `meta.json` change, so no provenance drift. Run
 
 #### Automated
 
-- [ ] 2.1 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/10x-pipeline/test/rules.test.mjs`
+- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
