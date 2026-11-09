@@ -1,6 +1,6 @@
 # agent-smith reference
 
-Full behavior of `/agent-smith:10x-pipeline`: routing, run isolation, review routing, rigor, archive, pre-plan steps, budget, executors, manual verification, scoring, reports, comparison, provenance, opt-in features and limits. For install and a first run, see the [README](../README.md). Decisions and their reasons are in [`docs/ADR/`](ADR/).
+Full behavior of `/agent-smith:10x-pipeline`: routing, run isolation, review routing, rigor, archive, pre-plan steps, budget, executors, manual verification, scoring, reports, comparison, provenance, opt-in features and limits. The OpenSpec chain, `/agent-smith:openspec-pipeline`, has its own section at the end; everything it does not name works as in the 10x chain. For install and a first run, see the [README](../README.md). Decisions and their reasons are in [`docs/ADR/`](ADR/).
 
 ## `/agent-smith:10x-pipeline <change-id> [goal] [--archive] [--chrome false] [--pr-comment]`
 
@@ -305,3 +305,86 @@ PR comment (opt-in):
 - Nothing is written to the change folder, so `report.md` cannot say whether it was posted. The result is in the final message only.
 - A change id is at most 100 characters for the script (the marker must fit in the comment head). The router has no such limit, so a longer id ends in `PR comment: skipped, script error`.
 - A run that ended before the pull request existed: open the pull request, check out its branch and run `node <plugin>/skills/10x-pipeline/scripts/pr-comment.mjs <change-id> [--report context/archive/<date>-<change-id>/agent-smith/report.md]` from the project root. The comment goes to the pull request of the branch checked out now, so run it from the branch of that pull request. The result prints the pull request url. `--report` accepts only a file named `report.md` inside a directory named `agent-smith`, whose first line is `# Run report: <change-id>`.
+
+## `/agent-smith:openspec-pipeline <change-name> [goal] [--archive] [--pr-comment]`
+
+Runs an existing OpenSpec change (`openspec/changes/<change-name>/`) through the steps `os-propose`, `os-apply` and `os-verify`, a fix loop on a failed verify, and, with `--archive`, the OpenSpec CLI archive. The skill is `skills/openspec-pipeline/SKILL.md`; it calls the same router (`skills/10x-pipeline/scripts/route.mjs`) with `--chain openspec` on every call and reads the same policy and override file. The decisions are in ADR-013. Everything this section does not name works as described above for the 10x chain: the ladder and the effort floor, the step budget, rigor raised by failed steps and `signals.rigor`, `signals.needsHuman`, provenance, run isolation with its start commit, step commits and rollback, `report.md` and `--pr-comment`.
+
+Requirements in the target project:
+
+- An OpenSpec project: `openspec/config.yaml`, committed. In a git work tree the skill stops when `openspec/config.yaml` is not tracked, because the run worktree sees only committed files (ADR-013 D11).
+- The change folder, made with `openspec new change <change-name>` (or `/opsx:propose`). The router never creates it: `init` and `next` halt, and write nothing, when it is missing, and say that a change hosted in a store (`--store`) is not supported.
+- The OpenSpec skills `openspec-propose`, `openspec-apply-change` and `openspec-verify-change`. They resolve from the session's project, not from the worktree files (check 1 of ADR-013); the skill prints one line naming untracked `.claude/skills/openspec-*` folders, because a session started inside the run worktree sees them only once they are committed.
+- With `--archive`, the `openspec` CLI on `PATH` (the archive subagent runs it) and a git work tree, as for the 10x archive.
+- Node.js 24 or later and `git`, as for the 10x chain.
+
+Chain switch (`--chain`):
+
+- Every router command takes `--chain 10x|openspec`. Any other value halts before anything is read.
+- `init --chain openspec` stores `chain: "openspec"` in `openspec/changes/<change-name>/agent-smith/meta.json`. A 10x `meta.json` never gets a `chain` key, and the provenance `flags` gain `chain` only when `meta.chain` is set, so a 10x run's record keeps its keys.
+- `init` without `--chain` is a 10x init. It halts when the live `openspec/changes/<change-name>/agent-smith/meta.json` holds `chain: "openspec"`, and names `--chain openspec`.
+- Every other command without the flag uses the stored chain: `chain: "openspec"` in the live `meta.json`, or, when the live folder is gone, in the `meta.json` of an archive folder of the name. Otherwise it is a 10x command. A `--chain` that contradicts the stored chain halts.
+
+Run state and collisions:
+
+- Run state (`run.jsonl`, `meta.json`, `last-result.json`, `report.md`) and the verdict file `verify.md` live in `openspec/changes/<change-name>/agent-smith/`, so `openspec archive` moves them with the change. OpenSpec's `validate`, `status` and `archive` accept the extra folder (`evidence/check-3-cli.md`).
+- `init --chain openspec` halts, and writes nothing, when `context/changes/<change-name>/` exists: a 10x change already uses the name (D8). A branch `agent-smith/<change-name>` that belongs to a 10x run holds that folder, so a run of the other chain on it halts the same way. The branch, the worktree and the side refs keep their 10x names; no prefix is added.
+- Run isolation works as in "Run isolation" above, on the branch `agent-smith/<change-name>`. The skill copies `openspec/changes/<change-name>/` into the new worktree with `cp -Rp`, only when it creates the run branch. The start commit commits `openspec/changes/<change-name>/`. The isolation gate and `init --archive` check that git does not ignore `agent-smith/run.jsonl`, `agent-smith/meta.json`, `agent-smith/report.md` and `tasks.md` of the change. A rollback sets back the file times of `tasks.md` and `verify.md`.
+- `guardArchived` halts `init`, `next` and `status` for a name whose live folder is gone and whose archive folder exists under `openspec/changes/archive/`. OpenSpec stamps no status, so a live folder is never treated as half-archived.
+
+Routing order (D4):
+
+- The router reads the change from files and never runs the `openspec` CLI (D2). An artifact exists when its file does. Planning is complete when `proposal.md`, at least one `specs/**/*.md` and `tasks.md` exist (predicate A); `design.md` is optional. OpenSpec's own `isPlanningComplete` stays `false` without `design.md` while `openspec instructions apply` already reports `state: "ready"`; the router follows apply readiness, because `os-apply` is the step that needs it.
+- A task row is a line matching `^\s*-\s+\[([ xX])\]\s+`, complete only as `- [x]` or `- [X]`.
+- The order: no change folder halts; planning incomplete returns `os-propose` (the reason names the missing files); a `tasks.md` with no task row halts for a human; an open row returns `os-apply`; every row ticked and no verified `os-verify`, or a verified step after the last one, returns `os-verify`. Otherwise the verdict of `verify.md` decides (see "Verify verdict and fix loop").
+- `os-propose` writes the planning artifacts only. `os-apply` implements every open task and ticks it. `os-verify` runs the verify skill read-only and writes `verify.md`. Each prompt carries a decision guide (`prompts/os-propose.md`, `os-apply.md`, `os-verify.md`, `os-archive.md`, see `prompts/README.md`): the subagent decides from evidence and lists the decision as an assumption, and with no evidence-backed answer ends `blocked` with `signals.needsHuman`, which halts the run.
+
+Step verification:
+
+- `os-propose`: the status is `done`, planning is complete and at least one artifact file (`proposal.md`, `design.md`, `tasks.md` or a `specs/**/*.md`) is newer than the step start.
+- `os-apply` (template `os-apply`): the status is `done` and `tasks.md` has more ticked rows than when the step started (`before.ticks` in the log entry).
+- `os-apply` in fix mode (template `os-apply-fix`): the reported status decides, as for the 10x `fix` step; the next `os-verify` checks the code.
+- `os-verify`: the status is `done`, `verify.md` is a regular file newer than the step start and its header parses. The log entry gets `review: { verdict, critical, warnings }`, so `status` and the `## Review findings` section of `report.md` show it. It never has an open part: ADR-011 does not apply.
+- A step that fails its check counts as a failed attempt: its retry runs one tier up, the run halts after `limits.maxAttemptsPerStep` (3) failed attempts of the same step, and the rigor level rises as for any failed step.
+
+Verify verdict and fix loop:
+
+- `verify.md` starts with three lines: `Verdict: PASS`, `Verdict: PASS WITH WARNINGS` or `Verdict: FAIL`, then `Critical: <n>` and `Warnings: <n>`. Then `## Critical` and `## Warnings` with one `- ` line per issue, then the skill's report. A `Critical` count above 0 reads as `FAIL` whatever line 1 says.
+- The router reads the verdict from the file each time it decides, not from the log copy, so a human who fixes the code or edits `verify.md` after a halt is routed on the file. A `verify.md` that a fresh `os-verify` leaves malformed fails that step; one that becomes unreadable or malformed after a verified `os-verify` halts the run and names the file and the line that does not parse.
+- `PASS` or `PASS WITH WARNINGS` ends the run `done`, or, for a run started with `--archive`, goes to the archive branch below.
+- `FAIL` returns `os-apply` with template `os-apply-fix` while fewer verified fix steps than `limits.maxFixLoops` (2) ran. The prompt carries the `- ` lines under `## Critical` (at most 20, each made one line and cut to 300 code points) as `{findings}`, or `see verify.md` when there are none. A verified fix step returns `os-verify`.
+- `FAIL` at the cap halts: `OpenSpec verify FAIL after <n> fix loops. Needs a human. Fix the issues, set the first lines of <verify.md path> to "Verdict: PASS" and "Critical: 0", then run /agent-smith:openspec-pipeline <change-name> again.` In an isolated run it ends with `Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.`
+
+Tiers, rigor and budget:
+
+- `policy.json` `steps` holds the four steps with the pins of the 10x step each one mirrors (D9, uncalibrated): `os-propose` as `plan` (base 5, min 2, max 7, interactive), `os-apply` as `implement` (base 3, min 2, max 7), `os-verify` as `impl-review` (base 3, min 2, max 6, interactive), `os-archive` as `archive` (pinned at 3, interactive).
+- The tier is the base tier, plus one rung per trailing failed attempt of the same step (`escalation.perFailure`), clamped to the step's bounds, with the effort floor of `rigor.minEffort` for the interactive steps. The fix step is an `os-apply` step and gets no bump of its own: a verified `os-apply` before it leaves no trailing failure, so it runs at the `os-apply` base unless an earlier fix attempt failed. No phase-count bump, simple-change discount, score shift, cheaper first attempt (`escalation.firstAttempt.templates` names only 10x templates) or `rigor.tierOffset` (it names `impl-review`) applies, because an OpenSpec change has no plan.
+- Rigor starts from the goal class or `--rigor` and rises with failed steps and `signals.rigor`. There is no plan, so neither the phase count nor churn risk raises it, and `risk --chain openspec` reports no plan hits.
+- The step budget is that of the 10x chain (12, 19 and 24). The longest failure-free path is 7 steps (propose, apply, verify, then two rounds of fix and verify); a third `FAIL` halts on the fix-loop cap before the `lean` budget.
+
+Archive (`--archive`, D5):
+
+- `init --archive` stores the flag as for the 10x chain and checks that the project is a git work tree and git ignores none of the router files named above.
+- At a passing verdict the router runs the git safety checks of the 10x archive (nothing staged, a symbolic HEAD, no merge, rebase, cherry-pick or revert in progress), except the `created:` line, which an OpenSpec change does not have. It halts when `tasks.md` has an open row, and when the target folder exists, naming `archive_target_exists`, the CLI error it would hit. A halt carries `archive: "skipped: ..."` and `committed`, as in the 10x chain.
+- Then it writes `report.md`, whose `Archive: requested` line names the CLI command `openspec archive <change-name> --yes --json`, commits `openspec/changes/<change-name>/` with `archive.commitMessage`, and returns an `archive` action with the `os-archive` prompt at the pinned tier, `archivePath`, `commit` and `ignored`.
+- `archivePath` is `openspec/changes/archive/<local YYYY-MM-DD>-<change-name>`, or `openspec/changes/archive/<change-name>` when the name already starts with a date, as the CLI names it.
+- The orchestrator runs the `os-archive` prompt in one subagent. It runs `openspec archive <change-name> --yes --json` once from the run root, never the archive skill or `/opsx:archive`, and on success commits `openspec/` as `chore(archive): close <change-name>`. A CLI error (for example `archive_target_exists` or a validation error) ends it `blocked` with the error quoted, without a retry. The step has no log entry, no usage figure and no report row, as the 10x `archive` step.
+- `verify-archive <change-name> --chain openspec [--path <p>]` then reads files only: `archived: true` when the archive folder exists and `openspec/changes/<change-name>/` is gone. It prints `{ archived, path, report }`; OpenSpec stamps no status, so there is no `archivedAt`. Without `--path`, several matching folders give `archived: false` with an `ambiguous` list. With a `--path` that is not an archive folder of the name, the reason lists the `<date>-<change-name>` folders that exist.
+
+Read-only commands:
+
+- `status <change-name> --chain openspec` adds `openspec: { planningComplete, tasks: { total, complete } }`, the reading the contract test compares with the CLI.
+- `compare <change-name> --chain openspec` reads each side from `openspec/changes/<change-name>/agent-smith/` or `openspec/changes/archive/<date>-<change-name>/agent-smith/` (a live folder wins, with the same warning as for 10x). The baseline procedure of "Baseline comparison" is written for the 10x chain; `baseline-policy.json` pins no `os-` step.
+- `risk <change-name> --chain openspec` prints the churn numbers with no plan paths.
+
+Dropped in this chain (D10): `score`, the pre-plan steps, the phase executors, `manual-verify` (so no `--chrome`), the code re-plans, plan review, the confirmation round, lesson candidates, the advisor text (`advisor.templates` names no `os-` template) and restricted step agents (`agents.steps` names only `score`). An OpenSpec run is therefore cheaper and less checked than a 10x run.
+
+Limits:
+
+- The router reads OpenSpec state from files, so it can drift from the OpenSpec parser. `skills/10x-pipeline/test/openspec-contract.test.mjs` compares `status --chain openspec` with `openspec instructions apply --change <name> --json` on fixture changes (`OPENSPEC_BIN`, default `openspec`; every test skips when the binary does not start). It bounds the drift; it does not remove it.
+- The task row pattern is narrower than the CLI, which also counts other list forms (`* [x]`, `1. [x]`, `- []` as open and the like). A `tasks.md` written in those forms is miscounted. The contract test covers standard `- [ ]` and `- [x]` rows only.
+- A change whose schema skips specs (`skip_specs`) never satisfies predicate A, so the run keeps returning `os-propose` until the attempt cap halts it.
+- Archive date at midnight: the router computes `archivePath` with the local date when it returns the `archive` action, and the CLI takes the local date when it runs. A run that crosses midnight between the two gets another folder name, and `verify-archive --path` reports `archived: false`; its reason lists the folder that exists.
+- Changes hosted in a store (`--store`) are not supported (D3): such a change sits outside the worktree and outside the rollback.
+- `verify.md` has no `### F<n>` blocks or `Decision` lines, so ADR-011's open-findings routing does not apply and a passing verdict with warnings never halts.
+- The guides passed five live probes (`context/changes/openspec-pipeline/evidence/check-3-live.md`); no live run of the whole skill has been done yet.
