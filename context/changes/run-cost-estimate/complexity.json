@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md open questions: shipped prices vs owner-supplied, blended rate honesty, alias-to-price mapping" },
+    "novelty": { "score": 1, "evidence": "adapts existing token totals and per-model/tier splits in flow.mjs and route.mjs compare (goal: 'covering steps with a token figure')" },
+    "coupling": { "score": 2, "evidence": "goal spans policy.json, report.md, status and compare, shared by both chains (change.md)" },
+    "discovery": { "score": 1, "evidence": "usage and token code in skills/10x-pipeline/scripts/flow.mjs and route.mjs, named in AGENTS.md" },
+    "volume": { "score": 2, "evidence": "policy.json, flow.mjs, route.mjs, new tests, docs/REFERENCE.md Usage report, ADR-007 note" },
+    "verification": { "score": 1, "evidence": "existing node:test suite (compare.test.mjs, route.test.mjs) covers most; new cost tests to add" }
+  },
+  "unknowns": ["how model aliases map to prices when the router uses opus/sonnet/haiku", "exact status and compare output shape for the cost line"],
+  "confidence": "medium"
+}
