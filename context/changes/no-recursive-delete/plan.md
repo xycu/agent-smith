@@ -309,7 +309,7 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Manual
 
-- [ ] 2.4 Run the suite once and confirm `os.tmpdir()` holds no leftover `as-*` directory from it (cleanup still works)
+- [x] 2.4 Run the suite once and confirm `os.tmpdir()` holds no leftover `as-*` directory from it (cleanup still works) — evidence: evidence/command-suite-fresh-tmpdir.txt
 
 ### Phase 3: Put the rule in the text agents follow
 
