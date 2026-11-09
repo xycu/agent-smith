@@ -1,3 +1,3 @@
 - 1.5 — needs a live push and pull request in a throwaway GitHub repository; pushing and posting to an external service is not allowed in this step
 - 2.4 — needs a live unattended pipeline run that pushes and opens a pull request on GitHub; not allowed in this step
-- 3.5 — ADR-017 states the router no-push rule is unchanged and names open-pr.mjs as the only pusher, but records the non-isolated opt-out as decided by the owner (F1, "not an open question"), not as the open owner decision the row asks for
+- 3.5 — ADR-017 states the router no-push rule is unchanged and names open-pr.mjs as the only pusher, but it records the non-isolated opt-out as decided by the owner ("It is not an open question", review finding F1), not as the open owner decision the row asks for; the row text is stale against the ADR, so the owner should reword or tick it
