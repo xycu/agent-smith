@@ -295,6 +295,6 @@ None. No prices by default, no new file, no change to `run.jsonl` or `meta.json`
 
 #### Automated
 
-- [x] 4.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 4.2 Version fields still agree: `node tools/version-check.mjs`
-- [x] 4.3 `SKILL.md` of both chains still names no model, effort or tier beyond what it did (skill tests): `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
+- [x] 4.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — cddde17
+- [x] 4.2 Version fields still agree: `node tools/version-check.mjs` — cddde17
+- [x] 4.3 `SKILL.md` of both chains still names no model, effort or tier beyond what it did (skill tests): `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` — cddde17
