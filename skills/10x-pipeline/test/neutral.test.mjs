@@ -1,17 +1,21 @@
 // Neutral rerun after an orchestrator fault: the result status orchestrator-error reruns the pending step unchanged
 // (same entry, same tier, same prompt), with no failed attempt, rigor rise or budget use, up to limits.maxNeutralRetries.
-// Black-box tests through the CLI in scratch projects, 10x chain.
+// Black-box tests through the CLI in scratch projects: the 10x chain, status and report.md, the OpenSpec chain and an
+// isolated run in a real linked worktree (hermetic git, as in rollback.test.mjs).
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
   cleanupAll, makeProject, planText, writePlan, writeReview, init, next, writeLog, entry, readLogEntries, readMetaFile,
-  writeResult,
+  writeResult, run, readReportFile, writeMetaFile, gitAvailable, gitEnv, gitInit, git, commitFiles,
 } from "./helpers.mjs";
+import { makeOpenspecProject, initOpenspec, writeArtifacts, moveToArchive } from "./openspec-helpers.mjs";
 
 after(cleanupAll);
 
+const noGit = !gitAvailable() && "git is not available";
+const PASS = "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n";
 const FAULT = { status: "orchestrator-error", note: "prompt truncated\nby the harness" };
 const resultPath = (project) => path.join(project.agentDir, "last-result.json");
 const reportPath = (project) => path.join(project.agentDir, "report.md");
@@ -279,4 +283,167 @@ test("pendingPrompt is stored while the step is pending and gone once the real r
   writeResult(project, { status: "failed", note: "x" });
   next(project);
   assert.equal(Object.hasOwn(readLogEntries(project)[1], "pendingPrompt"), false);
+});
+
+// ---- Phase 2: status, report, OpenSpec chain, isolated run ------------------------------------------------------------
+
+test("status shows neutralRetries on the row of a rerun step only", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  fault(project);
+  writeFreshPlan(project);
+  writeResult(project, { status: "done", note: "planned" });
+  next(project);
+  const st = run(project, ["status", "demo"]);
+  assert.equal(st.status, 0, st.stdout);
+  assert.equal(st.json.steps[0].neutralRetries, 1);
+  assert.equal(Object.hasOwn(st.json.steps[1], "neutralRetries"), false);
+  for (const row of st.json.steps) assert.equal(Object.hasOwn(row, "pendingPrompt"), false);
+});
+
+test("status of a run without reruns has no neutralRetries field", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  const st = run(project, ["status", "demo"]);
+  assert.equal(Object.hasOwn(st.json.steps[0], "neutralRetries"), false);
+});
+
+test("report.md marks the Result cell and lists the reruns with cleaned notes", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  fault(project, { status: "orchestrator-error", note: "prompt `cut`\nby the | harness" });
+  // A pending entry shows the suffix on its empty result.
+  run(project, ["status", "demo", "--report"]);
+  assert.match(readReportFile(project), /^\| 1 \| plan \| .* \| -, 1 neutral rerun \| - \|$/m);
+  fault(project, { status: "orchestrator-error" });
+  writeFreshPlan(project);
+  writeResult(project, { status: "done", note: "planned" });
+  next(project);
+  run(project, ["status", "demo", "--report"]);
+  const report = readReportFile(project);
+  assert.match(report, /^\| 1 \| plan \| .* \| ok, 2 neutral reruns \| - \|$/m);
+  assert.match(report, /^\| 2 \| plan-review \| .* \| - \| - \|$/m);
+  assert.match(report, /^## Neutral reruns$/m);
+  assert.match(report, /^- step 1 plan: 2 reruns after an orchestrator fault$/m);
+  assert.match(report, /^ {2}- prompt 'cut' by the \| harness$/m);
+  assert.equal(report.includes("`cut`"), false);
+  // One line per non-empty note: the empty second note adds none.
+  const section = report.slice(report.indexOf("## Neutral reruns"));
+  assert.equal(section.split("\n").filter((l) => l.startsWith("  - ")).length, 1);
+});
+
+test("report.md of a run without reruns has no section and no cell suffix", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  writeFreshPlan(project);
+  writeResult(project, { status: "done", note: "planned" });
+  next(project);
+  run(project, ["status", "demo", "--report"]);
+  const report = readReportFile(project);
+  assert.doesNotMatch(report, /neutral rerun/i);
+  assert.match(report, /^\| 1 \| plan \| .* \| ok \| - \|$/m);
+});
+
+// ---- OpenSpec chain ---------------------------------------------------------------------------------------------------
+
+test("OpenSpec chain: an os-apply rerun keeps the prompt, the tier and the pre-fault ticks", () => {
+  const project = makeOpenspecProject({ proposal: true, specs: 1, tasks: { done: 0, open: 2 } });
+  const first = initOpenspec(project, "Add a thing");
+  assert.equal(first.status, 0, first.stdout);
+  assert.equal(first.json.step, "os-apply");
+  // The lost run ticked a row before the fault was declared.
+  writeArtifacts(project, { tasks: { done: 1, open: 1 } });
+  writeResult(project, FAULT);
+  const res = run(project, ["next", project.id, "--chain", "openspec"]);
+  assert.equal(res.json.action, "run", res.stdout);
+  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+    assert.deepEqual(res.json[key], first.json[key], key);
+  }
+  assert.deepEqual(res.json.neutralRetry, { count: 1, cap: 2 });
+  assert.doesNotMatch(res.json.reason, /failed attempt/);
+  const [e] = readLogEntries(project);
+  assert.equal(e.before.ticks, 0);
+  assert.doesNotMatch(e.tierWhy, /\+1 for 1 failed attempt\(s\)/);
+  // The real result verifies on the ticks the lost run and the rerun made together.
+  writeArtifacts(project, { tasks: { done: 2, open: 0 } });
+  writeResult(project, { status: "done", note: "applied" });
+  const verify = run(project, ["next", project.id, "--chain", "openspec"]);
+  assert.equal(verify.json.step, "os-verify", verify.stdout);
+  const log = readLogEntries(project);
+  assert.equal(log[0].ok, true);
+  assert.equal(log[0].neutralRetries.length, 1);
+  assert.equal(Object.hasOwn(log[0], "pendingPrompt"), false);
+  const st = run(project, ["status", project.id, "--chain", "openspec"]);
+  assert.equal(st.json.steps[0].neutralRetries, 1);
+});
+
+test("OpenSpec chain: an archived-run report keeps the Neutral reruns section", { skip: noGit }, () => {
+  const project = makeOpenspecProject({ proposal: true, specs: 1, tasks: { done: 2, open: 0 }, verify: PASS });
+  writeLog(project, [
+    entry(1, "os-apply", { template: "os-apply", neutralRetries: [{ at: 1, note: "Agent call refused" }] }),
+    entry(2, "os-verify", { review: { verdict: "PASS", critical: 0, warnings: 0 } }),
+  ]);
+  writeMetaFile(project, { id: "demo", goal: "Add a thing", chain: "openspec", archive: true });
+  gitInit(project);
+  commitFiles(project, ["README.md"]);
+  const res = run(project, ["next", project.id], { env: gitEnv(project) });
+  assert.equal(res.json.action, "archive", res.stdout);
+  const moved = moveToArchive(project);
+  const report = fs.readFileSync(path.join(moved, "agent-smith/report.md"), "utf8");
+  assert.match(report, /^## Neutral reruns$/m);
+  assert.match(report, /^- step 1 os-apply: 1 rerun after an orchestrator fault$/m);
+  assert.match(report, /^ {2}- Agent call refused$/m);
+  assert.match(report, /^\| 1 \| os-apply \| .* \| ok, 1 neutral rerun \| - \|$/m);
+});
+
+// ---- isolated run -----------------------------------------------------------------------------------------------------
+
+test("isolated run: a rerun makes no ref, no commit and no reset; a later failure rolls back to the original startSha", { skip: noGit }, () => {
+  const main = makeProject({ policy: { isolation: { require: true } } });
+  gitInit(main);
+  git(main, ["add", "-A"]);
+  git(main, ["commit", "-q", "-m", "chore: project"]);
+  const top = path.join(main.base, ".claude/worktrees", `agent-smith-${main.id}`);
+  git(main, ["worktree", "add", "-q", "-b", `agent-smith/${main.id}`, top]);
+  const changeDir = path.join(top, "context/changes", main.id);
+  const wt = {
+    id: main.id, base: main.base, top, root: top, changeDir,
+    agentDir: path.join(changeDir, "agent-smith"), planFile: path.join(changeDir, "plan.md"),
+  };
+  const gw = (args) => git(wt, ["-C", top, ...args]);
+  const first = run(wt, ["init", wt.id, "--goal", "fix typo"], { env: gitEnv(wt) });
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  const start = gw(["rev-parse", "HEAD"]);
+  const [logged] = readLogEntries(wt);
+  assert.equal(logged.startSha, start);
+  const commits = gw(["rev-list", "--count", "HEAD"]);
+  // Partial edits of the lost run, made after the step started.
+  fs.writeFileSync(path.join(top, "partial.txt"), "half\n");
+  writePlan(wt, planText({ files: ["**File**: `x.js`"] }));
+
+  writeResult(wt, FAULT);
+  const res = run(wt, ["next", wt.id], { env: gitEnv(wt) });
+  assert.equal(res.json.action, "run", res.stdout);
+  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+    assert.deepEqual(res.json[key], first.json[key], key);
+  }
+  assert.equal(gw(["for-each-ref", "refs/agent-smith/"]), "");
+  assert.equal(gw(["rev-parse", "HEAD"]), start);
+  assert.equal(gw(["rev-list", "--count", "HEAD"]), commits);
+  assert.equal(fs.readFileSync(path.join(top, "partial.txt"), "utf8"), "half\n");
+  assert.equal(fs.existsSync(wt.planFile), true);
+  const [e] = readLogEntries(wt);
+  assert.equal(e.startSha, start);
+  for (const key of ["commit", "rolledBack", "kept", "result"]) assert.equal(Object.hasOwn(e, key), false, key);
+
+  // A failed result afterwards rolls back to the original startSha and snapshots the partial edits.
+  writeResult(wt, { status: "failed", note: "red" });
+  const retry = run(wt, ["next", wt.id], { env: gitEnv(wt) });
+  assert.equal(retry.json.action, "run", retry.stdout);
+  const later = readLogEntries(wt);
+  assert.match(later[0].rolledBack, /^refs\/agent-smith\/demo\/[0-9a-f]{12}\/failed-1$/);
+  assert.equal(gw(["rev-parse", "HEAD"]), start);
+  assert.equal(fs.existsSync(path.join(top, "partial.txt")), false);
+  assert.equal(gw(["show", `${later[0].rolledBack}:partial.txt`]), "half");
+  assert.match(retry.json.reason, /\+1 for 1 failed attempt\(s\)/);
 });

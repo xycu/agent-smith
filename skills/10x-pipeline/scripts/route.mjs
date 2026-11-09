@@ -646,6 +646,8 @@ function status(id, flags, chain = "10x") {
       ...(e.invalid ? { invalid: e.invalid } : {}),
       ...(e.scoreShift ? { scoreShift: e.scoreShift } : {}),
       ...(typeof e.agent === "string" ? { agent: e.agent } : {}),
+      // The number of neutral reruns after orchestrator faults (limits.maxNeutralRetries), only when there was one.
+      ...(Array.isArray(e.neutralRetries) && e.neutralRetries.length > 0 ? { neutralRetries: e.neutralRetries.length } : {}),
       ...(isObject(e.review) ? { review: e.review } : {}),
       ...(typeof e.commit === "string" ? { commit: e.commit.slice(0, 7) } : {}),
       ...(typeof e.rolledBack === "string" ? { rolledBack: e.rolledBack } : {}),
