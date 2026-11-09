@@ -33,11 +33,12 @@ function lstatOrNull(p) {
 }
 
 // Lets a read-only directory give up its entries; files need no mode change to be unlinked.
-function withWritableParent(p, fn) {
+// The parent of the target lies outside it, so the target itself never gets this retry.
+function withWritableParent(p, fn, root) {
   try {
     fn();
   } catch (err) {
-    if (err.code !== "EACCES" && err.code !== "EPERM") throw err;
+    if ((err.code !== "EACCES" && err.code !== "EPERM") || p === root) throw err;
     fs.chmodSync(path.dirname(p), 0o700);
     fn();
   }
@@ -49,7 +50,7 @@ export function removeTree(target) {
   const top = lstatOrNull(root);
   if (!top) return { files: 0, dirs: 0 };
   if (!top.isDirectory()) {
-    withWritableParent(root, () => fs.unlinkSync(root));
+    withWritableParent(root, () => fs.unlinkSync(root), root);
     return { files: 1, dirs: 0 };
   }
 
@@ -81,10 +82,10 @@ export function removeTree(target) {
   }
 
   // 3. Delete the files one by one.
-  for (const p of files) withWritableParent(p, () => fs.unlinkSync(p));
+  for (const p of files) withWritableParent(p, () => fs.unlinkSync(p), root);
 
   // 4. rmdir the empty directories, deepest first.
   const ordered = dirs.slice().sort((a, b) => b.split(path.sep).length - a.split(path.sep).length);
-  for (const d of ordered) withWritableParent(d, () => fs.rmdirSync(d));
+  for (const d of ordered) withWritableParent(d, () => fs.rmdirSync(d), root);
   return { files: files.length, dirs: dirs.length };
 }
