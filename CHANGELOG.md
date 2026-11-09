@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.0](https://github.com/xycu/agent-smith/compare/v1.2.0...v1.3.0) (2026-11-09)
+
+
+### Features
+
+* **worktree-pr-only:** open-pr script and its tests (p1) ([a679fb8](https://github.com/xycu/agent-smith/commit/a679fb8116c2c5586557d9236b2349a95a1cbf8d))
+* **worktree-pr-only:** orchestrator skills run the pull request step (p2) ([ee83ab5](https://github.com/xycu/agent-smith/commit/ee83ab51d52ac162a940802a50bd66762c2f87fd))
+
+
+### Bug Fixes
+
+* **open-pr:** count base candidates in one call and unstage only the script's own add ([511189e](https://github.com/xycu/agent-smith/commit/511189e2f48455871d734fc39f30159a67c632a2))
+* **skills:** keep the archive Manual gate working with the pull request step ([240c06b](https://github.com/xycu/agent-smith/commit/240c06bdac36ec24d760072e714a4f68ed7efef6))
+* **worktree-pr-only:** open-pr always sets manual when nothing is pushed ([562e7e7](https://github.com/xycu/agent-smith/commit/562e7e765b2ec6b9e3f2fc5d567a3c71a1c1bf00))
+
 ## [1.2.0](https://github.com/xycu/agent-smith/compare/v1.1.1...v1.2.0) (2026-11-09)
 
 
