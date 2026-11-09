@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
-  executed, writeLog, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured,
+  executed, writeLog, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
@@ -92,6 +92,13 @@ function complexityLines(fullLog) {
   ];
 }
 
+// The Cost (estimate) line under the totals line: a blended rate over the steps that have a token figure and a price.
+function costLine(cost) {
+  const missing = cost.unpriced.length ? ` · no price for: ${cost.unpriced.join(", ")}` : "";
+  if (cost.priced === 0) return `Cost (estimate): - (no step with a token figure has a price) at a blended rate${missing}`;
+  return `Cost (estimate): $${cost.usd.toFixed(2)} at a blended rate (USD per million tokens, no input/output split) · priced ${cost.priced} of ${cost.withFigures} steps with a token figure${missing}`;
+}
+
 function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
   const log = executed(fullLog);
@@ -99,12 +106,17 @@ function buildReport(id, meta, fullLog) {
   const o = meta.outcome;
   const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
   const tokens = (e) => (typeof e.usage?.totalTokens === "number" ? e.usage.totalTokens : null);
+  // The cost estimate, only when the merged policy prices a model; without prices the report is as before.
+  const prices = loadPrices();
+  const cost = prices ? estimateCost(log, prices) : null;
   const rows = log.map((e) => {
     const shown = e.result ? (e.ok ? "ok" : e.fallback ? "fallback" : "failed") : "-";
     // The step commit of an isolated run, short.
     const result = typeof e.commit === "string" ? `${shown} (${e.commit.slice(0, 7)})` : shown;
     const t = tokens(e);
-    return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |`;
+    const usd = cost ? cost.perEntry[e.n] : undefined;
+    const costCell = cost ? ` ${typeof usd === "number" ? `$${usd.toFixed(4)}` : "-"} |` : "";
+    return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |${costCell}`;
   });
   const withTokens = log.filter((e) => tokens(e) !== null);
   const total = withTokens.reduce((sum, e) => sum + tokens(e), 0);
@@ -116,11 +128,12 @@ function buildReport(id, meta, fullLog) {
     `Outcome: ${outcome}`,
     ...archiveLines(id, meta, oneLine),
     "",
-    "| # | Step | Model | Effort | Tier | Simple | Result | Tokens |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- |",
+    `| # | Step | Model | Effort | Tier | Simple | Result | Tokens |${cost ? " Cost (est.) |" : ""}`,
+    `| --- | --- | --- | --- | --- | --- | --- | --- |${cost ? " --- |" : ""}`,
     ...rows,
     "",
     `Steps: ${log.length} · Tokens: ${withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
+    ...(cost ? [costLine(cost)] : []),
     "",
     ...(skips.length ? [
       "## Skipped steps",
