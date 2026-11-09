@@ -11,12 +11,14 @@
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
 //   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]   # read-only: usage of a routed run against a baseline run
 //                                      # --unpinned: the baseline is a routed run too (scorer off), for the scorer A/B
+//   node route.mjs usage  <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N]   # attach a late usage figure to executed step <n>
 //   Every command takes --chain 10x|openspec. Without it, a run whose openspec/changes/<id>/agent-smith/meta.json
 //   (or that of its archive folder) holds chain "openspec" is an OpenSpec run; any other run is 10x.
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
 import fs from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
@@ -27,7 +29,7 @@ import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs
 import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
 import {
   writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, artifactsLine, stepAgent,
-  advisorOn, neutralRetry,
+  advisorOn, neutralRetry, cleanUsage,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
@@ -674,6 +676,63 @@ function status(id, flags, chain = "10x") {
   out(res);
 }
 
+// ---- late usage figure ------------------------------------------------------
+
+// The three flags of `usage` and the figure key each one sets.
+const USAGE_FLAGS = [["tokens", "totalTokens"], ["tool-uses", "toolUses"], ["duration-ms", "durationMs"]];
+
+// Attaches a usage figure that reached the orchestrator after `next` ran to executed step <n>. A refusal prints
+// { action: "usage", attached: false, n, reason }, exits 1 and writes nothing. A figure is never overwritten.
+function usageCommand(id, rest, flags, policy, chain = "10x") {
+  const refuse = (reason, n = null) => out({ action: "usage", attached: false, n, reason }, 1);
+  // Arguments first, before anything is read. <n> directly follows the change id; a flag there is no step number.
+  const rawN = rest[0];
+  if (typeof rawN !== "string" || !/^[1-9]\d*$/.test(rawN) || !Number.isSafeInteger(Number(rawN))) {
+    refuse("Usage: route.mjs usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] [--chain 10x|openspec]; <n> is the step number, a positive integer that directly follows the change id.");
+  }
+  const n = Number(rawN);
+  const raw = {};
+  for (const [flag, key] of USAGE_FLAGS) {
+    if (flags[flag] === undefined) continue;
+    const v = flags[flag];
+    if (typeof v !== "string" || !/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) {
+      refuse(`--${flag} needs a non-negative integer, got ${v === true ? "no value" : JSON.stringify(v)}.`, n);
+    }
+    raw[key] = Number(v);
+  }
+  const usage = cleanUsage(raw);
+  if (!usage) refuse("Give at least one of --tokens, --tool-uses and --duration-ms.", n);
+
+  const p = paths(id, policy, chain);
+  guardArchived(p, id, chain);
+  if (chain === "openspec" && !fs.existsSync(p.change)) refuse(missingChangeReason(id), n);
+  if (!fs.existsSync(p.log)) refuse(`No run log for ${id}.`, n);
+  const log = readLog(p.log);
+  const entry = executed(log).find((e) => e.n === n);
+  if (!entry) refuse(`Step ${n} is not logged.`, n);
+  if (!isObject(entry.result)) refuse(`Step ${n} (${entry.step}) has no result yet; put the figure in its result file.`, n);
+  const base = { action: "usage", attached: true, n, step: entry.step, usage };
+  if (entry.usage !== undefined) {
+    if (isDeepStrictEqual(entry.usage, usage)) out({ ...base, unchanged: true, report: null, commit: null });
+    refuse(`Step ${n} (${entry.step}) already has the figure ${JSON.stringify(entry.usage)}; a figure is never overwritten.`, n);
+  }
+  const meta = readMeta(p.meta, { id, goal: "" });
+  const ended = isObject(meta.outcome);
+  if (ended && meta.outcome.action === "done" && meta.archive === true) {
+    refuse("The run is in the archive state; a late figure there needs the folder commit of the archive branch.", n);
+  }
+  entry.usage = usage;
+  entry.usageLate = true;
+  writeLog(p.log, log);
+  // An ended run has a report; rewrite it so the Tokens column, the totals and the cost include the figure.
+  let report = null;
+  let reportError;
+  if (ended) {
+    try { report = writeReport(p, id, meta, log); } catch (e) { reportError = e.message; }
+  }
+  out({ ...base, unchanged: false, report, ...(reportError ? { reportError } : {}), commit: null });
+}
+
 // ---- chain ----------------------------------------------------------------
 
 const CHAINS = ["10x", "openspec"];
@@ -719,7 +778,7 @@ function resolveChain(cmd, id, flags) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest);
   // --chain is checked before anything is read.
@@ -820,6 +879,8 @@ function main() {
     status(id, flags, chain);
   } else if (cmd === "risk") {
     riskCommand(id, policy, chain);
+  } else if (cmd === "usage") {
+    usageCommand(id, rest, flags, policy, chain);
   } else if (cmd === "verify-archive") {
     verifyArchive(id, flags, chain);
   } else if (cmd === "compare") {

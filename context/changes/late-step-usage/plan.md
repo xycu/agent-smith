@@ -330,9 +330,9 @@ None. One log read and write per call. In the archive state the git calls are th
 
 #### Automated
 
-- [ ] 1.1 New command tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
-- [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.3 A refused call leaves the change folder byte-identical (snapshot assertion in `late-usage.test.mjs`)
+- [x] 1.1 New command tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.3 A refused call leaves the change folder byte-identical (snapshot assertion in `late-usage.test.mjs`)
 
 ### Phase 2: Late figure in the archive state
 
