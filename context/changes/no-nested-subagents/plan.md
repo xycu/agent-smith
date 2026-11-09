@@ -297,12 +297,12 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Automated
 
-- [x] 1.1 The new test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [x] 1.2 Rule form holds for policy prompts and prompt files: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 1.3 Suffix, delete-ban and advisor tests still pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/advisor.test.mjs`
-- [x] 1.4 Executor and pre-plan prompt tests still pass: `node --test skills/10x-pipeline/test/executors.test.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/codereplan.test.mjs`
-- [x] 1.5 The research prompt asks for no subagent: `grep -ni "subagent" skills/10x-pipeline/prompts/research-with-map.md` prints nothing
-- [x] 1.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 The new test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs` — faaff97
+- [x] 1.2 Rule form holds for policy prompts and prompt files: `node --test skills/10x-pipeline/test/rules.test.mjs` — faaff97
+- [x] 1.3 Suffix, delete-ban and advisor tests still pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/advisor.test.mjs` — faaff97
+- [x] 1.4 Executor and pre-plan prompt tests still pass: `node --test skills/10x-pipeline/test/executors.test.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/codereplan.test.mjs` — faaff97
+- [x] 1.5 The research prompt asks for no subagent: `grep -ni "subagent" skills/10x-pipeline/prompts/research-with-map.md` prints nothing — faaff97
+- [x] 1.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — faaff97
 
 #### Manual
 
@@ -312,12 +312,12 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Automated
 
-- [ ] 2.1 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
-- [ ] 2.2 Rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 2.3 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [ ] 2.4 The two anti-stall sections are equal: `diff <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/10x-pipeline/SKILL.md) <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/openspec-pipeline/SKILL.md)` prints nothing
-- [ ] 2.5 PR comment tests that read the skills still pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs`
-- [ ] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
+- [x] 2.2 Rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 2.3 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
+- [x] 2.4 The two anti-stall sections are equal: `diff <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/10x-pipeline/SKILL.md) <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/openspec-pipeline/SKILL.md)` prints nothing
+- [x] 2.5 PR comment tests that read the skills still pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs`
+- [x] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
