@@ -65,6 +65,8 @@ The orchestrator declares a fault of its own with one result status, and the rou
 
 **GIVEN** the router's `agent` does not resolve, or a subagent reply has no parsable `RESULT:` line **WHEN** the orchestrator writes the result file **THEN** it **MUST** write `unknown`, which stays a failed attempt.
 
+**GIVEN** a subagent's `RESULT:` line carries the status `orchestrator-error` **WHEN** the orchestrator writes the result file **THEN** it **MUST** write `unknown` in its place and keep the other keys, because only the orchestrator declares a fault of its own and the router cannot tell who wrote the file.
+
 ### Both chains (D7)
 
 **GIVEN** a run of either chain **WHEN** `next` reads an `orchestrator-error` result **THEN** the same code path **MUST** apply, because both skills go through `next` in `route.mjs`.
