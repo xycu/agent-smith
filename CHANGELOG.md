@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/xycu/agent-smith/compare/v1.0.0...v1.0.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **openspec-pipeline:** read step usage from the task notification ([79f9fba](https://github.com/xycu/agent-smith/commit/79f9fbab95ed1c9831fe659b293dbda08e960692))
+
 ## [1.0.0](https://github.com/xycu/agent-smith/compare/v0.8.1...v1.0.0) (2026-11-09)
 
 
