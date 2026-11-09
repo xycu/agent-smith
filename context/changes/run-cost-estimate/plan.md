@@ -17,7 +17,7 @@ Add an optional `prices` block to `policy.json` and a `Cost (estimate)` figure t
 
 ## Desired End State
 
-- With the shipped policy (`prices: null`), `report.md`, `status` and `compare` output is byte-for-byte what it is today.
+- With the shipped policy (`prices: null`), `report.md`, `status` and the `compare` Markdown are byte-for-byte what they are today. The `compare` JSON gains one key, `cost: null`, on each side, and nothing else changes (no existing `compare` test compares a whole side object).
 - With prices set in the project override, for example `{ "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2 } } }`:
   - `report.md` gets a `Cost (est.)` column and a line under the totals line: `Cost (estimate): $X.XX at a blended rate (USD per million tokens, no input/output split) · priced N of M steps with a token figure`, plus `no price for: <aliases>` when some are missing.
   - `status` prints a top-level `cost` object and a per-step `cost`.
@@ -77,7 +77,17 @@ The policy key, its validation and the pure cost function, with no output change
 **Contract**:
 - `priceTable(policy)` returns `null` when `policy.prices` is not an object, or `usdPerMillionTokens` is not an object, or it holds no valid entry. A valid entry is a finite number `>= 0` under a non-empty string key; any other entry is dropped (that alias is unpriced). Returns `{ usdPerMillionTokens }`.
 - `estimateCost(entries, table)` takes executed log entries and returns `{ usd, priced, withFigures, unpriced, perEntry }`: `withFigures` counts entries with a valid `usage.totalTokens` (same test as `report` and `compare`: non-negative safe integer); `priced` counts those whose `model` alias has a price; `usd` is the sum of `totalTokens * price / 1e6` over priced entries; `unpriced` is the sorted list of distinct aliases (`unknown` for a missing model) that had a token figure and no price; `perEntry` maps entry `n` to its USD or `null`. A `0` price is a price.
+- `estimateCost` returns `usd` and `perEntry` values as unrounded sums; each consumer rounds (report: 2 decimals for the total and 4 for a cell, `status` and `compare`: 4 decimals), so the helper stays exact and the formats cannot disagree.
+- The figure test is the one `cleanUsage` applies at intake (`flow.mjs:252`). The report's own `typeof number` test and `compare`'s `validFigure` agree with it on every log the router wrote; they can differ only on a hand-edited log, where `M` may then differ from the `figures for K` count of the totals line. `estimateCost` does not change either of those tests.
 - It never throws on a hand-edited log.
+
+#### 4. Provenance tests
+
+**File**: `skills/10x-pipeline/test/provenance.test.mjs`
+
+**Intent**: The test `1.1 policy.json ships the provenance block` (line 88) asserts the exact shipped `provenance` block, so it fails once `prices` joins `ignore`. Update that expectation to the three-name list, and add the test of criterion 1.3 here (not in `cost.test.mjs`): a fresh `init` with an override that sets prices records no `prices` section in `meta.provenance.sections`, and `compare` gives no `provenance-differs:prices` when only the prices differ.
+
+**Contract**: the edit changes only the expected `ignore` array of that assertion and adds one test; no other existing assertion changes.
 
 ### Success Criteria:
 
@@ -144,7 +154,7 @@ Print each side's estimate next to its tokens. The verdict stays on tokens.
 
 **Intent**: In `readSide`, take the price table from the policy `compare` runs under (passed in like `producedFile`) and add `cost` to the side from `estimateCost(steps, table)`. In `comparePair` add the warning `cost-incomplete:<side>` when a side has a token figure for a step it cannot price. In `compareMarkdown` add `Cost (estimate)` rows. With no table, `cost` is `null` and no row prints.
 
-**Contract**: side `cost: { usd, priced, withFigures, unpriced, byModel }` (`byModel`: USD per alias, priced steps only) or `null`. Markdown row `Cost (estimate)`: `$X.XX (P of S priced)` per side, plus `Cost by model, baseline: ...` and `Cost by model, routed: ...` lines. The footer line keeps `Unit: raw tokens, a proxy for the weekly limit.` and gains `Cost is an estimate at a blended rate and does not enter the verdict.` only when `cost` prints. `verdict`, `comparable`, `reasons`, `dropPercent` do not read `cost`. The prices come from the policy of the project that runs `compare`, as the target does, so both sides are priced alike.
+**Contract**: side `cost: { usd, priced, withFigures, unpriced, byModel }` (`byModel`: USD per alias, priced steps only) or `null`. `usd` and each `byModel` value are rounded to 4 decimals, as in `status`; the sums are taken before rounding. The Markdown prints them with 2 decimals. Markdown row `Cost (estimate)`: `$X.XX (P of S priced)` per side, plus `Cost by model, baseline: ...` and `Cost by model, routed: ...` lines. The footer line keeps `Unit: raw tokens, a proxy for the weekly limit.` and gains `Cost is an estimate at a blended rate and does not enter the verdict.` only when `cost` prints. `verdict`, `comparable`, `reasons`, `dropPercent` do not read `cost`. The prices come from the policy of the project that runs `compare`, as the target does, so both sides are priced alike.
 
 ### Success Criteria:
 
@@ -174,17 +184,17 @@ Document the key, the formats and the limits where the project keeps them.
 
 **File**: `docs/REFERENCE.md`
 
-**Intent**: In "Usage report" add a "Cost estimate" bullet group: the `prices.usdPerMillionTokens` block, off by default, alias keys, blended rate, coverage wording, per-step column, `status` and `compare` shapes, verdict unchanged, a malformed block reads as off, the estimate uses the override at report time (an archived report keeps the text it was written with). In "Baseline comparison" add the cost fields and the `cost-incomplete` warning. Add `prices` to the provenance `ignore` list wording.
+**Intent**: In "Usage report" add a "Cost estimate" bullet group: the `prices.usdPerMillionTokens` block, off by default, alias keys, blended rate, coverage wording, per-step column, `status` and `compare` shapes, verdict unchanged, a malformed block reads as off, the estimate uses the override at report time (an archived report keeps the text it was written with). In the "PR comment (opt-in)" bullets add that a report with a cost line posts the dollar estimate to the pull request like any other report text. In "Baseline comparison" add the cost fields and the `cost-incomplete` warning. Add `prices` to the provenance `ignore` list wording.
 
 **Contract**: prose only; no new section headings beyond a bullet group under "Usage report".
 
 #### 2. ADR note
 
-**File**: `docs/ADR/ADR-007-llm-complexity-scorer-as-a-routed-step.md`
+**File**: `docs/ADR/ADR-005-baseline-usage-comparison.md`
 
-**Intent**: Add a short dated note under "Consequences" that cost is an estimate on top of raw tokens, does not enter the A/B decision rule, and is blended because the host reports one total. Do not edit the decision rule.
+**Intent**: ADR-005 owns the unit decision ("The unit is raw `totalTokens`", line 21). Add a short dated note under "Consequences" that cost is an estimate on top of raw tokens, does not enter the verdict, and is blended because the host reports one total. ADR-007 is not edited: its A/B decision rule reads raw tokens and stays as it is.
 
-**Contract**: one bullet or short paragraph; the "A/B decision rule" and "A/B result" sections stay as they are.
+**Contract**: one bullet or short paragraph in ADR-005 "Consequences"; no other ADR section changes.
 
 #### 3. Contributor guide and README
 
@@ -241,7 +251,7 @@ None. No prices by default, no new file, no change to `run.jsonl` or `meta.json`
 - Status: `skills/10x-pipeline/scripts/route.mjs:580`
 - Policy merge: `skills/10x-pipeline/scripts/state.mjs:38`
 - Provenance ignore: `skills/10x-pipeline/scripts/isolation.mjs:19`
-- Tokens as a proxy: `docs/ADR/ADR-005-baseline-usage-comparison.md`, `docs/ADR/ADR-007-llm-complexity-scorer-as-a-routed-step.md`
+- Tokens as a proxy: `docs/ADR/ADR-005-baseline-usage-comparison.md` (the unit decision, gets the note), `docs/ADR/ADR-007-llm-complexity-scorer-as-a-routed-step.md` (A/B rule on tokens, unchanged)
 
 ## Progress
 
