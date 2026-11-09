@@ -93,6 +93,10 @@ Off by default, described in the [reference](docs/REFERENCE.md):
 
 Versions follow [Semantic Versioning](https://semver.org). The plugin is on `0.x`, so the minor number can carry breaking changes until `1.0.0`. Releases are tagged `vX.Y.Z` with a changelog on the [Releases page](https://github.com/xycu/agent-smith/releases). release-please keeps one release PR current from the Conventional Commits on `main`; contributors do not edit the version fields. The rules are in `AGENTS.md` ("Commits", "Releases") and ADR-008.
 
+## License
+
+Free for non-commercial open source projects. Commercial use is free for a 60-day trial. Any other use needs a written license: contact Błażej Ksycki, [blazej@ksycki.pl](mailto:blazej@ksycki.pl). The full terms are in [`LICENSE`](LICENSE).
+
 ## Layout
 
 ```
