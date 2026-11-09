@@ -165,6 +165,7 @@ function next(id, policy, chain = "10x") {
     retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "), failure: d.failure ?? "",
     unproven: (d.unproven ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
     lessonMax: String(lessonLimits(policy).maxCandidates), lessonChars: String(lessonLimits(policy).maxChars),
+    findings: d.findings ?? "",
   };
   // The working-directory rules of an isolated run (meta.isolated), the rendered template, then the advisor rules for a
   // listed template (advisor.enabled), then the generic suffix.

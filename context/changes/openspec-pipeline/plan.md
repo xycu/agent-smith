@@ -439,17 +439,17 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 
 #### Automated
 
-- [x] 2.1 openspec-chain.test.mjs passes
-- [x] 2.2 Full suite passes
-- [x] 2.3 helpers.mjs and loops-existing.test.mjs unchanged since 0e49df5
+- [x] 2.1 openspec-chain.test.mjs passes — 7fd1330
+- [x] 2.2 Full suite passes — 7fd1330
+- [x] 2.3 helpers.mjs and loops-existing.test.mjs unchanged since 0e49df5 — 7fd1330
 
 ### Phase 3: Step verification, verdict and fix loop
 
 #### Automated
 
-- [ ] 3.1 openspec-steps.test.mjs passes
-- [ ] 3.2 openspec-isolation.test.mjs passes
-- [ ] 3.3 Full suite passes
+- [x] 3.1 openspec-steps.test.mjs passes
+- [x] 3.2 openspec-isolation.test.mjs passes
+- [x] 3.3 Full suite passes
 
 ### Phase 4: Archive and read-only commands
 
