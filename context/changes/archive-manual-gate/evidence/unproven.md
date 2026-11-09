@@ -1,3 +1,3 @@
-- 1.5 — needs a live interactive pipeline run with AskUserQuestion and a real archive; cannot be done from an unattended subagent
-- 1.6 — needs a live headless `claude -p` pipeline run; not runnable here (would also start a nested pipeline)
-- 1.7 — needs a live --archive pipeline run with no pending Manual row
+- 1.5 — needs a live interactive pipeline run: AskUserQuestion is a host tool and the yes path really archives; archive-gate.test.mjs pins only the skill text, not the behavior; an unattended subagent cannot answer a question or run a nested pipeline
+- 1.6 — needs a live headless `claude -p` pipeline run; not runnable from here (would start a nested pipeline and a real archive)
+- 1.7 — needs a live `--archive` pipeline run with no pending Manual row; tests cover only the router data (`manualPending: []`) and the skill text, not the orchestrator behavior
