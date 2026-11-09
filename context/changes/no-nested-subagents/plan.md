@@ -297,12 +297,12 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Automated
 
-- [ ] 1.1 The new test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [ ] 1.2 Rule form holds for policy prompts and prompt files: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 1.3 Suffix, delete-ban and advisor tests still pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/advisor.test.mjs`
-- [ ] 1.4 Executor and pre-plan prompt tests still pass: `node --test skills/10x-pipeline/test/executors.test.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/codereplan.test.mjs`
-- [ ] 1.5 The research prompt asks for no subagent: `grep -ni "subagent" skills/10x-pipeline/prompts/research-with-map.md` prints nothing
-- [ ] 1.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 The new test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
+- [x] 1.2 Rule form holds for policy prompts and prompt files: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 1.3 Suffix, delete-ban and advisor tests still pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/advisor.test.mjs`
+- [x] 1.4 Executor and pre-plan prompt tests still pass: `node --test skills/10x-pipeline/test/executors.test.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/codereplan.test.mjs`
+- [x] 1.5 The research prompt asks for no subagent: `grep -ni "subagent" skills/10x-pipeline/prompts/research-with-map.md` prints nothing
+- [x] 1.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
