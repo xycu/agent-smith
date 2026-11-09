@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement ADR-013: a second pipeline skill, `skills/openspec-pipeline/`, that drives an OpenSpec change (`openspec/changes/<name>/`) through the steps `os-propose`, `os-apply`, `os-verify` and `os-archive` on the existing router. The router gains a `--chain openspec` switch, a chain-aware `paths()`, a decision module of its own, file-based reading of OpenSpec state, a `verify.md` verdict with a bounded fix loop, and an archive through the OpenSpec CLI. The 10x chain keeps its behaviour byte for byte.
+Implement ADR-013: a second pipeline skill, `skills/openspec-pipeline/`, that drives an OpenSpec change (`openspec/changes/<name>/`) through the steps `os-propose`, `os-apply`, `os-verify` and `os-archive` on the existing router. The router gains a `--chain openspec` switch, a chain-aware `paths()`, a decision module of its own, file-based reading of OpenSpec state, a `verify.md` verdict with a bounded fix loop, and an archive through the OpenSpec CLI. The 10x chain keeps its behaviour byte for byte (two existing tests get new data lines for the new policy keys, see Phase 2 item 7).
 
 The change starts with the four ADR-013 preconditions. Each is checked first, its evidence is saved under `context/changes/openspec-pipeline/evidence/`, and its result goes into ADR-013. A failed check stops the run before any router code is written.
 
@@ -30,6 +30,7 @@ Verify with the full suite, the new `openspec-*.test.mjs` files, `node tools/ver
 
 - Pre-probe evidence gathered while planning (to be confirmed and saved in Phase 1): a subagent whose working directory is this worktree lists `openspec-propose`, `openspec-apply-change` and `openspec-verify-change` among its skills although the worktree has no `.claude/skills/`, so skills resolve from the session's project, not from the worktree files (check 1). The installed plugin `~/.claude/plugins/cache/agent-smith/agent-smith/0.7.1/` is a copy of the whole repository tree, so `skills/10x-pipeline/scripts/route.mjs` sits beside any second skill folder (check 2). The `sentry` plugin 1.4.0 has eight skills under `skills/` and no skills list in its `plugin.json`, and all eight appear in the session (check 4).
 - `rules.test.mjs` scans `prompts/*.md` by directory listing, so a new guide file is checked from the moment it exists, wired or not.
+- Three existing tests pin the policy's key sets and break when `policy.json` gains steps and templates: `ladder.test.mjs:116` (`Object.keys(policy.steps)` must equal the keys of `PINS`), `advisor.test.mjs:295` ("every template has a case": every key of `policy.prompts` outside `NOT_TEMPLATES` needs a case) and `preplan.test.mjs:122` ("every prompt file is wired or documented as not wired"). The first two need a data edit in Phase 2 (item 7); the third fails only while the Phase 1 guides exist and `policy.json` does not yet reference them.
 - The pipeline that runs this plan uses the installed plugin copy (0.7.1) for its router and `policy.json`. Edits in this worktree do not change the run in progress; the tests spawn the worktree's `route.mjs` (`helpers.mjs` `ROUTE`).
 - `limits.maxFixLoops` is 2 and `rigor.budgetDelta` gives budgets 12, 19 and 24 (`policy.json`). The longest failure-free OpenSpec path is 7 steps (propose, apply, verify, then two rounds of fix and verify), inside the `lean` budget.
 - `flow.mjs` `archiveLines` already names `chore(archive): close ${id}` as the archive commit of the 10x chain.
@@ -147,7 +148,7 @@ Record each prompt, the RESULT line, `ls -R` of the change after the step and th
 
 - Check 3 live evidence shows propose, apply, verify and the CLI archive ran unattended and the negative probe ended `blocked` with `signals.needsHuman`
 
-**Implementation Note**: If any check fails, stop here with status `blocked` and `signals.needsHuman` naming the check. Phase blocks use plain bullets; the checkboxes live in `## Progress`.
+**Implementation Note**: If any check fails, stop here with status `blocked` and `signals.needsHuman` naming the check. Run only `rules.test.mjs` in this phase: until Phase 2 wires the guides into `policy.json`, `preplan.test.mjs` ("every prompt file is wired or documented as not wired") fails on them, and that is expected. Phase blocks use plain bullets; the checkboxes live in `## Progress`.
 
 ---
 
@@ -185,7 +186,7 @@ Record each prompt, the RESULT line, `ls -R` of the change after the step and th
 
 **Contract**:
 - `--chain 10x|openspec` is accepted by `init`, `next`, `status`, `risk`, `verify-archive` and `compare`; any other value halts before anything is read.
-- Without the flag, a command reads `openspec/changes/<id>/agent-smith/meta.json`; `chain: "openspec"` there selects `openspec`, else `10x`. A flag that contradicts the stored chain halts.
+- Without the flag, a command reads `openspec/changes/<id>/agent-smith/meta.json`; `chain: "openspec"` there selects `openspec`. When the live folder is gone, it reads `openspec/changes/archive/<date>-<id>/agent-smith/meta.json` the same way (the archive folder of `archiveDirs`), so `next`, `status` and `verify-archive` on an archived OpenSpec run halt as archived instead of reporting a missing `context/changes/<id>`. Otherwise `10x`. A flag that contradicts the stored chain halts.
 - `init --chain openspec` halts and writes nothing when `openspec/changes/<id>/` is missing (the reason names `openspec new change <id>` and says store-hosted changes are not supported) or when `context/changes/<id>/` exists (collision, D8). A 10x `init` halts when `openspec/changes/<id>/agent-smith/meta.json` holds `chain: "openspec"`.
 - The first `openspec` `init` stores `meta.chain = "openspec"`; a 10x `init` writes no `chain` key.
 - `next()` calls `decideOpenspec` for `openspec`, skips the score, pre-plan, executor and manual-verify paths, passes the empty plan summary to `tierFor`, and records `before: { ticks }` from `readOpenspec` instead of the plan-based `before` fields. Provenance `flags` gain `chain` only when `meta.chain` is set.
@@ -212,7 +213,15 @@ Record each prompt, the RESULT line, `ls -R` of the change after the step and th
 
 **Intent**: Scratch OpenSpec projects without touching `helpers.mjs`, and the chain tests.
 
-**Contract**: The helper builds on `makeProject({ change: false, policy })` and writes `openspec/config.yaml`, a change folder, artifact files, `tasks.md` with a given number of ticked and open rows, `verify.md`, the result file and the run log at the OpenSpec paths. Tests: an unknown `--chain` value halts; missing change folder halts and creates no `agent-smith/`; the `context/changes/<id>/` collision halts; a 10x `init` on an OpenSpec run halts; `meta.chain` is stored and run state is written under `openspec/changes/<id>/agent-smith/` only; `next` and `status` detect the chain without the flag; `--chain 10x` on an OpenSpec run halts; the first step is `os-propose`, `os-apply` or `os-verify` for an empty, a proposed and a fully ticked change; `tasks.md` without checkboxes halts; a 10x `meta.json` has no `chain` key; the `os-propose` prompt holds the guide text and `prompts.suffix`.
+**Contract**: The helper builds on `makeProject({ change: false, policy })` and writes `openspec/config.yaml`, a change folder, artifact files, `tasks.md` with a given number of ticked and open rows, `verify.md`, the result file and the run log at the OpenSpec paths. Tests: an unknown `--chain` value halts; missing change folder halts and creates no `agent-smith/`; the `context/changes/<id>/` collision halts; a 10x `init` on an OpenSpec run halts; `meta.chain` is stored and run state is written under `openspec/changes/<id>/agent-smith/` only; `next` and `status` detect the chain without the flag; `--chain 10x` on an OpenSpec run halts; the first step is `os-propose`, `os-apply` or `os-verify` for an empty, a proposed and a fully ticked change; `tasks.md` without checkboxes halts; a 10x `meta.json` has no `chain` key; the `os-propose` prompt holds the guide text and `prompts.suffix`; `next`, `status` and `verify-archive` on a moved OpenSpec run (live folder gone, archive folder present) halt as archived without the flag.
+
+#### 7. Existing tests that pin the policy key sets
+
+**File**: `skills/10x-pipeline/test/ladder.test.mjs`, `skills/10x-pipeline/test/advisor.test.mjs`
+
+**Intent**: Keep both green with the new policy keys by extending their data only. This is the only edit to an existing test file in this change, and it changes no assertion about the 10x steps.
+
+**Contract**: `ladder.test.mjs`: add four entries to `PINS` equal to the pins of `plan` (`os-propose`), `implement` (`os-apply`), `impl-review` (`os-verify`) and `archive` (`os-archive`), which holds D9 for the tiers. `advisor.test.mjs`: the five templates `os-propose`, `os-apply`, `os-apply-fix`, `os-verify` and `os-archive` are not in `advisor.templates`, so add them to the set of templates that need no advisor case, with a comment that the OpenSpec chain carries no advisor text; the advisor flag stays off for them. `preplan.test.mjs` needs no edit, because `policy.json` references the four guide files.
 
 ### Success Criteria:
 
@@ -244,15 +253,15 @@ Each `os-` step is verified by the file it writes, the `verify.md` verdict drive
 - `os-propose`: verified when the status is `done`, `planningComplete` holds and at least one artifact file is newer than the step start.
 - `os-apply` (template `os-apply`): verified when the status is `done` and `tasks.md` has more ticked rows than `before.ticks`.
 - `os-apply` (template `os-apply-fix`): verified by the reported status, as the 10x `fix` step is.
-- `os-verify`: verified when `verify.md` is a regular file newer than the step start and `readVerdict` parses it. `readVerdict(file)` reads line 1 `Verdict: (PASS WITH WARNINGS|PASS|FAIL)`, then `Critical: <int>` and `Warnings: <int>`, and the `- ` lines under `## Critical` up to the next `## ` heading (at most 20, each made one line and cut to 300 code points). A `Critical` count above 0 reads as `FAIL` whatever the verdict line says. The log entry stores `review: { verdict, critical, warnings }`, so `status` and the report's `## Review findings` section show it (extend that section's step filter if it lists step names).
+- `os-verify`: verified when `verify.md` is a regular file newer than the step start and `readVerdict` parses it. `readVerdict(file)` reads line 1 `Verdict: (PASS WITH WARNINGS|PASS|FAIL)`, then `Critical: <int>` and `Warnings: <int>`, and the `- ` lines under `## Critical` up to the next `## ` heading (at most 20, each made one line and cut to 300 code points). A `Critical` count above 0 reads as `FAIL` whatever the verdict line says. The log entry stores `review: { verdict, critical, warnings }` (built here, not with the 10x `reviewRecord`, which reads `### F<n>` blocks), so `status` and the report's `## Review findings` section show it. No filter change is needed: both select entries by `isObject(e.review)` (`flow.mjs:159`, `route.mjs:555`), not by step name.
 
 #### 2. Verdict routing
 
-**File**: `skills/10x-pipeline/scripts/openspec.mjs`
+**File**: `skills/10x-pipeline/scripts/openspec.mjs`, `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: Finish `decideOpenspec` with the D4 verdict branches.
+**Intent**: Finish `decideOpenspec` with the D4 verdict branches, and carry the findings into the prompt.
 
-**Contract**: The last verified `os-verify`, read from its log entry, decides: `PASS` or `PASS WITH WARNINGS` → `done` (route's archive branch applies when `meta.archive`); `FAIL` with fewer verified `os-apply-fix` entries than `limits.maxFixLoops` → `os-apply` with template `os-apply-fix` and `{findings}` rendered from the stored critical lines (or "see verify.md" when none); `FAIL` at the cap → halt `OpenSpec verify FAIL after <n> fix loops. Needs a human.` with the path of `verify.md`. A verified `os-apply-fix` routes to `os-verify`.
+**Contract**: The last verified `os-verify` entry decides, and only while no verified step follows it. The router reads the verdict from `verify.md` itself with `readVerdict`, as the 10x chain reads its review files, not from the log copy (which serves `status` and the report), so a human who fixes the code or edits `verify.md` after a halt is routed on the file. An unreadable `verify.md` halts with its path. `PASS` or `PASS WITH WARNINGS` → `done` (route's archive branch applies when `meta.archive`); `FAIL` with fewer verified `os-apply-fix` entries than `limits.maxFixLoops` → `os-apply` with template `os-apply-fix` and `findings` set to the critical lines of the file (or "see verify.md" when none); `FAIL` at the cap → halt `OpenSpec verify FAIL after <n> fix loops. Needs a human. Fix the issues, set the first lines of <verify.md path> to "Verdict: PASS" and "Critical: 0", then run /agent-smith:openspec-pipeline <name> again.` plus, in an isolated run, `Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.` A verified `os-apply-fix` routes to `os-verify`. In `route.mjs` `next()`, add `findings: d.findings ?? ""` to the `vars` object that `render` uses: `render` replaces an unknown placeholder with an empty string, so a missing entry would send the fix prompt without the findings.
 
 #### 3. Tests
 
@@ -261,7 +270,7 @@ Each `os-` step is verified by the file it writes, the `verify.md` verdict drive
 **Intent**: Cover verification, verdict, loop, tiers, dropped features, budget and isolation.
 
 **Contract**:
-- Steps: `os-propose` done without new files fails; `os-apply` with no new tick fails, three failures halt; missing, stale or malformed `verify.md` fails the step; `PASS` and `PASS WITH WARNINGS` end `done`; a `PASS` line with `Critical: 1` routes as `FAIL`; `FAIL` returns `os-apply-fix` with the critical lines in the prompt; a third `FAIL` after two fix loops halts; the `review` field shows in `status` and `report.md`; `signals.needsHuman` halts and `signals.rigor` raises the level.
+- Steps: `os-propose` done without new files fails; `os-apply` with no new tick fails, three failures halt; missing, stale or malformed `verify.md` fails the step; `PASS` and `PASS WITH WARNINGS` end `done`; a `PASS` line with `Critical: 1` routes as `FAIL`; `FAIL` returns `os-apply-fix` with the critical lines in the prompt; a third `FAIL` after two fix loops halts, and a `verify.md` edited to `Verdict: PASS` with `Critical: 0` after that halt routes to `done` on the next call; the `review` field shows in `status` and `report.md`; `signals.needsHuman` halts and `signals.rigor` raises the level.
 - Tiers and features: the four `steps` entries equal the base, min and max tiers of `plan`, `implement`, `impl-review` and `archive`; `tierWhy` of the first `os-propose` starts with `base 5`; with `score.minRigor` `standard`, `manualVerify.minRigor` `lean` and `--rigor thorough`, an OpenSpec run never returns `score`, `research`, `domain-brief`, `frame`, `manual-verify` or an executor template.
 - Budget: the 7-step path with two `FAIL` verdicts halts on the fix-loop cap, not on the `lean` budget of 12.
 - Isolation (linked worktree, hermetic git, `isolation: { require: true }`): the start commit holds `openspec/changes/<id>/`; a verified `os-apply` gets a step commit; a failed `os-apply` resets code and `tasks.md` to `startSha` and writes the side ref; an OpenSpec `init` in a worktree that holds `context/changes/<id>/` halts.
@@ -355,7 +364,7 @@ The orchestrator skill for the OpenSpec chain, a content test for it, and the do
 
 **Intent**: Describe the second chain where a reader looks for it (D12).
 
-**Contract**: `AGENTS.md`: `openspec.mjs` in the module list between `steps.mjs` and `flow.mjs`, run-state ownership of `openspec/changes/<id>/agent-smith/`, the new skill, prompts and test files, `--chain` on the commands. `README.md`: an OpenSpec quick start and the `skills/openspec-pipeline/` layout line. `docs/REFERENCE.md`: a section for `/agent-smith:openspec-pipeline` with requirements, routing, verdict, fix loop, archive, collisions, dropped features and limits (archive date at midnight, file-based reading bounded by the contract test). `prompts/README.md`: the four guides in the Wired table and `{findings}` in the variable list. `plugin.json` and `marketplace.json` descriptions name both chains; `version` stays untouched. ADR-013: a pointer to the REFERENCE section.
+**Contract**: `AGENTS.md`: `openspec.mjs` in the module list between `steps.mjs` and `flow.mjs`, run-state ownership of `openspec/changes/<id>/agent-smith/`, the new skill, prompts and test files, `--chain` on the commands. `README.md`: an OpenSpec quick start and the `skills/openspec-pipeline/` layout line. `docs/REFERENCE.md`: a section for `/agent-smith:openspec-pipeline` with requirements, routing, verdict, fix loop, archive, collisions, dropped features and limits (archive date at midnight, file-based reading bounded by the contract test). `prompts/README.md`: the four guides in the Wired table and `{findings}` in the variable list. `plugin.json` and `marketplace.json` descriptions name both chains; `version` stays untouched. ADR-013: a pointer to the REFERENCE section, and D4/D5 reworded to match the build: a passing verdict ends in `done` or, with `--archive`, in the router's `archive` action (the `os-archive` step runs in the orchestrator and has no log entry, as the 10x `archive` does), and the router reads the verdict from `verify.md`.
 
 ### Success Criteria:
 
@@ -386,7 +395,7 @@ The orchestrator skill for the OpenSpec chain, a content test for it, and the do
 
 - The suite drives the real router through the CLI in scratch projects (`openspec-chain`, `openspec-steps`, `openspec-isolation`, `openspec-archive`), with hermetic git and linked worktrees where isolation is under test.
 - The contract test compares the router's file reading with `openspec instructions apply` and skips without the binary, like `GH_LIVE`.
-- The existing suite stays green and unedited, which shows the 10x chain is unchanged.
+- The existing suite stays green. Only the data lines of `ladder.test.mjs` and `advisor.test.mjs` named in Phase 2 item 7 change; `helpers.mjs` and `loops-existing.test.mjs` stay byte for byte (row 2.3), and no 10x assertion is edited, which shows the 10x chain is unchanged.
 
 ### Manual Testing Steps:
 

@@ -40,7 +40,7 @@
   },
   "startCommit": "c331fb4410a6b6b48825a063de2a719bd9d3f6ca",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "hot paths .claude-plugin/marketplace.json, .claude-plugin/plugin.json, skills/10x-pipeline/policy.json +1"
   }
 }
