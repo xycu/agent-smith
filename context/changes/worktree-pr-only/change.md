@@ -1,7 +1,7 @@
 ---
 change_id: worktree-pr-only
 title: All work in worktrees, always pushed for human review on a PR
-status: implemented
+status: impl_reviewed
 created: 2026-11-09
 updated: 2026-11-09
 archived_at: null
