@@ -472,4 +472,4 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 #### Manual
 
 - [x] 5.5 Claude Code lists agent-smith:openspec-pipeline from the worktree plugin — evidence: evidence/command-5.5-plugin-dir-init.txt
-- [ ] 5.6 One live openspec-pipeline run of a small change ends done with report.md
+- [x] 5.6 One live openspec-pipeline run of a small change ends done with report.md — verified 2026-11-09 by the live run of change openspec-project-rules: verify PASS, 0 critical, 0 warnings, archived by the CLI; step 2 failed once because the orchestrator truncated the prompt, the router rolled it back and the retry passed; evidence: openspec/changes/archive/2026-11-09-openspec-project-rules/agent-smith/report.md

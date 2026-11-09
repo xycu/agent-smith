@@ -1,1 +1,1 @@
-- 5.6 — needs one live openspec-pipeline run of a small change (nested pipeline with its own subagents and an OpenSpec project); too large for an unattended manual-verify step, and the sandbox denies the model API for a nested claude run
+- 5.6 — proved later: the live run of change openspec-project-rules ended done on 2026-11-09 (see the tick in plan.md)
