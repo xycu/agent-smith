@@ -114,7 +114,10 @@ const DELETE_CALL = /(?<![\w$])(rmSync|rmdirSync|rm|rmdir)\s*\(/g;
 const RECURSIVE_TRUE = /recursive\s*:\s*true/;
 const CODE_ALWAYS = [/\brimraf\b/, /\bshutil\.rmtree\b/];
 const PROSE_BANNED = [/\brm\s+(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\b/, /\brimraf\b/, /\bfind\b.*\s-delete\b/];
-const PROHIBITION = /MUST NOT|\bnever\b|\bNever\b|\bnot use\b|\bDo not\b|\bban|\bforbid|\bblock/;
+const PROHIBITION = /MUST NOT|\bnever\b|\bNever\b|\bnot use\b|\bDo not\b|\bban|\bforbid/;
+// The reason the docs give for the ban ("a harness may block it", "people block `rm -rf` in their harness"),
+// allowed as that phrase only: a line that merely holds "block" ("blocked", `blockSize`) is still checked.
+const BLOCK_REASON = /\b(?:a|the) harness (?:may block|that blocks)\b|\bpeople block\b.*\bin their harness\b/;
 
 // The argument text of the call that opens at `open` (the index of its "("), read to the balanced ")".
 function callArgs(text, open) {
@@ -142,7 +145,7 @@ export function scanCode(text) {
 export function scanProse(text) {
   const hits = [];
   text.split("\n").forEach((line, i) => {
-    if (PROSE_BANNED.some((re) => re.test(line)) && !PROHIBITION.test(line)) hits.push(`line ${i + 1}: ${line.slice(0, 80)}`);
+    if (PROSE_BANNED.some((re) => re.test(line)) && !PROHIBITION.test(line) && !BLOCK_REASON.test(line)) hits.push(`line ${i + 1}: ${line.slice(0, 80)}`);
   });
   return hits;
 }
@@ -182,6 +185,10 @@ test("guard: the scanner catches every banned form and lets creation through", (
   assert.ok(scanProse("npx rimraf dist").length > 0);
   assert.deepEqual(scanProse("You **MUST NOT** use `rm -rf`."), []);
   assert.deepEqual(scanProse("rm file.txt"), []);
+  assert.ok(scanProse("If the step is blocked, run rm -rf tmp").length > 0);
+  assert.ok(scanProse("blockSize=4 rm -rf tmp # block cleanup").length > 0);
+  assert.deepEqual(scanProse("Reasonable people block `rm -rf` in their harness."), []);
+  assert.deepEqual(scanProse("Remove it file by file, because a harness may block `rm -rf`."), []);
 });
 
 test("guard: no scanned file uses a recursive or forced directory delete", () => {
