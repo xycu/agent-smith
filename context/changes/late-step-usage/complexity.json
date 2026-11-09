@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome and most guards; open details: where the figure lands relative to the archive subagent and how a rollback interacts with the attached figure (change.md Scope)" },
+    "novelty": { "score": 1, "evidence": "adapts existing usage intake via attachResult in skills/10x-pipeline/scripts/flow.mjs and existing route.mjs subcommands such as verify-archive" },
+    "coupling": { "score": 2, "evidence": "touches route.mjs, flow.mjs attachResult, isolation.mjs rollback and step commit, state.mjs report writer, and run.jsonl read by status, report and compare" },
+    "discovery": { "score": 2, "evidence": "change.md names route.mjs, flow.mjs attachResult and the rollback in isolation.mjs; the report rewrite path and archive ordering in route.mjs still need a search" },
+    "volume": { "score": 2, "evidence": "about 8 files: route.mjs, flow.mjs, isolation.mjs, state.mjs, both SKILL.md, docs/REFERENCE.md, AGENTS.md, plus a new test file" },
+    "verification": { "score": 1, "evidence": "test/helpers.mjs and hermetic git helpers exist for worktree rollback tests; a few new tests are needed for both chains and the archive path" }
+  },
+  "unknowns": [
+    "Whether the archive action can be reached before a late figure lands in an isolated run, and how the step commit orders it",
+    "Whether rollback snapshots of a later step drop a figure attached after that step started"
+  ],
+  "confidence": "medium"
+}
