@@ -192,13 +192,22 @@ export function openCounts(review, policy) {
 // OpenSpec (the folder `openspec archive` moves a change into).
 export const archiveRoot = (chain = "10x") => (chain === "openspec" ? "openspec/changes/archive" : "context/archive");
 
-// Folder names under the chain's archive root that belong to this id: <YYYY-MM-DD>-<id>, anchored at both ends.
-// A name that only ends with the id (2026-01-01-x-<id>) is another change. The id is already [a-z0-9-].
+// An id that already starts with a date. `openspec archive` keeps such a name as the archive folder name.
+export const DATED_ID = /^\d{4}-\d{2}-\d{2}-/;
+
+// Does a folder name under the chain's archive root belong to this id: <YYYY-MM-DD>-<id>, anchored at both ends, or,
+// for OpenSpec, the id itself when it already starts with a date. A name that only ends with the id (2026-01-01-x-<id>)
+// is another change. The id is already [a-z0-9-].
+export function isArchiveName(name, id, chain = "10x") {
+  if (chain === "openspec" && DATED_ID.test(id) && name === id) return true;
+  return new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${id}$`).test(name);
+}
+
+// Folder names under the chain's archive root that belong to this id (isArchiveName), sorted.
 export function archiveDirs(id, chain = "10x") {
-  const re = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${id}$`);
   let names;
   try { names = fs.readdirSync(path.join(ROOT, archiveRoot(chain))); } catch { return []; }
-  return names.filter((name) => re.test(name)).sort();
+  return names.filter((name) => isArchiveName(name, id, chain)).sort();
 }
 
 // One field of the first --- block of a file, quotes stripped. null when the file, the block or the field is missing.

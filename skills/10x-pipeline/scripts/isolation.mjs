@@ -7,6 +7,7 @@ import {
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
+import { readOpenspec, openspecArchivePath } from "./openspec.mjs";
 import { finishRun, endRun, promptText } from "./flow.mjs";
 
 // ---- run provenance -------------------------------------------------------------
@@ -207,11 +208,12 @@ export function notWorkTree(inside, timeout, need = "--archive needs") {
 // The git safety checks shared by the pre-archive commit, the start and step commits of an isolated run and the
 // rollback, all reads: a work tree, git ignoring a router file (only with `id`), a symbolic HEAD, no merge, rebase,
 // cherry-pick or revert in progress and, unless `emptyIndex` is false, an empty index. Returns null or the reason.
-function gitSafety(g, timeout, { id = null, emptyIndex = true, need } = {}) {
+// `chain` picks the router files probed with `id` (ignoredProbePaths).
+function gitSafety(g, timeout, { id = null, emptyIndex = true, need, chain = "10x" } = {}) {
   const inside = g(["rev-parse", "--is-inside-work-tree"]);
   if (inside.status !== 0 || inside.stdout.trim() !== "true") return notWorkTree(inside, timeout, need);
   if (id !== null) {
-    const ignoredProbes = ignoredProbePaths(id, { timeout });
+    const ignoredProbes = ignoredProbePaths(id, { timeout, chain });
     if (ignoredProbes.length) return `git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`;
   }
   if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) return "HEAD is detached; check out a branch first.";
@@ -494,8 +496,11 @@ const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone
 // The done branch of a run with --archive. Pre-checks, final report, commit, post-commit checks, then the archive action.
 // While the folder is not committed a halt may write the end state (endRun). Once the commit exists, or the run is
 // written as done, a halt only prints (out): rewriting meta.json or report.md would dirty the committed folder.
+// An OpenSpec run (ADR-013 D5) commits openspec/changes/<id>/, needs no created: line, halts on an open task row,
+// names the folder `openspec archive` will create and returns the os-archive prompt at the tier of steps["os-archive"].
 export function archiveDone(p, id, meta, log, policy, level, d) {
-  const rel = `context/changes/${id}`;
+  const openspec = p.chain === "openspec";
+  const rel = openspec ? `openspec/changes/${id}` : `context/changes/${id}`;
   const ran = executed(log);
   const timeout = policy.archive?.gitTimeoutMs;
   const g = (args) => runGit(args, { timeout });
@@ -519,15 +524,27 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
     }
     return endRun(p, id, meta, log, { action: "halt", reason: `${reason} Nothing was committed.`, steps: ran.length });
   };
-  const unsafe = gitSafety(g, timeout, { id });
+  const unsafe = gitSafety(g, timeout, { id, chain: openspec ? "openspec" : "10x" });
   if (unsafe) precheck(unsafe);
-  const created = createdValue(path.join(p.change, "change.md"));
-  if (created === null || !CREATED_RE.test(created)) {
-    precheck(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
-  }
-  const archivePath = `context/archive/${created}-${id}`;
-  if (fs.existsSync(path.join(ROOT, archivePath))) {
-    precheck(`Archive destination ${archivePath} already exists; a reused id on the same date needs a human.`);
+  let archivePath;
+  if (openspec) {
+    const tasks = readOpenspec(p).tasks;
+    if (tasks.open > 0) {
+      precheck(`${rel}/tasks.md has ${tasks.open} open task row(s) of ${tasks.total}; an OpenSpec change is archived only with every task ticked. Needs a human.`);
+    }
+    archivePath = openspecArchivePath(id);
+    if (fs.existsSync(path.join(ROOT, archivePath))) {
+      precheck(`Archive destination ${archivePath} already exists; openspec archive would refuse it (archive_target_exists). Needs a human.`);
+    }
+  } else {
+    const created = createdValue(path.join(p.change, "change.md"));
+    if (created === null || !CREATED_RE.test(created)) {
+      precheck(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
+    }
+    archivePath = `context/archive/${created}-${id}`;
+    if (fs.existsSync(path.join(ROOT, archivePath))) {
+      precheck(`Archive destination ${archivePath} already exists; a reused id on the same date needs a human.`);
+    }
   }
   const manualPending = Array.isArray(d.manualPending) ? d.manualPending : [];
   if (policy.archive?.haltOnManualPending === true && manualPending.length) {
@@ -541,7 +558,7 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   if (!message) precheck("policy.archive.commitMessage renders to a blank message.");
   let settled;
   try {
-    settled = tierFor({ step: "archive" }, ran, policy, readPlan(p.plan), meta, level);
+    settled = tierFor({ step: openspec ? "os-archive" : "archive" }, ran, policy, readPlan(p.plan), meta, level);
   } catch (e) {
     precheck(`Cannot pick the archive tier: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -616,7 +633,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
     const head = g(["rev-parse", "--short", "HEAD"]);
     commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : "HEAD";
   }
-  const prompt = worktreeLine(policy, meta) + render(policy.prompts.archive, { id }).trim() + "\n\n" + policy.prompts.suffix;
+  const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(policy.prompts.archive, { id });
+  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + policy.prompts.suffix;
   return out({
     action: "archive",
     model: target.model,

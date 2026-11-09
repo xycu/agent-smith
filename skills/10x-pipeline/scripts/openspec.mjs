@@ -2,7 +2,7 @@
 // It never calls the openspec CLI (D2). Import order: state, preplan, steps, openspec, then flow, isolation and route.
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, executed, mtime } from "./state.mjs";
+import { ROOT, executed, mtime, archiveRoot, DATED_ID } from "./state.mjs";
 
 // A task row of tasks.md, as OpenSpec's apply step counts it. A row is complete only for x or X.
 // The pattern is kept as narrow as OpenSpec's own; a row it misses is a known limit, not widened here.
@@ -59,6 +59,16 @@ export function readOpenspec(p) {
 }
 
 const rel = (file) => path.relative(ROOT, file).split(path.sep).join("/");
+
+// The archive folder `openspec archive` will move the change into, relative to the project root (ADR-013 D5):
+// openspec/changes/archive/<local YYYY-MM-DD>-<id>, or the id unchanged when it already starts with a date. The CLI
+// takes the local date when it runs, after this is computed, so a run that crosses midnight in between gets another
+// folder; verify-archive then lists the folder it finds.
+export function openspecArchivePath(id, now = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  return `${archiveRoot("openspec")}/${DATED_ID.test(id) ? id : `${day}-${id}`}`;
+}
 
 // The halt text for a run whose change folder does not exist. The router never creates the change (D3).
 export function missingChangeReason(id) {

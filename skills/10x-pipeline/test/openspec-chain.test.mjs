@@ -197,17 +197,22 @@ test("the os-propose prompt holds the lead line, the guide text and prompts.suff
   assert.ok(prompt.endsWith("\n\n" + SUFFIX));
 });
 
-test("next, status and verify-archive on a moved OpenSpec run halt as archived without the flag", () => {
+test("next and status on a moved OpenSpec run halt as archived without the flag, and verify-archive confirms it", () => {
   const project = makeOpenspecProject(PROPOSED);
   assert.equal(initOpenspec(project, "Add a thing").status, 0);
   writeResult(project, { status: "done", note: "applied" });
   moveToArchive(project, "2026-02-03");
-  for (const cmd of ["next", "status", "verify-archive"]) {
+  for (const cmd of ["next", "status"]) {
     const res = run(project, [cmd, "demo"]);
     assert.equal(res.status, 1, `${cmd}: ${res.stdout}`);
     assert.equal(res.json.action, "halt", cmd);
     assert.equal(res.json.reason, "Change demo is archived at openspec/changes/archive/2026-02-03-demo. Nothing was written.", cmd);
   }
+  // verify-archive is the check of the move (Phase 4), so it answers archived instead of halting.
+  const verified = run(project, ["verify-archive", "demo"]);
+  assert.equal(verified.status, 0, verified.stdout);
+  assert.equal(verified.json.archived, true);
+  assert.equal(verified.json.path, "openspec/changes/archive/2026-02-03-demo");
   // A 10x init without the flag halts as archived too, and nothing is recreated.
   const again = init(project, "Add a thing");
   assert.equal(again.status, 1, again.stdout);
