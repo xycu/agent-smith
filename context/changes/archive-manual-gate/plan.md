@@ -30,7 +30,7 @@ With `--archive` and one or more Manual rows pending, the orchestrator reports t
 - No new policy key to turn the question off. An owner who wants no question sets `archive.haltOnManualPending` (halt) or runs without `--archive`.
 - No rewrite of `report.md`: its `Archive: requested` line stays as the router wrote it and the final message says the run was not archived.
 - No change to the anti-stall section, the step numbers of the `archive` branch or the `10x-archive` unattended prompt.
-- Unproved ticks (`manualUnproven`, `uncommittedTicks`) do not trigger the question; only pending rows do. They are shown in the question text when present.
+- Owner decision (review F5): unproved ticks (`manualUnproven`, `uncommittedTicks`) also open the gate; each non-empty list is shown in the question text.
 - No undo of the pre-archive commit on a no.
 
 ## Implementation Approach
@@ -81,7 +81,7 @@ Add the gate to both skills and pin it with tests.
 - New gate tests pass: `node --test skills/10x-pipeline/test/archive-gate.test.mjs`
 - Skill content tests still pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/agents.test.mjs`
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- Router scripts untouched: `git diff --stat main -- skills/10x-pipeline/scripts skills/10x-pipeline/policy.json skills/10x-pipeline/prompts` prints nothing
+- Router scripts untouched: `git diff --stat $(git merge-base main HEAD) -- skills/10x-pipeline/scripts skills/10x-pipeline/policy.json skills/10x-pipeline/prompts` prints nothing
 
 #### Manual Verification:
 
@@ -171,10 +171,10 @@ No policy or router change, so no provenance drift. A run in flight picks the ne
 
 #### Automated
 
-- [ ] 1.1 New gate tests pass: `node --test skills/10x-pipeline/test/archive-gate.test.mjs`
-- [ ] 1.2 Skill content tests still pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/agents.test.mjs`
-- [ ] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.4 Router scripts untouched: `git diff --stat main -- skills/10x-pipeline/scripts skills/10x-pipeline/policy.json skills/10x-pipeline/prompts` prints nothing
+- [x] 1.1 New gate tests pass: `node --test skills/10x-pipeline/test/archive-gate.test.mjs`
+- [x] 1.2 Skill content tests still pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/agents.test.mjs`
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.4 Router scripts untouched: `git diff --stat main -- skills/10x-pipeline/scripts skills/10x-pipeline/policy.json skills/10x-pipeline/prompts` prints nothing
 
 #### Manual
 
@@ -186,10 +186,10 @@ No policy or router change, so no provenance drift. A run in flight picks the ne
 
 #### Automated
 
-- [ ] 2.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.2 Version fields untouched: `node tools/version-check.mjs`
-- [ ] 2.3 ADR file exists and is named in the docs: `grep -l "ADR-014" AGENTS.md docs/REFERENCE.md docs/ADR/ADR-014-archive-manual-gate.md`
-- [ ] 2.4 Scratch smoke: `init` and `status` against a scratch change folder print valid JSON (per AGENTS.md "Testing")
+- [x] 2.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.2 Version fields untouched: `node tools/version-check.mjs`
+- [x] 2.3 ADR file exists and is named in the docs: `grep -l "ADR-014" AGENTS.md docs/REFERENCE.md docs/ADR/ADR-014-archive-manual-gate.md`
+- [x] 2.4 Scratch smoke: `init` and `status` against a scratch change folder print valid JSON (per AGENTS.md "Testing")
 
 #### Manual
 
