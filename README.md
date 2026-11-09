@@ -30,6 +30,21 @@ Requirements in your project:
 - Node.js 24 or later on `PATH`.
 - `git`. A run works in its own linked worktree on the branch `agent-smith/<change-id>`, and `init` halts in the main checkout. To run without a worktree, see [Run isolation](docs/REFERENCE.md).
 
+## Quick start: OpenSpec
+
+The second skill runs an [OpenSpec](https://github.com/Fission-AI/OpenSpec) change through the same router.
+
+1. In an OpenSpec project (`openspec init`, with `openspec/` committed), create the change: `openspec new change <change-name>`.
+2. Run the pipeline:
+
+```
+/agent-smith:openspec-pipeline <change-name> "what you want built"
+```
+
+The run goes propose, apply, verify and, when verify fails, at most two fix loops of apply and verify. It stops at `done` or at a halt that needs you. With `--archive` it ends with `openspec archive <change-name> --yes --json`. Run state and `report.md` live in `openspec/changes/<change-name>/agent-smith/` and move with the archive.
+
+Requirements: the OpenSpec skills `openspec-propose`, `openspec-apply-change` and `openspec-verify-change`, the `openspec` CLI for `--archive`, Node.js 24 or later and `git`, as above. The name must not also be a 10x change under `context/changes/`. Flags: `--archive`, `--rigor` and `--pr-comment`, as below. Score, pre-plan steps, phase executors, manual checks and plan review do not run in this chain. See [the OpenSpec section of the reference](docs/REFERENCE.md).
+
 ## Options
 
 | Flag | Effect |
@@ -51,7 +66,7 @@ Every rule, threshold and edge case is in the [reference](docs/REFERENCE.md).
 
 ## Configure
 
-Override any policy key per project in `context/foundation/agent-smith-policy.json`. Run state lives in `context/changes/<change-id>/agent-smith/`.
+Override any policy key per project in `context/foundation/agent-smith-policy.json`, for both chains. Run state lives in `context/changes/<change-id>/agent-smith/` (OpenSpec: `openspec/changes/<change-name>/agent-smith/`).
 
 ```json
 { "score": { "minRigor": null }, "manualVerify": { "minRigor": null } }
@@ -89,6 +104,7 @@ release-please-config.json        release-please config (extra-files list the ve
 tools/                            version-check.mjs, commit-lint.mjs and their tests
 skills/10x-pipeline/              orchestrator skill, policy, router
 skills/10x-pipeline/test/         node:test suite for the router and the prompt rule form
+skills/openspec-pipeline/         orchestrator skill of the OpenSpec chain (calls the 10x-pipeline router)
 agents/                           plugin agent definitions for restricted steps (score.md)
 docs/REFERENCE.md                 full behavior reference
 docs/ADR/                         architecture decision records

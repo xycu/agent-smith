@@ -455,10 +455,10 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 
 #### Automated
 
-- [x] 4.1 openspec-archive.test.mjs passes
-- [x] 4.2 openspec-contract.test.mjs passes against the CLI
-- [x] 4.3 openspec-contract.test.mjs skips without the CLI
-- [x] 4.4 Full suite passes
+- [x] 4.1 openspec-archive.test.mjs passes — ddd068a
+- [x] 4.2 openspec-contract.test.mjs passes against the CLI — ddd068a
+- [x] 4.3 openspec-contract.test.mjs skips without the CLI — ddd068a
+- [x] 4.4 Full suite passes — ddd068a
 
 ### Phase 5: Skill and documentation
 

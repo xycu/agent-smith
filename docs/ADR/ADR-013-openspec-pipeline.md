@@ -16,7 +16,7 @@
 
 ## Decision
 
-A second skill, `openspec-pipeline`, runs the OpenSpec skills as step bodies through the same router. The router gains a chain switch. Rules are written as scenarios (ADR-004).
+A second skill, `openspec-pipeline`, runs the OpenSpec skills as step bodies through the same router. The router gains a chain switch. Rules are written as scenarios (ADR-004). The behavior as built, with every threshold, halt text and limit, is in `docs/REFERENCE.md`, section `/agent-smith:openspec-pipeline`.
 
 ### Chain seam (D1)
 
@@ -88,7 +88,9 @@ A step is verified by the file it writes, as in the 10x chain: `os-propose` by t
 
 **GIVEN** an `os-verify` step **WHEN** it ends **THEN** the subagent **MUST** write `openspec/changes/<name>/agent-smith/verify.md` whose first line is `Verdict: PASS`, `Verdict: PASS WITH WARNINGS` or `Verdict: FAIL`, followed by `Critical: <n>` and `Warnings: <n>` lines and the report text.
 
-**GIVEN** `Verdict: PASS` or `PASS WITH WARNINGS` **WHEN** the router picks the next step **THEN** it **MUST** return `os-archive` when the run was started with `--archive`, else `done`.
+**GIVEN** `Verdict: PASS` or `PASS WITH WARNINGS` in `verify.md` **WHEN** the router picks the next step **THEN** it **MUST** return its `archive` action, which carries the `os-archive` prompt, when the run was started with `--archive`, else `done`.
+
+The router reads the verdict from `verify.md` each time it decides, not from the log entry, so a human edit of the file after a halt routes the next call.
 
 **GIVEN** `Verdict: FAIL` **WHEN** fewer fix loops than the existing fix-loop cap ran **THEN** the router **MUST** return `os-apply` again with the critical findings in its prompt.
 
@@ -98,13 +100,13 @@ The file lives in the run's `agent-smith/` folder so OpenSpec's artifact files s
 
 ### Archive (D5)
 
-**GIVEN** the run was started with `--archive` **WHEN** the verdict allows it **THEN** the router **MUST** halt instead when `tasks.md` has an unticked row, and otherwise return `os-archive`.
+**GIVEN** the run was started with `--archive` **WHEN** the verdict allows it **THEN** the router **MUST** halt instead when `tasks.md` has an unticked row, and otherwise return its `archive` action.
 
 **GIVEN** an `os-archive` step **WHEN** the orchestrator runs it **THEN** the subagent **MUST** run `openspec archive <name> --yes --json` once and report its `archive.archivedAs` and `path`.
 
 **GIVEN** an `os-archive` step **WHEN** the subagent archives **THEN** it **MUST NOT** use the archive skill, whose three prompts and agent-driven merge differ from the CLI's mechanical merge.
 
-The router makes the pre-archive commit as in ADR-010 and then verifies the move from files (`openspec/changes/archive/<date>-<name>/` exists and `openspec/changes/<name>/` is gone), in the way `verify-archive` does for 10x. A halt is never archived.
+The router makes the pre-archive commit as in ADR-010 before it returns the `archive` action. The orchestrator runs the `os-archive` step in one subagent, as it runs the 10x `archive` step: the step has no log entry, no usage figure and no report row. The orchestrator then calls `verify-archive <name> --chain openspec --path <archivePath>`, which verifies the move from files (`openspec/changes/archive/<date>-<name>/` exists and `openspec/changes/<name>/` is gone), in the way `verify-archive` does for 10x. A halt is never archived.
 
 ### Unattended decision guides (D6)
 
