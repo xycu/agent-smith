@@ -25,8 +25,12 @@ function archiveLines(id, meta, oneLine) {
   const unproven = notes.uncommittedTicks ?? [];
   const manualUnproven = notes.manualUnproven ?? [];
   const notProved = notes.manualNotProved ?? [];
+  // An OpenSpec run is archived by the OpenSpec CLI (ADR-013 D5), not by /10x-archive.
+  const requested = meta.chain === "openspec"
+    ? `Archive: requested - \`openspec archive ${id} --yes --json\` runs after this report was written; see the commit "chore(archive): close ${id}"`
+    : `Archive: requested - runs after this report was written; see the commit "chore(archive): close ${id}"`;
   return [
-    `Archive: requested - runs after this report was written; see the commit "chore(archive): close ${id}"`,
+    requested,
     ...(pending.length ? [`Manual checks pending: ${pending.length}`, ...pending.map((row) => `- ${oneLine(row)}`)] : []),
     ...(manualUnproven.length ? [`Manual checks unproven: ${manualUnproven.length}`, ...manualUnproven.map((row) => `- ${oneLine(row)}`)] : []),
     ...(notProved.length ? [`Manual checks not proved: ${notProved.length}`, ...notProved.map((row) => `- ${oneLine(row)}`)] : []),

@@ -447,18 +447,18 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 
 #### Automated
 
-- [x] 3.1 openspec-steps.test.mjs passes
-- [x] 3.2 openspec-isolation.test.mjs passes
-- [x] 3.3 Full suite passes
+- [x] 3.1 openspec-steps.test.mjs passes — 1c89095
+- [x] 3.2 openspec-isolation.test.mjs passes — 1c89095
+- [x] 3.3 Full suite passes — 1c89095
 
 ### Phase 4: Archive and read-only commands
 
 #### Automated
 
-- [ ] 4.1 openspec-archive.test.mjs passes
-- [ ] 4.2 openspec-contract.test.mjs passes against the CLI
-- [ ] 4.3 openspec-contract.test.mjs skips without the CLI
-- [ ] 4.4 Full suite passes
+- [x] 4.1 openspec-archive.test.mjs passes
+- [x] 4.2 openspec-contract.test.mjs passes against the CLI
+- [x] 4.3 openspec-contract.test.mjs skips without the CLI
+- [x] 4.4 Full suite passes
 
 ### Phase 5: Skill and documentation
 

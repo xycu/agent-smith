@@ -18,7 +18,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, archiveRoot, frontmatterField, guardArchived, paths, readLog, executed,
+  ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt,
 } from "./state.mjs";
@@ -238,14 +238,7 @@ function next(id, policy, chain = "10x") {
 // Read-only, files only, no git: did /10x-archive move this change and stamp it archived.
 function verifyArchive(id, flags, chain = "10x") {
   const no = (reason, extra = {}) => out({ archived: false, reason, ...extra }, 1);
-  if (chain === "openspec") {
-    // A moved OpenSpec run halts as archived; the full check of an OpenSpec archive folder comes later.
-    const p = paths(id, null, chain);
-    guardArchived(p, id);
-    no(fs.existsSync(p.change)
-      ? `openspec/changes/${id} still exists, so the change is not archived.`
-      : `No archive folder for ${id} under ${archiveRoot(chain)}/.`);
-  }
+  if (chain === "openspec") verifyOpenspecArchive(id, flags, no);
   let name;
   if (flags.path !== undefined) {
     if (typeof flags.path !== "string") no("--path needs a folder");
@@ -283,6 +276,44 @@ function verifyArchive(id, flags, chain = "10x") {
   });
 }
 
+// verify-archive for an OpenSpec run (ADR-013 D5): archived when an archive folder of the id exists under
+// openspec/changes/archive/ and openspec/changes/<id>/ is gone. OpenSpec stamps no status, so none is read. A --path
+// that misses lists the archive folders of the id that do exist (a run that crossed midnight gets another date).
+function verifyOpenspecArchive(id, flags, no) {
+  const root = archiveRoot("openspec");
+  const found = archiveDirs(id, "openspec");
+  const others = (skip) => {
+    const rest = found.filter((n) => n !== skip).map((n) => `${root}/${n}`);
+    return rest.length ? ` Archive folders of ${id}: ${rest.join(", ")}.` : ` No archive folder of ${id} under ${root}/.`;
+  };
+  let name;
+  if (flags.path !== undefined) {
+    if (typeof flags.path !== "string") no("--path needs a folder");
+    const clean = flags.path.replace(/^\.\//, "").replace(/\/$/, "");
+    const m = clean.startsWith(`${root}/`) ? clean.slice(root.length + 1) : null;
+    if (m === null || /[/\\]/.test(m) || !found.includes(m)) no(`--path ${clean} is not an archive folder of ${id}.${others(m)}`);
+    name = m;
+  } else {
+    if (found.length > 1) {
+      const folders = found.map((n) => `${root}/${n}`);
+      no(`More than one archive folder for ${id}: ${folders.join(", ")}. Pass --path.`, { ambiguous: folders });
+    }
+    name = found[0];
+  }
+  const live = fs.existsSync(path.join(ROOT, "openspec/changes", id));
+  if (name === undefined) {
+    no(live ? `openspec/changes/${id} still exists and no archive folder of ${id} is under ${root}/, so the change is not archived.`
+      : `No archive folder for ${id} under ${root}/.`);
+  }
+  const rel = `${root}/${name}`;
+  if (live) no(`openspec/changes/${id} still exists next to ${rel}.`);
+  out({
+    archived: true,
+    path: rel,
+    report: fs.existsSync(path.join(ROOT, rel, "agent-smith/report.md")) ? `${rel}/agent-smith/report.md` : null,
+  });
+}
+
 // Read-only: prints the churn numbers for a change.
 function riskCommand(id, policy, chain = "10x") {
   const p = paths(id, null, chain);
@@ -309,33 +340,33 @@ function floorDivBig(a, b) {
   return a % b !== 0n && (a < 0n) !== (b < 0n) ? q - 1n : q;
 }
 
-// Find the agent-smith folder of one side: the folder itself, the live change folder, then the archive.
-function locateSide(dirArg, id, side) {
+// Find the agent-smith folder of one side: the folder itself, the live change folder, then the archive. The chain picks
+// the roots: context/changes and context/archive (10x), openspec/changes and openspec/changes/archive (OpenSpec).
+function locateSide(dirArg, id, side, chain = "10x") {
   const base = path.resolve(ROOT, dirArg);
-  const live = path.join(base, "context/changes", id, "agent-smith");
-  const archiveRoot = path.join(base, "context/archive");
-  const re = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${id}$`);
+  const live = path.join(base, chain === "openspec" ? "openspec/changes" : "context/changes", id, "agent-smith");
+  const archiveDir = path.join(base, archiveRoot(chain));
   let archived = [];
   try {
-    archived = fs.readdirSync(archiveRoot, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && re.test(d.name)).map((d) => d.name).sort();
+    archived = fs.readdirSync(archiveDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && isArchiveName(d.name, id, chain)).map((d) => d.name).sort();
   } catch { /* no archive folder */ }
   const hasLog = (dir) => fs.existsSync(path.join(dir, "run.jsonl"));
-  const tried = [base, live, archived.length ? path.join(archiveRoot, `${archived[0]}/agent-smith`) : path.join(archiveRoot, `<date>-${id}/agent-smith`)];
+  const tried = [base, live, archived.length ? path.join(archiveDir, `${archived[0]}/agent-smith`) : path.join(archiveDir, `<date>-${id}/agent-smith`)];
   if (hasLog(base)) return { source: "folder", dir: base, alsoArchived: false };
   if (hasLog(live)) return { source: "changes", dir: live, alsoArchived: archived.length > 0 };
   if (archived.length > 1) {
-    halt(`${side}: more than one archive folder for ${id} under ${archiveRoot}: ${archived.join(", ")}. Pass the exact folder.`);
+    halt(`${side}: more than one archive folder for ${id} under ${archiveDir}: ${archived.join(", ")}. Pass the exact folder.`);
   }
-  if (archived.length === 1 && hasLog(path.join(archiveRoot, archived[0], "agent-smith"))) {
-    return { source: "archive", dir: path.join(archiveRoot, archived[0], "agent-smith"), alsoArchived: false };
+  if (archived.length === 1 && hasLog(path.join(archiveDir, archived[0], "agent-smith"))) {
+    return { source: "archive", dir: path.join(archiveDir, archived[0], "agent-smith"), alsoArchived: false };
   }
   return halt(`${side}: no run.jsonl found for ${id}. Looked in: ${tried.map((t) => path.join(t, "run.jsonl")).join(", ")}.`);
 }
 
 // `producedFile` is the score file of the policy compare loads: a produced file, dropped from inputFiles like plan.md.
-function readSide(dirArg, id, side, producedFile) {
-  const found = locateSide(dirArg, id, side);
+function readSide(dirArg, id, side, producedFile, chain = "10x") {
+  const found = locateSide(dirArg, id, side, chain);
   const log = readLog(path.join(found.dir, "run.jsonl")).filter(isObject); // readLog lets a JSON array through
   const meta = readMeta(path.join(found.dir, "meta.json"), {});
   const steps = executed(log);
@@ -409,7 +440,7 @@ function dropPercentOf(diff, baseline) {
   return Number(floorDivBig(BigInt(diff) * 10000n, BigInt(baseline))) / 100;
 }
 
-function comparePair(id, flags, policy) {
+function comparePair(id, flags, policy, chain = "10x") {
   // Flags and the target are checked before anything is read.
   for (const key of ["baseline", "routed", "format"]) {
     if (flags[key] !== undefined && typeof flags[key] !== "string") halt(`Missing value for --${key}.`);
@@ -433,8 +464,8 @@ function comparePair(id, flags, policy) {
 
   // The score file is produced by the run, so only the scorer-on arm of an A/B pair has it.
   const producedFile = scoreConfig(policy)?.file ?? "complexity.json";
-  const baseline = readSide(flags.baseline, id, "baseline", producedFile);
-  const routed = readSide(typeof flags.routed === "string" ? flags.routed : ROOT, id, "routed", producedFile);
+  const baseline = readSide(flags.baseline, id, "baseline", producedFile, chain);
+  const routed = readSide(typeof flags.routed === "string" ? flags.routed : ROOT, id, "routed", producedFile, chain);
 
   const reasons = [];
   const warnings = [];
@@ -534,8 +565,8 @@ function compareMarkdown(pair) {
   ].join("\n");
 }
 
-function compareCommand(id, flags, policy) {
-  const pair = comparePair(id, flags, policy);
+function compareCommand(id, flags, policy, chain = "10x") {
+  const pair = comparePair(id, flags, policy, chain);
   if (flags.format === "md") {
     process.stdout.write(compareMarkdown(pair));
     process.exit(0);
@@ -578,6 +609,11 @@ function status(id, flags, chain = "10x") {
       ...(typeof e.kept === "string" ? { kept: e.kept } : {}),
     })),
   };
+  // The OpenSpec state the router reads from files, as the contract test compares it with `openspec instructions apply`.
+  if (chain === "openspec") {
+    const os = readOpenspec(p);
+    res.openspec = { planningComplete: os.planningComplete, tasks: { total: os.tasks.total, complete: os.tasks.complete } };
+  }
   if (flags.report) {
     guardArchived(p, id);
     if (!fs.existsSync(p.change)) out({ action: "halt", reason: `No change folder ${chain === "openspec" ? "openspec" : "context"}/changes/${id}.` }, 1);
@@ -723,7 +759,7 @@ function main() {
   } else if (cmd === "verify-archive") {
     verifyArchive(id, flags, chain);
   } else if (cmd === "compare") {
-    compareCommand(id, flags, policy);
+    compareCommand(id, flags, policy, chain);
   } else {
     halt(`Unknown command ${cmd}`);
   }
