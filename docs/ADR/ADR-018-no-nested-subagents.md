@@ -19,7 +19,7 @@ Rules, written as scenarios (the form of ADR-004):
 
 ### Subagent side
 
-**GIVEN** a skill or a prompt tells a step subagent to delegate work to a subagent, to run work in parallel with subagents or to use the Agent tool **WHEN** the subagent decides how to do that work **THEN** it **MUST NOT** call the Agent tool or the Task tool or start any other subagent, and does all of that work itself (A1).
+**GIVEN** a skill, a prompt or its own judgment would have a step subagent delegate work to a subagent, run work in parallel with subagents or use the Agent tool **WHEN** the subagent decides how to do that work **THEN** it **MUST NOT** call the Agent tool or the Task tool or start any other subagent, and does all of that work itself (A1).
 
 **GIVEN** the router returns a prompt **WHEN** it appends `prompts.suffix` **THEN** the prompt **MUST** carry the rule above, so every template, the `os-` templates and the `archive` prompt included, gets it.
 
