@@ -286,9 +286,9 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Automated
 
-- [x] 3.1 Skill content tests: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
-- [x] 3.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 3.3 Version fields unchanged and valid: `node tools/version-check.mjs`
+- [x] 3.1 Skill content tests: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` — 1031e46
+- [x] 3.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 1031e46
+- [x] 3.3 Version fields unchanged and valid: `node tools/version-check.mjs` — 1031e46
 
 #### Manual
 
