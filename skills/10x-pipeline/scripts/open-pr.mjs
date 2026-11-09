@@ -75,11 +75,12 @@ function firstLine(text, max = 200) {
 }
 
 // Runs a command without a shell. Never throws. timedOut and missing are set instead.
-function spawn(cmd, args, timeoutMs, env) {
+function spawn(cmd, args, timeoutMs, env, input) {
   const res = spawnSync(cmd, args, {
     encoding: "utf8",
     timeout: timeoutMs,
-    stdio: ["ignore", "pipe", "pipe"],
+    input,
+    stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
     maxBuffer: 64 * 1024 * 1024,
     env,
   });
@@ -100,8 +101,8 @@ function runGh(args, timeoutMs) {
   return spawn("gh", args, timeoutMs, { ...process.env, GH_PROMPT_DISABLED: "1" });
 }
 
-function runGit(args, timeoutMs = GIT_TIMEOUT_MS) {
-  return spawn("git", args, timeoutMs, { ...process.env, GIT_TERMINAL_PROMPT: "0" });
+function runGit(args, timeoutMs = GIT_TIMEOUT_MS, input = undefined) {
+  return spawn("git", args, timeoutMs, { ...process.env, GIT_TERMINAL_PROMPT: "0" }, input);
 }
 
 const gitOut = (args) => {
@@ -173,17 +174,29 @@ function remoteHeadBranch(remote) {
   return ref && ref.startsWith(prefix) ? ref.slice(prefix.length) : null;
 }
 
+// Remote refs that are ancestors of HEAD, each with the number of commits between it and HEAD.
+// One for-each-ref call: --merged HEAD keeps the ancestors, %(ahead-behind:HEAD) counts them (git 2.41 and later;
+// an ancestor is "0 <count>"). An older git rejects the field, so the counts then come from one rev-list per ancestor.
+function ancestorCounts(prefix) {
+  const res = runGit(["for-each-ref", "--merged", "HEAD", "--format=%(refname) %(ahead-behind:HEAD)", prefix]);
+  if (res.status === 0) {
+    return res.stdout.split("\n").filter(Boolean).map((line) => {
+      const [ref, ahead, behind] = line.split(" ");
+      return { ref, count: ahead === "0" ? Number(behind) : NaN };
+    });
+  }
+  const refs = (gitOut(["for-each-ref", "--merged", "HEAD", "--format=%(refname)", prefix]) ?? "").split("\n").filter(Boolean);
+  return refs.map((ref) => ({ ref, count: Number(gitOut(["rev-list", "--count", `${ref}..HEAD`])) }));
+}
+
 // The nearest remote branch the run descends from: fewest commits between it and HEAD, ties to <remote>/HEAD.
 function nearestBase(remote, branch) {
   const prefix = `refs/remotes/${remote}/`;
-  const refs = (gitOut(["for-each-ref", "--format=%(refname)", prefix]) ?? "").split("\n").filter(Boolean);
   const head = remoteHeadBranch(remote);
   let best = null;
-  for (const ref of refs.sort()) {
+  for (const { ref, count } of ancestorCounts(prefix).sort((a, b) => (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0))) {
     const name = ref.slice(prefix.length);
     if (name === "HEAD" || name === branch || name.startsWith(BRANCH_PREFIX)) continue;
-    if (runGit(["merge-base", "--is-ancestor", ref, "HEAD"]).status !== 0) continue;
-    const count = Number(gitOut(["rev-list", "--count", `${ref}..HEAD`]));
     if (!Number.isInteger(count)) continue;
     if (!best || count < best.count || (count === best.count && name === head && best.name !== head)) best = { name, count };
   }
@@ -213,19 +226,48 @@ function countAhead(remote, base) {
   return { skip: `base branch ${base} not found on ${remote} or locally` };
 }
 
-// Commits what the worktree holds after the router's last write. On failure it undoes its own add.
+// Paths `git add -A` stages, read from `git status --porcelain -z -uall` (paths relative to the top level):
+// every entry whose worktree column is not blank, untracked files included. Entries staged before the script ran
+// and unchanged since have a blank worktree column, so they are not listed.
+export function pathsToStage(porcelainZ) {
+  const fields = String(porcelainZ ?? "").split("\0");
+  const paths = [];
+  for (let i = 0; i < fields.length; i++) {
+    const entry = fields[i];
+    if (entry.length < 4) continue;
+    const x = entry[0];
+    const y = entry[1];
+    const file = entry.slice(3);
+    const renamed = "RC".includes(x) || "RC".includes(y);
+    const orig = renamed ? fields[++i] : null;
+    if (y === " ") continue;
+    paths.push(file);
+    if (orig && "RC".includes(y)) paths.push(orig);
+  }
+  return paths;
+}
+
+// Unstages only the given paths (top-level relative, matched literally), so entries staged before the script ran stay staged.
+function unstage(paths) {
+  if (paths.length === 0) return;
+  const input = paths.map((p) => `:(top,literal)${p}`).join("\0");
+  runGit(["reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"], GIT_TIMEOUT_MS, input);
+}
+
+// Commits what the worktree holds after the router's last write. On failure it unstages only what its own add staged.
 function commitLeftovers(id) {
-  const status = runGit(["status", "--porcelain"]);
+  const status = runGit(["status", "--porcelain", "-z", "--untracked-files=all"]);
   if (status.status !== 0) return { committed: false, error: gitError(status, "git status") };
-  if (status.stdout.trim() === "") return { committed: null };
+  if (status.stdout === "") return { committed: null };
+  const added = pathsToStage(status.stdout);
   const add = runGit(["add", "-A"]);
   if (add.status !== 0) {
-    runGit(["reset", "-q"]);
+    unstage(added);
     return { committed: false, error: gitError(add, "git add") };
   }
   const commit = runGit(["commit", "-q", "-m", COMMIT_MESSAGE(id)]);
   if (commit.status !== 0) {
-    runGit(["reset", "-q"]);
+    unstage(added);
     return { committed: false, error: gitError(commit, "git commit") };
   }
   return { committed: true, commit: gitOut(["rev-parse", "HEAD"]) };

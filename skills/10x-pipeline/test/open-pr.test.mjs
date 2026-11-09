@@ -14,7 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { buildBody, markerFor, parseRepo, titleFor } from "../scripts/open-pr.mjs";
+import { buildBody, markerFor, parseRepo, pathsToStage, titleFor } from "../scripts/open-pr.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/open-pr.mjs");
 const SCRIPTS = path.dirname(SCRIPT);
@@ -269,6 +269,31 @@ test("base: a tie goes to the branch origin/HEAD points to, and --base wins over
   assert.equal(ghCalls(forced).find((a) => a[1] === "create")[7], "release");
 });
 
+test("base: one for-each-ref call finds and counts the ancestors, with no git process per remote branch", { skip }, () => {
+  const w = world({ feature: true });
+  for (const n of [1, 2, 3]) g(w, w.repo, ["push", "-q", "origin", `main:refs/heads/copy-${n}`]);
+  assert.equal(runScript(w).json.base, "feature/x");
+  const calls = gitCalls(w);
+  assert.equal(calls.filter((a) => a[0] === "for-each-ref").length, 1, JSON.stringify(calls));
+  assert.equal(calls.filter((a) => a[0] === "merge-base").length, 0);
+  assert.equal(calls.filter((a) => a[0] === "rev-list").length, 1, "only the ahead count of the chosen base");
+});
+
+test("base: a git without %(ahead-behind) falls back to one rev-list per ancestor and picks the same base", { skip }, () => {
+  const w = world({ feature: true });
+  g(w, w.repo, ["push", "-q", "origin", "main:refs/heads/aaa-copy"]);
+  const shim = GIT_SHIM(REAL_GIT).replace("exec ", "case \"$*\" in *ahead-behind*) echo 'fatal: unknown field name: ahead-behind:HEAD' >&2; exit 128;; esac\nexec ");
+  fs.writeFileSync(path.join(w.bin, "git"), shim, { mode: 0o755 });
+  assert.equal(runScript(w).json.base, "feature/x");
+  const merged = gitCalls(w).filter((a) => a[0] === "for-each-ref" && a.includes("--merged"));
+  assert.equal(merged.length, 2, "the rejected call, then the plain one");
+  assert.equal(gitCalls(w).filter((a) => a[0] === "merge-base").length, 0);
+  const tie = world();
+  g(tie, tie.repo, ["push", "-q", "origin", "main:refs/heads/aaa-copy"]);
+  fs.writeFileSync(path.join(tie.bin, "git"), shim, { mode: 0o755 });
+  assert.equal(runScript(tie).json.base, "main", "a tie still goes to origin/HEAD");
+});
+
 test("base: a remote branch the run does not descend from is never picked", { skip }, () => {
   const w = world();
   g(w, w.repo, ["checkout", "-q", "-b", "other"]);
@@ -435,6 +460,35 @@ test("a failing pre-commit hook gives committed: false, unstages its add, and th
   assert.notEqual(g(w, w.wt, ["status", "--porcelain"]), "");
   assert.equal(res.json.pushed, true);
   assert.equal(remoteRef(w), before);
+});
+
+test("a failed leftover commit unstages only its own add: an entry staged before the script stays staged", { skip }, () => {
+  const w = world();
+  const hook = path.join(w.repo, ".git/hooks/pre-commit");
+  fs.writeFileSync(hook, "#!/bin/sh\necho 'hook says no' >&2\nexit 1\n", { mode: 0o755 });
+  fs.writeFileSync(path.join(w.wt, "unrelated.txt"), "staged by a human\n");
+  g(w, w.wt, ["add", "--", "unrelated.txt"]);
+  fs.appendFileSync(path.join(w.wt, "context/changes/demo/agent-smith/report.md"), "late line\n");
+  fs.writeFileSync(path.join(w.wt, "context/changes/demo/agent-smith/meta.json"), "{}\n");
+  const before = head(w);
+  const res = runScript(w, ["demo"], { cwd: path.join(w.wt, "context") });
+  assert.equal(res.json.committed, false, res.stdout);
+  assert.match(res.json.commitError, /hook says no/);
+  assert.equal(head(w), before);
+  assert.equal(g(w, w.wt, ["diff", "--cached", "--name-only"]), "unrelated.txt", "the earlier staged entry stays staged");
+  const status = spawnSync(REAL_GIT, ["status", "--porcelain", "--untracked-files=all"], { cwd: w.wt, encoding: "utf8", env: envFor(w) });
+  assert.deepEqual(status.stdout.split("\n").filter(Boolean).sort(), [
+    " M context/changes/demo/agent-smith/report.md",
+    "?? context/changes/demo/agent-smith/meta.json",
+    "A  unrelated.txt",
+  ]);
+  assert.equal(res.json.pushed, true);
+});
+
+test("pathsToStage: the worktree column decides, untracked and renamed entries included", () => {
+  const z = ["M  staged.txt", " M edited.txt", "?? new dir/file.txt", "MM both.txt", "R  new.txt", "old.txt", "RM moved.txt", "was.txt", " D gone.txt", ""].join("\0");
+  assert.deepEqual(pathsToStage(z), ["edited.txt", "new dir/file.txt", "both.txt", "moved.txt", "gone.txt"]);
+  assert.deepEqual(pathsToStage(""), []);
 });
 
 // ---- chains and body ------------------------------------------------------------------

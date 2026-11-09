@@ -39,7 +39,7 @@ The owner decided (review finding F1) to keep the `isolation.require: false` opt
 
 1. Guards: a git work tree, a linked worktree (`--git-dir` differs from `--git-common-dir`) and HEAD on `agent-smith/<change-id>`. Otherwise it skips before it writes anything.
 2. Base: `--base`, else the nearest remote branch the run descends from (fewest commits between it and HEAD, ties to the branch `<remote>/HEAD` points to; `<remote>/HEAD`, the run branch's own remote ref and `<remote>/agent-smith/*` are left out), else `<remote>/HEAD`, else `gh repo view`. No commit beyond the base skips with nothing committed.
-3. Leftover commit: what the worktree still holds is committed as `chore(<change-id>): final run state` with `git add -A`, hooks and signing. A failed commit unstages its own add and the script pushes what exists.
+3. Leftover commit: what the worktree still holds is committed as `chore(<change-id>): final run state` with `git add -A`, hooks and signing. A failed commit unstages only the paths its own add staged, so an entry staged before the script ran stays staged, and the script pushes what exists.
 4. Push: `git push <remote> refs/heads/<branch>:refs/heads/<branch>`, no force.
 5. Pull request: `gh pr list --repo <owner>/<repo> --head <branch> --state all`. An open one is left as the push updated it; a merged or closed one creates nothing; none gives `gh pr create --repo <owner>/<repo> --head <branch> --base <base>`, titled from `change.md` and with the report header as its body. `<owner>/<repo>` comes from the remote url, so `gh` never picks a repository by itself.
 
