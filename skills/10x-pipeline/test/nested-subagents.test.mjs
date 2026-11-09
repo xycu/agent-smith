@@ -144,3 +144,22 @@ test("the intro of both anti-stall sections names the sixth rule", () => {
     assert.match(intro, /Rules 1 and 6 also hold for the archive subagent/, chain);
   }
 });
+
+// ---- Phase 3: the documents ---------------------------------------------------------------------
+
+const REPO = path.resolve(SKILL_DIR, "../..");
+
+test("docs/REFERENCE.md drops the spawn-depth requirement and names ADR-018", () => {
+  const text = fs.readFileSync(path.join(REPO, "docs/REFERENCE.md"), "utf8");
+  assert.ok(!text.includes(["spawns", "its own", "subagents"].join(" ")), "the old Limits note is gone");
+  assert.doesNotMatch(text, /CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` of \d+ or more/);
+  assert.ok(text.includes("ADR-018"));
+});
+
+test("ADR-018 exists and its rule lines follow the rule form", () => {
+  const file = path.join(REPO, "docs/ADR/ADR-018-no-nested-subagents.md");
+  assert.ok(fs.statSync(file).isFile());
+  const rules = fs.readFileSync(file, "utf8").split("\n").filter((l) => l.includes("**GIVEN**"));
+  assert.ok(rules.length > 0, "ADR-018 has rule lines");
+  for (const rule of rules) assert.deepEqual(ruleProblems(rule), [], rule);
+});
