@@ -35,12 +35,75 @@ export function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return fallback; }
 }
 
-export function loadPolicy() {
+// policy.json deep-merged with the project override. null when policy.json is unreadable; each caller decides.
+function mergedPolicy() {
   const base = readJson(path.join(SKILL_DIR, "policy.json"), null);
-  if (!base) out({ action: "halt", reason: `Cannot read ${path.join(SKILL_DIR, "policy.json")}` }, 1);
+  if (!base) return null;
   const override = readJson(path.join(ROOT, "context/foundation/agent-smith-policy.json"), null);
   return override ? deepMerge(base, override) : base;
 }
+
+export function loadPolicy() {
+  const policy = mergedPolicy();
+  if (!policy) out({ action: "halt", reason: `Cannot read ${path.join(SKILL_DIR, "policy.json")}` }, 1);
+  return policy;
+}
+
+// ---- cost estimate ----------------------------------------------------------
+
+// The price table of the policy: { usdPerMillionTokens: { <model alias>: <number> } }, or null when prices are off.
+// A block of another shape reads as off and never halts; an entry that is not a finite number >= 0 under a non-empty
+// key is dropped, so that alias is unpriced. A 0 price is a price.
+export function priceTable(policy) {
+  const prices = policy?.prices;
+  if (prices === null || typeof prices !== "object" || Array.isArray(prices)) return null;
+  const raw = prices.usdPerMillionTokens;
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const usdPerMillionTokens = {};
+  for (const [alias, price] of Object.entries(raw)) {
+    if (alias.trim() !== "" && typeof price === "number" && Number.isFinite(price) && price >= 0) usdPerMillionTokens[alias] = price;
+  }
+  return Object.keys(usdPerMillionTokens).length ? { usdPerMillionTokens } : null;
+}
+
+// The price table of the merged policy, read without halting: an unreadable policy.json reads as no prices. Used where
+// no policy is at hand (the report, status).
+export function loadPrices() {
+  try { return priceTable(mergedPolicy()); } catch { return null; }
+}
+
+// A blended-rate estimate over executed log entries. withFigures counts entries with a token figure (a non-negative
+// safe integer, the test of usage intake); priced counts those whose model alias has a price; usd sums
+// totalTokens * price / 1e6 over them, unrounded (each consumer rounds); unpriced lists the distinct aliases (unknown
+// for a missing model) that had a figure and no price; perEntry maps entry n to its USD, or null. Never throws.
+export function estimateCost(entries, table) {
+  const res = { usd: 0, priced: 0, withFigures: 0, unpriced: [], perEntry: {} };
+  const prices = table?.usdPerMillionTokens ?? {};
+  const unpriced = new Set();
+  for (const e of Array.isArray(entries) ? entries : []) {
+    if (!isObject(e)) continue;
+    const tokens = isObject(e.usage) ? e.usage.totalTokens : undefined;
+    const has = Number.isSafeInteger(tokens) && tokens >= 0;
+    const model = typeof e.model === "string" && e.model ? e.model : "unknown";
+    const price = Object.hasOwn(prices, model) ? prices[model] : undefined;
+    let usd = null;
+    if (has) {
+      res.withFigures++;
+      if (price === undefined) unpriced.add(model);
+      else {
+        usd = (tokens * price) / 1e6;
+        res.usd += usd;
+        res.priced++;
+      }
+    }
+    if (e.n !== undefined) res.perEntry[e.n] = usd;
+  }
+  res.unpriced = [...unpriced].sort();
+  return res;
+}
+
+// A USD figure rounded to `digits` decimals, as a number.
+export const roundUsd = (usd, digits = 4) => Number(usd.toFixed(digits));
 
 export function mtime(file) {
   try { return fs.statSync(file).mtimeMs; } catch { return 0; }
