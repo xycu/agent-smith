@@ -746,7 +746,9 @@ test("SKILL.md: done, archive and halt each point at TaskList, the subject and t
     assert.match(text, /post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`/, `${name}: line only with the flag`);
   }
   const archive = branch(skill, "archive");
-  assert.ok(archive.indexOf("PR comment step") < archive.indexOf("Call the Agent tool"), "the archive pointer must come before the archive step");
+  // ADR-017: the comment goes to the run branch's pull request after the move, behind the pull request step in step 5.
+  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("verify-archive"), "the archive pointer must come after verify-archive");
+  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("do the pull request step"), "the archive pointer must come after the pull request step");
   assert.match(branch(skill, "halt"), /Before you STOP/);
 });
 
