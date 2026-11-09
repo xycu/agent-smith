@@ -42,7 +42,7 @@ One procedure for every directory delete, in prose and in code, and one helper t
 
 - A subagent that follows the suffix never runs a command a harness that blocks `rm -rf` would stop, so the step does not stall on it.
 - Every prompt changes through the suffix, so a run in flight at upgrade time records `provenance.drift` for `prompts` at its next `next` call. Routing is unchanged.
-- `helpers.mjs` changes beyond `writeOverride` in its cleanup line only.
+- `helpers.mjs` changes beyond `writeOverride` in `cleanupAll` only: it calls `removeTree` for every scratch folder, goes on past a folder it cannot remove and then throws one `AggregateError` that names each folder left behind.
 - `removeTree` walks and unlinks entry by entry. The scratch trees of the suite are small, so its cost is noise next to the suite's own time.
 - Enforcement is a prompt rule plus a guard test. The router cannot see what a subagent runs, so nothing stops a subagent that ignores the rule.
 
