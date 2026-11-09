@@ -168,7 +168,7 @@ function next(id, policy, chain = "10x") {
     id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
     phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
     retry: (d.retry ?? []).join(", "), uncommitted: (d.uncommitted ?? []).join(", "), failure: d.failure ?? "",
-    unproven: (d.unproven ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
+    unproven: (d.unproven ?? []).join(", ") || "none", browserRows: (d.browserRows ?? []).join(", ") || "none", evidence: d.evidenceNote ?? "",
     lessonMax: String(lessonLimits(policy).maxCandidates), lessonChars: String(lessonLimits(policy).maxChars),
     findings: d.findings ?? "",
   };

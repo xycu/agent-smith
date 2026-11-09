@@ -306,11 +306,11 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Automated
 
-- [ ] 1.1 Defaults and wrong shapes: `node --test --test-name-pattern="browser row words and proof kinds" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 1.2 A judgment or other tick on a browser row is unproven: `node --test --test-name-pattern="browser row judgment tick is unproven" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 1.3 Proof kinds that count: `node --test --test-name-pattern="browser row proved by browser test command or script" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 1.4 The evidence suffix is not matched: `node --test --test-name-pattern="evidence file name does not make a browser row" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 1.5 The existing step tests still pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs skills/10x-pipeline/test/budget-executors.test.mjs` passes
+- [x] 1.1 Defaults and wrong shapes: `node --test --test-name-pattern="browser row words and proof kinds" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 1.2 A judgment or other tick on a browser row is unproven: `node --test --test-name-pattern="browser row judgment tick is unproven" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 1.3 Proof kinds that count: `node --test --test-name-pattern="browser row proved by browser test command or script" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 1.4 The evidence suffix is not matched: `node --test --test-name-pattern="evidence file name does not make a browser row" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 1.5 The existing step tests still pass: `node --test skills/10x-pipeline/test/manualverify.test.mjs skills/10x-pipeline/test/budget-executors.test.mjs` passes
 
 ### Phase 2: Outputs and report
 

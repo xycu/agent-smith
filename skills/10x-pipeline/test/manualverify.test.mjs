@@ -542,6 +542,147 @@ test("manual verify prompts", () => {
   assert.match(finish(retry).res.json.prompt, /rejected last time: 1\.2/);
 });
 
+// ---- browser rows -------------------------------------------------------------
+
+const BR = "Open the page in a browser and see the heading";
+const WHY = (kind) => `browser row ticked with ${kind} evidence; only browser, test, command, script evidence proves it`;
+const SHIPPED = JSON.parse(fs.readFileSync(new URL("../policy.json", import.meta.url), "utf8"));
+
+// One manual-verify step over the Manual rows `manual` (the first is ticked with `token`, the file written when `write`).
+function tickWith(manual, token, { policy = null, write = true, extra = [] } = {}) {
+  const project = verifying({ manual, policy });
+  save(project, [ticked(manual[0], token), ...manual.slice(1)]);
+  if (write && token) evidence(project, token.slice("evidence/".length));
+  for (const f of extra) evidence(project, f);
+  return { project, ...finish(project) };
+}
+
+test("browser row words and proof kinds", () => {
+  const mv = SHIPPED.manualVerify;
+  for (const w of [...SHIPPED.executors.e2e.rowWords, "chrome"]) assert.ok(mv.browserRowWords.includes(w), w);
+  assert.deepEqual(mv.browserProofKinds, ["browser", "test", "command", "script"]);
+  // Defaults are in force with no override: a judgment tick on a browser row is rejected.
+  const rejects = (policy, token = "evidence/judgment-1.2.md") => {
+    const { e } = tickWith([BR], token, { policy });
+    return e.unproven.length === 1 && e.proved.length === 0;
+  };
+  assert.equal(rejects(null), true);
+  // A wrong shape reads as the default and never halts.
+  for (const bad of ["browser", [1], [" "], [""], null, { a: 1 }, 7]) {
+    assert.equal(rejects({ manualVerify: { browserRowWords: bad } }), true, `words ${JSON.stringify(bad)}`);
+  }
+  for (const bad of ["test", [], [1], [""], null, { test: true }]) {
+    assert.equal(rejects({ manualVerify: { browserProofKinds: bad } }), true, `kinds ${JSON.stringify(bad)}`);
+    assert.equal(tickWith([BR], "evidence/test-1.2.md", { policy: { manualVerify: { browserProofKinds: bad } } }).e.ok, true, `kinds ${JSON.stringify(bad)}`);
+  }
+  // An empty browserRowWords turns the check off.
+  const off = tickWith([BR], "evidence/judgment-1.2.md", { policy: { manualVerify: { browserRowWords: [] } } }).e;
+  assert.equal(off.ok, true, JSON.stringify(off));
+  assert.deepEqual(off.browserRows, []);
+  // The removed browserWords key of an old override is ignored.
+  assert.equal(rejects({ manualVerify: { browserWords: [] } }), true);
+  assert.equal(tickWith([A], "evidence/judgment-1.2.md", { policy: { manualVerify: { browserWords: ["node"] } } }).e.ok, true);
+  // A custom word list and kind list.
+  const custom = { manualVerify: { browserRowWords: ["terminal"], browserProofKinds: ["judgment"] } };
+  assert.equal(tickWith(["Look at the terminal output"], "evidence/judgment-1.2.md", { policy: custom }).e.ok, true);
+  assert.equal(tickWith(["Look at the terminal output"], "evidence/test-1.2.md", { policy: custom }).e.ok, false);
+  assert.equal(tickWith([BR], "evidence/judgment-1.2.md", { policy: custom }).e.ok, true, "a custom list replaces the default words");
+  // A kind that evidenceKinds leaves out reads "other" and never proves a browser row.
+  const noTest = tickWith([BR], "evidence/test-1.2.md", { policy: { manualVerify: { evidenceKinds: ["command", "script", "browser", "judgment"] } } }).e;
+  assert.equal(noTest.ok, false);
+  assert.deepEqual(noTest.unprovenWhy, { "1.2": WHY("other") });
+  // A phrase matches at a word start: Chrome, end-to-end and E2E hit, Rebrowser does not.
+  for (const text of ["Check it in Chrome", "Run the end-to-end flow", "Run the E2E suite", "Playwright shows it"]) {
+    assert.deepEqual(tickWith([text], "evidence/judgment-1.2.md").e.browserRows, ["1.2"], text);
+  }
+  assert.deepEqual(tickWith(["Check the Rebrowser output"], "evidence/judgment-1.2.md").e.browserRows, []);
+});
+
+test("browser row judgment tick is unproven", () => {
+  for (const token of ["evidence/judgment-1.2.md", "evidence/log-1.2.md", "evidence/notes.md"]) {
+    const kind = token.includes("judgment") ? "judgment" : "other";
+    const { project, res, e } = tickWith([BR, B], token);
+    assert.equal(e.ok, false, token);
+    assert.equal(e.fallback, true, token);
+    assert.deepEqual(e.unproven, ["1.2"], token);
+    assert.deepEqual(e.proved, [], token);
+    assert.deepEqual(e.ticked, [], token);
+    assert.deepEqual(e.browserRows, ["1.2"], token);
+    assert.deepEqual(e.unprovenWhy, { "1.2": WHY(kind) }, token);
+    // The retry runs one tier up and its prompt names the row and the browser rows.
+    assert.equal(res.json.step, "manual-verify", token);
+    assert.match(res.json.prompt, /rejected by the router last time: 1\.2/, token);
+    assert.match(res.json.prompt, /Browser rows: 1\.2(\n|$)/, token);
+    assert.equal(lastEntry(project).n, 5, token);
+  }
+  // A non-browser row next to it is proved by a judgment file.
+  const mixed = tickWith([BR, B], "evidence/judgment-1.2.md");
+  assert.equal(mixed.e.unprovenWhy["1.3"], undefined);
+  // A tick without valid evidence on a browser row keeps its handling and gets no reason.
+  const missing = tickWith([BR], "evidence/browser-missing.txt", { write: false }).e;
+  assert.deepEqual(missing.unproven, ["1.2"]);
+  assert.equal("unprovenWhy" in missing, false);
+  assert.deepEqual(missing.browserRows, ["1.2"]);
+  // The retry that settles the row with test evidence is proved; one that unticks leaves it pending.
+  const retry = tickWith([BR], "evidence/judgment-1.2.md");
+  save(retry.project, [ticked(BR, "evidence/test-1.2.md")]);
+  evidence(retry.project, "test-1.2.md");
+  const second = finish(retry.project, 4);
+  assert.equal(second.e.ok, true, JSON.stringify(second.e));
+  assert.deepEqual(second.e.proved, [{ id: "1.2", kind: "test", file: "evidence/test-1.2.md" }]);
+  assert.equal("unprovenWhy" in second.e, false);
+  const untick = tickWith([BR], "evidence/judgment-1.2.md");
+  save(untick.project, [BR]);
+  const third = finish(untick.project, 4);
+  assert.deepEqual(third.e.unproven, []);
+  assert.deepEqual(third.e.pending, ["1.2"]);
+  // An old log entry without browserRows is read as before: manualUnprovenIds needs only unproven.
+  const old = verifying({ manual: [A] });
+  save(old, [ticked(A, "evidence/judgment-1.2.md")]);
+  evidence(old, "judgment-1.2.md");
+  assert.equal(finish(old).e.ok, true);
+});
+
+test("browser row proved by browser test command or script", () => {
+  for (const kind of ["browser", "test", "command", "script"]) {
+    const { e } = tickWith([BR], `evidence/${kind}-1.2.md`);
+    assert.equal(e.ok, true, kind);
+    assert.deepEqual(e.proved, [{ id: "1.2", kind, file: `evidence/${kind}-1.2.md` }], kind);
+    assert.deepEqual(e.browserRows, ["1.2"], kind);
+    assert.equal("unprovenWhy" in e, false, kind);
+  }
+  // A prefix is lower-cased, as for any kind.
+  assert.equal(tickWith([BR], "evidence/Browser-1.2.md").e.ok, true);
+  // A row that names no browser word is still proved by a judgment file.
+  const plain = tickWith([HUMAN], "evidence/judgment-1.2.md").e;
+  assert.equal(plain.ok, true);
+  assert.deepEqual(plain.browserRows, []);
+  // Several rows share one evidence file: the kind decides per row.
+  const shared = verifying({ manual: [BR, B] });
+  save(shared, [ticked(BR, "evidence/judgment-x.md"), ticked(B, "evidence/judgment-x.md")]);
+  evidence(shared, "judgment-x.md");
+  const both = finish(shared).e;
+  assert.deepEqual(both.ticked, ["1.3"]);
+  assert.deepEqual(both.unproven, ["1.2"]);
+});
+
+test("evidence file name does not make a browser row", () => {
+  // Row 1.2 already carries a browser- evidence suffix at the start of the step; its baseline text is not matched on the suffix.
+  const project = verifying({ manual: [{ text: `${A} — evidence: evidence/browser-x.txt`, done: true }, B] });
+  const e0 = lastEntry(project);
+  save(project, [{ text: `${A} — evidence: evidence/browser-x.txt`, done: true }, ticked(B, "evidence/judgment-b.md")]);
+  evidence(project, "judgment-b.md");
+  const { e } = finish(project);
+  assert.ok(e0.before.manual[0].text.includes("browser-x"));
+  assert.deepEqual(e.browserRows, []);
+  assert.equal(e.ok, true, JSON.stringify(e));
+  assert.deepEqual(e.proved, [{ id: "1.3", kind: "judgment", file: "evidence/judgment-b.md" }]);
+  // The same row, newly ticked with a browser- file, is no browser row either.
+  const fresh = tickWith([A], "evidence/browser-1.2.md").e;
+  assert.deepEqual(fresh.browserRows, []);
+  assert.equal(fresh.ok, true);
+});
+
 // ---- outputs ------------------------------------------------------------------
 
 // A finished run in a repository: an approved impl-review and a manual-verify step that ticked row 1.2 without evidence.
