@@ -28,7 +28,7 @@ Source: the 10xDevs 4.0 course prompts in `10xdevs4-content/.claude/prompts/`, i
 | `os-propose.md` | none (this pipeline) | decision guide for the ask points of `/openspec-propose`: continue the existing change, decide a material ambiguity from repository evidence or end `blocked`, write only inside `openspec/changes/{id}/`, no code | `os-propose` template (OpenSpec chain) |
 | `os-apply.md` | none (this pipeline) | decision guide for the pause points of `/openspec-apply-change`: tick finished tasks as `- [x]`, never untick, never archive or commit; fix mode fixes the critical findings of `verify.md` and keeps the ticks | `os-apply` and `os-apply-fix` templates (OpenSpec chain; `os-apply-fix` adds `{findings}`) |
 | `os-verify.md` | none (this pipeline) | runs `/openspec-verify-change` read-only and writes `openspec/changes/{id}/agent-smith/verify.md`: the `Verdict`, `Critical` and `Warnings` lines, then `## Critical` and `## Warnings`, then the report | `os-verify` template (OpenSpec chain) |
-| `os-archive.md` | none (this pipeline) | runs `openspec archive {id} --yes --json` once, never the archive skill; a CLI error ends `blocked`; on success commits `openspec/` as `chore(archive): close {id}` | `os-archive` template, returned by the `archive` action of an OpenSpec run started with `--archive` |
+| `os-archive.md` | none (this pipeline) | runs `openspec archive {id} --yes --json` once, never the archive skill; a CLI error ends `blocked`; on success commits only the change folder, the archive folder and `openspec/specs/` as `chore(archive): close {id}` | `os-archive` template, returned by the `archive` action of an OpenSpec run started with `--archive` |
 
 ## Not wired
 

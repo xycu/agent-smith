@@ -220,3 +220,23 @@ test("next and status on a moved OpenSpec run halt as archived without the flag,
   assert.equal(fs.existsSync(project.changeDir), false);
   assert.equal(exists(project, "context/changes/demo"), false);
 });
+
+test("a 10x change that reuses the name of an archived OpenSpec run is a 10x run", () => {
+  const project = makeOpenspecProject(PROPOSED);
+  assert.equal(initOpenspec(project, "Add a thing").status, 0);
+  moveToArchive(project, "2026-02-03");
+  fs.mkdirSync(project.tenxChangeDir, { recursive: true });
+  fs.writeFileSync(path.join(project.tenxChangeDir, "change.md"), "---\nchange_id: demo\nstatus: planned\n---\n");
+  const res = run(project, ["init", "demo", "--goal", "Add a thing"]);
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.action, "run");
+  assert.equal(res.json.step, "plan");
+  const meta = JSON.parse(fs.readFileSync(path.join(project.tenxChangeDir, "agent-smith/meta.json"), "utf8"));
+  assert.equal(meta.chain, undefined);
+  for (const args of [["status", "demo"], ["status", "demo", "--chain", "10x"]]) {
+    const status = run(project, args);
+    assert.equal(status.status, 0, status.stdout);
+    assert.equal(status.json.openspec, undefined);
+    assert.equal(status.json.steps[0].step, "plan");
+  }
+});
