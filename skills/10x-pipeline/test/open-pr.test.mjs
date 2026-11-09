@@ -15,6 +15,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildBody, markerFor, parseRepo, pathsToStage, titleFor } from "../scripts/open-pr.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/open-pr.mjs");
 const SCRIPTS = path.dirname(SCRIPT);
@@ -24,7 +25,7 @@ const skip = (win || !REAL_GIT) && "needs /bin/sh and git";
 const dirs = [];
 
 after(() => {
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0)) removeTree(d);
 });
 
 function tmpDir(prefix) {
