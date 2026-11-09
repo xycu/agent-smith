@@ -464,10 +464,10 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 
 #### Automated
 
-- [ ] 5.1 openspec-skill.test.mjs passes
-- [ ] 5.2 Full suite passes
-- [ ] 5.3 version-check.mjs exits 0
-- [ ] 5.4 Scratch init and status with --chain openspec print valid JSON
+- [x] 5.1 openspec-skill.test.mjs passes — c6e3f5f
+- [x] 5.2 Full suite passes — c6e3f5f
+- [x] 5.3 version-check.mjs exits 0 — c6e3f5f
+- [x] 5.4 Scratch init and status with --chain openspec print valid JSON — c6e3f5f
 
 #### Manual
 
