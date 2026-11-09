@@ -471,5 +471,5 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 
 #### Manual
 
-- [ ] 5.5 Claude Code lists agent-smith:openspec-pipeline from the worktree plugin
+- [x] 5.5 Claude Code lists agent-smith:openspec-pipeline from the worktree plugin — evidence: evidence/command-5.5-plugin-dir-init.txt
 - [ ] 5.6 One live openspec-pipeline run of a small change ends done with report.md

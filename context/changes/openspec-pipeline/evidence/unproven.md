@@ -1,2 +1,1 @@
-- 5.5 — session skill list shows only agent-smith:10x-pipeline (installed 0.7.1 cache); the worktree plugin is not loaded in this session, so agent-smith:openspec-pipeline cannot be observed from a subagent
-- 5.6 — needs one live openspec-pipeline run of a small change; too large and nested for an unattended manual-verify step
+- 5.6 — needs one live openspec-pipeline run of a small change (nested pipeline with its own subagents and an OpenSpec project); too large for an unattended manual-verify step, and the sandbox denies the model API for a nested claude run
