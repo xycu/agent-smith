@@ -1,10 +1,10 @@
 ---
 change_id: run-cost-estimate
 title: Estimate the money cost of a run in the report
-status: impl_reviewed
+status: archived
 created: 2026-11-09
 updated: 2026-11-09
-archived_at: null
+archived_at: 2026-11-09T23:08:22Z
 ---
 
 ## Notes
