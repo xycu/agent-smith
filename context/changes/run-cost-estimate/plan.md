@@ -261,21 +261,21 @@ None. No prices by default, no new file, no change to `run.jsonl` or `meta.json`
 
 #### Automated
 
-- [x] 1.1 `policy.json` ships `prices: null` and lists `prices` in `provenance.ignore`: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 1.2 `priceTable` drops malformed blocks and entries without halting, and `estimateCost` sums priced steps, counts coverage and lists unpriced aliases: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 1.3 A run with an override that sets prices records no `prices` section in `provenance` and no `provenance-differs:prices` warning: `node --test skills/10x-pipeline/test/provenance.test.mjs`
-- [x] 1.4 Existing suite stays green: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 `policy.json` ships `prices: null` and lists `prices` in `provenance.ignore`: `node --test skills/10x-pipeline/test/cost.test.mjs` — 4a7de12
+- [x] 1.2 `priceTable` drops malformed blocks and entries without halting, and `estimateCost` sums priced steps, counts coverage and lists unpriced aliases: `node --test skills/10x-pipeline/test/cost.test.mjs` — 4a7de12
+- [x] 1.3 A run with an override that sets prices records no `prices` section in `provenance` and no `provenance-differs:prices` warning: `node --test skills/10x-pipeline/test/provenance.test.mjs` — 4a7de12
+- [x] 1.4 Existing suite stays green: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 4a7de12
 
 ### Phase 2: Cost in report.md and status
 
 #### Automated
 
-- [ ] 2.1 With the shipped policy `report.md` and `status` output carry no cost text or key: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 2.2 With prices set, the report has the `Cost (est.)` column, the `Cost (estimate)` line with the exact total, `priced N of M`, and `no price for:` for a missing alias: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 2.3 A step with no token figure shows `-` in the cost column and is not in `M`: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 2.4 `status` prints the top-level `cost` object and per-step `cost` when prices are set: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 2.5 An OpenSpec run (`--chain openspec`) gets the same report line and `status` object: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 2.6 Existing report and status tests stay green: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/openspec-steps.test.mjs`
+- [x] 2.1 With the shipped policy `report.md` and `status` output carry no cost text or key: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 2.2 With prices set, the report has the `Cost (est.)` column, the `Cost (estimate)` line with the exact total, `priced N of M`, and `no price for:` for a missing alias: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 2.3 A step with no token figure shows `-` in the cost column and is not in `M`: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 2.4 `status` prints the top-level `cost` object and per-step `cost` when prices are set: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 2.5 An OpenSpec run (`--chain openspec`) gets the same report line and `status` object: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 2.6 Existing report and status tests stay green: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/openspec-steps.test.mjs`
 
 ### Phase 3: Cost in compare
 

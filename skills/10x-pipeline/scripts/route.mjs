@@ -20,7 +20,7 @@ import path from "node:path";
 import {
   ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
-  ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt,
+  ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, priceTable, loadPrices, estimateCost, roundUsd,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
@@ -582,6 +582,9 @@ function status(id, flags, chain = "10x") {
   // A moved OpenSpec run halts as archived instead of printing an empty log.
   if (chain === "openspec") guardArchived(p, id);
   const log = readLog(p.log);
+  // The cost estimate, only when the merged policy prices a model; without prices status has no cost key.
+  const prices = loadPrices();
+  const cost = prices ? estimateCost(executed(log), prices) : null;
   const res = {
     change: id,
     rigor: readMeta(p.meta, {}).rigor?.level ?? null,
@@ -592,6 +595,7 @@ function status(id, flags, chain = "10x") {
       n: e.n, step: e.step, template: e.template ?? null, model: e.model, effort: e.effort, simple: e.simple ?? null,
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
+      ...(cost ? { cost: typeof cost.perEntry[e.n] === "number" ? roundUsd(cost.perEntry[e.n]) : null } : {}),
       ...(e.step === "manual-verify" ? {
         ticked: e.ticked?.length ?? 0,
         unproven: e.unproven?.length ?? 0,
@@ -612,6 +616,12 @@ function status(id, flags, chain = "10x") {
       ...(typeof e.kept === "string" ? { kept: e.kept } : {}),
     })),
   };
+  if (cost) {
+    res.cost = {
+      usd: cost.priced ? roundUsd(cost.usd) : null, currency: "USD", rate: "blended",
+      priced: cost.priced, withFigures: cost.withFigures, unpriced: cost.unpriced,
+    };
+  }
   // The OpenSpec state the router reads from files, as the contract test compares it with `openspec instructions apply`.
   if (chain === "openspec") {
     const os = readOpenspec(p);
