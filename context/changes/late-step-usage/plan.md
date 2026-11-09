@@ -330,17 +330,17 @@ None. One log read and write per call. In the archive state the git calls are th
 
 #### Automated
 
-- [x] 1.1 New command tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
-- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 1.3 A refused call leaves the change folder byte-identical (snapshot assertion in `late-usage.test.mjs`)
+- [x] 1.1 New command tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs` — ddc694f
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — ddc694f
+- [x] 1.3 A refused call leaves the change folder byte-identical (snapshot assertion in `late-usage.test.mjs`) — ddc694f
 
 ### Phase 2: Late figure in the archive state
 
 #### Automated
 
-- [ ] 2.1 Archive-path tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
-- [ ] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 Provenance and baseline tests still pass with the new policy key: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/compare.test.mjs`
+- [x] 2.1 Archive-path tests pass: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
+- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.3 Provenance and baseline tests still pass with the new policy key: `node --test skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/compare.test.mjs`
 
 ### Phase 3: Orchestrator skills
 

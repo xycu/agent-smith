@@ -34,7 +34,7 @@ import {
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
   isolationOn, isolationCheck, worktreeLine, startCommit, stepCommit, fileTimes, setTimes, writeState, rollback,
-  archiveDone,
+  archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
 
 // The undo on halt: the next call that rolled back ends in a halt, so the final failure keeps its partial edits for a
@@ -718,9 +718,14 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   }
   const meta = readMeta(p.meta, { id, goal: "" });
   const ended = isObject(meta.outcome);
-  if (ended && meta.outcome.action === "done" && meta.archive === true) {
-    refuse("The run is in the archive state; a late figure there needs the folder commit of the archive branch.", n);
+  // The archive state: the run is done, started with --archive, and the folder is committed for /10x-archive. Everything
+  // is checked before the first write, because the write dirties the folder and only a commit cleans it again.
+  const archiveState = ended && meta.outcome.action === "done" && meta.archive === true;
+  if (archiveState) {
+    const why = lateUsagePrecheck(p, id, meta, policy);
+    if (why) refuse(why, n);
   }
+  const oldBytes = archiveState ? [p.log, p.report].map((file) => [file, fs.existsSync(file) ? fs.readFileSync(file) : null]) : [];
   entry.usage = usage;
   entry.usageLate = true;
   writeLog(p.log, log);
@@ -730,7 +735,28 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   if (ended) {
     try { report = writeReport(p, id, meta, log); } catch (e) { reportError = e.message; }
   }
-  out({ ...base, unchanged: false, report, ...(reportError ? { reportError } : {}), commit: null });
+  if (!archiveState) out({ ...base, unchanged: false, report, ...(reportError ? { reportError } : {}), commit: null });
+
+  // The archive state: commit the folder before the archive subagent starts. A failure before the commit exists puts
+  // the old bytes back, so the folder stays as committed (the router has already unstaged its own add).
+  const restore = () => {
+    for (const [file, bytes] of oldBytes) {
+      if (bytes === null) { try { fs.unlinkSync(file); } catch { /* already gone */ } } else fs.writeFileSync(file, bytes);
+    }
+  };
+  if (reportError) {
+    restore();
+    refuse(`report.md was not written: ${reportError}. The figure was not kept; the change folder is as committed.`, n);
+  }
+  const res = lateUsageCommit(p, id, policy, n);
+  if (res.error && !res.commit) {
+    restore();
+    refuse(`${res.error} The figure was not kept; the change folder is as committed.`, n);
+  }
+  out({
+    ...base, unchanged: false, report, commit: res.commit ? res.commit.slice(0, 7) : null,
+    ...(res.error ? { reason: res.error } : {}),
+  });
 }
 
 // ---- chain ----------------------------------------------------------------

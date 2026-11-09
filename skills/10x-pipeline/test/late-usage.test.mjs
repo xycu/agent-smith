@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, writePlan,
+  cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, writePlan,
   writeReview, readLogEntries, readMetaFile, readReportFile, entry, planText,
 } from "./helpers.mjs";
 import { makeOpenspecProject, moveToArchive } from "./openspec-helpers.mjs";
@@ -33,7 +33,7 @@ function snapshot(dir) {
   return files;
 }
 
-const usage = (project, n, extra = FLAGS) => run(project, ["usage", project.id, ...(n === null ? [] : [String(n)]), ...extra]);
+const usage = (project, n, extra = FLAGS) => run(project, ["usage", project.id, ...(n === null ? [] : [String(n)]), ...extra], { env: gitEnv(project) });
 
 // Step 1 done without a figure, step 2 pending. `chain` projects store their chain in meta.json.
 function running(over = {}) {
@@ -367,14 +367,192 @@ test("1.8 isolated run: a failed step that hits the attempt cap halts with the k
   assert.ok(entries.at(-1).kept, "the final failure keeps its edits");
 });
 
-// ---- 1.9 interim archive-state refusal --------------------------------------------------------
+// ---- 2.1 the archive state --------------------------------------------------------------------
 
-test("1.9 an ended archive run is refused before anything is written until the archive branch exists", () => {
-  const project = ended("done");
-  writeMetaFile(project, { id: "demo", goal: "fix typo", archive: true, rigor: { level: "standard" }, outcome: { action: "done", reason: "ok", manualPending: [] } });
-  const before = snapshot(project.changeDir);
-  const res = usage(project, 2);
+const MESSAGE = "chore(demo): add late usage figure of step 4";
+const PRE_ARCHIVE = "chore(demo): commit change folder before archive";
+
+// A finished 10x run in a git repository: change.md with `created`, a plan with every Automated row done, both
+// reviews, a log that ends in an approved impl-review, meta.json with the archive flag, one base commit. `next` then
+// commits the folder and returns the archive action (the state the orchestrator hands to the archive subagent).
+function archiveProject({ policy = null } = {}) {
+  const project = makeProject({ policy, plan: planText({ phases: 1, rowsPerPhase: 1, done: 1 }) });
+  fs.writeFileSync(path.join(project.changeDir, "change.md"), "---\nchange_id: demo\nstatus: implemented\ncreated: 2026-10-30\n---\n");
+  writeReview(project, "plan-review", { verdict: "SOUND" });
+  writeReview(project, "impl-review", { verdict: "APPROVED" });
+  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+  writeMetaFile(project, { id: "demo", goal: "fix typo", archive: true });
+  gitInit(project);
+  commitFiles(project, ["README.md"]);
+  return project;
+}
+
+const rel = (project) => path.relative(project.base, project.changeDir).split(path.sep).join("/");
+const subject = (project) => git(project, ["log", "-1", "--format=%s"]);
+const showNames = (project) => git(project, ["show", "--name-only", "--format=", "HEAD"]).split("\n").filter(Boolean);
+const folderStatus = (project) => git(project, ["status", "--porcelain", "--", rel(project)]);
+const blob = (project, file) => git(project, ["show", `HEAD:${rel(project)}/${file}`]);
+const onDisk = (project, file) => fs.readFileSync(path.join(project.changeDir, file), "utf8");
+
+test("2.1 10x --archive: after the archive action the figure commits the folder with archive.usageMessage", { skip }, () => {
+  const project = archiveProject();
+  assert.equal(nextIn(project).json.action, "archive");
+  assert.equal(subject(project), PRE_ARCHIVE);
+  const res = usage(project, 4);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(res.json.attached, true);
+  assert.equal(res.json.commit, git(project, ["rev-parse", "--short", "HEAD"]));
+  assert.equal(subject(project), MESSAGE);
+  const names = showNames(project);
+  assert.ok(names.length > 0 && names.every((n) => n.startsWith(`${rel(project)}/`)), names.join(", "));
+  assert.ok(names.includes(`${rel(project)}/agent-smith/report.md`));
+  assert.equal(folderStatus(project), "");
+  git(project, ["diff", "--cached", "--quiet"]);
+  assert.match(blob(project, "agent-smith/report.md"), /\| 4 \| impl-review \| sonnet \| high \| 3 \| no \| ok \| 1200 \|/);
+  assert.deepEqual(JSON.parse(blob(project, "agent-smith/run.jsonl").split("\n")[3]).usage, FIG);
+  // The same figure again is a no-op and makes no commit.
+  const count = git(project, ["rev-list", "--count", "HEAD"]);
+  const again = usage(project, 4);
+  assert.equal(again.json.unchanged, true);
+  assert.equal(git(project, ["rev-list", "--count", "HEAD"]), count);
+});
+
+test("2.1 a failing pre-commit hook: attached false, exit 1, the folder is as committed and the index is empty", { skip }, () => {
+  const project = archiveProject();
+  assert.equal(nextIn(project).json.action, "archive");
+  const hooks = path.join(project.base, ".git/hooks");
+  fs.mkdirSync(hooks, { recursive: true });
+  fs.writeFileSync(path.join(hooks, "pre-commit"), "#!/bin/sh\necho nope >&2\nexit 1\n", { mode: 0o755 });
+  const head = git(project, ["rev-parse", "HEAD"]);
+  const res = usage(project, 4);
   assert.equal(res.status, 1, res.stdout);
-  assert.equal(res.json.reason, "The run is in the archive state; a late figure there needs the folder commit of the archive branch.");
+  assert.equal(res.json.attached, false);
+  assert.match(res.json.reason, /The figure was not kept; the change folder is as committed\.$/);
+  assert.equal(git(project, ["rev-parse", "HEAD"]), head);
+  assert.equal(folderStatus(project), "");
+  git(project, ["diff", "--cached", "--quiet"]);
+  for (const file of ["agent-smith/run.jsonl", "agent-smith/report.md"]) assert.equal(onDisk(project, file).trim(), blob(project, file).trim(), file);
+  assert.equal(readLogEntries(project)[3].usage, undefined);
+});
+
+test("2.1 a dirty change folder refuses before writing", { skip }, () => {
+  const project = archiveProject();
+  assert.equal(nextIn(project).json.action, "archive");
+  fs.writeFileSync(path.join(project.changeDir, "extra.txt"), "stray\n");
+  const before = snapshot(project.changeDir);
+  const res = usage(project, 4);
+  assert.equal(res.status, 1, res.stdout);
+  assert.match(res.json.reason, /The change folder context\/changes\/demo is not clean; the archive may have started, or the pre-archive commit failed\./);
   assert.deepEqual(snapshot(project.changeDir), before);
+});
+
+test("2.1 an archive.usageMessage that is not a non-blank string refuses before writing", { skip }, () => {
+  for (const bad of [5, "", "   ", null, ["x"]]) {
+    const project = archiveProject({ policy: { archive: { usageMessage: bad } } });
+    assert.equal(nextIn(project).json.action, "archive", JSON.stringify(bad));
+    const before = snapshot(project.changeDir);
+    const head = git(project, ["rev-parse", "HEAD"]);
+    const res = usage(project, 4);
+    assert.equal(res.status, 1, `${JSON.stringify(bad)}: ${res.stdout}`);
+    assert.equal(res.json.reason, "policy.archive.usageMessage must be a non-blank string.");
+    assert.deepEqual(snapshot(project.changeDir), before);
+    assert.equal(git(project, ["rev-parse", "HEAD"]), head);
+  }
+});
+
+test("2.1 staged changes refuse before writing", { skip }, () => {
+  const project = archiveProject();
+  assert.equal(nextIn(project).json.action, "archive");
+  fs.writeFileSync(path.join(project.base, "other.txt"), "staged\n");
+  git(project, ["add", "other.txt"]);
+  const before = snapshot(project.changeDir);
+  const res = usage(project, 4);
+  assert.equal(res.status, 1, res.stdout);
+  assert.match(res.json.reason, /The index holds staged changes/);
+  assert.deepEqual(snapshot(project.changeDir), before);
+});
+
+test("2.1 a halted archive run keeps the Phase 1 behavior and makes no commit", { skip }, () => {
+  const project = archiveProject();
+  writeMetaFile(project, { id: "demo", goal: "fix typo", archive: true, outcome: { action: "halt", reason: "needs a human" } });
+  git(project, ["add", "-A"]);
+  git(project, ["commit", "-q", "-m", "state"]);
+  const head = git(project, ["rev-parse", "HEAD"]);
+  const res = usage(project, 4);
+  assert.equal(res.status, 0, res.stdout);
+  assert.equal(res.json.commit, null);
+  assert.equal(git(project, ["rev-parse", "HEAD"]), head);
+  assert.notEqual(folderStatus(project), "", "the figure and the report stay uncommitted for the next commit");
+});
+
+// ---- 2.2 isolated --archive run ---------------------------------------------------------------
+
+test("2.2 isolated --archive run: the commit lands on the run branch and a following next resumes with commit null", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  const init = run(wt, ["init", wt.id, "--goal", GOAL, "--archive"], { env: gitEnv(wt) });
+  assert.equal(init.status, 0, init.stdout + init.stderr);
+  // Replace the pending first step with a finished run, as archiveProject does.
+  fs.writeFileSync(path.join(wt.changeDir, "change.md"), "---\nchange_id: demo\nstatus: implemented\ncreated: 2026-10-30\n---\n");
+  writePlan(wt, planText({ phases: 1, rowsPerPhase: 1, done: 1 }));
+  writeReview(wt, "plan-review", { verdict: "SOUND" });
+  writeReview(wt, "impl-review", { verdict: "APPROVED" });
+  const start = gw(wt, ["rev-parse", "HEAD"]);
+  writeLog(wt, [1, 2, 3, 4].map((n) => entry(n, ["plan", "plan-review", "implement", "impl-review"][n - 1], { startSha: start, commit: null })));
+  gw(wt, ["add", "-A"]);
+  gw(wt, ["commit", "-q", "-m", "chore(demo): finished run"]);
+  const archive = nextIn(wt);
+  assert.equal(archive.json.action, "archive", archive.stdout);
+  assert.equal(gw(wt, ["log", "-1", "--format=%s"]), PRE_ARCHIVE);
+
+  const res = usage(wt, 4);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(gw(wt, ["log", "-1", "--format=%s"]), MESSAGE);
+  assert.equal(gw(wt, ["rev-parse", "--abbrev-ref", "HEAD"]), "agent-smith/demo");
+  assert.equal(res.json.commit, gw(wt, ["rev-parse", "--short", "HEAD"]));
+  assert.equal(gw(wt, ["status", "--porcelain", "--", CHANGE]), "");
+  assert.match(gw(wt, ["show", `HEAD:${CHANGE}/agent-smith/report.md`]), /\| 4 \| impl-review \| .* \| 1200 \|/);
+
+  // The resume path of archiveDone: HEAD is not the pre-archive commit, so it writes the report again, finds nothing to
+  // stage and returns the action with commit null; the folder stays clean.
+  const head = gw(wt, ["rev-parse", "HEAD"]);
+  const again = nextIn(wt);
+  assert.equal(again.json.action, "archive", again.stdout);
+  assert.equal(again.json.commit, null);
+  assert.equal(gw(wt, ["rev-parse", "HEAD"]), head);
+  assert.equal(gw(wt, ["status", "--porcelain", "--", CHANGE]), "");
+});
+
+test("2.2 an isolated run in the main checkout is refused before writing", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  assert.equal(run(wt, ["init", wt.id, "--goal", GOAL, "--archive"], { env: gitEnv(wt) }).status, 0);
+  writeLog(main, [entry(1, "plan")]);
+  writeMetaFile(main, { id: "demo", goal: GOAL, archive: true, isolated: true, branch: "agent-smith/demo", outcome: { action: "done", reason: "ok", manualPending: [] } });
+  git(main, ["add", "-A"]);
+  git(main, ["commit", "-q", "-m", "state"]);
+  const before = snapshot(main.changeDir);
+  const res = usage(main, 1);
+  assert.equal(res.status, 1, res.stdout);
+  assert.match(res.json.reason, /is the main checkout, not the run worktree/);
+  assert.deepEqual(snapshot(main.changeDir), before);
+});
+
+// ---- 2.3 OpenSpec --archive run ---------------------------------------------------------------
+
+test("2.3 OpenSpec --archive: the commit holds only openspec/changes/demo/ and the committed report shows the figure", { skip }, () => {
+  const PASS = "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n";
+  const project = makeOpenspecProject({ proposal: true, specs: 1, tasks: { done: 2, open: 0 }, verify: PASS });
+  writeLog(project, [entry(1, "os-apply", { template: "os-apply" }), entry(2, "os-verify", { review: { verdict: "PASS", critical: 0, warnings: 0 } })]);
+  writeMetaFile(project, { id: "demo", goal: "Add a thing", chain: "openspec", archive: true });
+  gitInit(project);
+  commitFiles(project, ["README.md"]);
+  assert.equal(nextIn(project).json.action, "archive");
+  const res = usage(project, 2, [...FLAGS, "--chain", "openspec"]);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(subject(project), "chore(demo): add late usage figure of step 2");
+  const names = showNames(project);
+  assert.ok(names.length > 0 && names.every((n) => n.startsWith("openspec/changes/demo/")), names.join(", "));
+  assert.equal(folderStatus(project), "");
+  assert.match(blob(project, "agent-smith/report.md"), /\| 2 \| os-verify \| .* \| 1200 \|/);
 });
