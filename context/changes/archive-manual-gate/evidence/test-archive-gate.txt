@@ -1,0 +1,20 @@
+archive-gate.test.mjs (supports row 2.6 and 2.5 text/skill agreement)
+✔ 10x: allowed-tools lists AskUserQuestion (0.792375ms)
+✔ 10x: the archive branch asks before it launches the subagent (0.205833ms)
+✔ 10x: labels, fail-closed reading and STOP (0.118125ms)
+✔ 10x: step numbers stay and the other branches do not ask (0.300083ms)
+✔ 10x: still exactly five GIVEN lines (0.122458ms)
+✔ openspec: allowed-tools lists AskUserQuestion (0.087333ms)
+✔ openspec: the archive branch asks before it launches the subagent (0.076916ms)
+✔ openspec: labels, fail-closed reading and STOP (0.067583ms)
+✔ openspec: step numbers stay and the other branches do not ask (0.143292ms)
+✔ openspec: still exactly five GIVEN lines (0.130167ms)
+✔ the router scripts never mention AskUserQuestion (5.763875ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 230.025583

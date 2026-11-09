@@ -1,0 +1,3 @@
+- 1.5 — needs a live interactive pipeline run with AskUserQuestion and a real archive; cannot be done from an unattended subagent
+- 1.6 — needs a live headless `claude -p` pipeline run; not runnable here (would also start a nested pipeline)
+- 1.7 — needs a live --archive pipeline run with no pending Manual row

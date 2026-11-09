@@ -193,5 +193,5 @@ No policy or router change, so no provenance drift. A run in flight picks the ne
 
 #### Manual
 
-- [ ] 2.5 ADR-014 reads as a decision the owner can confirm or change, and its scenarios match the skill text
-- [ ] 2.6 `docs/REFERENCE.md` and the two SKILL.md files agree on the labels, the 10-row cap and the fail-closed rule
+- [x] 2.5 ADR-014 reads as a decision the owner can confirm or change, and its scenarios match the skill text — evidence: evidence/judgment-adr014-reads-as-decision.md
+- [x] 2.6 `docs/REFERENCE.md` and the two SKILL.md files agree on the labels, the 10-row cap and the fail-closed rule — evidence: evidence/judgment-docs-skills-agree.md
