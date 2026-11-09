@@ -251,10 +251,10 @@ None for run state: no policy or `meta.json` change, so no provenance drift. Run
 
 #### Automated
 
-- [x] 3.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 3.2 ADR and cross-references exist: `test -f docs/ADR/ADR-017-run-branch-always-pushed-for-review.md && grep -l "ADR-017" AGENTS.md docs/REFERENCE.md README.md`
-- [x] 3.3 Commit subjects are Conventional: `node tools/commit-lint.mjs main..HEAD`
-- [x] 3.4 Version fields untouched: `node tools/version-check.mjs`
+- [x] 3.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 9657a0d
+- [x] 3.2 ADR and cross-references exist: `test -f docs/ADR/ADR-017-run-branch-always-pushed-for-review.md && grep -l "ADR-017" AGENTS.md docs/REFERENCE.md README.md` — 9657a0d
+- [x] 3.3 Commit subjects are Conventional: `node tools/commit-lint.mjs main..HEAD` — 9657a0d
+- [x] 3.4 Version fields untouched: `node tools/version-check.mjs` — 9657a0d
 
 #### Manual
 
