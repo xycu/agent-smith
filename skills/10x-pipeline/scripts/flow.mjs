@@ -10,6 +10,7 @@ import {
   manualUnprovenIds, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
   verifyCodeReplan,
 } from "./steps.mjs";
+import { verifyOpenspecStep } from "./openspec.mjs";
 
 // ---- report ---------------------------------------------------------------
 
@@ -376,6 +377,10 @@ export function attachResult(p, log, policy) {
     }
     case "implement": verified = verifyImplement(last, plan, result, p, policy); break;
     case "manual-verify": verified = verifyManual(last, ran, plan, result, p, policy); break;
+    // The OpenSpec steps (ADR-013 D4), each verified by the file it writes; os-verify also gets `review`.
+    case "os-propose":
+    case "os-apply":
+    case "os-verify": verified = verifyOpenspecStep(last, p); break;
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
   // The raw signals object never reaches run.jsonl; only the cleaned one does.

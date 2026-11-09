@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, run, init, writeResult, readLogEntries, readMetaFile,
 } from "./helpers.mjs";
-import { makeOpenspecProject, writeArtifacts, initOpenspec, moveToArchive } from "./openspec-helpers.mjs";
+import { makeOpenspecProject, writeArtifacts, writeVerify, initOpenspec, moveToArchive } from "./openspec-helpers.mjs";
 
 after(cleanupAll);
 
@@ -165,9 +165,10 @@ test("a design.md is optional for planning (predicate A)", () => {
 test("os-verify is not repeated after a verified os-verify that follows the last verified os-apply", () => {
   const project = makeOpenspecProject(TICKED);
   assert.equal(initOpenspec(project, "Add a thing").json.step, "os-verify");
+  writeVerify(project, "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n");
   writeResult(project, { status: "done", note: "verified" });
   const res = run(project, ["next", "demo"]);
-  assert.equal(res.json.action, "halt", res.stdout);
+  assert.equal(res.json.action, "done", res.stdout);
   assert.notEqual(res.json.step, "os-verify");
 });
 
