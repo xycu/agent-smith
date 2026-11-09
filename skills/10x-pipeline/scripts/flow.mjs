@@ -361,7 +361,7 @@ export function neutralRetry(p, id, meta, log, policy) {
 // ---- result intake + verification ---------------------------------------
 
 // Keep only non-negative safe integers. Returns null when nothing survives.
-function cleanUsage(raw) {
+export function cleanUsage(raw) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const clean = {};
   for (const key of ["totalTokens", "toolUses", "durationMs"]) {
