@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/xycu/agent-smith/compare/v1.1.0...v1.1.1) (2026-11-09)
+
+
+### Miscellaneous Chores
+
+* **license:** release the new license as 1.1.1 ([a28d351](https://github.com/xycu/agent-smith/commit/a28d3513d01eb2b44b2458c9f3c20511ffffd487))
+
 ## [1.1.0](https://github.com/xycu/agent-smith/compare/v1.0.1...v1.1.0) (2026-11-09)
 
 
