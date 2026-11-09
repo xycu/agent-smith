@@ -1,0 +1,2 @@
+Commit 16412ac subject: "test(split-route-mjs): widen the gh guard to every router script (p1)" -> Conventional Commit, type test.
+Files (git show --stat): skills/10x-pipeline/test/pr-comment.test.mjs, plus run bookkeeping context/changes/split-route-mjs/{change.md,plan.md} (plan Progress ticks, status). No production or other test file. Only test file touched: pr-comment.test.mjs. Row intent (no production code, only that test) holds.
