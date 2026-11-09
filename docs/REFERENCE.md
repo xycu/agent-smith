@@ -41,7 +41,7 @@ Run isolation:
 - Only when it creates the run branch does it copy the change folder into the worktree, keeping file times (`cp -Rp`). A resume reuses the worktree, or adds one for the existing branch, and copies nothing, so edit the run's files in the worktree. An in-flight run in the main checkout stays there and halts at `init` until the project opts out.
 - Every other input (the project override `context/foundation/agent-smith-policy.json`, `context/foundation/`, `context/domain/`, `context/map/`, the code) is read as committed at the branch point. Commit it before a run. The orchestrator prints one line that lists the uncommitted paths of the main checkout outside the change folder when it creates the branch.
 - Every prompt of an isolated run starts with the rules of `skills/10x-pipeline/prompts/worktree.md`, which name the run root and tell the subagent to work only there. The orchestrator runs every router call with `cd` into the run root.
-- The change folder in the main checkout is a stale copy: the run's copy lives on the run branch. Remove or stash the main-checkout copy before you merge the run branch, because git refuses a merge that would overwrite untracked files.
+- The change folder in the main checkout is a stale copy: the run's copy lives on the run branch. Remove (file by file, see "File deletion") or stash the main-checkout copy before you merge the run branch, because git refuses a merge that would overwrite untracked files.
 - A run that ends `done` without `--archive` leaves `report.md`, the last `run.jsonl` entry and `meta.json` uncommitted in the worktree after the router's last write. The pull request step (see "Pull request (always)") commits them as `chore(<change-id>): final run state` before it pushes. Only when that commit fails, or the step skips before it, commit them yourself before the merge and before `git worktree remove`, which refuses a worktree with modified or untracked files.
 - With `--pr-comment` the orchestrator posts from the run root, after the pull request step, to the pull request of the run branch (`--pr <url>`).
 - Open question: `.claude` is a protected directory. Claude Code exempts "Claude's own git worktrees under `.claude/worktrees/`", and the docs do not say whether a worktree made by `git worktree add` counts. If it does not, Edit and Write under the worktree prompt even in `acceptEdits`, and an unattended run stalls there. A live run has not checked it yet.
@@ -311,6 +311,16 @@ Limits:
 - Subagents cannot use `AskUserQuestion`. Where a skill would ask, the subagent decides from researched best practice, cites the evidence and lists the decision as an assumption. With no evidence-backed answer it reports `blocked` with `signals.needsHuman`, and the router halts.
 - `10x-goal-implement` spawns its own subagents. This needs `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` of 3 or more (the default since Claude Code v2.1.219).
 - The Chrome browser tools are on by default for `manual-verify` (`--chrome false` turns them off), and the subagent loads them through ToolSearch. Whether a subagent can load and call them was not tested; when they are missing the `manual-verify` subagent proves the row another way or leaves it pending with that reason, and the run goes on. `/10x-e2e` and `/10x-tdd` also run in a subagent and answer their own questions from the decision guides in `skills/10x-pipeline/prompts/`; no live run has been done.
+
+File deletion (ADR-016):
+
+- Never delete a directory with `rm -rf`, `rm -r`, `rm -R`, `rm --recursive`, `rimraf`, `find ... -delete`, or `fs.rm`/`fs.rmSync`/`fs.rmdir` with `recursive: true`: reasonable people block them in their harness, and an unattended step that hits the block stalls.
+- The procedure instead: list the files, check that the list holds only what you meant to remove, delete the files one by one, then `rmdir` the empty directories, deepest first.
+- Where the rule lives: two rules in `prompts.suffix`, so every prompt the router returns carries them (the `os-` templates and the `archive` prompt included); one rule in `prompts/manual-verify.md` for its `mktemp -d` scratch directory; one bullet in each orchestrator skill, `skills/10x-pipeline/SKILL.md` and `skills/openspec-pipeline/SKILL.md`.
+- Code and tests delete a tree with `removeTree` from `skills/10x-pipeline/scripts/remove-tree.mjs`, the Node form of the procedure. It never follows a symlink, ignores a missing path and refuses an empty path, the filesystem root, the home directory, the working directory and their ancestors.
+- `skills/10x-pipeline/test/no-recursive-delete.test.mjs` fails when a banned form appears in `skills/`, `agents/`, `docs/`, `tools/`, `README.md` or `AGENTS.md`, or when a place above loses the rule. It does not see options passed to a delete call through a variable.
+- The ban is a prompt rule and a test, not a harness block: the router cannot see what a subagent runs.
+- Upgrade note: the suffix changes, so a run in flight records `provenance.drift` for `prompts` at its next `next` call. Routing is unaffected.
 
 Orchestrator anti-stall:
 
