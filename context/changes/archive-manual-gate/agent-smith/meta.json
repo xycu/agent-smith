@@ -43,5 +43,19 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.5 In a live interactive session, a `--archive` run that ends with a Manual row pending shows the question with the row listed; answering yes archives (`verify-archive` prints `archived: true`), and answering no runs no archive subagent and leaves the change folder in `context/changes/` with the pre-archive commit",
+      "1.6 In a headless `claude -p` run with a pending Manual row the orchestrator does not archive and prints the skipped line",
+      "1.7 A run with no pending Manual row archives without a question"
+    ],
+    "manualNotProved": [
+      "1.5 In a live interactive session, a `--archive` run that ends with a Manual row pending shows the question with the row listed; answering yes archives (`verify-archive` prints `archived: true`), and answering no runs no archive subagent and leaves the change folder in `context/changes/` with the pre-archive commit — not proved: needs a live interactive pipeline run: AskUserQuestion is a host tool and the yes path really archives; archive-gate.test.mjs pins only the skill text, not the behavior; an unattended subagent cannot",
+      "1.6 In a headless `claude -p` run with a pending Manual row the orchestrator does not archive and prints the skipped line — not proved: needs a live headless 'claude -p' pipeline run; not runnable from here (would start a nested pipeline and a real archive)",
+      "1.7 A run with no pending Manual row archives without a question — not proved: needs a live '--archive' pipeline run with no pending Manual row; tests cover only the router data ('manualPending: []') and the skill text, not the orchestrator behavior"
+    ]
   }
 }
