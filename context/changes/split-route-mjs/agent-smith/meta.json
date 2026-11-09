@@ -43,5 +43,10 @@
   "rigor": {
     "level": "thorough",
     "by": "phases 7"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": []
   }
 }
