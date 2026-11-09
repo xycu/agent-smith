@@ -312,12 +312,12 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Automated
 
-- [x] 2.1 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
-- [x] 2.2 Rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 2.3 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [x] 2.4 The two anti-stall sections are equal: `diff <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/10x-pipeline/SKILL.md) <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/openspec-pipeline/SKILL.md)` prints nothing
-- [x] 2.5 PR comment tests that read the skills still pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs`
-- [x] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs` — 04cd550
+- [x] 2.2 Rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs` — 04cd550
+- [x] 2.3 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs` — 04cd550
+- [x] 2.4 The two anti-stall sections are equal: `diff <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/10x-pipeline/SKILL.md) <(sed -n '/^## Anti-stall rules/,/^## PR comment/p' skills/openspec-pipeline/SKILL.md)` prints nothing — 04cd550
+- [x] 2.5 PR comment tests that read the skills still pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs` — 04cd550
+- [x] 2.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 04cd550
 
 #### Manual
 
@@ -327,12 +327,12 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Automated
 
-- [ ] 3.1 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [ ] 3.2 ADR rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 3.3 The old note is gone: `grep -rn "spawns its own subagents" docs README.md AGENTS.md skills` prints nothing
-- [ ] 3.4 No banned delete form entered the docs: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
-- [ ] 3.5 Version fields still agree: `node tools/version-check.mjs`
-- [ ] 3.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
+- [x] 3.2 ADR rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 3.3 The old note is gone: `grep -rn "spawns its own subagents" docs README.md AGENTS.md skills` prints nothing
+- [x] 3.4 No banned delete form entered the docs: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 3.5 Version fields still agree: `node tools/version-check.mjs`
+- [x] 3.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
