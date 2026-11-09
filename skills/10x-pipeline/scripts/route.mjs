@@ -629,19 +629,21 @@ const CHAINS = ["10x", "openspec"];
 
 // The chain an earlier init stored for this id: the meta.json of openspec/changes/<id>/agent-smith/ or, when the live
 // folder is gone, of its archive folder. { chain: "openspec" | null, live }; a 10x run stores no chain key.
-// An archived OpenSpec run does not claim a name that a live 10x change (context/changes/<id>/) now uses.
+// An archived OpenSpec run does not claim a name that a 10x change uses, live (context/changes/<id>/) or archived
+// (context/archive/<date>-<id>/), so the 10x skill, which never passes --chain, keeps reaching its own change.
 function storedChain(id) {
   const p = paths(id, null, "openspec");
   const isOpenspec = (file) => readMeta(file, {}).chain === "openspec";
   if (fs.existsSync(p.change)) return { chain: isOpenspec(p.meta) ? "openspec" : null, live: true };
-  if (fs.existsSync(path.join(ROOT, "context/changes", id))) return { chain: null, live: false };
+  if (fs.existsSync(path.join(ROOT, "context/changes", id)) || archiveDirs(id, "10x").length) return { chain: null, live: false };
   const root = archiveRoot("openspec");
   const moved = archiveDirs(id, "openspec").some((name) => isOpenspec(path.join(ROOT, root, name, "agent-smith/meta.json")));
   return { chain: moved ? "openspec" : null, live: false };
 }
 
 // The chain of this command. A --chain that contradicts the stored chain halts. Without the flag the stored chain
-// applies, else 10x; init is the exception: without the flag it is a 10x init, which halts on a live OpenSpec run.
+// applies, else 10x. init without the flag halts on a live OpenSpec run; on a name only an archived OpenSpec run
+// holds it resolves to openspec, so the archive guard halts it as archived.
 function resolveChain(cmd, id, flags) {
   const stored = storedChain(id);
   if (flags.chain === undefined) {
@@ -670,6 +672,10 @@ function main() {
   }
   const policy = loadPolicy();
   const chain = resolveChain(cmd, id, flags);
+  // openspec/changes/archive/ is OpenSpec's archive root, so the name archive cannot be an OpenSpec change.
+  if (chain === "openspec" && id === "archive") {
+    halt("The change name archive is reserved: openspec/changes/archive/ is OpenSpec's archive folder. Use another name. Nothing was written.");
+  }
 
   if (cmd === "init") {
     const levels = rigorLevels(policy);

@@ -228,6 +228,26 @@ test("the critical lines are capped at 20, made one line and cut to 300 code poi
   }
 });
 
+test("a critical line under a lower Critical count reads as FAIL with the larger count", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "as-verdict-"));
+  try {
+    const file = path.join(dir, "verify.md");
+    fs.writeFileSync(file, "Verdict: PASS\nCritical: 0\nWarnings: 0\n## Critical\n- real bug at a.js:1\n## Warnings\n");
+    const read = readVerdict(file);
+    assert.equal(read.ok, true);
+    assert.equal(read.verdict, "FAIL");
+    assert.equal(read.critical, 1);
+    assert.deepEqual(read.criticalLines, ["- real bug at a.js:1"]);
+    // Empty sections keep the header verdict, and a header count above the lines stays.
+    fs.writeFileSync(file, "Verdict: PASS WITH WARNINGS\nCritical: 0\nWarnings: 1\n## Critical\n## Warnings\n- w\n");
+    assert.equal(readVerdict(file).verdict, "PASS WITH WARNINGS");
+    fs.writeFileSync(file, "Verdict: FAIL\nCritical: 3\nWarnings: 0\n## Critical\n- one\n## Warnings\n");
+    assert.equal(readVerdict(file).critical, 3);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("a third FAIL after two fix loops halts; a verify.md edited to PASS after the halt routes to done", () => {
   const project = atVerify();
   let res = answer(project, done(), () => writeVerify(project, FAIL()));

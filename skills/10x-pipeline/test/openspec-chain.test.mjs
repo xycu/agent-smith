@@ -240,3 +240,36 @@ test("a 10x change that reuses the name of an archived OpenSpec run is a 10x run
     assert.equal(status.json.steps[0].step, "plan");
   }
 });
+
+test("an archived 10x change that reuses the name of an archived OpenSpec run is verified as 10x", () => {
+  const project = makeOpenspecProject(PROPOSED);
+  assert.equal(initOpenspec(project, "Add a thing").status, 0);
+  moveToArchive(project, "2026-02-03");
+  const tenxArchive = path.join(project.root, "context/archive/2026-02-04-demo");
+  fs.mkdirSync(tenxArchive, { recursive: true });
+  fs.writeFileSync(path.join(tenxArchive, "change.md"), "---\nchange_id: demo\nstatus: archived\narchived_at: 2026-02-04\n---\n");
+  // The 10x skill never passes --chain, so its verify-archive must reach the 10x archive folder.
+  for (const args of [["verify-archive", "demo", "--path", "context/archive/2026-02-04-demo"], ["verify-archive", "demo", "--chain", "10x"]]) {
+    const res = run(project, args);
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(res.json.archived, true, res.stdout);
+    assert.equal(res.json.path, "context/archive/2026-02-04-demo");
+  }
+  // The OpenSpec skill always passes --chain openspec and still reaches its own archive folder.
+  const os = run(project, ["verify-archive", "demo", "--chain", "openspec"]);
+  assert.equal(os.status, 0, os.stdout);
+  assert.equal(os.json.archived, true, os.stdout);
+  assert.equal(os.json.path, "openspec/changes/archive/2026-02-03-demo");
+});
+
+test("the name archive halts for the OpenSpec chain, because it is OpenSpec's archive folder", () => {
+  const project = makeOpenspecProject({ change: false });
+  fs.mkdirSync(path.join(project.root, "openspec/changes/archive/2026-01-01-old"), { recursive: true });
+  for (const args of [["init", "archive", "--goal", "x", "--chain", "openspec"], ["next", "archive", "--chain", "openspec"], ["status", "archive", "--chain", "openspec"]]) {
+    const res = run(project, args);
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "halt");
+    assert.match(res.json.reason, /^The change name archive is reserved/);
+  }
+  assert.equal(exists(project, "openspec/changes/archive/agent-smith"), false);
+});
