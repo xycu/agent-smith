@@ -327,12 +327,12 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Automated
 
-- [x] 3.1 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [x] 3.2 ADR rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [x] 3.3 The old note is gone: `grep -rn "spawns its own subagents" docs README.md AGENTS.md skills` prints nothing
-- [x] 3.4 No banned delete form entered the docs: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
-- [x] 3.5 Version fields still agree: `node tools/version-check.mjs`
-- [x] 3.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 New test file passes: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs` — f5dafa7
+- [x] 3.2 ADR rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs` — f5dafa7
+- [x] 3.3 The old note is gone: `grep -rn "spawns its own subagents" docs README.md AGENTS.md skills` prints nothing — f5dafa7
+- [x] 3.4 No banned delete form entered the docs: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — f5dafa7
+- [x] 3.5 Version fields still agree: `node tools/version-check.mjs` — f5dafa7
+- [x] 3.6 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — f5dafa7
 
 #### Manual
 
