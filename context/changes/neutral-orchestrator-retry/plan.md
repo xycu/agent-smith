@@ -266,8 +266,8 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Manual
 
-- [ ] 1.4 In a scratch project, a step logged by `init`, then `{"status":"orchestrator-error"}` written and `next` run, returns the same prompt text twice (diff the two outputs)
-- [ ] 1.5 A third `orchestrator-error` result for the same step halts with the cap text
+- [x] 1.4 In a scratch project, a step logged by `init`, then `{"status":"orchestrator-error"}` written and `next` run, returns the same prompt text twice (diff the two outputs) — evidence: evidence/script-neutral-scratch.out.txt
+- [x] 1.5 A third `orchestrator-error` result for the same step halts with the cap text — evidence: evidence/script-neutral-scratch.out.txt
 
 ### Phase 2: Visibility, OpenSpec chain and isolated runs
 
@@ -279,8 +279,8 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Manual
 
-- [ ] 2.4 `report.md` of a scratch run with one neutral rerun reads clearly and shows the section
-- [ ] 2.5 `status` of the same run shows `neutralRetries` on the right row only
+- [x] 2.4 `report.md` of a scratch run with one neutral rerun reads clearly and shows the section — evidence: evidence/script-neutral-scratch.out.txt
+- [x] 2.5 `status` of the same run shows `neutralRetries` on the right row only — evidence: evidence/test-neutral-status-report.txt
 
 ### Phase 3: Orchestrator skills, docs and ADR-015
 
@@ -292,5 +292,5 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Manual
 
-- [ ] 3.4 The two skill texts read the same for the new rule and mention no model, effort or tier
-- [ ] 3.5 `docs/REFERENCE.md` and ADR-015 agree with the router on the status name, the field names and the default cap
+- [x] 3.4 The two skill texts read the same for the new rule and mention no model, effort or tier — evidence: evidence/judgment-skills-docs.txt
+- [x] 3.5 `docs/REFERENCE.md` and ADR-015 agree with the router on the status name, the field names and the default cap — evidence: evidence/judgment-skills-docs.txt

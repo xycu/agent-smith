@@ -1,0 +1,9 @@
+judgment: rows 3.4 and 3.5 (neutral-orchestrator-retry)
+
+3.4 Skill texts. Diff of commit 1031e46 against its parent: the added text in step lines 1-3 is byte-identical in skills/10x-pipeline/SKILL.md (lines 54-56) and skills/openspec-pipeline/SKILL.md (lines 62-64); a shell compare of the two line-1/2 pairs printed SAME_LINES. New text quoted:
+- "When the output has `neutralRetry`, end that line with `Neutral rerun <count> of <cap>.`"
+- "When the fault is your own and no subagent of the step is running, write `{"status":"orchestrator-error","note":"<what happened>"}` to `<run root>/<resultFile>` ... the router then returns the same step with the same prompt and counts no failed attempt."
+- "A reply that came back without a parsable `RESULT:` line, a cut-off one included, is `unknown` and never `orchestrator-error`."
+A grep of the new line 2 text for opus|sonnet|haiku|tier|xhigh found nothing. The only model/effort words are the pre-existing `<model>/<effort>` placeholders. Verdict: same wording in both, no model, effort or tier named.
+
+3.5 Docs vs router. Status name `orchestrator-error`: flow.mjs ORCHESTRATOR_ERROR = "orchestrator-error"; same in REFERENCE.md lines 26, 312 and ADR-015 lines 22, 32. Fields: log entry `neutralRetries` [{at,note}] (flow.mjs:340), run output `neutralRetry: { count, cap }` (flow.mjs:357), `status` count `neutralRetries` (route.mjs:650); REFERENCE.md 209/313 and ADR-015 lines 32, 36, 76 use the same names. Cap: policy.json limits.maxNeutralRetries = 2, flow.mjs maxNeutralRetries returns 2 for invalid values, note cut NEUTRAL_NOTE_MAX = 200; REFERENCE.md 318-319 and ADR-015 lines 32, 58-62 say default 2, invalid reads 2, 0 turns off, 200 code points. Halt behaviour seen in script-neutral-scratch.out.txt matches the cap text. Verdict: agree.
