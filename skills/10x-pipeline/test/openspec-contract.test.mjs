@@ -41,6 +41,11 @@ const FIXTURES = [
   ["a proposal only", { proposal: true }],
   ["proposal, specs and tasks without design", { proposal: true, specs: 1, tasks: { done: 0, open: 3 } }],
   ["all four files with mixed ticks", { proposal: true, design: true, specs: 1, tasks: { done: 1, open: 2 } }],
+  ["rows in every list form and marker", {
+    proposal: true,
+    specs: 1,
+    tasks: "## 1. Work\n\n- [x] 1.1 Done\n* [ ] 1.2 Star\n+ [ ] 1.3 Plus\n1. [ ] 1.4 Numbered\n2) [x] 1.5 Paren\n- [~] 1.6 Tilde\n- [] 1.7 Empty\n  - [ ] 1.8 Nested\n- [Some doc](./doc.md)\n",
+  }],
 ];
 
 for (const [name, artifacts] of FIXTURES) {

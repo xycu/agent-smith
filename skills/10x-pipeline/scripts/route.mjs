@@ -394,6 +394,9 @@ function readSide(dirArg, id, side, producedFile, chain = "10x") {
     byTier[`${model}/${effort}`] = (byTier[`${model}/${effort}`] ?? 0) + v;
   }
   const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
+  // The files a run produces are not inputs: plan.md and plan-brief.md for 10x; the planning artifacts os-propose writes
+  // and the verdict os-verify writes for OpenSpec.
+  const produced = new Set(chain === "openspec" ? ["proposal.md", "design.md", "tasks.md", "verify.md", producedFile] : ["plan.md", "plan-brief.md", producedFile]);
   let plan = null;
   let inputFiles = null;
   if (changeDir) {
@@ -401,7 +404,7 @@ function readSide(dirArg, id, side, producedFile, chain = "10x") {
     if (pl.exists) plan = { phases: pl.phases, rows: pl.rows };
     try {
       inputFiles = fs.readdirSync(changeDir, { withFileTypes: true })
-        .filter((d) => d.isFile() && d.name !== "plan.md" && d.name !== "plan-brief.md" && d.name !== producedFile)
+        .filter((d) => d.isFile() && !produced.has(d.name))
         .map((d) => d.name).sort();
     } catch { inputFiles = null; }
   }
@@ -628,17 +631,19 @@ function status(id, flags, chain = "10x") {
 const CHAINS = ["10x", "openspec"];
 
 // The chain an earlier init stored for this id: the meta.json of openspec/changes/<id>/agent-smith/ or, when the live
-// folder is gone, of its archive folder. { chain: "openspec" | null, live }; a 10x run stores no chain key.
+// folder is gone, of its archive folder. { chain: "openspec" | null, live, tenx }; a 10x run stores no chain key, so
+// `tenx` is true when a live 10x run holds its own agent-smith/meta.json, and only then does --chain openspec contradict it.
 // An archived OpenSpec run does not claim a name that a 10x change uses, live (context/changes/<id>/) or archived
 // (context/archive/<date>-<id>/), so the 10x skill, which never passes --chain, keeps reaching its own change.
 function storedChain(id) {
   const p = paths(id, null, "openspec");
   const isOpenspec = (file) => readMeta(file, {}).chain === "openspec";
-  if (fs.existsSync(p.change)) return { chain: isOpenspec(p.meta) ? "openspec" : null, live: true };
-  if (fs.existsSync(path.join(ROOT, "context/changes", id)) || archiveDirs(id, "10x").length) return { chain: null, live: false };
+  const tenx = fs.existsSync(paths(id, null, "10x").meta);
+  if (fs.existsSync(p.change)) return { chain: isOpenspec(p.meta) ? "openspec" : null, live: true, tenx };
+  if (fs.existsSync(path.join(ROOT, "context/changes", id)) || archiveDirs(id, "10x").length) return { chain: null, live: false, tenx };
   const root = archiveRoot("openspec");
   const moved = archiveDirs(id, "openspec").some((name) => isOpenspec(path.join(ROOT, root, name, "agent-smith/meta.json")));
-  return { chain: moved ? "openspec" : null, live: false };
+  return { chain: moved ? "openspec" : null, live: false, tenx };
 }
 
 // The chain of this command. A --chain that contradicts the stored chain halts. Without the flag the stored chain
@@ -654,6 +659,9 @@ function resolveChain(cmd, id, flags) {
   }
   if (stored.chain !== null && flags.chain !== stored.chain) {
     halt(`Change ${id} is an OpenSpec run (its agent-smith/meta.json holds chain "openspec"), so --chain ${flags.chain} does not apply. Drop --chain or pass --chain openspec.`);
+  }
+  if (flags.chain === "openspec" && stored.chain === null && stored.tenx) {
+    halt(`Change ${id} is a 10x run (context/changes/${id}/agent-smith/meta.json exists), so --chain openspec does not apply. Drop --chain or pass --chain 10x. Nothing was written.`);
   }
   return flags.chain;
 }
