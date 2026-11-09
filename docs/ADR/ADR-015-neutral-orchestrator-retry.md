@@ -84,6 +84,7 @@ The orchestrator declares a fault of its own with one result status, and the rou
 - An orchestrator or harness fault costs one more subagent run at the same tier, not a tier bump, an attempt, a rigor rise and a rollback.
 - A rerun after a lost report continues over the lost run's edits: `startedAt` stays, so a file the lost run wrote still verifies the step, and a later failure rolls back to the original `startSha`.
 - `run.jsonl` holds the prompt of the pending step, a few KB, until its result arrives. The step commit rewrites `run.jsonl` from the log in memory first, so the prompt never lands in a step commit. A rollback snapshot is taken before that rewrite, so the side ref under `refs/agent-smith/` of a failed step holds the on-disk entry with `pendingPrompt`; the prompt is already in the orchestrator's conversation and the ref is local.
+- A step subagent that stages `run.jsonl` itself (for example with `git add -A`) commits the pending prompt in its own commit. The next step commit records the file without it, so routing is unaffected, but the prompt stays in the local run branch history. No prompt rule names the router files.
 - `limits` is a policy section, so a run in flight at the upgrade records `provenance.drift: ["limits"]` at its next `next` call, and `compare` warns `provenance-drift:<side>:limits`. Routing is unaffected.
 - A run in flight has a pending entry without `pendingPrompt`; for it the new status halts with the plain text of D3.
 - `AGENTS.md` Hard Rules are unchanged: no new git write, no new network call, no new dependency.
