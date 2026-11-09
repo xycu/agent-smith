@@ -356,6 +356,50 @@ function routerCommit(g, timeout, { rel = null, message }) {
   return { commit };
 }
 
+// ---- late usage figure in the archive state ---------------------------------
+
+// The change folder of a run, relative to the project root.
+const changeRel = (p, id) => (p.chain === "openspec" ? `openspec/changes/${id}` : `context/changes/${id}`);
+
+// The rendered archive.usageMessage, or null when the template is not a non-blank string or renders blank.
+function usageMessage(policy, id, n) {
+  const tpl = policy.archive?.usageMessage;
+  if (typeof tpl !== "string" || !tpl.trim()) return null;
+  return render(tpl, { id, n: String(n) }).trim() || null;
+}
+
+// The reads the `usage` command makes before it writes anything for a run in the archive state (an ended `--archive`
+// run): the git safety checks of the archive commit, the run branch of an isolated run and a clean change folder.
+// Returns null or the reason.
+export function lateUsagePrecheck(p, id, meta, policy) {
+  const timeout = policy.archive?.gitTimeoutMs;
+  const g = (args) => runGit(args, { timeout });
+  const rel = changeRel(p, id);
+  if (usageMessage(policy, id, 1) === null) return "policy.archive.usageMessage must be a non-blank string.";
+  const unsafe = gitSafety(g, timeout, { id, chain: p.chain === "openspec" ? "openspec" : "10x" });
+  if (unsafe) return unsafe;
+  if (meta.isolated === true) {
+    const wrong = runBranchReason(g, meta);
+    if (wrong) return wrong;
+  }
+  const dirty = statusEntries(["--", `${rel}/`], { timeout });
+  if (dirty === null) return "Cannot read the status of the change folder.";
+  if (dirty.length) {
+    return `The change folder ${rel} is not clean; the archive may have started, or the pre-archive commit failed.`;
+  }
+  return null;
+}
+
+// Commits the change folder with the rendered archive.usageMessage: the folder-only commit of the archive path with
+// its post-commit checks. Returns { commit } (the full hash, or null when nothing was staged) or { error, commit? }.
+export function lateUsageCommit(p, id, policy, n) {
+  const timeout = policy.archive?.gitTimeoutMs;
+  const g = (args) => runGit(args, { timeout });
+  const message = usageMessage(policy, id, n);
+  if (message === null) return { error: "policy.archive.usageMessage must be a non-blank string." };
+  return routerCommit(g, timeout, { rel: changeRel(p, id), message });
+}
+
 // The start commit of the first init of an isolated run: the change folder as the orchestrator copied it, plus
 // meta.json, so the first step's startSha holds the run's inputs. meta.startCommit is the guard (the hash, or null
 // when nothing was staged); a git failure leaves it absent, so the next init retries. Halts on any failure.

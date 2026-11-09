@@ -112,6 +112,7 @@
   },
   "archive": {
     "commitMessage": "chore({id}): commit change folder before archive",
+    "usageMessage": "chore({id}): add late usage figure of step {n}",
     "gitTimeoutMs": 120000,
     "haltOnManualPending": false
   },
