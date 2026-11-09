@@ -385,11 +385,11 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [x] 6.1 Check script passes, including: no module imports `route.mjs`, imports acyclic in the fixed order
-- [x] 6.2 `node --check` passes for all files
-- [x] 6.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 6.4 `wc -l skills/10x-pipeline/scripts/*.mjs`: no file above about 750 lines
-- [x] 6.5 `git diff --stat` touches only `route.mjs` and `isolation.mjs`
+- [x] 6.1 Check script passes, including: no module imports `route.mjs`, imports acyclic in the fixed order — c90cb9d
+- [x] 6.2 `node --check` passes for all files — c90cb9d
+- [x] 6.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — c90cb9d
+- [x] 6.4 `wc -l skills/10x-pipeline/scripts/*.mjs`: no file above about 750 lines — c90cb9d
+- [x] 6.5 `git diff --stat` touches only `route.mjs` and `isolation.mjs` — c90cb9d
 
 #### Manual
 
@@ -399,9 +399,9 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [ ] 7.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 7.2 `node tools/version-check.mjs` exits 0
-- [ ] 7.3 `grep -n "route.mjs" AGENTS.md skills/10x-pipeline/SKILL.md` shows no stale claim about where `tierFor`, `decide` or policy loading live
+- [x] 7.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 7.2 `node tools/version-check.mjs` exits 0
+- [x] 7.3 `grep -n "route.mjs" AGENTS.md skills/10x-pipeline/SKILL.md` shows no stale claim about where `tierFor`, `decide` or policy loading live
 
 #### Manual
 

@@ -111,7 +111,7 @@ Routing lives in data, not in this file:
 - `<this skill's base directory>/policy.json` holds the defaults: the model/effort ladder, the base tier per step, escalation and de-escalation rules, retry caps, and prompt templates.
 - A project can override any key in `context/foundation/agent-smith-policy.json`. The router deep-merges it over the defaults. Arrays such as `ladder` are replaced whole.
 
-How the tier moves (see `scripts/route.mjs`, `tierFor` and `decide`):
+How the tier moves (see `tierFor` in `scripts/steps.mjs` and `decide` in `scripts/flow.mjs`):
 
 - Rigor level: every run has one level (`lean`, `standard` or `thorough`), stored in `meta.json` and kept on resume. It starts from the goal class (or `--rigor`) and only rises: with the phase count (`rigor.fromPhases`), with failed steps (`rigor.fromFailures`), when the plan or the diff touches a hot path (`risk`), and when a result carries `signals.rigor`.
 - Hot paths are paths that change often in the repository history, measured up to the commit the run started from. A change that touches one never stays at the lowest level. When the history is missing, too short or unreadable, the router flags nothing and records that risk was not measured. The `risk` command prints the numbers.

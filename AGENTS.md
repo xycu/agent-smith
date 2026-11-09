@@ -4,8 +4,8 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 
 ## Hard Rules
 
-- Keep routing decisions in `skills/10x-pipeline/scripts/route.mjs` and `skills/10x-pipeline/policy.json`. `SKILL.md` must not name models, effort levels or tiers beyond what it already documents.
-- `route.mjs` owns `context/changes/<change-id>/agent-smith/run.jsonl` and `meta.json`. Never edit them by hand or from the skill.
+- Keep routing decisions in `skills/10x-pipeline/scripts/route.mjs` and the modules it imports under `scripts/`, and in `skills/10x-pipeline/policy.json`. `SKILL.md` must not name models, effort levels or tiers beyond what it already documents.
+- `route.mjs` and the modules it imports under `scripts/` own `context/changes/<change-id>/agent-smith/run.jsonl` and `meta.json`. Never edit them by hand or from the skill.
 - The router's only git writes are these (ADR-010). (1) The pre-archive commit in the `done` branch of a run started with `--archive`. (2) In an isolated run (`meta.isolated: true`), and only in its own linked worktree on `meta.branch`: the start commit of the first `init`, the commit of each successful step, the snapshot of a failed step under `refs/agent-smith/<id>/<run>/failed-<n>` (`<run>`: the first 12 hex characters of the run's start commit) (`git add -A`, `git write-tree`, `git commit-tree`, `git update-ref`), the `git reset --hard <startSha>` of its rollback, and the `git reset --hard <ref>` and `git reset -q <ref>^` that undo it on a halt. A failed commit runs a `git reset` of the router's own add. It never resets, commits in or writes refs from the main checkout, never pushes, never deletes a branch, worktree or ref, never passes `--no-verify` and sets no `-c` option except `core.quotePath=false`. Everything else it does with git is a read.
 - The router never calls `gh`. `skills/10x-pipeline/scripts/pr-comment.mjs` is the only code that posts to GitHub, and only for a run started with `--pr-comment`. Its only network writes are one issue comment, created or edited, on an open `github.com` pull request of the current branch, found by a hidden marker. It never writes under the project root.
 - Add no npm dependencies. The router uses only `node:` built-ins and must run on Node 24+ (ADR-006).
@@ -18,6 +18,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step ru
 - `skills/10x-pipeline/policy.json` — model ladder, base tiers, escalation, limits, prompt templates.
 - `skills/10x-pipeline/baseline-policy.json` — per-project override that pins the baseline arm of `compare` (all tiers `sonnet`/`high`, `standard` rigor, no plan-review skip). Data the user copies; the router does not read it.
 - `skills/10x-pipeline/scripts/route.mjs` — router: `init`, `next`, `status`, `risk`, `verify-archive`, `compare`.
+- `skills/10x-pipeline/scripts/state.mjs`, `preplan.mjs`, `steps.mjs`, `flow.mjs`, `isolation.mjs` — the router modules `route.mjs` imports. Each imports only from the ones before it in this list, and none imports `route.mjs`, which runs `main()` on import. `state.mjs`: policy loading, plan and review readers, archive lookup, run log and `paths()`, rigor, churn, `halt`. `preplan.mjs`: pre-plan steps, complexity score, `replanNext`. `steps.mjs`: phase executors, manual verification, code re-plans, tier logic incl. `tierFor`. `flow.mjs`: report, result intake incl. `attachResult`, open findings and `decide`, prompts, agents and advisor. `isolation.mjs`: provenance, archive adapter, run isolation, step commits, rollback, `archiveDone`. `route.mjs` keeps `next`, the undo on halt and the commands.
 - `skills/10x-pipeline/test/` — `node:test` suite: `route.test.mjs`, `churn.test.mjs`, `archive.test.mjs`, `rules.test.mjs`, `compare.test.mjs`, `lessons.test.mjs` (lesson candidates: sanitizer, report section, prompt wiring) and `helpers.mjs` (scratch projects, `run.jsonl` fixtures, hermetic git).
 - `skills/10x-pipeline/prompts/` — rule-form prompt files; `policy.json` references them as `@prompts/<file>.md`.
 - `skills/10x-pipeline/test/preplan.test.mjs`, `loops-existing.test.mjs` and `loops.test.mjs` — pre-plan gates and prompt wiring, the characterized RETHINK/REVISE loop (never edit it; the one exception is the two tier literals renumbered by ADR-010's ladder change), and the new loops and budget reference paths.
@@ -59,12 +60,12 @@ There is no build or lint setup. Run the tests with `node --test skills/10x-pipe
 
 - Plain JavaScript ES modules, 2-space indent, double quotes, semicolons, as in `route.mjs`.
 - Policy keys are camelCase; step names are kebab-case (`plan-review`, `impl-review`).
-- A policy change belongs in `policy.json`. A per-project override belongs in `context/foundation/agent-smith-policy.json`, never in `route.mjs`.
-- When you change tier logic in `route.mjs` (`tierFor`, `decide`), update the "How the tier moves" list in `SKILL.md` and the routing bullets in `docs/REFERENCE.md`.
+- A policy change belongs in `policy.json`. A per-project override belongs in `context/foundation/agent-smith-policy.json`, never in the router scripts under `scripts/`.
+- When you change tier logic (`tierFor` in `scripts/steps.mjs`, `decide` in `scripts/flow.mjs`), update the "How the tier moves" list in `SKILL.md` and the routing bullets in `docs/REFERENCE.md`.
 
 ## Testing
 
-Run `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` after any change to `route.mjs`, `policy.json`, a prompt or `tools/`. The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. New router and test code must run on Node 24 (ADR-006). Then run `init` and `status` against a scratch change folder and confirm the JSON output is valid.
+Run `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` after any change to `route.mjs` or a module it imports under `scripts/`, `policy.json`, a prompt or `tools/`. The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. New router and test code must run on Node 24 (ADR-006). Then run `init` and `status` against a scratch change folder and confirm the JSON output is valid.
 
 ## Commits
 
