@@ -433,7 +433,7 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 
 #### Manual
 
-- [ ] 1.8 Check 3 live evidence shows the unattended steps and the blocked negative probe
+- [x] 1.8 Check 3 live evidence shows the unattended steps and the blocked negative probe — evidence: evidence/judgment-1.8-check3-live.md
 
 ### Phase 2: Chain switch, run state and routing order
 
