@@ -307,14 +307,14 @@
       "- **GIVEN** the skill would ask the user a question **WHEN** you run unattended **THEN** you **MUST** decide from the review findings, the plan and the code, and list the decision as an assumption."
     ],
     "manual-verify": [
-      "Prove the pending #### Manual rows of context/changes/{id}/plan.md on your own, and tick only the rows you proved. Rows rejected by the router last time: {unproven}",
+      "Prove the pending #### Manual rows of context/changes/{id}/plan.md on your own, and tick only the rows you proved. Rows rejected by the router last time: {unproven}. Browser rows: {browserRows}",
       "@prompts/manual-verify.md",
       "- **GIVEN** a pending Manual row needs a browser **WHEN** you check it **THEN** you **MUST** load the `mcp__claude-in-chrome__*` tools with ToolSearch first, use them only for rows that need a browser, and save the page text, or an image or GIF the tool can export, as `browser-` evidence under `context/changes/{id}/evidence/`.",
       "- **GIVEN** you use the Chrome tools **WHEN** you open a page **THEN** you **MUST NOT** open a page that is neither local nor named by the row, sign in, submit a form to an external service or enter a credential.",
       "- **GIVEN** the Chrome tools are unavailable or the extension is not connected **WHEN** a row needs a browser **THEN** you **MUST NOT** wait for a connection or ask for one: prove the row another way, such as a covering test, or leave it at `[ ]` with that reason in `evidence/unproven.md`."
     ],
     "manual-verify-nochrome": [
-      "Prove the pending #### Manual rows of context/changes/{id}/plan.md on your own, and tick only the rows you proved. Rows rejected by the router last time: {unproven}",
+      "Prove the pending #### Manual rows of context/changes/{id}/plan.md on your own, and tick only the rows you proved. Rows rejected by the router last time: {unproven}. Browser rows: {browserRows}",
       "@prompts/manual-verify.md",
       "- **GIVEN** the Chrome tools are off for this run **WHEN** a row needs a browser **THEN** you **MUST NOT** use a browser tool: prove the row another way, such as a covering test, or leave it at `[ ]` with the reason `Chrome tools are off` in `evidence/unproven.md`."
     ],
@@ -379,6 +379,8 @@
     "maxAttempts": 2,
     "retryBump": 1,
     "evidenceKinds": ["command", "test", "script", "browser", "judgment"],
+    "browserRowWords": ["playwright", "e2e", "end-to-end", "browser", "chrome"],
+    "browserProofKinds": ["browser", "test", "command", "script"],
     "unprovenFile": "unproven.md",
     "reasonMaxChars": 200
   }

@@ -300,6 +300,8 @@ export function manualVerifyNext(plan, log, policy, ctx, meta) {
   const pending = rows.filter((r) => !r.done).length;
   const retry = manualUnprovenIds(log, plan);
   if (!pending && !retry.length) return null;
+  const wanted = new Set([...rows.filter((r) => !r.done).map((r) => r.id), ...retry]);
+  const browserRows = browserRowIds(rows.filter((r) => wanted.has(r.id)), policy);
   const bump = runs.length && posInt(cfg.retryBump) ? cfg.retryBump : 0;
   return {
     step: "manual-verify",
@@ -308,6 +310,7 @@ export function manualVerifyNext(plan, log, policy, ctx, meta) {
     bump,
     ...(bump ? { bumpWhy: `manual-verify retry after ${runs.length} attempt(s)` } : {}),
     unproven: retry,
+    browserRows,
     reason: `${pending} manual rows pending; ${retry.length ? `${retry.length} unproven tick(s) to settle` : runs.length ? "retry for the rows still pending" : "every pending row is in scope"}`,
   };
 }
@@ -328,7 +331,10 @@ function evidenceOk(changeDir, token, since) {
 }
 
 // The display-only knobs of the step. A value of the wrong shape reads as the default and never halts.
-const MANUAL_DEFAULTS = { evidenceKinds: ["command", "test", "script", "browser", "judgment"], unprovenFile: "unproven.md", reasonMaxChars: 200 };
+const MANUAL_DEFAULTS = {
+  evidenceKinds: ["command", "test", "script", "browser", "judgment"], unprovenFile: "unproven.md", reasonMaxChars: 200,
+  browserRowWords: ["playwright", "e2e", "end-to-end", "browser", "chrome"], browserProofKinds: ["browser", "test", "command", "script"],
+};
 // The unproved reasons file is read only up to this size; a larger file gives no reasons.
 const UNPROVEN_MAX_BYTES = 65536;
 
@@ -341,7 +347,21 @@ function manualVerifyOptions(policy) {
     ? cfg.unprovenFile
     : MANUAL_DEFAULTS.unprovenFile;
   const max = Number.isSafeInteger(cfg.reasonMaxChars) && cfg.reasonMaxChars > 0 ? cfg.reasonMaxChars : MANUAL_DEFAULTS.reasonMaxChars;
-  return { evidenceKinds: kinds, unprovenFile: file, reasonMaxChars: max };
+  // An empty browserRowWords turns browser rows off; any other wrong shape reads as the default.
+  const words = Array.isArray(cfg.browserRowWords) && cfg.browserRowWords.every((w) => typeof w === "string" && w.trim() !== "")
+    ? cfg.browserRowWords
+    : MANUAL_DEFAULTS.browserRowWords;
+  const proof = Array.isArray(cfg.browserProofKinds) && cfg.browserProofKinds.length && cfg.browserProofKinds.every((k) => typeof k === "string" && k.trim() !== "")
+    ? cfg.browserProofKinds.map((k) => k.trim().toLowerCase())
+    : MANUAL_DEFAULTS.browserProofKinds;
+  return { evidenceKinds: kinds, unprovenFile: file, reasonMaxChars: max, browserRowWords: words, browserProofKinds: proof };
+}
+
+// Ids of the Manual rows whose text (without the evidence suffix) names a browser word of manualVerify.browserRowWords.
+// `rows` are { id, text }. A ticked row's evidence file name never counts.
+export function browserRowIds(rows, policy) {
+  const { browserRowWords } = manualVerifyOptions(policy);
+  return rows.filter((r) => goalPhrase(withoutEvidence(String(r.text ?? "")), browserRowWords) !== null).map((r) => r.id);
 }
 
 // The kind of an evidence file: the part of its base name before the first "-", lower-cased, when it is a known kind.
@@ -418,7 +438,9 @@ export function verifyManual(last, ran, plan, result, p, policy) {
   const ticked = [];
   const unproven = [];
   const proved = [];
-  const kinds = manualVerifyOptions(policy).evidenceKinds;
+  const { evidenceKinds: kinds, browserProofKinds } = manualVerifyOptions(policy);
+  const browserRows = browserRowIds(baseManual, policy);
+  const unprovenWhy = {};
   for (const b of baseManual) {
     const r = nowManual.get(b.id);
     if (!r || withoutEvidence(r.text) !== withoutEvidence(b.text) || (b.done && !r.done)) {
@@ -430,10 +452,19 @@ export function verifyManual(last, ran, plan, result, p, policy) {
     if (b.done || !r.done) continue;
     const token = r.text.match(EVIDENCE_SUFFIX_RE)?.[1];
     if (token && evidenceOk(p.change, token, first.startedAt ?? 0)) {
+      const kind = evidenceKind(token, kinds);
+      // A browser row is proved only by a kind of browserProofKinds. The router reads no content: the prefix is a claim.
+      if (browserRows.includes(b.id) && !browserProofKinds.includes(kind)) {
+        unproven.push(b.id);
+        unprovenWhy[b.id] = `browser row ticked with ${kind} evidence; only ${browserProofKinds.join(", ")} evidence proves it`;
+        continue;
+      }
       ticked.push(b.id);
-      proved.push({ id: b.id, kind: evidenceKind(token, kinds), file: token });
+      proved.push({ id: b.id, kind, file: token });
     } else unproven.push(b.id);
   }
+  last.browserRows = browserRows;
+  if (Object.keys(unprovenWhy).length) last.unprovenWhy = unprovenWhy;
   last.ticked = ticked;
   last.unproven = unproven;
   last.proved = proved;
