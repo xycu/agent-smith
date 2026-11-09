@@ -303,9 +303,9 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Automated
 
-- [x] 2.1 No recursive delete is left in code: `grep -rn "recursive" skills tools --include=*.mjs` lists only `mkdirSync` and `cpSync` lines and the guard test
-- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.3 `pr-comment` tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
+- [x] 2.1 No recursive delete is left in code: `grep -rn "recursive" skills tools --include=*.mjs` lists only `mkdirSync` and `cpSync` lines and the guard test — 686e3b8
+- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 686e3b8
+- [x] 2.3 `pr-comment` tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs` — 686e3b8
 
 #### Manual
 
@@ -315,10 +315,10 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Automated
 
-- [ ] 3.1 Rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 3.2 Both skills still match their content tests: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
-- [ ] 3.3 Advisor suffix test passes: `node --test skills/10x-pipeline/test/advisor.test.mjs`
-- [ ] 3.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 Rule form holds: `node --test skills/10x-pipeline/test/rules.test.mjs`
+- [x] 3.2 Both skills still match their content tests: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
+- [x] 3.3 Advisor suffix test passes: `node --test skills/10x-pipeline/test/advisor.test.mjs`
+- [x] 3.4 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
