@@ -11,17 +11,20 @@
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
 //   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]   # read-only: usage of a routed run against a baseline run
 //                                      # --unpinned: the baseline is a routed run too (scorer off), for the scorer A/B
+//   Every command takes --chain 10x|openspec. Without it, a run whose openspec/changes/<id>/agent-smith/meta.json
+//   (or that of its archive folder) holds chain "openspec" is an OpenSpec run; any other run is 10x.
 //
 // Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
 import fs from "node:fs";
 import path from "node:path";
 import {
-  ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, frontmatterField, guardArchived, paths, readLog, executed,
+  ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, archiveRoot, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
+import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
 import {
   writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, artifactsLine, stepAgent,
   advisorOn,
@@ -55,9 +58,12 @@ function undoRollback(p, meta, log, rb) {
   return null;
 }
 
-function next(id, policy) {
-  const p = paths(id, policy);
+function next(id, policy, chain = "10x") {
+  const p = paths(id, policy, chain);
+  const openspec = chain === "openspec";
   guardArchived(p, id);
+  // The router never creates an OpenSpec change (D3), so a missing folder halts before agent-smith/ is made.
+  if (openspec && !fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
   fs.mkdirSync(p.dir, { recursive: true });
   const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
@@ -109,7 +115,8 @@ function next(id, policy) {
   const skippedNow = new Set();
   let d;
   for (;;) {
-    d = decide(p, log, policy, meta, { level, risk });
+    // The OpenSpec chain has its own order (ADR-013 D4) and no score, pre-plan, executor or manual-verify step.
+    d = openspec ? decideOpenspec(p, log, policy, meta) : decide(p, log, policy, meta, { level, risk });
     if (!d.skip) break;
     if (skippedNow.has(d.skip.step)) {
       return end({ action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
@@ -135,6 +142,7 @@ function next(id, policy) {
       : { action: "halt", reason: d.halt, steps: ran.length });
   }
 
+  // An OpenSpec run has no plan (p.plan is null), so tierFor gets the empty summary: no phase bump, no simple discount.
   const plan = readPlan(p.plan);
   // The score shift reads the summary from the log, never complexity.json.
   const riskClear = riskMeasured(risk) && risk.hits.length === 0;
@@ -178,7 +186,8 @@ function next(id, policy) {
     simple,
     rigor: level,
     startedAt: Date.now(),
-    before: { autoDone: plan.autoDone, ...beforeExtra(policy, template, plan) },
+    // An OpenSpec step records the ticked rows of tasks.md instead of the plan-based fields.
+    before: openspec ? { ticks: readOpenspec(p).tasks.complete } : { autoDone: plan.autoDone, ...beforeExtra(policy, template, plan) },
   };
   // The commit the step of an isolated run starts from: HEAD when the entry is created, after the step commit above.
   // A head that cannot be read (git missing, a timeout, no commit) halts before the step is logged: a step without a
@@ -226,8 +235,16 @@ function next(id, policy) {
 }
 
 // Read-only, files only, no git: did /10x-archive move this change and stamp it archived.
-function verifyArchive(id, flags) {
+function verifyArchive(id, flags, chain = "10x") {
   const no = (reason, extra = {}) => out({ archived: false, reason, ...extra }, 1);
+  if (chain === "openspec") {
+    // A moved OpenSpec run halts as archived; the full check of an OpenSpec archive folder comes later.
+    const p = paths(id, null, chain);
+    guardArchived(p, id);
+    no(fs.existsSync(p.change)
+      ? `openspec/changes/${id} still exists, so the change is not archived.`
+      : `No archive folder for ${id} under ${archiveRoot(chain)}/.`);
+  }
   let name;
   if (flags.path !== undefined) {
     if (typeof flags.path !== "string") no("--path needs a folder");
@@ -266,8 +283,8 @@ function verifyArchive(id, flags) {
 }
 
 // Read-only: prints the churn numbers for a change.
-function riskCommand(id, policy) {
-  const p = paths(id);
+function riskCommand(id, policy, chain = "10x") {
+  const p = paths(id, null, chain);
   const meta = readMeta(p.meta, { id, goal: "" });
   const r = measureRisk(p, meta, readLog(p.log), policy);
   out({ source: r.source, hot: r.hot, planPaths: r.planPaths, unclassified: r.unclassified, planHits: r.planHits, diffHits: r.diffHits, level: r.level });
@@ -525,8 +542,10 @@ function compareCommand(id, flags, policy) {
   out(pair);
 }
 
-function status(id, flags) {
-  const p = paths(id);
+function status(id, flags, chain = "10x") {
+  const p = paths(id, null, chain);
+  // A moved OpenSpec run halts as archived instead of printing an empty log.
+  if (chain === "openspec") guardArchived(p, id);
   const log = readLog(p.log);
   const res = {
     change: id,
@@ -560,11 +579,42 @@ function status(id, flags) {
   };
   if (flags.report) {
     guardArchived(p, id);
-    if (!fs.existsSync(p.change)) out({ action: "halt", reason: `No change folder context/changes/${id}.` }, 1);
+    if (!fs.existsSync(p.change)) out({ action: "halt", reason: `No change folder ${chain === "openspec" ? "openspec" : "context"}/changes/${id}.` }, 1);
     const meta = readMeta(p.meta, { id, goal: "" });
     res.report = writeReport(p, id, meta, log);
   }
   out(res);
+}
+
+// ---- chain ----------------------------------------------------------------
+
+const CHAINS = ["10x", "openspec"];
+
+// The chain an earlier init stored for this id: the meta.json of openspec/changes/<id>/agent-smith/ or, when the live
+// folder is gone, of its archive folder. { chain: "openspec" | null, live }; a 10x run stores no chain key.
+function storedChain(id) {
+  const p = paths(id, null, "openspec");
+  const isOpenspec = (file) => readMeta(file, {}).chain === "openspec";
+  if (fs.existsSync(p.change)) return { chain: isOpenspec(p.meta) ? "openspec" : null, live: true };
+  const root = archiveRoot("openspec");
+  const moved = archiveDirs(id, "openspec").some((name) => isOpenspec(path.join(ROOT, root, name, "agent-smith/meta.json")));
+  return { chain: moved ? "openspec" : null, live: false };
+}
+
+// The chain of this command. A --chain that contradicts the stored chain halts. Without the flag the stored chain
+// applies, else 10x; init is the exception: without the flag it is a 10x init, which halts on a live OpenSpec run.
+function resolveChain(cmd, id, flags) {
+  const stored = storedChain(id);
+  if (flags.chain === undefined) {
+    if (cmd === "init" && stored.chain === "openspec" && stored.live) {
+      halt(`Change ${id} is an OpenSpec run: openspec/changes/${id}/agent-smith/meta.json holds chain "openspec". A 10x init does not apply; resume it with --chain openspec. Nothing was written.`);
+    }
+    return stored.chain ?? "10x";
+  }
+  if (stored.chain !== null && flags.chain !== stored.chain) {
+    halt(`Change ${id} is an OpenSpec run (its agent-smith/meta.json holds chain "openspec"), so --chain ${flags.chain} does not apply. Drop --chain or pass --chain openspec.`);
+  }
+  return flags.chain;
 }
 
 // ---- main -----------------------------------------------------------------
@@ -574,8 +624,13 @@ function main() {
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
     halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]");
   }
-  const policy = loadPolicy();
   const flags = parseFlags(rest);
+  // --chain is checked before anything is read.
+  if (flags.chain !== undefined && !CHAINS.includes(flags.chain)) {
+    halt(`Invalid --chain ${flags.chain === true ? "(no value)" : flags.chain}. Use one of: ${CHAINS.join(", ")}.`);
+  }
+  const policy = loadPolicy();
+  const chain = resolveChain(cmd, id, flags);
 
   if (cmd === "init") {
     const levels = rigorLevels(policy);
@@ -598,8 +653,15 @@ function main() {
       else if (flags.chrome === "false") chrome = false;
       else halt(`Invalid --chrome ${flags.chrome}. Use --chrome, --chrome true or --chrome false.`);
     }
-    const p = paths(id);
+    const p = paths(id, null, chain);
     guardArchived(p, id);
+    if (chain === "openspec") {
+      // The router never creates the change (D3), and a 10x change of the same name would collide (D8).
+      if (!fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
+      if (fs.existsSync(path.join(ROOT, "context/changes", id))) {
+        halt(`context/changes/${id}/ exists: a 10x change already uses the name ${id}. An OpenSpec run needs a name no 10x change uses. Nothing was written.`);
+      }
+    }
     const prev = readMeta(p.meta, {});
     // No flag keeps the stored value, so a resume of an archive run is checked again.
     if ((archive ?? prev.archive) === true) {
@@ -608,7 +670,7 @@ function main() {
       if (inside.status !== 0 || inside.stdout.trim() !== "true") {
         halt(`${notWorkTree(inside, timeout)} Nothing was written.`);
       }
-      const ignored = ignoredProbePaths(id, { timeout });
+      const ignored = ignoredProbePaths(id, { timeout, chain });
       if (ignored.length) {
         halt(`--archive needs git to track the change folder, but git ignores ${ignored.join(", ")}. Fix .gitignore or run without --archive. Nothing was written.`);
       }
@@ -616,7 +678,7 @@ function main() {
     // Run isolation (isolation.require true) is checked before anything is written. meta.isolated and meta.branch are
     // set only at an init whose log has no executed entry, so a run is isolated from its first step or not at all.
     const fresh = executed(readLog(p.log)).length === 0;
-    const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh) : null;
+    const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
     const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
@@ -625,6 +687,8 @@ function main() {
     if (!isObject(prev.rigor)) delete meta.rigor;
     if (archive !== undefined) meta.archive = archive;
     if (chrome !== undefined) meta.chrome = chrome;
+    // Only an OpenSpec run carries a chain key; a 10x meta.json stays as it was.
+    if (chain === "openspec") meta.chain = "openspec";
     if (branch !== null && fresh) { meta.isolated = true; meta.branch = branch; }
     if (flags.rigor !== undefined) {
       // On resume --rigor can raise the requested level, never lower it.
@@ -648,15 +712,15 @@ function main() {
     if (meta.isolated === true && !Object.hasOwn(meta, "startCommit") && executed(readLog(p.log)).length === 0) {
       startCommit(p, id, meta, policy);
     }
-    next(id, policy);
+    next(id, policy, chain);
   } else if (cmd === "next") {
-    next(id, policy);
+    next(id, policy, chain);
   } else if (cmd === "status") {
-    status(id, flags);
+    status(id, flags, chain);
   } else if (cmd === "risk") {
-    riskCommand(id, policy);
+    riskCommand(id, policy, chain);
   } else if (cmd === "verify-archive") {
-    verifyArchive(id, flags);
+    verifyArchive(id, flags, chain);
   } else if (cmd === "compare") {
     compareCommand(id, flags, policy);
   } else {

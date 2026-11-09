@@ -58,7 +58,8 @@ function rowId(text) {
 
 export function readPlan(file) {
   const res = { exists: false, hasProgress: false, phases: 0, rows: 0, autoDone: 0, autoPending: 0, manualPending: [], phaseList: [], mtime: 0 };
-  if (!fs.existsSync(file)) return res;
+  // A chain without a plan (OpenSpec: paths().plan is null) reads as a missing plan.
+  if (typeof file !== "string" || !fs.existsSync(file)) return res;
   res.exists = true;
   res.mtime = mtime(file);
   const text = fs.readFileSync(file, "utf8");
@@ -187,12 +188,16 @@ export function openCounts(review, policy) {
 
 // ---- archive lookup -------------------------------------------------------
 
-// Folder names under context/archive/ that belong to this id: <YYYY-MM-DD>-<id>, anchored at both ends.
+// The archive root of a chain, relative to the project root: context/archive for 10x, openspec/changes/archive for
+// OpenSpec (the folder `openspec archive` moves a change into).
+export const archiveRoot = (chain = "10x") => (chain === "openspec" ? "openspec/changes/archive" : "context/archive");
+
+// Folder names under the chain's archive root that belong to this id: <YYYY-MM-DD>-<id>, anchored at both ends.
 // A name that only ends with the id (2026-01-01-x-<id>) is another change. The id is already [a-z0-9-].
-export function archiveDirs(id) {
+export function archiveDirs(id, chain = "10x") {
   const re = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${id}$`);
   let names;
-  try { names = fs.readdirSync(path.join(ROOT, "context/archive")); } catch { return []; }
+  try { names = fs.readdirSync(path.join(ROOT, archiveRoot(chain))); } catch { return []; }
   return names.filter((name) => re.test(name)).sort();
 }
 
@@ -209,14 +214,16 @@ export function frontmatterField(file, key) {
 
 // Halts with JSON and writes nothing when the change is archived (folder moved) or half-archived
 // (change.md says archived, folder still in place). Runs before any mkdirSync.
-export function guardArchived(p, id) {
+// An OpenSpec change has no status stamp: it halts only when the live folder is gone and an archive folder exists.
+export function guardArchived(p, id, chain = p.chain ?? "10x") {
   if (!fs.existsSync(p.change)) {
-    const found = archiveDirs(id).map((name) => `context/archive/${name}`);
+    const found = archiveDirs(id, chain).map((name) => `${archiveRoot(chain)}/${name}`);
     if (found.length) {
       out({ action: "halt", reason: `Change ${id} is archived at ${found.join(", ")}. Nothing was written.`, archivePath: found[0] }, 1);
     }
     return;
   }
+  if (chain === "openspec") return;
   if (frontmatterField(path.join(p.change, "change.md"), "status") === "archived") {
     out({ action: "halt", reason: `Change ${id} is stamped archived but its folder was not moved. Nothing was written; finish or undo /10x-archive by hand.` }, 1);
   }
@@ -225,7 +232,9 @@ export function guardArchived(p, id) {
 // ---- run log --------------------------------------------------------------
 
 // `complexity` is the score file of the policy's score block, or null when no policy is given or the block is malformed.
-export function paths(id, policy = null) {
+// The OpenSpec chain keeps its run state in openspec/changes/<id>/agent-smith/ and has no plan, reviews or score file.
+export function paths(id, policy = null, chain = "10x") {
+  if (chain === "openspec") return openspecPaths(id);
   const change = path.join(ROOT, "context/changes", id);
   const dir = path.join(change, "agent-smith");
   const score = policy ? scoreConfig(policy) : null;
@@ -240,6 +249,30 @@ export function paths(id, policy = null) {
     plan: path.join(change, "plan.md"),
     planReview: path.join(change, "reviews/plan-review.md"),
     implReview: path.join(change, "reviews/impl-review.md"),
+  };
+}
+
+// The paths of an OpenSpec run. `chain` marks the object, so helpers that take `p` can tell the chains apart.
+function openspecPaths(id) {
+  const change = path.join(ROOT, "openspec/changes", id);
+  const dir = path.join(change, "agent-smith");
+  return {
+    chain: "openspec",
+    change,
+    complexity: null,
+    dir,
+    meta: path.join(dir, "meta.json"),
+    log: path.join(dir, "run.jsonl"),
+    result: path.join(dir, "last-result.json"),
+    report: path.join(dir, "report.md"),
+    plan: null,
+    planReview: null,
+    implReview: null,
+    tasks: path.join(change, "tasks.md"),
+    proposal: path.join(change, "proposal.md"),
+    design: path.join(change, "design.md"),
+    specs: path.join(change, "specs"),
+    verify: path.join(dir, "verify.md"),
   };
 }
 
@@ -422,10 +455,13 @@ export function gitOut(args) {
 // run.jsonl, meta.json and report.md are what the router writes; change.md is the file the archive stamps.
 // Probes files, never the directory: check-ignore on a directory that does not exist yet exits 1
 // whatever .gitignore says, and a directory probe misses file patterns such as *.jsonl.
+// For OpenSpec (`opts.chain`) the identity file is tasks.md, the file the router reads to route.
 export function ignoredProbePaths(id, opts = {}) {
-  const base = `context/changes/${id}`;
-  return [`${base}/agent-smith/run.jsonl`, `${base}/agent-smith/meta.json`, `${base}/agent-smith/report.md`, `${base}/change.md`]
-    .filter((file) => runGit(["check-ignore", "-q", "--", file], opts).status === 0);
+  const { chain = "10x", ...gitOpts } = opts;
+  const base = chain === "openspec" ? `openspec/changes/${id}` : `context/changes/${id}`;
+  const own = chain === "openspec" ? `${base}/tasks.md` : `${base}/change.md`;
+  return [`${base}/agent-smith/run.jsonl`, `${base}/agent-smith/meta.json`, `${base}/agent-smith/report.md`, own]
+    .filter((file) => runGit(["check-ignore", "-q", "--", file], gitOpts).status === 0);
 }
 
 // Glob without dependencies: "**/" is zero or more directories, "**" anything, "*" and "?" stay inside one segment.
@@ -508,7 +544,7 @@ export function normalizePlanPath(raw) {
 
 // Paths named on the **File**: and **Files**: lines of the plan (backtick tokens, else comma-split text).
 function planPaths(file) {
-  if (!fs.existsSync(file)) return [];
+  if (typeof file !== "string" || !fs.existsSync(file)) return [];
   const found = new Set();
   for (const line of fs.readFileSync(file, "utf8").split("\n")) {
     const m = line.match(/^\*\*Files?\*\*:(.*)$/);
