@@ -734,14 +734,13 @@ test("SKILL.md: lines about the PR comment name no model, effort or tier", () =>
   for (const line of lines) assert.doesNotMatch(line, banned, line);
 });
 
-test("README documents the flag, and its PR comment group lies after Limits: and before ## Layout", () => {
-  const readme = readRepo("README.md");
-  assert.ok(readme.includes("--pr-comment"));
+test("README documents the flag, and the reference PR comment group lies after Limits: at the end", () => {
+  assert.ok(readRepo("README.md").includes("--pr-comment"));
+  const readme = readRepo("docs/REFERENCE.md");
   const limits = readme.indexOf("\nLimits:");
   const group = readme.indexOf("\nPR comment (opt-in):");
-  const layout = readme.indexOf("\n## Layout");
-  assert.ok(limits >= 0 && group > limits && layout > group);
-  const text = readme.slice(group, layout);
+  assert.ok(limits >= 0 && group > limits);
+  const text = readme.slice(group);
   for (const needle of ["task list unavailable", "unsupported host", "gh timed out", "100 characters", "script error", "report.md", "agent-smith"]) {
     assert.ok(text.includes(needle), `README group lacks ${needle}`);
   }

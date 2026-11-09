@@ -577,8 +577,8 @@ test("3.6 ADR-009 rule lines follow the rule form and the decision rules are fix
   }
 });
 
-test("3.6 README and AGENTS.md describe the advisor flag", () => {
-  const readme = readRepo("README.md");
+test("3.6 the reference and AGENTS.md describe the advisor flag", () => {
+  const readme = readRepo("docs/REFERENCE.md");
   const start = readme.indexOf("\nAdvisor (opt-in):\n");
   assert.ok(start > readme.indexOf("\nRestricted step agents (opt-in):\n"), "the advisor bullets follow the restricted agents");
   const block = readme.slice(start, readme.indexOf("\nLimits:\n", start));

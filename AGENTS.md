@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step runs in its own subagent, and a dependency-free Node.js ESM router picks the next step, model and effort. See @README.md for install and routing behavior.
+agent-smith is a Claude Code plugin that runs 10xDevs skill chains. Each step runs in its own subagent, and a dependency-free Node.js ESM router picks the next step, model and effort. See @README.md for install and use, and @docs/REFERENCE.md for routing behavior.
 
 ## Hard Rules
 
@@ -60,7 +60,7 @@ There is no build or lint setup. Run the tests with `node --test skills/10x-pipe
 - Plain JavaScript ES modules, 2-space indent, double quotes, semicolons, as in `route.mjs`.
 - Policy keys are camelCase; step names are kebab-case (`plan-review`, `impl-review`).
 - A policy change belongs in `policy.json`. A per-project override belongs in `context/foundation/agent-smith-policy.json`, never in `route.mjs`.
-- When you change tier logic in `route.mjs` (`tierFor`, `decide`), update the "How the tier moves" list in `SKILL.md` and the routing bullets in `README.md`.
+- When you change tier logic in `route.mjs` (`tierFor`, `decide`), update the "How the tier moves" list in `SKILL.md` and the routing bullets in `docs/REFERENCE.md`.
 
 ## Testing
 
