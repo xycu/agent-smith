@@ -365,7 +365,8 @@ function locateSide(dirArg, id, side, chain = "10x") {
 }
 
 // `producedFile` is the score file of the policy compare loads: a produced file, dropped from inputFiles like plan.md.
-function readSide(dirArg, id, side, producedFile, chain = "10x") {
+// `prices` is the price table of that policy, so both sides are priced alike; null gives `cost: null`.
+function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) {
   const found = locateSide(dirArg, id, side, chain);
   const log = readLog(path.join(found.dir, "run.jsonl")).filter(isObject); // readLog lets a JSON array through
   const meta = readMeta(path.join(found.dir, "meta.json"), {});
@@ -392,6 +393,22 @@ function readSide(dirArg, id, side, producedFile, chain = "10x") {
     const effort = typeof e.effort === "string" && e.effort ? e.effort : "unknown";
     byModel[model] = (byModel[model] ?? 0) + v;
     byTier[`${model}/${effort}`] = (byTier[`${model}/${effort}`] ?? 0) + v;
+  }
+  // The cost estimate at a blended rate: USD in total and per alias over priced steps, summed before rounding.
+  let cost = null;
+  if (prices) {
+    const est = estimateCost(steps, prices);
+    const usdByModel = {};
+    for (const e of steps) {
+      const usd = est.perEntry[e.n];
+      if (typeof usd !== "number") continue;
+      const model = typeof e.model === "string" && e.model ? e.model : "unknown";
+      usdByModel[model] = (usdByModel[model] ?? 0) + usd;
+    }
+    cost = {
+      usd: roundUsd(est.usd), priced: est.priced, withFigures: est.withFigures, unpriced: est.unpriced,
+      byModel: Object.fromEntries(Object.entries(usdByModel).map(([m, v]) => [m, roundUsd(v)])),
+    };
   }
   const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
   // The files a run produces are not inputs: plan.md and plan-brief.md for 10x; the planning artifacts os-propose writes
@@ -422,6 +439,7 @@ function readSide(dirArg, id, side, producedFile, chain = "10x") {
     plan,
     inputFiles,
     tokens: { ...figure("totalTokens"), byModel, byTier },
+    cost,
     toolUses: figure("toolUses"),
     durationMs: figure("durationMs"),
     alsoArchived: found.alsoArchived,
@@ -467,8 +485,10 @@ function comparePair(id, flags, policy, chain = "10x") {
 
   // The score file is produced by the run, so only the scorer-on arm of an A/B pair has it.
   const producedFile = scoreConfig(policy)?.file ?? "complexity.json";
-  const baseline = readSide(flags.baseline, id, "baseline", producedFile, chain);
-  const routed = readSide(typeof flags.routed === "string" ? flags.routed : ROOT, id, "routed", producedFile, chain);
+  // Prices come from the policy of the project that runs compare, as the target does. Display only: no verdict reads them.
+  const prices = priceTable(policy);
+  const baseline = readSide(flags.baseline, id, "baseline", producedFile, chain, prices);
+  const routed = readSide(typeof flags.routed === "string" ? flags.routed : ROOT, id, "routed", producedFile, chain, prices);
 
   const reasons = [];
   const warnings = [];
@@ -495,6 +515,8 @@ function comparePair(id, flags, policy, chain = "10x") {
     if (differ.length) warnings.push(`input-files-differ:${differ.join(",")}`);
   }
   for (const [name, s] of sides) if (s.alsoArchived) warnings.push(`archive-also-present:${name}`);
+  // A step with a token figure and no price leaves that side's cost short; comparable does not read it.
+  for (const [name, s] of sides) if (s.cost && s.cost.unpriced.length) warnings.push(`cost-incomplete:${name}`);
   // The expected set follows the flag, never baseline.pinned: a pinned baseline changes ladder, rigor and score by design.
   const expected = provenanceConfig(policy).expected[unpinned ? "unpinned" : "pinned"];
   warnings.push(...provenanceWarnings(sides.map(([name, s]) => [name, s.provenance]), expected));
@@ -537,6 +559,13 @@ function compareMarkdown(pair) {
     const names = Object.keys(s.tokens.byTier).sort();
     return names.length ? names.map((t) => `${t} ${s.tokens.byTier[t]}`).join(", ") : "none";
   };
+  // Cost rows print only when compare ran with prices; both sides are priced from the same table.
+  const priced = b.cost !== null && r.cost !== null;
+  const costCell = (s) => `$${s.cost.usd.toFixed(2)} (${s.cost.priced} of ${s.cost.withFigures} priced)`;
+  const costModels = (s) => {
+    const names = Object.keys(s.cost.byModel).sort();
+    return names.length ? names.map((m) => `${m} $${s.cost.byModel[m].toFixed(2)}`).join(", ") : "none";
+  };
   return [
     `# Usage comparison: ${pair.change}`,
     "",
@@ -548,6 +577,7 @@ function compareMarkdown(pair) {
     row("Skipped", (s) => list(s.skipped)),
     row("Failed attempts", (s) => s.failedAttempts),
     row("Tokens", withSteps("tokens")),
+    ...(priced ? [row("Cost (estimate)", costCell)] : []),
     row("Tool uses", withSteps("toolUses")),
     row("Duration (ms)", withSteps("durationMs")),
     row("Plan phases and rows", (s) => (s.plan ? `${s.plan.phases} and ${s.plan.rows}` : "none")),
@@ -557,11 +587,12 @@ function compareMarkdown(pair) {
     `Tokens by model, routed: ${models(r)}`,
     `Tokens by tier, baseline: ${tiers(b)}`,
     `Tokens by tier, routed: ${tiers(r)}`,
+    ...(priced ? [`Cost by model, baseline: ${costModels(b)}`, `Cost by model, routed: ${costModels(r)}`] : []),
     "",
     `Baseline pinned to sonnet at high effort: ${pair.pinned ? "yes" : "no"}`,
     `Drop: ${pair.dropPercent === null ? "none" : `${pair.dropPercent}%`} (rounded down to 2 decimals; the verdict uses exact tokens)`,
     `Target: ${pair.targetDropPercent === null ? "not set" : `${pair.targetDropPercent}%`}`,
-    `Verdict: ${pair.verdict}. Unit: raw tokens, a proxy for the weekly limit.`,
+    `Verdict: ${pair.verdict}. Unit: raw tokens, a proxy for the weekly limit.${priced ? " Cost is an estimate at a blended rate and does not enter the verdict." : ""}`,
     `Reasons: ${list(pair.reasons)}`,
     `Warnings: ${list(pair.warnings)}`,
     "",
