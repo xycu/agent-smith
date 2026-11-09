@@ -43,5 +43,19 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.5 In a throwaway GitHub repository, run the script from a linked worktree on `agent-smith/<id>`: the branch is pushed, a pull request is open and not merged, and a second run changes nothing",
+      "2.4 An unattended run of `/agent-smith:10x-pipeline` on a scratch change in a throwaway GitHub repository ends with the run branch pushed and a pull request open, not merged, for a `done` end and for a `halt` end",
+      "3.5 Read ADR-017 and confirm it states the no-push rule of the router is unchanged, names the script as the only pusher, and lists the non-isolated opt-out as the open owner decision"
+    ],
+    "manualNotProved": [
+      "1.5 In a throwaway GitHub repository, run the script from a linked worktree on `agent-smith/<id>`: the branch is pushed, a pull request is open and not merged, and a second run changes nothing — not proved: needs a live push and pull request in a throwaway GitHub repository; pushing and posting to an external service is not allowed in this step",
+      "2.4 An unattended run of `/agent-smith:10x-pipeline` on a scratch change in a throwaway GitHub repository ends with the run branch pushed and a pull request open, not merged, for a `done` end and for a `halt` end — not proved: needs a live unattended pipeline run that pushes and opens a pull request on GitHub; not allowed in this step",
+      "3.5 Read ADR-017 and confirm it states the no-push rule of the router is unchanged, names the script as the only pusher, and lists the non-isolated opt-out as the open owner decision — not proved: ADR-017 states the router no-push rule is unchanged and names open-pr.mjs as the only pusher, but it records the non-isolated opt-out as decided by the owner (\"It is not an open question\", review find"
+    ]
   }
 }
