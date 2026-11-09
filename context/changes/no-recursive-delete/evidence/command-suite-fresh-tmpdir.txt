@@ -1,0 +1,13 @@
+command: TMPDIR=<fresh empty scratch dir> node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs (row 2.4)
+method: os.tmpdir() honours TMPDIR, and skills/10x-pipeline/test/helpers.mjs makes its scratch projects with fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-")). A fresh empty TMPDIR therefore holds only what this one run created. A listing taken while the suite ran showed 38 entries in it, so the tests did use it.
+result:
+ℹ tests 867
+ℹ suites 12
+ℹ pass 865
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+exit: 0
+entries in fresh TMPDIR after suite: 0
+as-* dirs in fresh TMPDIR after suite: 0
+note: the earlier attempt's before/after count of the shared system tmpdir (command-suite-tmpdir-leftovers.txt) cannot tell this suite's leftovers from other processes' or earlier runs' dirs there; the isolated run can, and it leaves none.
