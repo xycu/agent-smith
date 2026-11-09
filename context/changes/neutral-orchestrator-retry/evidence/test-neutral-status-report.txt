@@ -1,0 +1,12 @@
+skills/10x-pipeline/test/neutral.test.mjs — status shows neutralRetries on the row of a rerun step only; report.md marks the Result cell and lists the reruns with cleaned notes
+✔ status shows neutralRetries on the row of a rerun step only (407.926792ms)
+✔ report.md marks the Result cell and lists the reruns with cleaned notes (515.938083ms)
+✔ report.md of a run without reruns has no section and no cell suffix (295.002666ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1328.391291

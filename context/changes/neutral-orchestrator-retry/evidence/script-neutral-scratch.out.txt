@@ -1,0 +1,38 @@
+# script: context/changes/neutral-orchestrator-retry/evidence/script-neutral-scratch.sh (TMPDIR=scratchpad)
+INIT step: plan n: 1
+NEXT1 step: plan n: 1 action: run
+--- diff p0 p1 (init vs rerun 1):
+IDENTICAL
+    1319 p0.txt
+NEXT2 step: plan n: 1
+IDENTICAL-2
+--- status (after 2 reruns):
+[{"n":1,"step":"plan","neutralRetries":2}]
+--- third:
+{
+  "action": "halt",
+  "reason": "Step 1 (plan) hit its limit of 2 neutral reruns after orchestrator faults (limits.maxNeutralRetries). Needs a human. Fix the harness, then either write a result file with the real status (the router verifies the step by its files), or raise limits.maxNeutralRetries in context/foundation/agent-smith-policy.json and write the orchestrator-error result file again, then run next.",
+  "steps": 1,
+  "report": "context/changes/demo/agent-smith/report.md"
+}
+exit 0
+--- report:
+# Run report: demo
+
+Goal: add a small thing
+Rigor: lean (goal short)
+Outcome: halt - Step 1 (plan) hit its limit of 2 neutral reruns after orchestrator faults (limits.maxNeutralRetries). Needs a human. Fix the harness, then either write a result file with the real status (the router verifies the step by its files), or raise limits.maxNeutralRetries in context/foundation/agent-smith-policy.json and write the orchestrator-error result file again, then run next.
+
+| # | Step | Model | Effort | Tier | Simple | Result | Tokens |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | plan | sonnet | medium | 2 | yes | -, 2 neutral reruns | - |
+
+Steps: 1 · Tokens: - (figures for 0 of 1 steps)
+
+## Neutral reruns
+
+Steps returned again unchanged (same prompt, model and effort) after the orchestrator declared a fault of its own; no failed attempt was counted. The notes are the orchestrator's.
+
+- step 1 plan: 2 reruns after an orchestrator fault
+  - Agent tool timed out
+  - again
