@@ -1,0 +1,60 @@
+script: evidence/script-cost-manual.sh (run: sh script-cost-manual.sh <repo root>)
+--- init $SCRATCH/cost36.Q9nzxE/a
+init valid JSON
+{
+  "action": "run",
+  "n": 2,
+  "step": "plan",
+  "model": "opus",
+  "effort": "high",
+  "reason": "no plan yet (goal: short); tier 5 (base 5, -2 from goal class short, +1 for 1 failed attempt(s), floor high (tier 3), skips medium rung (tier 5))",
+ 
+--- init $SCRATCH/cost36.Q9nzxE/b
+init valid JSON
+{
+  "action": "run",
+  "n": 2,
+  "step": "plan",
+  "model": "opus",
+  "effort": "high",
+  "reason": "no plan yet (goal: short); tier 5 (base 5, -2 from goal class short, +1 for 1 failed attempt(s), floor high (tier 3), skips medium rung (tier 5))",
+ 
+== status
+status valid JSON
+19:      "cost": 6
+33:      "cost": null
+36:  "cost": {
+== status --report
+report valid JSON
+7:| # | Step | Model | Effort | Tier | Simple | Result | Tokens | Cost (est.) |
+13:Cost (estimate): $6.00 at a blended rate (USD per million tokens, no input/output split) · priced 1 of 1 steps with a token figure
+== compare md
+# Usage comparison: demo
+
+| | Baseline | Routed |
+| --- | --- | --- |
+| Outcome | none | none |
+| Rigor | standard | standard |
+| Steps | 2 | 2 |
+| Skipped | none | none |
+| Failed attempts | 1 | 1 |
+| Tokens | 2000000 (1 of 2) | 1000000 (1 of 2) |
+| Cost (estimate) | $12.00 (1 of 1 priced) | $6.00 (1 of 1 priced) |
+| Tool uses | 0 (0 of 2) | 0 (0 of 2) |
+| Duration (ms) | 0 (0 of 2) | 0 (0 of 2) |
+| Plan phases and rows | none | none |
+| Source | changes | changes |
+
+Tokens by model, baseline: sonnet 2000000
+Tokens by model, routed: sonnet 1000000
+Tokens by tier, baseline: sonnet/medium 2000000
+Tokens by tier, routed: sonnet/medium 1000000
+Cost by model, baseline: sonnet $12.00
+Cost by model, routed: sonnet $6.00
+
+Baseline pinned to sonnet at high effort: no
+Drop: none (rounded down to 2 decimals; the verdict uses exact tokens)
+Target: not set
+Verdict: not comparable. Unit: raw tokens, a proxy for the weekly limit. Cost is an estimate at a blended rate and does not enter the verdict.
+Reasons: baseline-not-pinned, outcome-not-done:baseline, usage-incomplete:baseline, outcome-not-done:routed, usage-incomplete:routed
+Warnings: none

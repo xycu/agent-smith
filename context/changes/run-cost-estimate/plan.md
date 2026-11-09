@@ -289,7 +289,7 @@ None. No prices by default, no new file, no change to `run.jsonl` or `meta.json`
 
 #### Manual
 
-- [ ] 3.6 In a scratch project with an override that sets prices, `init`, `status` and `status --report` print valid JSON and a readable `Cost (estimate)` line, and `compare --format md` reads clearly beside the token rows
+- [x] 3.6 In a scratch project with an override that sets prices, `init`, `status` and `status --report` print valid JSON and a readable `Cost (estimate)` line, and `compare --format md` reads clearly beside the token rows — evidence: evidence/script-cost-manual-output.txt
 
 ### Phase 4: Docs and ADR
 
