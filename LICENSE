@@ -1,24 +1,59 @@
-This is free and unencumbered software released into the public domain.
+agent-smith License
 
-Anyone is free to copy, modify, publish, use, compile, sell, or
-distribute this software, either in source code form or as a compiled
-binary, for any purpose, commercial or non-commercial, and by any
-means.
+Copyright (c) 2026 Błażej Ksycki
 
-In jurisdictions that recognize copyright laws, the author or authors
-of this software dedicate any and all copyright interest in the
-software to the public domain. We make this dedication for the benefit
-of the public at large and to the detriment of our heirs and
-successors. We intend this dedication to be an overt act of
-relinquishment in perpetuity of all present and future rights to this
-software under copyright law.
+1. Definitions
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR
-OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
-ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE.
+"Software" means agent-smith: the source code, documentation and other
+files in this repository.
 
-For more information, please refer to <https://unlicense.org>
+"Non-Commercial Open Source Project" means a project that (a) is published
+under a license approved by the Open Source Initiative, (b) has its source
+code publicly available, and (c) is not sold, and does not generate revenue
+or other commercial benefit, for you or anyone else, for example through
+paid access, a paid service, advertising or a commercial product built on it.
+
+"Commercial Use" means any use that is not use in a Non-Commercial Open
+Source Project, including use inside a company, in client work, or in a
+product or service that is sold or otherwise generates revenue.
+
+2. Free use in non-commercial open source projects
+
+You may use, copy, modify and distribute the Software, without charge,
+for work on a Non-Commercial Open Source Project.
+
+3. Trial of commercial products
+
+You may use the Software for Commercial Use, without charge, for one
+trial period of 60 days. The period starts on the day you first use the
+Software for Commercial Use. It applies once per person or organization.
+
+4. Everything else requires a license
+
+Any other use requires a separate written license from the copyright
+holder. This includes Commercial Use after the trial period ends. To get
+one, contact:
+
+    Błażej Ksycki
+    blazej@ksycki.pl
+
+5. Conditions
+
+Keep this license text and the copyright notice in all copies and
+substantial portions of the Software.
+
+You may not sublicense the Software, and you may not offer it as a
+hosted or managed service to third parties, except under a separate
+written license.
+
+Any use outside this license ends your rights under it. The rights
+return only when the copyright holder grants them in writing.
+
+6. No warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
