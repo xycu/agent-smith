@@ -333,9 +333,9 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [x] 1.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 1.2 Guard fails against a scratch `scripts/x.mjs` containing a `"gh"` literal (mutant check, scratch copy only)
-- [x] 1.3 Check script passes on the unsplit file and fails on a scratch copy with a missing import
+- [x] 1.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 16412ac
+- [x] 1.2 Guard fails against a scratch `scripts/x.mjs` containing a `"gh"` literal (mutant check, scratch copy only) — 16412ac
+- [x] 1.3 Check script passes on the unsplit file and fails on a scratch copy with a missing import — 16412ac
 
 #### Manual
 
@@ -345,10 +345,10 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [ ] 2.1 Check script passes (multiset equal, imports complete, no import from `route.mjs`)
-- [ ] 2.2 `node --check` passes for both files
-- [ ] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.4 `git diff --stat` touches only `route.mjs` and `state.mjs`
+- [x] 2.1 Check script passes (multiset equal, imports complete, no import from `route.mjs`)
+- [x] 2.2 `node --check` passes for both files
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.4 `git diff --stat` touches only `route.mjs` and `state.mjs`
 
 #### Manual
 
