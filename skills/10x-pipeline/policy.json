@@ -87,7 +87,8 @@
   "limits": {
     "maxTotalSteps": 14,
     "maxPlanRevisions": 2,
-    "maxFixLoops": 2
+    "maxFixLoops": 2,
+    "maxNeutralRetries": 2
   },
   "lessons": {
     "maxCandidates": 3,

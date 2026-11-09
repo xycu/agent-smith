@@ -260,9 +260,9 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Automated
 
-- [ ] 1.1 New neutral tests pass: `node --test skills/10x-pipeline/test/neutral.test.mjs`
-- [ ] 1.2 Router suite still passes after the policy and entry changes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.3 Scratch `init` then `status` print valid JSON: `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "x"` in a scratch project
+- [x] 1.1 New neutral tests pass: `node --test skills/10x-pipeline/test/neutral.test.mjs`
+- [x] 1.2 Router suite still passes after the policy and entry changes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.3 Scratch `init` then `status` print valid JSON: `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "x"` in a scratch project
 
 #### Manual
 

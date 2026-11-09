@@ -27,7 +27,7 @@ import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs
 import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
 import {
   writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, artifactsLine, stepAgent,
-  advisorOn,
+  advisorOn, neutralRetry,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
@@ -68,6 +68,9 @@ function next(id, policy, chain = "10x") {
   const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
   checkPrompts(policy);
+  // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
+  // any other case returns here and goes on as before.
+  neutralRetry(p, id, meta, log, policy);
   attachResult(p, log, policy);
   // An isolated run commits what a successful step left before risk, rigor and decide read the files.
   stepCommit(p, id, meta, log, policy);
@@ -220,6 +223,8 @@ function next(id, policy, chain = "10x") {
     entry.before.manual = copy(manualRows(plan));
     entry.before.auto = copy(plan.phaseList.flatMap((ph) => ph.auto));
   }
+  // The exact prompt, kept only while the step is pending, so a neutral rerun returns it unchanged; attachResult drops it.
+  entry.pendingPrompt = prompt;
   log.push(entry);
   writeLog(p.log, log);
   out({
