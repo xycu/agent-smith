@@ -8,8 +8,20 @@ import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 const created = [];
+// Tries every scratch folder, then throws one AggregateError that names each folder it could not remove.
 export function cleanupAll() {
-  for (const dir of created.splice(0)) removeTree(dir);
+  const failures = [];
+  for (const dir of created.splice(0)) {
+    try {
+      removeTree(dir);
+    } catch (err) {
+      failures.push({ dir, err });
+    }
+  }
+  if (failures.length > 0) {
+    const list = failures.map((f) => `${f.dir} (${f.err.message})`).join("; ");
+    throw new AggregateError(failures.map((f) => f.err), `cleanupAll could not remove ${failures.length} scratch folder(s): ${list}`);
+  }
 }
 
 export const ROUTE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/route.mjs");

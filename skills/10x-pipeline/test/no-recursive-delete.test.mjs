@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
+import { cleanupAll, makeProject } from "./helpers.mjs";
 
 const scratches = [];
 function scratch() {
@@ -86,6 +87,36 @@ test("removeTree leaves the mode of a read-only parent outside the target alone"
     assert.equal(fs.existsSync(path.join(target, "f.txt")), false, "the files inside the target are gone");
   } finally {
     fs.chmodSync(outer, 0o755);
+  }
+});
+
+test("cleanupAll tries every scratch folder and throws one error that names the failures", { skip: privileged }, () => {
+  // The first project lies under a parent that becomes read-only, so its own rmdir fails; the second must still go.
+  const parent = scratch();
+  const saved = process.env.TMPDIR;
+  process.env.TMPDIR = parent;
+  let locked;
+  try {
+    locked = makeProject();
+  } finally {
+    if (saved === undefined) delete process.env.TMPDIR;
+    else process.env.TMPDIR = saved;
+  }
+  const free = makeProject();
+  assert.ok(locked.base.startsWith(fs.realpathSync(parent)), "the first project lies under the read-only parent");
+  fs.chmodSync(parent, 0o555);
+  try {
+    assert.throws(() => cleanupAll(), (err) => {
+      assert.ok(err instanceof AggregateError);
+      assert.equal(err.errors.length, 1);
+      assert.ok(err.message.includes(locked.base), err.message);
+      assert.ok(!err.message.includes(free.base), err.message);
+      return true;
+    });
+    assert.equal(fs.existsSync(free.base), false, "the folder after the failure is removed");
+    assert.equal(fs.existsSync(locked.base), true);
+  } finally {
+    fs.chmodSync(parent, 0o755);
   }
 });
 
