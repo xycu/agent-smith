@@ -1,0 +1,5 @@
+# init + status, scratch project, isolation off; real router
+status JSON valid; keys: change,rigor,steps
+init (rerun resumes) :
+init JSON valid; action: halt step: undefined
+First init in same scratch project (run earlier in this step) printed valid JSON with action: run. Second init halts because step 1 has no result yet (expected resume behaviour); its output is still valid JSON.

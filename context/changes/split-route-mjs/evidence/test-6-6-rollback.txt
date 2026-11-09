@@ -1,0 +1,25 @@
+skills/10x-pipeline/test/rollback.test.mjs
+✔ 4.1 a failed step is snapshotted with untracked files and reset to startSha; router files stay intact (1281.025458ms)
+✔ 4.1 the side ref carries the run token: an earlier run's ref of the same id and step stays as it was (1092.482917ms)
+✔ 4.1 an isolated run that cannot read the start commit of a step halts before logging it (93.339417ms)
+✔ 4.1 a failed step that left a staged file is snapshotted with it (1033.200833ms)
+✔ 4.1 a failed implement that ticked every row is followed by implement, from the restored plan (1961.778833ms)
+✔ 4.1 commits the failed step made itself leave the branch and stay reachable from the side ref (1931.402833ms)
+✔ 4.1 a failed first step keeps the inputs the start commit holds (993.617542ms)
+✔ 4.1 a run that starts with a reviewed plan: a rolled-back implement keeps the review fresh (1132.67125ms)
+✔ 4.1 a run that starts with a stale review: a rolled-back plan review that rewrote it runs again (1108.302709ms)
+✔ 4.1 a failed tdd entry with uncommitted rows is not reset; implement-retry sees its ticks (796.618291ms)
+✔ 4.1 a second implement failure followed by plan-replan is reset (2115.14975ms)
+✔ 4.1 the failure that hits the attempt cap halts with its partial edits back, kept, and is not reset again (1796.290708ms)
+✔ 4.1 a router error after the rollback undoes it: partial edits back, entry kept (1725.633208ms)
+✔ 4.1 a rollback ref outside refs/agent-smith/ halts before any git write (914.543542ms)
+✔ 4.1 the main checkout is refused: no reset there (201.428ms)
+✔ 4.1 require false: no reset (223.755667ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 18692.164291

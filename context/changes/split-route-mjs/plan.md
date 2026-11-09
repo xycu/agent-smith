@@ -339,7 +339,7 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Manual
 
-- [ ] 1.4 Commit is `test:` or `refactor:` with a Conventional Commit subject and touches only `pr-comment.test.mjs`
+- [x] 1.4 Commit is `test:` or `refactor:` with a Conventional Commit subject and touches only `pr-comment.test.mjs` — evidence: evidence/judgment-1-4-commit.txt
 
 ### Phase 2: Extract state.mjs
 
@@ -352,7 +352,7 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Manual
 
-- [ ] 2.5 `init` and `status` against a scratch change folder print valid JSON
+- [x] 2.5 `init` and `status` against a scratch change folder print valid JSON — evidence: evidence/command-2-5-init-status.txt
 
 ### Phase 3: Extract preplan.mjs
 
@@ -393,7 +393,7 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Manual
 
-- [ ] 6.6 `init` then `status` in a scratch change folder print valid JSON; `rollback.test.mjs` undo case passes
+- [x] 6.6 `init` then `status` in a scratch change folder print valid JSON; `rollback.test.mjs` undo case passes — evidence: evidence/test-6-6-rollback.txt
 
 ### Phase 7: Update docs
 
@@ -405,4 +405,4 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Manual
 
-- [ ] 7.4 Read the AGENTS.md diff: wording accurate, ADRs and `docs/REFERENCE.md` untouched
+- [x] 7.4 Read the AGENTS.md diff: wording accurate, ADRs and `docs/REFERENCE.md` untouched — evidence: evidence/judgment-7-4-agents-diff.txt
