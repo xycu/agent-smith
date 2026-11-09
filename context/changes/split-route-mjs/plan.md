@@ -367,19 +367,19 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [x] 4.1 Check script passes
-- [x] 4.2 `node --check` passes for all files
-- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 4.4 `git diff --stat` touches only `route.mjs` and `steps.mjs`
+- [x] 4.1 Check script passes — 647d268
+- [x] 4.2 `node --check` passes for all files — 647d268
+- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 647d268
+- [x] 4.4 `git diff --stat` touches only `route.mjs` and `steps.mjs` — 647d268
 
 ### Phase 5: Extract flow.mjs
 
 #### Automated
 
-- [ ] 5.1 Check script passes
-- [ ] 5.2 `node --check` passes for all files
-- [ ] 5.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 5.4 `git diff --stat` touches only `route.mjs` and `flow.mjs`
+- [x] 5.1 Check script passes
+- [x] 5.2 `node --check` passes for all files
+- [x] 5.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 5.4 `git diff --stat` touches only `route.mjs` and `flow.mjs`
 
 ### Phase 6: Extract isolation.mjs
 
