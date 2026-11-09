@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/xycu/agent-smith/compare/v0.8.0...v0.8.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **openspec-pipeline:** read tasks like the CLI, guard the readers, halt on a 10x run ([eafc2d2](https://github.com/xycu/agent-smith/commit/eafc2d2ee469bb7eaddb9e932a02f8ed86ee5bfb))
+
 ## [0.8.0](https://github.com/xycu/agent-smith/compare/v0.7.1...v0.8.0) (2026-11-09)
 
 
