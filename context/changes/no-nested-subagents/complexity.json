@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (no nested subagents, rule in suffix, templates, both skills, REFERENCE.md, tests); open details: exact wording of the hand-back rule and whether ADR-018 is needed" },
+    "novelty": { "score": 1, "evidence": "adds rules to the existing prompts.suffix in policy.json and the existing rule-form test pattern; no new mechanism" },
+    "coupling": { "score": 2, "evidence": "policy.json suffix, implement templates, skills/10x-pipeline/SKILL.md and skills/openspec-pipeline/SKILL.md (anti-stall section must stay equal), docs/REFERENCE.md, tests" },
+    "discovery": { "score": 1, "evidence": "change.md names the locations; one search for other delegating templates (e2e and tdd executors, advisor.md mention of Agent) is needed" },
+    "volume": { "score": 2, "evidence": "about 6 to 8 files: policy.json, prompts, two SKILL.md, REFERENCE.md, and test files" },
+    "verification": { "score": 1, "evidence": "existing tests skill-loop.test.mjs, rules.test.mjs and prompt wiring tests cover the form; a few tests to add for the new MUST NOT rule and the hand-back rule" }
+  },
+  "unknowns": [
+    "Whether the e2e and tdd executor templates delegate to subagents and need the same rule text",
+    "Whether ADR-018 is needed or the change stays in REFERENCE.md and tests"
+  ],
+  "confidence": "medium"
+}
