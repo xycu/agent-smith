@@ -735,6 +735,102 @@ test("manual unproven reaches outputs", { skip: noGit }, () => {
   assert.doesNotMatch(readReportFile(clean), /Manual checks unproven/);
 });
 
+// A finished run whose manual-verify step rejected the judgment tick of browser row 1.2 (kind reason); `withWhy` false drops the reason.
+function whyProject(archive, withWhy = true) {
+  const project = unprovenProject(archive);
+  writePlan(project, planOf([ticked(BR, "evidence/judgment-1.2.md"), B]));
+  const before = { autoDone: 1, manual: withId([BR, B], 1), auto: withId(AUTO, 0) };
+  writeLog(project, [
+    entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"),
+    entry(4, "manual-verify", {
+      template: "manual-verify", ok: false, verified: false, fallback: true, before, ticked: [], unproven: ["1.2"], pending: ["1.3"],
+      ...(withWhy ? { browserRows: ["1.2"], unprovenWhy: { "1.2": WHY("judgment") } } : {}),
+    }),
+    entry(5, "impl-review"),
+  ]);
+  return project;
+}
+
+test("unproven why reaches outputs", { skip: noGit }, () => {
+  const line = `1.2 ${BR} — ${WHY("judgment")}`;
+  // The log entry fields come from verifyManual (see the browser row tests); here they reach the outputs.
+  const plain = whyProject(false);
+  const done = run(plain, ["next", plain.id], { env: gitEnv(plain) });
+  assert.equal(done.json.action, "done", done.stdout);
+  assert.deepEqual(done.json.manualUnproven, ["1.2"]);
+  assert.deepEqual(done.json.manualUnprovenWhy, [line]);
+  assert.deepEqual(readMetaFile(plain).outcome.manualUnprovenWhy, [line]);
+  assert.doesNotMatch(readReportFile(plain), /Manual checks unproven, reasons/);
+
+  // status: the browser row count and the reason object of the step row.
+  const row = run(plain, ["status", plain.id]).json.steps.find((s) => s.step === "manual-verify");
+  assert.equal(row.browserRows, 1);
+  assert.deepEqual(row.unprovenWhy, { "1.2": WHY("judgment") });
+
+  // With --archive: the summary, meta.outcome, report.md and its committed copy.
+  const project = whyProject(true);
+  const res = run(project, ["next", project.id], { env: gitEnv(project) });
+  assert.equal(res.json.action, "archive", res.stdout);
+  assert.deepEqual(res.json.summary.manualUnprovenWhy, [line]);
+  assert.deepEqual(readMetaFile(project).outcome.manualUnprovenWhy, [line]);
+  assert.ok(readReportFile(project).includes(`Manual checks unproven, reasons: 1\n- ${line}`), readReportFile(project));
+  assert.ok(git(project, ["show", "HEAD:context/changes/demo/agent-smith/report.md"]).includes(`Manual checks unproven, reasons: 1\n- ${line}`));
+
+  // An unproven tick without a kind reason (no evidence) carries no reason key and no line; the ids stay.
+  const bare = whyProject(true, false);
+  const out = run(bare, ["next", bare.id], { env: gitEnv(bare) });
+  assert.equal(out.json.action, "archive", out.stdout);
+  assert.deepEqual(out.json.summary.manualUnproven, ["1.2"]);
+  assert.equal("manualUnprovenWhy" in out.json.summary, false);
+  assert.equal("manualUnprovenWhy" in readMetaFile(bare).outcome, false);
+  assert.doesNotMatch(readReportFile(bare), /Manual checks unproven, reasons/);
+  const bareRow = run(bare, ["status", bare.id]).json.steps.find((s) => s.step === "manual-verify");
+  assert.equal("browserRows" in bareRow, false);
+  assert.equal("unprovenWhy" in bareRow, false);
+});
+
+test("manual checks report marks browser rows", () => {
+  const before = { autoDone: 1, manual: withId([BR, B, "Look at it"], 1), auto: withId(AUTO, 0) };
+  const project = mvProject({ manual: [ticked(BR, "evidence/judgment-1.2.md"), B, ticked("Look at it", "evidence/command-x.txt")] });
+  writeMetaFile(project, { id: project.id, goal: GOAL, rigor: { requested: "standard" } });
+  writeLog(project, [
+    entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"),
+    entry(4, "manual-verify", {
+      before, ticked: ["1.4"], unproven: ["1.2"], pending: ["1.3"], browserRows: ["1.2", "1.3"],
+      unprovenWhy: { "1.2": WHY("judgment") },
+      proved: [{ id: "1.4", kind: "command", file: "evidence/command-x.txt" }],
+    }),
+  ]);
+  run(project, ["status", project.id, "--report"]);
+  const section = readReportFile(project).slice(readReportFile(project).indexOf("## Manual checks"));
+  assert.ok(section.includes("Only browser, test, command or script evidence proves a browser row."), section);
+  assert.ok(section.includes("- 1.4 Look at it — command (evidence/command-x.txt)"), section);
+  assert.ok(section.includes(`- 1.3 ${B} [browser row] — not proved: no reason recorded`), section);
+  assert.match(section, /^Unproven: 1$/m);
+  assert.ok(section.includes(`- 1.2 ${BR} [browser row] — unproven: ${WHY("judgment")}`), section);
+  // A proved browser row is marked in its kind group.
+  writeLog(project, [
+    entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"),
+    entry(4, "manual-verify", {
+      before, ticked: ["1.2"], unproven: [], pending: [], browserRows: ["1.2"],
+      proved: [{ id: "1.2", kind: "test", file: "evidence/test-1.2.md" }],
+    }),
+  ]);
+  run(project, ["status", project.id, "--report"]);
+  const ok = readReportFile(project);
+  assert.ok(ok.includes(`- 1.2 ${BR} [browser row] — test (evidence/test-1.2.md)`), ok);
+  assert.doesNotMatch(ok, /^Unproven: /m);
+  // An unproven tick with no recorded reason reads "no valid evidence"; an entry without browserRows marks nothing.
+  writeLog(project, [
+    entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"),
+    entry(4, "manual-verify", { before, ticked: [], unproven: ["1.2"], pending: [] }),
+  ]);
+  run(project, ["status", project.id, "--report"]);
+  const old = readReportFile(project);
+  assert.ok(old.includes(`- 1.2 ${BR} — unproven: no valid evidence`), old);
+  assert.doesNotMatch(old, /\[browser row\]/);
+});
+
 // ---- evidence kinds and unproved reasons ---------------------------------------
 
 // Writes the unproved reasons file of a project (evidence/<name>) and returns its path.
