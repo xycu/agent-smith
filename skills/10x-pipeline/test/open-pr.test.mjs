@@ -340,6 +340,7 @@ test("no commits ahead pushes nothing and commits nothing", { skip }, () => {
   assert.equal(res.status, 0, res.stderr);
   assert.equal(res.json.pushed, false);
   assert.equal(res.json.reason, "no commits on the run branch");
+  assert.equal(res.json.manual, "nothing to push: no commit beyond main", "pushed: false always carries a manual text");
   assert.equal(res.json.committed, null);
   assert.equal(head(w), before);
   assert.notEqual(g(w, w.wt, ["status", "--porcelain"]), "", "the copied change folder stays uncommitted");
