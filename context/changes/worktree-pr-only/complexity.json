@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md and goal: outcome is fixed (push run branch, open or update PR, never merge), but open details: push on halt without commits, what happens when gh is missing, router vs orchestrator ownership of the push" },
+    "novelty": { "score": 1, "evidence": "AGENTS.md line 9 already allows push and PR writes; skills/10x-pipeline/scripts/pr-comment.mjs already posts to a PR via gh, a pattern to adapt" },
+    "coupling": { "score": 2, "evidence": "AGENTS.md Hard Rules (router git writes, never calls gh), ADR-010 never-pushes rule, skills/10x-pipeline/SKILL.md and skills/openspec-pipeline/SKILL.md end-of-run flow, isolation.mjs and pr-comment.mjs" },
+    "discovery": { "score": 2, "evidence": "Goal names the branch and ADR-017; the end-of-run paths (done, archive, halt) and the OpenSpec chain are not named and must be found in route.mjs, flow.mjs, SKILL.md files" },
+    "volume": { "score": 2, "evidence": "Expect ADR-017, AGENTS.md, both SKILL.md, docs/REFERENCE.md, route or isolation module, policy.json, and tests: roughly 4 to 10 files" },
+    "verification": { "score": 2, "evidence": "Existing node:test suite and skill-loop/openspec-skill content checks cover docs; push and gh behaviour needs a new hermetic harness (bare remote, gh stub) in the test tree" }
+  },
+  "unknowns": ["Whether the push belongs in the router (ADR-010 forbids router pushes today) or in the orchestrator skill", "Behaviour when gh is missing or unauthenticated at run end", "Whether a halt with no commits still pushes the branch"],
+  "confidence": "medium"
+}
