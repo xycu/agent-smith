@@ -54,7 +54,7 @@ The script guards that it runs in a linked worktree on `agent-smith/<id>`, count
 - The PR now carries the goal text and report header to a possibly public repository, without an opt-in.
 - Committing a halted run's partial edits puts unfinished work on the PR; the side refs are not pushed.
 - `gh pr list --head` and `gh pr create` on a worktree branch were not run live yet; manual rows 1.5 and 2.4 cover it.
-- Assumed: one remote (`origin`) and its default branch as the base unless flags say otherwise.
+- Assumed: one remote (`origin`) on `github.com`; the base is the nearest remote branch the run descends from (the default branch for a run branched from it), unless `--base` says otherwise.
 
 ## Success Criteria (Summary)
 
