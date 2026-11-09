@@ -173,7 +173,7 @@ test("os-verify is not repeated after a verified os-verify that follows the last
 });
 
 test("a tasks.md without a checkbox row halts", () => {
-  for (const tasks of ["## 1. Work\n\n- Task one\n- [x]\n", "", "* [ ] 1.1 Star bullet\n"]) {
+  for (const tasks of ["## 1. Work\n\n- Task one\n", "", "- [Some doc](./doc.md)\n"]) {
     const project = makeOpenspecProject({ proposal: true, specs: 1, tasks });
     const res = initOpenspec(project, "Add a thing");
     // A routing halt ends the run with a report and exit 0, as a 10x decide halt does.

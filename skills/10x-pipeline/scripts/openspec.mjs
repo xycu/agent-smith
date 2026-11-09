@@ -4,26 +4,42 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, executed, mtime, archiveRoot, DATED_ID } from "./state.mjs";
 
-// A task row of tasks.md, the standard `- [ ]` and `- [x]` form of OpenSpec's apply count. A row is complete only for
-// x or X. The CLI counts more forms (`* [ ]`, `1. [ ]`, `- []`, `- [~]` and the like); a row in those forms is
-// miscounted here, a known limit (REFERENCE "Limits").
-export const TASK_ROW = /^\s*-\s+\[([ xX])\]\s+/;
+// A task row of tasks.md, the pattern of the OpenSpec CLI (1.16.1, dist/utils/task-progress.js TASK_LINE_PATTERN): a list
+// item under `-`, `*`, `+` or `1.`/`1)` with a checkbox that holds at most one non-space marker. A row is complete only
+// for x or X; every other marker (`[ ]`, `[]`, `[~]`) is open work. Capture 1 is the marker. The contract test compares
+// the counts with the CLI; a later CLI version can change its pattern (REFERENCE "Limits").
+export const TASK_ROW = /^\s*(?:[-*+]|\d{1,9}[.)])\s*\[(?:\s*([^\]\s]?)\s*\](?![([])|\s+\])\s*(.*)/;
+
+// Read caps of the files a subagent writes (F6): a larger file reads as unreadable.
+const TASKS_MAX_BYTES = 262144;
+const VERIFY_MAX_BYTES = 65536;
 
 const isFile = (file) => {
   try { return fs.statSync(file).isFile(); } catch { return false; }
 };
 
-// Task counts of tasks.md. A missing file counts no rows.
+// The text of a regular file of at most `max` bytes whose real path lies inside the real path of `dir`, else null.
+// A symlinked file, a symlinked parent folder and an oversized file are refused, as for complexity.json and unproven.md.
+function readGuarded(file, dir, max) {
+  try {
+    const st = fs.lstatSync(file);
+    if (!st.isFile() || st.size > max) return null;
+    if (!fs.realpathSync(file).startsWith(fs.realpathSync(dir) + path.sep)) return null;
+    return fs.readFileSync(file, "utf8");
+  } catch { return null; }
+}
+
+// Task counts of tasks.md. A missing, symlinked, oversized or misplaced file counts no rows.
 export function readTasks(file) {
   const res = { total: 0, complete: 0, open: 0 };
-  let text;
-  try { text = fs.readFileSync(file, "utf8"); } catch { return res; }
+  const text = readGuarded(file, path.dirname(file), TASKS_MAX_BYTES);
+  if (text === null) return res;
   for (const line of text.split("\n")) {
     const m = line.match(TASK_ROW);
     if (!m) continue;
     res.total++;
-    if (m[1] === " ") res.open++;
-    else res.complete++;
+    if ((m[1] ?? "").toLowerCase() === "x") res.complete++;
+    else res.open++;
   }
   return res;
 }
@@ -91,11 +107,13 @@ const COUNT_RE = (name) => new RegExp(`^${name}: (\\d+)\\s*$`);
 // never reads cleaner than it says (as ADR-011 reads review headers). Returns { ok: true, verdict, critical, warnings,
 // criticalLines } or { ok: false, error }. Only a regular file is read.
 export function readVerdict(file) {
-  let text;
-  try {
-    if (!fs.lstatSync(file).isFile()) return { ok: false, error: "not a regular file" };
-    text = fs.readFileSync(file, "utf8");
-  } catch { return { ok: false, error: "missing or unreadable" }; }
+  let st;
+  try { st = fs.lstatSync(file); } catch { return { ok: false, error: "missing or unreadable" }; }
+  if (!st.isFile()) return { ok: false, error: "not a regular file" };
+  if (st.size > VERIFY_MAX_BYTES) return { ok: false, error: `larger than ${VERIFY_MAX_BYTES} bytes` };
+  // verify.md lives in <change>/agent-smith/, so its real path must lie inside the real change folder.
+  const text = readGuarded(file, path.dirname(path.dirname(file)), VERIFY_MAX_BYTES);
+  if (text === null) return { ok: false, error: "missing, unreadable or outside the change folder" };
   const lines = text.replace(/^﻿/, "").split(/\r?\n/);
   const v = (lines[0] ?? "").match(VERDICT_RE);
   if (!v) return { ok: false, error: 'line 1 is not "Verdict: PASS", "Verdict: PASS WITH WARNINGS" or "Verdict: FAIL"' };
@@ -112,7 +130,7 @@ export function readVerdict(file) {
     if (/^## /.test(line)) { inCritical = /^## Critical\s*$/.test(line); continue; }
     if (!inCritical || !line.startsWith("- ")) continue;
     if (criticalLines.length === CRITICAL_MAX_LINES) break;
-    const one = line.replace(/\s+/g, " ").trim();
+    const one = line.replace(/\p{Cf}/gu, "").replace(/[\p{Cc}\s]+/gu, " ").trim();
     criticalLines.push(Array.from(one).slice(0, CRITICAL_MAX_CHARS).join(""));
   }
   const count = Math.max(critical, criticalLines.length);

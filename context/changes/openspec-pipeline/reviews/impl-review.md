@@ -124,7 +124,7 @@ Plan drift:
   - Tradeoff: departs from the plan's pattern and a written test; the contract test should gain non-standard rows.
   - Confidence: HIGH — the CLI source and the Phase 1 probe agree.
   - Blind spot: the pattern can change in a later CLI version.
-- **Decision**: PENDING - the plan fixed the narrow pattern and REFERENCE documents it as a limit, so whether to widen it is the owner's call. The false code comment was corrected in 99dbd2a.
+- **Decision**: ACCEPTED - the owner chose to widen the pattern to the CLI's TASK_LINE_PATTERN (2026-11-09). The router copies it and the contract test covers every list form and marker.
 
 ### F5 — A router call without --chain blocks a later OpenSpec init
 
@@ -142,7 +142,7 @@ Plan drift:
   - Have the 10x `next` skip `mkdirSync` when `change.md` is missing. Strength: no chain-rule change. Tradeoff: changes 10x output, which the plan keeps byte-identical.
   - Confidence: MED — both are small edits, but each touches a rule the plan fixed.
   - Blind spot: whether a user runs the router by hand on OpenSpec names.
-- **Decision**: PENDING - both fixes change a rule the plan fixed: "no flag is 10x" or 10x byte-identity. The owner picks one or keeps the behaviour as a documented limit.
+- **Decision**: ACCEPTED - the owner kept the behaviour as a documented limit (2026-11-09); REFERENCE "Limits" names the stray folder and the way out.
 
 ### F6 — tasks.md and verify.md readers lack the guards of the other file readers
 
@@ -156,7 +156,7 @@ Plan drift:
   - Neither strips `\p{Cc}`/`\p{Cf}` characters. A probe carried U+202E and BEL from `## Critical` into the `{findings}` text of the fix prompt.
   - `readComplexity` (preplan.mjs) and the `unproven.md` reader (steps.mjs) apply all of these guards. `readPlan` sets the no-cap precedent.
 - **Fix**: Reuse the `unproven.md` hardening for `verify.md` (size cap, containment, control and format character strip), and lstat and cap `tasks.md`.
-- **Decision**: PENDING - the owner picks the limits and whether they are policy keys; a cap below a real `tasks.md` would stop a valid run, and `readPlan` reads without one.
+- **Decision**: ACCEPTED - the owner chose guarded readers with constants, not policy keys (2026-11-09): lstat, real-path containment, 256 KiB for tasks.md, 64 KiB for verify.md, control and format characters stripped.
 
 ### F7 — compare resolves the chain from the current project and counts os-propose output as input files
 
@@ -169,7 +169,7 @@ Plan drift:
   - For the OpenSpec chain, `inputFiles` lists `proposal.md`, `design.md`, `tasks.md` and `specs/`, which `os-propose` may produce. Two arms that differ only in the optional `design.md` get a spurious input-files warning.
   - REFERENCE says the baseline procedure is written for the 10x chain.
 - **Fix**: Give the OpenSpec chain its own list of produced files, and document that `compare` on OpenSpec runs needs `--chain openspec`.
-- **Decision**: PENDING - whether a `proposal.md` that exists before the run is an input (the user's) or a product (the run's) belongs to an OpenSpec baseline procedure the plan leaves undefined.
+- **Decision**: ACCEPTED - the owner chose to fix it (2026-11-09): the OpenSpec chain lists proposal.md, design.md, tasks.md and verify.md as produced files; REFERENCE says compare needs --chain openspec.
 
 ### F8 — --chain openspec on a 10x run is not halted as a contradiction
 
@@ -183,7 +183,7 @@ Plan drift:
   - `status --chain openspec` prints an empty log with `openspec: { planningComplete: false }`.
   - `init` is covered by the D8 collision.
 - **Fix**: Treat a live `context/changes/<id>/agent-smith/meta.json` as a stored 10x chain, so `--chain openspec` halts there.
-- **Decision**: PENDING - the plan stores no chain for a 10x run on purpose (10x byte-identity), so whether a 10x `meta.json` counts as a stored chain is an owner decision.
+- **Decision**: ACCEPTED - the owner chose to fix it (2026-11-09): a live context/changes/<id>/agent-smith/meta.json counts as a stored 10x chain, so --chain openspec halts there.
 
 ### F9 — REFERENCE lacked the plan's upgrade note and the fix-loop count rule
 
