@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0](https://github.com/xycu/agent-smith/compare/v1.1.1...v1.2.0) (2026-11-09)
+
+
+### Features
+
+* **neutral-orchestrator-retry:** Router core and the 10x chain (p1) ([2d9d6ec](https://github.com/xycu/agent-smith/commit/2d9d6ec61642811f3d3c461095411ca683225af3))
+* **neutral-orchestrator-retry:** Visibility, OpenSpec chain and isolated runs (p2) ([7ee4f52](https://github.com/xycu/agent-smith/commit/7ee4f52fe144328df85ef266fa611502cbb242ae))
+
+
+### Bug Fixes
+
+* **neutral-orchestrator-retry:** treat a subagent orchestrator-error status as unknown ([1196803](https://github.com/xycu/agent-smith/commit/1196803147f6acc134b0eaaa25c234380e20033c))
+
 ## [1.1.1](https://github.com/xycu/agent-smith/compare/v1.1.0...v1.1.1) (2026-11-09)
 
 
