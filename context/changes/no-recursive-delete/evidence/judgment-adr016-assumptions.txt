@@ -1,0 +1,11 @@
+Row 4.6: docs/ADR/ADR-016-no-recursive-force-delete.md, read in full.
+Status line: "Proposed (unattended reading, owner confirmation pending)". Deciders: "unattended implementation run of change `no-recursive-delete` for the readings marked A1 to A5 below".
+Section "## Assumptions (unattended readings, for the owner to confirm)" lists A1 to A5, each marked as a reading; A3 and A4 are referenced inline in the Decision ("(A3)", "(A4)"), A1/A2/A5 likewise.
+Claims against evidence:
+- "Code and tests removed about 30 trees": git grep at d85b6ff^ finds 26 rmSync lines with recursive plus 25 with force across ~30 files; "about" holds.
+- "helpers.mjs changes beyond writeOverride in its cleanup line only": git diff d85b6ff^ 9634b03 on helpers.mjs is 2 insertions, 1 deletion.
+- "A subagent that follows the suffix never runs a command a harness that blocks rm -rf would stop": conditional on following it.
+- "Enforcement is a prompt rule plus a guard test. The router cannot see what a subagent runs": states the limit.
+- "Not covered" lists variable options, scripts outside the repo, .github/.
+- Cost claim "noise next to the suite's own time" is hedged and small; not stated as measured.
+Judgment: assumptions are marked for the owner; no claim exceeds the evidence. Row confirmed.

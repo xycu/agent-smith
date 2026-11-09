@@ -1,0 +1,29 @@
+command: node --test suite, as-* dirs in claude-501-tmpdir before/after (path redacted)
+before:
+527
+exit: 0
+✔ release-please-config.json updates every file the guard reads (0.635958ms)
+✔ a version that is not SemVer fails (6.248125ms)
+✔ a missing file or field is an error message, not a throw (4.070333ms)
+✔ the CLI exits 0 on the repository and prints the version (64.051958ms)
+ℹ tests 867
+ℹ suites 12
+ℹ pass 865
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 2
+ℹ todo 0
+ℹ duration_ms 421100.982125
+after:
+1187
+as-017uue
+as-027KML
+as-04dgaP
+as-04v46q
+as-06QnB4
+as-071KSv
+as-0BVksa
+as-0DKzY8
+as-0ejzLx
+as-0GzZb6
+note: 570 of the after-count as-* dirs were modified within 30 min of the run; before 527, after 1187, so the suite left about 660 as-* dirs. Row 2.4 NOT proved.

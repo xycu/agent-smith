@@ -297,7 +297,7 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Manual
 
-- [ ] 1.3 Read `remove-tree.mjs` once and confirm the order is list, check, unlink files, rmdir deepest first
+- [x] 1.3 Read `remove-tree.mjs` once and confirm the order is list, check, unlink files, rmdir deepest first — evidence: evidence/judgment-remove-tree-order.txt
 
 ### Phase 2: Replace every recursive delete in code and tests
 
@@ -322,8 +322,8 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Manual
 
-- [ ] 3.5 Read the two suffix lines and the `manual-verify.md` line once and confirm a subagent can follow them without asking
-- [ ] 3.6 Run `node skills/10x-pipeline/scripts/route.mjs init demo --goal "x"` and `status demo` in a scratch change folder and confirm the output is valid JSON and a returned prompt ends with the new rules before the `RESULT` instructions
+- [x] 3.5 Read the two suffix lines and the `manual-verify.md` line once and confirm a subagent can follow them without asking — evidence: evidence/judgment-suffix-and-manual-verify-lines.txt
+- [x] 3.6 Run `node skills/10x-pipeline/scripts/route.mjs init demo --goal "x"` and `status demo` in a scratch change folder and confirm the output is valid JSON and a returned prompt ends with the new rules before the `RESULT` instructions — evidence: evidence/command-init-status-scratch.txt
 
 ### Phase 4: Guard test and documents
 
@@ -337,5 +337,5 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Manual
 
-- [ ] 4.6 Read ADR-016 once and confirm the assumptions are marked for the owner and no claim is stronger than the evidence
-- [ ] 4.7 Confirm `AGENTS.md` and `REFERENCE.md` say the same thing about the ban and the helper
+- [x] 4.6 Read ADR-016 once and confirm the assumptions are marked for the owner and no claim is stronger than the evidence — evidence: evidence/judgment-adr016-assumptions.txt
+- [x] 4.7 Confirm `AGENTS.md` and `REFERENCE.md` say the same thing about the ban and the helper — evidence: evidence/judgment-agents-reference-agree.txt

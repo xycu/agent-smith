@@ -1,0 +1,1 @@
+- 2.4 — suite exits 0 (865 pass, 0 fail) but os.tmpdir() held 527 as-* dirs before and 1187 after (570 modified in the last 30 min), so the suite leaves about 660 as-* dirs; cleanup is not complete (many mkdtemp calls in tests, e.g. manualverify, archive, provenance, agents, openspec-steps, pr-comment, may skip removeTree). See evidence/command-suite-tmpdir-leftovers.txt
