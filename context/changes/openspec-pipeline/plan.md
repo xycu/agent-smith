@@ -423,13 +423,13 @@ The policy gains `steps` and `prompts` keys, so a 10x run in flight records `pro
 
 #### Automated
 
-- [ ] 1.1 Check 1 evidence saved in evidence/check-1-skill-reach.md
-- [ ] 1.2 Check 2 evidence saved in evidence/check-2-router-path.md
-- [ ] 1.3 Check 3 CLI facts saved in evidence/check-3-cli.md with predicate A or B named
-- [ ] 1.4 Check 4 evidence saved in evidence/check-4-plugin-discovery.md
-- [ ] 1.5 The four decision guides pass rules.test.mjs
-- [ ] 1.6 Check 3 live run recorded in evidence/check-3-live.md
-- [ ] 1.7 ADR-013 records all four results and passes rules.test.mjs
+- [x] 1.1 Check 1 evidence saved in evidence/check-1-skill-reach.md
+- [x] 1.2 Check 2 evidence saved in evidence/check-2-router-path.md
+- [x] 1.3 Check 3 CLI facts saved in evidence/check-3-cli.md with predicate A or B named
+- [x] 1.4 Check 4 evidence saved in evidence/check-4-plugin-discovery.md
+- [x] 1.5 The four decision guides pass rules.test.mjs
+- [x] 1.6 Check 3 live run recorded in evidence/check-3-live.md
+- [x] 1.7 ADR-013 records all four results and passes rules.test.mjs
 
 #### Manual
 

@@ -1,6 +1,6 @@
 # ADR-013: Drive an OpenSpec change through a second pipeline skill that shares the router, with a chain switch, file-based state reading and a router-defined verify verdict
 
-- **Status:** Proposed (the owner accepted decisions D1 to D12 on 2026-11-09; it becomes Accepted when the four live checks of "Preconditions" pass)
+- **Status:** Accepted (the owner accepted decisions D1 to D12 on 2026-11-09; the four checks of "Preconditions" passed on 2026-11-09)
 - **Date:** 2026-11-09
 - **Deciders:** the repository owner (direction: FR-006, `context/foundation/shape-notes.md:20`; scope request of 2026-11-09); decisions D1 to D12 below accepted as proposed on 2026-11-09
 - **Origin:** change `openspec-pipeline` (`context/changes/openspec-pipeline/research.md`, status `partial`). It un-parks FR-006, which `context/foundation/prd.md:143` listed as a non-goal of the first delivery. It builds on the module split of change `split-route-mjs`, which gave the router the seams used here.
@@ -24,15 +24,21 @@ A second skill, `openspec-pipeline`, runs the OpenSpec skills as step bodies thr
 
 **GIVEN** a run with no `chain` in `meta.json` **WHEN** the router handles it **THEN** it **MUST** treat it as the `10x` chain, so every existing run and test behaves as before.
 
-**GIVEN** the `openspec` chain **WHEN** the router needs a path **THEN** it **MUST** take it from `paths()` with the chain's root `openspec/changes/<name>/`, and the 10x chain **MUST NOT** change any path.
+**GIVEN** the `openspec` chain **WHEN** the router needs a path **THEN** it **MUST** take it from `paths()` with the chain's root `openspec/changes/<name>/`.
 
-**GIVEN** the `openspec` chain **WHEN** the router picks the next step **THEN** it **MUST** use a decision function of its own in a new module, and **MUST NOT** change `decide()`.
+**GIVEN** the `10x` chain **WHEN** `paths()` gains the chain's root **THEN** the router **MUST NOT** change any 10x path.
+
+**GIVEN** the `openspec` chain **WHEN** the router picks the next step **THEN** it **MUST** use a decision function of its own in a new module.
+
+**GIVEN** the `openspec` chain gets its own decision function **WHEN** it is added **THEN** the change **MUST NOT** edit `decide()`.
 
 The second skill is `skills/openspec-pipeline/SKILL.md`. It calls the router at `skills/10x-pipeline/scripts/route.mjs`; it carries no copy.
 
 ### Reading OpenSpec state (D2)
 
-**GIVEN** the `openspec` chain **WHEN** the router reads artifact or task state **THEN** it **MUST** read the files itself with the OpenSpec rules (an artifact exists when its file does; a task is complete only as `- [x]` or `- [X]`) and **MUST NOT** run the `openspec` CLI.
+**GIVEN** the `openspec` chain **WHEN** the router reads artifact or task state **THEN** it **MUST** read the files itself with the OpenSpec rules (an artifact exists when its file does; a task is complete only as `- [x]` or `- [X]`).
+
+**GIVEN** the `openspec` chain **WHEN** the router needs OpenSpec state **THEN** it **MUST NOT** run the `openspec` CLI.
 
 **GIVEN** the `openspec` binary is on `PATH` **WHEN** the optional contract test runs **THEN** it **SHOULD** compare the router's reading of a fixture change with `openspec status` and `openspec instructions apply` output, and skip when the binary is missing, as `GH_LIVE` does.
 
@@ -46,7 +52,9 @@ The reason: the router makes no network or model call and adds no dependency (AD
 
 **GIVEN** `context/changes/<name>/` exists or the branch `agent-smith/<name>` belongs to a run of the other chain **WHEN** `init` runs **THEN** it **MUST** halt and name the collision. The branch, worktree and refs keep their ADR-010 names; no prefix is added.
 
-**GIVEN** an isolated `openspec` run **WHEN** the worktree is made **THEN** the orchestrator **MUST** copy `openspec/changes/<name>/` into it as it copies the change folder of a 10x run, and `openspec/` and the OpenSpec skills **MUST** be committed before the run.
+**GIVEN** an isolated `openspec` run **WHEN** the worktree is made **THEN** the orchestrator **MUST** copy `openspec/changes/<name>/` into it as it copies the change folder of a 10x run.
+
+**GIVEN** an isolated `openspec` run **WHEN** it starts **THEN** `openspec/` and the OpenSpec skills **MUST** be committed before the run.
 
 Isolation, the start commit, step commits, rollback, the git-write allowlist and the "never calls `gh`" rule apply unchanged. The start commit commits `openspec/changes/<name>/` for this chain.
 
@@ -56,11 +64,17 @@ The chain uses the steps `os-propose`, `os-apply`, `os-verify` and `os-archive`.
 
 **GIVEN** the chain **WHEN** `policy.json` is read **THEN** `steps` **MUST** hold the four steps with these starting tiers, all uncalibrated: `os-propose` at the tier of `plan`, `os-apply` at the tier of `implement`, `os-verify` at the tier of `impl-review`, `os-archive` at the tier of `archive`.
 
-**GIVEN** the chain **WHEN** the router runs **THEN** it **MUST** keep these features: tiering with the ladder and effort floor, the step budget, rigor raised by failed steps, provenance, step commits, rollback, `report.md` and `--pr-comment`. It **MUST NOT** run `score`, the pre-plan steps, the phase executors, `manual-verify`, the code re-plans or the confirmation round, because `tasks.md` has no input for them. A later change may add any of them back.
+**GIVEN** the chain **WHEN** the router runs **THEN** it **MUST** keep these features: tiering with the ladder and effort floor, the step budget, rigor raised by failed steps, provenance, step commits, rollback, `report.md` and `--pr-comment`.
+
+**GIVEN** the chain **WHEN** the router runs **THEN** it **MUST NOT** run `score`, the pre-plan steps, the phase executors, `manual-verify`, the code re-plans or the confirmation round, because `tasks.md` has no input for them.
+
+A later change may add any of them back.
 
 ### Progress and routing (D4)
 
-**GIVEN** `isPlanningComplete` would be false (a required artifact file is missing) **WHEN** the router picks the next step **THEN** it **MUST** return `os-propose`.
+**GIVEN** `proposal.md`, every `specs/**/*.md` or `tasks.md` is missing (`design.md` is optional, see below) **WHEN** the router picks the next step **THEN** it **MUST** return `os-propose`.
+
+Planning is complete when `proposal.md`, at least one `specs/**/*.md` and `tasks.md` exist (predicate A). The CLI evidence of 2026-11-09 (`context/changes/openspec-pipeline/evidence/check-3-cli.md`) shows that OpenSpec's `isPlanningComplete` stays false without `design.md` while `openspec instructions apply` already reports `state: "ready"`. The router follows apply readiness, because `os-apply` is the step that needs it.
 
 **GIVEN** planning is complete and `tasks.md` has at least one unticked row **WHEN** the router picks the next step **THEN** it **MUST** return `os-apply`.
 
@@ -76,7 +90,9 @@ A step is verified by the file it writes, as in the 10x chain: `os-propose` by t
 
 **GIVEN** `Verdict: PASS` or `PASS WITH WARNINGS` **WHEN** the router picks the next step **THEN** it **MUST** return `os-archive` when the run was started with `--archive`, else `done`.
 
-**GIVEN** `Verdict: FAIL` **WHEN** fewer fix loops than the existing fix-loop cap ran **THEN** the router **MUST** return `os-apply` again with the critical findings in its prompt, else it **MUST** halt for a human.
+**GIVEN** `Verdict: FAIL` **WHEN** fewer fix loops than the existing fix-loop cap ran **THEN** the router **MUST** return `os-apply` again with the critical findings in its prompt.
+
+**GIVEN** `Verdict: FAIL` **WHEN** as many fix loops as the existing fix-loop cap already ran **THEN** the router **MUST** halt for a human.
 
 The file lives in the run's `agent-smith/` folder so OpenSpec's artifact files stay untouched. ADR-011 does not apply: there are no `### F<n>` blocks and no `Decision` lines. A review-like finding format may follow in a later ADR.
 
@@ -84,7 +100,9 @@ The file lives in the run's `agent-smith/` folder so OpenSpec's artifact files s
 
 **GIVEN** the run was started with `--archive` **WHEN** the verdict allows it **THEN** the router **MUST** halt instead when `tasks.md` has an unticked row, and otherwise return `os-archive`.
 
-**GIVEN** an `os-archive` step **WHEN** the orchestrator runs it **THEN** the subagent **MUST** run `openspec archive <name> --yes --json` once and report its `archive.archivedAs` and `path`, and **MUST NOT** use the archive skill, whose three prompts and agent-driven merge differ from the CLI's mechanical merge.
+**GIVEN** an `os-archive` step **WHEN** the orchestrator runs it **THEN** the subagent **MUST** run `openspec archive <name> --yes --json` once and report its `archive.archivedAs` and `path`.
+
+**GIVEN** an `os-archive` step **WHEN** the subagent archives **THEN** it **MUST NOT** use the archive skill, whose three prompts and agent-driven merge differ from the CLI's mechanical merge.
 
 The router makes the pre-archive commit as in ADR-010 and then verifies the move from files (`openspec/changes/archive/<date>-<name>/` exists and `openspec/changes/<name>/` is gone), in the way `verify-archive` does for 10x. A halt is never archived.
 
@@ -100,12 +118,21 @@ The new skill folder, its prompts and tests go into the `AGENTS.md` Project Stru
 
 ## Preconditions
 
-The status moves to Accepted only after these checks, none of which has run:
+The status moves to Accepted only after these checks. All four passed on 2026-11-09; the results and their evidence are under "Results" below.
 
 1. **Skill reach.** A subagent started in `.claude/worktrees/agent-smith-<name>` can call the OpenSpec skills. They are project-level and untracked in this repository today; if they do not resolve, they must be committed before a run, or the step prompts must carry the instructions.
 2. **Router path.** `skills/openspec-pipeline/SKILL.md` reaches `../10x-pipeline/scripts/route.mjs` when the plugin is installed. If it does not, the router moves to a shared folder in a separate change.
 3. **Unattended skills.** Propose, apply and the CLI archive run in a subagent with the decision guides, and stop where the guides say. One live run of a small change settles it.
 4. **Plugin discovery.** Claude Code finds the second skill without a list in `plugin.json`.
+
+### Results (2026-11-09)
+
+Evidence lives in `context/changes/openspec-pipeline/evidence/`.
+
+1. **Skill reach: pass.** A subagent working in the run worktree lists all `openspec-*` skills although the worktree has no `.claude/skills/`: the skills resolve from the session's project, not from the worktree files. The live probes of check 3 ran the propose, apply and verify skills from a scratch project with no skills of its own. A session started inside the worktree would not see them until a commit that tracks them is on the run branch, so the commit rule of D11 stays. Evidence: `check-1-skill-reach.md`, `check-3-live.md`.
+2. **Router path: pass.** The installed plugin cache (`~/.claude/plugins/cache/agent-smith/agent-smith/0.7.1/`) is a copy of the whole repository tree, so `skills/10x-pipeline/scripts/route.mjs` sits beside any second folder under `skills/` and `../10x-pipeline/scripts/route.mjs` resolves from it. Evidence: `check-2-router-path.md`.
+3. **Unattended skills: pass.** Five live probes with the guides `prompts/os-propose.md`, `os-apply.md`, `os-verify.md` and `os-archive.md`: propose, apply and verify ended `done` with the expected files, the CLI archive moved the change, `agent-smith/` included, and merged its spec, and propose on an empty change with an empty goal ended `blocked` with `signals.needsHuman`. No probe printed a question. The CLI facts fix the planning predicate as A (`proposal.md`, at least one `specs/**/*.md`, `tasks.md`; `design.md` optional), see D4. Evidence: `check-3-cli.md`, `check-3-live.md`.
+4. **Plugin discovery: pass.** Neither this plugin's `plugin.json` nor the installed `sentry` plugin's has a skills key, and every `skills/*/SKILL.md` of `sentry` appears as `sentry:<name>` in the session. A live listing of `agent-smith:openspec-pipeline` from the worktree plugin is a manual check of the implementation. Evidence: `check-4-plugin-discovery.md`.
 
 ## Consequences
 
