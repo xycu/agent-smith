@@ -292,8 +292,8 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Automated
 
-- [ ] 1.1 Helper tests pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
-- [ ] 1.2 The helper holds no recursive or forced option: `grep -nE "recursive|force" skills/10x-pipeline/scripts/remove-tree.mjs` prints only comment lines or nothing
+- [x] 1.1 Helper tests pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 1.2 The helper holds no recursive or forced option: `grep -nE "recursive|force" skills/10x-pipeline/scripts/remove-tree.mjs` prints only comment lines or nothing
 
 #### Manual
 

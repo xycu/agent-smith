@@ -1,7 +1,7 @@
 ---
 change_id: no-recursive-delete
 title: Never use rm -rf; list files, check the list, delete one by one
-status: planned
+status: implementing
 created: 2026-11-09
 updated: 2026-11-09
 archived_at: null
