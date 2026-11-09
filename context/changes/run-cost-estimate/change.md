@@ -1,7 +1,7 @@
 ---
 change_id: run-cost-estimate
 title: Estimate the money cost of a run in the report
-status: new
+status: planned
 created: 2026-11-09
 updated: 2026-11-09
 archived_at: null
