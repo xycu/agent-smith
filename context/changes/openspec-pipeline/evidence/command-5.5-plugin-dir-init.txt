@@ -1,0 +1,11 @@
+# command: Claude Code lists agent-smith:openspec-pipeline from the worktree plugin
+
+Command (run from the worktree root; the model call itself was denied by the sandbox, only the init event is used):
+  claude -p --plugin-dir "$PWD" --output-format stream-json --verbose --max-turns 1 "say ok"
+Filtered output of the first {"type":"system","subtype":"init"} event (home dir shortened to ~):
+
+type/subtype: system init
+skills agent-smith: ["agent-smith:10x-pipeline","agent-smith:openspec-pipeline"]
+slash_commands agent-smith: ["agent-smith:10x-pipeline","agent-smith:openspec-pipeline"]
+agents agent-smith: ["agent-smith:score"]
+plugins agent-smith: [{"name":"agent-smith","path":"~/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-openspec-pipeline","source":"agent-smith@inline","version":"0.7.1"}]
