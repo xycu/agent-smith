@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md and goal fix the outcome (no rm -rf, list then delete one by one, rmdir empty dirs); open detail: whether fs.rmSync recursive in tests counts as a recursive force delete" },
+    "novelty": { "score": 1, "evidence": "rule-form prompts under skills/10x-pipeline/prompts/ and ADR-style docs in docs/ADR/ already exist; a new rule adapts that pattern" },
+    "coupling": { "score": 2, "evidence": "touches several modules: skills/10x-pipeline/test/*.test.mjs, skills/10x-pipeline/scripts/pr-comment.mjs, tools/test/*.test.mjs, prompts and docs" },
+    "discovery": { "score": 2, "evidence": "grep finds fs.rmSync recursive in about 15 files; pr-comment.mjs and tools/test are not named in the goal, so several areas to search" },
+    "volume": { "score": 3, "evidence": "more than 10 files would change (about 15 test and script files plus docs and a new ADR-016)" },
+    "verification": { "score": 1, "evidence": "existing node:test suite covers router behaviour; a few tests to add (a grep-style guard on prompts and docs)" }
+  },
+  "unknowns": ["whether fs.rmSync(..., { recursive: true, force: true }) in test cleanup counts as a recursive force delete under this change", "whether the rule must also cover tools/test and the orchestrator SKILL.md text"],
+  "confidence": "medium"
+}
