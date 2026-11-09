@@ -61,7 +61,7 @@
 - **Location**: Phase 1, Success Criteria 1.4
 - **Detail**: `git diff --stat main -- <paths>` compares the working tree with the current tip of `main`, so a later commit on `main` that touches the router, `policy.json` or a prompt makes the check print output although this branch changed nothing there. It prints nothing today only because `main` equals the merge base.
 - **Fix**: Use the merge base: `git diff --stat $(git merge-base main HEAD) -- skills/10x-pipeline/scripts skills/10x-pipeline/policy.json skills/10x-pipeline/prompts`.
-- **Decision**: PENDING - the command is in the title of Progress row 1.4, and the review rules forbid changing Progress titles; the owner changes the Phase 1 criterion and row 1.4 together, or leaves it (it works while `main` does not move on those paths).
+- **Decision**: FIXED — criterion uses merge-base; row title unchanged.
 
 ### F5 — Unproved ticks do not open the gate
 
@@ -71,4 +71,4 @@
 - **Location**: What We're NOT Doing; Phase 1, change 1 Contract
 - **Detail**: The goal is "no manual test tasks left". The plan gates on `summary.manualPending` only and shows `manualUnproven` and `uncommittedTicks` as text in the question when present. Ticks without valid evidence are rows a subagent marked done that nobody proved, so a run with none pending but several unproven ticks archives with no question. The plan decides this on purpose and the lesson "never read a verdict as cleaner than its listed findings" points the other way.
 - **Fix**: Either keep the decision (list it as an ADR-014 assumption) or open the gate on `manualUnproven` as well.
-- **Decision**: PENDING - the owner has to decide whether an unproved tick counts as a manual task left; both readings are defensible and the plan already lists the ticks as ADR assumption material.
+- **Decision**: ACCEPTED — owner: gate opens on manualPending, manualUnproven or uncommittedTicks.
