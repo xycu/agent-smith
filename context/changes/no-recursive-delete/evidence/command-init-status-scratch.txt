@@ -1,0 +1,17 @@
+scratch: mktemp -d under TMPDIR (path redacted)
+$ route.mjs init demo --goal "x"
+exit 0
+init valid JSON, keys: action,n,step,model,effort,reason,prompt,resultFile
+--- prompt tail (last 1600 chars) ---
+mmits.
+- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.
+- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.
+- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.
+- **GIVEN** the files and commits you wrote hold the work **WHEN** you write your reply **THEN** you **MUST** keep the text before the RESULT line to a short status, because the orchestrator reads only the RESULT line.
+- **GIVEN** you delete a directory and its contents **WHEN** you pick the command **THEN** you **MUST NOT** use `rm -rf`, `rm -r`, `rm -R`, `rm --recursive`, `rimraf`, `find ... -delete`, or `fs.rm`/`fs.rmSync` with `recursive: true`, because the harness may block them.
+- **GIVEN** you must remove a directory **WHEN** you delete it **THEN** you **MUST** list its files, check the list holds only what you meant to remove, delete the files one by one, and then `rmdir` the empty directories deepest first.
+Finish your reply with exactly one line. The `signals` object is optional:
+RESULT: {"status":"done|blocked|failed","note":"<one sentence>","assumptions":["..."],"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}}
+$ route.mjs status demo
+exit 0
+status valid JSON

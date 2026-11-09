@@ -1,0 +1,9 @@
+Row 1.3: skills/10x-pipeline/scripts/remove-tree.mjs, read in full.
+Header comment: "list every entry, check the list, unlink the files one by one, then rmdir the directories from the deepest up."
+Code order in removeTree():
+  // 1. List: walk with lstat, never into a symlink.   (readdirSync + lstatSync fill files[] and dirs[])
+  // 2. Check: every listed entry lies inside the target.  (startsWith(prefix) else throw "nothing deleted")
+  // 3. Delete the files one by one.   (for (const p of files) ... fs.unlinkSync(p))
+  // 4. rmdir the empty directories, deepest first.   (dirs sorted by b.split(sep).length - a.split(sep).length, fs.rmdirSync)
+The check runs before any unlink, so a failed check deletes nothing. No recursive or force option appears (refuse() also guards root, home, cwd and ancestors).
+Judgment: order is list, check, unlink files, rmdir deepest first. Row confirmed.

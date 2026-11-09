@@ -1,0 +1,6 @@
+Row 3.5: the two suffix rules (skills/10x-pipeline/policy.json prompts.suffix, seen in the returned prompt) and the manual-verify.md line.
+Suffix 1: "GIVEN you delete a directory and its contents WHEN you pick the command THEN you MUST NOT use `rm -rf`, `rm -r`, `rm -R`, `rm --recursive`, `rimraf`, `find ... -delete`, or `fs.rm`/`fs.rmSync` with `recursive: true`, because the harness may block them."
+Suffix 2: "GIVEN you must remove a directory WHEN you delete it THEN you MUST list its files, check the list holds only what you meant to remove, delete the files one by one, and then `rmdir` the empty directories deepest first."
+manual-verify.md line 10: "GIVEN you made a scratch directory with `mktemp -d` WHEN you remove it before the step ends THEN you MUST list its files, delete them one by one and `rmdir` the empty directories deepest first, never with `rm -rf` or another recursive delete."
+Reasoning: each line is one GIVEN/WHEN/THEN with one MUST (NOT); banned forms are named literally; the procedure is four concrete verbs (list, check, delete one by one, rmdir deepest first) that map to ls/find -type f, rm <file>, rmdir. A subagent needs no owner decision.
+Judgment: followable unattended. Row confirmed.
