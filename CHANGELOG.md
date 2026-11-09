@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/xycu/agent-smith/compare/v1.0.1...v1.1.0) (2026-11-09)
+
+
+### Features
+
+* **run-cost-estimate:** cost in compare (p3) ([b01ad82](https://github.com/xycu/agent-smith/commit/b01ad8298ff906f22cb9bcec5250d4dcc9e6ecf6))
+* **run-cost-estimate:** cost in report.md and status (p2) ([187f3e7](https://github.com/xycu/agent-smith/commit/187f3e782dee0bea8758de806d65df83bff658dc))
+* **run-cost-estimate:** prices block and cost reader (p1) ([6a906fb](https://github.com/xycu/agent-smith/commit/6a906fb9b300b39f2e51b96d9e45202d1422b8c8))
+
+
+### Bug Fixes
+
+* **cost:** give compare cost.usd null when nothing is priced ([70f7f5f](https://github.com/xycu/agent-smith/commit/70f7f5f8366133dd5c508859bed252e72074a22c))
+
 ## [1.0.1](https://github.com/xycu/agent-smith/compare/v1.0.0...v1.0.1) (2026-11-09)
 
 
