@@ -1,9 +1,9 @@
 ---
 change_id: no-nested-subagents
 title: Forbid nested subagents in pipeline steps
-status: new
+status: planned
 created: 2026-11-09
-updated: 2026-11-09
+updated: 2026-11-10
 archived_at: null
 ---
 
