@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://github.com/xycu/agent-smith/compare/v0.8.1...v1.0.0) (2026-11-09)
+
+
+### Documentation
+
+* **openspec-pipeline:** tick row 5.6 after the live run ([448c5ae](https://github.com/xycu/agent-smith/commit/448c5ae730013cce2a071eeb4f4ae7ed2720cea9))
+
 ## [0.8.1](https://github.com/xycu/agent-smith/compare/v0.8.0...v0.8.1) (2026-11-09)
 
 
