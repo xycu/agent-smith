@@ -1,10 +1,10 @@
 ---
 change_id: no-recursive-delete
 title: Never use rm -rf; list files, check the list, delete one by one
-status: impl_reviewed
+status: archived
 created: 2026-11-09
 updated: 2026-11-09
-archived_at: null
+archived_at: 2026-11-09T21:32:42Z
 ---
 
 ## Notes
