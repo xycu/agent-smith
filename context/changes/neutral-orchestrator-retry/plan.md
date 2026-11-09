@@ -260,9 +260,9 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Automated
 
-- [x] 1.1 New neutral tests pass: `node --test skills/10x-pipeline/test/neutral.test.mjs`
-- [x] 1.2 Router suite still passes after the policy and entry changes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 1.3 Scratch `init` then `status` print valid JSON: `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "x"` in a scratch project
+- [x] 1.1 New neutral tests pass: `node --test skills/10x-pipeline/test/neutral.test.mjs` — e58ed5c
+- [x] 1.2 Router suite still passes after the policy and entry changes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — e58ed5c
+- [x] 1.3 Scratch `init` then `status` print valid JSON: `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "x"` in a scratch project — e58ed5c
 
 #### Manual
 
@@ -273,9 +273,9 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Automated
 
-- [ ] 2.1 Neutral tests, both chains and isolation: `node --test skills/10x-pipeline/test/neutral.test.mjs`
-- [ ] 2.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 OpenSpec scratch project `init <id> --chain openspec` and `status <id> --chain openspec` print valid JSON
+- [x] 2.1 Neutral tests, both chains and isolation: `node --test skills/10x-pipeline/test/neutral.test.mjs`
+- [x] 2.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.3 OpenSpec scratch project `init <id> --chain openspec` and `status <id> --chain openspec` print valid JSON
 
 #### Manual
 

@@ -113,7 +113,10 @@ function buildReport(id, meta, fullLog) {
   const rows = log.map((e) => {
     const shown = e.result ? (e.ok ? "ok" : e.fallback ? "fallback" : "failed") : "-";
     // The step commit of an isolated run, short.
-    const result = typeof e.commit === "string" ? `${shown} (${e.commit.slice(0, 7)})` : shown;
+    const committed = typeof e.commit === "string" ? `${shown} (${e.commit.slice(0, 7)})` : shown;
+    // Neutral reruns after orchestrator faults, also on a pending entry ("-, 1 neutral rerun").
+    const k = neutralCount(e);
+    const result = k ? `${committed}, ${k} neutral rerun${k === 1 ? "" : "s"}` : committed;
     const t = tokens(e);
     const usd = cost ? cost.perEntry[e.n] : undefined;
     const costCell = cost ? ` ${typeof usd === "number" ? `$${usd.toFixed(4)}` : "-"} |` : "";
@@ -145,6 +148,7 @@ function buildReport(id, meta, fullLog) {
       "",
     ] : []),
     ...rollbackLines(log),
+    ...neutralLines(log),
     ...reviewLines(log),
     ...manualCheckLines(log, oneLine),
     ...complexityLines(fullLog),
@@ -164,6 +168,35 @@ function rollbackLines(log) {
     "## Rolled-back steps",
     "",
     "Partial edits of failed steps, kept under a side ref. Inspect one with `git show --stat <ref>`.",
+    "",
+    ...rows,
+    "",
+  ];
+}
+
+// The number of neutral reruns a log entry had after orchestrator faults (0 when none or malformed).
+function neutralCount(e) {
+  return Array.isArray(e.neutralRetries) ? e.neutralRetries.length : 0;
+}
+
+// The "Neutral reruns" section: one line per step the router returned again unchanged after the orchestrator declared a
+// fault of its own (orchestrator-error), then the orchestrator's notes. The notes are orchestrator text and the report
+// may be posted to a pull request as it is, so each is one line, without backticks, cut like a lesson candidate.
+// None, no section.
+function neutralLines(log) {
+  const rows = log.filter((e) => neutralCount(e) > 0).flatMap((e) => {
+    const k = neutralCount(e);
+    const notes = e.neutralRetries
+      .map((r) => (isObject(r) && typeof r.note === "string" ? cleanLessonCandidate(r.note, NEUTRAL_NOTE_MAX) : ""))
+      .filter(Boolean);
+    return [`- step ${e.n} ${e.step}: ${k} rerun${k === 1 ? "" : "s"} after an orchestrator fault`, ...notes.map((note) => `  - ${note}`)];
+  });
+  if (!rows.length) return [];
+  return [
+    "## Neutral reruns",
+    "",
+    "Steps returned again unchanged (same prompt, model and effort) after the orchestrator declared a fault of its own; " +
+      "no failed attempt was counted. The notes are the orchestrator's.",
     "",
     ...rows,
     "",
@@ -264,6 +297,8 @@ export function endRun(p, id, meta, log, result) {
 
 // The result status an orchestrator writes when the fault is its own and no subagent of the step ran or still runs.
 export const ORCHESTRATOR_ERROR = "orchestrator-error";
+// The longest note kept per neutral rerun, in code points.
+const NEUTRAL_NOTE_MAX = 200;
 
 // limits.maxNeutralRetries, read tolerantly: a value that is not a non-negative integer reads as the shipped default (2);
 // 0 turns neutral reruns off, so the status then reads as any unknown status (a failed attempt).
@@ -301,7 +336,7 @@ export function neutralRetry(p, id, meta, log, policy) {
       steps: ran.length,
     });
   }
-  const note = typeof result.note === "string" ? Array.from(result.note.replace(/\s+/g, " ").trim()).slice(0, 200).join("") : "";
+  const note = typeof result.note === "string" ? Array.from(result.note.replace(/\s+/g, " ").trim()).slice(0, NEUTRAL_NOTE_MAX).join("") : "";
   last.neutralRetries = [...reruns, { at: Date.now(), note }];
   writeLog(p.log, log);
   // A continued run must not keep the outcome of an earlier end (as next() does before a new step).
