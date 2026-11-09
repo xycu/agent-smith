@@ -72,6 +72,23 @@ test("removeTree deletes read-only files and a read-only directory", () => {
   assert.equal(fs.existsSync(target), false);
 });
 
+const privileged = process.platform === "win32" || (typeof process.getuid === "function" && process.getuid() === 0);
+test("removeTree leaves the mode of a read-only parent outside the target alone", { skip: privileged }, () => {
+  const base = scratch();
+  const outer = path.join(base, "outer");
+  const target = path.join(outer, "tree");
+  fs.mkdirSync(target, { recursive: true });
+  fs.writeFileSync(path.join(target, "f.txt"), "x");
+  fs.chmodSync(outer, 0o555);
+  try {
+    assert.throws(() => removeTree(target), (err) => err.code === "EACCES" || err.code === "EPERM");
+    assert.equal(fs.statSync(outer).mode & 0o777, 0o555);
+    assert.equal(fs.existsSync(path.join(target, "f.txt")), false, "the files inside the target are gone");
+  } finally {
+    fs.chmodSync(outer, 0o755);
+  }
+});
+
 test("removeTree refuses an empty path, the root, home, the cwd and their ancestors", () => {
   assert.throws(() => removeTree(""), /empty path/);
   assert.throws(() => removeTree("   "), /empty path/);
@@ -93,7 +110,7 @@ const SCAN_DIRS = ["skills", "agents", "docs", "tools"];
 const SCAN_FILES = ["README.md", "AGENTS.md"];
 const SKIP = new Set([SELF, ADR]);
 
-const DELETE_CALL = /\.(rmSync|rmdirSync|rm|rmdir)\s*\(/g;
+const DELETE_CALL = /(?<![\w$])(rmSync|rmdirSync|rm|rmdir)\s*\(/g;
 const RECURSIVE_TRUE = /recursive\s*:\s*true/;
 const CODE_ALWAYS = [/\brimraf\b/, /\bshutil\.rmtree\b/];
 const PROSE_BANNED = [/\brm\s+(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\b/, /\brimraf\b/, /\bfind\b.*\s-delete\b/];
@@ -153,6 +170,8 @@ test("guard: the scanner catches every banned form and lets creation through", (
   assert.ok(scanCode("fsp.rmdir(d, {recursive: true})").length > 0);
   assert.ok(scanCode('import rimraf from "rimraf";').length > 0);
   assert.ok(scanCode("shutil.rmtree(d)").length > 0);
+  assert.ok(scanCode('import { rmSync } from "node:fs";\nrmSync(d, { recursive: true });').length > 0);
+  assert.deepEqual(scanCode("perform(x, { recursive: true });"), []);
   assert.deepEqual(scanCode("fs.mkdirSync(d, { recursive: true });"), []);
   assert.deepEqual(scanCode("fs.cpSync(a, b, { recursive: true });"), []);
   assert.deepEqual(scanCode("fs.rmSync(file, { force: true }); fs.rmdirSync(d);"), []);
