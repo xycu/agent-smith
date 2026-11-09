@@ -629,10 +629,12 @@ const CHAINS = ["10x", "openspec"];
 
 // The chain an earlier init stored for this id: the meta.json of openspec/changes/<id>/agent-smith/ or, when the live
 // folder is gone, of its archive folder. { chain: "openspec" | null, live }; a 10x run stores no chain key.
+// An archived OpenSpec run does not claim a name that a live 10x change (context/changes/<id>/) now uses.
 function storedChain(id) {
   const p = paths(id, null, "openspec");
   const isOpenspec = (file) => readMeta(file, {}).chain === "openspec";
   if (fs.existsSync(p.change)) return { chain: isOpenspec(p.meta) ? "openspec" : null, live: true };
+  if (fs.existsSync(path.join(ROOT, "context/changes", id))) return { chain: null, live: false };
   const root = archiveRoot("openspec");
   const moved = archiveDirs(id, "openspec").some((name) => isOpenspec(path.join(ROOT, root, name, "agent-smith/meta.json")));
   return { chain: moved ? "openspec" : null, live: false };
@@ -659,7 +661,7 @@ function resolveChain(cmd, id, flags) {
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest);
   // --chain is checked before anything is read.
