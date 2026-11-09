@@ -4,8 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, executed, mtime, archiveRoot, DATED_ID } from "./state.mjs";
 
-// A task row of tasks.md, as OpenSpec's apply step counts it. A row is complete only for x or X.
-// The pattern is kept as narrow as OpenSpec's own; a row it misses is a known limit, not widened here.
+// A task row of tasks.md, the standard `- [ ]` and `- [x]` form of OpenSpec's apply count. A row is complete only for
+// x or X. The CLI counts more forms (`* [ ]`, `1. [ ]`, `- []`, `- [~]` and the like); a row in those forms is
+// miscounted here, a known limit (REFERENCE "Limits").
 export const TASK_ROW = /^\s*-\s+\[([ xX])\]\s+/;
 
 const isFile = (file) => {
@@ -85,8 +86,10 @@ const COUNT_RE = (name) => new RegExp(`^${name}: (\\d+)\\s*$`);
 
 // The verdict of verify.md, as the os-verify guide writes it: line 1 `Verdict: PASS|PASS WITH WARNINGS|FAIL`, line 2
 // `Critical: <n>`, line 3 `Warnings: <n>`, then the `- ` lines under `## Critical` up to the next `## ` heading (at most
-// 20, each made one line and cut to 300 code points). A Critical count above 0 reads as FAIL whatever line 1 says.
-// Returns { ok: true, verdict, critical, warnings, criticalLines } or { ok: false, error }. Only a regular file is read.
+// 20, each made one line and cut to 300 code points). A Critical count above 0 reads as FAIL whatever line 1 says, and
+// so does a `- ` line under `## Critical` with a lower count: the critical count is the larger of the two, so the file
+// never reads cleaner than it says (as ADR-011 reads review headers). Returns { ok: true, verdict, critical, warnings,
+// criticalLines } or { ok: false, error }. Only a regular file is read.
 export function readVerdict(file) {
   let text;
   try {
@@ -112,7 +115,8 @@ export function readVerdict(file) {
     const one = line.replace(/\s+/g, " ").trim();
     criticalLines.push(Array.from(one).slice(0, CRITICAL_MAX_CHARS).join(""));
   }
-  return { ok: true, verdict: critical > 0 ? "FAIL" : v[1], critical, warnings, criticalLines };
+  const count = Math.max(critical, criticalLines.length);
+  return { ok: true, verdict: count > 0 ? "FAIL" : v[1], critical: count, warnings, criticalLines };
 }
 
 // The artifact files os-propose writes: proposal.md, design.md, tasks.md and every specs/**/*.md.

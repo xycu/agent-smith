@@ -323,7 +323,8 @@ Chain switch (`--chain`):
 - Every router command takes `--chain 10x|openspec`. Any other value halts before anything is read.
 - `init --chain openspec` stores `chain: "openspec"` in `openspec/changes/<change-name>/agent-smith/meta.json`. A 10x `meta.json` never gets a `chain` key, and the provenance `flags` gain `chain` only when `meta.chain` is set, so a 10x run's record keeps its keys.
 - `init` without `--chain` is a 10x init. It halts when the live `openspec/changes/<change-name>/agent-smith/meta.json` holds `chain: "openspec"`, and names `--chain openspec`.
-- Every other command without the flag uses the stored chain: `chain: "openspec"` in the live `meta.json`, or, when the live folder is gone, in the `meta.json` of an archive folder of the name. Otherwise it is a 10x command. A `--chain` that contradicts the stored chain halts.
+- Every other command without the flag uses the stored chain: `chain: "openspec"` in the live `meta.json`, or, when the live folder is gone, in the `meta.json` of an archive folder of the name, unless a 10x change uses the name, live under `context/changes/` or archived under `context/archive/`. Otherwise it is a 10x command. A `--chain` that contradicts the stored chain halts.
+- `archive` is not a change name for the OpenSpec chain, because `openspec/changes/archive/` is OpenSpec's archive folder: every command that resolves to the OpenSpec chain halts on it and writes nothing.
 
 Run state and collisions:
 
@@ -350,10 +351,10 @@ Step verification:
 
 Verify verdict and fix loop:
 
-- `verify.md` starts with three lines: `Verdict: PASS`, `Verdict: PASS WITH WARNINGS` or `Verdict: FAIL`, then `Critical: <n>` and `Warnings: <n>`. Then `## Critical` and `## Warnings` with one `- ` line per issue, then the skill's report. A `Critical` count above 0 reads as `FAIL` whatever line 1 says.
+- `verify.md` starts with three lines: `Verdict: PASS`, `Verdict: PASS WITH WARNINGS` or `Verdict: FAIL`, then `Critical: <n>` and `Warnings: <n>`. Then `## Critical` and `## Warnings` with one `- ` line per issue, then the skill's report. A `Critical` count above 0 reads as `FAIL` whatever line 1 says, and so does a `- ` line under `## Critical` under a lower count: the critical count is the larger of the header count and the number of lines, so the file is never read as cleaner than it says.
 - The router reads the verdict from the file each time it decides, not from the log copy, so a human who fixes the code or edits `verify.md` after a halt is routed on the file. A `verify.md` that a fresh `os-verify` leaves malformed fails that step; one that becomes unreadable or malformed after a verified `os-verify` halts the run and names the file and the line that does not parse.
 - `PASS` or `PASS WITH WARNINGS` ends the run `done`, or, for a run started with `--archive`, goes to the archive branch below.
-- `FAIL` returns `os-apply` with template `os-apply-fix` while fewer verified fix steps than `limits.maxFixLoops` (2) ran. The prompt carries the `- ` lines under `## Critical` (at most 20, each made one line and cut to 300 code points) as `{findings}`, or `see verify.md` when there are none. A verified fix step returns `os-verify`.
+- `FAIL` returns `os-apply` with template `os-apply-fix` while fewer verified fix steps than `limits.maxFixLoops` (2) ran. The prompt carries the `- ` lines under `## Critical` (at most 20, each made one line and cut to 300 code points) as `{findings}`, or `see verify.md` when there are none. A verified fix step returns `os-verify`. Only verified fix steps count toward the cap, unlike the 10x fix loop, which counts every `fix` attempt; failed fix attempts are bounded by `limits.maxAttemptsPerStep` and the step budget.
 - `FAIL` at the cap halts: `OpenSpec verify FAIL after <n> fix loops. Needs a human. Fix the issues, set the first lines of <verify.md path> to "Verdict: PASS" and "Critical: 0", then run /agent-smith:openspec-pipeline <change-name> again.` In an isolated run it ends with `Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.`
 
 Tiers, rigor and budget:
@@ -389,3 +390,4 @@ Limits:
 - Changes hosted in a store (`--store`) are not supported (D3): such a change sits outside the worktree and outside the rollback.
 - `verify.md` has no `### F<n>` blocks or `Decision` lines, so ADR-011's open-findings routing does not apply and a passing verdict with warnings never halts.
 - The guides passed five live probes (`context/changes/openspec-pipeline/evidence/check-3-live.md`); no live run of the whole skill has been done yet.
+- Upgrade note: the policy gains `steps` and `prompts` keys, so a 10x run in flight when the plugin is upgraded records `provenance.drift` for `prompts` and `steps` at its next `next` call, and `compare` warns `provenance-drift:<side>:prompts,steps`. That is expected and changes no routing. A 10x run never gets a `chain` key.
