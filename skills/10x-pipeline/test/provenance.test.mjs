@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile,
   writeMetaFile, writeLog, writeOverride, entry,
@@ -27,7 +28,7 @@ const NO_FLAGS = { archive: false, chrome: true, "score.minRigor": null, "agents
 const copies = [];
 after(() => {
   cleanupAll();
-  for (const dir of copies.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of copies.splice(0)) removeTree(dir);
 });
 
 const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -154,7 +155,7 @@ test("1.1 an unreadable plugin.json gives plugin null, and agentFiles hashes age
   assert.equal(copyRecord(copy).plugin, null);
 
   const agents = path.join(copy.root, "agents");
-  fs.rmSync(agents, { recursive: true, force: true });
+  removeTree(agents);
   assert.equal(copyRecord(copy).sections.agentFiles, null, "no agents folder");
   fs.writeFileSync(agents, "a file, not a folder\n");
   assert.equal(copyRecord(copy).sections.agentFiles, null, "agents is not a folder");

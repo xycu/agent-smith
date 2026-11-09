@@ -5,10 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 const created = [];
 export function cleanupAll() {
-  for (const dir of created.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of created.splice(0)) removeTree(dir);
 }
 
 export const ROUTE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/route.mjs");

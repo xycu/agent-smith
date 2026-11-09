@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { makeProject, cleanupAll } from "./helpers.mjs";
 import { COMMENT_JQ } from "../scripts/pr-comment.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/pr-comment.mjs");
 const win = process.platform === "win32";
@@ -18,7 +19,7 @@ const dirs = [];
 
 after(() => {
   cleanupAll();
-  for (const d of dirs.splice(0)) fs.rmSync(d, { recursive: true, force: true });
+  for (const d of dirs.splice(0)) removeTree(d);
 });
 
 function tmpDir(prefix) {
@@ -643,6 +644,7 @@ test("mutation: without the author comparison a foreign marker comment would be 
   const dir = tmpDir("as-prc-mut-");
   const mutant = path.join(dir, "pr-comment.mjs");
   fs.writeFileSync(mutant, source.replace(needle, "true"));
+  fs.copyFileSync(path.join(path.dirname(SCRIPT), "remove-tree.mjs"), path.join(dir, "remove-tree.mjs"));
   const scenario = () => postWorld({ comments: [entry(5, "mallory", `${markerOf("demo")}\n\nold`)] });
   const original = scenario();
   runScript(original, ["demo"]);

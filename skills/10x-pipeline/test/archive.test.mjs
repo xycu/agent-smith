@@ -5,6 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, run, init, next, writeLog, entry, ROUTE, gitEnv, gitInit, writeResult, readMetaFile, writeMetaFile,
   planText, writeReview, readReportFile, readLogEntries, commitFiles, git, gitAvailable,
@@ -32,8 +33,8 @@ function writeArchive(project, name, { status = "archived", archivedAt = "2026-1
 // A project whose change folder is gone: only the archive exists.
 function archivedOnly(archiveName = `${DAY}-demo`, over = {}) {
   const project = makeProject();
-  fs.rmSync(project.changeDir, { recursive: true, force: true });
-  fs.rmSync(path.join(project.root, "context/changes"), { recursive: true, force: true });
+  removeTree(project.changeDir);
+  removeTree(path.join(project.root, "context/changes"));
   writeArchive(project, archiveName, over);
   return project;
 }
@@ -138,7 +139,7 @@ test("a quoted status in change.md counts as archived for the half-archived guar
 
 test("a suffix-collision archive folder does not trigger the guard", () => {
   const project = makeProject({ change: false });
-  fs.rmSync(project.changeDir, { recursive: true, force: true });
+  removeTree(project.changeDir);
   writeArchive(project, "2026-01-01-x-demo");
   const res = init(project, "fresh");
   // The guard stays quiet: the run goes on and the router creates the change folder as before.
@@ -328,7 +329,7 @@ test("verify-archive answers when PATH holds no git", () => {
     assert.equal(res.status, 0, res.stderr || res.stdout);
     assert.equal(res.json.archived, true);
   } finally {
-    fs.rmSync(emptyBin, { recursive: true, force: true });
+    removeTree(emptyBin);
   }
 });
 
@@ -417,7 +418,7 @@ test("a stored archive: true is checked again on a resume", () => {
   const project = gitProject();
   assert.equal(initArchive(project, "--archive").status, 0);
   answerPlan(project);
-  fs.rmSync(path.join(project.base, ".git"), { recursive: true, force: true });
+  removeTree(path.join(project.base, ".git"));
   const res = initArchive(project);
   assert.equal(res.status, 1);
   assert.match(res.json.reason, /work tree/);
@@ -719,7 +720,7 @@ test("a git commit that times out halts as kind C and names the timeout", { skip
     assert.equal(commitCount(project), 1);
     git(project, ["diff", "--cached", "--quiet"]);
   } finally {
-    fs.rmSync(bin, { recursive: true, force: true });
+    removeTree(bin);
   }
 });
 
@@ -738,7 +739,7 @@ test("a git that times out is reported as a timeout, not as a missing work tree,
     assert.match(atInit.json.reason, /git timed out after 300 ms while checking/);
     assert.match(atInit.json.reason, /Nothing was written/);
   } finally {
-    fs.rmSync(bin, { recursive: true, force: true });
+    removeTree(bin);
   }
 });
 
@@ -756,7 +757,7 @@ test("a missing git is reported as such, not as a missing work tree, at init and
     assert.equal(atInit.status, 1);
     assert.match(atInit.json.reason, /git could not be run: .*ENOENT/);
   } finally {
-    fs.rmSync(bin, { recursive: true, force: true });
+    removeTree(bin);
   }
 });
 
@@ -1079,6 +1080,6 @@ test("git subcommands: init --archive and the full path run only allowed command
     }
     for (const sub of ["check-ignore", "add", "commit", "show", "status"]) assert.ok(seen.has(sub), `no ${sub} call`);
   } finally {
-    fs.rmSync(bin, { recursive: true, force: true });
+    removeTree(bin);
   }
 });

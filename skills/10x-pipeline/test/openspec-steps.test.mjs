@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { cleanupAll, run, writeResult, readLogEntries, readMetaFile, readReportFile } from "./helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, initOpenspec } from "./openspec-helpers.mjs";
 import { readVerdict } from "../scripts/openspec.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 after(cleanupAll);
 
@@ -224,7 +225,7 @@ test("the critical lines are capped at 20, made one line and cut to 300 code poi
     assert.deepEqual(readVerdict(file).criticalLines, ["- one", "- two"]);
     assert.equal(readVerdict(path.join(dir, "missing.md")).ok, false);
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 });
 
@@ -244,7 +245,7 @@ test("a critical line under a lower Critical count reads as FAIL with the larger
     fs.writeFileSync(file, "Verdict: FAIL\nCritical: 3\nWarnings: 0\n## Critical\n- one\n## Warnings\n");
     assert.equal(readVerdict(file).critical, 3);
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 });
 

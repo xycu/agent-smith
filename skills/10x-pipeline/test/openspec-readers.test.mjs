@@ -8,11 +8,12 @@ import path from "node:path";
 import { cleanupAll, run, writeLog, writeMetaFile, entry } from "./helpers.mjs";
 import { makeOpenspecProject, initOpenspec } from "./openspec-helpers.mjs";
 import { readTasks, readVerdict } from "../scripts/openspec.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 after(cleanupAll);
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "openspec-readers-"));
-after(() => fs.rmSync(scratch, { recursive: true, force: true }));
+after(() => removeTree(scratch));
 
 // <scratch>/<name>/ is a change folder with an agent-smith/ subfolder.
 function changeFolder(name) {
@@ -66,7 +67,7 @@ test("F6: verify.md over 64 KiB, or in an agent-smith folder that is a symlink, 
   fs.mkdirSync(outside);
   fs.writeFileSync(path.join(outside, "verify.md"), PASS);
   const linked = changeFolder("verify-linked");
-  fs.rmSync(path.join(linked, "agent-smith"), { recursive: true });
+  removeTree(path.join(linked, "agent-smith"));
   fs.symlinkSync(outside, path.join(linked, "agent-smith"));
   const res = readVerdict(path.join(linked, "agent-smith/verify.md"));
   assert.equal(res.ok, false);

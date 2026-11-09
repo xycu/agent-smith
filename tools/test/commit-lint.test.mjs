@@ -7,6 +7,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { lintSubject } from "../commit-lint.mjs";
+import { removeTree } from "../../skills/10x-pipeline/scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../commit-lint.mjs");
 const created = [];
@@ -43,7 +44,7 @@ function cli(cwd, ...args) {
 }
 
 test.after(() => {
-  for (const dir of created) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of created) removeTree(dir);
 });
 
 test("valid subjects pass", () => {
