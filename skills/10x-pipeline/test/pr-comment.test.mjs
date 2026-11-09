@@ -621,10 +621,14 @@ test("mutation: without the author comparison a foreign marker comment would be 
   assert.deepEqual(methodsOf(broken), ["PATCH"], "the mutant must behave differently");
 });
 
-test("guard: route.mjs never calls gh and policy.json has no prComment key", () => {
+test("guard: router scripts never call gh and policy.json has no prComment key", () => {
   const skill = path.resolve(path.dirname(SCRIPT), "..");
-  const source = fs.readFileSync(path.join(skill, "scripts/route.mjs"), "utf8");
-  assert.equal(/["'`]gh["'`]/.test(source), false);
+  const scripts = fs.readdirSync(path.join(skill, "scripts")).filter((f) => f.endsWith(".mjs") && f !== "pr-comment.mjs");
+  assert.ok(scripts.includes("route.mjs"));
+  for (const file of scripts) {
+    const source = fs.readFileSync(path.join(skill, "scripts", file), "utf8");
+    assert.equal(/["'`]gh["'`]/.test(source), false, `${file} must not call gh`);
+  }
   const policy = JSON.parse(fs.readFileSync(path.join(skill, "policy.json"), "utf8"));
   assert.equal("prComment" in policy, false);
 });

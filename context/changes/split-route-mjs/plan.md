@@ -333,9 +333,9 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [ ] 1.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.2 Guard fails against a scratch `scripts/x.mjs` containing a `"gh"` literal (mutant check, scratch copy only)
-- [ ] 1.3 Check script passes on the unsplit file and fails on a scratch copy with a missing import
+- [x] 1.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.2 Guard fails against a scratch `scripts/x.mjs` containing a `"gh"` literal (mutant check, scratch copy only)
+- [x] 1.3 Check script passes on the unsplit file and fails on a scratch copy with a missing import
 
 #### Manual
 
