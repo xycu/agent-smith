@@ -1,7 +1,7 @@
 ---
 change_id: neutral-orchestrator-retry
 title: Rerun a step after an orchestrator fault without a failed attempt
-status: implemented
+status: impl_reviewed
 created: 2026-11-09
 updated: 2026-11-09
 archived_at: null
