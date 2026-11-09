@@ -42,5 +42,15 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths .claude-plugin/marketplace.json, .claude-plugin/plugin.json, skills/10x-pipeline/policy.json +1"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "5.6 One live openspec-pipeline run of a small change ends done with report.md"
+    ],
+    "manualNotProved": [
+      "5.6 One live openspec-pipeline run of a small change ends done with report.md — not proved: needs one live openspec-pipeline run of a small change (nested pipeline with its own subagents and an OpenSpec project); too large for an unattended manual-verify step, and the sandbox denies the mode"
+    ]
   }
 }
