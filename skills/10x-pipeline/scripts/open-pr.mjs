@@ -9,6 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { removeTree } from "./remove-tree.mjs";
 
 const USAGE = "usage: node open-pr.mjs <change-id> [--chain 10x|openspec] [--report <path>] [--remote <name>] [--base <branch>] [--draft] [--timeout-ms <n>]";
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
@@ -365,7 +366,7 @@ function openPullRequest(opts, branch, base, repo) {
     if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/.test(url)) return prSkip("gh pr create failed: unexpected gh output");
     return { action: "created", url, state: "OPEN", reason: null };
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
   }
 }
 
