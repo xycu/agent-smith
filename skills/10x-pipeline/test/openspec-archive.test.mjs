@@ -11,6 +11,7 @@ import {
   readReportFile, entry,
 } from "./helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, moveToArchive } from "./openspec-helpers.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 after(cleanupAll);
 
@@ -296,7 +297,7 @@ test("compare --chain openspec does not read a 10x side", () => {
   const baseline = compareSide({ tokens: [600] });
   const routed = compareSide({ tokens: [300] });
   // A 10x run log of the same id in the routed project is not the OpenSpec side.
-  fs.rmSync(routed.agentDir, { recursive: true, force: true });
+  removeTree(routed.agentDir);
   const tenx = path.join(routed.root, "context/changes/demo/agent-smith");
   fs.mkdirSync(tenx, { recursive: true });
   fs.writeFileSync(path.join(tenx, "run.jsonl"), JSON.stringify(entry(1, "plan")) + "\n");

@@ -11,6 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile, readLogEntries,
   writeLog, writeMetaFile, entry, gitAvailable, gitEnv, gitInit, commitFiles,
@@ -35,7 +36,7 @@ const FACTORS = [...DEFAULT.score.factors.cognitive, ...DEFAULT.score.factors.ex
 const copies = [];
 after(() => {
   cleanupAll();
-  for (const dir of copies.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of copies.splice(0)) removeTree(dir);
 });
 
 const has = (obj, key) => Object.hasOwn(obj, key);

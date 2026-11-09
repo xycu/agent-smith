@@ -7,6 +7,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { check } from "../version-check.mjs";
+import { removeTree } from "../../skills/10x-pipeline/scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../version-check.mjs");
 const created = [];
@@ -25,7 +26,7 @@ function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry = "0.1.0", manifest 
 }
 
 test.after(() => {
-  for (const dir of created) fs.rmSync(dir, { recursive: true, force: true });
+  for (const dir of created) removeTree(dir);
 });
 
 test("equal valid versions pass", () => {

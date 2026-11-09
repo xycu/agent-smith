@@ -8,6 +8,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { removeTree } from "./remove-tree.mjs";
 
 const USAGE = "usage: node pr-comment.mjs <change-id> [--report <path>] [--pr <url>] [--timeout-ms <n>]";
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
@@ -213,7 +214,11 @@ function post(opts, found, body) {
     }
     return result(target ? "updated" : "created", { url, pr: found.url, match: target ? target.match : null });
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    try {
+      removeTree(dir);
+    } catch {
+      // A cleanup error never changes the printed result.
+    }
   }
 }
 

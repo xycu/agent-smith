@@ -10,6 +10,7 @@ import {
   readReportFile, entry, writeLog, gitInit, git, gitEnv, commitFiles, gitAvailable,
 } from "./helpers.mjs";
 import { buildPlan, pendingEntry } from "./phase-helpers.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 after(cleanupAll);
 
@@ -221,7 +222,7 @@ test("evidence suffix required", () => {
   evidence(inside, "real.txt");
   fs.symlinkSync(path.join(inside.changeDir, "evidence/real.txt"), path.join(inside.changeDir, "evidence/link.txt"));
   assert.equal(finish(inside).e.ok, true);
-  fs.rmSync(out, { recursive: true, force: true });
+  removeTree(out);
   // Several rows may share one evidence file.
   const shared = verifying({ manual: [A, B] });
   save(shared, [ticked(A), ticked(B)]);
@@ -320,7 +321,7 @@ test("evidence hardening", () => {
   save(linked, [ticked(A)]);
   fs.symlinkSync(outside, path.join(linked.changeDir, "evidence"));
   assert.equal(finish(linked).e.ok, false, "a symlinked evidence folder");
-  fs.rmSync(outside, { recursive: true, force: true });
+  removeTree(outside);
 
   // A directory in place of a file.
   const dir = verifying({ manual: [A] });

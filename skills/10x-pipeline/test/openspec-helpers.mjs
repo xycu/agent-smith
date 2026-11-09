@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { makeProject, run } from "./helpers.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
 // A tasks.md with `done` ticked and `open` open rows, numbered 1.1, 1.2, ...
 export function tasksText({ done = 0, open = 0 } = {}) {
@@ -37,7 +38,7 @@ export function writeVerify(project, text) {
 // at openspec/changes/<id>/, so writeResult, writeLog, readLogEntries and readMetaFile of helpers.mjs work on it.
 export function makeOpenspecProject({ id = "demo", policy = null, change = true, ...artifacts } = {}) {
   const base = makeProject({ id, policy, change: false });
-  fs.rmSync(base.changeDir, { recursive: true, force: true });
+  removeTree(base.changeDir);
   fs.mkdirSync(path.join(base.root, "openspec/specs"), { recursive: true });
   fs.mkdirSync(path.join(base.root, "openspec/changes/archive"), { recursive: true });
   fs.writeFileSync(path.join(base.root, "openspec/config.yaml"), "schema: spec-driven\n");

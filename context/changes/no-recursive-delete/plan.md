@@ -292,8 +292,8 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Automated
 
-- [x] 1.1 Helper tests pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
-- [x] 1.2 The helper holds no recursive or forced option: `grep -nE "recursive|force" skills/10x-pipeline/scripts/remove-tree.mjs` prints only comment lines or nothing
+- [x] 1.1 Helper tests pass: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — d85b6ff
+- [x] 1.2 The helper holds no recursive or forced option: `grep -nE "recursive|force" skills/10x-pipeline/scripts/remove-tree.mjs` prints only comment lines or nothing — d85b6ff
 
 #### Manual
 
@@ -303,9 +303,9 @@ None for users. A run in flight at upgrade time records `provenance.drift` for `
 
 #### Automated
 
-- [ ] 2.1 No recursive delete is left in code: `grep -rn "recursive" skills tools --include=*.mjs` lists only `mkdirSync` and `cpSync` lines and the guard test
-- [ ] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 `pr-comment` tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
+- [x] 2.1 No recursive delete is left in code: `grep -rn "recursive" skills tools --include=*.mjs` lists only `mkdirSync` and `cpSync` lines and the guard test
+- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.3 `pr-comment` tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs`
 
 #### Manual
 

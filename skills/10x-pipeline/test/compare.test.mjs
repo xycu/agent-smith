@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, planText, writePlan, run, init, next, writeResult, readLogEntries, readMetaFile,
   gitAvailable, gitEnv, gitInit, commitFiles, git, entry, skipEntry, writeLog, writeMetaFile,
@@ -362,7 +363,7 @@ test("2.7 a zero baseline, an empty log and garbage lines do not throw", () => {
 // A project whose routed run lives only in context/archive/<name>, with an optional log.
 function archivedProject(names, { log = null } = {}) {
   const project = makeProject({ id: "demo" });
-  fs.rmSync(project.changeDir, { recursive: true });
+  removeTree(project.changeDir);
   for (const name of names) fs.mkdirSync(path.join(project.root, "context/archive", name, "agent-smith"), { recursive: true });
   if (log) {
     const agentDir = path.join(project.root, "context/archive", names[0], "agent-smith");
