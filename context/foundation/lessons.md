@@ -15,3 +15,10 @@
 - **Problem**: A `- ` line under `## Critical` with `Critical: 0` in the header read as PASS, so a run could end or archive with a critical issue still listed. Found in the openspec-pipeline implementation review (F3).
 - **Rule**: Never read a verdict file as cleaner than its listed findings; take the larger of the header count and the listed items.
 - **Applies to**: plan, plan-review, implement, impl-review
+
+## Never let a subagent spawn its own subagent
+
+- **Context**: Any step that runs as a subagent, such as an agent-smith pipeline step or a skill like /10x-goal-implement that delegates phases.
+- **Problem**: In this harness a nested subagent's hand-back report goes to the top session, not to its parent. The parent ends its turn without the result, and the step fails although the work finished. Seen 2026-11-09 in the implement steps of neutral-orchestrator-retry and worktree-pr-only.
+- **Rule**: Never spawn a subagent from inside a subagent; a subagent does its work itself, and only the top-level orchestrator spawns subagents.
+- **Applies to**: all
