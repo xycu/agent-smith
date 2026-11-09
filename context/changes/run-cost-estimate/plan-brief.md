@@ -12,7 +12,7 @@ Run reports show tokens only. The owner wants a money figure. The host reports o
 
 ## Desired End State
 
-With prices in the project override, `report.md` has a `Cost (est.)` column and a `Cost (estimate)` line, `status` prints a `cost` object, and `compare` prints each side's cost beside its tokens. With no prices (the shipped default) every output is unchanged. The `compare` verdict stays on tokens.
+With prices in the project override, `report.md` has a `Cost (est.)` column and a `Cost (estimate)` line, `status` prints a `cost` object, and `compare` prints each side's cost beside its tokens. With no prices (the shipped default) the report, `status` and the `compare` Markdown are unchanged, and the `compare` JSON gains `cost: null` per side. The `compare` verdict stays on tokens.
 
 ## Key Decisions Made
 
@@ -29,7 +29,7 @@ With prices in the project override, `report.md` has a `Cost (est.)` column and 
 
 ## Scope
 
-**In scope:** `prices` policy key and validation, cost in `report.md`, `status`, `compare`, tests in a new `cost.test.mjs`, `docs/REFERENCE.md`, an ADR-007 note, `AGENTS.md` and `README.md` lines.
+**In scope:** `prices` policy key and validation, cost in `report.md`, `status`, `compare`, tests in a new `cost.test.mjs`, `docs/REFERENCE.md`, an ADR-005 note, `AGENTS.md` and `README.md` lines.
 
 **Out of scope:** shipped default prices, an input/output split or any orchestrator change, cost in the verdict or a cost target, orchestrator-session cost, per-id or per-tier prices, `SKILL.md` edits.
 
@@ -44,7 +44,7 @@ One pure helper pair in `state.mjs` (`priceTable`, `estimateCost`) owns the rule
 | 1. Prices block and cost reader | Policy key, validation, estimator, provenance ignore | Provenance default must match in `policy.json` and `isolation.mjs` |
 | 2. Cost in report.md and status | Column, line and `cost` object, both chains | Existing report tests parse the table, so the column must appear only with prices |
 | 3. Cost in compare | Per-side cost, rows, warning | Verdict must not move; prices come from the project that runs `compare` |
-| 4. Docs and ADR | REFERENCE, ADR-007 note, AGENTS.md, README | Keep the ADR-007 decision rule untouched |
+| 4. Docs and ADR | REFERENCE, ADR-005 note, AGENTS.md, README | Leave ADR-007 and its decision rule untouched |
 
 **Prerequisites:** none.
 **Estimated effort:** ~2 sessions across 4 phases.
@@ -59,5 +59,5 @@ One pure helper pair in `state.mjs` (`priceTable`, `estimateCost`) owns the rule
 ## Success Criteria (Summary)
 
 - With prices set, a run report states a dollar estimate, how many steps it covers and that the rate is blended.
-- With no prices, nothing in report, status or compare changes.
+- With no prices, report and status are unchanged, and compare changes only by `cost: null` per side in its JSON.
 - The whole existing suite stays green and the new `cost.test.mjs` covers both chains.
