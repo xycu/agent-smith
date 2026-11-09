@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md Notes and goal fix the outcome: archive only with no Manual rows pending, else a yes/no ask; open details (what the no path records, whether the router's archive action changes) each have one obvious answer" },
+    "novelty": { "score": 1, "evidence": "adapts existing archive action, manualPending summary and archive branch in skills/10x-pipeline/SKILL.md and skills/openspec-pipeline/SKILL.md; no new mechanism beyond a user prompt" },
+    "coupling": { "score": 2, "evidence": "both orchestrator SKILL.md files must match (openspec-pipeline mirrors the 10x archive branch and Anti-stall rules, checked by skill-loop and openspec-skill tests); router archive action fields in scripts/isolation.mjs and flow.mjs feed both" },
+    "discovery": { "score": 1, "evidence": "goal names the locations: the archive branch of both SKILL.md files and the archive action of the router; one search for manualPending and archive fields finds the rest" },
+    "volume": { "score": 2, "evidence": "about 4 to 8 files: two SKILL.md, router archive path, skill-content tests, docs/REFERENCE.md archive section, and ADR-014" },
+    "verification": { "score": 2, "evidence": "skill-loop.test.mjs and openspec-skill.test.mjs check SKILL.md text, but no harness drives AskUserQuestion; the yes and no paths need a manual check in a live session" }
+  },
+  "unknowns": [
+    "Whether the router's archive action should carry a pending-Manual flag or the orchestrator counts summary.manualPending itself",
+    "Whether ADR-014 is needed or the change fits an addendum to ADR-012",
+    "Whether a live AskUserQuestion answer can be exercised in an automated test"
+  ],
+  "confidence": "medium"
+}
