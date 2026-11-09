@@ -63,8 +63,8 @@ for (const [chain, rel] of Object.entries(SKILLS)) {
     }
   });
 
-  test(`${chain}: still exactly five GIVEN lines`, () => {
-    assert.equal(skill.split("\n").filter((l) => l.includes("**GIVEN**")).length, 5);
+  test(`${chain}: still exactly six GIVEN lines`, () => {
+    assert.equal(skill.split("\n").filter((l) => l.includes("**GIVEN**")).length, 6);
   });
 }
 

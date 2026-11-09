@@ -38,12 +38,13 @@ const NEEDLES = [
   ["**MUST NOT**", "rewrite", "result file"],
   ["done", "archive", "halt", "still running"],
   ["tool output", "nothing is running"],
+  ["did not launch", "**MUST NOT**", "result file", "`next`", "own report"],
 ];
 
-test("the section holds exactly five rule lines, and SKILL.md has no other **GIVEN** line", () => {
+test("the section holds exactly six rule lines, and SKILL.md has no other **GIVEN** line", () => {
   const rules = section().filter((l) => l.includes("**GIVEN**"));
-  assert.equal(rules.length, 5);
-  assert.equal(lines.filter((l) => l.includes("**GIVEN**")).length, 5);
+  assert.equal(rules.length, 6);
+  assert.equal(lines.filter((l) => l.includes("**GIVEN**")).length, 6);
 });
 
 test("rule line k holds the needles of behavior k", () => {

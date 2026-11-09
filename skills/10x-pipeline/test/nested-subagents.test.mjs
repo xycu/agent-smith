@@ -100,3 +100,47 @@ test("the new lines name no model, effort or tier", () => {
   ];
   for (const line of added) assert.doesNotMatch(line, NO_TIER_WORD, line);
 });
+
+// ---- Phase 2: the sixth anti-stall rule of both orchestrator skills ----------------------------
+
+const SKILLS = {
+  "10x": path.join(SKILL_DIR, "SKILL.md"),
+  openspec: path.resolve(SKILL_DIR, "../openspec-pipeline/SKILL.md"),
+};
+
+// The `## Anti-stall rules` section: from its heading to the next `## ` heading.
+function antiStall(file) {
+  const lines = fs.readFileSync(file, "utf8").split("\n");
+  const start = lines.indexOf("## Anti-stall rules");
+  assert.ok(start >= 0, `no anti-stall section in ${file}`);
+  let end = start + 1;
+  while (end < lines.length && !lines[end].startsWith("## ")) end++;
+  return lines.slice(start + 1, end);
+}
+
+const sixthRule = (file) => antiStall(file).filter((l) => l.includes("**GIVEN**"))[5];
+
+test("the sixth rule of both skills ignores a hand-back from a subagent the orchestrator did not launch", () => {
+  for (const [chain, file] of Object.entries(SKILLS)) {
+    const rule = sixthRule(file);
+    assert.ok(rule, `${chain}: no sixth rule`);
+    for (const needle of ["hand-back", "did not launch for the current step", "**MUST NOT**", "result file", "`next`", "own report"]) {
+      assert.ok(rule.includes(needle), `${chain}: sixth rule lacks "${needle}"`);
+    }
+    assert.deepEqual(ruleProblems(rule), [], chain);
+    assert.doesNotMatch(rule, NO_TIER_WORD, chain);
+  }
+});
+
+test("the sixth rule is the same line in both skills", () => {
+  assert.equal(sixthRule(SKILLS["10x"]), sixthRule(SKILLS.openspec));
+});
+
+test("the intro of both anti-stall sections names the sixth rule", () => {
+  for (const [chain, file] of Object.entries(SKILLS)) {
+    const intro = antiStall(file).find((l) => l.startsWith("Rules "));
+    assert.ok(intro, `${chain}: no intro line`);
+    assert.match(intro, /Rules 1, 2, 3 and 6 hold for every `run` step/, chain);
+    assert.match(intro, /Rules 1 and 6 also hold for the archive subagent/, chain);
+  }
+});

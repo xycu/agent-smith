@@ -85,13 +85,14 @@ The router prints one JSON object. Act on `action`:
 
 ## Anti-stall rules
 
-Rules 1 to 3 hold for every `run` step. Rules 4 and 5 hold for the whole run, also while its `done`, `archive` or `halt` branch is being worked through. Rule 1 also holds for the archive subagent: when its final report arrives, continue at step 4 of the `archive` branch. Rules 2 and 3 do not apply to it, because the `archive` action has no result file and no `next` call; a usage figure it reports goes only into the final message. A run has ended when the orchestrator has finished every step of its `done`, `archive` or `halt` branch.
+Rules 1, 2, 3 and 6 hold for every `run` step. Rules 4 and 5 hold for the whole run, also while its `done`, `archive` or `halt` branch is being worked through. Rules 1 and 6 also hold for the archive subagent: when its own final report arrives, continue at step 4 of the `archive` branch. Rules 2 and 3 do not apply to it, because the `archive` action has no result file and no `next` call; a usage figure it reports goes only into the final message. A run has ended when the orchestrator has finished every step of its `done`, `archive` or `halt` branch.
 
 - **GIVEN** a `run` step **WHEN** the Agent tool returns a launch notice instead of a final report although `run_in_background` is `false` **THEN** the orchestrator **MUST** end its turn and continue the Loop at step 3 when the subagent's final report arrives, without starting another step or polling.
 - **GIVEN** the final report of a `run` step holds its `RESULT:` line **WHEN** no usage figure has arrived **THEN** the orchestrator **MUST** write the result file without `usage` and run `next` in the same turn.
 - **GIVEN** `next` ran for a `run` step **WHEN** a usage figure for that step arrives later **THEN** the orchestrator **MUST NOT** rewrite the result file or call `next` again, so the step keeps `-` for tokens in the report.
 - **GIVEN** the run has not ended in `done`, `archive` or `halt` and no STOP instruction of the Start or Loop sections applies (for example `archived: false` in the `archive` branch) **WHEN** the orchestrator would end its turn **THEN** it **MUST NOT** end it unless a launched subagent is still running.
 - **GIVEN** a run in this session **WHEN** the user asks what the run is doing **THEN** the orchestrator **MUST** state only what tool output in this session shows, and say so when nothing is running.
+- **GIVEN** a hand-back arrives from a subagent the orchestrator did not launch for the current step, that is one that is neither the result of the Agent call the orchestrator made for this step nor a task notification that names that call's subagent (the agent id or description its launch notice or result gave), for example one a step subagent started or a late one of an earlier step **WHEN** the current step or the archive subagent still waits for its own report **THEN** the orchestrator **MUST NOT** treat that hand-back as a step result: it writes no result file from it, does not call `next` on it, and keeps the step's own report as the only result, which it handles under rules 1 and 4.
 
 ## PR comment (opt-in)
 

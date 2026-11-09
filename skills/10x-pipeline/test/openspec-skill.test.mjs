@@ -101,8 +101,8 @@ test("every router command line carries --chain openspec", () => {
 test("the anti-stall section equals the one of the 10x skill and follows the rule form", () => {
   assert.deepEqual(section(lines, HEADING), section(tenx, HEADING));
   const rules = section(lines, HEADING).filter((l) => l.includes("**GIVEN**"));
-  assert.equal(rules.length, 5);
-  assert.equal(lines.filter((l) => l.includes("**GIVEN**")).length, 5, "no other **GIVEN** line in the skill");
+  assert.equal(rules.length, 6);
+  assert.equal(lines.filter((l) => l.includes("**GIVEN**")).length, 6, "no other **GIVEN** line in the skill");
   for (const rule of rules) assert.deepEqual(ruleProblems(rule), [], rule);
 });
 
