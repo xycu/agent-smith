@@ -1,0 +1,42 @@
+{
+  "id": "worktree-pr-only",
+  "goal": "All work of a run happens in its worktree and always ends pushed for human review on a pull request, with no exceptions: when a run ends (done, archive or halt with commits), push the run branch agent-smith/<change-id> and open or update its pull request; never merge it. AGENTS.md now allows recoverable git and GitHub operations (commits, pushes, pull requests) and forbids only irreversible ones. New ADR: ADR-017.",
+  "archive": true,
+  "isolated": true,
+  "branch": "agent-smith/worktree-pr-only",
+  "baseSha": "2d28f0cbccdadb6758057424bbbf253be0d615e8",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.1.1",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "abc849dc039be5b6",
+      "agents": "374f6dc7eadb4068",
+      "archive": "530c47380ca27448",
+      "codeReplan": "2d06e637baae3d3d",
+      "complexity": "997fa59224abe417",
+      "escalation": "1222803c4bfef379",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "isolation": "cda0720f290e645e",
+      "ladder": "6d379f1181bd2624",
+      "lessons": "92d849fccafd0527",
+      "limits": "1bc6b6ced877b22d",
+      "manualVerify": "0fda1e8434332b50",
+      "preplan": "a9307608313095d4",
+      "prompts": "d4ca822a7eea5dfb",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "score": "dc16b78fdf08a0df",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "archive": true,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  }
+}
