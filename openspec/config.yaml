@@ -1,32 +1,26 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+context: |
+  agent-smith is a Claude Code plugin; AGENTS.md holds the full rules. Hard constraints:
+  - Node.js 24 or later, `node:` built-ins only, no npm dependencies (ADR-006).
+  - Prompt rules use GIVEN/WHEN/THEN form with exactly one bold RFC 2119 keyword per rule (ADR-004).
+  - Every commit subject is a Conventional Commit (ADR-008).
+  - `context/archive/` is read-only and is never edited.
+  - Routing decisions live only in `skills/10x-pipeline/scripts/route.mjs` (and the modules it imports under `scripts/`) and `skills/10x-pipeline/policy.json`.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always state what is out of scope
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+rules:
+  proposal:
+    - "In Impact, name each hard rule of the context that the change touches."
+    - "State what is out of scope."
+    - "A change that needs an npm dependency or moves routing out of route.mjs or policy.json names that as a conflict with AGENTS.md."
+  specs:
+    - "Describe behavior, not file paths."
+    - "Keep the OpenSpec form: requirements use SHALL or MUST, scenarios use #### Scenario: with WHEN and THEN bullets."
+    - "The ADR-004 form applies to prompt files under skills/10x-pipeline/prompts/ and policy.json prompt strings, not to delta specs."
+  design:
+    - "Name the ADR a decision follows or changes, by number."
+    - "New code uses only node: built-ins and runs on Node 24."
+  tasks:
+    - "Each task names its verification command; router, prompt or tool changes run node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs."
+    - "No task edits context/archive/ or hand-edits agent-smith/run.jsonl or meta.json."
+    - "Commit subjects are Conventional Commits."
