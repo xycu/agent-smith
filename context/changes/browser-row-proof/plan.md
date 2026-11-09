@@ -316,20 +316,20 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Automated
 
-- [x] 2.1 Reasons reach every output: `node --test --test-name-pattern="unproven why reaches outputs" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 2.2 The report marks browser rows: `node --test --test-name-pattern="manual checks report marks browser rows" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 2.3 The earlier output and report tests pass unchanged: `node --test --test-name-pattern="manual unproven reaches outputs|manual not proved reaches outputs|manual checks report section" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 2.4 The suite stays green: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 2.1 Reasons reach every output: `node --test --test-name-pattern="unproven why reaches outputs" skills/10x-pipeline/test/manualverify.test.mjs` passes — d9b6e2e
+- [x] 2.2 The report marks browser rows: `node --test --test-name-pattern="manual checks report marks browser rows" skills/10x-pipeline/test/manualverify.test.mjs` passes — d9b6e2e
+- [x] 2.3 The earlier output and report tests pass unchanged: `node --test --test-name-pattern="manual unproven reaches outputs|manual not proved reaches outputs|manual checks report section" skills/10x-pipeline/test/manualverify.test.mjs` passes — d9b6e2e
+- [x] 2.4 The suite stays green: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes — d9b6e2e
 
 ### Phase 3: Templates and prompt file
 
 #### Automated
 
-- [ ] 3.1 Rendered prompts: `node --test --test-name-pattern="manual verify prompts" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 3.2 Browser rows reach the prompt: `node --test --test-name-pattern="browser rows in the prompt" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [ ] 3.3 Rule form: `node --test skills/10x-pipeline/test/rules.test.mjs` passes
-- [ ] 3.4 Skill checks: `node --test skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` passes
-- [ ] 3.5 Provenance and the rest: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 3.1 Rendered prompts: `node --test --test-name-pattern="manual verify prompts" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 3.2 Browser rows reach the prompt: `node --test --test-name-pattern="browser rows in the prompt" skills/10x-pipeline/test/manualverify.test.mjs` passes
+- [x] 3.3 Rule form: `node --test skills/10x-pipeline/test/rules.test.mjs` passes
+- [x] 3.4 Skill checks: `node --test skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` passes
+- [x] 3.5 Provenance and the rest: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
 
 #### Manual
 
