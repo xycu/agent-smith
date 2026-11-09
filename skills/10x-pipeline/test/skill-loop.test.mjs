@@ -35,7 +35,7 @@ function branch(name) {
 const NEEDLES = [
   ["run_in_background", "launch notice", "end its turn"],
   ["without `usage`", "`next`", "same turn"],
-  ["**MUST NOT**", "rewrite", "result file"],
+  ["**MUST**", "`usage`", "result file", "drop"],
   ["done", "archive", "halt", "still running"],
   ["tool output", "nothing is running"],
   ["did not launch", "**MUST NOT**", "result file", "`next`", "own report"],
@@ -123,4 +123,28 @@ test("done, archive and halt run the pull request step before the PR comment ste
   assert.ok(!archive.slice(0, archive.indexOf("\n  5. ")).includes("PR comment step"), "the PR comment step is still before the move");
   const halt = branch("halt");
   assert.match(halt, /Before you STOP, do the pull request step\. Then call TaskList\./);
+});
+
+// ---- Late usage figure (ADR-019) -------------------------------------------------------------
+
+test("done and halt call usage before the pull request step, and archive step 1 calls it before the subagent launch", () => {
+  for (const name of ["done", "halt"]) {
+    const text = branch(name);
+    const call = text.indexOf("node $ROUTER usage <change-id> <n> --tokens N --tool-uses N --duration-ms N");
+    assert.ok(call >= 0, `${name} has no usage call`);
+    assert.ok(call < text.indexOf("do the pull request step"), `${name}: the usage call is not before the pull request step`);
+    assert.match(text, /Usage: step <n> <attached\|not attached>/);
+    assert.match(text, /no `orchestrator-error` result/);
+  }
+  const archive = branch("archive");
+  const call = archive.indexOf("node $ROUTER usage <change-id> <n> --tokens N");
+  assert.ok(call >= 0, "archive has no usage call");
+  assert.ok(call < archive.indexOf("node $ROUTER status"), "the usage call is not before status");
+  assert.ok(call < archive.indexOf("\n  3. Call the Agent tool"), "the usage call is not before the archive subagent launch");
+  assert.match(archive, /A figure that arrives after step 3 has launched the archive subagent is dropped\./);
+});
+
+test("the run branch points at rule 3 for a figure that arrives after next, and the Rules name usage as the one way in", () => {
+  assert.match(branch("run"), /rule 3 of the anti-stall rules covers one that arrives after `next`/);
+  assert.match(sectionOf("## Rules"), /`usage` command is the only way to add a usage figure to a logged step/);
 });

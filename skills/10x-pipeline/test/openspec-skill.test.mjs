@@ -92,7 +92,7 @@ test("every router command line carries --chain openspec", () => {
     // Each `node $ROUTER` occurrence on the line is followed by --chain openspec before the closing backtick.
     for (const m of line.matchAll(/node \$ROUTER[^`]*/g)) assert.match(m[0], /--chain openspec/, line);
   }
-  for (const cmd of ["init", "next", "status", "verify-archive"]) {
+  for (const cmd of ["init", "next", "status", "usage", "verify-archive"]) {
     assert.ok(calls.some((l) => l.includes(`node $ROUTER ${cmd} `)), `no ${cmd} call`);
   }
   assert.ok(calls.some((l) => /verify-archive <change-name> --chain openspec --path <archivePath>/.test(l)), "verify-archive with --path");
@@ -184,4 +184,17 @@ test("done, archive and halt run the pull request step before the PR comment ste
   assert.ok(step5.indexOf("do the pull request step") < step5.indexOf("On `archived: false`"), "pull request step after the STOP of archived: false");
   assert.ok(!archive.slice(0, archive.indexOf("\n  5. ")).includes("PR comment step"), "the PR comment step is still before the move");
   assert.match(branch("halt"), /Before you STOP, do the pull request step\. Then call TaskList\./);
+});
+
+test("done, halt and archive call usage with --chain openspec before the pull request step or the archive subagent launch", () => {
+  const call = "node $ROUTER usage <change-name> <n> --tokens N --tool-uses N --duration-ms N --chain openspec";
+  for (const name of ["done", "halt"]) {
+    const text = branch(name);
+    assert.ok(text.includes(call), `${name} has no usage call`);
+    assert.ok(text.indexOf(call) < text.indexOf("do the pull request step"), `${name}: usage call after the pull request step`);
+  }
+  const archive = branch("archive");
+  assert.ok(archive.includes(call), "archive has no usage call");
+  assert.ok(archive.indexOf(call) < archive.indexOf("\n  3. Call the Agent tool"), "usage call after the archive subagent launch");
+  assert.match(archive, /A figure that arrives after step 3 has launched the archive subagent is dropped\./);
 });
