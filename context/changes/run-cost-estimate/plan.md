@@ -281,11 +281,11 @@ None. No prices by default, no new file, no change to `run.jsonl` or `meta.json`
 
 #### Automated
 
-- [x] 3.1 With the shipped policy the `compare` JSON has `cost: null` on both sides and the Markdown has no cost row: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 3.2 With prices set, both sides carry `cost` with the exact USD, `priced`, `withFigures` and per-alias USD, and the Markdown prints the rows: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 3.3 `verdict`, `comparable`, `reasons` and `dropPercent` are identical with and without prices, including a pair that is not comparable: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 3.4 An unpriced alias on a side gives `cost-incomplete:<side>` and does not change `comparable`: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 3.5 Existing compare tests stay green: `node --test skills/10x-pipeline/test/compare.test.mjs`
+- [x] 3.1 With the shipped policy the `compare` JSON has `cost: null` on both sides and the Markdown has no cost row: `node --test skills/10x-pipeline/test/cost.test.mjs` — c58b6cc
+- [x] 3.2 With prices set, both sides carry `cost` with the exact USD, `priced`, `withFigures` and per-alias USD, and the Markdown prints the rows: `node --test skills/10x-pipeline/test/cost.test.mjs` — c58b6cc
+- [x] 3.3 `verdict`, `comparable`, `reasons` and `dropPercent` are identical with and without prices, including a pair that is not comparable: `node --test skills/10x-pipeline/test/cost.test.mjs` — c58b6cc
+- [x] 3.4 An unpriced alias on a side gives `cost-incomplete:<side>` and does not change `comparable`: `node --test skills/10x-pipeline/test/cost.test.mjs` — c58b6cc
+- [x] 3.5 Existing compare tests stay green: `node --test skills/10x-pipeline/test/compare.test.mjs` — c58b6cc
 
 #### Manual
 
@@ -295,6 +295,6 @@ None. No prices by default, no new file, no change to `run.jsonl` or `meta.json`
 
 #### Automated
 
-- [ ] 4.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 4.2 Version fields still agree: `node tools/version-check.mjs`
-- [ ] 4.3 `SKILL.md` of both chains still names no model, effort or tier beyond what it did (skill tests): `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
+- [x] 4.1 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 4.2 Version fields still agree: `node tools/version-check.mjs`
+- [x] 4.3 `SKILL.md` of both chains still names no model, effort or tier beyond what it did (skill tests): `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`

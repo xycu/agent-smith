@@ -72,7 +72,7 @@ Override any policy key per project in `context/foundation/agent-smith-policy.js
 { "score": { "minRigor": null }, "manualVerify": { "minRigor": null } }
 ```
 
-That example turns off the complexity score and the manual-check step. Defaults are in `skills/10x-pipeline/policy.json`.
+That example turns off the complexity score and the manual-check step. Defaults are in `skills/10x-pipeline/policy.json`. To see a dollar estimate in `report.md`, `status` and `compare`, set `prices.usdPerMillionTokens` per model alias (for example `{ "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2 } } }`); it is off by default and uses a blended rate (see [the reference](docs/REFERENCE.md)).
 
 ## Opt-in features
 

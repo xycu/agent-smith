@@ -43,6 +43,7 @@ Rules for the command, written as scenarios (the form of ADR-004):
 - Orchestrator-session tokens are on neither side. Retries and failed steps are counted, because a run that halted is not comparable instead of being dropped.
 - The result is only as good as the usage figures the orchestrator passes. The first live check saw them in the Agent completion notice (`subagent_tokens`, `tool_uses`, `duration_ms`); the foreground orchestrator path is still to be re-checked in a live session (plan row 1.8).
 - The baseline checkout holds the only copy of its `run.jsonl`. The user keeps the worktree until `compare` has run.
+- 2026-11-09 (run-cost-estimate): `compare` can also print a money estimate per side when the project that runs it sets `prices.usdPerMillionTokens`. It sits on top of the raw tokens: one blended USD rate per model alias, because the host reports one `totalTokens` per step with no input/output split. It never enters `comparable`, `reasons`, `dropPercent` or the verdict, which stay on raw tokens.
 
 ## Alternatives considered
 
