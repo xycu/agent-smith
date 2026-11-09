@@ -2,7 +2,7 @@
 
 Goal: Implement ADR-013 as scoped in change.md. First run the four checks under 'To be researched' and save evidence, then build the chain switch, the openspec-pipeline skill and its tests.
 Rigor: thorough (hot paths .claude-plugin/marketplace.json, .claude-plugin/plugin.json, skills/10x-pipeline/policy.json +1)
-Outcome: halt - Step 9 (impl-review) needs a human: Remove commit db62b3c 'chore(foo): start run' from agent-smith/openspec-pipeline (it sits between fadb348 and the fix commit 116360a; e.g. git rebase --onto fadb348 db62b3c after setting aside the uncommitted run.jsonl) and delete the stray folder context/changes/foo/; my git reset was denied.
+Outcome: done - impl review NEEDS ATTENTION
 
 | # | Step | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -15,8 +15,9 @@ Outcome: halt - Step 9 (impl-review) needs a human: Remove commit db62b3c 'chore
 | 7 | manual-verify | sonnet | medium | 2 | no | ok (c90e71a) | - |
 | 8 | manual-verify | sonnet | high | 3 | no | ok (fadb348) | - |
 | 9 | impl-review | opus | high | 5 | no | failed | - |
+| 10 | impl-review | opus | xhigh | 6 | no | ok (65ae550) | - |
 
-Steps: 9 · Tokens: 235984 (figures for 2 of 9 steps)
+Steps: 10 · Tokens: 235984 (figures for 2 of 10 steps)
 
 ## Rolled-back steps
 
@@ -31,6 +32,7 @@ Counts as recorded when each review step ended; later edits of a review file are
 
 - step 4 plan-review: REVISE, 1 critical, 3 warnings measured; 0 critical, 0 warnings open
 - step 9 impl-review: NEEDS ATTENTION, 0 critical, 3 warnings measured; 0 critical, 0 warnings open
+- step 10 impl-review: NEEDS ATTENTION, 0 critical, 3 warnings measured; 0 critical, 0 warnings open
 
 ## Manual checks
 
@@ -57,3 +59,10 @@ Tier shifts (cognitive moves plan, execution moves implement; one rung each):
 - plan +1 (step 3)
 - implement +1 (step 5)
 - implement +1 (step 6)
+
+## Lesson candidates
+
+Candidates from the implementation review. Run a command yourself; the pipeline never runs `/10x-lesson`.
+
+- `/10x-lesson Always check the live and archived folders of every chain before the router decides which chain owns a change name.` (step 10)
+- `/10x-lesson Never read a verdict file as cleaner than its listed findings; take the larger of the header count and the listed items.` (step 10)
