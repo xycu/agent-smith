@@ -40,5 +40,10 @@
       "advisor.enabled": false,
       "chain": "openspec"
     }
+  },
+  "startCommit": "8ac21959d3d91b7a9bc1e30a2e1d4d2bd4533d42",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain"
   }
 }
