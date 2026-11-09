@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.0](https://github.com/xycu/agent-smith/compare/v1.3.0...v1.4.0) (2026-11-09)
+
+
+### Features
+
+* **no-recursive-delete:** put the deletion rule in the text agents follow (p3) ([8bb5ece](https://github.com/xycu/agent-smith/commit/8bb5eceebb8787a5fd839be8d086bc105a4c5c67))
+* **no-recursive-delete:** the removeTree helper (p1) ([cb4ffd2](https://github.com/xycu/agent-smith/commit/cb4ffd2bb2840f979c5af3f990b96ea97462bf39))
+
+
+### Bug Fixes
+
+* **no-recursive-delete:** keep removeTree inside its target and catch bare delete calls ([52ca1b9](https://github.com/xycu/agent-smith/commit/52ca1b9784fb583133c2c038b99aeed30ecd97ca))
+* **open-pr:** delete the temporary body folder with removeTree ([f0eba6b](https://github.com/xycu/agent-smith/commit/f0eba6be6e2d88fc7c8d2a421a7c776b34d3d3ad))
+* **test:** allow "block" in the delete guard only as the ban's reason phrase ([1a301e1](https://github.com/xycu/agent-smith/commit/1a301e1645f0a26b01de043e1e6e2c6181eb47d5))
+* **test:** let cleanupAll try every scratch folder before it throws ([1049f47](https://github.com/xycu/agent-smith/commit/1049f47906668f6e56c7d09f5f3d5505af6a06f4))
+* **test:** match ban and forbid as whole words in the delete guard ([9e9f018](https://github.com/xycu/agent-smith/commit/9e9f018ef403f693768730401f9771b1f1b39c50))
+
 ## [1.3.0](https://github.com/xycu/agent-smith/compare/v1.2.0...v1.3.0) (2026-11-09)
 
 
