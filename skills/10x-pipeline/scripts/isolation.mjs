@@ -77,7 +77,8 @@ function provenanceSections(policy) {
 }
 
 // The flags in force. A flag the policy lacks or malforms reads false; archive and chrome come from meta.json, and chrome
-// records the effective setting: on unless meta.chrome is false.
+// records the effective setting: on unless meta.chrome is false. `chain` is added only when meta.chain is set, so the
+// flags of a 10x run keep their keys.
 function provenanceFlags(policy, meta) {
   const minRigor = isObject(policy.score) ? policy.score.minRigor : null;
   return {
@@ -86,6 +87,7 @@ function provenanceFlags(policy, meta) {
     "score.minRigor": typeof minRigor === "string" ? minRigor : null,
     "agents.restricted": isObject(policy.agents) && policy.agents.restricted === true,
     "advisor.enabled": isObject(policy.advisor) && policy.advisor.enabled === true,
+    ...(typeof meta.chain === "string" ? { chain: meta.chain } : {}),
   };
 }
 
@@ -238,9 +240,10 @@ const ISOLATION_OFF = '{ "isolation": { "require": false } } in context/foundati
 export const isolationOn = (policy) => isObject(policy.isolation) && policy.isolation.require === true;
 
 // The isolation checks of init, all reads. Returns the short branch name, or halts and writes nothing.
+// `chain` picks the router files git must not ignore (ignoredProbePaths).
 // A linked worktree has a git dir that differs from the common dir; both are compared as absolute paths, because
 // from a subdirectory of the main checkout the plain forms differ as strings (/abs/.git and ../.git).
-export function isolationCheck(id, policy, prev, fresh) {
+export function isolationCheck(id, policy, prev, fresh, chain = "10x") {
   const c = policy.isolation;
   const timeout = c.gitTimeoutMs;
   const g = (args) => runGit(args, { timeout });
@@ -268,7 +271,7 @@ export function isolationCheck(id, policy, prev, fresh) {
   if (defaults.includes(branch)) stop(`Branch ${branch} is a default branch; run isolation needs a run branch of its own.`);
   const prefix = typeof c.branchPrefix === "string" ? c.branchPrefix : "agent-smith/";
   if (!branch.startsWith(prefix)) stop(`Branch ${branch} does not start with ${prefix}; run isolation needs the run branch ${prefix}${id}.`);
-  const ignored = ignoredProbePaths(id, { timeout });
+  const ignored = ignoredProbePaths(id, { timeout, chain });
   if (ignored.length) stop(`Run isolation needs git to track the change folder, but git ignores ${ignored.join(", ")}. Fix .gitignore.`);
   if (prev.isolated === true && typeof prev.branch === "string" && prev.branch !== branch) {
     stop(`This run started on branch ${prev.branch} and HEAD is on ${branch}; resume it on ${prev.branch}.`);
@@ -364,7 +367,8 @@ export function startCommit(p, id, meta, policy) {
   if (unsafe) stop(unsafe);
   const message = isolationMessage(policy, "startMessage", { id });
   if (message === null) stop("policy.isolation.commit.startMessage must be a non-blank string.");
-  const res = routerCommit(g, timeout, { rel: `context/changes/${id}`, message });
+  const rel = p.chain === "openspec" ? `openspec/changes/${id}` : `context/changes/${id}`;
+  const res = routerCommit(g, timeout, { rel, message });
   if (res.commit !== undefined) {
     meta.startCommit = res.commit;
     fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
@@ -398,7 +402,11 @@ export function stepCommit(p, id, meta, log, policy) {
 }
 
 // The files whose times decide compares while no plan or plan-review step is logged, keyed as in before.mtimes.
-const timedFiles = (p) => ({ plan: p.plan, planReview: p.planReview, implReview: p.implReview });
+// Only paths the chain has: an OpenSpec run has no plan or review files and reads tasks.md and verify.md instead.
+const timedFiles = (p) => Object.fromEntries(Object.entries({
+  plan: p.plan, planReview: p.planReview, implReview: p.implReview,
+  ...(p.chain === "openspec" ? { tasks: p.tasks, verify: p.verify } : {}),
+}).filter(([, file]) => typeof file === "string"));
 export const fileTimes = (p) => Object.fromEntries(Object.entries(timedFiles(p)).map(([key, file]) => [key, mtime(file)]));
 
 // Sets each file that exists and has a recorded time above 0 back to that time (fs.utimesSync, no git).

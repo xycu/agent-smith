@@ -28,7 +28,9 @@ const RULE_LINES = ADVISOR_SOURCE.split("\n").filter((line) => line.includes("**
 const ON = { advisor: { enabled: true } };
 const LISTED = ["plan", "implement", "implement-segment"];
 // Keys of policy.prompts that are not the template of a step: the suffix, the advisor rules and the frame authority line.
-const NOT_TEMPLATES = ["suffix", "advisor", "frame-authority", "worktree"];
+const NOT_TEMPLATES = ["suffix", "advisor", "frame-authority", "worktree",
+  // The OpenSpec chain (ADR-013) carries no advisor text: its templates are not in advisor.templates.
+  "os-propose", "os-apply", "os-apply-fix", "os-verify", "os-archive"];
 const HEX16 = /^[0-9a-f]{16}$/;
 const BOLD_KEYWORD = /\*\*(MUST NOT|MUST|SHOULD NOT|SHOULD|MAY)\*\*/g;
 const BARE_KEYWORD = /\b(MUST|SHOULD|MAY|SHALL|REQUIRED|RECOMMENDED|OPTIONAL)\b/;

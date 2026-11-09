@@ -33,6 +33,11 @@ const PINS = {
   frame: { base: ["opus", "high"], min: ["opus", "high"], max: ["opus", "high"] },
   "manual-verify": { base: ["sonnet", "medium"], min: ["sonnet", "medium"], max: ["opus", "xhigh"] },
   score: { base: ["haiku", "low"], min: ["haiku", "low"], max: ["sonnet", "low"] },
+  // The OpenSpec steps (ADR-013 D9) run on the pins of the 10x step each one mirrors.
+  "os-propose": { base: ["opus", "high"], min: ["sonnet", "medium"], max: ["opus", "max"] },
+  "os-apply": { base: ["sonnet", "high"], min: ["sonnet", "medium"], max: ["opus", "max"] },
+  "os-verify": { base: ["sonnet", "high"], min: ["sonnet", "medium"], max: ["opus", "xhigh"] },
+  "os-archive": { base: ["sonnet", "high"], min: ["sonnet", "high"], max: ["sonnet", "high"] },
 };
 
 // The rungs of the 7-rung ladder, for the check that an effort-ordered ladder adds no skip note.
