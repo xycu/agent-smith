@@ -16,7 +16,7 @@ import { finishRun, endRun, promptText } from "./flow.mjs";
 // plugin's agent definitions and the flags in force. Recorded once in meta.json and read by compare. Every input is
 // only read; computing the record never throws, so it never halts init or next.
 const PLUGIN_ROOT = path.resolve(SKILL_DIR, "../..");
-const PROVENANCE_DEFAULTS = { ignore: ["compare", "provenance"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } };
+const PROVENANCE_DEFAULTS = { ignore: ["compare", "provenance", "prices"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } };
 
 // The provenance block of the policy. A list that is not an array of strings reads as the shipped default.
 export function provenanceConfig(policy) {

@@ -85,7 +85,7 @@ function copyRecord(copy, policy = null) {
 // ---- 1.1 the record --------------------------------------------------------------------
 
 test("1.1 policy.json ships the provenance block", () => {
-  assert.deepEqual(DEFAULT.provenance, { ignore: ["compare", "provenance"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } });
+  assert.deepEqual(DEFAULT.provenance, { ignore: ["compare", "provenance", "prices"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } });
 });
 
 test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except the ignored ones, prompts, agentFiles and flags", () => {
@@ -93,9 +93,9 @@ test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except t
   assert.deepEqual(Object.keys(rec).sort(), ["flags", "plugin", "schemaVersion", "sections"]);
   assert.equal(rec.schemaVersion, 1);
   assert.equal(rec.plugin, PLUGIN.version);
-  const want = [...Object.keys(DEFAULT).filter((k) => k !== "compare" && k !== "provenance"), "agentFiles"].sort();
+  const want = [...Object.keys(DEFAULT).filter((k) => k !== "compare" && k !== "provenance" && k !== "prices"), "agentFiles"].sort();
   assert.ok(want.includes("prompts"));
-  assert.deepEqual(Object.keys(rec.sections), want, "every section but compare and provenance, sorted");
+  assert.deepEqual(Object.keys(rec.sections), want, "every section but compare, provenance and prices, sorted");
   for (const [name, hash] of Object.entries(rec.sections)) {
     if (name === "agentFiles") assert.ok(hash === null || HEX16.test(hash), `agentFiles ${hash}`);
     else assert.match(hash, HEX16, name);
@@ -462,4 +462,20 @@ test("1.6 records the real router writes: the pinned baseline file differs only 
   assert.notEqual(scorerOn.sections.score, scorerOff.sections.score);
   assert.deepEqual(pair(scorerOn, scorerOff, ["--unpinned"]), ["baseline-unpinned"]);
   assert.deepEqual(pair(scorerOn, scorerOff), []);
+});
+
+// ---- prices are display-only (run-cost-estimate 1.3) -------------------------------------
+
+test("1.3 a run with an override that sets prices records no prices section, and compare gives no provenance-differs:prices", () => {
+  const priced = freshRecord({ prices: { usdPerMillionTokens: { opus: 30, sonnet: 6, haiku: 2 } } });
+  const plain = freshRecord();
+  assert.equal(Object.hasOwn(priced.sections, "prices"), false);
+  assert.deepEqual(priced, plain, "a price changes no hash and no flag");
+  const otherPrices = freshRecord({ prices: { usdPerMillionTokens: { sonnet: 3 } } });
+  const routed = side({ meta: { provenance: priced } });
+  const baseline = side({ totals: [1000], meta: { provenance: otherPrices } });
+  const res = compare(routed, baseline);
+  assert.equal(res.status, 0, res.stdout);
+  assert.deepEqual(res.json.warnings, []);
+  assert.ok(!res.json.warnings.some((w) => w.includes("prices")));
 });

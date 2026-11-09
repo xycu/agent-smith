@@ -96,8 +96,9 @@
   "compare": {
     "targetDropPercent": null
   },
+  "prices": null,
   "provenance": {
-    "ignore": ["compare", "provenance"],
+    "ignore": ["compare", "provenance", "prices"],
     "expected": { "pinned": ["ladder", "rigor", "score"], "unpinned": ["score"] }
   },
   "agents": {
