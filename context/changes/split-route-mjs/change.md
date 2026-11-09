@@ -1,7 +1,7 @@
 ---
 change_id: split-route-mjs
 title: Split route.mjs and the 1000-line test files into smaller modules
-status: implementing
+status: implemented
 created: 2026-11-09
 updated: 2026-11-09
 archived_at: null

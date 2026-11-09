@@ -399,7 +399,7 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [x] 7.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 7.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — d0a2f42
 - [x] 7.2 `node tools/version-check.mjs` exits 0
 - [x] 7.3 `grep -n "route.mjs" AGENTS.md skills/10x-pipeline/SKILL.md` shows no stale claim about where `tierFor`, `decide` or policy loading live
 
