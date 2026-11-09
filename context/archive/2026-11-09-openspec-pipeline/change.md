@@ -1,10 +1,10 @@
 ---
 change_id: openspec-pipeline
 title: OpenSpec chain as a second pipeline skill on the shared router
-status: impl_reviewed
+status: archived
 created: 2026-11-09
 updated: 2026-11-09
-archived_at: null
+archived_at: 2026-11-09T23:08:22Z
 ---
 
 ## Notes
