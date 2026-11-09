@@ -9,7 +9,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const USAGE = "usage: node pr-comment.mjs <change-id> [--report <path>] [--timeout-ms <n>]";
+const USAGE = "usage: node pr-comment.mjs <change-id> [--report <path>] [--pr <url>] [--timeout-ms <n>]";
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
 const DEFAULT_TIMEOUT_MS = 20000;
 const GH_HOST = "github.com";
@@ -23,13 +23,14 @@ export const COMMENT_JQ = ".[] | {id: .id, login: .user.login, head: ((.body // 
 class UsageError extends Error {}
 
 function parseArgs(argv) {
-  const opts = { id: null, report: null, timeoutMs: DEFAULT_TIMEOUT_MS };
+  const opts = { id: null, report: null, pr: null, timeoutMs: DEFAULT_TIMEOUT_MS };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === "--report" || a === "--timeout-ms") {
+    if (a === "--report" || a === "--pr" || a === "--timeout-ms") {
       const value = argv[++i];
       if (value === undefined) throw new UsageError(`${a} needs a value`);
       if (a === "--report") opts.report = value;
+      else if (a === "--pr") opts.pr = value;
       else if (/^\d+$/.test(value) && Number(value) > 0) opts.timeoutMs = Number(value);
       else throw new UsageError("--timeout-ms must be a positive integer");
     } else if (a.startsWith("-")) {
@@ -47,6 +48,10 @@ function parseArgs(argv) {
     if (path.basename(resolved) !== "report.md" || path.basename(path.dirname(resolved)) !== "agent-smith") {
       throw new UsageError("--report must name a file report.md inside a directory agent-smith");
     }
+  }
+  if (opts.pr !== null) {
+    const m = PR_URL_RE.exec(opts.pr);
+    if (!m || m[0] !== opts.pr || m[1] !== GH_HOST) throw new UsageError("--pr must be a pull request url https://github.com/<owner>/<repo>/pull/<n>");
   }
   return opts;
 }
@@ -112,7 +117,8 @@ function readReport(opts) {
 }
 
 function findPullRequest(opts) {
-  const view = runGh(["pr", "view", "--json", "number,url,state,isDraft"], opts.timeoutMs);
+  // With --pr the pull request is named by url: a run branch has no upstream config, so the argument-less form may not find it.
+  const view = runGh(["pr", "view", ...(opts.pr !== null ? [opts.pr] : []), "--json", "number,url,state,isDraft"], opts.timeoutMs);
   if (view.missing) return { skip: "gh is not installed" };
   if (view.timedOut) return { skip: "gh timed out" };
   if (view.status !== 0) {
