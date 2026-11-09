@@ -62,7 +62,7 @@ Put the ban in the suffix and the "same subagent" rule in the templates that run
 
 **Intent**: Add one rule line that forbids the `Agent` tool and any nested subagent, for every step. It overrides skills that delegate.
 
-**Contract**: One `**GIVEN** ... **WHEN** ... **THEN** you **MUST NOT** ...` line, placed after the two deletion rules and before the `Finish your reply with exactly one line` instruction, so the `RESULT:` instructions stay last. One bold keyword. It names the `Agent` tool (and may name the older `Task` tool) and the reason in plain words. It names no model, effort or tier.
+**Contract**: One `**GIVEN** ... **WHEN** ... **THEN** you **MUST NOT** ...` line, placed after the two deletion rules and before the `Finish your reply with exactly one line` instruction, so the `RESULT:` instructions stay last. One bold keyword. It names the `Agent` tool (and may name the older `Task` tool) and the reason in plain words. It names no model, effort or tier. It speaks of subagents and the `Agent`/`Task` tools only; it does not forbid the advisor tool (`prompts/advisor.md`), `Read`, `Grep` or `Glob`, and it must not read as if it did.
 
 #### 2. Implement templates
 
@@ -94,7 +94,7 @@ Put the ban in the suffix and the "same subagent" rule in the templates that run
 
 **Intent**: Keep the doc true. The opening paragraph already says the suffix carries the deletion rule; add the nesting rule to it, and change the `research-with-map.md` row if its description says "subagents".
 
-**Contract**: Prose only; no new table row, because no new prompt file is added.
+**Contract**: Prose only; no new table row, because no new prompt file is added. The `Not wired` row of `refactor-opportunities-research.md` gets a clause in its last cell that the file asks for three exploration subagents, which `prompts.suffix` forbids, so it needs the same rewrite as `research-with-map.md` before anyone wires it. The file itself stays unedited (it is not wired), and the table keeps its three rows, so the `notWired` list pinned in `preplan.test.mjs` stays equal.
 
 #### 6. New test file
 
@@ -103,6 +103,14 @@ Put the ban in the suffix and the "same subagent" rule in the templates that run
 **Intent**: Pin the subagent-side text and show the router delivers it.
 
 **Contract**: `node:test`, reads `policy.json` and the prompt files as the other tests do (`no-recursive-delete.test.mjs` is the model for the suffix checks). Tests: (a) the suffix has exactly one line that names the `Agent` tool with `**MUST NOT**`, it is a rule line that passes `ruleProblems`, and it comes before the `RESULT:` line; (b) the policy `implement` string, `implement-segment` and `executor-retry.md` each contain the identical "same subagent" line, and the e2e and tdd guides each contain a rule that names the skill and the `Agent` or `Task` tool; (c) `research-with-map.md` contains no `subagent` (case-insensitive) and keeps the three analysis names (`e2e trace`, `test gaps`, `blast radius`); (d) a prompt returned by the real router for an `implement` step (`init` and `next` in a scratch project from `helpers.mjs`) contains the suffix rule and the implement rule, once each; (e) no prompt text names a model, effort or tier word in the new lines.
+
+#### 7. Existing test that counts the suffix rules
+
+**File**: `skills/10x-pipeline/test/route.test.mjs` (the test "the plan prompt carries the six rules and the RESULT line with signals", lines 581-590)
+
+**Intent**: The test counts the `- **GIVEN**` lines of the plan prompt, which are the suffix rules, and asserts 6. The new suffix line makes it 7, so the whole-suite check of this phase fails unless the test changes.
+
+**Contract**: Title says seven, `assert.equal(rules.length, 7)`; the four existing `rules[0]` to `rules[3]` assertions keep their indexes because the new line sits after the two deletion rules (index 6); add one assertion that `rules[6]` matches `**MUST NOT**` and the `Agent` tool. No other change to that test.
 
 ### Success Criteria:
 
@@ -137,7 +145,7 @@ Add the sixth anti-stall rule to the 10x and OpenSpec orchestrator skills, in th
 
 **Intent**: A hand-back that comes from a subagent the orchestrator did not launch for the current step (typically one a step subagent started, or a late one of an earlier step) is never a step result. The orchestrator ignores it and keeps the report of the subagent it launched as the only result.
 
-**Contract**: One new `**GIVEN** ... **WHEN** ... **THEN** the orchestrator **MUST NOT** ...` line appended after rule 5, identical in both files. It names: a hand-back, a subagent the orchestrator did not launch for the current step, the step's own report, the result file and `next` (it writes no result file from the foreign hand-back and does not call `next` on it). One keyword. No model, effort or tier word. The intro paragraph changes so rules 1, 2, 3 and 6 are the per-step rules and the archive subagent is covered by rules 1 and 6; rules 4 and 5 stay whole-run. The new rule must not tell the orchestrator to wait with an idle turn: it sits with rule 1 (end the turn on a launch notice, continue when the step's own report arrives) and rule 4 (no idle end while a launched subagent still runs).
+**Contract**: One new `**GIVEN** ... **WHEN** ... **THEN** the orchestrator **MUST NOT** ...` line appended after rule 5, identical in both files. It names: a hand-back, a subagent the orchestrator did not launch for the current step, the step's own report, the result file and `next` (it writes no result file from the foreign hand-back and does not call `next` on it). One keyword. No model, effort or tier word. The intro paragraph changes so rules 1, 2, 3 and 6 are the per-step rules and the archive subagent is covered by rules 1 and 6; rules 4 and 5 stay whole-run. The rule also says how the orchestrator tells the two apart: a hand-back is the step's own only when it is the result of the Agent call it made for the current step, or the task notification that names that call's subagent (the agent id or description the launch notice or result gave); a hand-back that names another subagent, or none it can match to a call of this step, is foreign. The wording must not assume the orchestrator can see who a foreign hand-back's author was. The new rule must not tell the orchestrator to wait with an idle turn: it sits with rule 1 (end the turn on a launch notice, continue when the step's own report arrives) and rule 4 (no idle end while a launched subagent still runs).
 
 #### 2. Update the pinned counts and add the new needle
 
@@ -204,7 +212,7 @@ Fix the Limits note, count six rules, record ADR-018, and keep the contributor g
 
 **Intent**: Keep the ADR list and the test list true.
 
-**Contract**: The `docs/ADR/` bullet names ADR-018 with a one-clause summary; the test bullets get one entry for `nested-subagents.test.mjs`. No other line changes.
+**Contract**: The `docs/ADR/` bullet names ADR-018 with a one-clause summary; the test bullets get one entry for `nested-subagents.test.mjs`. Two existing test bullets say "five" and become false, so they change too: the `skill-loop.test.mjs` bullet ("five rules in order" becomes six) and the `archive-gate.test.mjs` bullet ("five `**GIVEN**` lines" becomes six). No other line changes.
 
 #### 4. Guard against drift in the docs
 
@@ -239,7 +247,7 @@ Fix the Limits note, count six rules, record ADR-018, and keep the contributor g
 ### Unit Tests:
 
 - New `nested-subagents.test.mjs`: suffix rule and its position, the implement, segment, retry, tdd and e2e lines, the research prompt, the two skills' sixth rule and its equality, the REFERENCE.md and ADR-018 checks.
-- Updated: `skill-loop.test.mjs`, `openspec-skill.test.mjs`, `archive-gate.test.mjs` (six rule lines, a sixth needle).
+- Updated: `skill-loop.test.mjs`, `openspec-skill.test.mjs`, `archive-gate.test.mjs` (six rule lines, a sixth needle), and `route.test.mjs` (the plan prompt carries seven suffix rules).
 
 ### Integration Tests:
 
