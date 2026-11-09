@@ -273,9 +273,9 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Automated
 
-- [x] 2.1 Neutral tests, both chains and isolation: `node --test skills/10x-pipeline/test/neutral.test.mjs`
-- [x] 2.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.3 OpenSpec scratch project `init <id> --chain openspec` and `status <id> --chain openspec` print valid JSON
+- [x] 2.1 Neutral tests, both chains and isolation: `node --test skills/10x-pipeline/test/neutral.test.mjs` — f25e01a
+- [x] 2.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — f25e01a
+- [x] 2.3 OpenSpec scratch project `init <id> --chain openspec` and `status <id> --chain openspec` print valid JSON — f25e01a
 
 #### Manual
 
@@ -286,9 +286,9 @@ A run in flight at upgrade has a pending entry without `pendingPrompt`; the neut
 
 #### Automated
 
-- [ ] 3.1 Skill content tests: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
-- [ ] 3.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.3 Version fields unchanged and valid: `node tools/version-check.mjs`
+- [x] 3.1 Skill content tests: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
+- [x] 3.2 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.3 Version fields unchanged and valid: `node tools/version-check.mjs`
 
 #### Manual
 
