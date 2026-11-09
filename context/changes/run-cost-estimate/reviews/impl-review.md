@@ -47,7 +47,7 @@ Range reviewed: `af7cca5..HEAD` (commits 4a7de12, 118dc36, c58b6cc, cddde17, plu
 - **Location**: skills/10x-pipeline/scripts/route.mjs:409 (readSide `cost.usd`), route.mjs:564 (Markdown `costCell`)
 - **Detail**: When a side has token figures but none of them is priced, `compare` gives `cost.usd: 0` and the Markdown cell `$0.00 (0 of S priced)`, while the report line reads `Cost (estimate): - (no step with a token figure has a price)` and `status` gives `usd: null`. The plan's compare contract does not say what `usd` is when nothing is priced, so this is not drift, but the three outputs treat "nothing priced" differently. The `P of S priced` count and the `cost-incomplete:<side>` warning do make the case visible.
 - **Fix**: Set `usd` to `null` when `priced` is 0 in `readSide`, and print `-` in that Markdown cell, as `status` does.
-- **Decision**: PENDING — observation only; it changes the `compare` JSON contract the plan left open, so the owner decides whether `cost.usd` should be `null` when nothing is priced.
+- **Decision**: APPLIED — owner chose `null`: `readSide` in `route.mjs` gives `cost.usd: null` when `priced` is 0 and the Markdown cell prints `-`; `cost.test.mjs` 3.4 and the `compare` bullet of `docs/REFERENCE.md` updated (uncommitted in the run worktree).
 
 ### F2 — REFERENCE cost text is a sibling paragraph, not a bullet group inside "Usage report"
 
@@ -57,4 +57,4 @@ Range reviewed: `af7cca5..HEAD` (commits 4a7de12, 118dc36, c58b6cc, cddde17, plu
 - **Location**: docs/REFERENCE.md ("Cost estimate:" paragraph after "Usage report:")
 - **Detail**: The Phase 4 contract asks for a "Cost estimate" bullet group under "Usage report" and no new headings. The text is a separate `Cost estimate:` label at the same level as `Usage report:` and `Lesson candidates:`, directly after "Usage report". It is not a Markdown heading and its content covers every point the plan lists (key, default, alias keys, blended rate, coverage wording, column, `status` and `compare` shapes, malformed block, report-time override, provenance ignore, PR comment note, baseline cost fields). The placement matches how the file labels its other topics.
 - **Fix**: Leave as is, or fold the label into "Usage report" as its last bullets.
-- **Decision**: PENDING — observation only; a placement choice with no behavior effect, left to the owner.
+- **Decision**: ACCEPTED — owner accepts the placement as is.

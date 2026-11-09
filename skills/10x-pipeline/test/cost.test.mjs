@@ -279,5 +279,7 @@ test("3.4 an unpriced alias on a side gives cost-incomplete:<side> and does not 
   assert.equal(res.comparable, true);
   const both = compare(side([["sonnet", 1_000_000]], { policy: { prices: { usdPerMillionTokens: { opus: 30 } } } }), baseline).json;
   assert.deepEqual(both.warnings, ["cost-incomplete:baseline", "cost-incomplete:routed"]);
-  assert.equal(both.routed.cost.usd, 0);
+  assert.equal(both.routed.cost.usd, null);
+  const md = compare(side([["sonnet", 1_000_000]], { policy: { prices: { usdPerMillionTokens: { opus: 30 } } } }), baseline, ["--format", "md"]).stdout;
+  assert.match(md, /Cost \(estimate\) \| - \(0 of 1 priced\) \| - \(0 of 1 priced\)/);
 });

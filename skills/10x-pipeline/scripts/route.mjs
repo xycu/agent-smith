@@ -406,7 +406,7 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
       usdByModel[model] = (usdByModel[model] ?? 0) + usd;
     }
     cost = {
-      usd: roundUsd(est.usd), priced: est.priced, withFigures: est.withFigures, unpriced: est.unpriced,
+      usd: est.priced ? roundUsd(est.usd) : null, priced: est.priced, withFigures: est.withFigures, unpriced: est.unpriced,
       byModel: Object.fromEntries(Object.entries(usdByModel).map(([m, v]) => [m, roundUsd(v)])),
     };
   }
@@ -561,7 +561,7 @@ function compareMarkdown(pair) {
   };
   // Cost rows print only when compare ran with prices; both sides are priced from the same table.
   const priced = b.cost !== null && r.cost !== null;
-  const costCell = (s) => `$${s.cost.usd.toFixed(2)} (${s.cost.priced} of ${s.cost.withFigures} priced)`;
+  const costCell = (s) => `${s.cost.usd === null ? "-" : `$${s.cost.usd.toFixed(2)}`} (${s.cost.priced} of ${s.cost.withFigures} priced)`;
   const costModels = (s) => {
     const names = Object.keys(s.cost.byModel).sort();
     return names.length ? names.map((m) => `${m} $${s.cost.byModel[m].toFixed(2)}`).join(", ") : "none";
