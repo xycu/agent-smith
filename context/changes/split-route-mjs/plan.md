@@ -376,20 +376,20 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [x] 5.1 Check script passes
-- [x] 5.2 `node --check` passes for all files
-- [x] 5.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 5.4 `git diff --stat` touches only `route.mjs` and `flow.mjs`
+- [x] 5.1 Check script passes — acf38b2
+- [x] 5.2 `node --check` passes for all files — acf38b2
+- [x] 5.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — acf38b2
+- [x] 5.4 `git diff --stat` touches only `route.mjs` and `flow.mjs` — acf38b2
 
 ### Phase 6: Extract isolation.mjs
 
 #### Automated
 
-- [ ] 6.1 Check script passes, including: no module imports `route.mjs`, imports acyclic in the fixed order
-- [ ] 6.2 `node --check` passes for all files
-- [ ] 6.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 6.4 `wc -l skills/10x-pipeline/scripts/*.mjs`: no file above about 750 lines
-- [ ] 6.5 `git diff --stat` touches only `route.mjs` and `isolation.mjs`
+- [x] 6.1 Check script passes, including: no module imports `route.mjs`, imports acyclic in the fixed order
+- [x] 6.2 `node --check` passes for all files
+- [x] 6.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 6.4 `wc -l skills/10x-pipeline/scripts/*.mjs`: no file above about 750 lines
+- [x] 6.5 `git diff --stat` touches only `route.mjs` and `isolation.mjs`
 
 #### Manual
 
