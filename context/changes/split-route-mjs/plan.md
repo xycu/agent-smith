@@ -345,10 +345,10 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [x] 2.1 Check script passes (multiset equal, imports complete, no import from `route.mjs`)
-- [x] 2.2 `node --check` passes for both files
-- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.4 `git diff --stat` touches only `route.mjs` and `state.mjs`
+- [x] 2.1 Check script passes (multiset equal, imports complete, no import from `route.mjs`) — 8ecad9e
+- [x] 2.2 `node --check` passes for both files — 8ecad9e
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 8ecad9e
+- [x] 2.4 `git diff --stat` touches only `route.mjs` and `state.mjs` — 8ecad9e
 
 #### Manual
 
@@ -358,10 +358,10 @@ None. Entry path, CLI, state files, policy and prompts unchanged; no `provenance
 
 #### Automated
 
-- [ ] 3.1 Check script passes
-- [ ] 3.2 `node --check` passes for all files
-- [ ] 3.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.4 `git diff --stat` touches only `route.mjs` and `preplan.mjs`
+- [x] 3.1 Check script passes
+- [x] 3.2 `node --check` passes for all files
+- [x] 3.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.4 `git diff --stat` touches only `route.mjs` and `preplan.mjs`
 
 ### Phase 4: Extract steps.mjs
 
