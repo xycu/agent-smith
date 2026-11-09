@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md fixes the outcome (neutral rerun, no failed attempt, cap) but leaves open how the router signals an orchestrator fault: re-emit on next vs explicit status such as orchestrator-error, and the cap value (Notes, lines 20)." },
+    "novelty": { "score": 2, "evidence": "change.md Notes: no router path reruns a logged step without a result; closest existing pattern is the failed-step rollback and retry in ADR-010, so this adapts it with a new neutral branch." },
+    "coupling": { "score": 2, "evidence": "change.md Notes line 22: router modules (route.mjs, flow.mjs, state.mjs), policy.json, and the log entry read by status, report and compare, across both chains; several modules, internal callers." },
+    "discovery": { "score": 2, "evidence": "change.md names the router and policy and the ADR, but the orchestrator SKILL.md of both chains, the run.jsonl readers in status and compare, and the tier logic in steps.mjs are not named and need a search." },
+    "volume": { "score": 3, "evidence": "change.md Notes line 22: router modules, policy.json, docs/REFERENCE.md, two SKILL.md files, a new ADR-015 and new node:test files, which is more than 10 files." },
+    "verification": { "score": 2, "evidence": "node:test suite in skills/10x-pipeline/test/ drives the router via CLI, so most routing checks exist; the neutral rerun, cap, and orchestrator-side behaviour need new tests and the orchestrator fault itself is not reproducible in tests." }
+  },
+  "unknowns": [
+    "Whether the router should re-emit the pending step on next, or accept an explicit status such as orchestrator-error (change.md line 20).",
+    "The value of the endless-loop cap for neutral reruns.",
+    "How the log entry, status and report.md should label a neutral rerun (change.md line 20)."
+  ],
+  "confidence": "medium"
+}
