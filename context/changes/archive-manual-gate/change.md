@@ -1,7 +1,7 @@
 ---
 change_id: archive-manual-gate
 title: Archive only with no manual tasks left, else ask a yes/no decision
-status: new
+status: planned
 created: 2026-11-09
 updated: 2026-11-09
 archived_at: null
