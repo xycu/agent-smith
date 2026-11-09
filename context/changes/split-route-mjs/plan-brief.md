@@ -21,7 +21,7 @@ One file, no exports, `main()` runs on import, one mutable binding (`undoOnError
 | --- | --- | --- | --- |
 | Layout | 5 modules + entry, siblings of `route.mjs` | Keeps `SKILL_DIR` valid and plugin-tree copies working | Research |
 | Entry content | `undoOnError`, `next`, commands, `main` stay in `route.mjs` | ES modules cannot assign imported bindings; avoids a setter | Research |
-| Moved items | `isObject`, `halt`, `scoreConfig`, `ARTIFACT_NAME`, `e2eSetup` relocate | Removes back-edges so the graph is acyclic | Research |
+| Moved items | `isObject`, `halt`, `scoreConfig`, `ARTIFACT_NAME`, `e2eSetup` relocate; `COMMIT_EXISTS` (orig. 2811) goes to `isolation.mjs` with `archiveDone` | Removes back-edges so the graph is acyclic | Research; plan review F1 |
 | Tests over 1000 lines | Left alone | Saves no lines, edits the oracle | Research (assumed, owner undecided) |
 | Ponytail merges | Deferred to a follow-up | ~2% of file, each risks output change | Research |
 | Verification | Suite per step plus out-of-repo check script; widen `gh` guard first | Catches forgotten imports on untested paths | Research |

@@ -40,6 +40,8 @@ A throw-away check script lives in the scratchpad, outside the repo, and runs af
 2. Import completeness: every name declared at top level in another module and used as a whole word (comments and string literals stripped) must be in the `import { … }` list; imports only from earlier modules, never from `route.mjs`.
 3. `node --check` on each file.
 
+Scope of the `git diff --stat` and "touches only" criteria: this run is isolated, so the router keeps `context/changes/split-route-mjs/agent-smith/run.jsonl` and `meta.json` modified in the worktree and commits the change folder (with the Progress ticks in `plan.md`) after each step. Read every such criterion as the diff of the phase's own work outside the change folder: `git diff --stat <phase start>..HEAD -- . ':(exclude)context/changes/split-route-mjs'` (plus the uncommitted part, `git diff --stat HEAD -- . ':(exclude)context/changes/split-route-mjs'`, before the phase commit). Files under the change folder never count against it.
+
 ## Phase 1: Widen the gh guard and capture the baseline
 
 ### Overview
@@ -54,7 +56,9 @@ Strengthen the oracle before any code moves; write the check script and its base
 
 **Intent**: The guard test at `:624-630` must check every router source file, not only the entry, so the `gh` ban survives the split.
 
-**Contract**: Test title and `policy.json` assertion kept. Source scan covers every `scripts/*.mjs` except `pr-comment.mjs`. No other test edited.
+**Contract**: `policy.json` assertion kept. The test title drops the stale file name, for example `guard: router scripts never call gh and policy.json has no prComment key` (no other file refers to the title). Source scan covers every `scripts/*.mjs` except `pr-comment.mjs`. No other test edited.
+
+**Mutant check (criterion 1.2)**: `SCRIPT` resolves from the test file's own location (`pr-comment.test.mjs:15`), so copy `skills/10x-pipeline/` whole to a scratch directory, add `scripts/x.mjs` holding `const c = "gh";` to the copy, and run `node --test --test-name-pattern guard <copy>/test/pr-comment.test.mjs`: it must fail. Never add the mutant file in the worktree.
 
 #### 2. Check script (not committed)
 
@@ -234,9 +238,9 @@ Provenance, archive adapter, isolation/commits/rollback and `archiveDone` (~615 
 
 **File**: `skills/10x-pipeline/scripts/isolation.mjs`
 
-**Intent**: Move provenance incl. `PLUGIN_ROOT` (orig. 2318-2458), archive adapter (2460-2537), isolation, commits and rollback (2539-2786), `archiveDone` (2815-2953).
+**Intent**: Move provenance incl. `PLUGIN_ROOT` (orig. 2318-2458), archive adapter (2460-2537), isolation, commits and rollback (2539-2786), `COMMIT_EXISTS` (2811-2813, used only by `archiveDone` at `:2839` and `:2917`), `archiveDone` with its leading comment (2815-2953).
 
-**Contract**: Imports from earlier modules only. `let undoOnError`, `undoRollback`, `next`, `verifyArchive`, `riskCommand`, compare, `status`, `main` stay in `route.mjs`; the `let` stays above `try { main() }` (TDZ). Remaining `route.mjs` is about 685 lines.
+**Contract**: Imports from earlier modules only. `COMMIT_EXISTS` moves with `archiveDone`; left in `route.mjs` it would force `isolation.mjs` to import the entry. `let undoOnError`, `undoRollback`, `next`, `verifyArchive`, `riskCommand`, compare, `status`, `main` stay in `route.mjs`; the `let` stays above `try { main() }` (TDZ). Remaining `route.mjs` is about 685 lines.
 
 ### Success Criteria:
 
@@ -304,7 +308,7 @@ Make the docs name where routing now lives.
 
 ### Manual Testing Steps:
 
-1. `init` and `status` in a scratch change folder: valid JSON.
+1. `init` and `status` in a scratch change folder: valid JSON. Use a scratch project outside the repository (`mktemp -d`) with `context/changes/<id>/change.md` and `context/foundation/agent-smith-policy.json` set to `{ "isolation": { "require": false } }`, as the test helpers do; without the override `init` halts at the isolation gate, which is valid JSON but exercises nothing past the gate. Run `node <worktree>/skills/10x-pipeline/scripts/route.mjs init <id> --goal "x"` then `status <id>` from that project root and pipe each through `node -e 'JSON.parse(require("fs").readFileSync(0,"utf8"))'`.
 2. Confirm `git diff --stat` per commit touches only the expected files.
 
 ## Performance Considerations
