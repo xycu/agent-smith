@@ -518,12 +518,23 @@ test("manual verify prompts", () => {
   const never = /never ends by itself or waits for input[^\n]*\*\*MUST NOT\*\* run it and you leave the row at `\[ \]`/;
   assert.match(prompt, never);
   assert.match(prompt, /\*\*MUST NOT\*\* print a plain-text question or wait for input/);
-  // The default template carries the Chrome rules.
+  // Line 1 carries the router's own list of browser rows ("none" when there is none).
+  assert.match(prompt, /^Prove the pending[^\n]*Rows rejected by the router last time: none\. Browser rows: none\n/);
+  // The shared rules: a browser row is never judged, and its unproved reason is recorded.
+  assert.match(prompt, /listed under Browser rows in the first line of this prompt \*\*WHEN\*\* you prove it \*\*THEN\*\* you \*\*MUST\*\* use `browser-`, `test-`, `command-` or `script-` evidence and never a `judgment-` file or a read of the source/);
+  assert.match(prompt, /a row other than a Browser row asks to read or judge/);
+  assert.match(prompt, /Browser rows stays at `\[ \]` \*\*WHEN\*\* you write `evidence\/unproven\.md` \*\*THEN\*\* you \*\*MUST\*\* give the reason/);
+  // The default template carries the Chrome rules: Chrome first, createIfEmpty, the calls recorded, the failure quoted.
   assert.ok(prompt.includes("ToolSearch"));
   assert.ok(prompt.includes("mcp__claude-in-chrome__*"));
-  assert.match(prompt, /as `browser-` evidence under `context\/changes\/demo\/evidence\/`/);
+  const at = (re) => prompt.search(re);
+  const order = [/one ToolSearch call that selects `tabs_context_mcp`/, /pass `createIfEmpty: true`, because without it the call finds no tab group/, /begin the `browser-` evidence file with the tool calls that ran \(tool, target, result\)/, /begin the file with `Chrome: <tool> failed: <error text>`/, /\*\*MUST NOT\*\* judge it from the source of the page or the code/];
+  const positions = order.map(at);
+  assert.ok(positions.every((n) => n >= 0), JSON.stringify(positions));
+  assert.deepEqual([...positions].sort((x, y) => x - y), positions, "the Chrome rules come in order");
+  assert.match(prompt, /call them before any other proof/);
   assert.match(prompt, /\*\*MUST NOT\*\* open a page that is neither local nor named by the row, sign in, submit a form to an external service or enter a credential/);
-  assert.match(prompt, /unavailable or the extension is not connected[^\n]*\*\*MUST NOT\*\* wait for a connection or ask for one: prove the row another way, such as a covering test, or leave it at `\[ \]`/);
+  assert.match(prompt, /unavailable, fail or are not connected[^\n]*\*\*MUST NOT\*\* wait for a connection or ask for one: prove the row by a covering test, command or script, or leave it at `\[ \]` with `- <row id> — Chrome failed: <tool>: <error text>` in `evidence\/unproven\.md`/);
 
   // --chrome false: the same rules without the Chrome tools, plus the rule that they are off.
   const off = mvProject();
@@ -534,12 +545,40 @@ test("manual verify prompts", () => {
   assert.match(np, never);
   assert.ok(np.includes("` — evidence: evidence/<name>`"));
   assert.ok(np.includes("`context/changes/demo/evidence/unproven.md`"));
-  assert.match(np, /Chrome tools are off for this run[^\n]*\*\*MUST NOT\*\* use a browser tool: prove the row another way[^\n]*`Chrome tools are off`/);
+  assert.match(np, /Chrome tools are off for this run \*\*WHEN\*\* a row needs a browser \*\*THEN\*\* you \*\*MUST NOT\*\* use a browser tool\./);
+  assert.match(np, /Chrome tools are off for this run \*\*WHEN\*\* you prove a Browser row \*\*THEN\*\* you \*\*MUST\*\* use only a covering test, command or script, and begin its evidence file with the line `Chrome: off \(--chrome false\)`; otherwise leave the row at `\[ \]` with the reason `Chrome off \(--chrome false\)` in `evidence\/unproven\.md`/);
+  assert.ok(!np.includes("createIfEmpty"));
+  assert.match(np, /Browser rows: none\n/);
 
   // After a failed attempt the retry prompt names the rejected rows.
   const retry = verifying({ manual: [A, B] });
   save(retry, [ticked(A, null), B]);
   assert.match(finish(retry).res.json.prompt, /rejected last time: 1\.2/);
+});
+
+test("browser rows in the prompt", () => {
+  // The first prompt lists the pending browser rows in plan order, in both templates.
+  const rows = [A, BR, "Check it in Chrome", B];
+  for (const extra of [[], ["--chrome", "false"]]) {
+    const project = mvProject({ manual: rows });
+    const out = start(project, "standard", extra).json;
+    assert.equal(out.step, "manual-verify");
+    assert.match(out.prompt, /Browser rows: 1\.3, 1\.4\n/, extra.join(" "));
+    assert.match(out.prompt, /rejected by the router last time: none\./);
+  }
+  // The retry lists a rejected browser row (and only the browser rows among the rejected and the pending).
+  const project = verifying({ manual: [BR, A, B] });
+  save(project, [ticked(BR, "evidence/judgment-1.2.md"), A, B]);
+  evidence(project, "judgment-1.2.md");
+  const retry = finish(project).res.json;
+  assert.equal(retry.step, "manual-verify");
+  assert.match(retry.prompt, /last time: 1\.2\. Browser rows: 1\.2\n/);
+  // A ticked row at the start is not listed: the evidence file name is not matched, and a done row is not pending.
+  const done = mvProject({ manual: [{ text: `${BR} — evidence: evidence/browser-x.txt`, done: true }, A] });
+  assert.match(start(done).json.prompt, /Browser rows: none\n/);
+  // No ToolSearch or Chrome tool name in the shared file or the nochrome prompt.
+  const shared = fs.readFileSync(new URL("../prompts/manual-verify.md", import.meta.url), "utf8");
+  assert.ok(!shared.includes("ToolSearch") && !shared.includes("mcp__claude-in-chrome__"));
 });
 
 // ---- browser rows -------------------------------------------------------------
