@@ -361,7 +361,7 @@ function run(opts) {
   if (ahead.skip) return result({ ...base0, base, reason: ahead.skip, pr: prSkip(ahead.skip), manual: manualFor(top, opts.remote, branch, base, repo) });
   if (ahead.count === 0) {
     const reason = "no commits on the run branch";
-    return result({ ...base0, base, reason, pr: prSkip(reason) });
+    return result({ ...base0, base, reason, pr: prSkip(reason), manual: `nothing to push: no commit beyond ${base}` });
   }
   const left = commitLeftovers(opts.id);
   const committed = { committed: left.committed, commit: left.commit ?? null, commitError: left.error ?? null };
@@ -394,7 +394,7 @@ function main() {
     out = run(opts);
   } catch (e) {
     const reason = `internal error: ${firstLine(e?.message) || "unknown"}`;
-    out = result({ reason, pr: prSkip(reason) });
+    out = result({ reason, pr: prSkip(reason), manual: "run the script by hand from the run root" });
   }
   process.stdout.write(`${JSON.stringify(out)}\n`);
 }
