@@ -3,6 +3,7 @@ import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
   executed, writeLog, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
+  halt,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
@@ -259,6 +260,69 @@ export function endRun(p, id, meta, log, result) {
   return out(finishRun(p, id, meta, log, result));
 }
 
+// ---- neutral rerun after an orchestrator fault ------------------------------
+
+// The result status an orchestrator writes when the fault is its own and no subagent of the step ran or still runs.
+export const ORCHESTRATOR_ERROR = "orchestrator-error";
+
+// limits.maxNeutralRetries, read tolerantly: a value that is not a non-negative integer reads as the shipped default (2);
+// 0 turns neutral reruns off, so the status then reads as any unknown status (a failed attempt).
+export function maxNeutralRetries(policy) {
+  const v = policy?.limits?.maxNeutralRetries;
+  return Number.isSafeInteger(v) && v >= 0 ? v : 2;
+}
+
+// Runs before attachResult. When the last executed entry has no result and last-result.json holds the status
+// orchestrator-error, the same entry is returned again: same n, tier, prompt, startedAt, startSha and before, so no
+// failed attempt, tier bump, rigor rise, rollback or budget use follows. At the cap the run halts. Prints and exits in
+// those cases; returns (and changes nothing) in every other case, so the caller goes on as before.
+export function neutralRetry(p, id, meta, log, policy) {
+  const ran = executed(log);
+  const last = ran[ran.length - 1];
+  if (!last || last.result || !fs.existsSync(p.result)) return;
+  const result = readJson(p.result, null);
+  if (!isObject(result) || result.status !== ORCHESTRATOR_ERROR) return;
+  const cap = maxNeutralRetries(policy);
+  if (cap === 0) return;
+  const resultFile = path.relative(ROOT, p.result);
+  // An entry logged before this feature has no stored prompt; the file stays so the orchestrator can replace it.
+  if (typeof last.pendingPrompt !== "string") {
+    halt(`Step ${last.n} (${last.step}) was logged without a stored prompt, so it cannot be rerun unchanged after an orchestrator fault. ` +
+      `Write ${resultFile} with {"status":"failed","note":"..."} to count the attempt, then run next.`);
+  }
+  const reruns = Array.isArray(last.neutralRetries) ? last.neutralRetries : [];
+  fs.rmSync(p.result);
+  if (reruns.length >= cap) {
+    return endRun(p, id, meta, log, {
+      action: "halt",
+      reason: `Step ${last.n} (${last.step}) hit its limit of ${cap} neutral reruns after orchestrator faults (limits.maxNeutralRetries). Needs a human. ` +
+        "Fix the harness, then either write a result file with the real status (the router verifies the step by its files), " +
+        "or raise limits.maxNeutralRetries in context/foundation/agent-smith-policy.json and write the orchestrator-error result file again, then run next.",
+      steps: ran.length,
+    });
+  }
+  const note = typeof result.note === "string" ? Array.from(result.note.replace(/\s+/g, " ").trim()).slice(0, 200).join("") : "";
+  last.neutralRetries = [...reruns, { at: Date.now(), note }];
+  writeLog(p.log, log);
+  // A continued run must not keep the outcome of an earlier end (as next() does before a new step).
+  if (meta.outcome) {
+    delete meta.outcome;
+    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  }
+  out({
+    action: "run",
+    n: last.n,
+    step: last.step,
+    ...(typeof last.agent === "string" ? { agent: last.agent } : {}),
+    model: last.model,
+    effort: last.effort,
+    reason: `${last.reason}; tier ${last.tier} (${last.tierWhy})`,
+    prompt: last.pendingPrompt,
+    resultFile,
+    neutralRetry: { count: last.neutralRetries.length, cap },
+  });
+}
+
 // ---- result intake + verification ---------------------------------------
 
 // Keep only non-negative safe integers. Returns null when nothing survives.
@@ -349,11 +413,17 @@ export function attachResult(p, log, policy) {
   const last = ran[ran.length - 1];
   if (!last || last.result) return;
   if (!fs.existsSync(p.result)) {
-    out({ action: "halt", reason: `Step ${last.n} (${last.step}) has no result. Write ${path.relative(ROOT, p.result)} first.` }, 1);
+    out({
+      action: "halt",
+      reason: `Step ${last.n} (${last.step}) has no result. Write ${path.relative(ROOT, p.result)} first. ` +
+        `When the fault is the orchestrator's own and no subagent of the step is running, write {"status":"${ORCHESTRATOR_ERROR}","note":"..."} to rerun the step unchanged.`,
+    }, 1);
   }
   let result = readJson(p.result, null);
   if (!result || typeof result !== "object") result = { status: "unknown", note: "unparseable result file" };
   fs.rmSync(p.result);
+  // The stored prompt is only kept while the step is pending (a neutral rerun returns it unchanged).
+  delete last.pendingPrompt;
 
   const plan = readPlan(p.plan);
   let verified;
