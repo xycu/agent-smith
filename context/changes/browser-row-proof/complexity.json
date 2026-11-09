@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (browser rows need browser, test, command or script proof); open details are the exact word list contents and the report marking wording, each with one obvious answer" },
+    "novelty": { "score": 1, "evidence": "change.md Notes: adapts existing word-list and evidenceKinds pattern in scripts/steps.mjs (MANUAL_DEFAULTS, manualVerifyOptions) and executors.e2e.rowWords in policy.json" },
+    "coupling": { "score": 2, "evidence": "change.md Fix list spans router (steps.mjs and the log entry, status, final message, archive summary, meta.outcome), policy.json, two prompts under skills/10x-pipeline/prompts/ and report.md" },
+    "discovery": { "score": 2, "evidence": "change.md names policy.json, the manual-verify templates, report.md, docs/REFERENCE.md and ADR-012; status, archive summary and meta.outcome sites are not named and need a search" },
+    "volume": { "score": 2, "evidence": "change.md Notes lists router code, two prompt templates, REFERENCE.md, an ADR, AGENTS.md and several test files, roughly 6 to 10 files" },
+    "verification": { "score": 2, "evidence": "manualverify.test.mjs and budget-executors.test.mjs exist and cover the Manual path, but new unproven-kind tests and the live Chrome check (change.md Live check) need a harness part that does not exist yet" }
+  },
+  "unknowns": [
+    "Whether a step subagent can load and call the mcp__claude-in-chrome__* tools; only a live run answers this",
+    "Exact number of router sites that show manual-verify results (status, final message, archive summary, meta.outcome) that need the new reason",
+    "Whether the attempt count or the budget test changes once a browser row is rejected"
+  ],
+  "confidence": "medium"
+}
