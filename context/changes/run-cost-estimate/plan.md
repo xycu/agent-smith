@@ -270,22 +270,22 @@ None. No prices by default, no new file, no change to `run.jsonl` or `meta.json`
 
 #### Automated
 
-- [x] 2.1 With the shipped policy `report.md` and `status` output carry no cost text or key: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 2.2 With prices set, the report has the `Cost (est.)` column, the `Cost (estimate)` line with the exact total, `priced N of M`, and `no price for:` for a missing alias: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 2.3 A step with no token figure shows `-` in the cost column and is not in `M`: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 2.4 `status` prints the top-level `cost` object and per-step `cost` when prices are set: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 2.5 An OpenSpec run (`--chain openspec`) gets the same report line and `status` object: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [x] 2.6 Existing report and status tests stay green: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/openspec-steps.test.mjs`
+- [x] 2.1 With the shipped policy `report.md` and `status` output carry no cost text or key: `node --test skills/10x-pipeline/test/cost.test.mjs` — 118dc36
+- [x] 2.2 With prices set, the report has the `Cost (est.)` column, the `Cost (estimate)` line with the exact total, `priced N of M`, and `no price for:` for a missing alias: `node --test skills/10x-pipeline/test/cost.test.mjs` — 118dc36
+- [x] 2.3 A step with no token figure shows `-` in the cost column and is not in `M`: `node --test skills/10x-pipeline/test/cost.test.mjs` — 118dc36
+- [x] 2.4 `status` prints the top-level `cost` object and per-step `cost` when prices are set: `node --test skills/10x-pipeline/test/cost.test.mjs` — 118dc36
+- [x] 2.5 An OpenSpec run (`--chain openspec`) gets the same report line and `status` object: `node --test skills/10x-pipeline/test/cost.test.mjs` — 118dc36
+- [x] 2.6 Existing report and status tests stay green: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/openspec-steps.test.mjs` — 118dc36
 
 ### Phase 3: Cost in compare
 
 #### Automated
 
-- [ ] 3.1 With the shipped policy the `compare` JSON has `cost: null` on both sides and the Markdown has no cost row: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 3.2 With prices set, both sides carry `cost` with the exact USD, `priced`, `withFigures` and per-alias USD, and the Markdown prints the rows: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 3.3 `verdict`, `comparable`, `reasons` and `dropPercent` are identical with and without prices, including a pair that is not comparable: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 3.4 An unpriced alias on a side gives `cost-incomplete:<side>` and does not change `comparable`: `node --test skills/10x-pipeline/test/cost.test.mjs`
-- [ ] 3.5 Existing compare tests stay green: `node --test skills/10x-pipeline/test/compare.test.mjs`
+- [x] 3.1 With the shipped policy the `compare` JSON has `cost: null` on both sides and the Markdown has no cost row: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 3.2 With prices set, both sides carry `cost` with the exact USD, `priced`, `withFigures` and per-alias USD, and the Markdown prints the rows: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 3.3 `verdict`, `comparable`, `reasons` and `dropPercent` are identical with and without prices, including a pair that is not comparable: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 3.4 An unpriced alias on a side gives `cost-incomplete:<side>` and does not change `comparable`: `node --test skills/10x-pipeline/test/cost.test.mjs`
+- [x] 3.5 Existing compare tests stay green: `node --test skills/10x-pipeline/test/compare.test.mjs`
 
 #### Manual
 

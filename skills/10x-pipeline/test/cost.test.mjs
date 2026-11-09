@@ -204,3 +204,80 @@ test("2.5 an OpenSpec run gets the same report line and status object", () => {
   const plainStatus = statusOf(plain, ["--chain", "openspec"]);
   assert.equal(Object.hasOwn(plainStatus, "cost"), false);
 });
+
+// ---- 3.x compare ----------------------------------------------------------------------------
+
+// A scratch project that models one checkout: executed entries [model, tokens] with usage and a done meta file.
+function side(steps, { policy = null, meta = {} } = {}) {
+  const project = makeProject({ policy });
+  writeLog(project, steps.map(([model, t], i) => entry(i + 1, i ? "implement" : "plan", {
+    model, effort: "high", usage: { totalTokens: t, toolUses: 1, durationMs: 1 },
+  })));
+  writeMetaFile(project, { id: project.id, goal: "fix typo", baseSha: "a".repeat(40), rigor: { level: "standard" }, outcome: { action: "done" }, ...meta });
+  return project;
+}
+
+// `compare` run from the routed project, whose policy holds the prices, against the baseline project.
+const compare = (routed, baseline, extra = []) => {
+  const res = run(routed, ["compare", routed.id, "--baseline", baseline.root, ...extra]);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  return res;
+};
+const verdictOf = (j) => ({ comparable: j.comparable, reasons: j.reasons, dropPercent: j.dropPercent, verdict: j.verdict, pinned: j.pinned, targetDropPercent: j.targetDropPercent });
+const SONNET_OPUS = { prices: { usdPerMillionTokens: { sonnet: 6, opus: 30 } } };
+
+test("3.1 with the shipped policy the compare JSON has cost null on both sides and the Markdown no cost row", () => {
+  const baseline = side([["sonnet", 2_000_000]]);
+  const routed = side([["sonnet", 1_000_000], ["opus", 500_000]]);
+  const json = compare(routed, baseline).json;
+  assert.equal(json.baseline.cost, null);
+  assert.equal(json.routed.cost, null);
+  const md = compare(routed, baseline, ["--format", "md"]).stdout;
+  assert.ok(!/cost/i.test(md), md);
+  assert.ok(md.includes("Verdict: target not set. Unit: raw tokens, a proxy for the weekly limit.\n"), md);
+});
+
+test("3.2 with prices set both sides carry cost with the exact USD, coverage and USD per alias, and the Markdown prints the rows", () => {
+  const baseline = side([["sonnet", 2_000_000]]);
+  const routed = side([["sonnet", 1_000_000], ["opus", 500_000]], { policy: SONNET_OPUS });
+  const json = compare(routed, baseline).json;
+  assert.deepEqual(json.baseline.cost, { usd: 12, priced: 1, withFigures: 1, unpriced: [], byModel: { sonnet: 12 } });
+  assert.deepEqual(json.routed.cost, { usd: 21, priced: 2, withFigures: 2, unpriced: [], byModel: { sonnet: 6, opus: 15 } });
+  assert.deepEqual(json.warnings, []);
+  const md = compare(routed, baseline, ["--format", "md"]).stdout;
+  assert.ok(md.includes("| Tokens | 2000000 (1 of 1) | 1500000 (2 of 2) |\n| Cost (estimate) | $12.00 (1 of 1 priced) | $21.00 (2 of 2 priced) |\n"), md);
+  assert.ok(md.includes("Tokens by tier, routed: opus/high 500000, sonnet/high 1000000\nCost by model, baseline: sonnet $12.00\nCost by model, routed: opus $15.00, sonnet $6.00\n"), md);
+  assert.ok(md.includes("Verdict: target not set. Unit: raw tokens, a proxy for the weekly limit. Cost is an estimate at a blended rate and does not enter the verdict.\n"), md);
+});
+
+test("3.3 verdict, comparable, reasons and dropPercent are identical with and without prices, also for a pair that is not comparable", () => {
+  const cases = [
+    [{}, {}],
+    [{ policy: { compare: { targetDropPercent: 20 } } }, {}],
+    [{ policy: { compare: { targetDropPercent: 50 } } }, {}],
+    [{ meta: { outcome: { action: "halt" } } }, {}],
+    [{}, { meta: { outcome: { action: "halt" } } }],
+  ];
+  for (const [r, b] of cases) {
+    const baseline = side([["sonnet", 2_000_000]], b);
+    const plain = compare(side([["sonnet", 1_000_000], ["opus", 500_000]], r), baseline).json;
+    const pricedPolicy = { ...(r.policy ?? {}), ...SONNET_OPUS };
+    const priced = compare(side([["sonnet", 1_000_000], ["opus", 500_000]], { ...r, policy: pricedPolicy }), baseline).json;
+    assert.deepEqual(verdictOf(priced), verdictOf(plain), JSON.stringify(r));
+    assert.notEqual(priced.routed.cost, null);
+  }
+});
+
+test("3.4 an unpriced alias on a side gives cost-incomplete:<side> and does not change comparable", () => {
+  const baseline = side([["sonnet", 2_000_000]]);
+  const routedSteps = [["sonnet", 1_000_000], ["haiku", 500_000]];
+  const plain = compare(side(routedSteps), baseline).json;
+  const res = compare(side(routedSteps, { policy: SONNET_OPUS }), baseline).json;
+  assert.deepEqual(res.warnings, ["cost-incomplete:routed"]);
+  assert.deepEqual(res.routed.cost, { usd: 6, priced: 1, withFigures: 2, unpriced: ["haiku"], byModel: { sonnet: 6 } });
+  assert.deepEqual(verdictOf(res), verdictOf(plain));
+  assert.equal(res.comparable, true);
+  const both = compare(side([["sonnet", 1_000_000]], { policy: { prices: { usdPerMillionTokens: { opus: 30 } } } }), baseline).json;
+  assert.deepEqual(both.warnings, ["cost-incomplete:baseline", "cost-incomplete:routed"]);
+  assert.equal(both.routed.cost.usd, 0);
+});
