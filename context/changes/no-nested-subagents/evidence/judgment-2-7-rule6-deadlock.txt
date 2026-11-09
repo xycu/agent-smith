@@ -1,0 +1,5 @@
+Row 2.7. Checked skills/10x-pipeline/SKILL.md "## Anti-stall rules", lines 82-87.
+Rule 4: "...MUST NOT end it unless a launched subagent is still running."
+Rule 1: on launch notice, "MUST end its turn and continue the Loop at step 3 when the subagent's final report arrives".
+Rule 6: "GIVEN a hand-back arrives from a subagent the orchestrator did not launch for the current step ... WHEN the current step or the archive subagent still waits for its own report THEN the orchestrator MUST NOT treat that hand-back as a step result: ... keeps the step's own report as the only result, which it handles under rules 1 and 4."
+Reasoning: while its own subagent runs, rule 4 permits ending the turn, so the orchestrator does not idle-block. Rule 6 only discards a foreign hand-back and defers to rules 1 and 4; it does not tell the orchestrator to wait for the foreign one. Foreign hand-back arrives -> ignored, turn ends (own subagent still running per rule 4); own report arrives -> rule 1 continues the Loop. No cycle: no rule requires waiting on a foreign hand-back, and none forbids ending the turn while own subagent runs. Supported.

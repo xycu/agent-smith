@@ -1,0 +1,7 @@
+Row 3.8. Scratch project in $TMPDIR (outside repo), router skills/10x-pipeline/scripts/route.mjs.
+init demo --goal "x" -> valid JSON (action run, step plan-review, 4840 chars, parsed by JSON.parse).
+status demo -> valid JSON (401 chars, parsed by JSON.parse).
+After a passing plan review (lean, APPROVED review file) next demo -> valid JSON, action run, step implement.
+Check on its prompt: nesting rule index 2041 < last "RESULT:" index 2335 -> true (before RESULT line); implement line "write that code and those fixes yourself" present -> true; prompt ends with the suffix:
+"- **GIVEN** a skill or a prompt tells you to delegate work to a subagent ... **THEN** you **MUST NOT** call the Agent tool or the Task tool or start any other subagent, and you do all of that work yourself in this subagent, ...
+Finish your reply with exactly one line. ... RESULT: {...}"

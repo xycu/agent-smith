@@ -1,0 +1,6 @@
+Row 3.7. Checked docs/REFERENCE.md lines 312 and 333, docs/ADR/ADR-018-no-nested-subagents.md, prompts executor-tdd/e2e/retry.
+REFERENCE 312: "A step subagent starts no subagent of its own (ADR-018)... The rule lives in four places: one rule in prompts.suffix...; one line in the implement and implement-segment templates and in prompts/executor-retry.md...; one line each in prompts/executor-tdd.md and prompts/executor-e2e.md...; and the sixth anti-stall rule of both orchestrator skills".
+ADR-018 Decision lists the same: suffix rule, implement/segment/retry templates, tdd/e2e guides, research-with-map rewritten, sixth rule of Anti-stall section in both skills.
+REFERENCE 333 describes the foreign hand-back rule matching SKILL.md rule 6 ("neither the result of the Agent call ... nor a task notification that names that call's subagent", "under rules 1 and 4").
+Prompt lines (grep): executor-tdd.md:18, executor-e2e.md:20, executor-retry.md:12 all carry "MUST ... yourself in this subagent ... call no Agent or Task tool".
+Reason is the same everywhere (nested hand-back goes to the top session). Upstream: REFERENCE says "the upstream hand-back routing bug is not fixed"; ADR "Not covered: ... stays open". No claim it is fixed. grep for CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH in REFERENCE: only the line saying it is not needed. Supported.
