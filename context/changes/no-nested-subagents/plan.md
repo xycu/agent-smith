@@ -306,7 +306,7 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Manual
 
-- [ ] 1.7 Read the new suffix line and the implement line once and confirm an unattended subagent that holds a skill saying "dispatch a Task" can tell which instruction wins, and that the line leaves it a way to finish (do it yourself)
+- [x] 1.7 Read the new suffix line and the implement line once and confirm an unattended subagent that holds a skill saying "dispatch a Task" can tell which instruction wins, and that the line leaves it a way to finish (do it yourself) — evidence: evidence/judgment-1-7-suffix-implement.txt
 
 ### Phase 2: Orchestrator rule in both skills
 
@@ -321,7 +321,7 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Manual
 
-- [ ] 2.7 Read the new rule in `skills/10x-pipeline/SKILL.md` next to rules 1 and 4 and confirm they cannot be followed into a deadlock (the orchestrator neither ends its turn idle while its own subagent runs nor waits for a foreign hand-back)
+- [x] 2.7 Read the new rule in `skills/10x-pipeline/SKILL.md` next to rules 1 and 4 and confirm they cannot be followed into a deadlock (the orchestrator neither ends its turn idle while its own subagent runs nor waits for a foreign hand-back) — evidence: evidence/judgment-2-7-rule6-deadlock.txt
 
 ### Phase 3: Documents
 
@@ -336,5 +336,5 @@ No state migration. A run in flight at upgrade time records `provenance.drift` f
 
 #### Manual
 
-- [ ] 3.7 Read the new Limits line, the anti-stall bullets and ADR-018 once and confirm they agree with each other and with the prompt text of Phases 1 and 2 (same rule names, same reason, no claim that the upstream bug is fixed)
-- [ ] 3.8 Run `node skills/10x-pipeline/scripts/route.mjs init demo --goal "x"` and `status demo` in a scratch change folder and confirm the output is valid JSON and a returned `implement` prompt ends with the suffix, whose nesting rule stands before the `RESULT:` line
+- [x] 3.7 Read the new Limits line, the anti-stall bullets and ADR-018 once and confirm they agree with each other and with the prompt text of Phases 1 and 2 (same rule names, same reason, no claim that the upstream bug is fixed) — evidence: evidence/judgment-3-7-docs-agree.txt
+- [x] 3.8 Run `node skills/10x-pipeline/scripts/route.mjs init demo --goal "x"` and `status demo` in a scratch change folder and confirm the output is valid JSON and a returned `implement` prompt ends with the suffix, whose nesting rule stands before the `RESULT:` line — evidence: evidence/command-3-8-init-status-next.txt
