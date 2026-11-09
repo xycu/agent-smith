@@ -145,7 +145,8 @@ const DELETE_CALL = /(?<![\w$])(rmSync|rmdirSync|rm|rmdir)\s*\(/g;
 const RECURSIVE_TRUE = /recursive\s*:\s*true/;
 const CODE_ALWAYS = [/\brimraf\b/, /\bshutil\.rmtree\b/];
 const PROSE_BANNED = [/\brm\s+(-[a-zA-Z]*[rR][a-zA-Z]*|--recursive)\b/, /\brimraf\b/, /\bfind\b.*\s-delete\b/];
-const PROHIBITION = /MUST NOT|\bnever\b|\bNever\b|\bnot use\b|\bDo not\b|\bban|\bforbid/;
+// Whole words only, so "banner", "bandwidth" or "forbidding" do not excuse a delete command on the same line.
+const PROHIBITION = /MUST NOT|\bnever\b|\bNever\b|\bnot use\b|\bDo not\b|\bban(?:s|ned)?\b|\bforbid(?:s|den)?\b/;
 // The reason the docs give for the ban ("a harness may block it", "people block `rm -rf` in their harness"),
 // allowed as that phrase only: a line that merely holds "block" ("blocked", `blockSize`) is still checked.
 const BLOCK_REASON = /\b(?:a|the) harness (?:may block|that blocks)\b|\bpeople block\b.*\bin their harness\b/;
@@ -220,6 +221,10 @@ test("guard: the scanner catches every banned form and lets creation through", (
   assert.ok(scanProse("blockSize=4 rm -rf tmp # block cleanup").length > 0);
   assert.deepEqual(scanProse("Reasonable people block `rm -rf` in their harness."), []);
   assert.deepEqual(scanProse("Remove it file by file, because a harness may block `rm -rf`."), []);
+  assert.ok(scanProse("Clear the banner cache with rm -rf cache").length > 0);
+  assert.ok(scanProse("Save bandwidth: rm -rf dist").length > 0);
+  assert.deepEqual(scanProse("ADR-016 bans `rm -rf`."), []);
+  assert.deepEqual(scanProse("`rm -rf` is banned and forbidden here."), []);
 });
 
 test("guard: no scanned file uses a recursive or forced directory delete", () => {
