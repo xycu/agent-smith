@@ -244,7 +244,7 @@ None for run state: no policy or `meta.json` change, so no provenance drift. Run
 
 #### Manual
 
-- [ ] 2.3 Read both skills and confirm each of `done`, `archive` (including `archived: false`) and `halt` runs the pull request step before the PR comment step and before any STOP
+- [x] 2.3 Read both skills and confirm each of `done`, `archive` (including `archived: false`) and `halt` runs the pull request step before the PR comment step and before any STOP — evidence: evidence/judgment-2-3-skills-pr-step-order.md
 - [ ] 2.4 An unattended run of `/agent-smith:10x-pipeline` on a scratch change in a throwaway GitHub repository ends with the run branch pushed and a pull request open, not merged, for a `done` end and for a `halt` end
 
 ### Phase 3: ADR-017 and documentation
