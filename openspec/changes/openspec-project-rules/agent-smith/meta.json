@@ -45,5 +45,10 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "OpenSpec verify PASS",
+    "manualPending": []
   }
 }
