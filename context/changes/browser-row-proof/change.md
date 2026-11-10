@@ -1,7 +1,7 @@
 ---
 change_id: browser-row-proof
 title: A browser Manual row needs browser-grade proof, not a source read
-status: implemented
+status: impl_reviewed
 created: 2026-11-10
 updated: 2026-11-10
 archived_at: null
