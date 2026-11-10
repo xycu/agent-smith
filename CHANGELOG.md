@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.4.3](https://github.com/xycu/agent-smith/compare/v1.4.2...v1.4.3) (2026-11-10)
+
+
+### Bug Fixes
+
+* **browser-row-proof:** Chrome rules cover every row that needs a browser ([2f9035d](https://github.com/xycu/agent-smith/commit/2f9035de75d7b27f28834156f1ab37b2b1e18618))
+* **browser-row-proof:** outputs and report carry the browser-row reason (p2) ([4fafa5d](https://github.com/xycu/agent-smith/commit/4fafa5de6c966ea9efb6531513f00065ee93fa6b)), closes [#37](https://github.com/xycu/agent-smith/issues/37)
+* **browser-row-proof:** router detects browser rows and rejects weak proof (p1) ([c3b5263](https://github.com/xycu/agent-smith/commit/c3b526342f8e05d6ce69c8784905aefdfdc7f71a)), closes [#37](https://github.com/xycu/agent-smith/issues/37)
+* **browser-row-proof:** templates require Chrome first and recorded proof (p3) ([88f398b](https://github.com/xycu/agent-smith/commit/88f398b4ab0072e9c7a1e6062285bbd79e6c77e9)), closes [#37](https://github.com/xycu/agent-smith/issues/37)
+
 ## [1.4.2](https://github.com/xycu/agent-smith/compare/v1.4.1...v1.4.2) (2026-11-10)
 
 
