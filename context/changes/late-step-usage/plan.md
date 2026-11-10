@@ -351,7 +351,7 @@ None. One log read and write per call. In the archive state the git calls are th
 
 #### Manual
 
-- [ ] 3.3 A read of both `archive` branches shows the `usage` call before the archive subagent launch and states that a later figure is dropped
+- [x] 3.3 A read of both `archive` branches shows the `usage` call before the archive subagent launch and states that a later figure is dropped — evidence: evidence/judgment-3-3-archive-branches.md
 
 ### Phase 4: Docs and ADR
 
@@ -363,4 +363,4 @@ None. One log read and write per call. In the archive state the git calls are th
 
 #### Manual
 
-- [ ] 4.4 `REFERENCE.md`, `AGENTS.md` and ADR-019 describe the same syntax, guards and output as `route.mjs`
+- [x] 4.4 `REFERENCE.md`, `AGENTS.md` and ADR-019 describe the same syntax, guards and output as `route.mjs` — evidence: evidence/judgment-4-4-docs-match-router.md
