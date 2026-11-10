@@ -48,7 +48,7 @@ A commit that exists but fails a later check answers `attached: true` with a `re
 
 **GIVEN** a run has reached the pull request step or the archive subagent launch **WHEN** a figure arrives after that point **THEN** the orchestrator **MUST** drop it, because the branch is pushed or the folder is about to move.
 
-Both skills call the command in the `done` and `halt` branches before the pull request step, and in step 1 of the `archive` branch, before `status`, so the committed `report.md` shows the figure. Rule 3 of `## Anti-stall rules` carries the rule in one line and the two skill sections stay equal. The command is a call of its own, never alongside another router call. A refusal is no fault of the orchestrator: it writes no `orchestrator-error` result for it, and it never changes the run.
+Both skills call the command first in the `done` and `halt` branches, before `status` and the pull request step, and in step 1 of the `archive` branch, before `status`, so the committed `report.md` shows the figure. Rule 3 of `## Anti-stall rules` carries the rule in one line and the two skill sections stay equal. The command is a call of its own, never alongside another router call. A refusal is no fault of the orchestrator: it writes no `orchestrator-error` result for it, and it never changes the run.
 
 ### Rollback (D6)
 

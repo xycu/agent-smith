@@ -136,6 +136,8 @@ test("done and halt call usage before the pull request step, and archive step 1 
     assert.match(text, /Usage: step <n> <attached\|not attached>/);
     assert.match(text, /no `orchestrator-error` result/);
   }
+  const done = branch("done");
+  assert.ok(done.indexOf("node $ROUTER usage <change-id> <n>") < done.indexOf("node $ROUTER status"), "done: the usage call is not before status");
   const archive = branch("archive");
   const call = archive.indexOf("node $ROUTER usage <change-id> <n> --tokens N");
   assert.ok(call >= 0, "archive has no usage call");
