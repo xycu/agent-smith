@@ -31,7 +31,7 @@ Evidence: commits e9690d7 (p1), d9b6e2e (p2), b350498 (p3), f88db7f (p4) against
 - **Location**: skills/10x-pipeline/policy.json (`prompts.manual-verify`, the ToolSearch rule and the "unavailable, fail or are not connected" rule)
 - **Detail**: Before this change both rules applied to any row that "needs a browser". The change scoped them to "a Browser row", the router's `browserRowWords` list. A row that needs a browser but names none of the words (for example "open http://localhost:4321/ and see the heading") lost both the rule to load the Chrome tools first and the rule not to wait or ask when the tools are unavailable, while the rule "MUST NOT judge it from the source" still applies to it. For an unattended step the lost no-wait rule is the risky part. The plan's contract (d) for the unavailable case is not scoped to Browser rows.
 - **Fix**: Widen both GIVEN/WHEN clauses to "a Browser row, or another row that needs a browser", and say the same in REFERENCE.md "Manual verification".
-- **Decision**: APPLIED — commit named in the RESULT of this step (fix(browser-row-proof): Chrome rules cover every row that needs a browser)
+- **Decision**: APPLIED — 7376376 (fix(browser-row-proof): Chrome rules cover every row that needs a browser)
 
 ### F2 — Word list hits hyphenated identifiers
 
