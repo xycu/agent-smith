@@ -37,11 +37,19 @@
       "score.minRigor": "standard",
       "agents.restricted": false,
       "advisor.enabled": false
-    }
+    },
+    "drift": [
+      "prompts"
+    ]
   },
   "startCommit": "ecb942e1cbe6a7d041b6d35c75be6a72ed898d53",
   "rigor": {
     "level": "standard",
     "by": "goal hard"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": []
   }
 }
