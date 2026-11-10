@@ -333,7 +333,7 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Manual
 
-- [ ] 3.6 Run `node skills/10x-pipeline/scripts/route.mjs init` for a scratch change with the plugin's real `policy.json` and a plan with one Manual row that mentions `browser`, read the rendered `manual-verify` prompt, and see the Chrome-first rule, the evidence-recording rule and the failure reason shape in order, in plain wording
+- [x] 3.6 Run `node skills/10x-pipeline/scripts/route.mjs init` for a scratch change with the plugin's real `policy.json` and a plan with one Manual row that mentions `browser`, read the rendered `manual-verify` prompt, and see the Chrome-first rule, the evidence-recording rule and the failure reason shape in order, in plain wording — evidence: evidence/test-prompts.md
 
 ### Phase 4: Docs, ADR and live check
 
@@ -347,5 +347,5 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Manual
 
-- [ ] 4.6 In this step's `manual-verify` subagent, load the Chrome tools with ToolSearch and call `tabs_context_mcp` once; save the tool calls and the result as `browser-` evidence, and see that the "Limits" text of docs/REFERENCE.md agrees with that result
-- [ ] 4.7 Read the Manual verification and Limits text of docs/REFERENCE.md and the ADR-012 amendment and see that they agree on the two policy keys, the proof kinds, the reason texts and the upgrade note
+- [x] 4.6 In this step's `manual-verify` subagent, load the Chrome tools with ToolSearch and call `tabs_context_mcp` once; save the tool calls and the result as `browser-` evidence, and see that the "Limits" text of docs/REFERENCE.md agrees with that result — evidence: evidence/browser-tabs-context.md
+- [x] 4.7 Read the Manual verification and Limits text of docs/REFERENCE.md and the ADR-012 amendment and see that they agree on the two policy keys, the proof kinds, the reason texts and the upgrade note — evidence: evidence/judgment-docs-agree.md
