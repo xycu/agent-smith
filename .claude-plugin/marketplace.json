@@ -5,14 +5,14 @@
   },
   "metadata": {
     "description": "Marketplace hosting the agent-smith plugin.",
-    "version": "1.4.2"
+    "version": "1.4.3"
   },
   "plugins": [
     {
       "name": "agent-smith",
       "source": "./",
       "description": "Orchestrates AI SDLC skill chains (10xDevs and OpenSpec) with dynamic model and effort routing",
-      "version": "1.4.2"
+      "version": "1.4.3"
     }
   ]
 }
