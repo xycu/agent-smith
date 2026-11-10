@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.1](https://github.com/xycu/agent-smith/compare/v1.4.0...v1.4.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **no-nested-subagents:** ban the Agent tool also on the subagent's own judgment ([ab9ab8d](https://github.com/xycu/agent-smith/commit/ab9ab8d9e037ce426e06479d9e147e12ef8a784f))
+* **no-nested-subagents:** Orchestrator rule in both skills (p2) ([afe5bde](https://github.com/xycu/agent-smith/commit/afe5bdeee1ff955f3cfd9f12d23550cd2eb37f6e))
+* **no-nested-subagents:** Subagent-side rules (p1) ([b9ea360](https://github.com/xycu/agent-smith/commit/b9ea360eb972eb32bd85f4030099b4a5d82c5ac6))
+
 ## [1.4.0](https://github.com/xycu/agent-smith/compare/v1.3.0...v1.4.0) (2026-11-09)
 
 
