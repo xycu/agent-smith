@@ -1,7 +1,7 @@
 ---
 change_id: late-step-usage
 title: Keep a step's usage figure when it arrives after next ran
-status: implemented
+status: impl_reviewed
 created: 2026-11-10
 updated: 2026-11-10
 archived_at: null
