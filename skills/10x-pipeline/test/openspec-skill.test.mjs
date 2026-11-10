@@ -193,6 +193,8 @@ test("done, halt and archive call usage with --chain openspec before the pull re
     assert.ok(text.includes(call), `${name} has no usage call`);
     assert.ok(text.indexOf(call) < text.indexOf("do the pull request step"), `${name}: usage call after the pull request step`);
   }
+  const done = branch("done");
+  assert.ok(done.indexOf(call) < done.indexOf("node $ROUTER status"), "done: usage call after status");
   const archive = branch("archive");
   assert.ok(archive.includes(call), "archive has no usage call");
   assert.ok(archive.indexOf(call) < archive.indexOf("\n  3. Call the Agent tool"), "usage call after the archive subagent launch");
