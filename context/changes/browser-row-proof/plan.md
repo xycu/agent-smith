@@ -339,11 +339,11 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Automated
 
-- [x] 4.1 Rule form of ADR and docs: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs` passes
-- [x] 4.2 No stale claim remains: `grep -n "Nothing here has run against a live Chrome session\|Whether a subagent can load and call them was not tested" docs/REFERENCE.md` prints nothing
-- [x] 4.3 Version and commit tools: `node tools/version-check.mjs` exits 0
-- [x] 4.4 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
-- [x] 4.5 `init` and `status` still print valid JSON in a scratch change folder: `node skills/10x-pipeline/scripts/route.mjs status browser-row-proof` prints JSON that `node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"` accepts
+- [x] 4.1 Rule form of ADR and docs: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs` passes — f88db7f
+- [x] 4.2 No stale claim remains: `grep -n "Nothing here has run against a live Chrome session\|Whether a subagent can load and call them was not tested" docs/REFERENCE.md` prints nothing — f88db7f
+- [x] 4.3 Version and commit tools: `node tools/version-check.mjs` exits 0 — f88db7f
+- [x] 4.4 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes — f88db7f
+- [x] 4.5 `init` and `status` still print valid JSON in a scratch change folder: `node skills/10x-pipeline/scripts/route.mjs status browser-row-proof` prints JSON that `node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"` accepts — f88db7f
 
 #### Manual
 
