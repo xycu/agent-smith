@@ -357,9 +357,9 @@ None. One log read and write per call. In the archive state the git calls are th
 
 #### Automated
 
-- [x] 4.1 Delete guard and rule form pass over the new docs: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/rules.test.mjs`
-- [x] 4.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 4.3 `init` and `status` print valid JSON in a scratch project, and `usage` on a scratch run prints `attached: true` (AGENTS.md Testing)
+- [x] 4.1 Delete guard and rule form pass over the new docs: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/rules.test.mjs` — ca65ab8
+- [x] 4.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — ca65ab8
+- [x] 4.3 `init` and `status` print valid JSON in a scratch project, and `usage` on a scratch run prints `attached: true` (AGENTS.md Testing) — ca65ab8
 
 #### Manual
 
