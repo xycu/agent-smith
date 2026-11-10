@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.2](https://github.com/xycu/agent-smith/compare/v1.4.1...v1.4.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **late-step-usage:** attach late usage figures before status in done and halt ([72ee545](https://github.com/xycu/agent-smith/commit/72ee5452975bdd88c7a32843f48b707f896baf4d))
+* **late-step-usage:** Docs and ADR-019 for the usage command (p4) ([2d302df](https://github.com/xycu/agent-smith/commit/2d302df5391eb43ee74d07d764f4669fd1d9ce6f)), closes [#71](https://github.com/xycu/agent-smith/issues/71)
+* **late-step-usage:** Late figure in the archive state (p2) ([da34d34](https://github.com/xycu/agent-smith/commit/da34d34e60632df7a6b548304eb55ae3d391cad1))
+* **late-step-usage:** Orchestrator skills attach a late figure (p3) ([b7d2a9c](https://github.com/xycu/agent-smith/commit/b7d2a9cdd915a8d908175f1ebfd02256a4251aef)), closes [#71](https://github.com/xycu/agent-smith/issues/71)
+* **late-step-usage:** REFERENCE says a bad usage value is refused, not dropped ([5adc43f](https://github.com/xycu/agent-smith/commit/5adc43f39c20d18590c20343c5990cb5a80d9d27))
+* **late-step-usage:** The usage command for running and ended runs (p1) ([8b82c25](https://github.com/xycu/agent-smith/commit/8b82c2592e876d5a2da921ccd5cc7c79275c976f))
+
 ## [1.4.1](https://github.com/xycu/agent-smith/compare/v1.4.0...v1.4.1) (2026-11-10)
 
 
