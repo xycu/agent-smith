@@ -413,7 +413,7 @@ export function startCommit(p, id, meta, policy) {
   if (unsafe) stop(unsafe);
   const message = isolationMessage(policy, "startMessage", { id });
   if (message === null) stop("policy.isolation.commit.startMessage must be a non-blank string.");
-  const rel = p.chain === "openspec" ? `openspec/changes/${id}` : `context/changes/${id}`;
+  const rel = changeRel(p, id);
   const res = routerCommit(g, timeout, { rel, message });
   if (res.commit !== undefined) {
     meta.startCommit = res.commit;
@@ -544,7 +544,7 @@ const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone
 // names the folder `openspec archive` will create and returns the os-archive prompt at the tier of steps["os-archive"].
 export function archiveDone(p, id, meta, log, policy, level, d) {
   const openspec = p.chain === "openspec";
-  const rel = openspec ? `openspec/changes/${id}` : `context/changes/${id}`;
+  const rel = changeRel(p, id);
   const ran = executed(log);
   const timeout = policy.archive?.gitTimeoutMs;
   const g = (args) => runGit(args, { timeout });
