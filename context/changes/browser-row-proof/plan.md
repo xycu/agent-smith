@@ -325,11 +325,11 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Automated
 
-- [x] 3.1 Rendered prompts: `node --test --test-name-pattern="manual verify prompts" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 3.2 Browser rows reach the prompt: `node --test --test-name-pattern="browser rows in the prompt" skills/10x-pipeline/test/manualverify.test.mjs` passes
-- [x] 3.3 Rule form: `node --test skills/10x-pipeline/test/rules.test.mjs` passes
-- [x] 3.4 Skill checks: `node --test skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` passes
-- [x] 3.5 Provenance and the rest: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 3.1 Rendered prompts: `node --test --test-name-pattern="manual verify prompts" skills/10x-pipeline/test/manualverify.test.mjs` passes — b350498
+- [x] 3.2 Browser rows reach the prompt: `node --test --test-name-pattern="browser rows in the prompt" skills/10x-pipeline/test/manualverify.test.mjs` passes — b350498
+- [x] 3.3 Rule form: `node --test skills/10x-pipeline/test/rules.test.mjs` passes — b350498
+- [x] 3.4 Skill checks: `node --test skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` passes — b350498
+- [x] 3.5 Provenance and the rest: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes — b350498
 
 #### Manual
 
@@ -339,11 +339,11 @@ None: one `goalPhrase` pass per Manual row per `manual-verify` call.
 
 #### Automated
 
-- [ ] 4.1 Rule form of ADR and docs: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs` passes
-- [ ] 4.2 No stale claim remains: `grep -n "Nothing here has run against a live Chrome session\|Whether a subagent can load and call them was not tested" docs/REFERENCE.md` prints nothing
-- [ ] 4.3 Version and commit tools: `node tools/version-check.mjs` exits 0
-- [ ] 4.4 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
-- [ ] 4.5 `init` and `status` still print valid JSON in a scratch change folder: `node skills/10x-pipeline/scripts/route.mjs status browser-row-proof` prints JSON that `node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"` accepts
+- [x] 4.1 Rule form of ADR and docs: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs` passes
+- [x] 4.2 No stale claim remains: `grep -n "Nothing here has run against a live Chrome session\|Whether a subagent can load and call them was not tested" docs/REFERENCE.md` prints nothing
+- [x] 4.3 Version and commit tools: `node tools/version-check.mjs` exits 0
+- [x] 4.4 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 4.5 `init` and `status` still print valid JSON in a scratch change folder: `node skills/10x-pipeline/scripts/route.mjs status browser-row-proof` prints JSON that `node -e "JSON.parse(require('fs').readFileSync(0,'utf8'))"` accepts
 
 #### Manual
 

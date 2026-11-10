@@ -1,6 +1,6 @@
 # ADR-012: Verify every Manual row in a dedicated subagent, at every rigor level, outside the extra-step pool, with Chrome on by default
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Proposed (unattended reading, owner confirmation pending); amended 2026-11-10 (Amendment 1)
 - **Date:** 2026-11-05
 - **Deciders:** the repository owner (decisions 1 to 7 in `change.md`, 2026-11-05); unattended implementation run of change `automate-manual-checks` for the readings marked A1 to A8 below
 - **Origin:** change `automate-manual-checks` (`context/changes/automate-manual-checks/change.md` and `plan.md`). It supersedes the "Manual verification", `--chrome` and manual-verify budget parts of ADR-003 ("Phase executors and manual verification"). The rest of ADR-003 is unchanged.
@@ -116,7 +116,7 @@ The router never reads evidence content, never judges whether a judgment is soun
 - A subagent can write outside the change folder or leave a server running. Nothing in the router catches it; the step commit records the writes inside the worktree, and writes outside it are not seen at all.
 - A judgment that quotes the wrong text, or a test that does not cover the row, passes the router's check. The kind in the report is the only signal.
 - Evidence is committed to the run branch. A secret the subagent fails to redact lands in git history.
-- Whether a subagent can load and call the Chrome tools through ToolSearch is not tested. When it cannot, the row stays pending with a reason, or is proved another way.
+- Whether a subagent can load and call the Chrome tools through ToolSearch was not tested when this ADR was written. A live check of 2026-11-10 settled that part; see Amendment 1. When the tools cannot be used, the row stays pending with a reason, or is proved another way.
 
 ## Rollback
 
@@ -139,6 +139,40 @@ The router never reads evidence content, never judges whether a judgment is soun
 ## Unverified assumptions
 
 - No live run has used the new prompt, the retry tier or the reasons file. The router side is covered by tests; the subagent's behaviour is not.
-- No Chrome call from a subagent has been tested.
+- No Chrome call from a subagent had been tested when this ADR was written; Amendment 1 records the first live check (the tools load and `tabs_context_mcp` answers; a page load and an exported page text are still unseen).
 - Whether `sonnet/medium` proves enough rows on the first attempt to make the retry rare is not measured.
 - The figure of about 100 unticked archived rows is the owner's count in `change.md`, not one this ADR re-derived.
+
+## Amendment 1: browser rows need browser-grade proof (change browser-row-proof, issue #37)
+
+### Context
+
+- In the synthetic run `synth-demo` (2026-11-07, plugin 0.7.0) the `manual-verify` step ticked a Manual row that asks for a check in a browser. It never called a Chrome tool. Its evidence `evidence/judgment-hello-heading.md` said "Browser not driven; judged from source", and the router counted the row as proved (`proved: {judgment: 1}`), because A8 accepts any kind for any row.
+- The decision of ADR-012 stands: every Manual row is in scope, the router reads no evidence content, and the step costs no extra attempt. This amendment makes the proof kind match the row.
+
+### Rules
+
+- **GIVEN** a pending Manual row whose text without its evidence suffix names a word of `manualVerify.browserRowWords` (default `playwright`, `e2e`, `end-to-end`, `browser`, `chrome`) **WHEN** the router verifies a `manual-verify` step **THEN** it **MUST** treat the row as a browser row.
+- **GIVEN** a browser row is ticked with valid evidence **WHEN** the kind of the evidence file is not in `manualVerify.browserProofKinds` (default `browser`, `test`, `command`, `script`) **THEN** the router **MUST** list the row as unproven with the reason `browser row ticked with <kind> evidence; only browser, test, command, script evidence proves it`.
+- **GIVEN** the router lists a browser row as unproven **WHEN** the step has attempts left **THEN** the retry one tier up **MUST** run as for any unproven tick, and the run goes on after the last attempt.
+- **GIVEN** the router rejected a tick for its kind **WHEN** it writes its outputs **THEN** it **MUST** carry the reason in the log entry (`unprovenWhy`), `status`, the final message, the `archive` summary and `meta.outcome` (`manualUnprovenWhy`) and the archive lines of `report.md`.
+- **GIVEN** a Manual row is a browser row **WHEN** the `manual-verify` template runs **THEN** the subagent **MUST** load the Chrome tools with ToolSearch, call them before any other proof, and name the tool calls that ran, or quote the Chrome error, in the evidence.
+- **GIVEN** the run has `--chrome false` **WHEN** a browser row is pending **THEN** the subagent **MUST** prove it only by a covering test, command or script, or leave it at `[ ]` with the reason `Chrome off (--chrome false)`.
+- **GIVEN** the report lists the Manual checks **WHEN** a browser row appears in a group **THEN** the report **MUST** mark it `[browser row]`, and a rejected tick appears in an `Unproven` group with its reason.
+
+### Unchanged
+
+- The router still reads no evidence content (A8), adds no attempt, and changes no budget delta, `maxAttempts`, `retryBump` or the extra-step pool. `budget-executors.test.mjs` runs unchanged.
+- The new keys are `browserRowWords` and `browserProofKinds`, not `browserWords`: A7 removed `browserWords`, and an old override that still carries it stays ignored.
+
+### Risks
+
+- The router cannot tell a real browser run from a file that is named `browser-` and holds junk. The weak point moves from "any kind proves a row" to "the kind prefix is honest". The templates make the claim checkable by a reader: the evidence lists the calls or quotes the error.
+- The word list is uncalibrated and has false positives, such as a row that mentions a browser only in passing. The retry settles it with a test, command or script, or the row stays pending.
+- `verifyManual` does not read `meta.chrome`, so with `--chrome false` the router still accepts `browser-` evidence for a browser row; only the `manual-verify-nochrome` prompt forbids it. Gating on `meta.chrome` would change the `verifyManual` signature for a claim that is a prefix anyway.
+- A tick the router rejects stays `[x]` in `plan.md`, because the router never edits `plan.md`. The outputs and the report list it as unproven.
+- A run in flight records `provenance.drift` for `manualVerify` and `prompts`; routing is unaffected.
+
+### Live check (2026-11-10)
+
+- The plan step of this change ran in a general-purpose subagent without the `Agent` tool. It loaded `mcp__claude-in-chrome__tabs_context_mcp` through `ToolSearch select:` and called it once. The call returned a normal tool result, not an error: "This session has no tab group of its own ... Use createIfEmpty: true to create this session's group." A step subagent can therefore load and call the Chrome tools, and a call needs `createIfEmpty: true`. Not yet seen: that call with `createIfEmpty: true`, a page load and an exported page text. Manual row 4.6 of the plan repeats the check inside a real `manual-verify` step.
