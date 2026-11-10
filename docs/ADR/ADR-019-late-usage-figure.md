@@ -1,10 +1,10 @@
 # ADR-019: Attach a late usage figure with a router command
 
-- **Status:** Proposed (unattended implementation run of change `late-step-usage`; owner confirmation pending, and no live run has used the command yet)
+- **Status:** Accepted (the repository owner accepted it on 2026-11-10; no live run has used the command yet)
 - **Date:** 2026-11-10
 - **Deciders:** the repository owner (GitHub issue #71, which chose suggestion 2); unattended plan and implementation runs of change `late-step-usage` for the readings below
-- **Origin:** change `late-step-usage` (`context/changes/late-step-usage/change.md`, `plan.md` and `reviews/plan-review.md`), GitHub issue #71 "late usage figure". It builds on ADR-010 (isolated run, step commits, rollback) and on the archive commit of `docs/REFERENCE.md`; no earlier decision is superseded.
-- **Number:** ADR-018 is taken by the in-flight change `no-nested-subagents`, so this record is ADR-019.
+- **Origin:** change `late-step-usage` (`context/archive/2026-11-10-late-step-usage/change.md`, `plan.md` and `reviews/plan-review.md`), GitHub issue #71 "late usage figure". It builds on ADR-010 (isolated run, step commits, rollback) and on the archive commit of `docs/REFERENCE.md`; no earlier decision is superseded.
+- **Number:** ADR-018 is taken by the change `no-nested-subagents`, so this record is ADR-019.
 
 ## Context
 
