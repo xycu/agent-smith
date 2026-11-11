@@ -16,10 +16,17 @@ test("firstLine skips blank lines and cuts at max", () => {
 });
 
 test("capBody neutralizes mentions with the zero-width escape and leaves emails alone", () => {
-  assert.equal(capBody("a @b"), "a @​b");
-  assert.ok(capBody("a @b").includes("@​b"));
+  assert.equal(capBody("a @b"), "a @\u200bb");
+  assert.ok(capBody("a @b").includes("@\u200bb"));
   assert.equal(capBody("mail me@x.io"), "mail me@x.io");
-  assert.equal(capBody("@b"), "@​b");
+  assert.equal(capBody("@b"), "@\u200bb");
+});
+
+test("the PR scripts write the zero-width space as an escape, never the invisible character", () => {
+  for (const f of ["pr-common.mjs", "open-pr.mjs", "pr-comment.mjs"]) {
+    const source = fs.readFileSync(new URL(`../scripts/${f}`, import.meta.url), "utf8");
+    assert.equal(source.includes("\u200b"), false, f);
+  }
 });
 
 test("capBody leaves text under the cap and cuts text over it", () => {
