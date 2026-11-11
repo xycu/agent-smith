@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.13](https://github.com/xycu/agent-smith/compare/v1.4.12...v1.4.13) (2026-11-11)
+
+
+### Bug Fixes
+
+* **router:** status --report writes no report for a 10x change without change.md ([9e003b6](https://github.com/xycu/agent-smith/commit/9e003b6194200e1b86cd8a629927a19ecc0c5b4b))
+
 ## [1.4.12](https://github.com/xycu/agent-smith/compare/v1.4.11...v1.4.12) (2026-11-11)
 
 
