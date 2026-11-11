@@ -136,6 +136,12 @@ A hand-run command with an unquoted multi-word goal now halts instead of storing
 
 A `--goal` followed by a flag-looking argument now takes it as the goal text: `init demo --goal --archive` stores `--archive` as the goal and does not turn archive on, and `init demo --goal --rigor standard` halts on the leftover `standard`. This follows from "always take the next argument" (issue #90); only a `--goal` in last position still keeps the stored goal.
 
+After the implementation review (findings F1 and F2), three rules were added and supersede the text above where they differ:
+
+- `parseFlags` reads `--key=value`, split at the first `=`, for every flag of every command. This replaces "only `--goal` is special-cased" for the `=` form; `valueFlags` is still only `["goal"]`.
+- An argument with no flag name (`--`, `--_`, `--=x`) goes to `flags._` and takes no value, so `init demo --goal fix --_ the bug` names `--_ the bug`. `flags` has no prototype, so `--__proto__` is stored as a key like any other.
+- `init` halts, before anything is written, on a flag it does not read: `Unknown flag(s) for init: <flags>. init reads: --goal, --rigor, --archive, --chrome, --chain. Nothing was written.` The other commands are unchanged.
+
 ## References
 
 - Issue: GitHub #90; change file `context/changes/init-goal-flag/change.md`

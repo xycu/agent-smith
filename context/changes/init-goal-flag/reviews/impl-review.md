@@ -39,7 +39,7 @@ Reviewed in this subagent, no sub-agent launched. Diff range `102a5a9..c5fbf97` 
 - **Location**: skills/10x-pipeline/scripts/state.mjs:19-22
 - **Detail**: `--_` is not a value flag, so `init demo --goal fix --_ the bug` reads `the` as the value of `--_` and lists only `bug` as leftover. The check cannot be bypassed (`flags._` is assigned after the loop, and the test pins that), but the message names fewer words than were typed. Only a hand-typed `--_` does this.
 - **Fix**: None needed.
-- **Decision**: PENDING - no fix wanted; the owner may leave it as is. The halt, the exit code and the "writes nothing" guarantee hold.
+- **Decision**: APPLIED - 5e73030. An argument with no flag name (`--`, `--_`, `--=x`) is now a leftover word and takes no value, so the halt names `--_ the bug`; `init` also halts on a flag it does not read.
 
 ### F2 — `--goal=text` is still not understood
 
@@ -49,4 +49,4 @@ Reviewed in this subagent, no sub-agent launched. Diff range `102a5a9..c5fbf97` 
 - **Location**: skills/10x-pipeline/scripts/state.mjs:19
 - **Detail**: The `--key=value` form gives a flag named `goal=text` that no code reads, so the goal stays empty. This is the behaviour before the change and the plan does not cover it; neither orchestrator skill uses it. Noted because the issue is about goals that are silently dropped.
 - **Fix**: None in this change.
-- **Decision**: PENDING - outside the scope of issue #90; the owner decides whether `--goal=<text>` deserves its own change.
+- **Decision**: APPLIED - 5e73030. `parseFlags` reads `--key=value`, split at the first `=`, for every flag.
