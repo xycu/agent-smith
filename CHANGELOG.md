@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.10](https://github.com/xycu/agent-smith/compare/v1.4.9...v1.4.10) (2026-11-11)
+
+
+### Bug Fixes
+
+* **run-state-lock:** remove the lock test scratch folders ([5e27f64](https://github.com/xycu/agent-smith/commit/5e27f6457865f9784bcce4b0b844979f1bdf4281))
+
 ## [1.4.9](https://github.com/xycu/agent-smith/compare/v1.4.8...v1.4.9) (2026-11-11)
 
 
