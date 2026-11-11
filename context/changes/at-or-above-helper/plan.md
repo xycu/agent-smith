@@ -102,20 +102,20 @@ The rule "the run's level is a known level, the gate's `minRigor` is a known lev
 #### Automated
 
 - [ ] 1.1 Full test suite passes with no new failures
-- [ ] 1.2 No gate-rule levels.indexOf copy remains in steps.mjs and preplan.mjs
-- [ ] 1.3 atOrAbove has one definition in state.mjs and seven call sites
+- [x] 1.2 No gate-rule levels.indexOf copy remains in steps.mjs and preplan.mjs
+- [x] 1.3 atOrAbove has one definition in state.mjs and seven call sites
 
 #### Manual
 
-- [ ] 1.4 Diff keeps the open and closed result of every site, unknown minRigor stays closed
+- [x] 1.4 Diff keeps the open and closed result of every site, unknown minRigor stays closed
 
 ### Phase 2: Unit test the helper
 
 #### Automated
 
-- [ ] 2.1 at-or-above.test.mjs passes
+- [x] 2.1 at-or-above.test.mjs passes
 - [ ] 2.2 Full test suite passes after the new test
 
 #### Manual
 
-- [ ] 2.3 helpers.mjs and the characterized loop tests are untouched
+- [x] 2.3 helpers.mjs and the characterized loop tests are untouched

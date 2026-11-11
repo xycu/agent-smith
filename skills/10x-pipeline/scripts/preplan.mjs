@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, frontmatterField, executed, isObject, rigorLevels, ARTIFACT_NAME, scoreConfig } from "./state.mjs";
+import { ROOT, frontmatterField, executed, isObject, atOrAbove, ARTIFACT_NAME, scoreConfig } from "./state.mjs";
 
 // ---- pre-plan steps ---------------------------------------------------------
 
@@ -144,7 +144,6 @@ export function preplanNext(p, fullLog, policy, meta, ctx) {
   if (!isObject(cfg) || !Array.isArray(cfg.order) || !isObject(cfg.gates)) return null;
   const ran = executed(fullLog);
   if (ran.some((e) => e.step === "plan")) return null;
-  const levels = rigorLevels(policy);
   const env = { p, policy, meta, ran };
   const names = (list) => (Array.isArray(list) ? list : []);
   for (const step of cfg.order) {
@@ -159,7 +158,7 @@ export function preplanNext(p, fullLog, policy, meta, ctx) {
       return { step, template: last.template ?? step, bump: 0, reason: `retry ${step} (${last.template ?? step}): attempt ${mine.length} did not pass` };
     }
     if (fullLog.some((e) => e.skipped && e.step === step)) continue;
-    const open = levels.indexOf(ctx.level) >= 0 && levels.indexOf(gate.minRigor) >= 0 && levels.indexOf(ctx.level) >= levels.indexOf(gate.minRigor);
+    const open = atOrAbove(policy, ctx.level, gate.minRigor);
     if (!open) continue;
     const lead = `rigor ${ctx.level}: ${step}`;
     for (const name of names(gate.skipIf)) {
@@ -241,10 +240,7 @@ export function readComplexity(p, policy) {
 export function scoreNext(p, fullLog, policy, meta, ctx) {
   const cfg = scoreConfig(policy);
   if (!cfg) return null;
-  const levels = rigorLevels(policy);
-  const at = levels.indexOf(ctx.level);
-  const min = levels.indexOf(cfg.minRigor);
-  if (min < 0 || at < min) return null;
+  if (!atOrAbove(policy, ctx.level, cfg.minRigor)) return null;
   const ran = executed(fullLog);
   if (ran.some((e) => e.step === "plan")) return null;
   const mine = ran.filter((e) => e.step === "score");
@@ -315,8 +311,7 @@ export function replanNext(log, pr, policy, level, oc = null) {
   const E = policy.escalation;
   const L = policy.limits;
   const loops = isObject(policy.preplan?.loops) ? policy.preplan.loops : {};
-  const levels = rigorLevels(policy);
-  const open = levels.indexOf(level) >= 0 && levels.indexOf(loops.minRigor) >= 0 && levels.indexOf(level) >= levels.indexOf(loops.minRigor);
+  const open = atOrAbove(policy, level, loops.minRigor);
   const posInt = (v) => Number.isInteger(v) && v > 0;
   const okFrames = log.filter((e) => e.template === "frame-rethink" && e.ok);
   const revisions = log.filter((e) => e.template === "plan-revise").length;
