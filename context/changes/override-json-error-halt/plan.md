@@ -58,8 +58,8 @@ Validating override keys or shapes; changing `readJson`; the `preplan.mjs` JSON 
 
 #### Automated
 
-- [ ] 1.1 New test passes: `node --test skills/10x-pipeline/test/override-json.test.mjs`
-- [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 New test passes: `node --test skills/10x-pipeline/test/override-json.test.mjs`
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
