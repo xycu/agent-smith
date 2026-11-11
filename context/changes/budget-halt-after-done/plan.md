@@ -16,7 +16,7 @@ A run whose log is at or over budget but whose `decide` returns `done` (or its o
 
 - `route.mjs:112-115` budget check, `route.mjs:120-141` decide loop (skips use no budget, so running the loop first is safe).
 - After the loop, `route.mjs:143-148` already handles `d.done`/`d.halt` (archive included); the new check goes right after, before `tierFor`.
-- Existing budget tests (`route.test.mjs:149`, `archive.test.mjs:848`, `executors.test.mjs:691`, `firstattempt.test.mjs:152`, `score.test.mjs:501`, `budget-executors.test.mjs`) leave a step pending, so they still halt on budget.
+- Existing budget tests `route.test.mjs:149`, `executors.test.mjs:691`, `firstattempt.test.mjs:152`, `score.test.mjs:501` leave a step pending, so they still halt on budget. `archive.test.mjs:848` ("an ordinary halt of an archive run carries archive and committed") does not: its `archiveProject` is a complete run (all rows ticked, `SOUND` and `APPROVED` reviews, a 4-step log) with `maxTotalSteps: 1`, so after the move `decide` returns `done` and the run reaches the `archive` action. The "failure path fits" test of `budget-executors.test.mjs` (the `stacked` walk, line ~264) ends with a `NEEDS ATTENTION` review after 2 fix loops, so after the move `decide` halts first with `Implementation still NEEDS ATTENTION after 2 fix loops` instead of the budget text (confirmed on a scratch copy). Both need test changes (Phase 1, change 3); the "confirm round" walk at `budget-executors.test.mjs:460` accepts only `done` or the budget text and must be checked the same way.
 
 ## What We're NOT Doing
 
@@ -26,7 +26,7 @@ A run whose log is at or over budget but whose `decide` returns `done` (or its o
 
 ## Implementation Approach
 
-Delete the early check; after the `if (d.halt || d.done)` block, add the same check with the same reason text. The loop may now log a skip entry in a run already at budget; skips use no budget, so this is harmless.
+Delete the early check; after the `if (d.halt || d.done)` block, add the same check with the same reason text. The loop may now log a skip entry in a run already at budget; skips use no budget, so this is harmless. The `fails >= maxAttemptsPerStep` halt after `tierFor` keeps its place after the budget check, so the order of those two halts is unchanged. A run over budget whose `decide` returns `done` with `meta.archive` now commits the change folder and returns `archive`, as any complete run does.
 
 ## Phase 1: Move the budget check after decide
 
@@ -48,15 +48,29 @@ Router change plus a regression test and doc line.
 
 **File**: `skills/10x-pipeline/test/route.test.mjs`
 
-**Intent**: Add a test next to "step budget differs per level": a project at `lean` with all Automated rows ticked, a `SOUND` plan review and an `APPROVED` impl review, and 12 ok log entries ending in `impl-review`, gives `done`; a decide halt is not masked by the budget text.
+**Intent**: Add two tests next to "step budget differs per level". (a) A project at `lean` with all Automated rows ticked (`planText({ done: <phases> })`), a `SOUND` plan review and an `APPROVED` impl review, and 12 ok log entries ending in `impl-review`, gives `done` (and 11 entries give `done` too). (b) A `decide` halt is not masked by the budget text: same fixture with a `NEEDS ATTENTION` impl review that has 1 critical in its header and no `### F<n>` blocks, and a 12-entry log that holds two `fix` entries and ends in `impl-review`, gives a halt whose reason matches `Implementation still NEEDS ATTENTION after 2 fix loops` and not `Step budget`.
 
 **Contract**: Use existing helpers (`makeProject`, `writeLog`, `entry`, `writePlan`/`writeReview` as the neighbouring tests do); no change to `helpers.mjs`.
 
-#### 3. Docs
+#### 3. Existing tests that end on the budget text
+
+**File**: `skills/10x-pipeline/test/budget-executors.test.mjs`
+
+**Intent**: In "failure path fits" (`stacked`), expect the halt `Implementation still NEEDS ATTENTION after 2 fix loops` (the run is at the fix-loop cap, which `decide` now reports) instead of `Step budget \d+ spent`, keeping the `steps <= budget` assertion. In the confirm-round walk (line ~460) widen the accepted end to `done`, the budget text or a `decide` halt, if the full suite shows it ends there. Run the whole suite and fix any other assertion that expected the budget text for a run that `decide` ends itself; do not change an assertion for a run with a step still to run.
+
+**Contract**: Assertion lines only; no walk, fixture or policy change.
+
+**File**: `skills/10x-pipeline/test/archive.test.mjs`
+
+**Intent**: Keep "an ordinary halt of an archive run carries archive and committed" (line ~848) testing the budget halt of an archive run: leave a step to run, for example by rewriting `plan.md` with an unticked Automated row after `archiveProject`, so `decide` returns a step and the budget halt still applies. Add one sibling assertion that the unmodified `archiveProject` with `maxTotalSteps: 1` now returns the `archive` action (a complete run at the budget is archived).
+
+**Contract**: Only fixture lines of that test change; its expectations (`Step budget`, `archive: "skipped: run halted"`, `committed: false`, `commitCount` 1, the report line) stay.
+
+#### 4. Docs
 
 **File**: `docs/REFERENCE.md`
 
-**Intent**: In "Budget", state that the budget halts only a run that still has a step to run; a run that is complete at the budget ends `done`.
+**Intent**: In "Budget", state that the budget halts only a run that still has a step to run; a run that is complete at the budget ends `done`, and a run started with `--archive` goes on to the archive. Both chains share it.
 
 **Contract**: One added bullet under `Budget:`.
 
@@ -80,7 +94,9 @@ Router change plus a regression test and doc line.
 ### Unit Tests:
 
 - Complete run at exactly the budget gives `done`.
-- Run at budget with a step still to run gives the budget halt (existing tests).
+- Run at budget with a step still to run gives the budget halt (existing tests, plus the fixed archive test).
+- Run at budget whose `decide` halts on its own shows that halt, not the budget text.
+- Complete `--archive` run at the budget returns `archive`.
 
 ### Manual Testing Steps:
 
