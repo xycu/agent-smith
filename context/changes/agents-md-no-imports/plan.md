@@ -115,4 +115,4 @@ None. Other changes in flight that edit `AGENTS.md` may conflict on lines 3 and 
 #### Manual
 
 - [ ] 1.5 Start a Claude Code session in the repo and run `/context` (or read the memory file list): `README.md` and `docs/REFERENCE.md` are not loaded, `AGENTS.md` is.
-- [ ] 1.6 The two links in `AGENTS.md` resolve to the right files on GitHub's preview.
+- [x] 1.6 The two links in `AGENTS.md` resolve to the right files on GitHub's preview. — evidence: evidence/script-agents-links.txt
