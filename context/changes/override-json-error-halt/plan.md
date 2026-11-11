@@ -63,4 +63,4 @@ Validating override keys or shapes; changing `readJson`; the `preplan.mjs` JSON 
 
 #### Manual
 
-- [ ] 1.3 A trailing-comma override in a scratch project without git halts `init` with the file name and the parse error
+- [x] 1.3 A trailing-comma override in a scratch project without git halts `init` with the file name and the parse error — evidence: evidence/command-init-halt.txt
