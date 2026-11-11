@@ -60,12 +60,18 @@ function undoRollback(p, meta, log, rb) {
   return null;
 }
 
+// A 10x run needs change.md (same text as decide in flow.mjs); halt before any write.
+function haltNoChangeMd(p, id) {
+  if (!fs.existsSync(path.join(p.change, "change.md"))) halt(`No change folder. Run /10x-new ${id} first.`);
+}
+
 function next(id, policy, chain = "10x") {
   const p = paths(id, policy, chain);
   const openspec = chain === "openspec";
   guardArchived(p, id);
   // The router never creates an OpenSpec change (D3), so a missing folder halts before agent-smith/ is made.
   if (openspec && !fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
+  if (!openspec) haltNoChangeMd(p, id);
   fs.mkdirSync(p.dir, { recursive: true });
   const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
@@ -873,6 +879,7 @@ function main() {
         halt(`context/changes/${id}/ exists: a 10x change already uses the name ${id}. An OpenSpec run needs a name no 10x change uses. Nothing was written.`);
       }
     }
+    if (chain !== "openspec") haltNoChangeMd(p, id);
     const prev = readMeta(p.meta, {});
     // No flag keeps the stored value, so a resume of an archive run is checked again.
     if ((archive ?? prev.archive) === true) {

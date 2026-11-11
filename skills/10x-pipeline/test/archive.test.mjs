@@ -142,9 +142,10 @@ test("a suffix-collision archive folder does not trigger the guard", () => {
   removeTree(project.changeDir);
   writeArchive(project, "2026-01-01-x-demo");
   const res = init(project, "fresh");
-  // The guard stays quiet: the run goes on and the router creates the change folder as before.
-  assert.equal(fs.existsSync(path.join(project.root, "context/changes/demo/agent-smith/meta.json")), true);
-  assert.doesNotMatch(String(res.json?.reason ?? ""), /archived/);
+  // The archive guard stays quiet: the halt is the missing-change one and nothing is written.
+  assert.match(String(res.json?.reason), /No change folder/);
+  assert.doesNotMatch(String(res.json?.reason), /archived/);
+  assert.equal(fs.existsSync(path.join(project.root, "context/changes/demo/agent-smith/meta.json")), false);
 });
 
 test("a live folder with a same-named archive is left to /10x-archive", () => {

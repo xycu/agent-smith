@@ -757,3 +757,15 @@ test("the leftover-word halt applies to the openspec chain too", () => {
   assert.match(res.json.reason, /Unexpected argument\(s\) after the flags: the bug\./);
   assert.equal(fs.existsSync(project.agentDir), false);
 });
+
+// ---- missing change.md ----------------------------------------------------------
+
+test("init and next without change.md halt and write nothing (missing change.md)", () => {
+  const project = makeProject({ change: false });
+  for (const res of [init(project, "x"), next(project)]) {
+    assert.equal(res.status, 1, res.stdout + res.stderr);
+    assert.equal(res.json.action, "halt");
+    assert.match(res.json.reason, /No change folder\. Run \/10x-new demo first\./);
+    assert.equal(fs.existsSync(project.agentDir), false);
+  }
+});
