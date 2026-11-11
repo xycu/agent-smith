@@ -57,7 +57,7 @@ Replace the raw reads and cover both forms with tests.
 
 **File**: `skills/10x-pipeline/test/archive.test.mjs` and `skills/10x-pipeline/test/route.test.mjs`
 
-**Intent**: Archive test: reuse `archiveProject({ policy: { prompts: { archive: ["Run /10x-archive {id}", "- extra rule"], suffix: ["line one", "line two"] } } })` and `runNext`; assert exit 0, action `archive`, the prompt starts `Run /10x-archive demo\n- extra rule` and ends `line one\nline two`, and no `line one,line two`. Route test: with `suffix` as an array (using a `makeProject` policy override), the prompt of a normal `run` step ends with `line one\nline two`.
+**Intent**: Archive test: reuse `archiveProject({ policy: { prompts: { archive: ["Run /10x-archive {id}", "- extra rule", "@prompts/impl-review-warn.md"], suffix: ["line one", "line two"] } } })` and `runNext`; assert exit 0, action `archive`, the prompt starts `Run /10x-archive demo\n- extra rule\n`, contains the trimmed text of `skills/10x-pipeline/prompts/impl-review-warn.md` (the `@prompts/` part resolved, read in the test with `fs.readFileSync`), and ends `line one\nline two`, and no `line one,line two`. Route test: with `suffix` as an array (using a `makeProject` policy override), the prompt of a normal `run` step ends with `line one\nline two`.
 
 **Contract**: follow the existing patterns at `archive.test.mjs:572` (done with `--archive`) and the `makeProject`/`run` helpers; use `{ skip: noGit }` for the git-based one.
 
@@ -80,7 +80,8 @@ Replace the raw reads and cover both forms with tests.
 
 ### Unit Tests:
 
-- Array `archive` and `suffix` overrides in the archive action; array `suffix` in a step prompt.
+- Array `archive` (with one `@prompts/` part) and `suffix` overrides in the archive action; array `suffix` in a step prompt.
+- A string `suffix` or `archive` that is plain text keeps its exact bytes (the existing `endsWith("\n\n" + POLICY.prompts.suffix)` check in `openspec-archive.test.mjs` covers it).
 - Existing string-default tests stay green (byte-identical prompts).
 
 ## References
