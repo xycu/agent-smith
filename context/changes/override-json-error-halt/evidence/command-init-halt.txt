@@ -1,0 +1,7 @@
+scratch project (no git), trailing-comma override, node route.mjs init demo --goal x
+{
+  "action": "halt",
+  "reason": "Cannot parse /private/tmp/claude-501/ovr.V1sk/context/foundation/agent-smith-policy.json: Expected double-quoted property name in JSON at position 37 (line 1 column 38). Fix the JSON or remove the file."
+}
+exit=1
+change.md
