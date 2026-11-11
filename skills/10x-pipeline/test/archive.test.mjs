@@ -898,7 +898,11 @@ test("kind B: after an archive, a staged file halts the next call with JSON only
 });
 
 test("an ordinary halt of an archive run carries archive and committed", { skip: noGit }, () => {
+  // A complete run at the budget is archived, not halted.
+  assert.equal(runNext(archiveProject({ policy: { limits: { maxTotalSteps: 1 } } })).json.action, "archive");
   const project = archiveProject({ policy: { limits: { maxTotalSteps: 1 } } });
+  // An unticked Automated row leaves a step to run, so the budget halt applies.
+  fs.writeFileSync(path.join(project.changeDir, "plan.md"), planText({ phases: 1, rowsPerPhase: 1, done: 0 }));
   const res = runNext(project);
   assert.equal(res.json.action, "halt");
   assert.match(res.json.reason, /Step budget/);
@@ -910,6 +914,7 @@ test("an ordinary halt of an archive run carries archive and committed", { skip:
 
 test("a halt of a run without --archive carries no archive field", { skip: noGit }, () => {
   const project = archiveProject({ archive: false, policy: { limits: { maxTotalSteps: 1 } } });
+  fs.writeFileSync(path.join(project.changeDir, "plan.md"), planText({ phases: 1, rowsPerPhase: 1, done: 0 }));
   const res = runNext(project);
   assert.equal(res.json.action, "halt");
   assert.equal(res.json.archive, undefined);

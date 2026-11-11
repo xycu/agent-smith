@@ -261,7 +261,7 @@ test("failure path fits", { skip: noGit }, () => {
   // that stays pending through both attempts to reach it.
   const stacked = walkFixture("stacked", "standard", { fixture: { phases: ["goal", "e2e"], manual: "pending" }, script: { ...longScript("standard"), implementFails: 2, implReviews: pairs([["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["APPROVED", CLEAN]]) } });
   assert.equal(stacked.res.json.action, "halt", `${stacked.res.stdout}\n${stacked.sequence.join(" ")}`);
-  assert.match(stacked.res.json.reason, /Step budget \d+ spent/);
+  assert.match(stacked.res.json.reason, /Implementation still NEEDS ATTENTION after 2 fix loops/);
   assert.ok(stacked.steps <= budgetOf(statusOf(stacked.project).rigor), `${stacked.steps} steps stay inside the budget`);
 });
 

@@ -110,9 +110,6 @@ function next(id, policy, chain = "10x") {
   }
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
-  if (budgetSteps(log) >= budget) {
-    return end({ action: "halt", reason: `Step budget ${budget} spent.` });
-  }
 
   // decide() may skip a step: log the skip and ask again. A step is skipped at most once per call, because a
   // logged skip marks it handled; a second skip of the same step is a router bug and halts. Different steps may
@@ -145,6 +142,11 @@ function next(id, policy, chain = "10x") {
     return end(d.done
       ? { action: "done", reason: d.reason, manualPending: d.manualPending, ...doneNotes(d), steps: ran.length }
       : { action: "halt", reason: d.halt, steps: ran.length });
+  }
+
+  // The budget halts only a run that still has a step to run; done and decide's own halts win (issue #87).
+  if (budgetSteps(log) >= budget) {
+    return end({ action: "halt", reason: `Step budget ${budget} spent.` });
   }
 
   // An OpenSpec run has no plan (p.plan is null), so tierFor gets the empty summary: no phase bump, no simple discount.
