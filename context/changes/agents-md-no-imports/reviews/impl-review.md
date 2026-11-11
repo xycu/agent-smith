@@ -28,13 +28,13 @@ Diff `main..HEAD` for `AGENTS.md` and `tools/test/agents-md-no-imports.test.mjs`
 ### F1: Matcher misses an import written right after punctuation
 
 **Severity**: OBSERVATION
-**Decision**: PENDING - no fix wanted by the plan; the owner decides whether to widen the regex (for example allow `(` or `"` before `@`).
+**Decision**: APPLIED - f87fd56. The guard now follows the rule read from the Claude Code 2.1.311 binary (`@` at a line start or after whitespace, then a token that starts with `./`, `~/`, `/` or `[a-zA-Z0-9._-]`, any extension or none) and is stricter on one point: it also flags an `@` after punctuation, which that version does not import.
 
 The regex requires start of line or whitespace before `@`, and an extension of `md`, `json` or `mjs`. A form such as `(@README.md)` or `@docs/notes.txt` would pass the guard. Claude Code's own rule for where an `@` import is recognised is not documented in the plan, so widening it would be a guess. Current `AGENTS.md` has no such form.
 
 ### F2: `findImports` is exported from a test file
 
 **Severity**: OBSERVATION
-**Decision**: PENDING - cosmetic, no behaviour impact; the owner decides whether to drop `export`.
+**Decision**: APPLIED - f87fd56. `export` removed.
 
 The export is unused by other files. Harmless, since `node --test` runs the file as is.
