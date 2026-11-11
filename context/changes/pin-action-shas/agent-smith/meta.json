@@ -42,5 +42,15 @@
   "rigor": {
     "level": "lean",
     "by": "goal short"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.5 After merge, CI and the next release-please run resolve the actions"
+    ],
+    "manualNotProved": [
+      "1.5 After merge, CI and the next release-please run resolve the actions — not proved: needs a pull request CI run and a post-merge release-please run on GitHub; both are external and not possible from this unattended step (and would push/post)"
+    ]
   }
 }
