@@ -215,7 +215,7 @@ None. Plugin users get the new file with the next release; the orchestrator call
 
 - [x] 2.1 Script tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/pr-common.test.mjs`
 - [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.3 No copy remains: `grep -c "function firstLine\|MENTION_RE =\|BODY_CAP =" skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/pr-comment.mjs` prints `0` for both
+- [x] 2.3 No copy remains: `grep -cE "function (firstLine|spawn|runGh|ghFailure|isEntryPoint)|(MENTION_RE|BODY_CAP|ID_RE|DEFAULT_TIMEOUT_MS|GH_HOST) =" skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/pr-comment.mjs` prints `<path>:0` for both files (grep exits 1 when every count is 0, which is the pass)
 - [x] 2.4 Version and commit checks unaffected: `node tools/version-check.mjs`
 
 #### Manual
