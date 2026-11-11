@@ -1,0 +1,30 @@
+Commands: route.mjs init demo --goal x ; route.mjs status demo (scratch git repo, isolation.require=false). Both parsed with JSON.parse: VALID.
+--- init (head) ---
+{
+  "action": "run",
+  "n": 1,
+  "step": "plan",
+  "model": "sonnet",
+  "effort": "medium",
+  "reason": "no plan yet (goal: short); tier 2 (base 5, -2 from goal class short, -1 simple change (short goal), floor medium (tier 2))",
+  "prompt": "Run /10x-plan demo x\nWrite the plan to context/changes/demo/plan.md with a valid ## Progress section.\n\nYou run as an unattended subagent. AskUserQuestion is unavailable. Do not commit unless the skill itself commits.\n- **GIVEN** the skill would ask the 
+--- status ---
+{
+  "change": "demo",
+  "rigor": "lean",
+  "steps": [
+    {
+      "n": 1,
+      "step": "plan",
+      "template": "plan",
+      "model": "sonnet",
+      "effort": "medium",
+      "simple": true,
+      "ok": null,
+      "verified": null,
+      "note": null,
+      "reason": "no plan yet (goal: short)",
+      "usage": null
+    }
+  ]
+}

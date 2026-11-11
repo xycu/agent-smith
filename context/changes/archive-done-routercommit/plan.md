@@ -111,5 +111,5 @@ None. Halt texts differ slightly (see Current State); no doc or test pins them. 
 
 #### Manual
 
-- [ ] 1.5 init and status against a scratch change folder print valid JSON
-- [ ] 1.6 Diff read shows no remaining duplicate of the add/commit/post-commit logic in archiveDone
+- [x] 1.5 init and status against a scratch change folder print valid JSON — evidence: evidence/command-init-status-json.txt
+- [x] 1.6 Diff read shows no remaining duplicate of the add/commit/post-commit logic in archiveDone — evidence: evidence/judgment-archivedone-no-duplicate.txt
