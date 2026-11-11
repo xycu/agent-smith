@@ -1,0 +1,11 @@
+skills/10x-pipeline/test/route.test.mjs: step budget differs per level: 12, 19, 24 (pending step still halts 'Step budget N spent'); skills/10x-pipeline/test/archive.test.mjs: an ordinary halt of an archive run carries archive and committed
+✔ an ordinary halt of an archive run carries archive and committed (690.628083ms)
+✔ step budget differs per level: 12, 19, 24 (309.92125ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 786.352041

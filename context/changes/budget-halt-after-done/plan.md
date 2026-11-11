@@ -121,5 +121,5 @@ Router change plus a regression test and doc line.
 
 #### Manual
 
-- [ ] 1.4 Issue reproduction (12 logged steps) prints `done` instead of `halt`
-- [ ] 1.5 A 12-step log with a pending step still prints `halt` `Step budget 12 spent.`
+- [x] 1.4 Issue reproduction (12 logged steps) prints `done` instead of `halt` — evidence: evidence/test-budget-done.txt
+- [x] 1.5 A 12-step log with a pending step still prints `halt` `Step budget 12 spent.` — evidence: evidence/test-budget-halt-pending.txt
