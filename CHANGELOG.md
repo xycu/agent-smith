@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.12](https://github.com/xycu/agent-smith/compare/v1.4.11...v1.4.12) (2026-11-11)
+
+
+### Bug Fixes
+
+* **router:** halt on a project override that is not a JSON object ([435064a](https://github.com/xycu/agent-smith/commit/435064ad2c5f7a21f48516efc06312fd5a4e1c22))
+
 ## [1.4.11](https://github.com/xycu/agent-smith/compare/v1.4.10...v1.4.11) (2026-11-11)
 
 
