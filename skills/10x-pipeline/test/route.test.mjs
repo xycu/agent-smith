@@ -7,6 +7,7 @@ import {
   cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeLog, entry,
   readLogEntries, readMetaFile, writeMetaFile, skipEntry, writeResult, readReportFile, gitAvailable, gitEnv, gitInit, commitFiles,
 } from "./helpers.mjs";
+import { makeOpenspecProject } from "./openspec-helpers.mjs";
 
 after(cleanupAll);
 
@@ -595,4 +596,74 @@ test("the plan prompt carries the seven rules and the RESULT line with signals",
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
   assert.match(prompt, /`signals` object is optional/);
   assert.doesNotMatch(prompt, /most conservative option/);
+});
+
+// ---- init --goal parsing (issue #90) -----------------------------------------
+
+test("a goal that starts with -- is stored verbatim", () => {
+  const project = makeProject();
+  assert.equal(init(project, "--verbose flag should print timings").status, 0);
+  assert.equal(readMetaFile(project).goal, "--verbose flag should print timings");
+});
+
+test("an unquoted goal halts at init, names the leftover words and writes nothing", () => {
+  for (const args of [
+    ["--goal", "fix", "the", "bug"],
+    ["--goal", "fix", "the", "--rigor", "standard"],
+    ["--goal", "fix", "--_", "the", "bug"],
+    ["--rigor", "standard", "extra", "--goal", "fix"],
+  ]) {
+    const project = makeProject();
+    const res = run(project, ["init", project.id, ...args]);
+    assert.equal(res.status, 1);
+    assert.equal(res.json.action, "halt");
+    assert.match(res.json.reason, /Unexpected argument\(s\) after the flags: .*Quote the goal: --goal "<text>"\. Nothing was written\./);
+    assert.equal(fs.existsSync(project.agentDir), false);
+  }
+  const project = makeProject();
+  const res = run(project, ["init", project.id, "--goal", "fix", "the", "bug"]);
+  assert.match(res.json.reason, /flags: the bug\./);
+});
+
+test("a quoted goal followed by another flag still works", () => {
+  const project = makeProject();
+  assert.equal(init(project, "fix the bug", ["--rigor", "standard"]).status, 0);
+  assert.equal(readMetaFile(project).goal, "fix the bug");
+  assert.equal(readMetaFile(project).rigor.level, "standard");
+});
+
+test("a bare or empty --goal on a resume keeps the stored goal", () => {
+  const project = makeProject();
+  init(project, "first goal");
+  writeLog(project, []);
+  assert.equal(run(project, ["init", project.id, "--goal"]).status, 0);
+  assert.equal(readMetaFile(project).goal, "first goal");
+  writeLog(project, []);
+  assert.equal(init(project, "").status, 0);
+  assert.equal(readMetaFile(project).goal, "first goal");
+});
+
+test("--goal --archive stores --archive as the goal and leaves archive off", () => {
+  const project = makeProject();
+  assert.equal(run(project, ["init", project.id, "--goal", "--archive"]).status, 0);
+  const meta = readMetaFile(project);
+  assert.equal(meta.goal, "--archive");
+  assert.notEqual(meta.archive, true);
+});
+
+test("usage still reads its positional step number", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  writeLog(project, [entry(1, "plan", { result: { status: "done" } })]);
+  const res = run(project, ["usage", project.id, "1", "--tokens", "5"]);
+  assert.equal(res.json.attached, true);
+  assert.equal(res.json.n, 1);
+});
+
+test("the leftover-word halt applies to the openspec chain too", () => {
+  const project = makeOpenspecProject();
+  const res = run(project, ["init", project.id, "--chain", "openspec", "--goal", "fix", "the", "bug"]);
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /Unexpected argument\(s\) after the flags: the bug\./);
+  assert.equal(fs.existsSync(project.agentDir), false);
 });

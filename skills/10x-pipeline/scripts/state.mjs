@@ -11,14 +11,18 @@ export function out(obj, code = 0) {
   process.exit(code);
 }
 
-export function parseFlags(args) {
+// valueFlags always take the next argument as their value, even one that starts with "--".
+// Arguments that belong to no flag go to flags._, assigned last so a "--_" argument cannot replace it.
+export function parseFlags(args, valueFlags = []) {
   const flags = {};
+  const rest = [];
   for (let i = 0; i < args.length; i++) {
-    if (!args[i].startsWith("--")) continue;
+    if (!args[i].startsWith("--")) { rest.push(args[i]); continue; }
     const key = args[i].slice(2);
-    const val = args[i + 1] !== undefined && !args[i + 1].startsWith("--") ? args[++i] : true;
-    flags[key] = val;
+    const takes = args[i + 1] !== undefined && (valueFlags.includes(key) || !args[i + 1].startsWith("--"));
+    flags[key] = takes ? args[++i] : true;
   }
+  flags._ = rest;
   return flags;
 }
 

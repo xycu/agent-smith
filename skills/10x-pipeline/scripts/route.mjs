@@ -808,7 +808,7 @@ function main() {
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
     halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
-  const flags = parseFlags(rest);
+  const flags = parseFlags(rest, ["goal"]);
   // --chain is checked before anything is read.
   if (flags.chain !== undefined && !CHAINS.includes(flags.chain)) {
     halt(`Invalid --chain ${flags.chain === true ? "(no value)" : flags.chain}. Use one of: ${CHAINS.join(", ")}.`);
@@ -840,6 +840,10 @@ function main() {
       if (flags.chrome === true || flags.chrome === "true") chrome = true;
       else if (flags.chrome === "false") chrome = false;
       else halt(`Invalid --chrome ${flags.chrome}. Use --chrome, --chrome true or --chrome false.`);
+    }
+    // Words that belong to no flag (an unquoted goal) halt before anything is written.
+    if (flags._.length) {
+      halt(`Unexpected argument(s) after the flags: ${flags._.join(" ")}. Quote the goal: --goal "<text>". Nothing was written.`);
     }
     const p = paths(id, null, chain);
     guardArchived(p, id);

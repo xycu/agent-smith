@@ -31,6 +31,7 @@ How routing works:
 - From `standard` up the router can swap the plain implement step for a phase executor (`implement-e2e`, `implement-tdd`, `implement-segment`), and re-plan after code ran (`plan-replan` after two implement failures in a row, `plan-rejected` after a first `REJECTED` review). A tdd or e2e step also needs a code commit to count as done, and a step that ends `blocked` falls back with no failure counted. See "Phase executors".
 - At every rigor level the router runs `manual-verify` before the first implementation review when a Manual row is pending: a subagent proves every pending Manual row it can, with evidence, and gives a reason for each row it cannot. It runs on `sonnet/medium` first and once more on `sonnet/high` when rows stay pending, outside the extra-step pool, and the run goes on whatever it leaves. See "Manual verification".
 - The run halts for a human after repeated failures, too many plan revisions or fix loops, a review that leaves an open finding (see "Review routing on open findings"), or when the step budget is spent.
+- `init --goal` takes the next argument as the goal whatever it starts with (`--goal "--verbose flag"` stores that text). `init` halts, and writes nothing, on words that belong to no flag, such as an unquoted goal: `Unexpected argument(s) after the flags: <words>. Quote the goal: --goal "<text>". Nothing was written.` A bare or empty `--goal` keeps the stored goal.
 
 Run isolation:
 
