@@ -220,7 +220,7 @@ Rollback: revert the `runs-on` lines to `ubuntu-latest`. If the runners are offl
 
 - [x] 2.1 ADR file exists and is referenced: `grep -l "ADR-020" AGENTS.md docs/ADR/ADR-008-release-packaging-and-semver.md`
 - [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.4 ADR-008 keeps the F2 wording: `grep -q "The workflows run only in GitHub Actions, never locally." docs/ADR/ADR-008-release-packaging-and-semver.md`
+- [x] 2.4 ADR-008 keeps the F2 wording: `grep -q "The workflows run only in GitHub Actions, never locally." docs/ADR/ADR-008-release-packaging-and-semver.md`
 
 #### Manual
 
