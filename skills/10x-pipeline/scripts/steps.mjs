@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  SKILL_DIR, readJson, isFailure, trailingFailures, goalClass, isObject, rigorLevels, SHA_RE, runGit, gitOut,
+  SKILL_DIR, readJson, isFailure, trailingFailures, goalClass, isObject, atOrAbove, SHA_RE, runGit, gitOut,
   globToRegex, churnConfig, normalizePlanPath,
 } from "./state.mjs";
 import { readText, goalPhrase, predicate, scoreShift } from "./preplan.mjs";
@@ -121,8 +121,7 @@ const executorExcluded = (log, phase, executor) =>
 function e2eWanted(ph, log, policy, level, setup) {
   const cfg = policy.executors?.e2e;
   if (!isObject(cfg) || typeof cfg.template !== "string" || !setup.hit) return false;
-  const levels = rigorLevels(policy);
-  if (levels.indexOf(level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(level) < levels.indexOf(cfg.minRigor)) return false;
+  if (!atOrAbove(policy, level, cfg.minRigor)) return false;
   if (executorExcluded(log, ph.n, "e2e")) return false;
   const text = [ph.name, ...ph.auto.filter((r) => !r.done).map((r) => r.text)].join("\n");
   return goalPhrase(text, cfg.rowWords) !== null;
@@ -157,8 +156,7 @@ const wordList = (v) => (Array.isArray(v) ? v.filter((w) => typeof w === "string
 function pureLogicPhase(ph, files, log, policy, level) {
   const cfg = policy.executors?.tdd;
   if (!isObject(cfg) || typeof cfg.template !== "string") return false;
-  const levels = rigorLevels(policy);
-  if (levels.indexOf(level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(level) < levels.indexOf(cfg.minRigor)) return false;
+  if (!atOrAbove(policy, level, cfg.minRigor)) return false;
   if (executorExcluded(log, ph.n, "tdd") || ph.auto.some((r) => r.done) || !ph.auto.length) return false;
   const extensions = wordList(cfg.codeExtensions).map((x) => x.toLowerCase());
   const excluded = wordList(cfg.excludeGlobs).map(globToRegex);
@@ -301,8 +299,7 @@ export function manualVerifyNext(plan, log, policy, ctx, meta) {
   const cfg = policy.manualVerify;
   const posInt = (v) => Number.isInteger(v) && v > 0;
   if (!isObject(cfg) || !posInt(cfg.maxAttempts) || plan.autoPending > 0) return null;
-  const levels = rigorLevels(policy);
-  if (levels.indexOf(ctx.level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(ctx.level) < levels.indexOf(cfg.minRigor)) return null;
+  if (!atOrAbove(policy, ctx.level, cfg.minRigor)) return null;
   const runs = log.filter((e) => e.step === "manual-verify");
   // Only before the first implementation review: no re-run after a fix.
   if (runs.length >= cfg.maxAttempts || log.some((e) => e.step === "impl-review")) return null;
@@ -499,8 +496,7 @@ export function codeReplanNext(kind, log, policy, ctx, extra) {
   const cfg = policy.codeReplan;
   const posInt = (v) => Number.isInteger(v) && v > 0;
   if (!isObject(cfg) || !posInt(cfg.max) || log.filter((e) => CODE_REPLANS.includes(e.template)).length >= cfg.max) return null;
-  const levels = rigorLevels(policy);
-  if (levels.indexOf(ctx.level) < 0 || levels.indexOf(cfg.minRigor) < 0 || levels.indexOf(ctx.level) < levels.indexOf(cfg.minRigor)) return null;
+  if (!atOrAbove(policy, ctx.level, cfg.minRigor)) return null;
   const bump = (v) => (Number.isInteger(v) ? v : 0);
   if (kind === "failure") {
     if (!posInt(cfg.afterFailures) || trailingFailures(log, "implement") !== cfg.afterFailures) return null;
