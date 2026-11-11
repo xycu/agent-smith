@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.9](https://github.com/xycu/agent-smith/compare/v1.4.8...v1.4.9) (2026-11-11)
+
+
+### Bug Fixes
+
+* **router:** log no skip on a budget halt ([4b89859](https://github.com/xycu/agent-smith/commit/4b898592f016ef4f14377991b9b255c7dbffbc98))
+
 ## [1.4.8](https://github.com/xycu/agent-smith/compare/v1.4.7...v1.4.8) (2026-11-11)
 
 
