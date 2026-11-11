@@ -10,9 +10,9 @@ Outcome: done - impl review NEEDS ATTENTION
 | 2 | plan-review | sonnet | high | 3 | no | ok (063499d) | 153188 |
 | 3 | implement | sonnet | medium | 2 | no | ok (e4870d9) | 180821 |
 | 4 | implement | sonnet | medium | 2 | no | ok (c53757a) | 143697 |
-| 5 | impl-review | sonnet | high | 3 | no | ok (05b5657) | - |
+| 5 | impl-review | sonnet | high | 3 | no | ok (05b5657) | 194744 |
 
-Steps: 5 · Tokens: 635033 (figures for 4 of 5 steps)
+Steps: 5 · Tokens: 829777 (figures for 5 of 5 steps)
 
 ## Review findings
 
