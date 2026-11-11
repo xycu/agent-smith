@@ -30,7 +30,7 @@
 - **Dimension**: Maintainability
 - **Location**: `skills/10x-pipeline/scripts/state.mjs`, `release`
 - **Detail**: One loop over `[tmp, lock]` with an inline `f === tmp ||` ownership test does two jobs. It works (the lock is removed only when it still holds this process's pid). Not worth a change now.
-- **Decision**: PENDING - style only, no fix needed unless the owner wants it split into two lines.
+- **Decision**: APPLIED - cde8deb (refactor(run-state-lock): split the lock release into two named steps)
 
 ## Notes
 
