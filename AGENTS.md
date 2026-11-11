@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-agent-smith is a Claude Code plugin that runs 10xDevs and OpenSpec skill chains. Each step runs in its own subagent, and a dependency-free Node.js ESM router picks the next step, model and effort. See @README.md for install and use, and @docs/REFERENCE.md for routing behavior.
+agent-smith is a Claude Code plugin that runs 10xDevs and OpenSpec skill chains. Each step runs in its own subagent, and a dependency-free Node.js ESM router picks the next step, model and effort. See [README.md](README.md) for install and use, and [docs/REFERENCE.md](docs/REFERENCE.md) for routing behavior (read them only when the task needs them).
 
 ## Hard Rules
 
@@ -13,7 +13,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs and OpenSpec skill chains.
 
 ## Project Structure
 
-- `.claude-plugin/plugin.json` — plugin manifest. `.claude-plugin/marketplace.json` — marketplace listing this repo as its only plugin. Keep `name` and `description` aligned between the two and with @README.md. `version` is set only by the release PR (see Releases); `tools/version-check.mjs` fails when the fields differ.
+- `.claude-plugin/plugin.json` — plugin manifest. `.claude-plugin/marketplace.json` — marketplace listing this repo as its only plugin. Keep `name` and `description` aligned between the two and with [README.md](README.md). `version` is set only by the release PR (see Releases); `tools/version-check.mjs` fails when the fields differ.
 - `skills/10x-pipeline/SKILL.md` — orchestrator instructions (the loop over router output).
 - `skills/openspec-pipeline/SKILL.md` — orchestrator of the OpenSpec chain (ADR-013): the same loop for an OpenSpec change (`openspec/changes/<name>/`), calling the shared router at `../10x-pipeline/scripts/route.mjs` with `--chain openspec` on every call. Its `## Anti-stall rules` section equals the one of the 10x skill. It has no router, policy or prompts of its own.
 - `skills/10x-pipeline/policy.json` — model ladder, base tiers, escalation, limits, prompt templates.
