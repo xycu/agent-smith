@@ -1,0 +1,41 @@
+{
+  "id": "init-goal-flag",
+  "goal": "init drops a goal that starts with -- and cuts an unquoted goal to one word",
+  "isolated": true,
+  "branch": "agent-smith/init-goal-flag",
+  "baseSha": "be0ab0000c5eddbbc29598933a5644514e004745",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.4.3",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "abc849dc039be5b6",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "complexity": "997fa59224abe417",
+      "escalation": "1222803c4bfef379",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "isolation": "cda0720f290e645e",
+      "ladder": "6d379f1181bd2624",
+      "lessons": "92d849fccafd0527",
+      "limits": "a39ce9aad2987e71",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "d31e67216f95ee2a",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "score": "dc16b78fdf08a0df",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  }
+}
