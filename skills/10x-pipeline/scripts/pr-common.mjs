@@ -62,7 +62,7 @@ export function checkReportArg(report) {
 // Mentions neutralized with a zero-width space (the escape, never the invisible character), then the cap.
 // The cap counts UTF-16 code units and never splits a surrogate pair.
 export function capBody(text) {
-  text = text.replace(MENTION_RE, "$1@​");
+  text = text.replace(MENTION_RE, "$1@\u200b");
   if (text.length <= BODY_CAP) return text;
   let end = BODY_CAP;
   const last = text.charCodeAt(end - 1);
