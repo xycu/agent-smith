@@ -1,7 +1,7 @@
 ---
 change_id: init-goal-flag
 title: "init drops a goal that starts with -- and cuts an unquoted goal to one word"
-status: new
+status: planned
 created: 2026-11-11
 updated: 2026-11-11
 archived_at: null
