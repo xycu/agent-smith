@@ -115,6 +115,7 @@ function next(id, policy, chain = "10x") {
   // logged skip marks it handled; a second skip of the same step is a router bug and halts. Different steps may
   // skip in turn (the three pre-plan gates can all close), and step names are finite, so the loop ends.
   const skippedNow = new Set();
+  const loggedBefore = log.length;
   let d;
   for (;;) {
     // The OpenSpec chain has its own order (ADR-013 D4) and no score, pre-plan, executor or manual-verify step.
@@ -146,6 +147,12 @@ function next(id, policy, chain = "10x") {
 
   // The budget halts only a run that still has a step to run; done and decide's own halts win (issue #87).
   if (budgetSteps(log) >= budget) {
+    // This halt decides nothing: the skips logged above are dropped, so the resumed run decides them again from the
+    // files it then finds (a logged skip would stay handled, whatever the owner changes before the resume).
+    if (log.length > loggedBefore) {
+      log.length = loggedBefore;
+      writeLog(p.log, log);
+    }
     return end({ action: "halt", reason: `Step budget ${budget} spent.` });
   }
 
