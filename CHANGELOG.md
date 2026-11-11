@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.5](https://github.com/xycu/agent-smith/compare/v1.4.4...v1.4.5) (2026-11-11)
+
+
+### Bug Fixes
+
+* **pr-scripts-shared:** write the zero-width space as an escape in pr-common.mjs ([ec5b568](https://github.com/xycu/agent-smith/commit/ec5b5681de4bff9c8c2def94a18de85b300ecf7f))
+
 ## [1.4.4](https://github.com/xycu/agent-smith/compare/v1.4.3...v1.4.4) (2026-11-11)
 
 
