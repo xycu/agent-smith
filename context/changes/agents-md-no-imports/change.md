@@ -1,7 +1,7 @@
 ---
 change_id: agents-md-no-imports
 title: "AGENTS.md imports README.md and REFERENCE.md into every session (158 KB)"
-status: new
+status: planned
 created: 2026-11-11
 updated: 2026-11-11
 archived_at: null
