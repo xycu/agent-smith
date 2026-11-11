@@ -1,0 +1,12 @@
+Judgment: 1.6. Read skills/10x-pipeline/scripts/isolation.mjs archiveDone (line 558+).
+
+Quote: "const res = routerCommit(g, timeout, { rel, message });" (line 645) is the only add/commit/post-commit path in archiveDone.
+grep for direct git add/commit in file:
+332:  const added = g(rel ? ["add", "--", rel] : ["add", "-A"]);
+333:  if (added.status !== 0) return failed("add", added);
+339:    const made = g(rel ? ["commit", "-m", message, "--", rel] : ["commit", "-m", message]);
+340:    if (made.status !== 0) return failed("commit", made);
+446:  if (!last || last.ok !== true || Object.hasOwn(last, "commit")) return;
+535:  step(["add", "-A"]);
+
+Reasoning: add at 332 and commit at 339 are inside routerCommit (323). Line 535 add -A is in rollback (505), not archiveDone. routerCommit holds add, diff --cached, commit, empty-index check and only-folder/clean check; archiveDone only calls it. No duplicate remains.
