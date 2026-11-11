@@ -1,0 +1,26 @@
+// Throw-away check: scratch project with array suffix override; `route.mjs init (first step prompt, same promptText path as next)` prompt must end with newline-separated lines.
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { removeTree } from "../../../../skills/10x-pipeline/scripts/remove-tree.mjs";
+const ROUTE = path.resolve("skills/10x-pipeline/scripts/route.mjs");
+const dir = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-manual-"));
+try {
+  fs.mkdirSync(path.join(dir, "context/changes/demo"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "context/foundation"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "context/changes/demo/change.md"), "---\nchange_id: demo\nstatus: planned\n---\n");
+  fs.writeFileSync(path.join(dir, "context/foundation/agent-smith-policy.json"),
+    JSON.stringify({ isolation: { require: false }, prompts: { suffix: ["line one", "line two"] } }));
+  const run = (...a) => spawnSync("node", [ROUTE, ...a], { cwd: dir, encoding: "utf8" });
+  // init returns the first step (plan) as a run action; a second `next` needs a result file, so the first step prompt is the check.
+  const init = run("init", "demo", "--goal", "add a thing");
+  console.log("init exit", init.status);
+  const json = JSON.parse(init.stdout);
+  console.log("action:", json.action, "step:", json.step);
+  console.log("prompt tail:", JSON.stringify(json.prompt.slice(-40)));
+  console.log("endsWith 'line one\\nline two':", json.prompt.endsWith("line one\nline two"));
+  console.log("contains 'line one,line two':", json.prompt.includes("line one,line two"));
+} finally {
+  removeTree(dir);
+}

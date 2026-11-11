@@ -105,4 +105,4 @@ Replace the raw reads and cover both forms with tests.
 
 #### Manual
 
-- [ ] 1.5 In a scratch project with an array `suffix` override, `route.mjs next` prints a prompt whose suffix lines are newline-separated
+- [x] 1.5 In a scratch project with an array `suffix` override, `route.mjs next` prints a prompt whose suffix lines are newline-separated — evidence: evidence/script-array-suffix-output.txt
