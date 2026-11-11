@@ -151,9 +151,9 @@ A `--goal` followed by a flag-looking argument now takes it as the goal text: `i
 
 #### Automated
 
-- [ ] 1.1 Router suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.2 Reproduction 1 stores the text: in a scratch project, `init demo --goal "--verbose flag should print timings"` leaves `meta.json` with that goal.
-- [ ] 1.3 Reproduction 2 halts: `init demo --goal fix the bug` exits 1 with `action: "halt"` and creates no `agent-smith/` folder.
+- [x] 1.1 Router suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.2 Reproduction 1 stores the text: in a scratch project, `init demo --goal "--verbose flag should print timings"` leaves `meta.json` with that goal.
+- [x] 1.3 Reproduction 2 halts: `init demo --goal fix the bug` exits 1 with `action: "halt"` and creates no `agent-smith/` folder.
 
 #### Manual
 
@@ -163,9 +163,9 @@ A `--goal` followed by a flag-looking argument now takes it as the goal text: `i
 
 #### Automated
 
-- [ ] 2.1 New tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [ ] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 No recursive delete form was added: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 2.1 New tests pass: `node --test skills/10x-pipeline/test/route.test.mjs`
+- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.3 No recursive delete form was added: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
 
 #### Manual
 
