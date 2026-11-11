@@ -20,7 +20,7 @@ Duplicated today (line numbers at `be0ab00`):
 Known drift to fix:
 
 - `open-pr.mjs:368-370` lets a cleanup error escape, so after a good push and a created pull request `run()` throws and `main()` prints `internal error` with `pushed: false`. `pr-comment.mjs:217-221` swallows it.
-- `open-pr.mjs:325` holds a literal zero-width space; `pr-comment.mjs:150` writes `​`.
+- `open-pr.mjs:325` holds a literal zero-width space; `pr-comment.mjs:150` writes the escape `\u200b`.
 
 Constraints (AGENTS.md, ADR-006, ADR-017):
 
@@ -47,7 +47,7 @@ One module `pr-common.mjs` owns the shared helpers; both scripts import them and
 
 ## Implementation Approach
 
-Create the module first with unit tests (extracting the code unchanged), then switch each script to import it, then fix the tests that depend on the file layout and update docs. The module exports small functions, no state. Zero-width space is written `​` once.
+Create the module first with unit tests (extracting the code unchanged), then switch each script to import it, then fix the tests that depend on the file layout and update docs. The module exports small functions, no state. The zero-width space is written once, as the escape `\u200b` (never the invisible character), and a unit test pins it.
 
 ## Phase 1: Shared module with unit tests
 
@@ -63,7 +63,7 @@ Add `pr-common.mjs` and its test, touching neither script yet.
 
 **Intent**: Hold every helper the two scripts duplicate, extracted verbatim, in one standalone built-ins-only module with the header comment style of the scripts.
 
-**Contract**: Exports: constants `ID_RE`, `DEFAULT_TIMEOUT_MS`, `GH_HOST`; `firstLine(text, max = 200)`; `spawn(cmd, args, timeoutMs, env, input)` (never throws, returns `{ status, stdout, stderr, missing, timedOut }`); `runGh(args, timeoutMs)`; `ghFailure(res, what)` (missing, timed out, exit 4 or `gh auth login` is "gh is not authenticated", else `<what> failed: <first stderr line or gh exited N>`); `checkReportArg(report)` (throws `Error` with the existing message `--report must name a file report.md inside a directory agent-smith` when the basename check fails; callers wrap into their `UsageError`); `capBody(text)` (neutralize mentions with `MENTION_RE` and `​`, then the 60000 UTF-16 cap that never splits a surrogate pair and appends `\n\nReport truncated: <n> characters omitted.`); `withTempDir(prefix, fn)` (`mkdtempSync` under `os.tmpdir()`, run `fn(dir)`, then `removeTree(dir)` in a `try` whose error is ignored, return `fn`'s value); `isEntryPoint(metaUrl)`. `capBody` must apply the mention rule to the text it is given, so each caller passes its framed text (marker included); marker lines contain no `@`, so output stays identical.
+**Contract**: Exports: constants `ID_RE`, `DEFAULT_TIMEOUT_MS`, `GH_HOST`; `firstLine(text, max = 200)`; `spawn(cmd, args, timeoutMs, env, input)` (never throws, returns `{ status, stdout, stderr, missing, timedOut }`); `runGh(args, timeoutMs)`; `ghFailure(res, what)` (missing, timed out, exit 4 or `gh auth login` is "gh is not authenticated", else `<what> failed: <first stderr line or gh exited N>`); `checkReportArg(report)` (throws `Error` with the existing message `--report must name a file report.md inside a directory agent-smith` when the basename check fails; callers wrap into their `UsageError`); `capBody(text)` (neutralize mentions with `MENTION_RE` and `\u200b`, then the 60000 UTF-16 cap that never splits a surrogate pair and appends `\n\nReport truncated: <n> characters omitted.`); `withTempDir(prefix, fn)` (`mkdtempSync` under `os.tmpdir()`, run `fn(dir)`, then `removeTree(dir)` in a `try` whose error is ignored, return `fn`'s value); `isEntryPoint(metaUrl)`. `capBody` must apply the mention rule to the text it is given, so each caller passes its framed text (marker included); marker lines contain no `@`, so output stays identical.
 
 #### 2. Unit tests
 
@@ -71,7 +71,7 @@ Add `pr-common.mjs` and its test, touching neither script yet.
 
 **Intent**: Cover the extracted behavior directly, since no test covered the drift.
 
-**Contract**: `node:test` cases for: `firstLine` (blank lines, cut at max); `capBody` (mentions neutralized, email untouched, under cap unchanged, over cap truncated with the exact tail count, a surrogate pair at the cut kept whole); `ghFailure` mapping of missing, timed out, status 4, `gh auth login` text, empty stderr; `checkReportArg` accept and reject; `withTempDir` removes the directory after `fn` returns and after `fn` throws, returns `fn`'s value, and does not throw when removal fails (make the directory un-removable by replacing it with a file via `fn`, or by passing a stubbed condition that `removeTree` refuses); `spawn` on a missing binary reports `missing: true`, status 127.
+**Contract**: `node:test` cases for: `firstLine` (blank lines, cut at max); `capBody` (mentions neutralized, email untouched, under cap unchanged, over cap truncated with the exact tail count, a surrogate pair at the cut kept whole); `ghFailure` mapping of missing, timed out, status 4, `gh auth login` text, empty stderr; `checkReportArg` accept and reject; `withTempDir` removes the directory after `fn` returns and after `fn` throws, returns `fn`'s value, lets a `mkdtempSync` error propagate (an unwritable `TMPDIR` must stay an `internal error` skip, pinned by `pr-comment.test.mjs:490`), and does not throw when removal fails. Make removal fail by calling `process.chdir(dir)` inside `fn` and restoring the old working directory in a `finally` of the test: `removeTree` refuses a path that is or holds the working directory. Do not replace the directory with a file (`removeTree` unlinks a file without error) or chmod it (`removeTree` restores the mode itself). Also assert that `capBody("a @b")` contains `@​b`; `spawn` on a missing binary reports `missing: true`, status 127.
 
 ### Success Criteria:
 
@@ -106,7 +106,7 @@ Delete the copies from `open-pr.mjs` and `pr-comment.mjs`, import from `pr-commo
 
 **File**: `skills/10x-pipeline/scripts/pr-comment.mjs`
 
-**Intent**: Same swap: shared constants, `firstLine`, `runGh`, `checkReportArg`, `capBody`, `withTempDir`, `isEntryPoint`; map `gh pr view` failures through `ghFailure` after its two extra regexes (`no pull requests found`, `not a git repository`).
+**Intent**: Same swap: shared constants, `firstLine`, `runGh`, `checkReportArg`, `capBody`, `withTempDir`, `isEntryPoint`; map `gh pr view` failures through `ghFailure` after its two extra regexes (`no pull requests found`, `not a git repository`). This moves the missing, timed-out and authentication checks behind those two regexes; the output differs only for a stderr that matches both an extra regex and `gh auth login`, which gh does not print, so it is accepted and needs no test.
 
 **Contract**: Keeps `COMMENT_JQ` export, `PR_URL_RE`, its own marker and `pickTarget` with the single `c.login === viewer` occurrence (the mutation test depends on that text). JSON output unchanged.
 
@@ -116,7 +116,7 @@ Delete the copies from `open-pr.mjs` and `pr-comment.mjs`, import from `pr-commo
 
 **Intent**: Keep the mutation test and the gh-literal guard working with the new module, and add the missing regression test for the open-pr drift.
 
-**Contract**: At line 647 also copy `pr-common.mjs` to the mutant directory; at line 660 exclude `pr-common.mjs` from the scanned list. Add to `open-pr.test.mjs` a case where the pull request is created and `removeTree` of the body directory fails (for example the fake `gh` replaces the body directory with a file during `pr create`), asserting `pushed: true`, `pr.action: "created"` and no `internal error`; if the fake `gh` cannot do this cleanly, test it at the `withTempDir` level in `pr-common.test.mjs` and say so.
+**Contract**: At line 647 also copy `pr-common.mjs` to the mutant directory; at line 660 exclude `pr-common.mjs` from the scanned list. Add no `open-pr.test.mjs` case for the cleanup drift: the fake `gh` is a separate process and cannot make `removeTree` fail (it unlinks a replacement file and restores modes itself), so the regression test is the `withTempDir` case in `pr-common.test.mjs` (Phase 1). Say so in the commit message.
 
 ### Success Criteria:
 
@@ -124,12 +124,12 @@ Delete the copies from `open-pr.mjs` and `pr-comment.mjs`, import from `pr-commo
 
 - Script tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/pr-common.test.mjs`
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- No copy remains: `grep -c "function firstLine\|MENTION_RE =\|BODY_CAP =" skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/pr-comment.mjs` prints `0` for both
+- No copy remains: `grep -cE "function (firstLine|spawn|runGh|ghFailure|isEntryPoint)|(MENTION_RE|BODY_CAP|ID_RE|DEFAULT_TIMEOUT_MS|GH_HOST) =" skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/pr-comment.mjs` prints `<path>:0` for both files (grep exits 1 when every count is 0, which is the pass)
 - Version and commit checks unaffected: `node tools/version-check.mjs`
 
 #### Manual Verification:
 
-- Run `node skills/10x-pipeline/scripts/open-pr.mjs pr-scripts-shared` in this worktree against the real remote state is NOT needed; instead run both scripts with a bad argument and confirm the usage text and exit code 2 are unchanged.
+- Run both scripts with a bad argument (for example `--bogus`) and confirm the usage text and exit code 2 are unchanged. No run against the real remote is needed.
 - Line count of the two scripts together drops by about 60 lines.
 
 ---

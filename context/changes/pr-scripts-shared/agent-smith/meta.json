@@ -40,7 +40,7 @@
   },
   "startCommit": "a8fd24bcf573a6529e9bf5903e1630339c7866e6",
   "rigor": {
-    "level": "lean",
-    "by": "goal short"
+    "level": "standard",
+    "by": "phases 3, hot paths skills/10x-pipeline/test/pr-comment.test.mjs"
   }
 }
