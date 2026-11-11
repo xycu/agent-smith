@@ -60,7 +60,7 @@ function undoRollback(p, meta, log, rb) {
   return null;
 }
 
-// A 10x run needs change.md (same text as decide in flow.mjs); halt before any write.
+// A 10x run needs change.md (same text as decide in flow.mjs); halt before any write of init, next and status --report.
 function haltNoChangeMd(p, id) {
   if (!fs.existsSync(path.join(p.change, "change.md"))) halt(`No change folder. Run /10x-new ${id} first.`);
 }
@@ -686,7 +686,9 @@ function status(id, flags, chain = "10x") {
   }
   if (flags.report) {
     guardArchived(p, id);
-    if (!fs.existsSync(p.change)) out({ action: "halt", reason: `No change folder ${chain === "openspec" ? "openspec" : "context"}/changes/${id}.` }, 1);
+    if (chain === "openspec") {
+      if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
+    } else haltNoChangeMd(p, id);
     const meta = readMeta(p.meta, { id, goal: "" });
     res.report = writeReport(p, id, meta, log);
   }
