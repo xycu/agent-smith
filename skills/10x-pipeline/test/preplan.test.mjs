@@ -767,6 +767,27 @@ test("three skips in one call", () => {
   assert.equal(rows.length, 3);
 });
 
+test("a budget halt logs no skip, and the resumed run decides the skips again", () => {
+  const tight = { limits: { maxTotalSteps: 1 }, rigor: { budgetDelta: { thorough: 0 } } };
+  const project = makeProject({ policy: tight });
+  put(project, "research.md", RESEARCH);
+  writeLog(project, [entry(1, "research")]);
+  const halted = init(project, "fix typo", ["--rigor", "thorough"]);
+  assert.equal(halted.json.action, "halt", halted.stdout);
+  assert.match(halted.json.reason, /Step budget 1 spent/);
+  assert.deepEqual(skipsOf(project), []);
+  assert.doesNotMatch(readReportFile(project), /## Skipped steps/);
+
+  // The owner adds a brief before the resume: the skip reason is the one of the resume, not of the halted call.
+  put(project, "refactor-anti-corruption-layer.md", BRIEF);
+  writeOverride(project, { ...tight, limits: { maxTotalSteps: 5 } });
+  const res = next(project);
+  assert.equal(res.json.action, "run", res.stdout);
+  assert.equal(res.json.step, "plan");
+  assert.deepEqual(skipsOf(project).map((s) => s.step), ["domain-brief", "frame"]);
+  assert.match(skipsOf(project)[0].reason, /briefExists/);
+});
+
 test("pre-plan skip row in status and report", () => {
   const project = makeProject();
   put(project, "research.md", RESEARCH);
