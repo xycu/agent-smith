@@ -618,6 +618,31 @@ test("array archive and suffix overrides render joined, @prompts parts resolved"
   assert.ok(!res.json.prompt.includes("line one,line two"));
 });
 
+test("a string archive or suffix override that starts with @prompts/ is a file reference", { skip: noGit }, () => {
+  const project = archiveProject({ policy: { prompts: { archive: "@prompts/os-archive.md", suffix: "@prompts/worktree.md" } } });
+  const res = runNext(project);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(res.json.action, "archive");
+  assert.ok(!res.json.prompt.includes("@prompts/"), res.json.prompt);
+  const file = (name) => fs.readFileSync(new URL(`../prompts/${name}`, import.meta.url), "utf8").trim();
+  // The archive text goes through render() and the suffix does not, so compare the first line and the raw suffix.
+  assert.ok(res.json.prompt.startsWith(file("os-archive.md").split("\n")[0].replaceAll("{id}", "demo")), res.json.prompt);
+  assert.ok(res.json.prompt.endsWith("\n\n" + file("worktree.md")));
+});
+
+test("a string archive or suffix reference that does not resolve halts before the pre-archive commit", { skip: noGit }, () => {
+  for (const key of ["archive", "suffix"]) {
+    const project = archiveProject({ policy: { prompts: { [key]: "@prompts/does-not-exist.md" } } });
+    const before = commitCount(project);
+    const res = runNext(project);
+    assert.equal(res.status, 1, key);
+    assert.equal(res.json.action, "halt", key);
+    assert.match(res.json.reason, new RegExp(`^Router error: policy\\.prompts\\.${key} refers to @prompts/does-not-exist\\.md`), key);
+    assert.equal(commitCount(project), before, `${key}: no commit`);
+    assert.equal(metaOutcome(project), undefined, `${key}: the run has not ended`);
+  }
+});
+
 test("a second next returns archive again with no new commit", { skip: noGit }, () => {
   const project = archiveProject();
   assert.equal(runNext(project).json.action, "archive");

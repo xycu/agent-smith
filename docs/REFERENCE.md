@@ -222,6 +222,8 @@ Complexity score:
 
 Override any policy key per project in `context/foundation/agent-smith-policy.json`. An override file that does not parse halts every command with the file name and the parse error, and so does one whose JSON is not an object (an array, `null`, a string, a number or a boolean); a missing file is no override. The values of the keys inside it are not checked there. Run state lives in `context/changes/<change-id>/agent-smith/`.
 
+Prompt overrides: every key of `prompts`, `archive` and `suffix` included, is a string or an array of strings joined with newlines. A string, or an array part, that starts with `@prompts/` is always a reference to `skills/10x-pipeline/prompts/<file>.md` of the plugin (`@prompts/<file>.md`, the name made of letters, digits, `.`, `_` and `-`), never literal text, and the trimmed text of that file replaces it. A reference that does not resolve halts `init` and `next` with `Router error: policy.prompts.<key> ...` before a result is consumed and before the pre-archive commit. Literal text that must name such a path starts with any other character, for example `See @prompts/<file>.md`.
+
 Usage report:
 
 - When a run ends (`done` or `halt`, including a spent step budget or repeated failures), the router writes `context/changes/<change-id>/agent-smith/report.md` and adds its path to the output as `report`.

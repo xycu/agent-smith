@@ -4,6 +4,8 @@ Prompt templates for the optional pre-plan steps and the phase executors of `/ag
 
 Source: the 10xDevs 4.0 course prompts in `10xdevs4-content/.claude/prompts/`, in Polish. Each file was translated to English, shortened in caveman style with every negation, condition and number kept, and rewritten as rules in the form **GIVEN** context **WHEN** trigger **THEN** behavior, with one bold RFC 2119 keyword each (`MUST`, `MUST NOT`, `SHOULD`, `SHOULD NOT`, `MAY`). `frame-unattended.md`, `executor-e2e.md`, `executor-tdd.md`, `executor-retry.md`, `impl-review-warn.md`, `impl-review-lessons.md`, `plan-review-apply.md`, `impl-review-apply.md`, `plan-review-confirm.md`, `impl-review-confirm.md`, `manual-verify.md`, `score.md`, `worktree.md` and `advisor.md` are written for this pipeline and have no course source. The OpenSpec decision guides `os-propose.md`, `os-apply.md`, `os-verify.md` and `os-archive.md` are written for this pipeline too and have no course source.
 
+A string or an array part that starts with `@prompts/` is a reference in every template, `archive` and `suffix` included, also in a project override: it is never literal text, and one that does not resolve halts the run at `init` or `next`. Literal text starts with any other character.
+
 ## Wired
 
 | File | Source | Step | Wired as |

@@ -45,6 +45,17 @@ test("an array suffix override joins with newlines in a step prompt", () => {
   assert.ok(res.json.prompt.endsWith("line one\nline two"), res.json.prompt);
 });
 
+test("a string suffix override that starts with @prompts/ is a file reference in a step prompt", () => {
+  const project = makeProject({ policy: { prompts: { suffix: "@prompts/worktree.md" } } });
+  const res = init(project, "fix typo");
+  assert.equal(res.json.action, "run");
+  const text = fs.readFileSync(new URL("../prompts/worktree.md", import.meta.url), "utf8").trim();
+  assert.ok(res.json.prompt.endsWith("\n\n" + text), res.json.prompt);
+  // Text after any other first character stays literal.
+  const literal = makeProject({ policy: { prompts: { suffix: "See @prompts/worktree.md" } } });
+  assert.ok(init(literal, "fix typo").json.prompt.endsWith("\n\nSee @prompts/worktree.md"));
+});
+
 test("--rigor with a bad or missing value halts with JSON and writes nothing", () => {
   for (const args of [["--rigor", "foo"], ["--rigor"]]) {
     const project = makeProject();
