@@ -12,6 +12,8 @@ Reviewed plan.md Phase 1 against `state.mjs`, `override-json.test.mjs`, `docs/RE
 
 ### F1 Valid non-object override still unvalidated
 **Severity**: OBSERVATION
-**Decision**: PENDING - out of scope per the plan; the owner decides whether shape validation gets its own change.
+**Decision**: APPLIED - 7139369
 
 Valid JSON such as `[]` or `5` is merged as before (`deepMerge` returns it for non-objects, so the policy would be replaced by it).
+
+Fixed after the review: `mergedPolicy()` halts when the override is valid JSON but not an object, `null` included; tests in `override-json.test.mjs`.

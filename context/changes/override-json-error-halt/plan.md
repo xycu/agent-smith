@@ -22,20 +22,20 @@ created: 2026-11-11
 ## Decisions (assumptions)
 
 - Halt for every command that loads the policy, `status` included: the file is the project's own config, and the issue asks for a halt "when the file exists and does not parse". Evidence: issue text, and `loadPolicy` already halts for an unreadable `policy.json`.
-- An empty or whitespace-only file is a parse error too, so it halts (JSON.parse throws). A file holding valid `null` reads as no override, as before.
-- Valid JSON that is not an object (`[]`, `5`, `"x"`, `true`) is outside this change: shape validation is out of scope, and it behaves as before. Only a parse error halts. A file that exists but cannot be read (permissions, a directory) also halts through the same catch, with the read error in the message.
+- An empty or whitespace-only file is a parse error too, so it halts (JSON.parse throws). - Valid JSON that is not an object (`[]`, `null`, `5`, `"x"`, `true`) halts too, with `<path> must hold a JSON object of policy keys, not <kind>. Fix the file or remove it.` (implementation review F1): before, `deepMerge` returned an array, string, number or `true` in place of the whole policy, and `null`, `false`, `0` and `""` were dropped silently. The values of the keys inside the object stay unchecked. A file that exists but cannot be read (permissions, a directory) also halts through the same catch, with the read error in the message.
 - Message: `Cannot parse <path>: <parse error>. Fix the JSON or remove the file.` No ADR (the issue says add one only when needed).
 
 ## Phase 1: Halt on a bad override
 
 ### Changes
 
-1. `skills/10x-pipeline/scripts/state.mjs`, `mergedPolicy()`: build the override path, return `base` when `!fs.existsSync(file)`, otherwise `JSON.parse(fs.readFileSync(file, "utf8"))` in a try/catch whose catch calls `halt(...)` with the message above. Keep `override ? deepMerge(base, override) : base`.
+1. `skills/10x-pipeline/scripts/state.mjs`, `mergedPolicy()`: build the override path, return `base` when `!fs.existsSync(file)`, otherwise `JSON.parse(fs.readFileSync(file, "utf8"))` in a try/catch whose catch calls `halt(...)` with the message above. Halt when the parsed value is not an object (F1), then `deepMerge(base, override)`.
 2. New `skills/10x-pipeline/test/override-json.test.mjs` (add it to the test list in `AGENTS.md` Project Structure with one line) (helpers `makeProject`, `init`, `run`, `cleanupAll`):
    - Trailing-comma override `{ "isolation": { "require": false }, }`: `init` exits 1, stdout names `agent-smith-policy.json` and `Cannot parse`, and `context/changes/demo/agent-smith/meta.json` does not exist.
    - `status demo` with the same broken file also halts (through `loadPolicy` in `main`, like every command).
    - Deleting the override file leaves `status demo` exit 0 (missing file is no override).
-3. `docs/REFERENCE.md`: one bullet near "Override any policy key per project" saying an override file that does not parse halts every command with the file name and the parse error, and a missing file is no override.
+   - `[]`, `null`, `"x"`, `5` and `false` as the override: `init` and `status` exit 1, the reason names the file and the kind, and no `meta.json` is written (F1).
+3. `docs/REFERENCE.md`: one bullet near "Override any policy key per project" saying an override file that does not parse, or whose JSON is not an object, halts every command with the file name and the parse error, and a missing file is no override.
 
 ### Success criteria
 
@@ -48,7 +48,7 @@ created: 2026-11-11
 
 ## Out of scope
 
-Validating override keys or shapes; changing `readJson`; the `preplan.mjs` JSON reader.
+Validating the keys of the override or the shapes of their values; changing `readJson`; the `preplan.mjs` JSON reader.
 
 ## Progress
 
