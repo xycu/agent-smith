@@ -9,6 +9,7 @@ Move the two jobs of `.github/workflows/ci.yml` (`test`, `commits`) from `ubuntu
 - `ci.yml` has two jobs, both `runs-on: ubuntu-latest` (`.github/workflows/ci.yml:21`, `:35`). Triggers: `pull_request` and `push` to `main`. Steps: checkout, `actions/setup-node` Node 24, then `node --test ...`, `tools/version-check.mjs`, `tools/commit-lint.mjs`.
 - `release.yml` has one job on `ubuntu-latest` and uses `GITHUB_TOKEN` with `contents: write`; it is outside the goal.
 - The repository `xycu/agent-smith` is PUBLIC (`gh repo view`). A `pull_request` from a fork would run its workflow code on the runner. GitHub warns against self-hosted runners for public repositories for this reason. The `runs-on` expression is not a boundary by itself: a fork PR runs the workflow file from its own merge ref, so its author can edit `runs-on` to the self-hosted labels. What stops that run is the setting Settings -> Actions -> General -> "Fork pull request workflows from outside collaborators" ("Require approval for all external contributors"), which holds every fork PR run until a maintainer approves it.
+- The setting does not hold today. Read-only `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval` returned `{"approval_policy":"first_time_contributors"}` on 2026-11-11 (impl-review F1, re-read during this re-plan). With that policy a fork contributor whose earlier run was approved, or whose PR was merged, gets no approval gate. The six runners `truenas-agent-smith-1..6` are already online, so the exposure exists now, not only after the merge. Only the owner may change the setting: agents never change repository settings (AGENTS.md Hard Rules).
 - The test suite builds real git worktrees, a bare remote and logging `git` shims (`skills/10x-pipeline/test/*.test.mjs`), so the runner needs `git` and a writable temp dir. No npm dependencies exist (AGENTS.md, ADR-006), so no `npm ci` and no cache.
 - `tools/workflow-pins.mjs` pins every `uses:` to a 40-hex SHA with a version comment; `tools/test/workflow-pins.test.mjs` runs it on this repository. Adding no new action keeps it green.
 - ADR-008 line 45 says the workflows run only on GitHub and were checked with `actionlint`; AGENTS.md lists ci.yml in Project Structure and Releases.
@@ -23,6 +24,7 @@ On a pull request from the same repository, and on push to `main`, both CI jobs 
 - The fallback only covers an honest fork PR. Do not describe it as a security boundary in the workflow comment, the ADR or the report; the approval setting is the boundary and is a prerequisite (Phase 3).
 - A fork PR has `github.event.pull_request.head.repo.full_name != github.repository`; push events have no `pull_request` object, so the check must treat that as same-repo.
 - `actions/setup-node` downloads Node 24 from the internet at job time; a TrueNAS runner needs outbound HTTPS to github.com and nodejs.org, or Node 24 preinstalled (decision below).
+- The approval setting can be read without a write: `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy`. The required value is `all_external_contributors` ("Require approval for all external contributors"), so a Progress row can check it.
 
 ## What We're NOT Doing
 
@@ -31,10 +33,13 @@ On a pull request from the same repository, and on push to `main`, both CI jobs 
 - No runner group, ephemeral-runner or autoscaling setup; no caching; no change to test commands.
 - No change to the SHA-pin rule or to any pinned action.
 - No Docker-in-job container images (`container:`); jobs run directly on the runner host.
+- No agent changes the fork approval setting or any other repository setting (AGENTS.md Hard Rules); the owner does. No amendment of ADR-020 D2 to accept `first_time_contributors` as the boundary.
 
 ## Implementation Approach
 
 Define the runner choice once per job as a ternary expression on the event and head repository. Keep `actions/setup-node` so the Node 24 requirement stays declared in the workflow (works on a runner with internet or a populated tool cache). Add a guard test that reads `ci.yml` so the fork fallback cannot be dropped or inverted silently. Record the decision in ADR-020 and fix the stale ADR-008 sentence and the AGENTS.md mention.
+
+Revision after the implementation review of 2026-11-11 (`reviews/impl-review.md`, REJECTED): F1 (the fork approval policy reads `first_time_contributors`) becomes Phase 3 item 2 and rows 3.5 and 3.6. F2 and F3 were applied in commit `b8541af`; row 2.4 pins the F2 wording, and row 3.6 rewrites the F3 sentence, which the next passing reading makes stale.
 
 ## Phase 1: Switch ci.yml to the self-hosted runner with a fork fallback
 
@@ -102,12 +107,19 @@ ADR plus the two stale statements.
 
 **Contract**: prose edits only; `docs/ADR/` listing in AGENTS.md names ADR-020.
 
+#### 3. Fixes of the implementation review (applied in `b8541af`)
+
+**Intent**: F2: the kept first sentence of ADR-008 line 45 read as false next to the ADR-020 pointer; it now reads "The workflows run only in GitHub Actions, never locally." F3: the ADR-020 assumption on the fork approval setting now names the required value, the read-only call and the measured value. Row 2.4 keeps the F2 wording from regressing; the F3 sentence changes again under Phase 3 item 2.
+
+**Contract**: `docs/ADR/ADR-008-release-packaging-and-semver.md` keeps the sentence "The workflows run only in GitHub Actions, never locally." No further edit in this phase.
+
 ### Success Criteria:
 
 #### Automated Verification:
 
 - ADR file exists and is referenced: `grep -l "ADR-020" AGENTS.md docs/ADR/ADR-008-release-packaging-and-semver.md`
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- ADR-008 keeps the F2 wording: `grep -q "The workflows run only in GitHub Actions, never locally." docs/ADR/ADR-008-release-packaging-and-semver.md`
 
 #### Manual Verification:
 
@@ -119,21 +131,33 @@ ADR plus the two stale statements.
 
 ### Overview
 
-The workflow cannot be run locally; the first pull request on the NAS runners is the proof.
+The workflow cannot be run locally; the first pull request on the NAS runners is the proof. The fork approval boundary must hold first (item 2).
 
 ### Changes Required:
 
 #### 1. Runner registration check (owner action, no repo change)
 
-**Intent**: Before the pull request of this change is opened (its own jobs run on the NAS, and they queue until a runner is online), confirm the runners are registered to `xycu/agent-smith` with labels `self-hosted`, `linux`, `truenas` and are online, and that Settings -> Actions -> General -> "Fork pull request workflows from outside collaborators" is set to "Require approval for all external contributors". This setting is the boundary that keeps fork code off the NAS; the owner checks it by hand, since no row of the Progress block covers it.
+**Intent**: Before the pull request of this change is opened (its own jobs run on the NAS, and they queue until a runner is online), confirm the runners are registered to `xycu/agent-smith` with labels `self-hosted`, `linux`, `truenas` and are online, and that Settings -> Actions -> General -> "Fork pull request workflows from outside collaborators" is set to "Require approval for all external contributors". This setting is the boundary that keeps fork code off the NAS; row 3.5 reads it (item 2).
 
 **Contract**: no files change.
+
+#### 2. Fork approval boundary (impl-review F1)
+
+**Intent**: The policy reads `first_time_contributors`, so a fork contributor with an earlier approved run or merged PR can edit `runs-on` to the TrueNAS labels and run code on the NAS without approval. The owner switches the setting to "Require approval for all external contributors" now, because the runners are already online, and in any case before the pull request of this change is merged. An agent only reads the setting, then records the passing reading in ADR-020. The run's own pull request may open when the run ends or halts (ADR-017); its jobs then run on the NAS as a same-repository pull request, the trusted case, and do not widen the fork exposure. The merge stays the owner's gate.
+
+**Contract**:
+
+- Owner action, no repository file: the read-only call `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` prints `all_external_contributors`. Agents never write the setting (no `gh api -X PUT`, no settings page).
+- Row 3.5 (implementer): run that call. On any other value, or when the `gh` call fails, leave 3.5 and 3.6 pending, change no file, and finish with status `blocked` and `signals.needsHuman` naming the owner action. Do not report `failed`: the run must halt for the owner, not retry at a higher tier. Do not weaken ADR-020 D2 to fit the reading.
+- Row 3.6 (implementer), only after 3.5 passed in the same step: the Assumptions bullet on the fork approval setting in `docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` names the required value `all_external_contributors`, the read-only call, Progress row 3.5 as its check, and the date and value of the reading that passed. It may keep the 2026-11-11 `first_time_contributors` reading as history. It drops "no Progress row covers it" and "does not hold until the owner changes the setting". No other ADR line changes; the ADR records no reading that did not happen.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
 - Runners are online with the labels: `gh api repos/xycu/agent-smith/actions/runners --jq '.runners[] | {name,status,labels:[.labels[].name]}'`
+- Fork approval policy is all external contributors: `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` prints `all_external_contributors`
+- ADR-020 records the passing reading: `grep -q "all_external_contributors" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md && ! grep -qE "no Progress row covers it|does not hold until the owner changes the setting" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md`
 
 #### Manual Verification:
 
@@ -155,8 +179,9 @@ The workflow cannot be run locally; the first pull request on the NAS runners is
 
 ### Manual Testing Steps:
 
-1. Open a PR from a branch of this repository; read the job log runner name.
-2. Merge it; check the `main` push run.
+1. Owner: set the fork approval setting to "Require approval for all external contributors" and re-read the endpoint (row 3.5).
+2. Open a PR from a branch of this repository; read the job log runner name.
+3. Merge it; check the `main` push run.
 
 ## Performance Considerations
 
@@ -171,6 +196,9 @@ Rollback: revert the `runs-on` lines to `ubuntu-latest`. If the runners are offl
 - `.github/workflows/ci.yml:21`, `:35`; `.github/workflows/release.yml:28`
 - `tools/workflow-pins.mjs`, `tools/test/workflow-pins.test.mjs`
 - `docs/ADR/ADR-008-release-packaging-and-semver.md:45`
+- `context/changes/ci-self-hosted-truenas/reviews/impl-review.md` (F1-F3); fix commit `b8541af`
+- `docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` (D2, Assumptions)
+- GitHub REST: `GET /repos/{owner}/{repo}/actions/permissions/fork-pr-contributor-approval` (`approval_policy`)
 
 ## Progress
 
@@ -192,6 +220,7 @@ Rollback: revert the `runs-on` lines to `ubuntu-latest`. If the runners are offl
 
 - [x] 2.1 ADR file exists and is referenced: `grep -l "ADR-020" AGENTS.md docs/ADR/ADR-008-release-packaging-and-semver.md`
 - [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [ ] 2.4 ADR-008 keeps the F2 wording: `grep -q "The workflows run only in GitHub Actions, never locally." docs/ADR/ADR-008-release-packaging-and-semver.md`
 
 #### Manual
 
@@ -202,6 +231,8 @@ Rollback: revert the `runs-on` lines to `ubuntu-latest`. If the runners are offl
 #### Automated
 
 - [x] 3.1 Runners are online with the labels: `gh api repos/xycu/agent-smith/actions/runners --jq '.runners[] | {name,status,labels:[.labels[].name]}'`
+- [ ] 3.5 Fork approval policy is all external contributors: `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` prints `all_external_contributors`
+- [ ] 3.6 ADR-020 records the passing reading: `grep -q "all_external_contributors" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md && ! grep -qE "no Progress row covers it|does not hold until the owner changes the setting" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md`
 
 #### Manual
 
