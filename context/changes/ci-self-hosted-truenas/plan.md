@@ -180,18 +180,18 @@ Rollback: revert the `runs-on` lines to `ubuntu-latest`. If the runners are offl
 
 #### Automated
 
-- [ ] 1.1 Guard test passes: `node --test tools/test/ci-runner.test.mjs`
-- [ ] 1.2 Pin guard still passes: `node --test tools/test/workflow-pins.test.mjs`
-- [ ] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.4 Version check passes: `node tools/version-check.mjs`
-- [ ] 1.5 Workflow lints clean when `actionlint` is installed: `actionlint .github/workflows/ci.yml` (skip if the binary is absent)
+- [x] 1.1 Guard test passes: `node --test tools/test/ci-runner.test.mjs`
+- [x] 1.2 Pin guard still passes: `node --test tools/test/workflow-pins.test.mjs`
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.4 Version check passes: `node tools/version-check.mjs`
+- [x] 1.5 Workflow lints clean when `actionlint` is installed: `actionlint .github/workflows/ci.yml` (skip if the binary is absent)
 
 ### Phase 2: Record the decision in docs
 
 #### Automated
 
-- [ ] 2.1 ADR file exists and is referenced: `grep -l "ADR-020" AGENTS.md docs/ADR/ADR-008-release-packaging-and-semver.md`
-- [ ] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 ADR file exists and is referenced: `grep -l "ADR-020" AGENTS.md docs/ADR/ADR-008-release-packaging-and-semver.md`
+- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
@@ -201,7 +201,7 @@ Rollback: revert the `runs-on` lines to `ubuntu-latest`. If the runners are offl
 
 #### Automated
 
-- [ ] 3.1 Runners are online with the labels: `gh api repos/xycu/agent-smith/actions/runners --jq '.runners[] | {name,status,labels:[.labels[].name]}'`
+- [x] 3.1 Runners are online with the labels: `gh api repos/xycu/agent-smith/actions/runners --jq '.runners[] | {name,status,labels:[.labels[].name]}'`
 
 #### Manual
 
