@@ -35,11 +35,11 @@ Diff `main...HEAD` read in full: `skills/10x-pipeline/scripts/route.mjs`, `docs/
 - **Severity**: 👀 OBSERVATION
 - **Dimension**: Correctness
 - **Detail**: With the check after `decide`, the skip loop may log a skip entry (pre-plan gate, score, manual-verify) in a run that then halts on the budget. Skips use no budget, and the plan names this in "Implementation Approach". No action needed.
-- **Decision**: PENDING — observation only, no fix wanted; the plan accepts it.
+- **Decision**: APPLIED - 10a3aa8 — a logged skip stays handled on resume, so the budget halt now drops the skips of its own call (`route.mjs`) and the resumed run decides them again; test in `preplan.test.mjs`.
 
 ### F2 — "Failure path fits" now ends on the fix-loop cap, not the budget
 
 - **Severity**: 👀 OBSERVATION
 - **Dimension**: Test Coverage
 - **Detail**: The `stacked` walk of `budget-executors.test.mjs` no longer reaches the budget halt text; it keeps its `steps <= budget` assertion, which is the point of the test. The budget halt on a run with a pending step stays covered by `route.test.mjs`, `executors.test.mjs`, `firstattempt.test.mjs`, `score.test.mjs` and the fixed `archive.test.mjs` test.
-- **Decision**: PENDING — observation only, no fix wanted.
+- **Decision**: APPLIED - 1c93bd3 — the `stacked` walk now asserts `steps === budget` and its comment names the fix-loop halt.

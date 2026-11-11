@@ -26,7 +26,7 @@ A run whose log is at or over budget but whose `decide` returns `done` (or its o
 
 ## Implementation Approach
 
-Delete the early check; after the `if (d.halt || d.done)` block, add the same check with the same reason text. The loop may now log a skip entry in a run already at budget; skips use no budget, so this is harmless. The `fails >= maxAttemptsPerStep` halt after `tierFor` keeps its place after the budget check, so the order of those two halts is unchanged. A run over budget whose `decide` returns `done` with `meta.archive` now commits the change folder and returns `archive`, as any complete run does.
+Delete the early check; after the `if (d.halt || d.done)` block, add the same check with the same reason text. The loop may now reach a skip in a run already at budget. Skips use no budget, but a logged skip stays handled, so the budget halt drops the skips of its own call from the log and the resumed run decides them again (review finding F1). The `fails >= maxAttemptsPerStep` halt after `tierFor` keeps its place after the budget check, so the order of those two halts is unchanged. A run over budget whose `decide` returns `done` with `meta.archive` now commits the change folder and returns `archive`, as any complete run does.
 
 ## Phase 1: Move the budget check after decide
 
@@ -56,7 +56,7 @@ Router change plus a regression test and doc line.
 
 **File**: `skills/10x-pipeline/test/budget-executors.test.mjs`
 
-**Intent**: In "failure path fits" (`stacked`), expect the halt `Implementation still NEEDS ATTENTION after 2 fix loops` (the run is at the fix-loop cap, which `decide` now reports) instead of `Step budget \d+ spent`, keeping the `steps <= budget` assertion. In the confirm-round walk (line ~460) widen the accepted end to `done`, the budget text or a `decide` halt, if the full suite shows it ends there. Run the whole suite and fix any other assertion that expected the budget text for a run that `decide` ends itself; do not change an assertion for a run with a step still to run.
+**Intent**: In "failure path fits" (`stacked`), expect the halt `Implementation still NEEDS ATTENTION after 2 fix loops` (the run is at the fix-loop cap, which `decide` now reports) instead of `Step budget \d+ spent`, and assert that the walk spent exactly its budget (`steps === budget`; review finding F2). In the confirm-round walk (line ~460) widen the accepted end to `done`, the budget text or a `decide` halt, if the full suite shows it ends there. Run the whole suite and fix any other assertion that expected the budget text for a run that `decide` ends itself; do not change an assertion for a run with a step still to run.
 
 **Contract**: Assertion lines only; no walk, fixture or policy change.
 
@@ -96,6 +96,7 @@ Router change plus a regression test and doc line.
 - Complete run at exactly the budget gives `done`.
 - Run at budget with a step still to run gives the budget halt (existing tests, plus the fixed archive test).
 - Run at budget whose `decide` halts on its own shows that halt, not the budget text.
+- A budget halt leaves no skip entry in the log; the resumed run logs the skips with the reasons of the resume (`preplan.test.mjs`).
 - Complete `--archive` run at the budget returns `archive`.
 
 ### Manual Testing Steps:
