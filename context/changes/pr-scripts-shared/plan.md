@@ -202,26 +202,26 @@ None. Plugin users get the new file with the next release; the orchestrator call
 
 #### Automated
 
-- [ ] 1.1 New module tests pass: `node --test skills/10x-pipeline/test/pr-common.test.mjs`
+- [x] 1.1 New module tests pass: `node --test skills/10x-pipeline/test/pr-common.test.mjs`
 - [ ] 1.2 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
-- [ ] 1.3 Read `pr-common.mjs` beside the two scripts and confirm every extracted function matches its original line for line
+- [x] 1.3 Read `pr-common.mjs` beside the two scripts and confirm every extracted function matches its original line for line
 
 ### Phase 2: Rewire both scripts and fix dependent tests
 
 #### Automated
 
-- [ ] 2.1 Script tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/pr-common.test.mjs`
+- [x] 2.1 Script tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/pr-common.test.mjs`
 - [ ] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 No copy remains: `grep -c "function firstLine\|MENTION_RE =\|BODY_CAP =" skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/pr-comment.mjs` prints `0` for both
-- [ ] 2.4 Version and commit checks unaffected: `node tools/version-check.mjs`
+- [x] 2.3 No copy remains: `grep -c "function firstLine\|MENTION_RE =\|BODY_CAP =" skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/pr-comment.mjs` prints `0` for both
+- [x] 2.4 Version and commit checks unaffected: `node tools/version-check.mjs`
 
 #### Manual
 
-- [ ] 2.5 Run both scripts with a bad argument and confirm the usage text and exit code 2 are unchanged
-- [ ] 2.6 Line count of the two scripts together drops by about 60 lines
+- [x] 2.5 Run both scripts with a bad argument and confirm the usage text and exit code 2 are unchanged
+- [x] 2.6 Line count of the two scripts together drops by about 60 lines
 
 ### Phase 3: Docs
 
@@ -231,4 +231,4 @@ None. Plugin users get the new file with the next release; the orchestrator call
 
 #### Manual
 
-- [ ] 3.2 Read the two doc edits and confirm they match the code
+- [x] 3.2 Read the two doc edits and confirm they match the code
