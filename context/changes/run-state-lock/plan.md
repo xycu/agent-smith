@@ -145,7 +145,7 @@ None. Provenance hashes policy sections only; no policy key is added, so no drif
 #### Automated
 
 - [x] 1.1 New lock tests pass: `node --test skills/10x-pipeline/test/run-lock.test.mjs`
-- [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - [x] 1.3 `init` and `status` return valid JSON in a scratch change folder (and with `--chain openspec`)
 
 #### Manual
@@ -157,7 +157,7 @@ None. Provenance hashes policy sections only; no policy key is added, so no drif
 
 #### Automated
 
-- [ ] 2.1 Full suite passes after the docs change: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 Full suite passes after the docs change: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
