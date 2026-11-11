@@ -1,0 +1,4 @@
+- 2.3 — needs facts about the owner's TrueNAS runner software (Node version, git, labels) that no file or command in this sandbox shows
+- 3.2 — needs a live pull request run on the TrueNAS runner; opening or pushing is an external action
+- 3.3 — needs a push to main and its CI run after merge; external and not yet possible
+- 3.4 — needs a fork pull request run on GitHub; external and none available
