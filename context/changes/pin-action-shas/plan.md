@@ -127,9 +127,9 @@ Pins do not update by themselves. To bump: look up the new tag's commit with `gi
 
 #### Automated
 
-- [ ] 1.1 No tag reference is left in `.github/workflows/*.yml`
-- [ ] 1.2 Each pinned SHA is the commit of its tag, checked with `git ls-remote`
-- [ ] 1.3 Version fields still agree: `node tools/version-check.mjs`
+- [x] 1.1 No tag reference is left in `.github/workflows/*.yml`
+- [x] 1.2 Each pinned SHA is the commit of its tag, checked with `git ls-remote`
+- [x] 1.3 Version fields still agree: `node tools/version-check.mjs`
 
 #### Manual
 
@@ -140,9 +140,9 @@ Pins do not update by themselves. To bump: look up the new tag's commit with `gi
 
 #### Automated
 
-- [ ] 2.1 New test passes: `node --test tools/test/workflow-pins.test.mjs`
-- [ ] 2.2 The test fails on a tag reference, checked on a scratch copy
-- [ ] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 New test passes: `node --test tools/test/workflow-pins.test.mjs`
+- [x] 2.2 The test fails on a tag reference, checked on a scratch copy
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
