@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, readJson, isFailure, trailingFailures, goalClass, isObject, atOrAbove, SHA_RE, runGit, gitOut,
-  globToRegex, churnConfig, normalizePlanPath,
+  globToRegex, churnConfig, planFileTokens, guardedStat,
 } from "./state.mjs";
 import { readText, goalPhrase, predicate, scoreShift } from "./preplan.mjs";
 
@@ -136,13 +136,8 @@ function phaseFiles(planFile) {
     const h = line.match(/^## (?:Phase|Faza) (\d+)/);
     if (h) { phase = Number(h[1]); if (!found.has(phase)) found.set(phase, new Set()); continue; }
     if (/^## /.test(line)) { phase = null; continue; }
-    const m = phase === null ? null : line.match(/^\*\*Files?\*\*:(.*)$/);
-    if (!m) continue;
-    const quoted = [...m[1].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
-    for (const raw of quoted.length ? quoted : m[1].split(",")) {
-      const token = normalizePlanPath(raw);
-      if (token) found.get(phase).add(token);
-    }
+    if (phase === null) continue;
+    for (const token of planFileTokens(line) ?? []) found.get(phase).add(token);
   }
   return new Map([...found].map(([n, set]) => [n, [...set].sort()]));
 }
@@ -330,10 +325,8 @@ function evidenceOk(changeDir, token, since) {
     const dir = path.join(changeDir, "evidence");
     const dirStat = fs.lstatSync(dir);
     if (!dirStat.isDirectory() || dirStat.isSymbolicLink()) return false;
-    const file = path.join(dir, ...segments);
-    const st = fs.statSync(file);
-    if (!st.isFile() || st.size <= 0 || !(st.mtimeMs > since)) return false;
-    return fs.realpathSync(file).startsWith(path.join(fs.realpathSync(changeDir), "evidence") + path.sep);
+    const st = guardedStat(path.join(dir, ...segments), dir);
+    return st !== null && st.size > 0 && st.mtimeMs > since;
   } catch { return false; }
 }
 
@@ -392,9 +385,8 @@ function readUnprovenReasons(changeDir, policy, since, ids) {
     const dirStat = fs.lstatSync(dir);
     if (!dirStat.isDirectory() || dirStat.isSymbolicLink()) return {};
     const file = path.join(dir, unprovenFile);
-    const st = fs.lstatSync(file);
-    if (!st.isFile() || st.size > UNPROVEN_MAX_BYTES || !(st.mtimeMs > since)) return {};
-    if (!fs.realpathSync(file).startsWith(path.join(fs.realpathSync(changeDir), "evidence") + path.sep)) return {};
+    const st = guardedStat(file, dir, UNPROVEN_MAX_BYTES);
+    if (!st || !(st.mtimeMs > since)) return {};
     text = fs.readFileSync(file, "utf8");
   } catch { return {}; }
   const reasons = new Map();

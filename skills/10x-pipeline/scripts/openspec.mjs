@@ -2,7 +2,7 @@
 // It never calls the openspec CLI (D2). Import order: state, preplan, steps, openspec, then flow, isolation and route.
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, executed, mtime, archiveRoot, DATED_ID } from "./state.mjs";
+import { ROOT, executed, mtime, archiveRoot, DATED_ID, readGuarded } from "./state.mjs";
 
 // A task row of tasks.md, the pattern of the OpenSpec CLI (1.16.1, dist/utils/task-progress.js TASK_LINE_PATTERN): a list
 // item under `-`, `*`, `+` or `1.`/`1)` with a checkbox that holds at most one non-space marker. A row is complete only
@@ -17,17 +17,6 @@ const VERIFY_MAX_BYTES = 65536;
 const isFile = (file) => {
   try { return fs.statSync(file).isFile(); } catch { return false; }
 };
-
-// The text of a regular file of at most `max` bytes whose real path lies inside the real path of `dir`, else null.
-// A symlinked file, a symlinked parent folder and an oversized file are refused, as for complexity.json and unproven.md.
-function readGuarded(file, dir, max) {
-  try {
-    const st = fs.lstatSync(file);
-    if (!st.isFile() || st.size > max) return null;
-    if (!fs.realpathSync(file).startsWith(fs.realpathSync(dir) + path.sep)) return null;
-    return fs.readFileSync(file, "utf8");
-  } catch { return null; }
-}
 
 // Task counts of tasks.md. A missing, symlinked, oversized or misplaced file counts no rows.
 export function readTasks(file) {

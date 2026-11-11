@@ -209,7 +209,7 @@ test("evidence suffix required", () => {
     assert.deepEqual(e.unproven, c.ok ? [] : ["1.2"], what);
     assert.equal(e.fallback, c.ok ? undefined : true, what);
   }
-  // A symlink inside the evidence folder that leaves it fails; one that stays inside passes.
+  // A symlink inside the evidence folder fails, whether it leaves the folder or stays inside.
   const out = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-out-"));
   fs.writeFileSync(path.join(out, "secret.txt"), "secret\n");
   const link = verifying({ manual: [A] });
@@ -221,7 +221,7 @@ test("evidence suffix required", () => {
   save(inside, [ticked(A, "evidence/link.txt")]);
   evidence(inside, "real.txt");
   fs.symlinkSync(path.join(inside.changeDir, "evidence/real.txt"), path.join(inside.changeDir, "evidence/link.txt"));
-  assert.equal(finish(inside).e.ok, true);
+  assert.equal(finish(inside).e.ok, false);
   removeTree(out);
   // Several rows may share one evidence file.
   const shared = verifying({ manual: [A, B] });
