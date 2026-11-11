@@ -10,7 +10,7 @@ Replace the tag references of the three actions in `.github/workflows/ci.yml` an
 
 ## Desired End State
 
-Every `uses:` line in `.github/workflows/*.yml` that names a remote action is `owner/repo@<40 hex> # vX.Y.Z`. A test fails when one is not. The pinned SHAs are the commits the `v5` tags resolve to today, so behavior does not change.
+Every `uses:` line that names a remote action, in a `*.yml` or `*.yaml` file under `.github/` (workflows, composite actions) or in a root `action.yml` or `action.yaml`, is `owner/repo@<40 hex> # vX.Y.Z`. A test fails when one is not. The pinned SHAs are the commits the `v5` tags resolve to today, so behavior does not change.
 
 ### Key Discoveries:
 
@@ -29,7 +29,7 @@ Every `uses:` line in `.github/workflows/*.yml` that names a remote action is `o
 
 ## Implementation Approach
 
-Edit five `uses:` lines. Add one small `node:test` file under `tools/test/` that reads `.github/workflows/*.yml` and asserts each `uses:` of a remote action matches `@[0-9a-f]{40}` followed by a `# v` comment. Re-verify each SHA with `git ls-remote` at implementation time in case a tag moved since planning (if a `v5` tag now points elsewhere, pin the commit of the version that was current at planning: the `v5.1.0`, `v5.0.0`, `v5.0.0` tags listed above).
+Edit five `uses:` lines. Add a guard module `tools/workflow-pins.mjs` and its `node:test` file under `tools/test/`: the guard reads every `*.yml` and `*.yaml` file under `.github/` and a root `action.yml` or `action.yaml`, and reports each `uses:` of a remote action that does not match `@[0-9a-f]{40}` followed by a `# v` comment. Re-verify each SHA with `git ls-remote` at implementation time in case a tag moved since planning (if a `v5` tag now points elsewhere, pin the commit of the version that was current at planning: the `v5.1.0`, `v5.0.0`, `v5.0.0` tags listed above).
 
 ## Phase 1: Pin the actions
 
@@ -74,11 +74,11 @@ Keep the pins from drifting back to tags.
 
 #### 1. Pin guard test
 
-**File**: `tools/test/workflow-pins.test.mjs` (new)
+**File**: `tools/workflow-pins.mjs` (new, the guard: `findUses`, `files`, `check`), `tools/test/workflow-pins.test.mjs` (new)
 
 **Intent**: Fail when a remote action in a workflow is not pinned to a full commit SHA with a version comment.
 
-**Contract**: `node:test` file in the style of `tools/test/version-check.test.mjs`; reads every `.github/workflows/*.yml` from the repo root (path from `import.meta.url`), takes each `uses:` value that does not start with `./` or `docker://`, and asserts `owner/repo[/path]@<40 hex>` followed by ` # v<digits>...`. Also asserts at least one `uses:` was found, so an empty match cannot pass. Built-ins only (ADR-006).
+**Contract**: `node:test` file in the style of `tools/test/version-check.test.mjs`; the guard reads every `*.yml` and `*.yaml` file under `.github/` and a root `action.yml` or `action.yaml` from the repo root (path from `import.meta.url`), takes each `uses:` value that does not start with `./` or `docker://`, and reports it as `<file>:<line>: unpinned action "uses: <value>"` unless it is `owner/repo[/path]@<40 hex>` followed by ` # v<digits>...`. It also reports when no `uses:` was found, so an empty match cannot pass. It has no YAML parser: a quoted key or value, a flow mapping and a value on the next line fail closed. Built-ins only (ADR-006).
 
 ### Success Criteria:
 
@@ -98,7 +98,7 @@ Keep the pins from drifting back to tags.
 
 ### Unit Tests:
 
-- `workflow-pins.test.mjs`: every remote `uses:` is SHA-pinned with a version comment; at least one found.
+- `workflow-pins.test.mjs`: every remote `uses:` is SHA-pinned with a version comment; at least one found; `.yaml` workflows and composite actions are read; unusual YAML forms fail closed.
 
 ### Manual Testing Steps:
 
