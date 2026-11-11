@@ -23,7 +23,7 @@ A complete run that ends exactly on the step budget is reported `halt` instead o
 
 ## Scope
 
-**In scope:** router move, one regression test, one docs bullet.
+**In scope:** router move, two regression tests, one fixture fix in `archive.test.mjs`, one docs bullet.
 
 **Out of scope:** budget values, `budgetSteps`, policy, `needsHuman` ordering.
 
