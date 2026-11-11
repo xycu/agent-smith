@@ -47,4 +47,4 @@ Evidence gathered on the code at `12e6518` (code commit `a6ffff9`):
 - **Location**: context/changes/pr-scripts-shared/plan.md (Progress 2.3)
 - **Detail**: The Phase 2 block was sharpened to `grep -cE "function (firstLine|spawn|runGh|ghFailure|isEntryPoint)|(MENTION_RE|BODY_CAP|ID_RE|DEFAULT_TIMEOUT_MS|GH_HOST) ="`, while Progress 2.3 still names the older `grep -c "function firstLine\|MENTION_RE =\|BODY_CAP ="`. Both pass on the current code (`:0` for both files), so nothing is wrong in the code.
 - **Fix**: None in code; the Progress title stays as written because step titles are not renamed.
-- **Decision**: PENDING - no code fix exists and the review may not edit `## Progress`; the owner decides whether to sync the row text with the Phase 2 criterion.
+- **Decision**: APPLIED - bd5b22e (Progress row 2.3 now names the Phase 2 `grep -cE` and its pass rule, tick kept; the command from the row prints `:0` for both files, exit 1)
