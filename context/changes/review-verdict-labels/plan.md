@@ -112,5 +112,5 @@ None. Reviews in the old form read exactly as before (all 62 archived reviews).
 
 #### Manual
 
-- [ ] 1.4 Reading the diff: `state.mjs` changes only `readReview` and its comment; `readFindings` behavior is unchanged.
-- [ ] 1.5 A review written with `**Verdict:** SOUND` and `**Findings:** 0 critical, 0 warnings` is not re-run as a failed step in a scratch run.
+- [x] 1.4 Reading the diff: `state.mjs` changes only `readReview` and its comment; `readFindings` behavior is unchanged. — evidence: evidence/judgment-readreview-diff.md
+- [x] 1.5 A review written with `**Verdict:** SOUND` and `**Findings:** 0 critical, 0 warnings` is not re-run as a failed step in a scratch run. — evidence: evidence/script-sound-output.txt
