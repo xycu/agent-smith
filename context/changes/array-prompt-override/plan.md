@@ -98,10 +98,10 @@ Replace the raw reads and cover both forms with tests.
 
 #### Automated
 
-- [ ] 1.1 New archive test passes with array `archive` and `suffix` overrides: `node --test skills/10x-pipeline/test/archive.test.mjs`
-- [ ] 1.2 New route test passes for array `suffix`: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [ ] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.4 No raw read remains: `grep -rn "policy\.prompts\.\(archive\|suffix\)" skills/10x-pipeline/scripts` prints nothing
+- [x] 1.1 New archive test passes with array `archive` and `suffix` overrides: `node --test skills/10x-pipeline/test/archive.test.mjs`
+- [x] 1.2 New route test passes for array `suffix`: `node --test skills/10x-pipeline/test/route.test.mjs`
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.4 No raw read remains: `grep -rn "policy\.prompts\.\(archive\|suffix\)" skills/10x-pipeline/scripts` prints nothing
 
 #### Manual
 

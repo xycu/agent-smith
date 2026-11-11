@@ -38,6 +38,13 @@ test("--rigor sets the start level", () => {
   assert.equal(meta.rigor.requested, "thorough");
 });
 
+test("an array suffix override joins with newlines in a step prompt", () => {
+  const project = makeProject({ policy: { prompts: { suffix: ["line one", "line two"] } } });
+  const res = init(project, "fix typo");
+  assert.equal(res.json.action, "run");
+  assert.ok(res.json.prompt.endsWith("line one\nline two"), res.json.prompt);
+});
+
 test("--rigor with a bad or missing value halts with JSON and writes nothing", () => {
   for (const args of [["--rigor", "foo"], ["--rigor"]]) {
     const project = makeProject();

@@ -658,8 +658,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
   // "HEAD" stands for a commit this call made whose hash could not be read; null means no commit was made.
   const commit = res.made ? (res.commit ? res.commit.slice(0, 7) : "HEAD") : null;
-  const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(policy.prompts.archive, { id });
-  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + policy.prompts.suffix;
+  const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(promptText(policy, "archive"), { id });
+  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + promptText(policy, "suffix");
   return out({
     action: "archive",
     model: target.model,
