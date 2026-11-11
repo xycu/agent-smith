@@ -601,6 +601,23 @@ test("done with --archive commits the change folder and returns the archive acti
   assert.match(readReportFile(project), /^Steps: 4 /m);
 });
 
+test("array archive and suffix overrides render joined, @prompts parts resolved", { skip: noGit }, () => {
+  const project = archiveProject({ policy: { prompts: {
+    archive: ["Run /10x-archive {id}", "- extra rule", "@prompts/impl-review-warn.md"],
+    suffix: ["line one", "line two"],
+  } } });
+  const res = runNext(project);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(res.json.action, "archive");
+  // render() fills the part's {placeholders}, so compare the placeholder-free lines.
+  const warn = fs.readFileSync(new URL("../prompts/impl-review-warn.md", import.meta.url), "utf8").split("\n").filter((l) => l.trim() && !l.includes("{"));
+  assert.ok(warn.length > 0);
+  assert.ok(res.json.prompt.startsWith("Run /10x-archive demo\n- extra rule\n"), res.json.prompt);
+  for (const l of warn) assert.ok(res.json.prompt.includes(l), l);
+  assert.ok(res.json.prompt.endsWith("line one\nline two"));
+  assert.ok(!res.json.prompt.includes("line one,line two"));
+});
+
 test("a second next returns archive again with no new commit", { skip: noGit }, () => {
   const project = archiveProject();
   assert.equal(runNext(project).json.action, "archive");

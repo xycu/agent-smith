@@ -192,7 +192,7 @@ function next(id, policy, chain = "10x") {
   const advisor = advisorOn(policy, template);
   const prompt = worktreeLine(policy, meta) + render(promptText(policy, template), vars).trim()
     + (advisor ? "\n\n" + render(promptText(policy, "advisor"), vars).trim() : "")
-    + "\n\n" + policy.prompts.suffix;
+    + "\n\n" + promptText(policy, "suffix");
   const agent = stepAgent(policy, d.step);
   const entry = {
     n: ran.length + 1,
