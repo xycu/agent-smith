@@ -109,10 +109,10 @@ None. Existing junk folders from earlier hand-runs stay; delete them file by fil
 
 #### Automated
 
-- [ ] 1.1 `init` and `next` without `change.md` halt and write nothing: `node --test --test-name-pattern="missing change.md" skills/10x-pipeline/test/route.test.mjs` passes
-- [ ] 1.2 The isolated `init` makes no start commit: `node --test --test-name-pattern="missing change.md" skills/10x-pipeline/test/isolation.test.mjs` passes
-- [ ] 1.3 The archive-guard test still passes: `node --test --test-name-pattern="suffix-collision" skills/10x-pipeline/test/archive.test.mjs` passes
-- [ ] 1.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 1.1 `init` and `next` without `change.md` halt and write nothing: `node --test --test-name-pattern="missing change.md" skills/10x-pipeline/test/route.test.mjs` passes
+- [x] 1.2 The isolated `init` makes no start commit: `node --test --test-name-pattern="missing change.md" skills/10x-pipeline/test/isolation.test.mjs` passes
+- [x] 1.3 The archive-guard test still passes: `node --test --test-name-pattern="suffix-collision" skills/10x-pipeline/test/archive.test.mjs` passes
+- [x] 1.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
 
 #### Manual
 
@@ -122,7 +122,7 @@ None. Existing junk folders from earlier hand-runs stay; delete them file by fil
 
 #### Automated
 
-- [ ] 2.1 The suite stays green after the docs edit: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 2.1 The suite stays green after the docs edit: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
 
 #### Manual
 

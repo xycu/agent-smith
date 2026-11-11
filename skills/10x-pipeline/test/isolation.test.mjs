@@ -214,3 +214,18 @@ test("2.2 next puts the worktree rules before every prompt of an isolated run on
   assert.equal(plainRetry.json.action, "run");
   assert.equal(plainRetry.json.prompt.includes("Working directory rules"), false);
 });
+
+test("2.1 init without change.md halts and makes no start commit (missing change.md)", { skip }, () => {
+  const main = makeProject({ policy: ON, change: false });
+  gitInit(main);
+  git(main, ["add", "-A"]);
+  git(main, ["commit", "-q", "-m", "chore: project"]);
+  main.git = true;
+  const wt = worktree(main);
+  const before = git(wt, ["rev-parse", "HEAD"]);
+  const res = initIn(wt);
+  assert.equal(res.status, 1, res.stdout + res.stderr);
+  assert.match(res.json.reason, /No change folder\. Run \/10x-new demo first\./);
+  assert.equal(fs.existsSync(wt.agentDir), false);
+  assert.equal(git(wt, ["rev-parse", "HEAD"]), before);
+});
