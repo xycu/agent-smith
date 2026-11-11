@@ -133,7 +133,7 @@ Pins do not update by themselves. To bump: look up the new tag's commit with `gi
 
 #### Manual
 
-- [ ] 1.4 Reviewer reads the diff: five `uses:` lines changed, nothing else
+- [x] 1.4 Reviewer reads the diff: five `uses:` lines changed, nothing else — evidence: evidence/judgment-diff-five-uses-lines.md
 - [ ] 1.5 After merge, CI and the next release-please run resolve the actions
 
 ### Phase 2: Guard test
@@ -146,4 +146,4 @@ Pins do not update by themselves. To bump: look up the new tag's commit with `gi
 
 #### Manual
 
-- [ ] 2.4 Test failure message names the file and the offending `uses:` line
+- [x] 2.4 Test failure message names the file and the offending `uses:` line — evidence: evidence/test-workflow-pins-failure-message.txt

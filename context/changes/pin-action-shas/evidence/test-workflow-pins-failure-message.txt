@@ -1,0 +1,31 @@
+Test: tools/test/workflow-pins.test.mjs, test 'every remote action is pinned to a commit SHA with a version comment' run on scratch copy with one 'actions/checkout@v5' in ci.yml (repo files untouched)
+Command: node --test tools/test/workflow-pins.test.mjs (cwd scratch copy)
+
+✖ every remote action is pinned to a commit SHA with a version comment (1.281792ms)
+✔ a tag reference is rejected (0.230334ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 1
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 287.245166
+
+✖ failing tests:
+
+test at tools/test/workflow-pins.test.mjs:20:1
+✖ every remote action is pinned to a commit SHA with a version comment (1.281792ms)
+  AssertionError [ERR_ASSERTION]: ci.yml: unpinned action "uses: actions/checkout@v5"
+      at TestContext.<anonymous> (file:///private/tmp/claude-501/-Users-blazej-WebstormProjects-agent-smith/d5574100-712f-42f4-8072-b917f2d88640/scratchpad/pins.VJWlrd/tools/test/workflow-pins.test.mjs:25:14)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'actions/checkout@v5',
+    expected: /^[\w.-]+\/[\w.-]+(\/[\w./-]+)?@[0-9a-f]{40} # v\d+\S*$/,
+    operator: 'match',
+    diff: 'simple'
+  }
