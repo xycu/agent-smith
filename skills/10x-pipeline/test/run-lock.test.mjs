@@ -9,8 +9,13 @@ import { spawnSync } from "node:child_process";
 import { cleanupAll, makeProject, run, writeLog, writeMetaFile, entry } from "./helpers.mjs";
 import { makeOpenspecProject } from "./openspec-helpers.mjs";
 import { runLockPath } from "../scripts/state.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 
-after(cleanupAll);
+const lockDirs = [];
+after(() => {
+  cleanupAll();
+  for (const dir of lockDirs.splice(0)) removeTree(dir);
+});
 
 const FLAGS = ["--tokens", "1200"];
 
@@ -18,6 +23,7 @@ function setup(project, extra = []) {
   writeLog(project, [entry(1, "plan")]);
   writeMetaFile(project, { id: "demo", goal: "fix typo", rigor: { level: "standard" } });
   const tmp = fs.realpathSync(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "lock-")));
+  lockDirs.push(tmp);
   const lock = path.join(tmp, path.basename(runLockPath(project.agentDir)));
   // runLockPath uses this process's os.tmpdir(); only the file name is reused.
   return { env: { TMPDIR: tmp }, tmp, lock, logFile: path.join(project.agentDir, "run.jsonl"), extra };
