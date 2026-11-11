@@ -209,20 +209,7 @@ test("evidence suffix required", () => {
     assert.deepEqual(e.unproven, c.ok ? [] : ["1.2"], what);
     assert.equal(e.fallback, c.ok ? undefined : true, what);
   }
-  // A symlink inside the evidence folder fails, whether it leaves the folder or stays inside.
-  const out = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-out-"));
-  fs.writeFileSync(path.join(out, "secret.txt"), "secret\n");
-  const link = verifying({ manual: [A] });
-  save(link, [ticked(A, "evidence/link.txt")]);
-  fs.mkdirSync(path.join(link.changeDir, "evidence"));
-  fs.symlinkSync(path.join(out, "secret.txt"), path.join(link.changeDir, "evidence/link.txt"));
-  assert.equal(finish(link).e.ok, false);
-  const inside = verifying({ manual: [A] });
-  save(inside, [ticked(A, "evidence/link.txt")]);
-  evidence(inside, "real.txt");
-  fs.symlinkSync(path.join(inside.changeDir, "evidence/real.txt"), path.join(inside.changeDir, "evidence/link.txt"));
-  assert.equal(finish(inside).e.ok, false);
-  removeTree(out);
+  // A symlinked evidence file: file-guard.test.mjs.
   // Several rows may share one evidence file.
   const shared = verifying({ manual: [A, B] });
   save(shared, [ticked(A), ticked(B)]);
