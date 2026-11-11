@@ -30,7 +30,7 @@ Evidence: commit 70b277f against the plan's Changes Required. `state.mjs` export
 - **Dimension**: Safety & Quality
 - **Location**: skills/10x-pipeline/scripts/preplan.mjs (`readComplexity`, the `guardedStat(file, p.change, ...)` line)
 - **Detail**: `complexity.json` sits directly in the change folder, and the two checks above it already refuse a symlinked file and an oversized file. The only way left to escape the real path of `p.change` is a symlinked parent between the two, which this layout does not have. The plan asked for the check ("adds the real-path check through `guardedStat`"), so the code matches the plan; the line is defence in depth with no test of its own.
-- **Decision**: PENDING — no fix needed; the owner may keep it as the plan says or drop the line, which only changes the code, not behavior.
+- **Decision**: APPLIED - c3dd9ef — `readComplexity` now reads the file only when `guardedStat` accepts it, so the guard is the one rule and no longer a dead line behind its own copy; the second `lstat` after a refusal only words the error. Behavior and messages are unchanged; `file-guard.test.mjs` covers the cases.
 
 ### F2 — Plan test items are covered in existing test files
 
@@ -39,4 +39,4 @@ Evidence: commit 70b277f against the plan's Changes Required. `state.mjs` export
 - **Dimension**: Plan Adherence
 - **Location**: skills/10x-pipeline/test/file-guard.test.mjs, skills/10x-pipeline/test/manualverify.test.mjs, skills/10x-pipeline/test/score.test.mjs
 - **Detail**: Phase 1 lists, for `file-guard.test.mjs`, a refused symlinked `complexity.json` and a symlinked evidence file that is not valid evidence. The file holds the `guardedStat`/`readGuarded` and `planFileTokens` tests only. The symlinked evidence case is covered by the edited assertion in `manualverify.test.mjs` ("evidence suffix required", now `ok === false` for an in-folder symlink), and the symlinked `complexity.json` by the existing `score.test.mjs` symlink test. The behavior is tested; only the location differs from the plan.
-- **Decision**: PENDING — nothing to fix; the owner may accept the placement or move the cases into `file-guard.test.mjs`.
+- **Decision**: APPLIED - f0d9a9c — `file-guard.test.mjs` holds both cases (c3dd9ef): a symlinked `complexity.json` refused by `readComplexity` and a symlinked evidence file unproven in `verifyManual`. `manualverify.test.mjs` drops its copy; the `score.test.mjs` symlink test stays, because it checks the failed step and its retry through the CLI.

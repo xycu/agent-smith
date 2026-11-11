@@ -2,7 +2,7 @@
 
 ## Overview
 
-GitHub issue #98. Two rules live in several copies under `skills/10x-pipeline/scripts/`. This plan keeps one guarded reader and one plan path parser in `state.mjs` and calls them from the other places. No new behavior except one deliberate tightening: `evidenceOk` and `readComplexity` get the same lstat plus real-path check as the other copies.
+GitHub issue #98. Two rules live in several copies under `skills/10x-pipeline/scripts/`. This plan keeps one guarded reader and one plan path parser in `state.mjs` and calls them from the other places. No new behavior except one deliberate tightening: `evidenceOk` gets the same lstat plus real-path check as the other copies. `readComplexity` is gated by the same helper, with no change in what it accepts.
 
 ## Current State Analysis
 
@@ -14,7 +14,7 @@ GitHub issue #98. Two rules live in several copies under `skills/10x-pipeline/sc
 ## Desired End State
 
 - `state.mjs` exports `guardedStat(file, dir, max)` (returns the `lstat` result when `file` is a regular file, at most `max` bytes, whose real path lies inside the real path of `dir`; else `null`; never throws) and `readGuarded(file, dir, max)` (its text or `null`). `openspec.mjs` imports `readGuarded` instead of defining it.
-- `evidenceOk` and `readUnprovenReasons` call `guardedStat` with `dir = <change>/evidence`; `readComplexity` keeps its specific error messages and adds the real-path check through `guardedStat`.
+- `evidenceOk` and `readUnprovenReasons` call `guardedStat` with `dir = <change>/evidence`; `readComplexity` reads the file only when `guardedStat` accepts it and keeps its specific error messages: a second `lstat` after a refusal only words the error. Its real-path check cannot fail by itself, because the score file sits directly in the change folder (impl-review F1).
 - `state.mjs` exports `planFileTokens(line)` (the tokens of one `**File**:`/`**Files**:` line, normalized, or `null` when the line is no such line). `planPaths` and `phaseFiles` loop over lines and call it.
 - Verified by: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` green, plus new tests for the two helpers.
 
@@ -22,7 +22,7 @@ GitHub issue #98. Two rules live in several copies under `skills/10x-pipeline/sc
 
 - `evidenceOk` today accepts a symlinked evidence file whose target is inside `evidence/`. `docs/REFERENCE.md` ("Manual verification") says the file "exists, is regular and non-empty, lies inside the real `evidence` folder". Switching to `lstat` makes the code match the doc; a symlink now reads as invalid evidence, so the tick is unproven.
 - `readGuarded` and the `unproven.md` reader use the prefix test `realpath(file).startsWith(realpath(dir) + path.sep)`; keep exactly that test in the one copy.
-- `readComplexity` returns distinct messages (`a symlink, not a regular file`, `larger than N bytes`); `score.test.mjs` may assert them, so those checks stay and the helper only adds the real-path check.
+- `readComplexity` returns distinct messages (`a symlink, not a regular file`, `larger than N bytes`); `score.test.mjs` may assert them, so the messages stay; `guardedStat` decides and the messages are derived after a refusal.
 
 ## What We're NOT Doing
 
