@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { makeProject, run } from "./helpers.mjs";
+import { stampAhead } from "./ahead.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 // A tasks.md with `done` ticked and `open` open rows, numbered 1.1, 1.2, ...
@@ -12,13 +13,10 @@ export function tasksText({ done = 0, open = 0 } = {}) {
   return `## 1. Work\n\n${rows.join("\n")}\n`;
 }
 
-// The router counts a file as written by a step when its mtime is later than the step's startedAt. A file written
-// within a few ms of that stamp can get an mtime at or before it (Linux stamps files from a coarse clock), so a file
-// a test writes to stand for a step's output gets an mtime a minute ahead. The same rule as `future` in advisor.test.mjs.
-const stampFresh = (file) => fs.utimesSync(file, new Date(Date.now() + 60_000), new Date(Date.now() + 60_000));
+// A file a test writes to stand for a step's output gets an mtime ahead (see ahead.mjs); `fresh: false` skips that.
 function writeFresh(file, text, fresh) {
   fs.writeFileSync(file, text);
-  if (fresh) stampFresh(file);
+  if (fresh) stampAhead(file);
 }
 
 // Writes the artifact files of the change. `specs` is the number of specs/<cap-n>/spec.md files; `tasks` is

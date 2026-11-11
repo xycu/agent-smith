@@ -7,9 +7,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import {
-  cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, writePlan,
-  writeReview, readLogEntries, readReportFile, entry, planText,
+  cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile,
+  readLogEntries, readReportFile, entry, planText
 } from "./helpers.mjs";
+import { writePlan, writeReview } from "./ahead.mjs";
 
 after(cleanupAll);
 
