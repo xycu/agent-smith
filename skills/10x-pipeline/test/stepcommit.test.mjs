@@ -4,7 +4,10 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, writePlan,
   writeReview, readLogEntries, readMetaFile, readReportFile, entry, planText,
@@ -121,6 +124,79 @@ test("3.1 after a hook rejected the start commit, the next init makes it", { ski
   assert.equal(subject(wt), "chore(demo): start run");
   assert.equal(readMetaFile(wt).startCommit, head(wt));
   assert.equal(readLogEntries(wt)[0].startSha, head(wt));
+});
+
+// A directory with a `git` that runs the real git, except that the first `rev-parse HEAD` after a `commit` fails.
+function gitLosingHash() {
+  const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+  const bin = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-nohash-"));
+  const mark = path.join(bin, "committed");
+  fs.writeFileSync(path.join(bin, "git"), [
+    "#!/bin/sh",
+    `case " $* " in`,
+    `  *" commit -m "*) "${real}" "$@"; code=$?; [ $code -eq 0 ] && : > "${mark}"; exit $code;;`,
+    `  *" rev-parse HEAD ") if [ -e "${mark}" ]; then rm "${mark}"; echo "fatal: lost" >&2; exit 128; fi;;`,
+    "esac",
+    `exec "${real}" "$@"`,
+    "",
+  ].join("\n"), { mode: 0o755 });
+  return bin;
+}
+
+test("3.1 a commit whose hash cannot be read is recorded as made with commit null, never as the label HEAD", { skip: skip || process.platform === "win32" }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  const bin = gitLosingHash();
+  const env = { ...gitEnv(wt), PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+  try {
+    const base = count(wt);
+    const res = run(wt, ["init", wt.id, "--goal", GOAL], { env });
+    assert.equal(res.status, 0, res.stdout + res.stderr);
+    assert.equal(count(wt), base + 1);
+    assert.equal(subject(wt), "chore(demo): start run");
+    const meta = readMetaFile(wt);
+    assert.ok(Object.hasOwn(meta, "startCommit"), "the guard is set, so a resume makes no second start commit");
+    assert.equal(meta.startCommit, null);
+    planDone(wt);
+    const next = run(wt, ["next", wt.id], { env });
+    assert.equal(next.status, 0, next.stdout + next.stderr);
+    assert.equal(subject(wt), "chore(demo): step 1 plan");
+    const [first] = readLogEntries(wt);
+    assert.ok(Object.hasOwn(first, "commit"));
+    assert.equal(first.commit, null);
+  } finally {
+    removeTree(bin);
+  }
+});
+
+test("3.1 a start commit that made no commit and fails its folder check leaves the guard absent, so the next init retries", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  writeHook(main, "pre-commit", "exit 1");
+  assert.equal(initIn(wt).status, 1);
+  dropHook(main, "pre-commit");
+  // A nested repository in the change folder, committed by hand with the folder: `git add` then stages nothing,
+  // and an untracked file inside the nested repository keeps the folder dirty.
+  const nested = path.join(wt.changeDir, "nested");
+  fs.mkdirSync(nested);
+  git(wt, ["-C", nested, "init", "-q"]);
+  fs.writeFileSync(path.join(nested, "a.txt"), "a\n");
+  git(wt, ["-C", nested, "add", "-A"]);
+  git(wt, ["-C", nested, "commit", "-q", "-m", "chore: nested"]);
+  gw(wt, ["add", "-A"]);
+  gw(wt, ["commit", "-q", "-m", "chore: by hand"]);
+  fs.writeFileSync(path.join(nested, "stray.txt"), "x\n");
+  const base = count(wt);
+  const res = initIn(wt);
+  assert.equal(res.status, 1, res.stdout);
+  assert.match(res.json.reason, /The start commit of the run was not made: The change folder is not clean after the commit: .*nested/);
+  assert.doesNotMatch(res.json.reason, /exists and the router does not undo it/);
+  assert.equal(count(wt), base);
+  assert.equal(Object.hasOwn(readMetaFile(wt), "startCommit"), false);
+  fs.rmSync(path.join(nested, "stray.txt"));
+  const again = initIn(wt);
+  assert.equal(again.status, 0, again.stdout + again.stderr);
+  assert.ok(Object.hasOwn(readMetaFile(wt), "startCommit"));
 });
 
 test("3.1 a successful step is committed; the entry records commit and the next entry starts there", { skip }, () => {

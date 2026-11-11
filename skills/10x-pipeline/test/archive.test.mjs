@@ -724,6 +724,46 @@ test("a git commit that times out halts as kind C and names the timeout", { skip
   }
 });
 
+// A directory with a `git` that runs the real git, except that the first `rev-parse HEAD` after a `commit` fails.
+function gitLosingHash() {
+  const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+  const bin = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-nohash-"));
+  const mark = path.join(bin, "committed");
+  fs.writeFileSync(path.join(bin, "git"), [
+    "#!/bin/sh",
+    `case " $* " in`,
+    `  *" commit -m "*) "${real}" "$@"; code=$?; [ $code -eq 0 ] && : > "${mark}"; exit $code;;`,
+    `  *" rev-parse HEAD ") if [ -e "${mark}" ]; then rm "${mark}"; echo "fatal: lost" >&2; exit 128; fi;;`,
+    "esac",
+    `exec "${real}" "$@"`,
+    "",
+  ].join("\n"), { mode: 0o755 });
+  return bin;
+}
+
+test("a commit whose hash cannot be read: the archive action keeps the label HEAD, and a late usage figure is kept", { skip: noGit || process.platform === "win32" }, () => {
+  const project = archiveProject();
+  const bin = gitLosingHash();
+  const env = { ...gitEnv(project), PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+  try {
+    const res = run(project, ["next", project.id], { env });
+    assert.equal(res.json.action, "archive", res.stdout);
+    assert.equal(res.json.commit, "HEAD");
+    assert.match(res.json.reason, /committed HEAD/);
+    assert.equal(commitCount(project), 2);
+    // The usage commit exists although its hash is unknown, so the figure must not be rolled back.
+    const late = run(project, ["usage", project.id, "4", "--tokens", "1200"], { env });
+    assert.equal(late.status, 0, late.stdout + late.stderr);
+    assert.equal(late.json.attached, true);
+    assert.equal(late.json.commit, null);
+    assert.equal(commitCount(project), 3);
+    assert.equal(folderStatus(project), "");
+    assert.equal(readLogEntries(project)[3].usage.totalTokens, 1200);
+  } finally {
+    removeTree(bin);
+  }
+});
+
 test("a git that times out is reported as a timeout, not as a missing work tree, at init and at done", { skip: noGit }, () => {
   const project = archiveProject({ policy: { archive: { gitTimeoutMs: 300 } } });
   const bin = fakeGitBin(null);
