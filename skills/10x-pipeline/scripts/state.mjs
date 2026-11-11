@@ -453,13 +453,13 @@ export function rigorLevels(policy) {
   return levels;
 }
 
-// The highest of two level names. A name that is not a level loses.
 // True only when level and minRigor are both known levels and level >= minRigor; anything else is closed.
 export function atOrAbove(policy, level, minRigor) {
   const levels = rigorLevels(policy);
   return levels.indexOf(level) >= 0 && levels.indexOf(minRigor) >= 0 && levels.indexOf(level) >= levels.indexOf(minRigor);
 }
 
+// The highest of two level names. A name that is not a level loses.
 export function maxLevel(levels, a, b) {
   return levels.indexOf(b) > levels.indexOf(a) ? b : a;
 }
