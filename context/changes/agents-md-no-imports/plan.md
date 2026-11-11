@@ -51,7 +51,7 @@ Replace both `@` references and add the guard test.
 
 **Intent**: Fail when `AGENTS.md` (or a `CLAUDE.md` at the repo root, if one appears) contains a Claude Code import, so the 158 KB load cannot return unnoticed.
 
-**Contract**: Read the file, drop fenced code blocks and inline code spans, then assert no match of `/(^|\s)@[\w./-]+\.(md|json|mjs)\b/`. Plain `node:test` + `node:assert/strict`, ESM, 2-space indent, double quotes, semicolons, like the other tests in `tools/test/`. Resolve the repo root from `import.meta.url`.
+**Contract**: Read the file, drop fenced code blocks and inline code spans, then assert no match of the import rule of Claude Code 2.1.311 (`@` at a line start or after whitespace, then a token that starts with `./`, `~/`, `/` or `[a-zA-Z0-9._-]`, any extension or none), widened to an `@` after punctuation: `/(?<![\w@])@(?:~\/|\/(?=\S)|[a-zA-Z0-9._-])(?:[^\s\\]|\\ )*/g` (implementation review F1; the first version matched only `md`, `json` and `mjs` after whitespace, which the `grep` of row 1.1 still shows). Plain `node:test` + `node:assert/strict`, ESM, 2-space indent, double quotes, semicolons, like the other tests in `tools/test/`. Resolve the repo root from `import.meta.url`.
 
 ### Success Criteria:
 
