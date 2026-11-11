@@ -1,7 +1,7 @@
 ---
 change_id: review-verdict-labels
 title: "readReview reads the Verdict line more strictly than the finding lines"
-status: new
+status: planned
 created: 2026-11-11
 updated: 2026-11-11
 archived_at: null
