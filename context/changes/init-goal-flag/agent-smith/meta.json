@@ -40,7 +40,7 @@
   },
   "startCommit": "102a5a9b095654c45c5d67064e10348e53677d95",
   "rigor": {
-    "level": "lean",
-    "by": "goal short"
+    "level": "standard",
+    "by": "hot paths skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/test/route.test.mjs"
   }
 }

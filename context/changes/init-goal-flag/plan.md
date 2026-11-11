@@ -32,7 +32,7 @@
 
 ## Implementation Approach
 
-`parseFlags(args, valueFlags = [])` takes a list of flags that always consume the next argument when one exists, and collects arguments that belong to no flag in `flags._` (an array; `_` cannot collide with a `--` flag since flag names are non-empty). `main()` passes `["goal"]` and, in the `init` branch before anything is written, halts when `flags._` is non-empty.
+`parseFlags(args, valueFlags = [])` takes a list of flags that always consume the next argument when one exists, and collects arguments that belong to no flag in `flags._` (an array assigned after the loop, so a hand-typed `--_` flag cannot replace it). `main()` passes `["goal"]` and, in the `init` branch before anything is written, halts when `flags._` is non-empty.
 
 ## Phase 1: Parser and init halt
 
@@ -48,7 +48,7 @@ Fix `--goal` consumption and reject leftover words at `init`.
 
 **Intent**: Let a named flag take its value even when the value starts with `--`, and record arguments that no flag consumed.
 
-**Contract**: `parseFlags(args, valueFlags = [])`. For a flag in `valueFlags`, `flags[key]` is `args[i+1]` whenever it exists (else `true`, as today). Non-flag arguments not consumed as a value are pushed on `flags._` (always present, possibly empty). Behaviour for flags outside `valueFlags` is unchanged.
+**Contract**: `parseFlags(args, valueFlags = [])`. For a flag in `valueFlags`, `flags[key]` is `args[i+1]` whenever it exists (else `true`, as today). Non-flag arguments not consumed as a value are collected in an array and assigned to `flags._` after the loop (always present, possibly empty, and never overwritten by a `--_` argument, which `slice(2)` turns into the key `_`). Behaviour for flags outside `valueFlags` is unchanged.
 
 #### 2. Init halt
 
@@ -86,7 +86,7 @@ Pin the new behaviour and document it where the init flags are described.
 
 **Intent**: Cover the two reproductions and the guards that must not change, using the existing `makeProject`, `init` and `run` helpers (`helpers.mjs` stays as it is).
 
-**Contract**: Tests: a goal starting with `--` is stored verbatim; an unquoted goal halts, exits 1, names the leftover words and writes no `agent-smith/` folder; a quoted goal followed by `--rigor standard` still works; bare `--goal` on a resume keeps the stored goal; `usage <id> <n> --tokens N` still parses its positional (it is not an `init`); the same halt applies with `--chain openspec`.
+**Contract**: Tests: a goal starting with `--` is stored verbatim; an unquoted goal halts, exits 1, names the leftover words and writes no `agent-smith/` folder; a quoted goal followed by `--rigor standard` still works; bare `--goal` in last position on a resume keeps the stored goal, and so does `--goal ""`; `--goal --archive` stores `--archive` as the goal and leaves archive off; an argument `--_` does not hide leftover words; `usage <id> <n> --tokens N` still parses its positional (it is not an `init`); the same halt applies with `--chain openspec`.
 
 #### 2. Reference docs
 
@@ -94,7 +94,7 @@ Pin the new behaviour and document it where the init flags are described.
 
 **Intent**: State the rule where `init --goal` is described.
 
-**Contract**: One sentence in the `init` bullet of `AGENTS.md` Commands: `--goal` takes the next argument whatever it starts with, and `init` halts on words that belong to no flag. A matching bullet in `docs/REFERENCE.md` under "Chain switch" or the `init` description of the 10x section, wherever `init` flags are listed. Do not touch other sections (parallel changes edit the same files).
+**Contract**: One sentence in the `init` bullet of `AGENTS.md` Commands: `--goal` takes the next argument whatever it starts with, and `init` halts on words that belong to no flag. A matching bullet in `docs/REFERENCE.md`, as the last bullet of the "How routing works:" list in the 10x section (after the bullet that ends "...or when the step budget is spent."), because no bullet there lists the `init` flags. Do not touch other sections (parallel changes edit the same files).
 
 ### Success Criteria:
 
@@ -133,6 +133,8 @@ None.
 ## Migration Notes
 
 A hand-run command with an unquoted multi-word goal now halts instead of storing the first word. The orchestrator skills already quote the goal.
+
+A `--goal` followed by a flag-looking argument now takes it as the goal text: `init demo --goal --archive` stores `--archive` as the goal and does not turn archive on, and `init demo --goal --rigor standard` halts on the leftover `standard`. This follows from "always take the next argument" (issue #90); only a `--goal` in last position still keeps the stored goal.
 
 ## References
 
