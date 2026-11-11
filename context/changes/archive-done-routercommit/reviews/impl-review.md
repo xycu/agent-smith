@@ -37,7 +37,7 @@ Reviewed in this subagent, no sub-agent launched. Diff range `be0ab00..HEAD` (st
 - **Dimension**: Safety & Quality
 - **Location**: skills/10x-pipeline/scripts/isolation.mjs:342
 - **Detail**: `commit = ... : "HEAD"` when `git rev-parse HEAD` fails right after a successful commit. Before, `routerCommit` returned `commit: null` there and used "HEAD" only in the message. Now `meta.startCommit` / a step entry's `commit` could hold the literal "HEAD". Near-impossible (rev-parse failing after a commit), and the plan wanted archive's "HEAD" label kept.
-- **Decision**: PENDING - no clear fix without a choice: keep "HEAD" for archive's label, or return null and carry a separate `made` flag; owner decides, not worth a change for a near-impossible case.
+- **Decision**: APPLIED - 1ac426f. `routerCommit` returns `made` and `commit` (the full hash or null, never a label); the archive action keeps its "HEAD" label; tests in `stepcommit.test.mjs` and `archive.test.mjs`.
 
 ### F2 — Start commit records a null guard when only the post-commit folder check fails
 
@@ -46,7 +46,7 @@ Reviewed in this subagent, no sub-agent launched. Diff range `be0ab00..HEAD` (st
 - **Dimension**: Architecture
 - **Location**: skills/10x-pipeline/scripts/isolation.mjs:430
 - **Detail**: With `rel` set, `routerCommit` now runs the index and folder-clean checks when nothing was staged and returns `{ error, commit: null }`. `startCommit` writes `meta.startCommit = null` for any defined `commit`, so a halt on that new path is not retried by the next `init`. The path needs a folder that stays dirty after `git add` of it (for example a nested repository); not reproducible in tests.
-- **Decision**: PENDING - behaviour of a corner case the plan did not cover; owner decides whether the start commit should leave the guard absent on a no-commit error.
+- **Decision**: APPLIED - 1ac426f. The start commit sets `meta.startCommit` only when a commit was made or the call succeeded, so the next `init` retries; reproduced in `stepcommit.test.mjs` with a nested repository that holds an untracked file.
 
 ### F3 — Plan criterion 1.3 states the wrong count
 
@@ -55,4 +55,4 @@ Reviewed in this subagent, no sub-agent launched. Diff range `be0ab00..HEAD` (st
 - **Dimension**: Success Criteria
 - **Location**: context/changes/archive-done-routercommit/plan.md (Automated Verification, third bullet)
 - **Detail**: `grep -c` counts lines, and both `"commit", "-m"` forms are on one line, so it prints 1. The intent (no direct commit call in `archiveDone`) holds.
-- **Decision**: PENDING - plan text only; the plan is not edited by this review.
+- **Decision**: APPLIED - 56dd2a3. Criterion 1.3 of `plan.md` now expects 1 and says why.
