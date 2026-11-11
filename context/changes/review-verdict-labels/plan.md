@@ -106,9 +106,9 @@ None. Reviews in the old form read exactly as before (all 62 archived reviews).
 
 #### Automated
 
-- [ ] 1.1 New label-form tests pass: `node --test skills/10x-pipeline/test/openfindings.test.mjs`
-- [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.3 Router still starts: `node skills/10x-pipeline/scripts/route.mjs status review-verdict-labels` in a scratch project prints valid JSON
+- [x] 1.1 New label-form tests pass: `node --test skills/10x-pipeline/test/openfindings.test.mjs`
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.3 Router still starts: `node skills/10x-pipeline/scripts/route.mjs status review-verdict-labels` in a scratch project prints valid JSON
 
 #### Manual
 

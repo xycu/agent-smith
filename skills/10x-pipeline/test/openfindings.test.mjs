@@ -1209,3 +1209,33 @@ describe("report: Review findings section", () => {
     assert.ok(sectionOf(readReportFile(project)).includes("- step 4 impl-review: NEEDS ATTENTION, 0 critical, 1 warnings measured; 0 critical, 1 warnings open"));
   });
 });
+
+describe("readReview header label forms", () => {
+  const cases = [
+    ["**Verdict:** APPROVED", "**Findings:** 1 critical, 2 warnings", "APPROVED", 1, 2],
+    ["- **Verdict**: APPROVED.", "- **Findings**: 0 critical, 0 warnings", "APPROVED", 0, 0],
+    ["**Verdict**: ✅ APPROVED", "**Findings**: 0 critical, 0 warnings", "APPROVED", 0, 0],
+    ["**Verdict**: [NEEDS ATTENTION]", "**Findings**: 0 critical, 1 warnings", "NEEDS ATTENTION", 0, 1],
+    ["**Verdict:** NEEDS ATTENTION - see F1", "**Findings:** 1 critical, 0 warnings", "NEEDS ATTENTION", 1, 0],
+    ["- **Verdict**: REVISE", "- **Findings**: 1 critical, 1 warnings", "REVISE", 1, 1],
+  ];
+  for (const [v, f, verdict, critical, warnings] of cases) {
+    test(`${v} / ${f}`, () => {
+      const { review } = observe(`# Review\n\n${v}\n${f}\n`);
+      assert.equal(review.verdict, verdict);
+      assert.equal(review.critical, critical);
+      assert.equal(review.warnings, warnings);
+    });
+  }
+
+  test("a verdict line with no letters reads as no verdict (step fails)", () => {
+    const { entry: e } = observe("# Review\n\n**Verdict**: 123 -\n**Findings**: 0 critical, 0 warnings\n");
+    assert.equal(e.review, undefined);
+    assert.equal(e.ok, false);
+  });
+
+  test("a NEEDS ATTENTION review in the colon-inside form routes to fix", () => {
+    const { res } = routeImpl("# Review\n\n**Verdict:** NEEDS ATTENTION\n**Findings:** 1 critical, 0 warnings\n");
+    assert.equal(res.json.step, "fix");
+  });
+});

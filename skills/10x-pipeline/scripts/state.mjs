@@ -197,9 +197,16 @@ export function readReview(file) {
   res.exists = true;
   res.mtime = mtime(file);
   const text = fs.readFileSync(file, "utf8");
-  const v = text.match(/\*\*Verdict\*\*:\s*\[?([A-Za-z ]+?)\]?\s*$/m);
-  if (v) res.verdict = v[1].trim().toUpperCase();
-  const f = text.match(/\*\*Findings\*\*:[^\n]*/);
+  // Header lines read both label forms ("**Verdict**:" and "**Verdict:**") like readFindings. The verdict is the leading
+  // upper-case words after the label (emoji, "[" and text after them ignored), else the first run of letters, upper-cased.
+  const v = text.match(/\*\*Verdict(?:\*\*:|:\*\*)[^A-Za-z\n]*([A-Za-z]+(?: [A-Za-z]+)*)/);
+  if (v) {
+    const words = v[1].split(" ");
+    const lead = [];
+    for (const w of words) { if (w !== w.toUpperCase()) break; lead.push(w); }
+    res.verdict = (lead.length ? lead : words).join(" ").toUpperCase();
+  }
+  const f = text.match(/\*\*Findings(?:\*\*:|:\*\*)[^\n]*/);
   if (f) {
     res.critical = Number((f[0].match(/(\d+)\s*critical/i) || [0, 0])[1]);
     res.warnings = Number((f[0].match(/(\d+)\s*warnings?/i) || [0, 0])[1]);
