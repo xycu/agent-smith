@@ -55,7 +55,7 @@ The repository holds no runner setup. A runner for this repository needs:
 - The runner is persistent. A same-repository branch from anyone with write access runs code there, and workspace and temp state carry over between jobs. Anyone with write access is trusted with the NAS. The `agent-smith/<id>` branches that `open-pr.mjs` pushes (ADR-017) are same-repository pull requests too, so code that a model wrote runs there with no approval step. That is why D4 asks for a clean workspace per job.
 - A single runner serialises jobs; `concurrency` with `cancel-in-progress` already limits waste. A second instance helps if `test` and `commits` queue.
 - Runners offline: jobs queue until one returns. Rollback is to set `runs-on` back to `ubuntu-latest`.
-- The first pull request on the runners is the proof; the workflow cannot run locally. That run (pull request 123, 2026-11-11) failed 9 of 1062 tests on the runner host, all in `manualverify.test.mjs` and the OpenSpec step tests, while the same suite passes on a laptop and on hosted runners. Until the host cause is found and fixed, the check is red.
+- The first pull request on the runners is the proof; the workflow cannot run locally. That run (pull request 123, 2026-11-11) failed 9 of 1062 tests on the runner host, and the next run failed 12, all but two in the OpenSpec step tests, while the same suite passes on a laptop and on hosted runners. The cause was in the tests, not the host: they wrote a step's output file within a few ms of the step's `startedAt`, and Linux stamps files from a coarse clock, so the router saw the file as older than the step. `test/openspec-helpers.mjs` now stamps those files a minute ahead.
 
 ## Alternatives considered
 
