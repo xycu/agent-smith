@@ -19,7 +19,7 @@ A concurrent `init`/`next`/`usage` on the same run halts with a clear message an
 | Decision | Choice | Why | Source |
 | --- | --- | --- | --- |
 | Lock location | `os.tmpdir()`, keyed by hash of the run dir | A lock file in the change folder would be committed by step commits and dirty the archive-state folder | Plan |
-| Acquire | `fs.openSync(path, "wx")`, pid inside | Issue's proposal; pid allows stale detection | Plan |
+| Acquire | pid written to a temp file, `fs.linkSync` to the lock path | Atomic with the pid inside, so a second caller never reads an empty lock as stale; pid allows stale detection | Plan review F1 |
 | Stale lock | Dead pid is removed and retried once | A crash or SIGKILL must not block the run forever | Plan |
 | Waiting | None, halt at once | Matches the issue; callers run one call at a time anyway | Plan |
 | Release | `process.on("exit")` | `out()`/`halt()` use `process.exit` | Plan |
