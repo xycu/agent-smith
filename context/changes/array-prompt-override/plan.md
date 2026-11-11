@@ -22,7 +22,7 @@ An array override of `prompts.archive` or `prompts.suffix` (including `@prompts/
 
 ## What We're NOT Doing
 
-- No new validation, no policy change, no docs or ADR (behaviour already documented: "string or array of strings").
+- No new validation, no policy change, no ADR. Docs: none in the plan; the implementation review (F1) later added one note to `docs/REFERENCE.md` and `skills/10x-pipeline/prompts/README.md` that a string or part starting with `@prompts/` is a file reference in `archive` and `suffix` too, with tests in `archive.test.mjs` and `route.test.mjs` (473bcf0).
 - No change to `promptText` or `checkPrompts`.
 
 ## Implementation Approach

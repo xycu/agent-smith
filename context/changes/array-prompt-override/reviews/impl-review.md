@@ -38,4 +38,4 @@ Reviewed in this subagent, no sub-agent launched. Diff range `main...HEAD`: `iso
 - **Location**: skills/10x-pipeline/scripts/isolation.mjs:680-681, skills/10x-pipeline/scripts/route.mjs:180
 - **Detail**: `promptText` treats any part starting with `@prompts/` as a file reference. A plain-string override of `suffix` or `archive` that starts so was text before and is a reference now; a bad one is caught by `checkPrompts` at `next`. This is the documented prompt form and the same as every other template, and the plan review recorded it (its F2). The shipped defaults do not start with the prefix, so their prompts are byte-identical.
 - **Fix**: None needed.
-- **Decision**: PENDING — observation only, no change needed; the owner decides if a plain-text override starting with `@prompts/` needs a note in the docs.
+- **Decision**: APPLIED - 473bcf0 — the behaviour is intended (the same rule as every other template) and stays; `docs/REFERENCE.md` and `prompts/README.md` now state it, and tests pin the string form, the literal form and the halt before the pre-archive commit.
