@@ -1,0 +1,6 @@
+Script above: context/changes/review-verdict-labels/evidence/script-sound-readreview.mjs
+Output:
+{"exists":true,"verdict":"SOUND","critical":0,"warnings":0,"findings":[],"mtime":1794398448239.8423}
+OK: verdict SOUND parsed, 0/0 counts
+
+Covering test: skills/10x-pipeline/test/openfindings.test.mjs 'readReview header label forms' 131/131 pass (colon-inside form routes to fix, not failed).
