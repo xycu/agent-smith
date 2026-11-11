@@ -44,12 +44,12 @@ The rule "the run's level is a known level, the gate's `minRigor` is a known lev
 #### 2. `skills/10x-pipeline/scripts/steps.mjs`
 
 **Intent**: import `atOrAbove` from `./state.mjs`; at lines 125, 161, 305, 503 replace the `levels` lookup and the three-`indexOf` condition with `!atOrAbove(policy, <level>, cfg.minRigor)` keeping the same return value (`false` or `null`).
-**Contract**: drop the local `const levels = rigorLevels(policy)` at a site only when nothing else in that function uses it; drop the `rigorLevels` import only if no use remains in the file.
+**Contract**: drop the local `const levels = rigorLevels(policy)` at a site only when nothing else in that function uses it; drop the `rigorLevels` import only if no use remains in the file. Checked: at lines 124, 160, 304 and 502 `levels` is used only by the gate line, so all four locals go and the `rigorLevels` import (line 4) goes with them.
 
 #### 3. `skills/10x-pipeline/scripts/preplan.mjs`
 
 **Intent**: import `atOrAbove`; at line 162 `const open = atOrAbove(policy, ctx.level, gate.minRigor)`; at 246 `if (!atOrAbove(policy, ctx.level, cfg.minRigor)) return null` (drop `at` and `min`); at 319 `const open = atOrAbove(policy, level, loops.minRigor)`.
-**Contract**: same local-cleanup rule as above (line 147 `levels` may still be needed by the gate loop; check before removing).
+**Contract**: same local-cleanup rule as above. Checked at `be0ab00`: line 147 `levels` is used only by line 162, so it goes too. Then `rigorLevels` has no use left in `preplan.mjs` or `steps.mjs`: drop it from both import lines. Note: in `preplan.mjs` the malformed-`levels` throw then fires inside the gate loop (at the first gate that reaches the check) instead of before it; `main` still turns it into the same JSON halt, and `rigorLevels` runs earlier in `state.mjs` for every real run.
 
 ### Success Criteria:
 
