@@ -1,0 +1,9 @@
+Row 1.5: scratch project with empty context/changes; route.mjs init nosuch --goal x
+$ node skills/10x-pipeline/scripts/route.mjs init nosuch --goal x
+{
+  "action": "halt",
+  "reason": "No change folder. Run /10x-new nosuch first."
+}
+exit=1
+$ ls -A context/changes
+(empty; no nosuch)

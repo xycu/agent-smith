@@ -1,0 +1,3 @@
+Row 2.2: grep -n -i 'creates an empty\|empty .context/changes\|hand-run\|run by hand' docs/REFERENCE.md
+463:- A router call without `--chain` on a name that only an OpenSpec change holds, such as `next demo` run by hand before `init`, resolves to the 10x chain and halts with `No change folder. Run /10x-new demo first.`; it creates no folder. The orchestrator skill always passes `--chain openspec`.
+No remaining claim of an empty agent-smith folder being created.

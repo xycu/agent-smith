@@ -116,7 +116,7 @@ None. Existing junk folders from earlier hand-runs stay; delete them file by fil
 
 #### Manual
 
-- [ ] 1.5 In a scratch project, `route.mjs init nosuch --goal x` prints the halt and `context/changes/nosuch` is not created
+- [x] 1.5 In a scratch project, `route.mjs init nosuch --goal x` prints the halt and `context/changes/nosuch` is not created — evidence: evidence/command-init-nosuch.txt
 
 ### Phase 2: Docs
 
@@ -126,4 +126,4 @@ None. Existing junk folders from earlier hand-runs stay; delete them file by fil
 
 #### Manual
 
-- [ ] 2.2 `docs/REFERENCE.md` no longer says a hand-run command creates an empty `context/changes/<name>/agent-smith/` folder
+- [x] 2.2 `docs/REFERENCE.md` no longer says a hand-run command creates an empty `context/changes/<name>/agent-smith/` folder — evidence: evidence/command-reference-grep.txt
