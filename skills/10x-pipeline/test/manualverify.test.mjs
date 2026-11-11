@@ -6,9 +6,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, writePlan, writeReview, init, next, run, writeResult, readLogEntries, readMetaFile, writeMetaFile,
+  cleanupAll, makeProject, init, next, run, writeResult, readLogEntries, readMetaFile, writeMetaFile,
   readReportFile, entry, writeLog, gitInit, git, gitEnv, commitFiles, gitAvailable,
 } from "./helpers.mjs";
+import { writePlan, writeReview, stampAhead } from "./ahead.mjs";
 import { buildPlan, pendingEntry } from "./phase-helpers.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
@@ -61,6 +62,7 @@ const evidence = (project, name, text = "output\n") => {
   const dir = path.join(project.changeDir, "evidence");
   fs.mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
   fs.writeFileSync(path.join(dir, name), text);
+  stampAhead(path.join(dir, name));
   return path.join(dir, name);
 };
 const ticked = (text, token = "evidence/out.txt") => ({ text: token ? `${text} — evidence: ${token}` : text, done: true });

@@ -7,9 +7,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, writeReview, run, init, next, writeLog, entry, writeResult, readLogEntries,
-  git, gitAvailable, gitEnv, gitInit, writePlan, writeMetaFile, readReportFile,
+  cleanupAll, makeProject, planText, run, init, next, writeLog, entry, writeResult, readLogEntries, git,
+  gitAvailable, gitEnv, gitInit, writeMetaFile, readReportFile
 } from "./helpers.mjs";
+import { writePlan, writeReview, stampAhead } from "./ahead.mjs";
 
 after(cleanupAll);
 
@@ -405,6 +406,7 @@ const GOAL = "Add a retry counter to the status output so the report shows how o
 function writeReviewFile(project, name, text) {
   fs.mkdirSync(path.join(project.changeDir, "reviews"), { recursive: true });
   fs.writeFileSync(path.join(project.changeDir, "reviews", `${name}.md`), text);
+  stampAhead(path.join(project.changeDir, "reviews", `${name}.md`));
 }
 
 // A run whose last step is a finished plan-review (or impl-review) with the given review file, resumed by `init`.

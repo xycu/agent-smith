@@ -6,8 +6,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, writePlan, writeReview, init, next, writeResult, readLogEntries, writeMetaFile, entry, writeLog,
+  cleanupAll, makeProject, init, next, writeResult, readLogEntries, writeMetaFile, entry, writeLog
 } from "./helpers.mjs";
+import { writePlan, writeReview } from "./ahead.mjs";
 import { buildPlan, pendingEntry } from "./phase-helpers.mjs";
 
 after(cleanupAll);

@@ -6,9 +6,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, writePlan,
-  writeReview, readLogEntries, readMetaFile, readReportFile, entry, planText,
+  cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog,
+  writeMetaFile, readLogEntries, readMetaFile, readReportFile, entry, planText
 } from "./helpers.mjs";
+import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, moveToArchive } from "./openspec-helpers.mjs";
 
 after(cleanupAll);
