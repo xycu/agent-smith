@@ -51,7 +51,12 @@ export function readJson(file, fallback) {
 function mergedPolicy() {
   const base = readJson(path.join(SKILL_DIR, "policy.json"), null);
   if (!base) return null;
-  const override = readJson(path.join(ROOT, "context/foundation/agent-smith-policy.json"), null);
+  const file = path.join(ROOT, "context/foundation/agent-smith-policy.json");
+  if (!fs.existsSync(file)) return base;
+  let override;
+  try { override = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) {
+    halt(`Cannot parse ${file}: ${e.message}. Fix the JSON or remove the file.`);
+  }
   return override ? deepMerge(base, override) : base;
 }
 
