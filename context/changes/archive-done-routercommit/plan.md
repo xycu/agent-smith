@@ -42,13 +42,13 @@ Adapt `routerCommit`, switch `archiveDone` to it, run the suite.
 
 **Intent**: Run the index-empty and folder-clean checks also when nothing was staged (`rel` set), so a resumed archive still halts on a dirty folder. Show names without the git prefix in the folder-clean message, as `archiveDone` does. Keep the commit-only-in-folder check tied to a commit that was made.
 
-**Contract**: Return shape `{ commit }` or `{ error, reason?, commit? }`. `commit` is `null` (not absent) when the error arises after the checks on a path with no new commit, so callers read "defined" as "post-commit". Post-commit errors also carry `reason`: the message without the "The commit ... exists" suffix. Pre-commit errors (`failed`) have `error` and no `commit`. Start, step and late-usage callers still read only `error` and `commit`.
+**Contract**: Return shape `{ commit, made }` or `{ error, reason?, commit?, made? }`. `made` says whether this call made a commit. `commit` is its full hash, or `null` when nothing was staged or git could not report the hash; it is never the label "HEAD" (review F1). Errors of the post-commit checks carry `reason` (the message without the "The commit ... exists" suffix), `commit` and `made`, so callers read a defined `commit` as "post-commit". Pre-commit errors (`failed`) have `error` only. The start and step commits set their guard (`meta.startCommit`, the entry's `commit`) when `made` is true or there is no error, so a check that fails with no commit made leaves the guard absent and the next `init` retries (review F2). The late usage command restores the old bytes only when `made` is false.
 
 #### 2. archiveDone calls routerCommit
 
 **File**: `skills/10x-pipeline/scripts/isolation.mjs`
 
-**Intent**: Replace step 4's add/diff/commit block and step 5 with one `routerCommit` call after the report is written. Map: no `commit` key → halt with `error`, `archive: SKIP_FAILED`, `committed: false`; `commit` defined with `error` → halt with `reason + " " + COMMIT_EXISTS`, `archive: SKIP_COMMITTED`, `committed: true`; success → `commit` is the full hash or null, so the archive action's short `commit` is derived from it (`slice(0, 7)`, `null` when no commit was made). Remove the now unused `commitFailed`, `commitHalt`, `madeCommit` and the `unprefix` helper if nothing else uses it (`prefix` is still used by `ignored`).
+**Intent**: Replace step 4's add/diff/commit block and step 5 with one `routerCommit` call after the report is written. Map: no `commit` key → halt with `error`, `archive: SKIP_FAILED`, `committed: false`; `commit` defined with `error` → halt with `reason + " " + COMMIT_EXISTS`, `archive: SKIP_COMMITTED`, `committed: true`; success → the archive action's short `commit` is `null` when `made` is false, else the hash cut to 7 characters, or the label "HEAD" when git could not report the hash (as before this change). Remove the now unused `commitFailed`, `commitHalt`, `madeCommit` and the `unprefix` helper if nothing else uses it (`prefix` is still used by `ignored`).
 
 **Contract**: Archive action output fields unchanged: `commit` is a short hash string or `null`; halt fields `archive` and `committed` as above. Keep the report-write failure halt before the commit.
 
@@ -58,7 +58,7 @@ Adapt `routerCommit`, switch `archiveDone` to it, run the suite.
 
 - Archive, step-commit, late-usage, isolation and OpenSpec archive tests pass: `node --test skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/stepcommit.test.mjs skills/10x-pipeline/test/late-usage.test.mjs skills/10x-pipeline/test/isolation.test.mjs skills/10x-pipeline/test/openspec-archive.test.mjs`
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- `archiveDone` has no direct `"commit", "-m"` call: `grep -c '"commit", "-m"' skills/10x-pipeline/scripts/isolation.mjs` prints 2 (the two `routerCommit` forms)
+- `archiveDone` has no direct `"commit", "-m"` call: `grep -c '"commit", "-m"' skills/10x-pipeline/scripts/isolation.mjs` prints 1 (`grep -c` counts lines, and the two `routerCommit` forms sit on one line)
 - A resume with a stray file in the change folder still halts with `not clean after the commit`: covered by the existing `archive.test.mjs` case at line 794, plus one new test for the no-commit path (folder already committed, then a stray file added)
 
 #### Manual Verification:
