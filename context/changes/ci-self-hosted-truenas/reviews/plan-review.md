@@ -2,73 +2,53 @@
 # Plan Review: Run CI on self-hosted TrueNAS runners Implementation Plan
 
 - **Plan**: context/changes/ci-self-hosted-truenas/plan.md
-- **Mode**: Deep (done in this subagent, no nested subagent)
+- **Mode**: Deep (done in this subagent, no nested subagent); second review, of the re-plan after the implementation review of 2026-11-11
 - **Date**: 2026-11-11
-- **Verdict**: REVISE
-- **Findings**: 1 critical, 2 warnings, 2 observations
+- **Verdict**: SOUND
+- **Findings**: 0 critical, 1 warning, 2 observations
 
 ## Verdicts
 
 | Dimension | Verdict |
 |-----------|---------|
-| End-State Alignment | WARNING |
+| End-State Alignment | PASS |
 | Lean Execution | PASS |
 | Architectural Fitness | PASS |
-| Blind Spots | FAIL |
+| Blind Spots | PASS |
 | Plan Completeness | WARNING |
 
 ## Grounding
 
-Grounding: 9/9 paths checked (ci.yml, release.yml, workflow-pins.mjs and its test, ADR-008 line 45, ADR-019, AGENTS.md lines 53 and 56, docs/ADR listing) ✓, `ubuntu-latest` at ci.yml:21 and :35 and release.yml:28 ✓, `xycu/agent-smith` PUBLIC and not a fork ✓, ADR-020 number free ✓, Progress block 3 phases / 1:1 with Success Criteria ✓, brief↔plan ✓. No contract-surfaces file in the repo. Lessons.md has no rule that applies.
+Grounding: 8/8 paths ✓ (ci.yml, release.yml, ci-runner.test.mjs, ADR-020, ADR-008 line 45, AGENTS.md, impl-review.md, evidence/unproven.md), both `runs-on` lines equal the plan Contract and the test constant byte for byte ✓, `approval_policy` re-read now: `first_time_contributors`, as the plan states ✓, router halts on `signals.needsHuman` (`route.mjs:109`) so the planned `blocked` hand-back stops the run ✓, Progress block 3 phases 1:1 with Success Criteria (rows 2.4, 3.5, 3.6 present) ✓, brief↔plan ✓. No contract-surfaces file. `lessons.md` has no rule that applies. Old plan-review F5 (row 2.1 weak grep) is moot: row 2.1 is ticked and the ADR file exists.
 
 ## Findings
 
-### F1 — The fork fallback in `runs-on` is not a security boundary
-
-- **Severity**: CRITICAL
-- **Impact**: HIGH — architectural stakes; think carefully before deciding
-- **Dimension**: Blind Spots
-- **Location**: Overview, Desired End State, Key Discoveries, Phase 1 section 1, Phase 2 ADR contract, Phase 3 Intent
-- **Detail**: The plan says the ternary means "untrusted code never reaches the NAS". A `pull_request` run from a fork executes the workflow file of the PR's merge ref, so the fork author edits `runs-on` to `[self-hosted, linux, truenas]` and the expression never runs. The real control is the repository setting "Require approval for all external contributors" (Settings -> Actions -> General). The plan only mentions it as a Phase 3 check, under an outdated name ("outside collaborators"), and the repository is public. The guard test and the ADR would then record a protection that does not exist.
-- **Fix**: State the fallback as defence in depth, make the approval setting a named prerequisite and the stated boundary (Overview, End State, Key Discoveries, workflow comment, ADR, Phase 3 Intent, brief), and note that the owner reads the workflow diff before approving a fork run.
-- **Decision**: APPLIED — plan.md sections Overview, Current State Analysis, Desired End State, Key Discoveries, Implementation Approach, Phase 1 item 1 Intent, Phase 2 ADR Contract, Phase 3 Intent; plan-brief.md Key Decisions and Success Criteria.
-
-### F2 — Guard test checks substrings, so an inverted ternary passes
+### F1 — Phase 3 item 1 and the manual steps contradict item 2 on when the setting must be on
 
 - **Severity**: WARNING
 - **Impact**: LOW — quick decision; fix is obvious and narrowly scoped
 - **Dimension**: Plan Completeness
-- **Location**: Phase 1 section 2 — Guard test
-- **Detail**: The test asserts each `runs-on:` line contains `truenas`, `ubuntu-latest` and `head.repo.full_name != github.repository`. Swapping the two branches of the ternary, or changing `!=` to `==` elsewhere in the line, keeps all three substrings and the test stays green while fork PRs go to the NAS.
-- **Fix**: Compare each `runs-on:` line with the exact expression from the Contract of section 1.
-- **Decision**: APPLIED — plan.md Phase 1 section 2 Contract.
+- **Location**: Phase 3 item 1 Intent; Testing Strategy, Manual Testing Steps 1 and 2
+- **Detail**: Item 1 says the owner confirms the fork approval setting "before the pull request of this change is opened". Item 2 says the run's own pull request opens when the run ends or halts (ADR-017), which happens at the `blocked` halt of row 3.5, before the owner can act, and that this is acceptable (trusted same-repository case). Manual step 2 likewise has the owner open the PR after the setting. An owner reading item 1 would believe the PR waits for the setting; it does not. The real deadline is "now, because the runners are online, and before the merge".
+- **Fix**: Make item 1 cover only runner registration before the PR opens, and state the setting deadline (now, and before the merge) in one place; align Manual Testing Steps 1 and 2.
+- **Decision**: APPLIED — plan.md Phase 3 item 1 Intent and Testing Strategy, Manual Testing Steps 1 and 2.
 
-### F3 — Runner prerequisites omit the runner version needed for Node 24 actions
-
-- **Severity**: WARNING
-- **Impact**: LOW — quick decision; fix is obvious and narrowly scoped
-- **Dimension**: Blind Spots
-- **Location**: Phase 2 section 1 — ADR Contract
-- **Detail**: `actions/checkout` v5.1.0 and `actions/setup-node` v5.0.0 run on the Node 24 action runtime, which needs a recent runner (checkout v5 documents v2.327.1 or newer). The prerequisite list covers Node for the tests but not the runner version, so an old runner fails at the first step. The plan also does not say that the runner is persistent and that anyone with write access runs code on it.
-- **Fix**: Add the runner version prerequisite and the persistent-runner and write-access trust note to the ADR contract.
-- **Decision**: APPLIED — plan.md Phase 2 section 1 Contract.
-
-### F4 — The runner check comes after the change that depends on it
-
-- **Severity**: OBSERVATION
-- **Impact**: LOW — quick decision; fix is obvious and narrowly scoped
-- **Dimension**: End-State Alignment
-- **Location**: Phase 3 — Runner registration check
-- **Detail**: The pull request of this change runs its own jobs on the NAS. If the runners are not registered or are offline when it opens, the jobs queue and the proof run never starts. Phase 3 lists the check last.
-- **Fix**: Say in the Phase 3 Intent that the check happens before the pull request opens.
-- **Decision**: APPLIED — plan.md Phase 3 Intent.
-
-### F5 — Check 2.1 can pass without the ADR file existing
+### F2 — Row 3.6 command is half vacuous
 
 - **Severity**: OBSERVATION
 - **Impact**: LOW — quick decision; fix is obvious and narrowly scoped
 - **Dimension**: Plan Completeness
-- **Location**: Phase 2 Automated Verification, Progress row 2.1
-- **Detail**: `grep -l "ADR-020" AGENTS.md docs/ADR/ADR-008-...md` exits 0 when either file matches, and it does not test that `docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` exists, although the row title says it does. A better check is `test -f docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md && grep -q ADR-020 AGENTS.md && grep -q ADR-020 docs/ADR/ADR-008-release-packaging-and-semver.md`.
-- **Fix**: Replace the command in the row.
-- **Decision**: PENDING — the fix changes the text of Progress row 2.1, and the review rules forbid editing Progress rows; the owner decides whether to reword the row.
+- **Location**: Phase 3 Automated Verification, Progress row 3.6
+- **Detail**: `grep -q "all_external_contributors" ADR-020` already succeeds today, because the Assumptions bullet names the required value. Only the negated `grep -qE` half can fail now. An implementer could delete the two stale phrases without recording the date and value of the passing reading and the row 3.5 reference, and 3.6 would still pass. The row title cannot be reworded here (Progress rows are fixed).
+- **Fix**: State in the Phase 3 row 3.6 Contract that the command proves only the two phrases are gone, and that the implementer checks by reading that the bullet names the date, value and "Progress row 3.5".
+- **Decision**: APPLIED — plan.md Phase 3 item 2 Contract, row 3.6 bullet.
+
+### F3 — A failed `gh` read is treated like a wrong setting
+
+- **Severity**: OBSERVATION
+- **Impact**: LOW — quick decision; fix is obvious and narrowly scoped
+- **Dimension**: Blind Spots
+- **Location**: Phase 3 item 2 Contract, row 3.5 bullet
+- **Detail**: The endpoint needs admin read access. If the implementer's `gh` call fails (auth, permission, network), the plan has it report `blocked` naming "the owner action", which reads as "switch the setting". The owner may then re-set a setting that is already right while the real fault is access, and the run halts again.
+- **Fix**: Keep the `blocked` hand-back, but require `needsHuman` to name the failure and say the setting is unread, not wrong.
+- **Decision**: APPLIED — plan.md Phase 3 item 2 Contract, row 3.5 bullet.
