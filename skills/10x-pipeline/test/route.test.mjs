@@ -625,6 +625,70 @@ test("an unquoted goal halts at init, names the leftover words and writes nothin
   assert.match(res.json.reason, /flags: the bug\./);
 });
 
+test("an argument with no flag name is a leftover word and swallows no word after it", () => {
+  for (const [args, words] of [
+    [["--goal", "fix", "--_", "the", "bug"], "--_ the bug"],
+    [["--goal", "fix", "--", "the", "bug"], "-- the bug"],
+    [["--goal", "fix", "--=x", "the"], "--=x the"],
+    [["--goal", "fix", "--_=x", "the"], "--_=x the"],
+  ]) {
+    const project = makeProject();
+    const res = run(project, ["init", project.id, ...args]);
+    assert.equal(res.status, 1);
+    assert.ok(res.json.reason.startsWith(`Unexpected argument(s) after the flags: ${words}. `), res.json.reason);
+    assert.equal(fs.existsSync(project.agentDir), false);
+  }
+});
+
+test("a flag init does not read halts at init, is named and writes nothing", () => {
+  for (const [args, names] of [
+    [["--gaol", "fix the bug"], "--gaol"],
+    [["--goal", "fix", "--report"], "--report"],
+    [["--goal", "fix", "--__proto__", "the", "--constructor", "bug"], "--__proto__, --constructor"],
+  ]) {
+    const project = makeProject();
+    const res = run(project, ["init", project.id, ...args]);
+    assert.equal(res.status, 1);
+    assert.equal(res.json.action, "halt");
+    assert.ok(res.json.reason.startsWith(`Unknown flag(s) for init: ${names}. init reads: --goal, --rigor, --archive, --chrome, --chain. Nothing was written.`), res.json.reason);
+    assert.equal(fs.existsSync(project.agentDir), false);
+  }
+});
+
+test("--goal=<text> stores the text after the first =", () => {
+  const project = makeProject();
+  assert.equal(run(project, ["init", project.id, "--goal=--retries=3 should back off", "--rigor=standard", "--archive=false"]).status, 0);
+  const meta = readMetaFile(project);
+  assert.equal(meta.goal, "--retries=3 should back off");
+  assert.equal(meta.rigor.level, "standard");
+  assert.notEqual(meta.archive, true);
+});
+
+test("--goal=<text> takes no following word: an unquoted rest halts and an empty value keeps the stored goal", () => {
+  const project = makeProject();
+  const res = run(project, ["init", project.id, "--goal=fix", "the", "bug"]);
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /Unexpected argument\(s\) after the flags: the bug\./);
+  assert.equal(fs.existsSync(project.agentDir), false);
+  init(project, "first goal");
+  writeLog(project, []);
+  assert.equal(run(project, ["init", project.id, "--goal="]).status, 0);
+  assert.equal(readMetaFile(project).goal, "first goal");
+});
+
+test("the --key=value form works for the other commands and the openspec chain", () => {
+  const project = makeProject();
+  init(project, "fix typo");
+  writeLog(project, [entry(1, "plan", { result: { status: "done" } })]);
+  const res = run(project, ["usage", project.id, "1", "--tokens=5"]);
+  assert.equal(res.json.attached, true);
+  assert.equal(res.json.usage.totalTokens, 5);
+  assert.equal(run(project, ["status", project.id, "--chain=nope"]).status, 1);
+  const os = makeOpenspecProject();
+  assert.equal(run(os, ["init", os.id, "--chain=openspec", "--goal=fix the bug"]).status, 0);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(os.agentDir, "meta.json"), "utf8")).chain, "openspec");
+});
+
 test("a quoted goal followed by another flag still works", () => {
   const project = makeProject();
   assert.equal(init(project, "fix the bug", ["--rigor", "standard"]).status, 0);
