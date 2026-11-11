@@ -1,0 +1,15 @@
+script-agents-links.sh source:
+#!/bin/sh
+# Run from repo root. Resolves every relative markdown link of AGENTS.md (AGENTS.md sits at repo root, so GitHub resolves them relative to root).
+for t in $(grep -oE '\]\([^)#]+\)' AGENTS.md | sed -E 's/^\]\((.*)\)$/\1/' | grep -vE '^[a-z]+://' | sort -u); do
+  if git ls-files --error-unmatch "$t" >/dev/null 2>&1; then echo "OK tracked: $t ($(wc -c < "$t") bytes) first line: $(head -1 "$t" | cut -c1-80)"; else echo "MISSING: $t"; fi
+done
+echo "link lines:"; grep -nE '\]\((README\.md|docs/REFERENCE\.md)\)' AGENTS.md | cut -c1-60
+
+# script: script-agents-links.sh (source above in file script-agents-links.sh); output below
+# Caveat: checked locally, not rendered on github.com (branch not pushed). Relative links in a root-level file resolve relative to repo root on GitHub.
+OK tracked: docs/REFERENCE.md (  125204 bytes) first line: # agent-smith reference
+OK tracked: README.md (    4522 bytes) first line: <p align="center"><img src="assets/agent-smith.jpg.webp" alt="agent-smith header
+link lines:
+3:agent-smith is a Claude Code plugin that runs 10xDevs and 
+16:- `.claude-plugin/plugin.json` — plugin manifest. `.claud

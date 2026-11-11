@@ -1,0 +1,1 @@
+- 1.5 — needs a live Claude Code session with /context; a step subagent cannot start or inspect another session.
