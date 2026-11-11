@@ -721,8 +721,17 @@ function pidAlive(pid) {
 export function acquireRunLock(id, chain) {
   const lock = runLockPath(paths(id, null, chain).dir);
   const tmp = `${lock}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, String(process.pid));
-  const release = () => { for (const f of [tmp, lock]) { try { if (f === tmp || fs.readFileSync(lock, "utf8") === String(process.pid)) fs.unlinkSync(f); } catch { /* already gone */ } } };
+  const own = String(process.pid);
+  fs.writeFileSync(tmp, own);
+  const unlinkQuiet = (file) => { try { fs.unlinkSync(file); } catch { /* already gone */ } };
+  // The temp file is always this process's. The lock is removed only while it still holds this pid, so a lock
+  // another process holds, or took over, is never touched.
+  const release = () => {
+    unlinkQuiet(tmp);
+    let holder = null;
+    try { holder = fs.readFileSync(lock, "utf8"); } catch { /* already gone */ }
+    if (holder === own) unlinkQuiet(lock);
+  };
   try {
     for (let attempt = 0; ; attempt++) {
       try {
@@ -737,13 +746,13 @@ export function acquireRunLock(id, chain) {
           halt(`Another init, next or usage of change ${id} is running (lock file ${lock}, pid ${pid}). Run router calls one at a time. A lock left by a dead process is removed automatically. Nothing was written.`);
         }
         if (attempt > 0) throw e;
-        try { fs.unlinkSync(lock); } catch { /* removed by another caller */ }
+        unlinkQuiet(lock); // stale: remove it and try once more; another caller may have removed it already
       }
     }
   } catch (e) {
     release();
     throw e;
   }
-  try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+  unlinkQuiet(tmp);
   process.on("exit", release);
 }
