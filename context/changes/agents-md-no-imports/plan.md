@@ -107,10 +107,10 @@ None. Other changes in flight that edit `AGENTS.md` may conflict on lines 3 and 
 
 #### Automated
 
-- [ ] 1.1 No import left: `grep -nE '(^|[[:space:]])@[A-Za-z0-9_./-]+\.(md|json|mjs)' AGENTS.md` prints nothing outside code spans (the guard test checks it)
-- [ ] 1.2 Guard test passes: `node --test tools/test/agents-md-no-imports.test.mjs`
-- [ ] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.4 Version drift check passes: `node tools/version-check.mjs`
+- [x] 1.1 No import left: `grep -nE '(^|[[:space:]])@[A-Za-z0-9_./-]+\.(md|json|mjs)' AGENTS.md` prints nothing outside code spans (the guard test checks it)
+- [x] 1.2 Guard test passes: `node --test tools/test/agents-md-no-imports.test.mjs`
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.4 Version drift check passes: `node tools/version-check.mjs`
 
 #### Manual
 
