@@ -116,13 +116,13 @@ Add `planFileTokens` to `state.mjs`, use it in `planPaths` and `phaseFiles`, and
 
 #### Automated
 
-- [ ] 1.1 Helper tests pass: `node --test skills/10x-pipeline/test/file-guard.test.mjs`
-- [ ] 1.2 Existing readers and steps pass: `node --test skills/10x-pipeline/test/score.test.mjs skills/10x-pipeline/test/manualverify.test.mjs skills/10x-pipeline/test/openspec-readers.test.mjs`
+- [x] 1.1 Helper tests pass: `node --test skills/10x-pipeline/test/file-guard.test.mjs`
+- [x] 1.2 Existing readers and steps pass: `node --test skills/10x-pipeline/test/score.test.mjs skills/10x-pipeline/test/manualverify.test.mjs skills/10x-pipeline/test/openspec-readers.test.mjs`
 
 ### Phase 2: One plan Files parser and docs
 
 #### Automated
 
-- [ ] 2.1 Parser tests pass: `node --test skills/10x-pipeline/test/file-guard.test.mjs`
-- [ ] 2.2 Plan path and tdd phase tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/executors.test.mjs skills/10x-pipeline/test/rules.test.mjs`
-- [ ] 2.3 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 2.1 Parser tests pass: `node --test skills/10x-pipeline/test/file-guard.test.mjs`
+- [x] 2.2 Plan path and tdd phase tests pass: `node --test skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/executors.test.mjs skills/10x-pipeline/test/rules.test.mjs`
+- [x] 2.3 Full suite: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes

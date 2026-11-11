@@ -649,21 +649,38 @@ export function normalizePlanPath(raw) {
   return token;
 }
 
-// Paths named on the **File**: and **Files**: lines of the plan (backtick tokens, else comma-split text).
+// The normalized path tokens of one **File**: / **Files**: plan line (backtick tokens, else comma-split text),
+// or null when the line is no such line.
+export function planFileTokens(line) {
+  const m = line.match(/^\*\*Files?\*\*:(.*)$/);
+  if (!m) return null;
+  const quoted = [...m[1].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
+  return (quoted.length ? quoted : m[1].split(",")).map(normalizePlanPath).filter(Boolean);
+}
+
+// Paths named on the **File**: and **Files**: lines of the plan.
 function planPaths(file) {
   if (typeof file !== "string" || !fs.existsSync(file)) return [];
   const found = new Set();
   for (const line of fs.readFileSync(file, "utf8").split("\n")) {
-    const m = line.match(/^\*\*Files?\*\*:(.*)$/);
-    if (!m) continue;
-    const quoted = [...m[1].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
-    const tokens = quoted.length ? quoted : m[1].split(",");
-    for (const raw of tokens) {
-      const token = normalizePlanPath(raw);
-      if (token) found.add(token);
-    }
+    for (const token of planFileTokens(line) ?? []) found.add(token);
   }
   return [...found].sort();
+}
+
+// lstat of a regular file of at most `max` bytes whose real path lies inside the real path of `dir`, else null.
+// A symlinked file, a symlinked parent folder and an oversized file are refused. Never throws.
+export function guardedStat(file, dir, max = Infinity) {
+  try {
+    const st = fs.lstatSync(file);
+    if (!st.isFile() || st.size > max) return null;
+    return fs.realpathSync(file).startsWith(fs.realpathSync(dir) + path.sep) ? st : null;
+  } catch { return null; }
+}
+
+// The UTF-8 text of a file that passes guardedStat, else null.
+export function readGuarded(file, dir, max) {
+  try { return guardedStat(file, dir, max) ? fs.readFileSync(file, "utf8") : null; } catch { return null; }
 }
 
 // The hot paths one plan token names: the path itself, a directory above hot files, or a glob. Case is ignored.

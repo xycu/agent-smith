@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, frontmatterField, executed, isObject, atOrAbove, ARTIFACT_NAME, scoreConfig } from "./state.mjs";
+import { ROOT, frontmatterField, executed, isObject, atOrAbove, ARTIFACT_NAME, scoreConfig, guardedStat } from "./state.mjs";
 
 // ---- pre-plan steps ---------------------------------------------------------
 
@@ -202,6 +202,7 @@ export function readComplexity(p, policy) {
   try { st = fs.lstatSync(file); } catch { return { ok: false, error: `no ${cfg.file}`, exists: false }; }
   if (!st.isFile()) return bad(st.isSymbolicLink() ? "a symlink, not a regular file" : "not a regular file");
   if (st.size > cfg.maxBytes) return bad(`larger than ${cfg.maxBytes} bytes`);
+  if (!guardedStat(file, p.change, cfg.maxBytes)) return bad("outside the change folder");
   let doc;
   try { doc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { return bad("not valid JSON"); }
   if (!isObject(doc)) return bad("not a JSON object");
