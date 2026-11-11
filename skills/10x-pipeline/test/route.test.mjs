@@ -769,3 +769,26 @@ test("init and next without change.md halt and write nothing (missing change.md)
     assert.equal(fs.existsSync(project.agentDir), false);
   }
 });
+
+// Every other command, for a change folder without change.md and for an id with no folder at all.
+test("status, risk, usage, verify-archive and compare write nothing without change.md (missing change.md)", () => {
+  const project = makeProject({ change: false });
+  const tree = () => fs.readdirSync(path.join(project.root, "context"), { recursive: true }).sort();
+  const before = tree();
+  for (const id of ["demo", "nosuch"]) {
+    const report = run(project, ["status", id, "--report"]);
+    assert.equal(report.status, 1, report.stdout + report.stderr);
+    assert.equal(report.json.action, "halt");
+    assert.equal(report.json.reason, `No change folder. Run /10x-new ${id} first.`);
+    const status = run(project, ["status", id]);
+    assert.equal(status.status, 0, status.stdout + status.stderr);
+    assert.deepEqual(status.json.steps, []);
+    for (const args of [["risk", id], ["usage", id, "1", "--tokens", "5"], ["verify-archive", id],
+      ["compare", id, "--baseline", project.root]]) {
+      const res = run(project, args);
+      assert.ok(res.json, `${args[0]} ${id}: ${res.stdout}${res.stderr}`);
+      assert.deepEqual(tree(), before, `${args[0]} ${id} wrote a file`);
+    }
+    assert.deepEqual(tree(), before, `status ${id} wrote a file`);
+  }
+});
