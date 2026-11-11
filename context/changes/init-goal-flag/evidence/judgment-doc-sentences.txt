@@ -1,0 +1,8 @@
+Judged: AGENTS.md init bullet and docs/REFERENCE.md "How routing works" last bullet vs halt text in skills/10x-pipeline/scripts/route.mjs:846.
+
+AGENTS.md: "`--goal` takes the next argument whatever it starts with, and `init` halts, writing nothing, on words that belong to no flag."
+REFERENCE.md: "`init --goal` takes the next argument as the goal whatever it starts with (`--goal "--verbose flag"` stores that text). `init` halts, and writes nothing, on words that belong to no flag, such as an unquoted goal: `Unexpected argument(s) after the flags: <words>. Quote the goal: --goal "<text>". Nothing was written.` A bare or empty `--goal` keeps the stored goal."
+Code: halt(`Unexpected argument(s) after the flags: ${flags._.join(" ")}. Quote the goal: --goal "<text>". Nothing was written.`)
+Live output (init demo2 --goal fix the bug): "Unexpected argument(s) after the flags: the bug. Quote the goal: --goal \"<text>\". Nothing was written."
+
+Reasoning: both sentences are grammatical, state the same rule, the quoted halt text is identical to the code string, and REFERENCE.md sits as last bullet of the list after "...step budget is spent." (git diff). Bare/empty --goal keeps stored goal matches plan Current State. Match confirmed.

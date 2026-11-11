@@ -157,7 +157,7 @@ A `--goal` followed by a flag-looking argument now takes it as the goal text: `i
 
 #### Manual
 
-- [ ] 1.4 A hand-run `init` with a quoted multi-word goal still starts a run and `status` prints valid JSON.
+- [x] 1.4 A hand-run `init` with a quoted multi-word goal still starts a run and `status` prints valid JSON. — evidence: evidence/command-init-quoted-goal.txt
 
 ### Phase 2: Tests and docs
 
@@ -169,4 +169,4 @@ A `--goal` followed by a flag-looking argument now takes it as the goal text: `i
 
 #### Manual
 
-- [ ] 2.4 The two doc sentences read correctly and match the halt text.
+- [x] 2.4 The two doc sentences read correctly and match the halt text. — evidence: evidence/judgment-doc-sentences.txt
