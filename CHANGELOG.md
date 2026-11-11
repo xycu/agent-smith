@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.7](https://github.com/xycu/agent-smith/compare/v1.4.6...v1.4.7) (2026-11-11)
+
+
+### Bug Fixes
+
+* **router:** read --key=value and halt init on unknown flags ([4fad616](https://github.com/xycu/agent-smith/commit/4fad6164d0fc17968b82acd719e6e73062e24bf4))
+
 ## [1.4.6](https://github.com/xycu/agent-smith/compare/v1.4.5...v1.4.6) (2026-11-11)
 
 
