@@ -164,6 +164,32 @@ test("step budget differs per level: 12, 19, 24", () => {
   assert.equal(init(project, "fix typo").json.action, "run");
 });
 
+test("a complete run at the budget ends done, not halted (issue #87)", () => {
+  for (const count of [11, 12]) {
+    const project = makeProject({ plan: planText({ done: 1 }) });
+    writeReview(project, "plan-review");
+    writeReview(project, "impl-review", { verdict: "APPROVED" });
+    const steps = ["plan", "plan-review", "implement"];
+    while (steps.length < count - 1) steps.push("implement");
+    steps.push("impl-review");
+    writeLog(project, steps.map((s, i) => entry(i + 1, s)));
+    assert.equal(init(project, "fix typo").json.action, "done", `${count} entries`);
+  }
+});
+
+test("a decide halt is not masked by the budget text", () => {
+  const project = makeProject({ plan: planText({ done: 1 }) });
+  writeReview(project, "plan-review");
+  writeReview(project, "impl-review", { verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings" });
+  const steps = ["plan", "plan-review", "implement", "impl-review", "fix", "impl-review", "fix", "impl-review"];
+  while (steps.length < 12) steps.splice(3, 0, "implement");
+  writeLog(project, steps.map((s, i) => entry(i + 1, s)));
+  const res = init(project, "fix typo");
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /Implementation still NEEDS ATTENTION after 2 fix loops/);
+  assert.doesNotMatch(res.json.reason, /Step budget/);
+});
+
 test("an override that drives the budget below 1 still gives a positive budget", () => {
   const project = makeProject({ policy: { limits: { maxTotalSteps: 2 } } });
   const res = init(project, "fix typo");

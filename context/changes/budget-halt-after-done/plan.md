@@ -115,9 +115,9 @@ Router change plus a regression test and doc line.
 
 #### Automated
 
-- [ ] 1.1 New regression test passes: `node --test skills/10x-pipeline/test/route.test.mjs`
-- [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.3 Router prints valid JSON for `init` and `status` in a scratch change folder
+- [x] 1.1 New regression test passes: `node --test skills/10x-pipeline/test/route.test.mjs`
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.3 Router prints valid JSON for `init` and `status` in a scratch change folder
 
 #### Manual
 
