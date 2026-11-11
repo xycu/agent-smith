@@ -28,7 +28,7 @@ A second `init`/`next`/`usage` on the same run, while one is running, halts with
 
 ## Implementation Approach
 
-Add `acquireRunLock(runDir)` to `state.mjs`. Lock file path: `os.tmpdir()/agent-smith-<sha256(abs run dir) first 16 hex>.lock`, created with `fs.openSync(path, "wx")`, content = pid. On `EEXIST`, read the pid; if that process is gone (`process.kill(pid, 0)` throws `ESRCH`) or the content is unreadable, unlink and retry once; otherwise halt. Release on `process.on("exit")` by unlinking the file. `main()` calls it for `init`, `next`, `usage` right after `resolveChain`/reserved-name check and before any write.
+Add `acquireRunLock(runDir)` to `state.mjs`. Lock file path: `os.tmpdir()/agent-smith-<sha256(abs run dir) first 16 hex>.lock`, taken atomically with its pid already inside: write the pid to a private temp file in the same directory, `fs.linkSync(tmp, lock)` (fails with `EEXIST` when held), then unlink the temp file. A plain `openSync(path, "wx")` followed by a write is not used, because a second caller could read the still-empty file and take it for stale. On `EEXIST`, read the pid; if that process is gone (`process.kill(pid, 0)` throws `ESRCH`; `EPERM` counts as alive) or the content is unparsable, unlink and retry once; otherwise halt. Release on `process.on("exit")` by unlinking the file. `main()` calls it for `init`, `next`, `usage` right after `resolveChain`/reserved-name check and before any write.
 
 ## Phase 1: Lock in the router
 
@@ -60,7 +60,7 @@ Implement the lock and cover it with tests.
 
 **Intent**: Black-box tests through the CLI using helpers from `helpers.mjs` (`makeProject`, `run`, `writeLog`, `entry`).
 
-**Contract**: Spawn with `env: { TMPDIR: <scratch dir> }` so the lock path is under the test's control; compute the lock path with the same recipe (export the path function from `state.mjs` as `runLockPath(dir)` to share it). Cases: (a) lock held by a live pid (the test's own `process.pid`) makes `next` and `usage` halt, exit 1, `run.jsonl` byte-identical; (b) lock with a dead pid is replaced and the command succeeds; (c) the lock file is gone after a normal run and after a halting run; (d) `status` ignores a held lock; (e) an OpenSpec-chain `next` halts the same way.
+**Contract**: Spawn with `env: { TMPDIR: <scratch dir> }` so the lock path is under the test's control; compute the lock path with the same recipe (export the path function from `state.mjs` as `runLockPath(dir)` to share it). Cases: (a) lock held by a live pid (the test's own `process.pid`) makes `next` and `usage` halt, exit 1, `run.jsonl` byte-identical; (b) lock with a dead pid is replaced and the command succeeds; (c) the lock file is gone after a normal run and after a halting run; (d) `status` ignores a held lock; (e) an OpenSpec-chain `next` halts the same way; (f) a lock whose content is a live pid written through the temp-and-link path is never read as empty (a lock file is never observable without its pid).
 
 ### Success Criteria:
 
@@ -93,7 +93,7 @@ Say the router now enforces the one-call-at-a-time rule.
 
 **Intent**: Document the lock and list the new test file.
 
-**Contract**: In `docs/REFERENCE.md` "Orchestrator anti-stall" and "Late usage figure": one bullet each that `init`, `next` and `usage` take a per-run lock in the OS temp directory, a concurrent call halts with nothing written, and a lock of a dead process is ignored. In `AGENTS.md` Project Structure: add `run-lock.test.mjs` and `acquireRunLock` under the `state.mjs` description. SKILL.md files stay unchanged (rule 3 text and its tests are pinned; they name no router internals).
+**Contract**: In `docs/REFERENCE.md` "Orchestrator anti-stall" and "Late usage figure": one bullet each that `init`, `next` and `usage` take a per-run lock in the OS temp directory, a concurrent call halts with nothing written, and a lock of a dead process is ignored. Add the known limits to the same bullets: the lock key follows `os.tmpdir()` (the `TMPDIR` of the call), so two callers with different `TMPDIR` do not exclude each other; two calls that both find a stale lock at the same moment can both take it; a lock left by a killed process stays until the next call replaces it; a reused pid keeps a stale lock alive. In `AGENTS.md` Project Structure: add `run-lock.test.mjs` and `acquireRunLock` under the `state.mjs` description. SKILL.md files stay unchanged (rule 3 text and its tests are pinned; they name no router internals).
 
 ### Success Criteria:
 
@@ -119,8 +119,8 @@ Say the router now enforces the one-call-at-a-time rule.
 
 ### Manual Testing Steps:
 
-1. Run two `route.mjs next` calls in parallel on a scratch run.
-2. Confirm one halts with the lock message and the log has no lost entry.
+1. Pre-hold the lock: create the lock file at the path from `runLockPath` with the pid of a live process (for example `echo $$` of a shell kept open), then run `route.mjs next` on a scratch run. Two parallel calls are not a reliable check, because a `next` call can end before the second one starts.
+2. Confirm `next` halts with the lock message and the log has no lost entry; then remove the lock file by hand (a file delete, no recursion) and confirm `next` runs.
 
 ## Performance Considerations
 
