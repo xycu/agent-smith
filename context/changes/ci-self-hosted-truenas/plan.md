@@ -2,24 +2,25 @@
 
 ## Overview
 
-Move the two jobs of `.github/workflows/ci.yml` (`test`, `commits`) from `ubuntu-latest` to self-hosted runner instances on TrueNAS, without letting code from a fork pull request run on the NAS. `release.yml` stays on GitHub-hosted runners.
+Move the two jobs of `.github/workflows/ci.yml` (`test`, `commits`) from `ubuntu-latest` to self-hosted runner instances on TrueNAS, and keep code from a fork pull request off the NAS. Two controls do that: the repository setting that holds fork workflow runs for approval (the real boundary) and a `runs-on` fallback to `ubuntu-latest` for fork PRs (defence in depth). `release.yml` stays on GitHub-hosted runners.
 
 ## Current State Analysis
 
 - `ci.yml` has two jobs, both `runs-on: ubuntu-latest` (`.github/workflows/ci.yml:21`, `:35`). Triggers: `pull_request` and `push` to `main`. Steps: checkout, `actions/setup-node` Node 24, then `node --test ...`, `tools/version-check.mjs`, `tools/commit-lint.mjs`.
 - `release.yml` has one job on `ubuntu-latest` and uses `GITHUB_TOKEN` with `contents: write`; it is outside the goal.
-- The repository `xycu/agent-smith` is PUBLIC (`gh repo view`). A `pull_request` from a fork would run its workflow code on the runner. GitHub warns against self-hosted runners for public repositories for this reason.
+- The repository `xycu/agent-smith` is PUBLIC (`gh repo view`). A `pull_request` from a fork would run its workflow code on the runner. GitHub warns against self-hosted runners for public repositories for this reason. The `runs-on` expression is not a boundary by itself: a fork PR runs the workflow file from its own merge ref, so its author can edit `runs-on` to the self-hosted labels. What stops that run is the setting Settings -> Actions -> General -> "Fork pull request workflows from outside collaborators" ("Require approval for all external contributors"), which holds every fork PR run until a maintainer approves it.
 - The test suite builds real git worktrees, a bare remote and logging `git` shims (`skills/10x-pipeline/test/*.test.mjs`), so the runner needs `git` and a writable temp dir. No npm dependencies exist (AGENTS.md, ADR-006), so no `npm ci` and no cache.
 - `tools/workflow-pins.mjs` pins every `uses:` to a 40-hex SHA with a version comment; `tools/test/workflow-pins.test.mjs` runs it on this repository. Adding no new action keeps it green.
 - ADR-008 line 45 says the workflows run only on GitHub and were checked with `actionlint`; AGENTS.md lists ci.yml in Project Structure and Releases.
 
 ## Desired End State
 
-On a pull request from the same repository, and on push to `main`, both CI jobs run on a runner carrying the labels `self-hosted`, `linux`, `truenas`. On a pull request from a fork, both jobs fall back to `ubuntu-latest`, so untrusted code never reaches the NAS. Job names, steps, concurrency and permissions are unchanged. An ADR records the decision and the runner prerequisites.
+On a pull request from the same repository, and on push to `main`, both CI jobs run on a runner carrying the labels `self-hosted`, `linux`, `truenas`. On a pull request from a fork, both jobs fall back to `ubuntu-latest`, and the repository requires maintainer approval before any fork PR workflow runs, so untrusted code reaches the NAS only if the owner approves a run that edited `runs-on`. The owner reads the workflow diff of a fork PR before approving. Job names, steps, concurrency and permissions are unchanged. An ADR records the decision and the runner prerequisites.
 
 ### Key Discoveries:
 
 - `runs-on` accepts an expression, so one workflow can pick the runner per event; no second workflow is needed.
+- The fallback only covers an honest fork PR. Do not describe it as a security boundary in the workflow comment, the ADR or the report; the approval setting is the boundary and is a prerequisite (Phase 3).
 - A fork PR has `github.event.pull_request.head.repo.full_name != github.repository`; push events have no `pull_request` object, so the check must treat that as same-repo.
 - `actions/setup-node` downloads Node 24 from the internet at job time; a TrueNAS runner needs outbound HTTPS to github.com and nodejs.org, or Node 24 preinstalled (decision below).
 
@@ -33,7 +34,7 @@ On a pull request from the same repository, and on push to `main`, both CI jobs 
 
 ## Implementation Approach
 
-Define the runner choice once per job as a ternary expression on the event and head repository. Keep `actions/setup-node` so the Node 24 requirement stays declared in the workflow (works on a runner with internet or a populated tool cache). Add a guard test that reads `ci.yml` so the fork fallback cannot be dropped silently. Record the decision in ADR-020 and fix the stale ADR-008 sentence and the AGENTS.md mention.
+Define the runner choice once per job as a ternary expression on the event and head repository. Keep `actions/setup-node` so the Node 24 requirement stays declared in the workflow (works on a runner with internet or a populated tool cache). Add a guard test that reads `ci.yml` so the fork fallback cannot be dropped or inverted silently. Record the decision in ADR-020 and fix the stale ADR-008 sentence and the AGENTS.md mention.
 
 ## Phase 1: Switch ci.yml to the self-hosted runner with a fork fallback
 
@@ -47,7 +48,7 @@ Edit both jobs and the header comment; add a guard test.
 
 **File**: `.github/workflows/ci.yml`
 
-**Intent**: Run both jobs on the TrueNAS runner for trusted events and on GitHub-hosted `ubuntu-latest` for fork pull requests. Explain the why in the header comment (public repository, untrusted fork code).
+**Intent**: Run both jobs on the TrueNAS runner for trusted events and on GitHub-hosted `ubuntu-latest` for fork pull requests. Explain the why in the header comment (public repository; the fallback keeps honest fork PRs on hosted runners, and the fork-approval setting is what stops a fork PR that edits `runs-on`).
 
 **Contract**: each job has `runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}`. The label array is the contract with the runner registration. Everything else in the file is unchanged, and no new `uses:` is added.
 
@@ -57,7 +58,7 @@ Edit both jobs and the header comment; add a guard test.
 
 **Intent**: Fail when a job of `ci.yml` loses the self-hosted labels or the fork fallback, or when `release.yml` moves to a self-hosted runner.
 
-**Contract**: `node:test` file, built-ins only, no YAML parser (match the plain-text style of `tools/workflow-pins.mjs`): reads `.github/workflows/ci.yml`, asserts every `runs-on:` line contains `truenas`, `ubuntu-latest` and `head.repo.full_name != github.repository`, and that the count of `runs-on:` lines equals the count of jobs (2). Asserts `release.yml` has no `self-hosted`.
+**Contract**: `node:test` file, built-ins only, no YAML parser (match the plain-text style of `tools/workflow-pins.mjs`): reads `.github/workflows/ci.yml`, asserts every `runs-on:` line equals the exact expression of the Contract above (a plain string compare, so a swapped ternary branch, a dropped label or a changed operator fails), and that the count of `runs-on:` lines equals the count of jobs (2). Asserts `release.yml` has no `self-hosted`.
 
 ### Success Criteria:
 
@@ -91,7 +92,7 @@ ADR plus the two stale statements.
 
 **Intent**: Record the decision, the fork fallback and why, and the runner prerequisites. Follow the format of `ADR-019-late-usage-figure.md`.
 
-**Contract**: sections as the other ADRs use. Records: labels `self-hosted, linux, truenas`; `release.yml` stays hosted; prerequisites for the runner (Linux x64 or arm64 with Node 24 reachable through `actions/setup-node` or preinstalled, `git` 2.x, outbound HTTPS to github.com and the Node distribution host, a temp dir the test user can write, a non-root service user); a note that the runner must not hold secrets or credentials beyond the runner token because the repository is public; consequence: a fork PR is slower or unavailable only if hosted minutes run out.
+**Contract**: sections as the other ADRs use. Records: labels `self-hosted, linux, truenas`; `release.yml` stays hosted; prerequisites for the runner (Linux x64 or arm64 with Node 24 reachable through `actions/setup-node` or preinstalled, `git` 2.x, outbound HTTPS to github.com and the Node distribution host, a temp dir the test user can write, a non-root service user); a runner version that runs Node 24 actions (`actions/checkout` v5 documents v2.327.1 or newer); a note that the runner must not hold secrets or credentials beyond the runner token because the repository is public; a note that the runner is persistent, so a same-repository branch from anyone with write access runs code there and workspace state carries over between jobs; the required repository setting "Require approval for all external contributors" for fork PR workflows, stated as the real boundary, with the `runs-on` fallback described as defence in depth only; consequence: a fork PR is slower or unavailable only if hosted minutes run out.
 
 #### 2. Stale statements
 
@@ -124,7 +125,7 @@ The workflow cannot be run locally; the first pull request on the NAS runners is
 
 #### 1. Runner registration check (owner action, no repo change)
 
-**Intent**: Confirm the runners are registered to `xycu/agent-smith` with labels `self-hosted`, `linux`, `truenas` and are online, and that the repository setting "Require approval for all outside collaborators" is on for fork PRs.
+**Intent**: Before the pull request of this change is opened (its own jobs run on the NAS, and they queue until a runner is online), confirm the runners are registered to `xycu/agent-smith` with labels `self-hosted`, `linux`, `truenas` and are online, and that Settings -> Actions -> General -> "Fork pull request workflows from outside collaborators" is set to "Require approval for all external contributors". This setting is the boundary that keeps fork code off the NAS; the owner checks it by hand, since no row of the Progress block covers it.
 
 **Contract**: no files change.
 

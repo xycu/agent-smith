@@ -19,7 +19,7 @@ Same-repo PRs and pushes to `main` run both jobs on runners labelled `self-hoste
 | Decision | Choice | Why | Source |
 | --- | --- | --- | --- |
 | Runner labels | `self-hosted`, `linux`, `truenas` | Standard auto labels plus one that names the host; none given, so assumed | Plan (assumption) |
-| Fork PRs | Fall back to `ubuntu-latest` via a `runs-on` expression | Public repo: fork code must not reach the NAS | Plan |
+| Fork PRs | Fall back to `ubuntu-latest` via a `runs-on` expression, plus the repo setting "Require approval for all external contributors" | Public repo: the fallback is defence in depth only (a fork PR can edit `runs-on`); the approval setting is the boundary | Plan |
 | `release.yml` | Stays hosted | Holds a write token; goal names CI only | Plan |
 | Node 24 | Keep `actions/setup-node` | Keeps the requirement in the workflow; no new action, pins stay green | Plan |
 | Guard | `tools/test/ci-runner.test.mjs`, plain text | Matches `workflow-pins.mjs` style, no YAML parser | Plan |
@@ -54,4 +54,4 @@ One ternary in each job's `runs-on`: fork PR gives `ubuntu-latest`, everything e
 ## Success Criteria (Summary)
 
 - Both CI jobs pass on the TrueNAS runner for a same-repo PR and for `main`.
-- A fork PR never lands on the NAS.
+- A fork PR run reaches the NAS only after the owner approves it (approval setting on); an honest fork PR runs on `ubuntu-latest`.

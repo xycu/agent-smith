@@ -40,7 +40,7 @@
   },
   "startCommit": "405c47f465bc22e60ab06f899047d2c0a12c4512",
   "rigor": {
-    "level": "lean",
-    "by": "goal short"
+    "level": "standard",
+    "by": "phases 3, signals"
   }
 }
