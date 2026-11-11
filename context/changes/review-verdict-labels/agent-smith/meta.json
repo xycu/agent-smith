@@ -42,5 +42,10 @@
   "rigor": {
     "level": "lean",
     "by": "goal short"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": []
   }
 }
