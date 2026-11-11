@@ -46,7 +46,7 @@ Check `change.md` for the 10x chain before `init` and `next` write anything.
 #### 2. Tests
 
 **Intent**: Prove the halt and that nothing is written, for `init` and `next`, plain and isolated; fix the one test that relied on the old behavior.
-**Contract**: in `skills/10x-pipeline/test/route.test.mjs`, tests using `makeProject({ change: false })`: `init` and `next` exit 1 with the reason matching `/No change folder\. Run \/10x-new demo first\./` and `agent-smith/` absent; an isolated variant (`policy: { isolation: { require: true } }`, linked worktree as in `isolation.test.mjs`) leaves `git log` without a start commit. Update `archive.test.mjs:140-148` to assert the halt is the missing-change one (no `archived` in the reason) and that no `meta.json` was written.
+**Contract**: in `skills/10x-pipeline/test/route.test.mjs`, plain tests using `makeProject({ change: false })`: `init` and `next` exit 1 with the reason matching `/No change folder\. Run \/10x-new demo first\./` and `agent-smith/` absent. The isolated variant goes in `skills/10x-pipeline/test/isolation.test.mjs` (its `worktree()` helper is local to that file; test name contains `missing change.md`): `policy: { isolation: { require: true } }`, a linked worktree whose change folder has no `change.md`, `init` halts and `git log` has no start commit. If another test in the suite relied on `init`/`next` creating state without `change.md`, fix it the same way. Update `archive.test.mjs:140-148` to assert the halt is the missing-change one (no `archived` in the reason) and that no `meta.json` was written.
 
 ### Success Criteria:
 
@@ -71,7 +71,7 @@ Rewrite the known-limit line and note the behavior.
 
 #### 1. REFERENCE.md
 
-**Intent**: Replace the `:462` limit (hand-run `next` creates an empty folder) with the new behavior; add one line in the 10x routing/`init` description that `init` and `next` halt on a missing `change.md` before writing.
+**Intent**: Replace the `:462` limit (hand-run `next` creates an empty folder) with the new behavior; add one bullet to the "How routing works" list (10x chain section) saying that `init` and `next` halt with `No change folder. Run /10x-new <id> first.` and write nothing when `change.md` is missing. Rewrite the `:462` bullet to say that hand-run call now halts and creates no folder, and drop its D8 collision pointer, which no longer applies.
 **Contract**: edit `docs/REFERENCE.md` only; no policy, ADR or `AGENTS.md` change.
 
 ### Success Criteria:
@@ -110,7 +110,7 @@ None. Existing junk folders from earlier hand-runs stay; delete them file by fil
 #### Automated
 
 - [ ] 1.1 `init` and `next` without `change.md` halt and write nothing: `node --test --test-name-pattern="missing change.md" skills/10x-pipeline/test/route.test.mjs` passes
-- [ ] 1.2 The isolated `init` makes no start commit: `node --test --test-name-pattern="missing change.md" skills/10x-pipeline/test/route.test.mjs` passes
+- [ ] 1.2 The isolated `init` makes no start commit: `node --test --test-name-pattern="missing change.md" skills/10x-pipeline/test/isolation.test.mjs` passes
 - [ ] 1.3 The archive-guard test still passes: `node --test --test-name-pattern="suffix-collision" skills/10x-pipeline/test/archive.test.mjs` passes
 - [ ] 1.4 The whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
 
