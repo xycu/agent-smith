@@ -101,7 +101,7 @@ The rule "the run's level is a known level, the gate's `minRigor` is a known lev
 
 #### Automated
 
-- [ ] 1.1 Full test suite passes with no new failures
+- [x] 1.1 Full test suite passes with no new failures
 - [x] 1.2 No gate-rule levels.indexOf copy remains in steps.mjs and preplan.mjs
 - [x] 1.3 atOrAbove has one definition in state.mjs and seven call sites
 
@@ -114,7 +114,7 @@ The rule "the run's level is a known level, the gate's `minRigor` is a known lev
 #### Automated
 
 - [x] 2.1 at-or-above.test.mjs passes
-- [ ] 2.2 Full test suite passes after the new test
+- [x] 2.2 Full test suite passes after the new test
 
 #### Manual
 
