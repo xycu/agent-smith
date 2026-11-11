@@ -21,7 +21,7 @@
 
 **GIVEN** `ci.yml` runs for a pull request whose head repository is not this repository **WHEN** a job starts **THEN** it **MUST** run on `ubuntu-latest`.
 
-Each job carries the same `runs-on` expression: a ternary on `github.event_name` and `github.event.pull_request.head.repo.full_name`. A push event has no `pull_request` object, so the check reads as same-repository. `actions/setup-node` stays, so the Node 24 requirement is declared in the workflow. Job names, steps, concurrency and permissions are unchanged, and no action is added, so the pin guard of ADR-008 stays green. `tools/test/ci-runner.test.mjs` compares each `runs-on` line with the exact expression and fails when `release.yml` names `self-hosted`.
+Each job carries the same `runs-on` expression: a ternary on `github.event_name` and `github.event.pull_request.head.repo.full_name`. The `github.event_name == 'pull_request'` part keeps a push on the NAS: a push event has no head repository name, so without it the `!=` check would send every push to `ubuntu-latest`. `actions/setup-node` stays, so the Node 24 requirement is declared in the workflow. Job names, steps, concurrency and permissions are unchanged, and no action is added, so the pin guard of ADR-008 stays green. `tools/test/ci-runner.test.mjs` compares each `runs-on` line with the exact expression and fails when `release.yml` names `self-hosted`.
 
 ### Fork pull requests (D2)
 
@@ -41,6 +41,7 @@ The repository holds no runner setup. A runner for this repository needs:
 - Node 24, reachable through `actions/setup-node` (outbound HTTPS to github.com and the Node distribution host, or a populated tool cache) or preinstalled.
 - `git` 2.x, and a temp dir the runner user can write.
 - A non-root service user.
+- A clean workspace for every job: register the runner with `--ephemeral`, or run each job in a fresh container, so no file, process or credential carries over from one job to the next. The runner host has no route to the rest of the LAN that CI does not need.
 - No secrets or credentials beyond the runner token, because the repository is public.
 
 ## Assumptions
@@ -51,10 +52,10 @@ The repository holds no runner setup. A runner for this repository needs:
 ## Consequences
 
 - CI no longer spends GitHub-hosted minutes for same-repository events. A fork pull request does, and it is slower or unavailable only if hosted minutes run out.
-- The runner is persistent. A same-repository branch from anyone with write access runs code there, and workspace and temp state carry over between jobs. Anyone with write access is trusted with the NAS.
+- The runner is persistent. A same-repository branch from anyone with write access runs code there, and workspace and temp state carry over between jobs. Anyone with write access is trusted with the NAS. The `agent-smith/<id>` branches that `open-pr.mjs` pushes (ADR-017) are same-repository pull requests too, so code that a model wrote runs there with no approval step. That is why D4 asks for a clean workspace per job.
 - A single runner serialises jobs; `concurrency` with `cancel-in-progress` already limits waste. A second instance helps if `test` and `commits` queue.
 - Runners offline: jobs queue until one returns. Rollback is to set `runs-on` back to `ubuntu-latest`.
-- The first pull request on the runners is the proof; the workflow cannot run locally.
+- The first pull request on the runners is the proof; the workflow cannot run locally. That run (pull request 123, 2026-11-11) failed 9 of 1062 tests on the runner host, all in `manualverify.test.mjs` and the OpenSpec step tests, while the same suite passes on a laptop and on hosted runners. Until the host cause is found and fixed, the check is red.
 
 ## Alternatives considered
 
