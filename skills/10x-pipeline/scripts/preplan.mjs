@@ -198,11 +198,14 @@ export function readComplexity(p, policy) {
   if (!cfg) return { ok: false, error: "score policy is malformed", exists: false };
   const file = path.join(p.change, cfg.file);
   const bad = (error) => ({ ok: false, error, exists: true });
-  let st;
-  try { st = fs.lstatSync(file); } catch { return { ok: false, error: `no ${cfg.file}`, exists: false }; }
-  if (!st.isFile()) return bad(st.isSymbolicLink() ? "a symlink, not a regular file" : "not a regular file");
-  if (st.size > cfg.maxBytes) return bad(`larger than ${cfg.maxBytes} bytes`);
-  if (!guardedStat(file, p.change, cfg.maxBytes)) return bad("outside the change folder");
+  // guardedStat alone decides whether the file is read; the second lstat only words the refusal.
+  if (!guardedStat(file, p.change, cfg.maxBytes)) {
+    let st;
+    try { st = fs.lstatSync(file); } catch { return { ok: false, error: `no ${cfg.file}`, exists: false }; }
+    if (st.isSymbolicLink()) return bad("a symlink, not a regular file");
+    if (!st.isFile()) return bad("not a regular file");
+    return bad(st.size > cfg.maxBytes ? `larger than ${cfg.maxBytes} bytes` : "outside the change folder");
+  }
   let doc;
   try { doc = JSON.parse(fs.readFileSync(file, "utf8")); } catch { return bad("not valid JSON"); }
   if (!isObject(doc)) return bad("not a JSON object");
