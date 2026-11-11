@@ -46,7 +46,7 @@ The repository holds no runner setup. A runner for this repository needs:
 ## Assumptions
 
 - The runners provide the prerequisites above. The owner has not confirmed this against the real hosts yet (Progress row 2.3).
-- The fork approval setting is on. No file of the repository can check it (Progress row of Phase 3).
+- The fork approval setting is "Require approval for all external contributors". No file of the repository can check it, and no Progress row covers it; `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval` reads it, and `approval_policy` must be `all_external_contributors`. On 2026-11-11 it read `first_time_contributors`, so this assumption does not hold until the owner changes the setting.
 
 ## Consequences
 
