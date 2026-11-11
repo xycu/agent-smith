@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.4](https://github.com/xycu/agent-smith/compare/v1.4.3...v1.4.4) (2026-11-11)
+
+
+### Bug Fixes
+
+* **tools:** read .yaml workflows and composite actions in the pin guard ([9b252c2](https://github.com/xycu/agent-smith/commit/9b252c2c334b59c796bb4a6017630de59ba8d41c))
+
 ## [1.4.3](https://github.com/xycu/agent-smith/compare/v1.4.2...v1.4.3) (2026-11-10)
 
 
