@@ -22,7 +22,7 @@ import { isDeepStrictEqual } from "node:util";
 import {
   ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
-  ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, priceTable, loadPrices, estimateCost, roundUsd,
+  ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
@@ -819,6 +819,7 @@ function main() {
   if (chain === "openspec" && id === "archive") {
     halt("The change name archive is reserved: openspec/changes/archive/ is OpenSpec's archive folder. Use another name. Nothing was written.");
   }
+  if (["init", "next", "usage"].includes(cmd)) acquireRunLock(id, chain);
 
   if (cmd === "init") {
     const levels = rigorLevels(policy);

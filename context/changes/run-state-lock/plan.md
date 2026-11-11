@@ -144,14 +144,14 @@ None. Provenance hashes policy sections only; no policy key is added, so no drif
 
 #### Automated
 
-- [ ] 1.1 New lock tests pass: `node --test skills/10x-pipeline/test/run-lock.test.mjs`
+- [x] 1.1 New lock tests pass: `node --test skills/10x-pipeline/test/run-lock.test.mjs`
 - [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.3 `init` and `status` return valid JSON in a scratch change folder (and with `--chain openspec`)
+- [x] 1.3 `init` and `status` return valid JSON in a scratch change folder (and with `--chain openspec`)
 
 #### Manual
 
-- [ ] 1.4 Two parallel `next` calls on a scratch run: one succeeds, the other halts with the lock message, no log entry lost
-- [ ] 1.5 No `.lock` file remains in `os.tmpdir()` after the calls end
+- [x] 1.4 Two parallel `next` calls on a scratch run: one succeeds, the other halts with the lock message, no log entry lost
+- [x] 1.5 No `.lock` file remains in `os.tmpdir()` after the calls end
 
 ### Phase 2: Docs
 
@@ -161,4 +161,4 @@ None. Provenance hashes policy sections only; no policy key is added, so no drif
 
 #### Manual
 
-- [ ] 2.2 REFERENCE.md and AGENTS.md wording matches the implemented halt text and lock location
+- [x] 2.2 REFERENCE.md and AGENTS.md wording matches the implemented halt text and lock location

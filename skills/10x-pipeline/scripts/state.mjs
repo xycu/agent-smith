@@ -1,5 +1,7 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -701,4 +703,47 @@ export function scoreConfig(policy) {
 
 export function halt(reason) {
   out({ action: "halt", reason }, 1);
+}
+
+// ---- run lock -------------------------------------------------------------
+
+// The lock lives in the OS temp directory, outside the change folder, so no step commit or archive-state check sees it.
+export function runLockPath(dir) {
+  return path.join(os.tmpdir(), `agent-smith-${crypto.createHash("sha256").update(dir).digest("hex").slice(0, 16)}.lock`);
+}
+
+function pidAlive(pid) {
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; }
+}
+
+// Takes the lock of the run or halts. The pid is in the file from the moment it exists: written to a private temp file,
+// then linked to the lock name, so a second caller never reads an empty lock as stale.
+export function acquireRunLock(id, chain) {
+  const lock = runLockPath(paths(id, null, chain).dir);
+  const tmp = `${lock}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, String(process.pid));
+  const release = () => { for (const f of [tmp, lock]) { try { if (f === tmp || fs.readFileSync(lock, "utf8") === String(process.pid)) fs.unlinkSync(f); } catch { /* already gone */ } } };
+  try {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        fs.linkSync(tmp, lock);
+        break;
+      } catch (e) {
+        if (e.code !== "EEXIST") throw e;
+        let pid = NaN;
+        try { pid = Number(fs.readFileSync(lock, "utf8").trim()); } catch { /* vanished: retry */ }
+        if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
+          release();
+          halt(`Another init, next or usage of change ${id} is running (lock file ${lock}, pid ${pid}). Run router calls one at a time. A lock left by a dead process is removed automatically. Nothing was written.`);
+        }
+        if (attempt > 0) throw e;
+        try { fs.unlinkSync(lock); } catch { /* removed by another caller */ }
+      }
+    }
+  } catch (e) {
+    release();
+    throw e;
+  }
+  try { fs.unlinkSync(tmp); } catch { /* ignore */ }
+  process.on("exit", release);
 }
