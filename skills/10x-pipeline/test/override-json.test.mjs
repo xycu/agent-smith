@@ -1,4 +1,5 @@
-// A project override file that does not parse halts the router with the file name; a missing file is no override.
+// A project override file that does not parse, or holds JSON that is not an object, halts the router with the file
+// name; a missing file is no override.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -27,4 +28,18 @@ test("status halts on a broken override; a missing file is no override", () => {
   assert.match(bad.json.reason, /Cannot parse/);
   fs.unlinkSync(overrideFile(project));
   assert.equal(run(project, ["status", project.id]).status, 0);
+});
+
+test("an override that is valid JSON but not an object halts and writes nothing", () => {
+  const kinds = { "[]": "an array", null: "null", '"x"': "a string", 5: "a number", false: "a boolean" };
+  for (const [text, kind] of Object.entries(kinds)) {
+    const project = makeProject();
+    fs.writeFileSync(overrideFile(project), text);
+    const res = init(project, "fix typo");
+    assert.equal(res.status, 1, text);
+    assert.equal(res.json.action, "halt");
+    assert.ok(res.json.reason.includes("agent-smith-policy.json must hold a JSON object of policy keys, not " + kind + "."), res.json.reason);
+    assert.equal(fs.existsSync(path.join(project.agentDir, "meta.json")), false);
+    assert.equal(run(project, ["status", project.id]).status, 1, text);
+  }
 });

@@ -219,7 +219,7 @@ Complexity score:
 - A run that starts with a `plan.md` that already has `## Progress` gets no score and no skip entry, and so does a run that already logged a `plan` step.
 - Turn the step off per project with `{ "score": { "minRigor": null } }` in `context/foundation/agent-smith-policy.json`. With no score, every tier is what it was without the step.
 
-Override any policy key per project in `context/foundation/agent-smith-policy.json`. An override file that does not parse halts every command with the file name and the parse error; a missing file is no override. Run state lives in `context/changes/<change-id>/agent-smith/`.
+Override any policy key per project in `context/foundation/agent-smith-policy.json`. An override file that does not parse halts every command with the file name and the parse error, and so does one whose JSON is not an object (an array, `null`, a string, a number or a boolean); a missing file is no override. The values of the keys inside it are not checked there. Run state lives in `context/changes/<change-id>/agent-smith/`.
 
 Usage report:
 

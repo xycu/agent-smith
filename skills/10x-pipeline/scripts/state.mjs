@@ -57,7 +57,12 @@ function mergedPolicy() {
   try { override = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) {
     halt(`Cannot parse ${file}: ${e.message}. Fix the JSON or remove the file.`);
   }
-  return override ? deepMerge(base, override) : base;
+  // Any other JSON value would replace the whole policy (an array, a number) or be dropped silently (null, false).
+  if (!isObject(override)) {
+    const kind = override === null ? "null" : Array.isArray(override) ? "an array" : `a ${typeof override}`;
+    halt(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
+  }
+  return deepMerge(base, override);
 }
 
 export function loadPolicy() {
