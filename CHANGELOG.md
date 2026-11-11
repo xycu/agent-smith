@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.8](https://github.com/xycu/agent-smith/compare/v1.4.7...v1.4.8) (2026-11-11)
+
+
+### Bug Fixes
+
+* **isolation:** routerCommit reports a made commit apart from its hash ([56d1b9d](https://github.com/xycu/agent-smith/commit/56d1b9dcea3ecad235791d08278f63b61a1a6ab1))
+
 ## [1.4.7](https://github.com/xycu/agent-smith/compare/v1.4.6...v1.4.7) (2026-11-11)
 
 
