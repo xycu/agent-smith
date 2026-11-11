@@ -317,9 +317,11 @@ function isolationMessage(policy, key, vars) {
 // Stages and commits for an isolated run: `git add` of `rel` (the change folder) or of the whole worktree, a commit
 // when the index is not empty, then the post-commit checks of the archive path (index empty; with `rel`, the commit
 // holds only that folder and the folder is clean). Hooks and signing apply; never --no-verify, never a push.
-// With `rel` the post-commit checks also run when nothing was staged (a resume). Returns { commit } (the full hash,
-// or null when nothing was staged) or { error, reason?, commit? }: `commit` is defined (a hash, or null when nothing
-// was staged) only for a post-commit error, which also carries `reason`; else the router's own add was unstaged.
+// With `rel` the post-commit checks also run when nothing was staged (a resume). Returns { commit, made } or
+// { error, reason?, commit?, made? }. `made` says whether this call made a commit; `commit` is its full hash, or null
+// when nothing was staged or the hash could not be read, so it is never a label. An error with `reason`, `commit` and
+// `made` came from the post-commit checks; an error without them came before a commit and the router's own add was
+// unstaged.
 function routerCommit(g, timeout, { rel = null, message }) {
   const failed = (what, res) => {
     const reset = g(rel ? ["reset", "-q", "--", rel] : ["reset", "-q"]);
@@ -332,19 +334,21 @@ function routerCommit(g, timeout, { rel = null, message }) {
   const added = g(rel ? ["add", "--", rel] : ["add", "-A"]);
   if (added.status !== 0) return failed("add", added);
   const check = g(["diff", "--cached", "--quiet"]);
-  if (check.status === 0 && !rel) return { commit: null };
+  if (check.status === 0 && !rel) return { commit: null, made: false };
   if (check.status !== 0 && check.status !== 1) return failed("diff --cached", check);
+  const made = check.status === 1;
   let commit = null;
-  if (check.status === 1) {
-    const made = g(rel ? ["commit", "-m", message, "--", rel] : ["commit", "-m", message]);
-    if (made.status !== 0) return failed("commit", made);
+  if (made) {
+    const res = g(rel ? ["commit", "-m", message, "--", rel] : ["commit", "-m", message]);
+    if (res.status !== 0) return failed("commit", res);
     const head = g(["rev-parse", "HEAD"]);
-    commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : "HEAD";
+    if (head.status === 0 && head.stdout.trim()) commit = head.stdout.trim();
   }
   const after = (reason) => ({
-    error: commit ? `${reason} The commit ${commit.slice(0, 7)} exists and the router does not undo it.` : reason,
+    error: made ? `${reason} The commit ${commit ? commit.slice(0, 7) : "HEAD"} exists and the router does not undo it.` : reason,
     reason,
     commit,
+    made,
   });
   const left = g(["diff", "--cached", "--quiet"]);
   if (left.status !== 0) {
@@ -353,7 +357,7 @@ function routerCommit(g, timeout, { rel = null, message }) {
   }
   if (rel) {
     const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
-    if (commit) {
+    if (made) {
       const shown = g(["show", "--name-only", "-z", "--format=", "HEAD"]);
       if (shown.status !== 0) return after(`Cannot list the commit: ${gitMessage(shown)}`);
       const extra = shown.stdout.split("\0").filter(Boolean).filter((name) => !name.startsWith(`${prefix}${rel}/`));
@@ -366,7 +370,7 @@ function routerCommit(g, timeout, { rel = null, message }) {
       return after(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => unprefix(e.file)))}.`);
     }
   }
-  return { commit };
+  return { commit, made };
 }
 
 // ---- late usage figure in the archive state ---------------------------------
@@ -404,7 +408,7 @@ export function lateUsagePrecheck(p, id, meta, policy) {
 }
 
 // Commits the change folder with the rendered archive.usageMessage: the folder-only commit of the archive path with
-// its post-commit checks. Returns { commit } (the full hash, or null when nothing was staged) or { error, commit? }.
+// its post-commit checks. Returns what routerCommit returns: `made` says whether the commit exists.
 export function lateUsageCommit(p, id, policy, n) {
   const timeout = policy.archive?.gitTimeoutMs;
   const g = (args) => runGit(args, { timeout });
@@ -415,7 +419,8 @@ export function lateUsageCommit(p, id, policy, n) {
 
 // The start commit of the first init of an isolated run: the change folder as the orchestrator copied it, plus
 // meta.json, so the first step's startSha holds the run's inputs. meta.startCommit is the guard (the hash, or null
-// when nothing was staged); a git failure leaves it absent, so the next init retries. Halts on any failure.
+// when nothing was staged or the hash could not be read); a failure that made no commit leaves it absent, so the
+// next init retries. Halts on any failure.
 export function startCommit(p, id, meta, policy) {
   const timeout = policy.isolation?.gitTimeoutMs;
   const g = (args) => runGit(args, { timeout });
@@ -428,7 +433,7 @@ export function startCommit(p, id, meta, policy) {
   if (message === null) stop("policy.isolation.commit.startMessage must be a non-blank string.");
   const rel = changeRel(p, id);
   const res = routerCommit(g, timeout, { rel, message });
-  if (res.commit !== undefined) {
+  if (res.made || !res.error) {
     meta.startCommit = res.commit;
     fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
@@ -437,7 +442,8 @@ export function startCommit(p, id, meta, policy) {
 
 // The step commit of an isolated run: right after attachResult, when the last executed entry is ok and has no
 // `commit` key, everything the step left is committed (run.jsonl first, so the commit holds the step's result).
-// The entry gets `commit` (the hash, or null for an empty index), so a resume never commits again under its name;
+// The entry gets `commit` (the hash, or null for an empty index or an unreadable hash), so a resume never commits
+// again under its name;
 // a failure before the commit leaves the key absent, so the resume retries. Halts on any failure.
 export function stepCommit(p, id, meta, log, policy) {
   if (meta.isolated !== true) return;
@@ -455,7 +461,7 @@ export function stepCommit(p, id, meta, log, policy) {
   const message = isolationMessage(policy, "message", { id, n: String(last.n), step: last.step });
   if (message === null) stop("policy.isolation.commit.message must be a non-blank string.");
   const res = routerCommit(g, timeout, { message });
-  if (res.commit !== undefined) last.commit = res.commit;
+  if (res.made || !res.error) last.commit = res.commit;
   if (res.error) stop(res.error);
   writeLog(p.log, log);
 }
@@ -650,7 +656,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   }
 
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
-  const commit = res.commit ? res.commit.slice(0, 7) : null;
+  // "HEAD" stands for a commit this call made whose hash could not be read; null means no commit was made.
+  const commit = res.made ? (res.commit ? res.commit.slice(0, 7) : "HEAD") : null;
   const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(policy.prompts.archive, { id });
   const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + policy.prompts.suffix;
   return out({

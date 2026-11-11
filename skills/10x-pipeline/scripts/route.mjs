@@ -751,7 +751,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
     refuse(`report.md was not written: ${reportError}. The figure was not kept; the change folder is as committed.`, n);
   }
   const res = lateUsageCommit(p, id, policy, n);
-  if (res.error && !res.commit) {
+  if (res.error && !res.made) {
     restore();
     refuse(`${res.error} The figure was not kept; the change folder is as committed.`, n);
   }
