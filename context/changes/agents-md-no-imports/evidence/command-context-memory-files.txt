@@ -1,0 +1,42 @@
+command: cd <run root> && claude -p "/context"  (local slash command; API calls were sandbox-denied, /context output is computed locally). Run from the worktree root.
+
+## Context Usage
+
+**Model:** claude-sonnet-5-5  
+**Tokens:** 29.3k / 300k (10%)
+
+### Estimated usage by category
+
+| Category | Tokens | Percentage |
+|----------|--------|------------|
+| System prompt | 2.5k | 0.8% |
+| System tools | 6k | 2.0% |
+| System tools (deferred) | 26.3k | 8.8% |
+| Custom agents | 633 | 0.2% |
+| Memory files | 10.2k | 3.4% |
+| Skills | 9.9k | 3.3% |
+| Free space | 237.7k | 79.2% |
+| Autocompact buffer | 33k | 11.0% |
+
+### Custom Agents
+
+| Agent Type | Source | Tokens |
+|------------|--------|--------|
+| agent-smith:score | Plugin | 44 |
+| caveman:cavecrew-builder | Plugin | 109 |
+| caveman:cavecrew-investigator | Plugin | 90 |
+| caveman:cavecrew-reviewer | Plugin | 99 |
+| vercel:ai-architect | Plugin | 100 |
+| vercel:deployment-expert | Plugin | 91 |
+| vercel:performance-optimizer | Plugin | 100 |
+
+### Memory Files
+
+| Type | Path | Tokens |
+|------|------|--------|
+| User | /Users/blazej/.claude/CLAUDE.md | 584 |
+| AutoMem | /Users/blazej/.claude/projects/-Users-blazej-WebstormProjects-agent-smith/memory/MEMORY.md | 286 |
+| Project | /Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-agents-md-no-imports/AGENTS.md | 9.4k |
+
+
+Result: Memory Files lists only user CLAUDE.md, auto MEMORY.md and project AGENTS.md. README.md and docs/REFERENCE.md are not listed.
