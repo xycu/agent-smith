@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.11](https://github.com/xycu/agent-smith/compare/v1.4.10...v1.4.11) (2026-11-11)
+
+
+### Bug Fixes
+
+* keep the maxLevel comment above maxLevel ([a6b98e4](https://github.com/xycu/agent-smith/commit/a6b98e4cf333a7b9767f1f257c5baa4274e91490))
+
 ## [1.4.10](https://github.com/xycu/agent-smith/compare/v1.4.9...v1.4.10) (2026-11-11)
 
 
