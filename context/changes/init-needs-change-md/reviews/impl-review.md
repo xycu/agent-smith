@@ -29,7 +29,7 @@
 - **Location**: skills/10x-pipeline/test/route.test.mjs:600
 - **Detail**: The new test covers `init` and `next`, as planned. `status`, `risk` and `usage` already guard a missing change folder or read only; no gap in behavior, only no regression test that they stay write-free for a missing `change.md`. Out of plan scope.
 - **Fix**: None needed now.
-- **Decision**: PENDING - outside the plan's scope and no defect; the owner may add a regression test in a later change.
+- **Decision**: APPLIED - f5b0693. The regression test (`route.test.mjs`, "status, risk, usage, verify-archive and compare write nothing without change.md") found one gap: `status <id> --report` wrote `agent-smith/report.md` into a change folder without `change.md`. It now halts with the text of `init` and `next`; `docs/REFERENCE.md` names it.
 
 ## Verification
 
