@@ -1,7 +1,7 @@
 ---
 change_id: init-needs-change-md
 title: "init and next write run state for a 10x change that has no change.md"
-status: planned
+status: impl_reviewed
 created: 2026-11-11
 updated: 2026-11-11
 archived_at: null
