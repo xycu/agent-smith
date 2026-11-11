@@ -38,7 +38,7 @@
 - **Location**: tools/test/workflow-pins.test.mjs:12
 - **Detail**: `findUses` is exported but no file imports it. Harmless; other test files in `tools/test/` import their subject from `tools/`, not from a test.
 - **Fix**: Drop `export`. Not required.
-- **Decision**: PENDING — observation only, no action needed; the owner may drop `export` or leave it.
+- **Decision**: APPLIED - 2e57f49 — the guard moved to `tools/workflow-pins.mjs`; the test imports `findUses`, `files` and `check` from it, as the other `tools/test/` files import their subject.
 
 ### F2 — Guard reads only `*.yml` and line-based `uses:`
 
@@ -48,4 +48,4 @@
 - **Location**: tools/test/workflow-pins.test.mjs:17
 - **Detail**: A future `.github/workflows/*.yaml` file, or a `uses:` inside a multi-line scalar, would not be read as the test expects. A quoted value (`uses: "a/b@v1"`) is read and fails the pattern, so it fails closed. Both gaps are outside the plan's contract and no such file exists today.
 - **Fix**: Filter on `.yml` or `.yaml` if a `.yaml` workflow is ever added.
-- **Decision**: PENDING — observation only, no workflow uses `.yaml` today; the owner decides whether to widen the filter.
+- **Decision**: APPLIED - 2e57f49 — the guard reads every `*.yml` and `*.yaml` file under `.github/` (composite actions included) and a root `action.yml` or `action.yaml`; a quoted or flow-mapping `uses` key is found, and a quoted value, a value on the next line and a `uses:` inside a multi-line scalar fail closed.
