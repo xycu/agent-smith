@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.6](https://github.com/xycu/agent-smith/compare/v1.4.5...v1.4.6) (2026-11-11)
+
+
+### Bug Fixes
+
+* place label-form sentence in first review bullet ([542759d](https://github.com/xycu/agent-smith/commit/542759dd9272a85cd56708cd8cf537e4133bcd01))
+
 ## [1.4.5](https://github.com/xycu/agent-smith/compare/v1.4.4...v1.4.5) (2026-11-11)
 
 
