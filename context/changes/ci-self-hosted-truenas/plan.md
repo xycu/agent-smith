@@ -137,7 +137,7 @@ The workflow cannot be run locally; the first pull request on the NAS runners is
 
 #### 1. Runner registration check (owner action, no repo change)
 
-**Intent**: Before the pull request of this change is opened (its own jobs run on the NAS, and they queue until a runner is online), confirm the runners are registered to `xycu/agent-smith` with labels `self-hosted`, `linux`, `truenas` and are online, and that Settings -> Actions -> General -> "Fork pull request workflows from outside collaborators" is set to "Require approval for all external contributors". This setting is the boundary that keeps fork code off the NAS; row 3.5 reads it (item 2).
+**Intent**: Before the pull request of this change is opened (its own jobs run on the NAS, and they queue until a runner is online), confirm the runners are registered to `xycu/agent-smith` with labels `self-hosted`, `linux`, `truenas` and are online. The fork approval setting (Settings -> Actions -> General -> "Fork pull request workflows from outside collaborators" = "Require approval for all external contributors") is not a precondition of opening the pull request: ADR-017 opens it when the run ends or halts, which can happen before the owner acts, and a same-repository pull request is the trusted case. The setting is the boundary that keeps fork code off the NAS, so the owner switches it now (the runners are already online) and in any case before the merge; row 3.5 reads it (item 2).
 
 **Contract**: no files change.
 
@@ -148,8 +148,8 @@ The workflow cannot be run locally; the first pull request on the NAS runners is
 **Contract**:
 
 - Owner action, no repository file: the read-only call `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` prints `all_external_contributors`. Agents never write the setting (no `gh api -X PUT`, no settings page).
-- Row 3.5 (implementer): run that call. On any other value, or when the `gh` call fails, leave 3.5 and 3.6 pending, change no file, and finish with status `blocked` and `signals.needsHuman` naming the owner action. Do not report `failed`: the run must halt for the owner, not retry at a higher tier. Do not weaken ADR-020 D2 to fit the reading.
-- Row 3.6 (implementer), only after 3.5 passed in the same step: the Assumptions bullet on the fork approval setting in `docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` names the required value `all_external_contributors`, the read-only call, Progress row 3.5 as its check, and the date and value of the reading that passed. It may keep the 2026-11-11 `first_time_contributors` reading as history. It drops "no Progress row covers it" and "does not hold until the owner changes the setting". No other ADR line changes; the ADR records no reading that did not happen.
+- Row 3.5 (implementer): run that call. On any other value, leave 3.5 and 3.6 pending, change no file, and finish with status `blocked` and `signals.needsHuman` naming the owner action. When the `gh` call itself fails (no auth, no admin read access, no network), do the same but name the failure in `needsHuman` and say the setting is unread, not wrong, so the owner fixes access instead of re-setting a setting that may already be right. Do not report `failed`: the run must halt for the owner, not retry at a higher tier. Do not weaken ADR-020 D2 to fit the reading.
+- Row 3.6 (implementer), only after 3.5 passed in the same step: the Assumptions bullet on the fork approval setting in `docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` names the required value `all_external_contributors`, the read-only call, Progress row 3.5 as its check, and the date and value of the reading that passed. It may keep the 2026-11-11 `first_time_contributors` reading as history. It drops "no Progress row covers it" and "does not hold until the owner changes the setting". The 3.6 command only proves the two dropped phrases are gone (`all_external_contributors` already appears in the ADR), so the implementer checks by reading the bullet that it names the date and value of the passing reading and "Progress row 3.5". No other ADR line changes; the ADR records no reading that did not happen.
 
 ### Success Criteria:
 
@@ -179,8 +179,8 @@ The workflow cannot be run locally; the first pull request on the NAS runners is
 
 ### Manual Testing Steps:
 
-1. Owner: set the fork approval setting to "Require approval for all external contributors" and re-read the endpoint (row 3.5).
-2. Open a PR from a branch of this repository; read the job log runner name.
+1. Owner: set the fork approval setting to "Require approval for all external contributors" now (not only before the merge) and re-read the endpoint (row 3.5).
+2. Read the job log runner name of the pull request from this repository (the run opens it at its end or halt, ADR-017; open one by hand if it did not).
 3. Merge it; check the `main` push run.
 
 ## Performance Considerations
