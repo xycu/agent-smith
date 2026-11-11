@@ -256,13 +256,14 @@ test("failure path fits", { skip: noGit }, () => {
   assert.ok(w.steps <= budgetOf("standard"), `${w.steps} steps fit a budget of ${budgetOf("standard")}`);
   assert.equal(statusOf(w.project).rigor, "standard");
 
-  // Stacked with a maxed plan loop and every fix loop the same run ends in the budget halt, never past it. The budget
+  // Stacked with a maxed plan loop and every fix loop the same run spends its whole budget, never more. The budget
   // has room for the manual-verify attempt and its retry, so this run adds a segment and an e2e phase and a Manual row
-  // that stays pending through both attempts to reach it.
+  // that stays pending through both attempts to reach it. Its last step is a review at the fix-loop cap, so decide's
+  // own halt ends it, not the budget text (issue #87); route.test.mjs covers the budget halt of a run with a step left.
   const stacked = walkFixture("stacked", "standard", { fixture: { phases: ["goal", "e2e"], manual: "pending" }, script: { ...longScript("standard"), implementFails: 2, implReviews: pairs([["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["NEEDS ATTENTION", CRITICAL], ["APPROVED", CLEAN]]) } });
   assert.equal(stacked.res.json.action, "halt", `${stacked.res.stdout}\n${stacked.sequence.join(" ")}`);
   assert.match(stacked.res.json.reason, /Implementation still NEEDS ATTENTION after 2 fix loops/);
-  assert.ok(stacked.steps <= budgetOf(statusOf(stacked.project).rigor), `${stacked.steps} steps stay inside the budget`);
+  assert.equal(stacked.steps, budgetOf(statusOf(stacked.project).rigor), `${stacked.sequence.join(" ")}`);
 });
 
 test("lean runs manual-verify and no pool step", () => {
