@@ -3,25 +3,19 @@
 // The orchestrator runs it from the run root at the end of every run. The router never calls it (ADR-017).
 // It never merges, never reviews, never force-pushes, never deletes a branch, worktree or ref and never writes git config.
 // Prints exactly one JSON object and exits 0 for every runtime outcome; exit 2 is for usage errors only.
-// Plain node: built-ins only.
+// Plain node: built-ins and the standalone helpers in pr-common.mjs; no router module.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { removeTree } from "./remove-tree.mjs";
+import {
+  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
+} from "./pr-common.mjs";
 
 const USAGE = "usage: node open-pr.mjs <change-id> [--chain 10x|openspec] [--report <path>] [--remote <name>] [--base <branch>] [--draft] [--timeout-ms <n>]";
-const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
 const REMOTE_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
 const BRANCH_RE = /^[A-Za-z0-9._][A-Za-z0-9._/-]*$/;
-const DEFAULT_TIMEOUT_MS = 20000;
 const GIT_TIMEOUT_MS = 120000;
-const GH_HOST = "github.com";
 const BRANCH_PREFIX = "agent-smith/";
-const BODY_CAP = 60000;
 const TITLE_CAP = 256;
-const MENTION_RE = /(^|[^A-Za-z0-9_])@(?=[A-Za-z0-9])/g;
 const COMMIT_MESSAGE = (id) => `chore(${id}): final run state`;
 
 class UsageError extends Error {}
@@ -63,43 +57,13 @@ function parseArgs(argv) {
   if (opts.id === null) throw new UsageError("missing <change-id>");
   if (!ID_RE.test(opts.id)) throw new UsageError("<change-id> must match ^[a-z0-9][a-z0-9-]{0,99}$");
   if (opts.report !== null) {
-    const resolved = path.resolve(opts.report);
-    if (path.basename(resolved) !== "report.md" || path.basename(path.dirname(resolved)) !== "agent-smith") {
-      throw new UsageError("--report must name a file report.md inside a directory agent-smith");
+    try {
+      checkReportArg(opts.report);
+    } catch (e) {
+      throw new UsageError(e.message);
     }
   }
   return opts;
-}
-
-function firstLine(text, max = 200) {
-  return String(text ?? "").split(/\r?\n/).find((l) => l.trim() !== "")?.trim().slice(0, max) ?? "";
-}
-
-// Runs a command without a shell. Never throws. timedOut and missing are set instead.
-function spawn(cmd, args, timeoutMs, env, input) {
-  const res = spawnSync(cmd, args, {
-    encoding: "utf8",
-    timeout: timeoutMs,
-    input,
-    stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
-    maxBuffer: 64 * 1024 * 1024,
-    env,
-  });
-  if (res.error) {
-    const code = res.error.code;
-    return {
-      status: code === "ENOENT" ? 127 : code === "ETIMEDOUT" ? 124 : 1,
-      stdout: "",
-      stderr: String(res.error.message ?? ""),
-      missing: code === "ENOENT",
-      timedOut: code === "ETIMEDOUT",
-    };
-  }
-  return { status: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "", missing: false, timedOut: false };
-}
-
-function runGh(args, timeoutMs) {
-  return spawn("gh", args, timeoutMs, { ...process.env, GH_PROMPT_DISABLED: "1" });
 }
 
 function runGit(args, timeoutMs = GIT_TIMEOUT_MS, input = undefined) {
@@ -322,20 +286,7 @@ export function buildBody(id, reportText, reportFile) {
   } else {
     head = `Run report not found: ${reportFile}`;
   }
-  const text = `${markerFor(id)}\n\n${head.replace(MENTION_RE, "$1@​")}\n`;
-  if (text.length <= BODY_CAP) return text;
-  let end = BODY_CAP;
-  const last = text.charCodeAt(end - 1);
-  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
-  const kept = text.slice(0, end);
-  return `${kept}\n\nReport truncated: ${text.length - kept.length} characters omitted.`;
-}
-
-function ghFailure(res, what) {
-  if (res.missing) return "gh is not installed";
-  if (res.timedOut) return "gh timed out";
-  if (res.status === 4 || /gh auth login/.test(res.stderr)) return "gh is not authenticated";
-  return `${what} failed: ${firstLine(res.stderr) || `gh exited ${res.status}`}`;
+  return capBody(`${markerFor(id)}\n\n${head}\n`);
 }
 
 function openPullRequest(opts, branch, base, repo) {
@@ -354,8 +305,7 @@ function openPullRequest(opts, branch, base, repo) {
   const title = titleFor(opts.id, readFile(path.join(changeDir(opts), "change.md")));
   const file = reportPath(opts);
   const body = buildBody(opts.id, readFile(file), file);
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "as-opr-"));
-  try {
+  return withTempDir("as-opr-", (dir) => {
     const bodyFile = path.join(dir, "body.md");
     fs.writeFileSync(bodyFile, body);
     const args = ["pr", "create", "--repo", repo, "--head", branch, "--base", base, "--title", title, "--body-file", bodyFile];
@@ -365,9 +315,7 @@ function openPullRequest(opts, branch, base, repo) {
     const url = res.stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).pop() ?? "";
     if (!/^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/.test(url)) return prSkip("gh pr create failed: unexpected gh output");
     return { action: "created", url, state: "OPEN", reason: null };
-  } finally {
-    removeTree(dir);
-  }
+  });
 }
 
 function manualPr(repo, branch, base) {
@@ -442,12 +390,4 @@ function main() {
   process.stdout.write(`${JSON.stringify(out)}\n`);
 }
 
-function isEntryPoint() {
-  try {
-    return fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return false;
-  }
-}
-
-if (isEntryPoint()) main();
+if (isEntryPoint(import.meta.url)) main();

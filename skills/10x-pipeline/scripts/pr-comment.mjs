@@ -2,21 +2,15 @@
 // Posts the final run report of a change as one comment on the open pull request of the current branch.
 // Opt-in: the orchestrator runs it only for a run started with --pr-comment. The router never calls it.
 // Prints exactly one JSON object and exits 0 for every runtime outcome; exit 2 is for usage errors only.
-// Plain node: built-ins only.
+// Plain node: built-ins and the standalone helpers in pr-common.mjs; no router module.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
-import { removeTree } from "./remove-tree.mjs";
+import {
+  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
+} from "./pr-common.mjs";
 
 const USAGE = "usage: node pr-comment.mjs <change-id> [--report <path>] [--pr <url>] [--timeout-ms <n>]";
-const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
-const DEFAULT_TIMEOUT_MS = 20000;
-const GH_HOST = "github.com";
 const PR_URL_RE = /^https:\/\/([^/]+)\/([^/]+)\/([^/]+)\/pull\/(\d+)/;
-const BODY_CAP = 60000;
-const MENTION_RE = /(^|[^A-Za-z0-9_])@(?=[A-Za-z0-9])/g;
 
 // Projects and bounds the comment list; every decision is made in JS, so a fake gh can test it.
 export const COMMENT_JQ = ".[] | {id: .id, login: .user.login, head: ((.body // \"\") | .[0:200])}";
@@ -45,9 +39,10 @@ function parseArgs(argv) {
   if (opts.id === null) throw new UsageError("missing <change-id>");
   if (!ID_RE.test(opts.id)) throw new UsageError("<change-id> must match ^[a-z0-9][a-z0-9-]{0,99}$");
   if (opts.report !== null) {
-    const resolved = path.resolve(opts.report);
-    if (path.basename(resolved) !== "report.md" || path.basename(path.dirname(resolved)) !== "agent-smith") {
-      throw new UsageError("--report must name a file report.md inside a directory agent-smith");
+    try {
+      checkReportArg(opts.report);
+    } catch (e) {
+      throw new UsageError(e.message);
     }
   }
   if (opts.pr !== null) {
@@ -73,32 +68,6 @@ function skip(reason, pr = null) {
   return result("skipped", { reason, pr });
 }
 
-function firstLine(text, max = 200) {
-  return String(text ?? "").split(/\r?\n/).find((l) => l.trim() !== "")?.trim().slice(0, max) ?? "";
-}
-
-// Runs gh without a shell. Never throws. timedOut and missing are set instead.
-function runGh(args, timeoutMs) {
-  const res = spawnSync("gh", args, {
-    encoding: "utf8",
-    timeout: timeoutMs,
-    stdio: ["ignore", "pipe", "pipe"],
-    maxBuffer: 64 * 1024 * 1024,
-    env: { ...process.env, GH_PROMPT_DISABLED: "1" },
-  });
-  if (res.error) {
-    const code = res.error.code;
-    return {
-      status: code === "ENOENT" ? 127 : code === "ETIMEDOUT" ? 124 : 1,
-      stdout: "",
-      stderr: String(res.error.message ?? ""),
-      missing: code === "ENOENT",
-      timedOut: code === "ETIMEDOUT",
-    };
-  }
-  return { status: res.status ?? 1, stdout: res.stdout ?? "", stderr: res.stderr ?? "", missing: false, timedOut: false };
-}
-
 function readReport(opts) {
   const defaultPath = path.join("context", "changes", opts.id, "agent-smith", "report.md");
   const file = opts.report ?? defaultPath;
@@ -120,14 +89,10 @@ function readReport(opts) {
 function findPullRequest(opts) {
   // With --pr the pull request is named by url: a run branch has no upstream config, so the argument-less form may not find it.
   const view = runGh(["pr", "view", ...(opts.pr !== null ? [opts.pr] : []), "--json", "number,url,state,isDraft"], opts.timeoutMs);
-  if (view.missing) return { skip: "gh is not installed" };
-  if (view.timedOut) return { skip: "gh timed out" };
-  if (view.status !== 0) {
-    const err = view.stderr;
-    if (view.status === 4 || /gh auth login/.test(err)) return { skip: "gh is not authenticated" };
-    if (/no pull requests found/i.test(err)) return { skip: "no pull request for this branch" };
-    if (/not a git repository/i.test(err)) return { skip: "not a git work tree" };
-    return { skip: `gh pr view failed: ${firstLine(err)}` };
+  if (view.missing || view.timedOut || view.status !== 0) {
+    if (/no pull requests found/i.test(view.stderr)) return { skip: "no pull request for this branch" };
+    if (/not a git repository/i.test(view.stderr)) return { skip: "not a git work tree" };
+    return { skip: ghFailure(view, "gh pr view") };
   }
   let pr = null;
   try { pr = JSON.parse(view.stdout); } catch { /* pr stays null */ }
@@ -145,15 +110,9 @@ function markerFor(id) {
   return `<!-- agent-smith:pr-report change=${id} -->`;
 }
 
-// Marker line, blank line, report with mentions neutralized. The cap counts UTF-16 code units and never splits a pair.
+// Marker line, blank line, report with mentions neutralized and capped.
 function buildBody(id, reportText) {
-  const text = `${markerFor(id)}\n\n${reportText.replace(MENTION_RE, "$1@\u200b")}`;
-  if (text.length <= BODY_CAP) return text;
-  let end = BODY_CAP;
-  const last = text.charCodeAt(end - 1);
-  if (last >= 0xd800 && last <= 0xdbff) end -= 1;
-  const kept = text.slice(0, end);
-  return `${kept}\n\nReport truncated: ${text.length - kept.length} characters omitted.`;
+  return capBody(`${markerFor(id)}\n\n${reportText}`);
 }
 
 // Returns { login } or { skip }. Fails closed: without the viewer's login the script cannot tell its own comment from a stranger's.
@@ -193,8 +152,7 @@ function pickTarget(comments, marker, viewer) {
 }
 
 function post(opts, found, body) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "as-prc-"));
-  try {
+  return withTempDir("as-prc-", (dir) => {
     const file = path.join(dir, "body.md");
     fs.writeFileSync(file, body);
     const viewer = viewerLogin(opts);
@@ -213,13 +171,7 @@ function post(opts, found, body) {
       return skip(`comment request failed: ${why}`, found.url);
     }
     return result(target ? "updated" : "created", { url, pr: found.url, match: target ? target.match : null });
-  } finally {
-    try {
-      removeTree(dir);
-    } catch {
-      // A cleanup error never changes the printed result.
-    }
-  }
+  });
 }
 
 function run(opts) {
@@ -249,12 +201,4 @@ function main() {
   process.stdout.write(`${JSON.stringify(out)}\n`);
 }
 
-function isEntryPoint() {
-  try {
-    return fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(import.meta.url));
-  } catch {
-    return false;
-  }
-}
-
-if (isEntryPoint()) main();
+if (isEntryPoint(import.meta.url)) main();
