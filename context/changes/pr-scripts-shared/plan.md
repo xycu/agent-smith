@@ -203,7 +203,7 @@ None. Plugin users get the new file with the next release; the orchestrator call
 #### Automated
 
 - [x] 1.1 New module tests pass: `node --test skills/10x-pipeline/test/pr-common.test.mjs`
-- [ ] 1.2 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.2 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
@@ -214,7 +214,7 @@ None. Plugin users get the new file with the next release; the orchestrator call
 #### Automated
 
 - [x] 2.1 Script tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/pr-common.test.mjs`
-- [ ] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - [x] 2.3 No copy remains: `grep -c "function firstLine\|MENTION_RE =\|BODY_CAP =" skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/pr-comment.mjs` prints `0` for both
 - [x] 2.4 Version and commit checks unaffected: `node tools/version-check.mjs`
 
@@ -227,7 +227,7 @@ None. Plugin users get the new file with the next release; the orchestrator call
 
 #### Automated
 
-- [ ] 3.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
