@@ -104,10 +104,10 @@ None. Halt texts differ slightly (see Current State); no doc or test pins them. 
 
 #### Automated
 
-- [ ] 1.1 Archive, step-commit, late-usage, isolation and OpenSpec archive tests pass
-- [ ] 1.2 Full suite passes
-- [ ] 1.3 archiveDone has no direct commit call
-- [ ] 1.4 A resume with a stray file in the change folder still halts with not clean after the commit
+- [x] 1.1 Archive, step-commit, late-usage, isolation and OpenSpec archive tests pass
+- [x] 1.2 Full suite passes
+- [x] 1.3 archiveDone has no direct commit call
+- [x] 1.4 A resume with a stray file in the change folder still halts with not clean after the commit
 
 #### Manual
 

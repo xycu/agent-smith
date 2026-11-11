@@ -317,8 +317,9 @@ function isolationMessage(policy, key, vars) {
 // Stages and commits for an isolated run: `git add` of `rel` (the change folder) or of the whole worktree, a commit
 // when the index is not empty, then the post-commit checks of the archive path (index empty; with `rel`, the commit
 // holds only that folder and the folder is clean). Hooks and signing apply; never --no-verify, never a push.
-// Returns { commit } (the full hash, or null when nothing was staged) or { error, commit? }: `commit` is set only
-// when the commit exists, else the router's own add was unstaged.
+// With `rel` the post-commit checks also run when nothing was staged (a resume). Returns { commit } (the full hash,
+// or null when nothing was staged) or { error, reason?, commit? }: `commit` is defined (a hash, or null when nothing
+// was staged) only for a post-commit error, which also carries `reason`; else the router's own add was unstaged.
 function routerCommit(g, timeout, { rel = null, message }) {
   const failed = (what, res) => {
     const reset = g(rel ? ["reset", "-q", "--", rel] : ["reset", "-q"]);
@@ -331,13 +332,20 @@ function routerCommit(g, timeout, { rel = null, message }) {
   const added = g(rel ? ["add", "--", rel] : ["add", "-A"]);
   if (added.status !== 0) return failed("add", added);
   const check = g(["diff", "--cached", "--quiet"]);
-  if (check.status === 0) return { commit: null };
-  if (check.status !== 1) return failed("diff --cached", check);
-  const made = g(rel ? ["commit", "-m", message, "--", rel] : ["commit", "-m", message]);
-  if (made.status !== 0) return failed("commit", made);
-  const head = g(["rev-parse", "HEAD"]);
-  const commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : null;
-  const after = (reason) => ({ error: `${reason} The commit ${commit ? commit.slice(0, 7) : "HEAD"} exists and the router does not undo it.`, commit });
+  if (check.status === 0 && !rel) return { commit: null };
+  if (check.status !== 0 && check.status !== 1) return failed("diff --cached", check);
+  let commit = null;
+  if (check.status === 1) {
+    const made = g(rel ? ["commit", "-m", message, "--", rel] : ["commit", "-m", message]);
+    if (made.status !== 0) return failed("commit", made);
+    const head = g(["rev-parse", "HEAD"]);
+    commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : "HEAD";
+  }
+  const after = (reason) => ({
+    error: commit ? `${reason} The commit ${commit.slice(0, 7)} exists and the router does not undo it.` : reason,
+    reason,
+    commit,
+  });
   const left = g(["diff", "--cached", "--quiet"]);
   if (left.status !== 0) {
     const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
@@ -345,13 +353,18 @@ function routerCommit(g, timeout, { rel = null, message }) {
   }
   if (rel) {
     const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
-    const shown = g(["show", "--name-only", "-z", "--format=", "HEAD"]);
-    if (shown.status !== 0) return after(`Cannot list the commit: ${gitMessage(shown)}`);
-    const extra = shown.stdout.split("\0").filter(Boolean).filter((name) => !name.startsWith(`${prefix}${rel}/`));
-    if (extra.length) return after(`The commit holds paths outside ${rel}: ${listNames(extra)} (paths relative to the git root).`);
+    if (commit) {
+      const shown = g(["show", "--name-only", "-z", "--format=", "HEAD"]);
+      if (shown.status !== 0) return after(`Cannot list the commit: ${gitMessage(shown)}`);
+      const extra = shown.stdout.split("\0").filter(Boolean).filter((name) => !name.startsWith(`${prefix}${rel}/`));
+      if (extra.length) return after(`The commit holds paths outside ${rel}: ${listNames(extra)} (paths relative to the git root).`);
+    }
     const unclean = statusEntries(["--", `${rel}/`], { timeout });
     if (unclean === null) return after("Cannot read the status of the change folder.");
-    if (unclean.length) return after(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => e.file))}.`);
+    if (unclean.length) {
+      const unprefix = (file) => (file.startsWith(prefix) ? file.slice(prefix.length) : file);
+      return after(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => unprefix(e.file)))}.`);
+    }
   }
   return { commit };
 }
@@ -617,21 +630,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   const ignoredEntries = statusEntries(["--ignored", "--", `${rel}/`], { timeout }) ?? [];
   const ignored = ignoredEntries.filter((e) => e.xy === "!!").map((e) => unprefix(e.file)).slice(0, 10);
 
-  // 4. Final report, then the commit.
+  // 4. Final report, then the commit and the post-commit checks (routerCommit). A halt after the commit exists only prints.
   const done = finishRun(p, id, meta, log, { action: "done", reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length });
-  const commitFailed = (what, res) => {
-    const reset = g(["reset", "-q", "--", rel]);
-    const note = res.timedOut
-      ? ` git timed out after ${timeout} ms; a hook child may still run and an index.lock may remain.`
-      : "";
-    return out({
-      action: "halt",
-      reason: `git ${what} failed: ${gitMessage(res)}.${note} The change folder was ${reset.status === 0 ? "unstaged again" : `not unstaged (git reset failed: ${gitMessage(reset)})`}. Nothing was committed.`,
-      steps: ran.length,
-      archive: SKIP_FAILED,
-      committed: false,
-    });
-  };
   // A report that could not be written halts here, before anything is staged or committed.
   if (done.reportError) {
     return out({
@@ -642,41 +642,15 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
       committed: false,
     });
   }
-  const added = g(["add", "--", rel]);
-  if (added.status !== 0) commitFailed("add", added);
-  const check = g(["diff", "--cached", "--quiet"]);
-  if (check.status !== 0 && check.status !== 1) commitFailed("diff --cached", check);
-  let madeCommit = false;
-  if (check.status === 1) {
-    const made = g(["commit", "-m", message, "--", rel]);
-    if (made.status !== 0) commitFailed("commit", made);
-    madeCommit = true;
+  const res = routerCommit(g, timeout, { rel, message });
+  if (res.error) {
+    return res.commit === undefined
+      ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false })
+      : out({ action: "halt", reason: `${res.reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
   }
-
-  // 5. Post-commit checks. The commit exists, so a halt prints only.
-  const commitHalt = (reason) => out({ action: "halt", reason: `${reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
-  const left = g(["diff", "--cached", "--quiet"]);
-  if (left.status !== 0) {
-    const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
-    commitHalt(`The index is not empty after the commit (a hook staged something): ${listNames(names)} (paths relative to the git root).`);
-  }
-  if (madeCommit) {
-    const shown = g(["show", "--name-only", "-z", "--format=", "HEAD"]);
-    if (shown.status !== 0) commitHalt(`Cannot list the commit: ${gitMessage(shown)}`);
-    const inFolder = `${prefix}${rel}/`;
-    const extra = shown.stdout.split("\0").filter(Boolean).filter((name) => !name.startsWith(inFolder));
-    if (extra.length) commitHalt(`The commit holds paths outside ${rel}: ${listNames(extra)} (paths relative to the git root).`);
-  }
-  const unclean = statusEntries(["--", `${rel}/`], { timeout });
-  if (unclean === null) commitHalt("Cannot read the status of the change folder.");
-  if (unclean.length) commitHalt(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => unprefix(e.file)))}.`);
 
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
-  let commit = null;
-  if (madeCommit) {
-    const head = g(["rev-parse", "--short", "HEAD"]);
-    commit = head.status === 0 && head.stdout.trim() ? head.stdout.trim() : "HEAD";
-  }
+  const commit = res.commit ? res.commit.slice(0, 7) : null;
   const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(policy.prompts.archive, { id });
   const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + policy.prompts.suffix;
   return out({

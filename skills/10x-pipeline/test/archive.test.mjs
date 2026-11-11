@@ -804,6 +804,17 @@ test("kind D: a post-commit hook that dirties the folder halts, names the path, 
   assert.equal(commitCount(project), 2);
 });
 
+test("kind D: a clean resume passes with commit null and makes no second commit", { skip: noGit }, () => {
+  const project = archiveProject();
+  writeHook(project, "post-commit", `touch ${relDir(project)}/stray.txt`);
+  assert.equal(runNext(project).json.action, "halt");
+  fs.rmSync(path.join(project.changeDir, "stray.txt"));
+  const again = runNext(project);
+  assert.equal(again.json.action, "archive");
+  assert.equal(again.json.commit, null);
+  assert.equal(commitCount(project), 2);
+});
+
 test("kind D: a pre-commit hook that stages another file halts after the commit and names it", { skip: noGit }, () => {
   const project = archiveProject();
   writeHook(project, "pre-commit", "echo x > hooked.txt\ngit add hooked.txt");
