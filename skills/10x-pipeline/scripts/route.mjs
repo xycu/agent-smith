@@ -803,6 +803,9 @@ function resolveChain(cmd, id, flags) {
 
 // ---- main -----------------------------------------------------------------
 
+// The flags init reads; any other flag halts it.
+const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain"];
+
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
@@ -840,6 +843,12 @@ function main() {
       if (flags.chrome === true || flags.chrome === "true") chrome = true;
       else if (flags.chrome === "false") chrome = false;
       else halt(`Invalid --chrome ${flags.chrome}. Use --chrome, --chrome true or --chrome false.`);
+    }
+    // A flag init does not read (a typo such as --gaol) would take the next word as its value and start
+    // the run without it, so it halts before anything is written.
+    const unknown = Object.keys(flags).filter((k) => k !== "_" && !INIT_FLAGS.includes(k));
+    if (unknown.length) {
+      halt(`Unknown flag(s) for init: ${unknown.map((k) => `--${k}`).join(", ")}. init reads: ${INIT_FLAGS.map((k) => `--${k}`).join(", ")}. Nothing was written.`);
     }
     // Words that belong to no flag (an unquoted goal) halt before anything is written.
     if (flags._.length) {

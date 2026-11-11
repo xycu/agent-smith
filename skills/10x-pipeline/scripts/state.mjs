@@ -11,14 +11,20 @@ export function out(obj, code = 0) {
   process.exit(code);
 }
 
-// valueFlags always take the next argument as their value, even one that starts with "--".
-// Arguments that belong to no flag go to flags._, assigned last so a "--_" argument cannot replace it.
+// A flag is "--key value" or "--key=value" (split at the first "="). valueFlags always take the next
+// argument as their value, even one that starts with "--".
+// Arguments that belong to no flag go to flags._, and so does an argument with no usable key ("--", "--_",
+// "--=x"), which takes no value: flags._ lists every word no flag claimed. flags has no prototype, so a
+// key such as "__proto__" is stored like any other and a caller that checks the keys sees it.
 export function parseFlags(args, valueFlags = []) {
-  const flags = {};
+  const flags = Object.create(null);
   const rest = [];
   for (let i = 0; i < args.length; i++) {
-    if (!args[i].startsWith("--")) { rest.push(args[i]); continue; }
-    const key = args[i].slice(2);
+    const arg = args[i];
+    const eq = arg.indexOf("=");
+    const key = arg.startsWith("--") ? arg.slice(2, eq === -1 ? undefined : eq) : "";
+    if (key === "" || key === "_") { rest.push(arg); continue; }
+    if (eq !== -1) { flags[key] = arg.slice(eq + 1); continue; }
     const takes = args[i + 1] !== undefined && (valueFlags.includes(key) || !args[i + 1].startsWith("--"));
     flags[key] = takes ? args[++i] : true;
   }
