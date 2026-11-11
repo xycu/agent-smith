@@ -15,7 +15,7 @@ Every commit the agent-smith scripts make gets a `Co-Authored-By: Agent Smith <a
 
 ## Desired End State
 
-With the default policy, every commit made by the router and by `open-pr.mjs` ends with the trailer `Co-Authored-By: Agent Smith <agent-smith@ksycki.pl>` (verified by `git log --format=%B`). Setting `coAuthor` to `null` in the override file turns it off. A malformed `coAuthor` halts `init` and `next` with a clear message. No commit subject changes.
+With the default policy, every commit made by the router and by `open-pr.mjs` ends with the trailer `Co-Authored-By: Agent Smith <agent-smith@ksycki.pl>` (verified by `git log --format=%B`). Setting `coAuthor` to `null` in the override file turns it off. A malformed `coAuthor` halts at the first router commit it would apply to (the start commit at `init`, a step commit at `next`, the pre-archive commit, the late-usage commit) with a clear message naming `policy.coAuthor`. A run that makes no router commit (`isolation.require: false` without `--archive`) never reads the key, and read-only commands such as `status` never halt on it. No commit subject changes.
 
 ## What We're NOT Doing
 
@@ -44,7 +44,7 @@ Define `coAuthor`, validate it, and apply it to every router-made commit includi
 
 **Intent**: Add the default identity and exempt the key from provenance hashing.
 
-**Contract**: top-level `"coAuthor": { "name": "Agent Smith", "email": "agent-smith@ksycki.pl" }`; `provenance.ignore` gains `"coAuthor"`. `null` in an override means no trailer.
+**Contract**: top-level `"coAuthor": { "name": "Agent Smith", "email": "agent-smith@ksycki.pl" }`; `provenance.ignore` gains `"coAuthor"`, and so does the fallback list `PROVENANCE_DEFAULTS.ignore` in `skills/10x-pipeline/scripts/isolation.mjs:19` (it applies when an override malforms the list). `null` in an override means no trailer (`deepMerge` in `state.mjs` lets `null` replace the default object). Two assertions pin the old default list and change with it: `DEFAULT.provenance` (`deepEqual`, `skills/10x-pipeline/test/provenance.test.mjs:89`) and the `want` filter of the fresh-init test (`provenance.test.mjs:97-99`).
 
 #### 2. Trailer helper and validation
 
@@ -52,15 +52,15 @@ Define `coAuthor`, validate it, and apply it to every router-made commit includi
 
 **Intent**: One exported function that turns the merged policy into the trailer line, shared by `isolation.mjs`. Follow the style of `priceTable`, but a malformed block halts (a wrong trailer is worse than none).
 
-**Contract**: `coAuthorTrailer(policy)` returns `null` when `policy.coAuthor` is `null` or missing, else `"Co-Authored-By: <name> <<email>>"`. `name` and `email` must be non-blank strings with no newline, `<` or `>`; otherwise `halt("policy.coAuthor ...")`, naming the key, the same way other policy halts read.
+**Contract**: two exports that do not halt. `coAuthorProblem(policy)` returns `null` when `policy.coAuthor` is `null` or missing or valid, else a message starting `policy.coAuthor ` that names the fault (`name` and `email` must be non-blank strings with no newline, `<` or `>`). `coAuthorTrailer(policy)` returns `null` when `policy.coAuthor` is `null` or missing, else `"Co-Authored-By: <name> <<email>>"`; it is called only after `coAuthorProblem` returned `null`. The caller turns a message into its own stop, as it does for `isolationMessage` and `usageMessage`: `stop(...)` (which is `halt` or `endRun`) in `startCommit`, `stepCommit` and `rollback`, `precheck(...)` in `archiveDone`, and `{ error }` in `lateUsageCommit`. A bare `halt` inside the helper would skip the end-state write and the undo of those callers.
 
 #### 3. Router commits
 
 **File**: `skills/10x-pipeline/scripts/isolation.mjs`
 
-**Intent**: Make `routerCommit` add the trailer to its `git commit`, and the rollback snapshot add it as a second `-m`. The trailer is resolved before `git add` (as the archive message already is), so a bad policy never leaves a staged index.
+**Intent**: Make `routerCommit` add the trailer to its `git commit`, and the rollback snapshot add it as a second `-m`. The trailer is resolved and checked before `git add` (as the archive message already is) in every path, the rollback included (before its `git add -A`), so a bad policy never leaves a staged index.
 
-**Contract**: `routerCommit(g, timeout, { rel, message, trailer })`; commit args gain `"--trailer", trailer` only when `trailer` is non-null. Callers (`startCommit`, step commit, archive path, `lateUsageCommit`) pass `coAuthorTrailer(policy)`. `commit-tree` call gains `"-m", trailer` when set. Hooks and signing stay as they are; never `--no-verify`.
+**Contract**: `routerCommit(g, timeout, { rel, message, trailer })`; commit args gain `"--trailer", trailer` only when `trailer` is non-null, placed right after the message and before the `--` of the pathspec form: `["commit", "-m", message, "--trailer", trailer, "--", rel]`. That order keeps `commit -m` adjacent, which the git shims of `archive.test.mjs` (~778) and `stepcommit.test.mjs` (~137) match with `*" commit -m "*`, and keeps `--`, `rel` as the last two arguments with a single `--`, which the allowed-commands test of `archive.test.mjs` (~1175) asserts. Callers (`startCommit`, step commit, archive path, `lateUsageCommit`) pass `coAuthorTrailer(policy)`. `commit-tree` call gains `"-m", trailer` when set. Hooks and signing stay as they are; never `--no-verify`.
 
 #### 4. Tests
 
@@ -68,7 +68,7 @@ Define `coAuthor`, validate it, and apply it to every router-made commit includi
 
 **Intent**: Prove the trailer on each router commit and the off and malformed cases, using `helpers.mjs` scratch projects with `policy: { isolation: { require: true } }` as `stepcommit.test.mjs` and `rollback.test.mjs` do.
 
-**Contract**: cases: start commit, step commit, pre-archive commit, late-usage commit (archive state), rollback snapshot ref all show the trailer in `git log -1 --format=%B <ref>` and keep the original subject as first line; `coAuthor: null` gives no trailer; blank name, email with `>` and a non-object value halt `init` with a message naming `policy.coAuthor`; provenance hash is equal with and without `coAuthor` changed. Existing tests that compare whole commit bodies are updated, not deleted.
+**Contract**: cases: start commit, step commit, pre-archive commit, late-usage commit (archive state), rollback snapshot ref all show the trailer in `git log -1 --format=%B <ref>` and keep the original subject as first line; `coAuthor: null` gives no trailer; blank name, email with `>` and a non-object value halt the start commit at `init` (isolation required) and a step commit at `next` with a message naming `policy.coAuthor`, and leave the index unstaged; `status` on the same project still succeeds; provenance hash is equal with and without `coAuthor` changed. No existing test reads a whole commit body (`%B`), so the existing tests that need a change are the two provenance assertions named above; the shim and argument-order tests pass unchanged with the argument order of the Changes section.
 
 ### Success Criteria:
 
@@ -100,7 +100,7 @@ The one commit not made by the router gets the same trailer.
 
 **Intent**: Read `coAuthor` from `../policy.json` (relative to the script) and then from `context/foundation/agent-smith-policy.json` under the current directory; an override key (including `null`) wins. Built-ins only, no router import. Any unreadable file, bad JSON or invalid value yields no trailer and never fails the push or PR step.
 
-**Contract**: a local function mirroring the validation of `coAuthorTrailer`; `commitLeftovers` adds `"--trailer", trailer` to its `git commit` when non-null. The duplicated rule is covered by a test that feeds both implementations the same values.
+**Contract**: a local function `coAuthorLine(policy)` mirroring `coAuthorProblem` and `coAuthorTrailer` (invalid or off gives `null`, never a halt), exported by name so tests can import it (the entry point is guarded by `isEntryPoint`); `commitLeftovers` adds `"--trailer", trailer` to its `git commit` after the message when non-null. The duplicated rule is covered by a parity case added to `skills/10x-pipeline/test/coauthor.test.mjs` in this phase: it feeds `coAuthorTrailer`/`coAuthorProblem` (from `state.mjs`) and `coAuthorLine` the same values (default, `null`, missing, blank name, newline, angle brackets, non-object) and asserts the same trailer, with invalid values giving `null` in `open-pr.mjs` where the router reports a problem.
 
 #### 2. Tests
 
@@ -135,7 +135,7 @@ Document the key and run everything, including one scratch end-to-end run.
 
 **Files**: `docs/REFERENCE.md`, `AGENTS.md`, `docs/ADR/ADR-020-agent-smith-co-author.md` (new)
 
-**Intent**: Describe the `coAuthor` key, its off switch and the subagent-commit exclusion in REFERENCE.md next to the isolation commit text. Add `coauthor.test.mjs` to the test list in AGENTS.md and mention ADR-020 in the `docs/ADR/` entry. ADR-020: decision (policy key, `--trailer`, duplicate read in `open-pr.mjs` because of the no-router-import rule), alternatives (hardcoded constant, git author config) and the not-doing list. Do not edit `context/archive/`.
+**Intent**: Describe the `coAuthor` key, its off switch and the subagent-commit exclusion in REFERENCE.md next to the isolation commit text, and add `coAuthor` to the default `provenance.ignore` list named in the provenance bullet (`docs/REFERENCE.md:296`, now `compare`, `provenance` and `prices`). Add `coauthor.test.mjs` to the test list in AGENTS.md and mention ADR-020 in the `docs/ADR/` entry. ADR-020: decision (policy key, `--trailer`, duplicate read in `open-pr.mjs` because of the no-router-import rule), alternatives (hardcoded constant, git author config) and the not-doing list. Do not edit `context/archive/`.
 
 **Contract**: prose only; no model, effort or tier words in either `SKILL.md`.
 
