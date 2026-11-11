@@ -42,5 +42,9 @@
   "rigor": {
     "level": "standard",
     "by": "phases 3, signals"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 9 (implement) needs a human: Owner: set Settings -> Actions -> General -> 'Fork pull request workflows from outside collaborators' to 'Require approval for all external contributors' (the gh read of fork-pr-contributor-approval currently returns first_time_contributors), then re-run so rows 3.5 and 3.6 can complete."
   }
 }
