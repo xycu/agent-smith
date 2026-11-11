@@ -1,7 +1,7 @@
 ---
 change_id: pr-scripts-shared
 title: "open-pr.mjs and pr-comment.mjs hold copied helpers that drift"
-status: planned
+status: impl_reviewed
 created: 2026-11-11
 updated: 2026-11-11
 archived_at: null
