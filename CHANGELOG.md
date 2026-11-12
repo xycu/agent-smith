@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.7.0](https://github.com/xycu/agent-smith/compare/v1.6.1...v1.7.0) (2026-11-12)
+
+
+### Features
+
+* **finished-changes-left-open:** report change.md status when a run ends done ([48a761d](https://github.com/xycu/agent-smith/commit/48a761d0a4f4257e07fcba8b5b44d00ffa33b112))
+
+
+### Bug Fixes
+
+* **agents-md-slim:** carry the lost catalog facts into the test index ([53259cc](https://github.com/xycu/agent-smith/commit/53259cc3145f23dad2b711215010691710fba0d5))
+* **attach-result-persist-first:** assert routing on and kept result in the isolated case ([d5c3d91](https://github.com/xycu/agent-smith/commit/d5c3d910c4a475ff18fdc02f8be89a75b0e2dd0c))
+* **attach-result-persist-first:** write run.jsonl before deleting last-result.json ([98191c8](https://github.com/xycu/agent-smith/commit/98191c84a03d5aade27a68437e5277e29fde2bb2))
+* **plan-crlf-line-endings:** read CRLF plan.md like LF ([f8e4bfb](https://github.com/xycu/agent-smith/commit/f8e4bfb90f15b131f33b0d3eada093dffb69eafd))
+* **release-after-green-ci:** document the head-check window and finish the run ([6812834](https://github.com/xycu/agent-smith/commit/6812834bcb28d8f699393c7cadd8457db0fe23b6))
+* **release-after-green-ci:** document the head-check window of the release job ([ae333e3](https://github.com/xycu/agent-smith/commit/ae333e3b8507619dbd5f58d5d60d0792adff7316))
+* **skill-dir-variable:** name script paths through CLAUDE_SKILL_DIR ([ef42c0f](https://github.com/xycu/agent-smith/commit/ef42c0f1d5a50609761302fd0cc3f31b04cd1575))
+
 ## [1.6.1](https://github.com/xycu/agent-smith/compare/v1.6.0...v1.6.1) (2026-11-12)
 
 
