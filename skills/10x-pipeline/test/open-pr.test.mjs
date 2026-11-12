@@ -446,6 +446,24 @@ test("leftover edits are committed once as the final run state and pushed", { sk
   assert.equal(g(w, w.wt, ["log", "--format=%s"]).split("\n").filter((s) => s === "chore(demo): final run state").length, 1);
 });
 
+test("the leftover commit carries the Agent Smith trailer by default, none with coAuthor null, none with a malformed value", { skip }, () => {
+  const TRAILER = "Co-Authored-By: Agent Smith <agent-smith@ksycki.pl>";
+  for (const [override, want] of [[undefined, TRAILER], [null, null], [{ name: "", email: "a@b" }, null], ["Agent Smith", null]]) {
+    const w = world();
+    if (override !== undefined) {
+      const file = path.join(w.wt, "context/foundation/agent-smith-policy.json");
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, JSON.stringify({ coAuthor: override }));
+    }
+    fs.appendFileSync(path.join(w.wt, "context/changes/demo/agent-smith/report.md"), "late line\n");
+    const res = runScript(w);
+    assert.equal(res.json.committed, true, `${JSON.stringify(override)}: ${res.stdout}`);
+    assert.equal(res.json.pushed, true);
+    const body = g(w, w.wt, ["log", "-1", "--format=%B"]);
+    assert.equal(body, want ? `chore(demo): final run state\n\n${want}` : "chore(demo): final run state", JSON.stringify(override));
+  }
+});
+
 test("a failing pre-commit hook gives committed: false, unstages its add, and the branch still pushes", { skip }, () => {
   const w = world();
   const hook = path.join(w.repo, ".git/hooks/pre-commit");
