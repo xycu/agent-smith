@@ -242,9 +242,9 @@ None. Text that left `AGENTS.md` lives in the two new indexes (tests, ADRs), is 
 
 #### Automated
 
-- [ ] 1.1 Every `*.test.mjs` and helper file in `skills/10x-pipeline/test/` and `tools/test/` is named in the test index: `for f in skills/10x-pipeline/test/*.mjs tools/test/*.mjs; do grep -q "$(basename $f)" skills/10x-pipeline/test/README.md || echo MISSING $f; done` prints nothing
-- [ ] 1.2 Every ADR file has a row: `for f in docs/ADR/ADR-*.md; do grep -q "$(basename $f)" docs/ADR/README.md || echo MISSING $f; done` prints nothing
-- [ ] 1.3 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 Every `*.test.mjs` and helper file in `skills/10x-pipeline/test/` and `tools/test/` is named in the test index: `for f in skills/10x-pipeline/test/*.mjs tools/test/*.mjs; do grep -q "$(basename $f)" skills/10x-pipeline/test/README.md || echo MISSING $f; done` prints nothing — 92b9282
+- [x] 1.2 Every ADR file has a row: `for f in docs/ADR/ADR-*.md; do grep -q "$(basename $f)" docs/ADR/README.md || echo MISSING $f; done` prints nothing — 92b9282
+- [x] 1.3 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 92b9282
 
 #### Manual
 
@@ -255,12 +255,12 @@ None. Text that left `AGENTS.md` lives in the two new indexes (tests, ADRs), is 
 
 #### Automated
 
-- [ ] 2.1 `AGENTS.md` is at most 12288 bytes (target about 8000): `test $(wc -c < AGENTS.md) -le 12288`
-- [ ] 2.2 The three pinning tests pass: `node --test skills/10x-pipeline/test/advisor.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs`
-- [ ] 2.3 The import and size guards pass: `node --test tools/test/agents-md-no-imports.test.mjs tools/test/agents-md-size.test.mjs`
-- [ ] 2.4 No stale text remains: `grep -n "0\.x\|first release PR confirms\|Project Structure" AGENTS.md` prints nothing, and `grep -c "node --test" AGENTS.md` prints 1
-- [ ] 2.5 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.6 `node tools/version-check.mjs` exits 0
+- [x] 2.1 `AGENTS.md` is at most 12288 bytes (target about 8000): `test $(wc -c < AGENTS.md) -le 12288` — d307bd3
+- [x] 2.2 The three pinning tests pass: `node --test skills/10x-pipeline/test/advisor.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs` — d307bd3
+- [x] 2.3 The import and size guards pass: `node --test tools/test/agents-md-no-imports.test.mjs tools/test/agents-md-size.test.mjs` — d307bd3
+- [x] 2.4 No stale text remains: `grep -n "0\.x\|first release PR confirms\|Project Structure" AGENTS.md` prints nothing, and `grep -c "node --test" AGENTS.md` prints 1 — d307bd3
+- [x] 2.5 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — d307bd3
+- [x] 2.6 `node tools/version-check.mjs` exits 0 — d307bd3
 
 #### Manual
 
@@ -273,9 +273,9 @@ None. Text that left `AGENTS.md` lives in the two new indexes (tests, ADRs), is 
 
 #### Automated
 
-- [ ] 3.1 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.2 Commit subjects pass: `node tools/commit-lint.mjs main..HEAD`
-- [ ] 3.3 The smoke check from `AGENTS.md` returns an `init` step in a scratch project
+- [x] 3.1 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — d307bd3
+- [x] 3.2 Commit subjects pass: `node tools/commit-lint.mjs main..HEAD` — d307bd3
+- [x] 3.3 The smoke check from `AGENTS.md` returns an `init` step in a scratch project — d307bd3
 
 #### Manual
 
