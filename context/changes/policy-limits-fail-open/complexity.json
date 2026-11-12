@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Done when' fixes the outcome; open details (read-only commands halt or warn, the tolerant read of limits.maxNeutralRetries) each have one obvious answer in change.md Fix direction" },
+    "novelty": { "score": 1, "evidence": "change.md Notes: newer keys (coAuthor, prices, agents, advisor, score, limits.maxNeutralRetries) are already checked, so the validator adapts an existing pattern" },
+    "coupling": { "score": 2, "evidence": "change.md Fix direction: one policyProblems in scripts/state.mjs run by route.mjs, flow.mjs, preplan.mjs, openspec.mjs, steps.mjs and isolation.mjs callers (limits at route.mjs:118, flow.mjs:720, preplan.mjs:333, openspec.mjs:198, route.mjs:180)" },
+    "discovery": { "score": 1, "evidence": "change.md Problem names every location with file and line; the only extra search is the placeholder list in prompts/README.md" },
+    "volume": { "score": 2, "evidence": "change.md Tests and Fix direction: one new validator in state.mjs, calls in init/next/usage/status paths, a new policy-validate.test.mjs, the four reproductions and prompts/README.md placeholder list, roughly 4 to 8 files" },
+    "verification": { "score": 1, "evidence": "change.md Tests: existing node:test suite drives the router through the CLI in scratch projects; new cases assert halt text and byte-identical change folder, deterministic" }
+  },
+  "unknowns": [
+    "Whether read-only commands (status, risk, verify-archive, compare) must halt or only warn on a broken policy; change.md leaves this to the plan",
+    "The full set of {name} placeholders the router fills; prompts/README.md is said to omit {artifacts}, {authority} and {failure}, so the list must be taken from the code in steps.mjs and flow.mjs"
+  ],
+  "confidence": "medium"
+}
