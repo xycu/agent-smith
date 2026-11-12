@@ -1044,7 +1044,7 @@ test("a blank commit message halts as kind A and never stages the folder", { ski
   assert.equal(commitCount(project), 1);
 });
 
-test("a custom ladder too short for the pinned archive tier halts before git add", { skip: noGit }, () => {
+test("a custom ladder too short for the step tiers halts at load before git add", { skip: noGit }, () => {
   const ladder = [{ model: "haiku", effort: "low" }, { model: "haiku", effort: "low" }, { model: "sonnet", effort: "low" }];
   const project = archiveProject({ policy: { ladder } });
   const res = runNext(project);
