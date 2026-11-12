@@ -89,8 +89,19 @@ function sectionOf(heading) {
 
 test("the OPEN_PR line points at the open-pr script, which exists", () => {
   const line = lines.find((l) => l.startsWith("Pull request script: "));
-  assert.ok(line && line.includes("`OPEN_PR=<this skill's base directory>/scripts/open-pr.mjs`"), line);
+  assert.ok(line && line.includes('`OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"`'), line);
   assert.ok(fs.statSync(path.resolve(path.dirname(DEFAULT_PATH), "scripts/open-pr.mjs")).isFile());
+});
+
+test("every script path names ${CLAUDE_SKILL_DIR}, and the old placeholder is gone", () => {
+  assert.equal(skill.includes("<this skill's base directory>"), false);
+  const dir = "${CLAUDE_SKILL_DIR}/";
+  const router = lines.find((l) => l.startsWith("Router: "));
+  assert.ok(router && router.includes('`ROUTER="' + dir + 'scripts/route.mjs"`'), router);
+  const pr = lines.find((l) => l.startsWith("PR comment script: "));
+  assert.ok(pr && pr.includes('`PR_COMMENT="' + dir + 'scripts/pr-comment.mjs"`'), pr);
+  const tuning = lines.find((l) => l.includes("policy.json` holds the defaults"));
+  assert.ok(tuning && tuning.startsWith("- `" + dir + "policy.json`"), tuning);
 });
 
 test("the pull request section follows ## PR comment (opt-in) and runs the script from the run root", () => {
