@@ -1,7 +1,7 @@
 ---
 change_id: step-commit-code-under-chore
 title: Stop shipping implemented code in chore step commits
-status: new
+status: planned
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null
