@@ -173,7 +173,7 @@ None. A resume with `--rigor` can only raise the stored level (existing router r
 
 #### Manual
 
-- [ ] 1.5 Start step 1 and step 4 of each skill read as consistent
+- [x] 1.5 Start step 1 and step 4 of each skill read as consistent — evidence: evidence/judgment-start-steps.md
 
 ### Phase 2: Content tests
 
