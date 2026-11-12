@@ -1,0 +1,3 @@
+- 3.4 — needs a live red CI run of main under the new workflow; gh run list shows none (the failures ba43195, 5160a8a predate the merge 5f033ba); forcing one needs a push to main
+- 3.5 — needs a live rerun of such a failed run; none exists, and a rerun posts to an external service
+- 3.6 — needs a live skipped Release run beside a pending valid one; skipped runs 43183461174, 43183967966, 43183971597 exist but no pending valid run was observable, and the group is not checkable from run lists alone
