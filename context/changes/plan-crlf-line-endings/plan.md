@@ -64,7 +64,7 @@ Fix the four reader sites.
 #### Automated Verification:
 
 - Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- Only the tolerant readers keep `split("\n")` in `state.mjs` (`readFindings`, `readLog`, `churnCounts`, diff hits) and none remains in `steps.mjs`: `grep -n 'split("\\n")' skills/10x-pipeline/scripts/state.mjs skills/10x-pipeline/scripts/steps.mjs`
+- Only the tolerant readers keep `split("\n")` in `state.mjs` (`readFindings`, `readLog`, `churnCounts`, diff hits) and none remains in `steps.mjs`: `[ "$(grep -c 'split("\\n")' skills/10x-pipeline/scripts/state.mjs)" = 4 ] && ! grep -n 'split("\\n")' skills/10x-pipeline/scripts/steps.mjs`
 
 #### Manual Verification:
 
@@ -92,6 +92,8 @@ Pin LF and CRLF parity for every reader and for routing.
 - `init` on the CRLF plan exits 0, prints no `Router error`, and routes to the same step as the LF plan; with a log of `plan` and `plan-review` (SOUND) and a pending row, it routes to `implement`, not to the review or `done`.
 - `risk` on a git scratch repo (as in `churn.test.mjs`, skipped when git is missing) gives equal output for a `**File**: \`f9.js\`` plan and its CRLF copy, and names the plan path as a hit.
 
+Build notes: `planText` and `buildPlan` write only named headings, so hand-write the Progress text that needs the bare `### Phase 2` heading. `dryRunRepo` and `risk` in `churn.test.mjs` are local, not exported; copy the few lines the test needs (`gitInit`, `commitFiles`, `gitEnv` come from `helpers.mjs`). A review file the `init` test writes as a step's output uses `writeReview` and `writePlan` from `ahead.mjs`, not those of `helpers.mjs`.
+
 #### 2. Phase files reader case
 
 **File**: `skills/10x-pipeline/test/executors.test.mjs`
@@ -107,6 +109,7 @@ AGENTS.md is not edited in this change: the wave owner of `agents-md-slim` owns 
 #### Automated Verification:
 
 - New tests fail on the old code and pass on the fix: `node --test skills/10x-pipeline/test/crlf-plan.test.mjs`
+- Fail on the old code: Phase 1 lands first, so check it against a scratch worktree at the commit before the Phase 1 step commit (`git worktree add <scratch-dir> <sha>`), copy `crlf-plan.test.mjs` and the changed `executors.test.mjs` into its `skills/10x-pipeline/test/`, run `node --test` on both there and expect failures, then delete the two copies and run `git worktree remove <scratch-dir>`. Do not revert the fix in the run worktree.
 - Phase files reader test passes: `node --test --test-name-pattern "phase files reader" skills/10x-pipeline/test/executors.test.mjs`
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
