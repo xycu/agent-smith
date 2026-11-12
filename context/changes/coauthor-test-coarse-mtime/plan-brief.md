@@ -27,7 +27,7 @@ CI on `main` failed in `coauthor.test.mjs` ("a malformed coAuthor halts a step c
 
 **In scope:** the import in `coauthor.test.mjs`; a backdating check that proves the fix; the full suite.
 
-**Out of scope:** `helpers.mjs`, `ahead.mjs`, router scripts, other test files, a guard test.
+**Out of scope:** `helpers.mjs`, `ahead.mjs`, router scripts, other test files, a guard test, an audit of review/research/frame/score writers in other test files (follow-up if the suite flakes on them).
 
 ## Architecture / Approach
 
