@@ -496,7 +496,6 @@ export function attachResult(p, log, policy) {
   }
   let result = readJson(p.result, null);
   if (!result || typeof result !== "object") result = { status: "unknown", note: "unparseable result file" };
-  fs.rmSync(p.result);
   // The stored prompt is only kept while the step is pending (a neutral rerun returns it unchanged).
   delete last.pendingPrompt;
 
@@ -555,6 +554,9 @@ export function attachResult(p, log, policy) {
   last.verified = verified;
   last.ok = result.status === "done" && verified;
   last.finishedAt = Date.now();
+  // Persist before deleting: a router error later in `next` must not lose the result.
+  writeLog(p.log, log);
+  fs.rmSync(p.result);
 }
 
 // The open findings of an aware review are over the line when one is critical or the open warnings exceed the shared
