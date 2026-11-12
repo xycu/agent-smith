@@ -214,8 +214,8 @@ Until the merge, the old `push` trigger is in force. After the merge, the releas
 
 #### Automated
 
-- [x] 2.1 Suite and guards still pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.2 Amendment present and the original record untouched: `git diff --stat docs/ADR/ADR-008-release-packaging-and-semver.md` shows only added lines apart from the Status line
+- [x] 2.1 Suite and guards still pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 00a990b
+- [x] 2.2 Amendment present and the original record untouched: `git diff --stat docs/ADR/ADR-008-release-packaging-and-semver.md` shows only added lines apart from the Status line — 00a990b
 
 #### Manual
 
