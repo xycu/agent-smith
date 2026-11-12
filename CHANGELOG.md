@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.6.0](https://github.com/xycu/agent-smith/compare/v1.5.0...v1.6.0) (2026-11-12)
+
+
+### Features
+
+* **step-commit-code-under-chore:** implement-class prompts commit their code under a typed subject (p3) ([e3ec8b1](https://github.com/xycu/agent-smith/commit/e3ec8b141cb14b3ec28c13611859dd33a7afec00))
+* **step-commit-code-under-chore:** open-pr.mjs reports the code of its leftover commit (p2) ([1ad61aa](https://github.com/xycu/agent-smith/commit/1ad61aabbaaa095b14da4c8cff4e263271a15375))
+* **step-commit-code-under-chore:** record the paths a step commit takes outside the change folder (p1) ([74384b2](https://github.com/xycu/agent-smith/commit/74384b2b0a3aadad4195d45bf22cf91f4148b753))
+
+
+### Bug Fixes
+
+* **router:** align archive test title and override note with the policy check ([7fc7673](https://github.com/xycu/agent-smith/commit/7fc767364571a991df2add112c9655e7c5acfe26))
+* **router:** halt on a prompt placeholder the router never fills (p2) ([5988b61](https://github.com/xycu/agent-smith/commit/5988b6132a3c3341f008413ce25adb9cbdf3686a))
+* **router:** halt on malformed spend caps, ladder and step tiers at load ([c47b4e7](https://github.com/xycu/agent-smith/commit/c47b4e7938533f6e3c55335196c4eba6dca62709))
+* **skill-rigor-flag:** keep --pr-comment parsed like --archive, not like --rigor ([a51115b](https://github.com/xycu/agent-smith/commit/a51115b1ef373b23f4994c22baf3588499e0e2cf))
+* **step-commit-code-under-chore:** leave both sides of a staged archive move out of open-pr swept ([595e6d3](https://github.com/xycu/agent-smith/commit/595e6d3d1fa8dfd307d2dba79a07949978daf3fa))
+
 ## [1.5.0](https://github.com/xycu/agent-smith/compare/v1.4.13...v1.5.0) (2026-11-12)
 
 
