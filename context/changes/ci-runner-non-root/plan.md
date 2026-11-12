@@ -172,7 +172,7 @@ None. The step costs one `id` call.
 
 #### Manual
 
-- [ ] 1.9 The workflow change was reviewed: the diff of `ci.yml` shows only the new first step and the header comment line, and the step runs before checkout
+- [x] 1.9 The workflow change was reviewed: the diff of `ci.yml` shows only the new first step and the header comment line, and the step runs before checkout — evidence: evidence/judgment-ci-diff-review.md
 
 ### Phase 2: Owner fixes the runner and proves it in CI
 
