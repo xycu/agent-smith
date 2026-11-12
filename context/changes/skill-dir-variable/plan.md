@@ -183,11 +183,11 @@ A Claude Code below 2.1.69 would leave `${CLAUDE_SKILL_DIR}` unsubstituted; the 
 
 #### Automated
 
-- [ ] 1.1 No old placeholder remains in skills or tests: `! grep -rn "this skill's base directory" skills/*/SKILL.md` (and the tests no longer pin it, only assert its absence)
-- [ ] 1.2 10x skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [ ] 1.3 OpenSpec skill content tests pass: `node --test skills/10x-pipeline/test/openspec-skill.test.mjs`
-- [ ] 1.4 Deliberate break: with the old placeholder put back in a scratch copy of a SKILL.md, the new tests fail: `SKILL_PATH=<scratch copy> node --test skills/10x-pipeline/test/skill-loop.test.mjs` exits non-zero (the openspec test has no path override; check by reasoning from its assertions or add the same override as `skill-loop.test.mjs` uses)
-- [ ] 1.5 Rules and agents tests still pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
+- [x] 1.1 No old placeholder remains in skills or tests: `! grep -rn "this skill's base directory" skills/*/SKILL.md` (and the tests no longer pin it, only assert its absence) — ef42c0f
+- [x] 1.2 10x skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs` — ef42c0f
+- [x] 1.3 OpenSpec skill content tests pass: `node --test skills/10x-pipeline/test/openspec-skill.test.mjs` — ef42c0f
+- [x] 1.4 Deliberate break: with the old placeholder put back in a scratch copy of a SKILL.md, the new tests fail: `SKILL_PATH=<scratch copy> node --test skills/10x-pipeline/test/skill-loop.test.mjs` exits non-zero (the openspec test has no path override; check by reasoning from its assertions or add the same override as `skill-loop.test.mjs` uses) — ef42c0f
+- [x] 1.5 Rules and agents tests still pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/10x-pipeline/test/provenance.test.mjs` — ef42c0f
 
 #### Manual
 
@@ -197,9 +197,9 @@ A Claude Code below 2.1.69 would leave `${CLAUDE_SKILL_DIR}` unsubstituted; the 
 
 #### Automated
 
-- [ ] 2.1 README names the version: `grep -n "2.1.292" README.md`
-- [ ] 2.2 Version fields still consistent: `node tools/version-check.mjs`
-- [ ] 2.3 Tools tests pass: `node --test tools/test/*.test.mjs`
+- [x] 2.1 README names the version: `grep -n "2.1.292" README.md` — 709df15
+- [x] 2.2 Version fields still consistent: `node tools/version-check.mjs` — 709df15
+- [x] 2.3 Tools tests pass: `node --test tools/test/*.test.mjs` — 709df15
 
 #### Manual
 
@@ -209,9 +209,9 @@ A Claude Code below 2.1.69 would leave `${CLAUDE_SKILL_DIR}` unsubstituted; the 
 
 #### Automated
 
-- [ ] 3.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.2 Router starts in a scratch project: `node skills/10x-pipeline/scripts/route.mjs init <scratch-id> --goal "check"` then `node skills/10x-pipeline/scripts/route.mjs status <scratch-id>` print valid JSON
-- [ ] 3.3 Commit subjects are Conventional Commits: `node tools/commit-lint.mjs main..HEAD`
+- [x] 3.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.2 Router starts in a scratch project: `node skills/10x-pipeline/scripts/route.mjs init <scratch-id> --goal "check"` then `node skills/10x-pipeline/scripts/route.mjs status <scratch-id>` print valid JSON
+- [x] 3.3 Commit subjects are Conventional Commits: `node tools/commit-lint.mjs main..HEAD`
 - [ ] 3.4 CI is green on the run's pull request: `gh pr checks`
 
 #### Manual
