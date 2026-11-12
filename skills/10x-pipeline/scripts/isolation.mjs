@@ -482,9 +482,10 @@ export function stepCommit(p, id, meta, log, policy) {
   const res = routerCommit(g, timeout, { message, trailer: coAuthorTrailer(policy) });
   if (res.made || !res.error) {
     last.commit = res.commit;
-    if (res.names) {
-      const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
-      const inside = `${prefix}${changeRel(p, id)}/`;
+    // Names are relative to the git root; without the prefix they cannot be told from the change folder, so none is recorded.
+    const shown = res.names ? g(["rev-parse", "--show-prefix"]) : null;
+    if (shown?.status === 0) {
+      const inside = `${(shown.stdout ?? "").replace(/\r?\n$/, "")}${changeRel(p, id)}/`;
       const swept = res.names.filter((name) => !name.startsWith(inside)).sort();
       if (swept.length) last.swept = swept;
     }

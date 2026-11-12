@@ -62,4 +62,4 @@
   - Tradeoff: a second list to keep in step with the render sites in `isolation.mjs`.
   - Confidence: MED — render sites found by grep; no test covers per-template sets yet.
   - Blind spot: whether the owner wants the extra list at all.
-- **Decision**: PENDING — the plan fixed one global placeholder list; the owner decides whether per-template sets are worth a second list to maintain.
+- **Decision**: APPLIED in the Wave 1 findings branch (`fix/wave1-open-findings`) — `NARROW_PLACEHOLDERS` in `steps.mjs` lists `archive`, `os-archive`, `frame-authority` (`id`), `worktree` (`workdir`) and `suffix` (none); `promptProblem` checks those templates against their own set. Tests in `policy-validate.test.mjs` cover the per-template sets and an `init` halt; ADR-022 Amendment 1 and `docs/REFERENCE.md` describe it.

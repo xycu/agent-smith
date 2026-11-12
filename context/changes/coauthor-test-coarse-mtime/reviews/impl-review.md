@@ -21,7 +21,7 @@ Checked:
 ### F1: Manual row 2.4 cannot be proved in this run
 
 - **Severity**: OBSERVATION
-- **Decision**: PENDING. Needs the owner: row 2.4 (CI on `main` green on the self-hosted runner after merge) can only be ticked after the merge and a CI run. No code fix exists inside this change.
+- **Decision**: APPLIED after the merge — row 2.4 is ticked in `plan.md` with the green CI runs of `main` on runner `truenas-agent-smith-2` as evidence. No code fix was needed.
 - **Evidence**: Progress row 2.4 is unticked, and `evidence/unproven.md` records it. Not a defect of the implementation.
 
 ## Verdicts

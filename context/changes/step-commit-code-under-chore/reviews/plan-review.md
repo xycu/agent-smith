@@ -31,7 +31,7 @@ Grounding: 8/8 paths and line anchors checked (isolation.mjs routerCommit/stepCo
 - **Location**: Phase 3, items 1, 3 and 5
 - **Detail**: The `implement`, `implement-segment`, `implement-retry` and `os-apply` rules apply in every run. With `isolation.require: false` (ADR-017's only exception) the run root is the main checkout, so the subagent now commits on whatever branch the user has checked out, possibly `main`. Until now `os-apply` never committed and `openspec-pipeline/SKILL.md` lines 53 and 122 tell the user to commit the code themselves; the plan rewrites those lines to say `os-apply` commits. The `worktree.md` prompt that names the branch only opens isolated runs. The plan does not say whether this is wanted.
 - **Fix**: Either keep the rule for all runs and document it (REFERENCE, SKILL.md lines 53/122), or condition the rule on an isolated run. Which one is an owner decision about commits on the user's branch.
-- **Decision**: PENDING — owner must decide whether a non-isolated run may have its subagents commit on the checked-out branch; no evidence in the repo settles it.
+- **Decision**: ACCEPTED — the commit rules stay in every run and are documented. `implement` subagents already committed per phase before this change, and a non-isolated run is the explicit `isolation.require: false` opt-out, whose user chose to work on the checked-out branch. `skills/openspec-pipeline/SKILL.md` lines 53 and 122 state that `os-apply` commits its code itself in such a run while the change folder stays uncommitted. Conditioning the rule on isolation would add a second prompt path to keep in step for no safety gain.
 
 ### F2 — `names` is lost on the post-commit error path of routerCommit
 

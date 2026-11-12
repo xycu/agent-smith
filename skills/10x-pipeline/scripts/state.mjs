@@ -113,7 +113,7 @@ export function coAuthorProblem(policy) {
 }
 
 // The first fault in the keys that cap the spend of a run, as text that names the key and the override file, or null.
-// Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder, steps. Never throws and never halts;
+// Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder (model, effort in rigor.effortOrder), steps. Never throws and never halts;
 // main() halts for init, next and usage and status reports it. A baseTier outside [minTier, maxTier] is allowed (tierFor clamps it).
 export function policyProblems(policy) {
   const bad = (key, rule, v) => `policy.${key} must be ${rule} (got ${v === undefined ? "undefined" : JSON.stringify(v)}). Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`;
@@ -131,12 +131,15 @@ export function policyProblems(policy) {
     if (!Number.isSafeInteger(v)) return bad(`rigor.budgetDelta.${level}`, "an integer", v);
   }
   if (!Array.isArray(p.ladder) || p.ladder.length === 0) return bad("ladder", "a non-empty array", p.ladder);
+  // An effort outside rigor.effortOrder would reach the Agent tool unranked; with no usable order the name is only non-empty.
+  const efforts = Array.isArray(p.rigor.effortOrder) ? p.rigor.effortOrder.filter((e) => typeof e === "string" && e.trim()) : [];
   for (let i = 0; i < p.ladder.length; i++) {
     const rung = p.ladder[i];
     for (const field of ["model", "effort"]) {
       const v = isObject(rung) ? rung[field] : undefined;
       if (typeof v !== "string" || !v.trim()) return bad(`ladder[${i}].${field}`, "a non-empty string", v);
     }
+    if (efforts.length && !efforts.includes(rung.effort)) return bad(`ladder[${i}].effort`, `one of ${efforts.join(", ")} (rigor.effortOrder)`, rung.effort);
   }
   const top = p.ladder.length - 1;
   for (const [name, step] of Object.entries(p.steps)) {

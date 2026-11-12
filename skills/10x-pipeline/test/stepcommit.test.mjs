@@ -412,14 +412,14 @@ test("swept: a run with no path outside the change folder has no key, no header 
   assert.doesNotMatch(report, /Code committed by the router/);
 });
 
-// A directory with a `git` that runs the real git, except that `diff --cached --name-only` fails while the marker exists.
-function gitFailingNames(marker) {
+// A directory with a `git` that runs the real git, except that the given subcommand fails while the marker exists.
+function gitFailingNames(marker, sub = "diff --cached --name-only") {
   const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
   const bin = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-nonames-"));
   fs.writeFileSync(path.join(bin, "git"), [
     "#!/bin/sh",
     `case " $* " in`,
-    `  *" diff --cached --name-only "*) if [ -e "${marker}" ]; then echo "fatal: no names" >&2; exit 128; fi;;`,
+    `  *" ${sub} "*) if [ -e "${marker}" ]; then echo "fatal: no names" >&2; exit 128; fi;;`,
     "esac",
     `exec "${real}" "$@"`,
     "",
@@ -454,4 +454,36 @@ test("swept: a failed name read halts with nothing committed and no commit key; 
   }
   assert.equal(subject(wt), "chore(demo): step 3 implement");
   assert.deepEqual(readLogEntries(wt).find((e) => e.step === "implement").swept, SWEPT);
+});
+
+test("swept: an unreadable show-prefix records no swept paths and does not halt", { skip: skip || process.platform === "win32" }, () => {
+  const { wt } = freshRun();
+  implementWithLeftovers(wt);
+  const marker = path.join(wt.top, "..", "fail-prefix");
+  const bin = gitFailingNames(marker, "rev-parse --show-prefix");
+  fs.writeFileSync(marker, "");
+  try {
+    const env = { ...gitEnv(wt), PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+    const res = run(wt, ["next", wt.id], { env });
+    assert.equal(res.json.action, "run", res.stdout);
+  } finally {
+    fs.rmSync(marker, { force: true });
+    removeTree(bin);
+  }
+  const impl = readLogEntries(wt).find((e) => e.step === "implement");
+  assert.equal(typeof impl.commit, "string", "the commit is made and recorded");
+  assert.equal(Object.hasOwn(impl, "swept"), false, "no path is guessed without the prefix");
+});
+
+test("swept: a step commit with an unreadable hash names its paths without empty parentheses", { skip }, () => {
+  const { wt } = freshRun();
+  implementWithLeftovers(wt);
+  assert.equal(nextIn(wt).status, 0);
+  const entries = readLogEntries(wt);
+  entries.find((e) => e.step === "implement").commit = null;
+  writeLog(wt, entries);
+  run(wt, ["status", "demo", "--report"], { env: gitEnv(wt) });
+  const report = readReportFile(wt);
+  assert.match(report, /^- step 3 implement:$/m);
+  assert.doesNotMatch(report, /\(\)/);
 });
