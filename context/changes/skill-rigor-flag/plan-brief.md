@@ -37,8 +37,8 @@ Text edits only. One sentence added to step 1 of each skill; the Anti-stall sect
 
 | Phase | What it delivers | Key risk |
 | --- | --- | --- |
-| 1. Skills and reference | Hints, step 1, REFERENCE headings | A new tier/model word breaking the word-ban tests |
-| 2. Content tests | Pins for both skills | Exact-string hint test at `openspec-skill.test.mjs:72` |
+| 1. Skills and reference | Hints, step 1, REFERENCE headings, updated exact-hint assertion at `openspec-skill.test.mjs:72` | A new tier/model word breaking the word-ban tests |
+| 2. Content tests | New pins for both skills | A pin that the `--archive` sentence satisfies on its own |
 
 **Prerequisites:** none.
 **Estimated effort:** ~1 session, 2 small phases.
