@@ -146,7 +146,7 @@ One extra `run.jsonl` write per `next` call that attaches a result. The file is 
 
 #### Manual
 
-- [ ] 1.2 The two tests read as the `change.md` reproduction and the isolated variant
+- [x] 1.2 The two tests read as the `change.md` reproduction and the isolated variant — evidence: evidence/judgment-tests-read-as-reproduction.md
 
 ### Phase 2: Fix and wiring
 
