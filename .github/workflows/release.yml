@@ -10,7 +10,9 @@ name: Release
 # cancelled run releases nothing), was a push to main (not a pull request from a fork branch named
 # main), and its commit is still the head of main. A workflow_run job reads main through the API,
 # not the tested commit, so the head_sha == github.sha check keeps a green run of commit A from
-# releasing commit B. Merging the release PR pushes a commit to main; the tag and the GitHub Release
+# releasing a commit B that was already on main when the run was created. github.sha is fixed at that
+# moment, so a push that lands while the job waits or runs is still read by release-please (a window of
+# seconds, accepted in ADR-008, Amendment 1). Merging the release PR pushes a commit to main; the tag and the GitHub Release
 # are created by the job that follows that push's own green CI run. Rerunning a failed CI run that
 # then passes starts the job again, while main still points at that commit.
 #
