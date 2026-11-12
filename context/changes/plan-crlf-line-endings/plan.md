@@ -154,8 +154,8 @@ None; a regex split replaces a string split on files of a few KB.
 
 #### Automated
 
-- [ ] 1.1 Existing suite still passes
-- [ ] 1.2 Only the tolerant readers keep split("\n") in state.mjs and none remains in steps.mjs
+- [x] 1.1 Existing suite still passes — f8e4bfb
+- [x] 1.2 Only the tolerant readers keep split("\n") in state.mjs and none remains in steps.mjs — f8e4bfb
 
 #### Manual
 
@@ -165,9 +165,9 @@ None; a regex split replaces a string split on files of a few KB.
 
 #### Automated
 
-- [ ] 2.1 New tests fail on the old code and pass on the fix
-- [ ] 2.2 Phase files reader test passes
-- [ ] 2.3 Full suite passes
+- [x] 2.1 New tests fail on the old code and pass on the fix — f8e4bfb
+- [x] 2.2 Phase files reader test passes — f8e4bfb
+- [x] 2.3 Full suite passes — f8e4bfb
 
 #### Manual
 
