@@ -20,7 +20,7 @@ A root runner fails the `test` job at its first step with an error naming ADR-02
 | --- | --- | --- |
 | Guard placement | First step of `test`, before checkout | Fails before any PR code runs; matches `change.md` "Fix direction" 2. |
 | Guard scope | `test` job only | The goal names it; both jobs share the runner user, so one fix covers both. |
-| Guard test | Plain-text order check plus a stub-`id` run of the extracted command | Proves it fails for uid 0 without being root; no YAML parser (repo style). |
+| Guard test | Plain-text order check plus a shell-function-`id` run of the extracted command | Proves it fails for uid 0 without being root; no YAML parser (repo style). |
 | ADR change | Amendment 1 plus D4 line edit | Same shape as ADR-008 and ADR-010 amendments; records the finding without claiming a fix. |
 | Row 2.3 of `ci-self-hosted-truenas` | Not edited here | Ticks only after CI evidence, as `change.md` says. |
 | Merge order | Owner fixes runner before merge | A root runner turns `main` CI red and holds back `release.yml`. |
@@ -33,13 +33,13 @@ A root runner fails the `test` job at its first step with an error naming ADR-02
 
 ## Architecture / Approach
 
-One `run: test "$(id -u)" -ne 0 || { echo "::error::…"; exit 1; }` step. The test extracts it from `ci.yml` and runs it under `sh` with a stub `id`. Docs follow.
+One `run: test "$(id -u)" -ne 0 || { echo "::error::…"; exit 1; }` step. The test extracts it from `ci.yml` and runs it under `sh` with a shell function `id`. Docs follow.
 
 ## Phases at a Glance
 
 | Phase | What it delivers | Key risk |
 | --- | --- | --- |
-| 1. Guard, tests, docs | Step in `ci.yml`, two tests, ADR-020 amendment, `AGENTS.md` clause | Stub-`id` test must not rely on a recursive delete or the host `id` |
+| 1. Guard, tests, docs | Step in `ci.yml`, two tests, ADR-020 amendment, `AGENTS.md` clause | Test must not rely on the host `id` or write files |
 | 2. Owner fix and CI proof | Non-root runner, CI log evidence, `skipped` down by 2 | Red `main` CI if merged before the runner is fixed |
 
 **Prerequisites:** owner access to the TrueNAS hosts for Phase 2.

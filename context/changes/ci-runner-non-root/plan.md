@@ -31,7 +31,7 @@ ADR-020 D4 lists "A non-root service user" as a prerequisite of the TrueNAS runn
 
 ## Implementation Approach
 
-One plain-text `run:` step, first in the job, so a root runner fails before checkout and before PR code runs. Reuse the plain-text test style of `ci-runner.test.mjs`. To prove the guard fails for root without being root, the test extracts the command from `ci.yml` and runs it with `sh -c` and a stub `id` on `PATH` that prints 0 or 1000. Docs follow: an Amendment 1 in ADR-020 and one clause in `AGENTS.md`.
+One plain-text `run:` step, first in the job, so a root runner fails before checkout and before PR code runs. Reuse the plain-text test style of `ci-runner.test.mjs`. To prove the guard fails for root without being root, the test extracts the command from `ci.yml` and runs it with `sh -c` after a shell function `id() { echo 0; }` (or `echo 1000`) that shadows the external `id`; no temp folder or stub file is needed. Docs follow: an Amendment 1 in ADR-020 and one clause in `AGENTS.md`.
 
 Sequencing risk: once merged, every CI run on a root runner is red, which also holds back `release.yml` (it starts from a green CI run of `main`). The owner fixes the runner first, then merges; Phase 2 states this order.
 
@@ -57,7 +57,7 @@ Workflow step, two tests, ADR-020 amendment, `AGENTS.md` clause.
 
 **Intent**: Fail when the `test` job loses the uid step, moves it behind the suite, or the command stops failing for uid 0.
 
-**Contract**: two `node:test` tests, built-ins only. (a) Take the text of job `test` (from `\n  test:` to `\n  commits:`); its first `- ` step line must be the uid step, and the index of that step is lower than the index of `node --test` in the same slice. (b) Extract the `run:` value of that step, write an `id` stub into a `fs.mkdtempSync` folder under `os.tmpdir()` (an executable shell script that prints `0` or `1000`), run `sh -c <command>` with that folder first on `PATH`, and assert exit status 1 and the output containing `::error::` for uid 0, exit status 0 for uid 1000. Skip (b) on `win32`. Clean the temp folder by unlinking the stub, then `fs.rmdirSync` (no recursive delete, ADR-016; do not import `removeTree` if unlink and rmdir suffice). Update the header comment of the file to mention the uid guard.
+**Contract**: two `node:test` tests, built-ins only. (a) Take the text of job `test` (from `\n  test:` to `\n  commits:`); its first `- ` step line must be the uid step, and the index of that step is lower than the index of `node --test` in the same slice. (b) Extract the `run:` value of that step (the rest of its single `run:` line), run `sh -c "id() { echo 0; }; <command>"` and assert exit status 1 and the output containing `::error::`, then run it with `id() { echo 1000; }` and assert exit status 0. A POSIX shell function shadows the external `id`, so the test writes no file and creates no temp folder (nothing to clean up, ADR-016 not touched). Skip (b) on `win32`. Update the header comment of the file to mention the uid guard.
 
 #### 3. ADR-020 alignment
 
@@ -100,7 +100,7 @@ Workflow step, two tests, ADR-020 amendment, `AGENTS.md` clause.
 
 ### Overview
 
-Owner actions on the NAS hosts and the CI evidence. Not claimed done by this plan; no row below may be ticked by an agent without the quoted evidence.
+Owner actions on the NAS hosts and the CI evidence. Not claimed done by this plan; no row below may be ticked by an agent without the quoted evidence. Order: open the pull request first; its CI run on a still-root runner fails at the uid step and is the evidence for row 2.4. Then the owner fixes the runner and reruns the job for rows 2.2 and 2.3, and only then merges.
 
 ### Changes Required:
 
