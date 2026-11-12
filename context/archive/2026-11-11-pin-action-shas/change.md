@@ -1,10 +1,10 @@
 ---
 change_id: pin-action-shas
 title: "Pin the GitHub Actions of ci.yml and release.yml to commit SHAs"
-status: impl_reviewed
+status: archived
 created: 2026-11-11
-updated: 2026-11-11
-archived_at: null
+updated: 2026-11-12
+archived_at: 2026-11-12T12:39:42Z
 ---
 
 ## Notes
