@@ -216,15 +216,14 @@ test("maxNeutralRetries 0 reads the status as a failed attempt", () => {
   assert.equal(Object.hasOwn(first, "neutralRetries"), false);
 });
 
-test("a malformed maxNeutralRetries reads as 2", () => {
+test("a malformed maxNeutralRetries halts init with the key", () => {
   for (const bad of ["3", -1, 1.5, null]) {
     const project = makeProject({ policy: { limits: { maxNeutralRetries: bad } } });
-    init(project, "fix typo");
-    assert.deepEqual(fault(project).json.neutralRetry, { count: 1, cap: 2 }, String(bad));
-    assert.deepEqual(fault(project).json.neutralRetry, { count: 2, cap: 2 }, String(bad));
-    const res = fault(project);
-    assert.equal(res.json.action, "halt", String(bad));
-    assert.match(res.json.reason, /limit of 2 neutral reruns/);
+    const res = init(project, "fix typo");
+    assert.equal(res.status, 1, String(bad));
+    assert.equal(res.json.action, "halt");
+    assert.match(res.json.reason, /policy\.limits\.maxNeutralRetries must be/, String(bad));
+    assert.equal(fs.existsSync(path.join(project.agentDir, "meta.json")), false, String(bad));
   }
 });
 
