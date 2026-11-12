@@ -15,7 +15,7 @@ Replace the prose placeholder `<this skill's base directory>` in both `SKILL.md`
 
 ## Desired End State
 
-Both SKILL.md files name every script path through `${CLAUDE_SKILL_DIR}`; no `<this skill's base directory>` remains in `skills/`, tests or docs. Content tests pin the new lines and fail if the old placeholder returns. The README states the minimum Claude Code version. A live run of an installed plugin confirms the substituted path is the plugin cache path and the router starts.
+Both SKILL.md files name every script path through `${CLAUDE_SKILL_DIR}`; no `<this skill's base directory>` remains in either `SKILL.md` or in docs. The two content tests name the old placeholder only to assert its absence, and fail if it returns. The README states the minimum Claude Code version. A live run of an installed plugin confirms the substituted path is the plugin cache path and the router starts.
 
 ### Key Discoveries:
 
@@ -49,7 +49,7 @@ Swap the placeholder for `${CLAUDE_SKILL_DIR}` in both skills and re-pin the tes
 
 **Intent**: Name the three scripts and the `policy.json` in Tuning through `${CLAUDE_SKILL_DIR}` so Claude Code substitutes the real directory. Add a short note on the `Router:` line that the path is quoted for the shell, as the PR script steps already say.
 
-**Contract**: Lines 25-27 become `Router: \`ROUTER="${CLAUDE_SKILL_DIR}/scripts/route.mjs"\`. ...`, `PR comment script: \`PR_COMMENT="${CLAUDE_SKILL_DIR}/scripts/pr-comment.mjs"\`. ...`, `Pull request script: \`OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"\`. ...`; the first sentence of each line (and the "Only the ... step runs it" tails) stay. Tuning (line 132): `${CLAUDE_SKILL_DIR}/policy.json holds the defaults ...` in backticks. The `Router:` line ends with "Quote the path for the shell." Do not touch the `## Anti-stall rules` section or any `node $ROUTER` call (tests pin those).
+**Contract**: Lines 25-27 become `Router: \`ROUTER="${CLAUDE_SKILL_DIR}/scripts/route.mjs"\`. ...`, `PR comment script: \`PR_COMMENT="${CLAUDE_SKILL_DIR}/scripts/pr-comment.mjs"\`. ...`, `Pull request script: \`OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"\`. ...`; the first sentence of each line (and the "Only the ... step runs it" tails) stay. Tuning (line 132): `${CLAUDE_SKILL_DIR}/policy.json holds the defaults ...` in backticks. The `Router:` line ends with "When you put the path in a command, quote it for the shell." (the loop's `node $ROUTER` calls stay as they are, so the note must tell the orchestrator to quote when it substitutes the path) Do not touch the `## Anti-stall rules` section or any `node $ROUTER` call (tests pin those).
 
 #### 2. OpenSpec skill
 
@@ -57,7 +57,7 @@ Swap the placeholder for `${CLAUDE_SKILL_DIR}` in both skills and re-pin the tes
 
 **Intent**: Same swap, reaching the shared files through `${CLAUDE_SKILL_DIR}/../10x-pipeline/...`.
 
-**Contract**: Lines 28-30 become `ROUTER="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/route.mjs"`, `PR_COMMENT="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/pr-comment.mjs"`, `OPEN_PR="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/open-pr.mjs"`; Tuning (line 141): `${CLAUDE_SKILL_DIR}/../10x-pipeline/policy.json`. Same "Quote the path for the shell." on the `Router:` line. The skill must stay free of model, effort and tier words beyond the 10x skill (AGENTS.md hard rule).
+**Contract**: Lines 28-30 become `ROUTER="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/route.mjs"`, `PR_COMMENT="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/pr-comment.mjs"`, `OPEN_PR="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/open-pr.mjs"`; Tuning (line 141): `${CLAUDE_SKILL_DIR}/../10x-pipeline/policy.json`. Same quote note on the `Router:` line. The skill must stay free of model, effort and tier words beyond the 10x skill (AGENTS.md hard rule).
 
 #### 3. Content tests
 
@@ -65,7 +65,7 @@ Swap the placeholder for `${CLAUDE_SKILL_DIR}` in both skills and re-pin the tes
 
 **Intent**: Pin the new lines and forbid the old placeholder, for the ROUTER, PR_COMMENT, OPEN_PR and Tuning paths of each skill.
 
-**Contract**: In `skill-loop.test.mjs` update the OPEN_PR assertion (`:92`) to ``OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"``, and add tests that (a) the whole file contains no `<this skill's base directory>`; (b) the `Router:`, `PR comment script:` and `OPEN_PR` lines and the Tuning `policy.json` bullet each include a path starting `${CLAUDE_SKILL_DIR}/` (use the literal string, not a template literal: write `"${CLAUDE_SKILL_DIR}"` in a normal quoted string or escape the `$`). In `openspec-skill.test.mjs` update `:79`, `:82`, `:155` to the `${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/...` forms and add the same no-placeholder and Tuning checks. Keep the existing file-exists assertions.
+**Contract**: In `skill-loop.test.mjs` update the OPEN_PR assertion (`:92`) to ``OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"``, and add tests that (a) the whole file contains no `<this skill's base directory>`; (b) the `Router:`, `PR comment script:` and `OPEN_PR` lines and the Tuning `policy.json` bullet each include a path starting `${CLAUDE_SKILL_DIR}/` (use the literal string, not a template literal: write `"${CLAUDE_SKILL_DIR}"` in a normal quoted string or escape the `$`). In `openspec-skill.test.mjs` update `:79`, `:82`, `:155` to the `${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/...` forms and add the same no-placeholder and Tuning checks. Keep the existing file-exists assertions. Both tests have a path override (`SKILL_PATH` in `skill-loop.test.mjs`, `OPENSPEC_SKILL_PATH` in `openspec-skill.test.mjs`), so run the deliberate break from success criterion 1.4 for each file; the parenthetical in 1.4 saying the openspec test has no override is out of date.
 
 ### Success Criteria:
 
@@ -99,7 +99,7 @@ State the version the plugin needs so a user on an older Claude Code knows why t
 
 **Intent**: Add a short requirement line in the `## 📦 Install` section (no new heading) naming the minimum Claude Code version and the two features behind it, next to the existing install commands.
 
-**Contract**: One or two sentences: Claude Code 2.1.292 or later; `${CLAUDE_SKILL_DIR}` in skill content needs 2.1.69 and the `effort` parameter of the Agent tool needs 2.1.292, so 2.1.292 covers both. Node.js 24 is already stated in `docs/REFERENCE.md`; do not repeat it unless README already does. Check that `README.md`, `plugin.json` and `marketplace.json` descriptions stay aligned (no change to those fields).
+**Contract**: One or two sentences: Claude Code 2.1.292 or later; `${CLAUDE_SKILL_DIR}` in skill content needs 2.1.69 and the `effort` parameter of the Agent tool needs 2.1.292, so 2.1.292 covers both. README already states Node.js 24+ in the two `Needs:` lines of Quick start, so do not repeat it in Install. Check that `README.md`, `plugin.json` and `marketplace.json` descriptions stay aligned (no change to those fields).
 
 ### Success Criteria:
 
@@ -127,7 +127,7 @@ Run the whole suite, push through the run's pull request, and prove the substitu
 
 **Intent**: No code change. Run the suite and check CI on the run's pull request; do the live check by hand.
 
-**Contract**: Live check procedure: install the plugin from the marketplace (`/plugin marketplace add` then `/plugin install`, not `--plugin-dir`) in a scratch project, run `/agent-smith:10x-pipeline` on a throwaway change (or ask Claude to print the `Router:` line of the loaded skill), and confirm the path shown is under the plugin cache (a version folder), contains `scripts/route.mjs`, and `node <path> status <id>` starts the router. Repeat for `/agent-smith:openspec-pipeline` (path ends `/../10x-pipeline/scripts/route.mjs` and resolves).
+**Contract**: Live check procedure: install the plugin from a local marketplace pointing at this run's worktree (`/plugin marketplace add <run worktree path>` then `/plugin install agent-smith@agent-smith`, not `--plugin-dir`; adding `xycu/agent-smith` would install `main`, which still has the old placeholder) in a scratch project, run `/agent-smith:10x-pipeline` on a throwaway change (or ask Claude to print the `Router:` line of the loaded skill), and confirm the path shown is under the plugin cache (a version folder), contains `scripts/route.mjs`, and `node <path> status <id>` starts the router. Repeat for `/agent-smith:openspec-pipeline` (path ends `/../10x-pipeline/scripts/route.mjs` and resolves).
 
 ### Success Criteria:
 
@@ -157,7 +157,7 @@ Run the whole suite, push through the run's pull request, and prove the substitu
 
 ### Manual Testing Steps:
 
-1. Install the plugin from the marketplace in a scratch project.
+1. Install the plugin from a local marketplace on the run's worktree in a scratch project.
 2. Load each skill and read the `Router:` line as Claude Code substituted it.
 3. Run `node <that path> status <id>` and confirm JSON.
 
