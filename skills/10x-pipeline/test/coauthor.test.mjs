@@ -201,3 +201,19 @@ test("coAuthorProblem and coAuthorTrailer", () => {
     assert.match(coAuthorProblem({ coAuthor: bad }), /^policy\.coAuthor /, JSON.stringify(bad));
   }
 });
+
+// ---- parity with open-pr.mjs ---------------------------------------------------------------
+
+test("open-pr.mjs coAuthorLine gives the router's trailer, and null where the router reports a problem", async () => {
+  const { coAuthorLine } = await import("../scripts/open-pr.mjs");
+  const values = [
+    { name: "Agent Smith", email: "agent-smith@ksycki.pl" }, { name: " Agent Smith ", email: " a@b " }, null, undefined,
+    { name: "", email: "a@b" }, { name: "A", email: "  " }, { name: "A\nB", email: "a@b" }, { name: "A", email: "a@b\r" },
+    { name: "<A>", email: "a@b" }, { name: "A", email: "<a@b>" }, { name: "A" }, { name: 1, email: "a@b" }, "A", [], 5, true,
+  ];
+  for (const value of values) {
+    const policy = value === undefined ? {} : { coAuthor: value };
+    const want = coAuthorProblem(policy) === null ? coAuthorTrailer(policy) : null;
+    assert.equal(coAuthorLine(policy), want, JSON.stringify(value));
+  }
+});
