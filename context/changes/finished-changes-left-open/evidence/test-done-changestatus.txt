@@ -1,0 +1,19 @@
+change-status.test.mjs: done prints the status of change.md as it is; done prints null for a change.md without a status field
+✔ done prints the status of change.md as it is (297.1265ms)
+✔ done prints null for a change.md without a status field or without frontmatter (205.687292ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 586.440375
+--- router diff vs main (scripts/)
+--- a/skills/10x-pipeline/scripts/route.mjs
++++ b/skills/10x-pipeline/scripts/route.mjs
+-      ? { action: "done", reason: d.reason, manualPending: d.manualPending, ...doneNotes(d), steps: ran.length }
++      ? {
++        action: "done", reason: d.reason, manualPending: d.manualPending, ...doneNotes(d), steps: ran.length,
++        ...(openspec ? {} : { changeStatus: frontmatterField(path.join(p.change, "change.md"), "status") }),
++      }
