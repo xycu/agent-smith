@@ -264,22 +264,22 @@ Additive log key (ADR-005): old `run.jsonl` files have no `swept`, and `status`/
 
 #### Automated
 
-- [ ] 1.1 Step commit and report tests pass: `node --test skills/10x-pipeline/test/stepcommit.test.mjs skills/10x-pipeline/test/openspec-isolation.test.mjs`
-- [ ] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.3 `init` and `status` against a scratch change folder print valid JSON (10x and `--chain openspec`), per AGENTS.md "Testing"
+- [x] 1.1 Step commit and report tests pass: `node --test skills/10x-pipeline/test/stepcommit.test.mjs skills/10x-pipeline/test/openspec-isolation.test.mjs` — 74384b2
+- [x] 1.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 74384b2
+- [x] 1.3 `init` and `status` against a scratch change folder print valid JSON (10x and `--chain openspec`), per AGENTS.md "Testing" — 74384b2
 
 ### Phase 2: open-pr.mjs names the code of its leftover commit
 
 #### Automated
 
-- [ ] 2.1 open-pr tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs`
-- [ ] 2.2 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [ ] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 open-pr tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs` — 1ad61aa
+- [x] 2.2 Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs` — 1ad61aa
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 1ad61aa
 
 ### Phase 3: Implement-class prompts commit their code under a typed subject
 
 #### Automated
 
-- [ ] 3.1 Rule-form and prompt tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
-- [ ] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.3 No prompt or doc outside `context/archive/` still says the `os-apply` subagent must not commit: `grep -rnE "MUST NOT\*\* commit, stage or stash|Do not commit unless" skills/*/SKILL.md skills/10x-pipeline/policy.json skills/10x-pipeline/prompts docs AGENTS.md README.md` prints nothing
+- [x] 3.1 Rule-form and prompt tests pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` — e3ec8b1
+- [x] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — e3ec8b1
+- [x] 3.3 No prompt or doc outside `context/archive/` still says the `os-apply` subagent must not commit: `grep -rnE "MUST NOT\*\* commit, stage or stash|Do not commit unless" skills/*/SKILL.md skills/10x-pipeline/policy.json skills/10x-pipeline/prompts docs AGENTS.md README.md` prints nothing — e3ec8b1
