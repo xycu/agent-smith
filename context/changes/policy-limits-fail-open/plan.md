@@ -66,7 +66,7 @@ One pure function `policyProblems(policy)` returns the first problem as text, in
 
 **File**: `skills/10x-pipeline/test/policy-validate.test.mjs` (new)
 
-**Intent**: One case per key and per wrong shape (string, `null`, negative, zero where positive is required, float, NaN-like string, out of range tier, `minTier > maxTier`, empty ladder, ladder entry without `effort`), each through `init` in a scratch project (`makeProject({ policy })`), asserting exit 1, `action: "halt"`, the reason contains the key name and the override file name, and the change folder is byte-identical (copy `snapshot` from `late-usage.test.mjs` or move it to `helpers.mjs` without changing existing callers) and no `agent-smith/meta.json` exists. The four reproductions of `change.md` as named cases (`maxTotalSteps: "1"`, `maxTotalSteps: 1` still halts at `Step budget 1 spent.`, `maxAttemptsPerStep: null`, `baseTier: 9` and a one-entry `ladder`). `next` and `usage` each get one case on a project whose policy is broken after `init`. `status` on a broken policy exits 0 and has `policyProblem`. The shipped `policy.json` has `policyProblems === null`, and a project whose override is the content of `baseline-policy.json` inits without a policy halt.
+**Intent**: One case per key and per wrong shape (string, `null`, negative, zero where positive is required, float, NaN-like string, out of range tier, `minTier > maxTier`, empty ladder, ladder entry without `effort`), each through `init` in a scratch project (`makeProject({ policy })`), asserting exit 1, `action: "halt"`, the reason contains the key name and the override file name, and the change folder is byte-identical (copy `snapshot` from `late-usage.test.mjs:24` into the new file; `helpers.mjs` stays as it was except for `writeOverride` and `cleanupAll`, per `AGENTS.md`) and no `agent-smith/meta.json` exists. The four reproductions of `change.md` as named cases (`maxTotalSteps: "1"` halts at `init`; `maxTotalSteps: 1` still halts at `Step budget 1 spent.` and needs `init`, a `failed` result and `next`, so it is the one case that is not init-only; `maxAttemptsPerStep: null`, `baseTier: 9` and a one-entry `ladder`). `next` and `usage` each get one case on a project whose policy is broken after `init`. `status` on a broken policy exits 0 and has `policyProblem`. The shipped `policy.json` has `policyProblems === null`, and a project whose override is the content of `baseline-policy.json` inits without a policy halt.
 
 ### Success Criteria:
 
@@ -107,7 +107,7 @@ Reject a prompt template with a `{name}` the router never fills; move `limits.ma
 
 **File**: `skills/10x-pipeline/scripts/flow.mjs`
 
-**Intent**: Add and export `promptProblem(policy)` beside `checkPrompts`: for each template of `policy.prompts`, resolve it with `promptText`; skip a template that does not resolve (`checkPrompts` reports it later, unchanged); return the first `{name}` not in `PROMPT_PLACEHOLDERS` as `policy.prompts.<template> uses {<name>}, which the router never fills. Known placeholders: <list>. Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`
+**Intent**: Add and export `promptProblem(policy)` beside `checkPrompts`: for each template of `policy.prompts`, resolve it with `promptText`; skip a template that does not resolve (`promptText` throws for a missing key, a non-string part or a bad `@prompts/` reference: catch the throw and skip, so `checkPrompts` still reports it later with the text `preplan.test.mjs:183-195` expects, `Router error: policy.prompts.plan ...`); return the first `{name}` not in `PROMPT_PLACEHOLDERS` as `policy.prompts.<template> uses {<name>}, which the router never fills. Known placeholders: <list>. Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`
 
 **Contract**: `main()` in `route.mjs` calls `policyProblems(policy) ?? promptProblem(policy)` in the one place added in Phase 1; `status` does the same for `policyProblem`.
 
@@ -160,9 +160,9 @@ Document the load check where the repo documents routing, fix the placeholder li
 
 #### 2. AGENTS.md and ADR
 
-**Files**: `AGENTS.md`, `docs/ADR/ADR-022-policy-validation-at-load.md` (new)
+**Files**: `AGENTS.md`, `docs/ADR/ADR-022-policy-validation-at-load.md` (new), `docs/ADR/ADR-015-neutral-orchestrator-retry.md`
 
-**Intent**: In `AGENTS.md` Project Structure, add `policyProblems` to the `state.mjs` item, `promptProblem` to `flow.mjs`, a bullet for `policy-validate.test.mjs`, and extend the `docs/ADR/` item with ADR-022. The ADR records: fail closed at load for the keys that cap spend, which commands check, the lenient `baseTier` rule, `maxNeutralRetries` moved from tolerant to strict, what stays unchecked.
+**Intent**: In `AGENTS.md` Project Structure, add `policyProblems` to the `state.mjs` item, `promptProblem` to `flow.mjs`, a bullet for `policy-validate.test.mjs`, and extend the `docs/ADR/` item with ADR-022. The ADR records: fail closed at load for the keys that cap spend, which commands check, the lenient `baseTier` rule, `maxNeutralRetries` moved from tolerant to strict, what stays unchecked. ADR-015 line 62 says a `maxNeutralRetries` that is not a non-negative integer MUST read as 2, which this change reverses: append an Amendment to ADR-015 (same style as Amendment 1 of ADR-012) that replaces that line with the halt and points to ADR-022, and leave the rest of ADR-015 as it is.
 
 **Contract**: Same ADR section layout as `ADR-021-agent-smith-co-author.md`.
 
@@ -202,7 +202,7 @@ One pass over the policy and the prompt files per command; prompts are already r
 
 ## Migration Notes
 
-A project override that held a malformed value used to run with the bound off (or the default 2 for `maxNeutralRetries`); it now halts at the next `init`, `next` or `usage` and the text names the key. A run in flight resumes after the owner fixes the file; nothing in `run.jsonl` or `meta.json` changes.
+A project template that holds a `{word}` outside the 17 known names (it used to render as empty text) also halts, naming the template and the word. A project override that held a malformed value used to run with the bound off (or the default 2 for `maxNeutralRetries`); it now halts at the next `init`, `next` or `usage` and the text names the key. A run in flight resumes after the owner fixes the file; nothing in `run.jsonl` or `meta.json` changes.
 
 ## References
 
