@@ -1,7 +1,7 @@
 ---
 change_id: ci-runner-non-root
 title: Run the CI jobs as a non-root user as ADR-020 requires
-status: planned
+status: impl_reviewed
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null
