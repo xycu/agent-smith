@@ -188,16 +188,16 @@ None. Existing commits and runs are unchanged; resumed runs add the trailer to n
 
 #### Automated
 
-- [x] 1.1 New tests pass: `node --test skills/10x-pipeline/test/coauthor.test.mjs`
-- [x] 1.2 Commit, rollback, archive, late-usage and provenance suites still pass
-- [x] 1.3 Policy file stays valid JSON
+- [x] 1.1 New tests pass: `node --test skills/10x-pipeline/test/coauthor.test.mjs` — 9a837b6
+- [x] 1.2 Commit, rollback, archive, late-usage and provenance suites still pass — 9a837b6
+- [x] 1.3 Policy file stays valid JSON — 9a837b6
 
 ### Phase 2: `open-pr.mjs` leftovers commit
 
 #### Automated
 
-- [ ] 2.1 PR script tests pass
-- [ ] 2.2 Parity of the two validators
+- [x] 2.1 PR script tests pass
+- [x] 2.2 Parity of the two validators
 
 ### Phase 3: Docs, ADR and full verification
 

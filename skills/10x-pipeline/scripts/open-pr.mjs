@@ -6,6 +6,7 @@
 // Plain node: built-ins and the standalone helpers in pr-common.mjs; no router module.
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
 } from "./pr-common.mjs";
@@ -19,6 +20,25 @@ const TITLE_CAP = 256;
 const COMMIT_MESSAGE = (id) => `chore(${id}): final run state`;
 
 class UsageError extends Error {}
+
+// The co-author trailer of policy.coAuthor, or null when it is off or invalid; never a failure. A copy of the rule of
+// coAuthorProblem and coAuthorTrailer in state.mjs, since this script imports no router module (coauthor.test.mjs checks parity).
+export function coAuthorLine(policy) {
+  const c = policy?.coAuthor;
+  if (c === null || typeof c !== "object" || Array.isArray(c)) return null;
+  const ok = (v) => typeof v === "string" && v.trim() !== "" && !/[\r\n<>]/.test(v);
+  return ok(c.name) && ok(c.email) ? `Co-Authored-By: ${c.name.trim()} <${c.email.trim()}>` : null;
+}
+
+// coAuthor of the plugin policy.json, replaced by the key of the project override when it has one (null included).
+// An unreadable file or bad JSON counts as no key.
+function readCoAuthor() {
+  const read = (file) => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; } };
+  const plugin = read(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "policy.json"));
+  const override = read(path.join("context", "foundation", "agent-smith-policy.json"));
+  const has = (o) => o !== null && typeof o === "object" && !Array.isArray(o) && Object.hasOwn(o, "coAuthor");
+  return coAuthorLine({ coAuthor: has(override) ? override.coAuthor : has(plugin) ? plugin.coAuthor : null });
+}
 
 function parseArgs(argv) {
   const opts = { id: null, chain: "10x", report: null, remote: "origin", base: null, draft: false, timeoutMs: DEFAULT_TIMEOUT_MS };
@@ -230,7 +250,8 @@ function commitLeftovers(id) {
     unstage(added);
     return { committed: false, error: gitError(add, "git add") };
   }
-  const commit = runGit(["commit", "-q", "-m", COMMIT_MESSAGE(id)]);
+  const trailer = readCoAuthor();
+  const commit = runGit(["commit", "-q", "-m", COMMIT_MESSAGE(id), ...(trailer ? ["--trailer", trailer] : [])]);
   if (commit.status !== 0) {
     unstage(added);
     return { committed: false, error: gitError(commit, "git commit") };
