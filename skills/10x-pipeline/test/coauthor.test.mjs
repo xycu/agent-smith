@@ -171,6 +171,21 @@ test("a malformed coAuthor halts a step commit at next with nothing staged", { s
   }
 });
 
+test("a malformed coAuthor halts the rollback before its snapshot", { skip }, () => {
+  const wt = isolatedRun();
+  writeOverride(wt, { ...ON, coAuthor: { name: "A", email: "a>b" } });
+  fs.writeFileSync(path.join(wt.top, "partial.txt"), "half\n");
+  writeResult(wt, { status: "failed", note: "x" });
+  const head = gw(wt, ["rev-parse", "HEAD"]);
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /^Rollback of step 1 \(plan\): policy\.coAuthor email /);
+  assert.equal(gw(wt, ["rev-parse", "HEAD"]), head, "no reset");
+  assert.equal(gw(wt, ["for-each-ref", "refs/agent-smith/"]), "", "no snapshot ref");
+  assert.ok(indexEmpty(wt), "nothing staged");
+  assert.ok(fs.existsSync(path.join(wt.top, "partial.txt")), "partial edits kept");
+});
+
 test("coAuthor does not change the provenance record", () => {
   const sections = (policy) => {
     const project = makeProject({ policy });

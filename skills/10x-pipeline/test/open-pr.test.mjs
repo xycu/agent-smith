@@ -448,7 +448,12 @@ test("leftover edits are committed once as the final run state and pushed", { sk
 
 test("the leftover commit carries the Agent Smith trailer by default, none with coAuthor null, none with a malformed value", { skip }, () => {
   const TRAILER = "Co-Authored-By: Agent Smith <agent-smith@ksycki.pl>";
-  for (const [override, want] of [[undefined, TRAILER], [null, null], [{ name: "", email: "a@b" }, null], ["Agent Smith", null]]) {
+  const cases = [
+    [undefined, TRAILER], [null, null], [{ name: "", email: "a@b" }, null], ["Agent Smith", null],
+    // merged into the default as the router's deepMerge does
+    [{ name: "Someone" }, "Co-Authored-By: Someone <agent-smith@ksycki.pl>"],
+  ];
+  for (const [override, want] of cases) {
     const w = world();
     if (override !== undefined) {
       const file = path.join(w.wt, "context/foundation/agent-smith-policy.json");

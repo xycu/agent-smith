@@ -27,11 +27,11 @@
 
 ### How git gets it (D3)
 
-`git commit` gets `--trailer "<line>"` right after `-m <message>` and before the `--` of the pathspec form, so the git shims and the argument-order test of the archive path keep matching. The rollback snapshot is made with `git commit-tree`, which has no `--trailer`, so it gets a second `-m` paragraph. Hooks and signing apply as before; never `--no-verify`.
+`git commit` gets `--trailer "<line>"` right after `-m <message>` and before the `--` of the pathspec form, so the git shims and the argument-order test of the archive path keep matching. The rollback snapshot is made with `git commit-tree`, which has no `--trailer`, so it gets a second `-m` paragraph. Hooks and signing apply as before; never `--no-verify`. `git commit --trailer` needs git 2.32 or later: with an older git a router commit fails and the run halts with git's message, unless `coAuthor` is `null`.
 
 ### `open-pr.mjs` (D4)
 
-`open-pr.mjs` reads `coAuthor` from the plugin `policy.json` next to it and from `context/foundation/agent-smith-policy.json` under the current directory (an override key, `null` included, wins), with built-ins only. Its `coAuthorLine(policy)` is a copy of the rule of D2 that gives `null` for an invalid value: a malformed key never fails the push or the pull request. `coauthor.test.mjs` feeds both rules the same values and checks they agree.
+`open-pr.mjs` reads `coAuthor` from the plugin `policy.json` next to it and from `context/foundation/agent-smith-policy.json` under the current directory, with built-ins only, and merges them as the router does: an override object is merged into the default object, any other override value (`null` included) replaces it. Its `coAuthorLine(policy)` is a copy of the rule of D2 that gives `null` for an invalid value: a malformed key never fails the push or the pull request. `coauthor.test.mjs` feeds both rules the same values and checks they agree.
 
 ## Alternatives
 

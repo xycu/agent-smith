@@ -30,14 +30,19 @@ export function coAuthorLine(policy) {
   return ok(c.name) && ok(c.email) ? `Co-Authored-By: ${c.name.trim()} <${c.email.trim()}>` : null;
 }
 
-// coAuthor of the plugin policy.json, replaced by the key of the project override when it has one (null included).
+// coAuthor of the plugin policy.json and the project override, merged as the router's deepMerge does: an override
+// object is merged into the default object, any other override value (null included) replaces it.
 // An unreadable file or bad JSON counts as no key.
 function readCoAuthor() {
   const read = (file) => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; } };
   const plugin = read(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "policy.json"));
   const override = read(path.join("context", "foundation", "agent-smith-policy.json"));
-  const has = (o) => o !== null && typeof o === "object" && !Array.isArray(o) && Object.hasOwn(o, "coAuthor");
-  return coAuthorLine({ coAuthor: has(override) ? override.coAuthor : has(plugin) ? plugin.coAuthor : null });
+  const plain = (o) => o !== null && typeof o === "object" && !Array.isArray(o);
+  const has = (o) => plain(o) && Object.hasOwn(o, "coAuthor");
+  const base = has(plugin) ? plugin.coAuthor : null;
+  if (!has(override)) return coAuthorLine({ coAuthor: base });
+  const over = override.coAuthor;
+  return coAuthorLine({ coAuthor: plain(over) && plain(base) ? { ...base, ...over } : over });
 }
 
 function parseArgs(argv) {
