@@ -1,100 +1,110 @@
 # Waves
 
-The order of work for the open changes in this folder, as of 2026-11-12. There are 37 open changes (status `new`, no run yet), split into seven waves of four to six changes. Each wave is one batch: finish it, release, then start the next.
+The order of work for the 37 open changes in this folder (status `new`, no run yet), as of 2026-11-12.
 
-## How to use it
+A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
-- Work on one wave at a time, in the order below. An earlier wave makes the later ones cheaper or safer.
-- Inside a wave, run the changes in the listed order and one after another. Most changes of a wave edit the same files (`ci.yml`, `helpers.mjs`, both `SKILL.md` files, `state.mjs`), so parallel runs would conflict.
-- A change marked "owner" needs a decision or an action from the owner before or during its run.
-- When a change is archived, remove its row here. When a new change is added, put it into the wave whose files it touches.
+## Rules
+
+- Start every run of a wave from the same `main`, after the previous wave is merged.
+- A change stays inside the files its row names under "Owns in this wave". If its plan needs a file that another change of the same wave owns, move the change to a later wave before it runs.
+- Shared text files are the one exception: `AGENTS.md`, `README.md`, `docs/REFERENCE.md` and the two skill content tests (`skill-loop.test.mjs`, `openspec-skill.test.mjs`). Several changes of a wave add lines to them, in different places. Merge the pull requests of a wave one by one. If a later one then conflicts in such a file, resolve it on its branch with a merge of `main` and a new commit. Never force-push.
+- "Owner" marks a change that needs a decision or an action from the owner before or during its run.
+- Edit this file on `main`, once per wave, after the wave is merged. Do not edit it from a run branch, or every run of a wave conflicts here.
+
+## How the waves were cut
+
+Each change was mapped to the files and regions its fix names. Changes that share a region went into different waves, in dependency order:
+
+| Lane | Changes | Rule |
+| --- | --- | --- |
+| `.github/workflows/ci.yml` and `tools/test/ci-runner.test.mjs` | 6 | One per wave (waves 1 to 6). |
+| `skills/10x-pipeline/test/helpers.mjs` | 3 | One per wave. |
+| Both `SKILL.md` files | 12 | At most two per wave, in regions that do not touch: frontmatter, Start steps, script path lines, Loop step 2, anti-stall rules, the `done`/`archive`/`halt` branches, PR comment section. The rewrite of the whole file is alone in the last wave. |
+| `state.mjs` and `steps.mjs` | 5 | One per wave. |
+| `route.mjs` and `flow.mjs` | 10 | Different functions inside one wave; `init` is edited by one change per wave. |
+| `policy.json` | 4 | Different blocks inside one wave. |
+| Version and manifest files (`version-check.mjs`, `marketplace.json`, `plugin.json`) | 3 | One per wave. |
+| All of `AGENTS.md` | 1 | `agents-md-slim` shares its wave only with changes that leave `AGENTS.md` alone. |
+
+The map comes from the text of each `change.md` and the current layout of the files, not from finished diffs. Check it again when a plan is written.
 
 ## Before wave 1
 
 Fourteen folders here belong to runs that already ended; they are not in a wave. Thirteen ended `done`: `agents-md-no-imports`, `archive-done-routercommit`, `array-prompt-override`, `at-or-above-helper`, `budget-halt-after-done`, `file-guard-dedup`, `init-goal-flag`, `init-needs-change-md`, `override-json-error-halt`, `pin-action-shas`, `pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`. Read the open findings of the three with the verdict NEEDS ATTENTION (`pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`), then archive all thirteen with `/10x-archive <id>`. `ci-self-hosted-truenas` halted on an owner setting and stays until its Progress row 2.3 is settled (see `ci-runner-non-root`).
 
-## Wave 1: release and correctness
+## Wave 1: release and correctness (6)
 
-Goal: no release from a red commit, no shipped code hidden under `chore`, no policy value that fails open. These are the high-severity findings.
+The three high-severity findings, and what must land before them or before wave 2.
 
-| # | Change | What it does | Notes |
-| --- | --- | --- | --- |
-| 1 | `coauthor-test-coarse-mtime` | Fixes the coauthor tests that fail on Linux CI from a coarse file clock | The flake that failed the CI run of the `v1.5.0` commit. Must land before 2, or it blocks releases. |
-| 2 | `release-after-green-ci` | Starts the release workflow only after a CI run on `main` passed; cancels only pull request runs | High. |
-| 3 | `step-commit-code-under-chore` | Stops implemented code from landing in `chore` step commits, so a run branch can open a release PR | High. |
-| 4 | `policy-limits-fail-open` | Validates policy limits, ladder and tiers at load | High. |
-| 5 | `ci-runner-non-root` | Runs the CI jobs as a non-root user, as ADR-020 requires | Owner: runner setup on the NAS hosts. Edits `ci.yml` after 2. |
+| Change | Owns in this wave | Notes |
+| --- | --- | --- |
+| `coauthor-test-coarse-mtime` | `coauthor.test.mjs`, the `writePlan` imports of other test files | Merge first: it is the flake that failed the CI run of the `v1.5.0` commit, and the next row makes a red run block a release. |
+| `release-after-green-ci` | `ci.yml` (concurrency), `release.yml` | High. |
+| `step-commit-code-under-chore` | The implement, fix and `os-apply` templates of `policy.json`, the step commit in `isolation.mjs`, `open-pr.mjs` | High. |
+| `policy-limits-fail-open` | Policy load in `state.mjs`, template rendering in `steps.mjs`, command entry in `route.mjs` | High. |
+| `agents-md-duplicate-adr019` | One sentence of the ADR bullet in `AGENTS.md` | Must be merged before `agents-md-slim` (wave 2). |
+| `skill-rigor-flag` | Skills: `argument-hint`, Start steps 1 and 4 | |
 
-## Wave 2: context cost, docs and manifest
+## Wave 2: context cost (6)
 
-Goal: cut what every session and every step subagent loads, and make the documents agree with the code. Every later run gets cheaper.
+`agents-md-slim` rewrites `AGENTS.md`, so every other change of this wave leaves that file alone. Each one edits existing functions and tests and adds no file that `AGENTS.md` lists.
 
-| # | Change | What it does | Notes |
-| --- | --- | --- | --- |
-| 1 | `agents-md-duplicate-adr019` | Removes the repeated ADR-019 sentence from `AGENTS.md` | Covered by 2; run first or close as part of it. |
-| 2 | `agents-md-slim` | Reduces `AGENTS.md` from 32 KB to rules and pointers; moves the test and ADR catalogs to index files | Several tests pin `AGENTS.md` text. |
-| 3 | `docs-drift-fixes` | Fixes seven places where README, REFERENCE, the ADRs and the manifests disagree with the code | |
-| 4 | `marketplace-entry-version` | Drops the duplicate `version` from the marketplace plugin entry | Touches `tools/version-check.mjs`, as 3 does. |
-| 5 | `skills-disable-model-invocation` | Decides whether the model may start a pipeline run on its own | Owner decision. |
+| Change | Owns in this wave | Notes |
+| --- | --- | --- |
+| `agents-md-slim` | All of `AGENTS.md`, new `skills/10x-pipeline/test/README.md` and `docs/ADR/README.md` | Several tests pin `AGENTS.md` text. |
+| `ci-runner-non-root` | `ci.yml` (first step of the `test` job) | Owner: runner setup on the NAS hosts. |
+| `skill-dir-variable` | Skills: the three script path lines and Tuning | Before `worktree-setup-script` (wave 4), which adds a script path. |
+| `finished-changes-left-open` | The `done` output of the router; skills: the `done` branch | The housekeeping part is "Before wave 1". |
+| `attach-result-persist-first` | `attachResult` in `flow.mjs` | |
+| `plan-crlf-line-endings` | `readPlan` in `state.mjs`, `planPaths` and `phaseFiles` | |
 
-## Wave 3: test and CI hardening
+## Wave 3: flags, versions and suite speed (6)
 
-Goal: a suite that is faster, cannot write outside its scratch folders, cannot hang a runner and does not hide skipped checks. Later waves rely on it.
+| Change | Owns in this wave | Notes |
+| --- | --- | --- |
+| `ci-job-and-spawn-timeouts` | `ci.yml` (job keys), `run` and `git` in `helpers.mjs` | |
+| `pr-comment-flag-in-meta` | `init` flags and the `done`, `archive` and `halt` outputs in `route.mjs`; skills: `allowed-tools`, Start steps 4 and 5, the TaskList paragraphs, the PR comment section; `.claude/settings.json` | The largest skill edit of the wave. |
+| `router-bash-timeout` | Skills: one new line next to the script path lines | Keep it out of the paragraphs the row above rewrites. |
+| `marketplace-entry-version` | `marketplace.json`, `release-please-config.json`, `tools/version-check.mjs` | |
+| `budget-test-file-split` | `budget-executors.test.mjs` and a new helper module | Cuts the suite wall time for every later run. |
+| `shared-churn-excludes` | Churn config in `state.mjs`, `evidenceExcludes` in `steps.mjs` | |
 
-| # | Change | What it does | Notes |
-| --- | --- | --- | --- |
-| 1 | `tests-strip-git-env` | Drops inherited `GIT_` variables in the test helpers | |
-| 2 | `ci-job-and-spawn-timeouts` | Adds job timeouts to CI and a spawn timeout to the test helpers | |
-| 3 | `ci-scratch-in-runner-temp` | Puts the scratch folders of a CI run into the runner temp directory | |
-| 4 | `ci-fail-on-unexpected-skips` | Fails CI when the OpenSpec contract tests or the git tests skip | Owner: whether CI installs a pinned OpenSpec CLI. |
-| 5 | `budget-test-file-split` | Splits the test file that takes 97% of the suite wall time | |
-| 6 | `coverage-and-failed-undo-test` | Prints coverage in CI and tests the halt text of a rollback that was not undone | |
+## Wave 4: run state and isolation setup (6)
 
-## Wave 4: router state and readers
+| Change | Owns in this wave | Notes |
+| --- | --- | --- |
+| `ci-scratch-in-runner-temp` | `ci.yml` (environment of the test step) | |
+| `worktree-setup-script` | New `scripts/prepare-run.mjs`; skills: Start step 3 | |
+| `agent-call-parameters` | Skills: Loop step 2, anti-stall rules 1 and 6, the late-usage paragraph | After `pr-comment-flag-in-meta` (wave 3), which rewrites the branches around that paragraph. |
+| `run-state-atomic-writes` | The write and `readLog` paths of `state.mjs` and their call sites in `init`, `next` and `usage` | |
+| `tests-strip-git-env` | `run` and `gitEnv` in `helpers.mjs`, four test files with their own environment | |
+| `compare-failed-attempts-neutral` | `compare` in `route.mjs` | |
 
-Goal: run state that survives a crash, and readers that neither crash nor miscount on unusual input.
+## Wave 5: owner decisions and guards (5)
 
-| # | Change | What it does | Notes |
-| --- | --- | --- | --- |
-| 1 | `attach-result-persist-first` | Persists the step result in `run.jsonl` before `last-result.json` is deleted | |
-| 2 | `run-state-atomic-writes` | Writes `run.jsonl` and `meta.json` atomically; stops dropping unreadable log lines | Same write path as 1. |
-| 3 | `change-id-length-cap` | Refuses a change id longer than 100 characters at `init` | |
-| 4 | `plan-crlf-line-endings` | Parses a `plan.md` with CRLF line endings | |
-| 5 | `compare-failed-attempts-neutral` | Counts failed attempts in `compare` with the router's `isFailure` rule | |
-| 6 | `shared-churn-excludes` | Shares one fallback for the churn exclude globs | |
+| Change | Owns in this wave | Notes |
+| --- | --- | --- |
+| `ci-fail-on-unexpected-skips` | `ci.yml` (new step), `gitAvailable` in `helpers.mjs`, `openspec-contract.test.mjs` | Owner: whether CI installs a pinned OpenSpec CLI. |
+| `stale-main-change-copy` | The `init` halt in `route.mjs`, the cleanup in `prepare-run.mjs`; skills: the stale-copy paragraph of the final message | Needs `worktree-setup-script` (wave 4). |
+| `skills-disable-model-invocation` | Skills: frontmatter `description` and the new key; the manifest descriptions | Owner decision. |
+| `ladder-fable-rung` | `ladder` and `maxTier` in `policy.json`, `ladder.test.mjs` | Owner decision: cost. |
+| `delete-guard-gaps` | `no-recursive-delete.test.mjs` | |
 
-## Wave 5: orchestrator skill fixes
+## Wave 6: prompts, ids and document drift (5)
 
-Goal: the skill text matches the tools and flags that exist. Every change here edits both `SKILL.md` files.
+| Change | Owns in this wave | Notes |
+| --- | --- | --- |
+| `coverage-and-failed-undo-test` | `ci.yml` (test command), `rollback.test.mjs` | |
+| `step-prompt-by-file` | The prompt output in `flow.mjs`, a new key in the `prompts` block of `policy.json`; skills: Loop step 2 | After `agent-call-parameters` (wave 4). Decide the default from `compare` data. |
+| `change-id-length-cap` | The id check of `init`; skills: the 100-character parenthesis of the PR comment section | |
+| `docs-drift-fixes` | `README.md`, `docs/REFERENCE.md`, six ADRs, `prompts/README.md`, the manifest descriptions, `tools/version-check.mjs` | After `pr-comment-flag-in-meta` (wave 3), which removes its item 2, and after the description change of wave 5. |
+| `nested-subagent-hard-stop` | `.claude/settings.json`, ADR-018, optionally `agents/step.md` and the `agents` block of `policy.json` | |
 
-| # | Change | What it does | Notes |
-| --- | --- | --- | --- |
-| 1 | `agent-call-parameters` | Makes the step Agent call match the Agent tool and gives it a fixed description | |
-| 2 | `skill-rigor-flag` | Parses `--rigor` in both skills, as the README offers it | |
-| 3 | `skill-dir-variable` | Uses the documented skill directory variable for the script paths | |
-| 4 | `router-bash-timeout` | Runs router and `open-pr.mjs` calls with a Bash timeout above the git timeouts | |
-| 5 | `pr-comment-flag-in-meta` | Stores the `--pr-comment` request in `meta.json` instead of a session task | |
-| 6 | `finished-changes-left-open` | Reports a stale `change.md` status at `done` and names the ways to close the change | The housekeeping part is "Before wave 1". |
+## Wave 7: skill rewrite (3)
 
-## Wave 6: isolation and skill structure
-
-Goal: move setup out of prose, enforce what is only asked for today, then shrink the skill. The larger refactors, after the small fixes of wave 5.
-
-| # | Change | What it does | Notes |
-| --- | --- | --- | --- |
-| 1 | `worktree-setup-script` | Moves run isolation setup from skill prose into a script | |
-| 2 | `stale-main-change-copy` | Removes the main-checkout copy of a change folder once the run branch holds it | Builds on 1. |
-| 3 | `nested-subagent-hard-stop` | Enforces the nested-subagent ban outside the prompt | |
-| 4 | `skill-md-context-diet` | Cuts the skill text that the orchestrator never acts on | Last skill edit; after everything above. Tests pin skill text. |
-| 5 | `step-prompt-by-file` | Hands the step prompt to the subagent by file, behind a policy key | Decide the default from `compare` data. |
-
-## Wave 7: guards and the ladder
-
-Goal: close the gaps in the repository's own guards. These are independent of the other waves and may move earlier.
-
-| # | Change | What it does | Notes |
-| --- | --- | --- | --- |
-| 1 | `delete-guard-gaps` | Closes the gaps of the recursive delete guard | |
-| 2 | `commit-lint-merge-prefix` | Stops commit-lint from accepting any subject that starts with "Merge" | |
-| 3 | `workflow-pins-local-actions` | Checks local actions outside `.github/` in the pin guard | Latent; no such action exists today. |
-| 4 | `ladder-fable-rung` | Lets the ladder reach the `fable` model without renumbering tiers | Owner decision: cost. |
+| Change | Owns in this wave | Notes |
+| --- | --- | --- |
+| `skill-md-context-diet` | Both `SKILL.md` files, whole | Alone on the skills, after every other skill change. Tests pin skill text. |
+| `commit-lint-merge-prefix` | `tools/commit-lint.mjs` | Independent; may join any earlier wave if it leaves `ci.yml` alone there. |
+| `workflow-pins-local-actions` | `tools/workflow-pins.mjs` | Independent; may join any earlier wave. Latent: no local action exists today. |
