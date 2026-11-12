@@ -1,10 +1,10 @@
 ---
 change_id: agents-md-duplicate-adr019
 title: Remove the repeated ADR-019 sentence from AGENTS.md
-status: new
+status: archived
 created: 2026-11-12
 updated: 2026-11-12
-archived_at: null
+archived_at: 2026-11-12T12:39:42Z
 ---
 
 ## Notes
