@@ -187,7 +187,7 @@ None. `changeStatus` is a new optional key of an existing output; the skills ign
 
 #### Manual
 
-- [ ] 1.5 In a scratch project with a finished 10x run, `init` prints valid JSON with `changeStatus` and no other change to the `done` object — evidence: evidence/test-done-changestatus.txt
+- [x] 1.5 In a scratch project with a finished 10x run, `init` prints valid JSON with `changeStatus` and no other change to the `done` object — evidence: evidence/test-done-changestatus.txt
 
 ### Phase 2: Skill text
 
@@ -200,5 +200,5 @@ None. `changeStatus` is a new optional key of an existing output; the skills ign
 
 #### Manual
 
-- [ ] 2.5 The diff of `SKILL.md` reads as one coherent `done` branch with the step order unchanged — evidence: evidence/judgment-skill-done-branch.md
+- [x] 2.5 The diff of `SKILL.md` reads as one coherent `done` branch with the step order unchanged — evidence: evidence/judgment-skill-done-branch.md
 - [ ] 2.6 CI is green on the pull request of the run branch
