@@ -11,9 +11,9 @@ Archive: requested - runs after this report was written; see the commit "chore(a
 | 2 | plan-review | sonnet | high | 3 | no | ok (8e07801) | 138338 |
 | 3 | implement | opus | medium | 4 | no | ok (28bbcb5) | 173818 |
 | 4 | manual-verify | sonnet | medium | 2 | no | ok (f90740d) | 77060 |
-| 5 | impl-review | opus | high | 5 | no | ok (3205f37) | - |
+| 5 | impl-review | opus | high | 5 | no | ok (3205f37) | 150887 |
 
-Steps: 5 · Tokens: 508824 (figures for 4 of 5 steps)
+Steps: 5 · Tokens: 659711 (figures for 5 of 5 steps)
 
 ## Review findings
 
