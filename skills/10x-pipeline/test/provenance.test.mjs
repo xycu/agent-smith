@@ -86,7 +86,7 @@ function copyRecord(copy, policy = null) {
 // ---- 1.1 the record --------------------------------------------------------------------
 
 test("1.1 policy.json ships the provenance block", () => {
-  assert.deepEqual(DEFAULT.provenance, { ignore: ["compare", "provenance", "prices"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } });
+  assert.deepEqual(DEFAULT.provenance, { ignore: ["compare", "provenance", "prices", "coAuthor"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } });
 });
 
 test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except the ignored ones, prompts, agentFiles and flags", () => {
@@ -94,9 +94,9 @@ test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except t
   assert.deepEqual(Object.keys(rec).sort(), ["flags", "plugin", "schemaVersion", "sections"]);
   assert.equal(rec.schemaVersion, 1);
   assert.equal(rec.plugin, PLUGIN.version);
-  const want = [...Object.keys(DEFAULT).filter((k) => k !== "compare" && k !== "provenance" && k !== "prices"), "agentFiles"].sort();
+  const want = [...Object.keys(DEFAULT).filter((k) => !["compare", "provenance", "prices", "coAuthor"].includes(k)), "agentFiles"].sort();
   assert.ok(want.includes("prompts"));
-  assert.deepEqual(Object.keys(rec.sections), want, "every section but compare, provenance and prices, sorted");
+  assert.deepEqual(Object.keys(rec.sections), want, "every section but compare, provenance, prices and coAuthor, sorted");
   for (const [name, hash] of Object.entries(rec.sections)) {
     if (name === "agentFiles") assert.ok(hash === null || HEX16.test(hash), `agentFiles ${hash}`);
     else assert.match(hash, HEX16, name);
