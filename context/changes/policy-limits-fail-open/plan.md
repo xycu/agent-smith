@@ -233,10 +233,10 @@ A project template that holds a `{word}` outside the 17 known names (it used to 
 
 #### Automated
 
-- [ ] 2.1 Placeholder cases pass: `node --test skills/10x-pipeline/test/policy-validate.test.mjs`
-- [ ] 2.2 Neutral tests pass with the halt case: `node --test skills/10x-pipeline/test/neutral.test.mjs`
-- [ ] 2.3 Every shipped prompt passes the placeholder check (covered by the shipped-policy case): `node --test skills/10x-pipeline/test/policy-validate.test.mjs`
-- [ ] 2.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 Placeholder cases pass: `node --test skills/10x-pipeline/test/policy-validate.test.mjs` — 5988b61
+- [x] 2.2 Neutral tests pass with the halt case: `node --test skills/10x-pipeline/test/neutral.test.mjs` — 5988b61
+- [x] 2.3 Every shipped prompt passes the placeholder check (covered by the shipped-policy case): `node --test skills/10x-pipeline/test/policy-validate.test.mjs` — 5988b61
+- [x] 2.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 5988b61
 
 #### Manual
 
