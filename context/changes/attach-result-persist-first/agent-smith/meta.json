@@ -42,5 +42,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 The pull request of the run branch shows CI green"
+    ],
+    "manualNotProved": [
+      "2.4 The pull request of the run branch shows CI green — not proved: needs the pull request of the run branch; the router pushes and opens it only at the end of the run, and pushing/gh are not allowed here"
+    ]
   }
 }
