@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction' and 'Done when' fix the outcome: a uid step in the test job of ci.yml, the ADR-020 prerequisite aligned, the runner setup left as an owner Manual row. Open detail: container versus host for the runner user, which the owner decides" },
+    "novelty": { "score": 1, "evidence": "ci.yml already has runs-on pins and tools/test/ci-runner.test.mjs checks workflow text; a uid check step adapts that pattern" },
+    "coupling": { "score": 1, "evidence": "change.md 'Fix direction' 2 and 'Tests': .github/workflows/ci.yml (test job), tools/test/ci-runner.test.mjs, docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md:43; the two privileged-skip tests in skills/10x-pipeline/test/no-recursive-delete.test.mjs:76-93 are not edited" },
+    "discovery": { "score": 0, "evidence": "change.md names every location: ci.yml test job, ADR-020 line 43, ci-runner.test.mjs, the skip lines no-recursive-delete.test.mjs:76-77 and :93" },
+    "volume": { "score": 1, "evidence": "change.md 'Fix direction': one guard step in ci.yml, one test added to ci-runner.test.mjs, one ADR-020 line aligned; about 3 files, small edits" },
+    "verification": { "score": 2, "evidence": "change.md 'Done when': a root runner fails the job and the suite runs as non-root, which needs a real TrueNAS CI run (owner host, Manual row). Local part is covered by the existing node --test suite and a new workflow-text check" }
+  },
+  "unknowns": [
+    "Whether the TrueNAS runner service runs as uid 0 on the host or inside a container (change.md notes the tool-cache path suggests a container image); the repository cannot show this",
+    "Whether the owner will fix the runner user (non-root service user or fresh non-root container per job); the guard only detects it",
+    "Whether the local suite runs as non-root on the developer machine, so the two privileged-skip tests run locally; not checked",
+    "The CI evidence (skipped count falls by 2 on a real runner) can only be seen after an owner run"
+  ],
+  "confidence": "medium"
+}
