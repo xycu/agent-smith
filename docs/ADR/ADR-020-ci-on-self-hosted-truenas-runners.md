@@ -1,6 +1,6 @@
 # ADR-020: Run CI on self-hosted TrueNAS runners
 
-- **Status:** Accepted (unattended plan and implementation runs of change `ci-self-hosted-truenas` for the readings below; no run has used the runners yet)
+- **Status:** Accepted (unattended plan and implementation runs of change `ci-self-hosted-truenas` for the readings below; no run has used the runners yet); amended (Amendment 1)
 - **Date:** 2026-11-11
 - **Deciders:** the repository owner (goal of change `ci-self-hosted-truenas`)
 - **Origin:** change `ci-self-hosted-truenas` (`context/changes/ci-self-hosted-truenas/plan.md`). It touches the CI job of ADR-008; no earlier decision is superseded.
@@ -40,13 +40,13 @@ The repository holds no runner setup. A runner for this repository needs:
 - Linux x64 or arm64, a runner version that runs Node 24 actions (`actions/checkout` v5 documents v2.327.1 or newer), registered to `xycu/agent-smith` with the labels `self-hosted`, `linux`, `truenas`.
 - Node 24, reachable through `actions/setup-node` (outbound HTTPS to github.com and the Node distribution host, or a populated tool cache) or preinstalled.
 - `git` 2.x, and a temp dir the runner user can write.
-- A non-root service user.
+- A non-root service user. The first step of the `test` job in `ci.yml` checks it and fails at uid 0 (Amendment 1).
 - A clean workspace for every job: register the runner with `--ephemeral`, or run each job in a fresh container, so no file, process or credential carries over from one job to the next. The runner host has no route to the rest of the LAN that CI does not need.
 - No secrets or credentials beyond the runner token, because the repository is public.
 
 ## Assumptions
 
-- The runners provide the prerequisites above. The owner has not confirmed this against the real hosts yet (Progress row 2.3).
+- The runners provide the prerequisites above. The owner has not confirmed this against the real hosts yet (Progress row 2.3). The uid part did not hold on the first reading: CI run 43134692634 ran as uid 0 (Amendment 1).
 - The fork approval setting is "Require approval for all external contributors". No file of the repository can check it, and no Progress row covers it; `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval` reads it, and `approval_policy` must be `all_external_contributors`. On 2026-11-11 it read `first_time_contributors`, so this assumption does not hold until the owner changes the setting.
 
 ## Consequences
@@ -63,3 +63,10 @@ The repository holds no runner setup. A runner for this repository needs:
 - **Keep `ubuntu-latest` only.** Rejected: it does not meet the goal of running on the owner's hardware.
 - **Move `release.yml` too.** Rejected: its write token should not live on a persistent runner.
 - **Treat the `runs-on` fallback as the boundary.** Rejected: a fork edits it. Only the approval setting holds the run.
+
+## Amendment 1: the test job refuses to run as root (change ci-runner-non-root)
+
+- **Finding:** CI run 43134692634 on runner `truenas-agent-smith-1` ran the jobs as uid 0, so prerequisite D4 (a non-root service user) was not met. Two `removeTree` tests in `no-recursive-delete.test.mjs` skip when `process.getuid() === 0`, so they did not run in CI.
+- **Decision:** the first step of job `test` in `ci.yml`, `Refuse to run as root (ADR-020)`, runs `test "$(id -u)" -ne 0` and fails the job with an `::error::` line at uid 0, before checkout and before any model-written code runs. A root runner fails closed. The hosted fallback (`ubuntu-latest`, fork pull requests) runs as the non-root user `runner` and passes. `tools/test/ci-runner.test.mjs` pins the step as first in the job and proves that its command fails for uid 0 and passes for another uid.
+- **Owner action:** run the runner service as a non-root user, or run each job in a fresh non-root container. The work dataset path (`/mnt/main/lake/github/agent-smith-<n>/`) must be writable by that user. Whether uid 0 came from the host service or from a container is unknown. Do this before merging, because after the merge a root runner fails every `test` run and `release.yml` waits for a green `main` run.
+- **Not claimed:** this amendment does not say the runners are fixed. The proof is a CI run on the TrueNAS runner that passes the uid step (Progress rows 2.2 to 2.4 of change `ci-runner-non-root`).
