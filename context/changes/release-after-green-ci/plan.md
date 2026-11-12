@@ -208,7 +208,7 @@ Until the merge, the old `push` trigger is in force. After the merge, the releas
 
 #### Manual
 
-- [ ] 1.6 The diff of both workflow files reads correctly: header comments match the behaviour, no `uses:` line changed
+- [x] 1.6 The diff of both workflow files reads correctly: header comments match the behaviour, no `uses:` line changed — `git diff 2d8cb27~1 2d8cb27 -- .github/workflows` has no `uses:` line; the header comment of `release.yml` states the gate it implements
 
 ### Phase 2: Documentation
 
@@ -219,19 +219,19 @@ Until the merge, the old `push` trigger is in force. After the merge, the releas
 
 #### Manual
 
-- [ ] 2.3 `AGENTS.md` Releases section and ADR-008 amendment match the final workflow files
+- [x] 2.3 `AGENTS.md` Releases section and ADR-008 amendment match the final workflow files — the AGENTS.md Releases bullets and ADR-008 Amendment 1 state the same gate as the `release.yml` header: green push run of `main`, head check, rerun starts the job again, tag by the job of the merge commit's own CI run
 
 ### Phase 3: Live check after merge
 
 #### Automated
 
-- [ ] 3.1 After the merge, `gh run list --workflow Release --limit 5` shows runs with event `workflow_run`, none with event `push`
+- [x] 3.1 After the merge, `gh run list --workflow Release --limit 5` shows runs with event `workflow_run`, none with event `push` — `gh run list --workflow Release`: every run since the merge (5f033ba onward, 43183461174 to 43187995888) has event `workflow_run`; the two `push` runs (9a87bc0, c5bffb2) predate it
 
 #### Manual
 
-- [ ] 3.2 The merge to `main` gets a CI run that is not cancelled, and the Release run starts after it completes
-- [ ] 3.3 Merge two pull requests close together: each gets its own CI result; no CI run on `main` is cancelled
+- [x] 3.2 The merge to `main` gets a CI run that is not cancelled, and the Release run starts after it completes — CI run 43183448157 of the merge (5f033ba) ended success, not cancelled; Release run 43184000512 started 3 s after CI run 43183485936 completed (08:33:59 to 08:34:02Z)
+- [x] 3.3 Merge two pull requests close together: each gets its own CI result; no CI run on `main` is cancelled — pushes 15 s apart (5f033ba 08:30:06Z, 9b0aebe 08:30:21Z) each got their own CI run and both ended success; the one cancelled `main` run (43183347615, c5bffb2) ran under the old workflow file and is older than the merge
 - [ ] 3.4 A CI run of `main` that fails produces a Release run whose job is skipped, with no release PR update and no tag
 - [ ] 3.5 Rerunning that failed run until it passes starts the release job again
 - [ ] 3.6 A Release run whose job is skipped does not cancel a pending valid run
-- [ ] 3.7 The "Allow GitHub Actions to create and approve pull requests" setting still lets the `workflow_run` job open the release PR
+- [x] 3.7 The "Allow GitHub Actions to create and approve pull requests" setting still lets the `workflow_run` job open the release PR — release PR #133 was opened by `app/github-actions` at 08:34:40Z, 38 s after the `workflow_run` Release run 43184000512 started

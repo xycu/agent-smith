@@ -9,7 +9,7 @@ import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSum
 import {
   verifyImplement, executorNext, retryRows, unprovenTicks, retryNext, reviewWarning, doneNotes, withoutEvidence,
   manualUnprovenIds, manualUnprovenWhyRows, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
-  verifyCodeReplan,
+  verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "./openspec.mjs";
 
@@ -133,6 +133,7 @@ function buildReport(id, meta, fullLog) {
     ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
     `Outcome: ${outcome}`,
     ...archiveLines(id, meta, oneLine),
+    ...sweptHeader(log),
     "",
     `| # | Step | Model | Effort | Tier | Simple | Result | Tokens |${cost ? " Cost (est.) |" : ""}`,
     `| --- | --- | --- | --- | --- | --- | --- | --- |${cost ? " --- |" : ""}`,
@@ -149,6 +150,7 @@ function buildReport(id, meta, fullLog) {
       ...skips.map((e) => `| ${e.afterN} | ${e.step} | ${oneLine(e.reason).replace(/\|/g, "/")} | ${e.rigor ?? "-"} |`),
       "",
     ] : []),
+    ...sweptLines(log, oneLine),
     ...rollbackLines(log),
     ...neutralLines(log),
     ...reviewLines(log),
@@ -156,6 +158,37 @@ function buildReport(id, meta, fullLog) {
     ...complexityLines(fullLog),
     ...lessonLines(log, oneLine),
   ].join("\n");
+}
+
+// The paths outside the change folder that step commits of an isolated run took under the chore subject (`swept` of a
+// log entry), per entry; entries without any are left out.
+const sweptEntries = (log) => log.filter((e) => Array.isArray(e.swept) && e.swept.length > 0);
+
+// The header line for sweptLines, so the pull request body (the report lines before the table) shows it. None, no line.
+function sweptHeader(log) {
+  const rows = sweptEntries(log);
+  if (!rows.length) return [];
+  const paths = rows.reduce((sum, e) => sum + e.swept.length, 0);
+  return [`Code under chore commits: ${paths} path(s) in ${rows.length} step commit(s); see "Code committed by the router"`];
+}
+
+// The "Code committed by the router" section: per step commit, the paths outside the change folder it holds. None, no
+// section.
+function sweptLines(log, oneLine) {
+  const rows = sweptEntries(log);
+  if (!rows.length) return [];
+  return [
+    "## Code committed by the router",
+    "",
+    "These paths sat uncommitted when a step ended and went into the router's `chore` step commit, so release-please " +
+      "lists no changelog line for them.",
+    "",
+    ...rows.flatMap((e) => [
+      `- step ${e.n} ${e.step}${e.commit ? ` (${String(e.commit).slice(0, 7)})` : ""}:`,
+      ...e.swept.map((path) => `  - \`${oneLine(path)}\``),
+    ]),
+    "",
+  ];
 }
 
 // The "Rolled-back steps" section of an isolated run: one line per failed step whose partial edits sit under a side
@@ -308,11 +341,10 @@ export const ORCHESTRATOR_ERROR = "orchestrator-error";
 // The longest note kept per neutral rerun, in code points.
 const NEUTRAL_NOTE_MAX = 200;
 
-// limits.maxNeutralRetries, read tolerantly: a value that is not a non-negative integer reads as the shipped default (2);
+// limits.maxNeutralRetries, validated at load (policyProblems): a non-negative integer.
 // 0 turns neutral reruns off, so the status then reads as any unknown status (a failed attempt).
 export function maxNeutralRetries(policy) {
-  const v = policy?.limits?.maxNeutralRetries;
-  return Number.isSafeInteger(v) && v >= 0 ? v : 2;
+  return policy.limits.maxNeutralRetries;
 }
 
 // Runs before attachResult. When the last executed entry has no result and last-result.json holds the status
@@ -784,6 +816,29 @@ export function checkPrompts(policy) {
       throw new Error(`${e instanceof Error ? e.message : String(e)}. The result file and the log are untouched: fix the policy and run next again.`);
     }
   }
+}
+
+// The first {name} in a prompt template that the router never fills for it (PROMPT_PLACEHOLDERS, or its own shorter
+// list in NARROW_PLACEHOLDERS), as a halt text, else null. A template that does not resolve is skipped: checkPrompts
+// reports it with its own text. Never throws.
+export function promptProblem(policy) {
+  const prompts = isObject(policy?.prompts) ? policy.prompts : {};
+  for (const template of Object.keys(prompts)) {
+    let text;
+    try {
+      text = promptText(policy, template);
+    } catch {
+      continue;
+    }
+    const known = Object.hasOwn(NARROW_PLACEHOLDERS, template) ? NARROW_PLACEHOLDERS[template] : PROMPT_PLACEHOLDERS;
+    for (const [, name] of text.matchAll(/\{(\w+)\}/g)) {
+      if (!known.includes(name)) {
+        return `policy.prompts.${template} uses {${name}}, which the router never fills. Known placeholders: ${known.join(", ") || "none"}. ` +
+          "Fix it in context/foundation/agent-smith-policy.json. Nothing was written.";
+      }
+    }
+  }
+  return null;
 }
 
 // The upstream artifacts of preplan.artifacts that exist in the change folder, as a prompt line, else "".

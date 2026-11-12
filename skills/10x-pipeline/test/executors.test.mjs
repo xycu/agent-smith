@@ -531,7 +531,11 @@ test("retry prompt rules", { skip: noGit }, () => {
   assert.match(prompt, /write the commit SHA after the row/);
   assert.match(prompt, /phase 1 is done \*\*WHEN\*\* later phases still have pending rows \*\*THEN\*\* you \*\*MUST NOT\*\* start them/);
   assert.match(prompt, /nothing left to change \*\*WHEN\*\* this is the last attempt \*\*THEN\*\* you \*\*MUST\*\* finish with status `blocked`/);
-  assert.deepEqual(POLICY.prompts["implement-retry"], ["Run /10x-goal-implement {id} phase {phase}", "@prompts/executor-retry.md"]);
+  // The third part is the commit rule of the implement-class templates (rules.test.mjs pins its text).
+  const parts = POLICY.prompts["implement-retry"];
+  assert.deepEqual(parts.slice(0, 2), ["Run /10x-goal-implement {id} phase {phase}", "@prompts/executor-retry.md"]);
+  assert.equal(parts.length, 3);
+  assert.match(parts[2], /^- \*\*GIVEN\*\* a phase changed files outside `context\/changes\/\{id\}\/`/);
 });
 
 test("retry once then warn", { skip: noGit }, () => {

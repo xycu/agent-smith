@@ -666,6 +666,19 @@ function firstAttemptDrop(d, log, policy, meta, fails, discount) {
   return cfg.drop;
 }
 
+// Every {name} the router fills in a prompt: the `vars` of route.mjs plus `workdir` of the worktree rules. promptProblem
+// halts on any other name; render() uses the same pattern.
+export const PROMPT_PLACEHOLDERS = [
+  "id", "goal", "verdict", "artifacts", "authority", "phase", "lastPhase", "retry", "uncommitted", "failure",
+  "unproven", "browserRows", "evidence", "lessonMax", "lessonChars", "findings", "workdir",
+];
+
+// Templates the router renders with fewer names than a step prompt gets (isolation.mjs render sites), and the names
+// each one is given. `suffix` is appended without render(). promptProblem checks these against their own list.
+export const NARROW_PLACEHOLDERS = {
+  archive: ["id"], "os-archive": ["id"], "frame-authority": ["id"], worktree: ["workdir"], suffix: [],
+};
+
 export function render(tpl, vars) {
   return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
 }

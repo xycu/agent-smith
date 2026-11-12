@@ -1,6 +1,6 @@
 # ADR-010: Run every change in its own worktree, commit each step, roll back a failed step, and make the first implement attempt cheaper
 
-- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending)
+- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending); amended (Amendment 1)
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `worktree-step-commits`; the repository owner confirms or changes the readings below
 - **Origin:** change `worktree-step-commits` (`context/changes/worktree-step-commits/change.md`, `plan.md`, `research.md` and `reviews/plan-review.md`). It widens the router's git-write rule in `AGENTS.md` (Hard Rules), which before this change allowed only the pre-archive commit of ADR-003 ("Archive adapter"). That commit is unchanged.
@@ -169,3 +169,11 @@ Anything else, including fewer than 5 comparable pairs, sets `escalation.firstAt
 ## A/B result
 
 Pending. A human runs the pairs and records here, per pair, `dropPercent`, `tokens.byModel`, `tokens.byTier`, the failed implement attempts and the rigor level of both arms, and the reasons of every pair that is not comparable, then the decision.
+
+## Amendment 1: the step commit records the code it takes (change step-commit-code-under-chore)
+
+- A step commit of an isolated run takes whatever the step left in the worktree under `chore(<id>): step <n> <step>`. When a step subagent leaves its code uncommitted, that code reaches `main` under a `chore` subject, which release-please hides: no changelog line, and a run of only `chore` and `docs` commits opens no release PR.
+- The router now reads the staged names right after its `git add -A` and before `git commit` (`git diff --cached --name-only --no-renames -z`). It keeps those outside the change folder (`context/changes/<id>/` or `openspec/changes/<id>/`) as `swept` on the log entry, sorted, only when there are any. `status` shows it and `report.md` names every path in `## Code committed by the router`, with a header line so the pull request body shows it too.
+- The subject, the commit and the halt behavior are unchanged. A failed name read goes through the failure path of a failed add: the router unstages its add, nothing is committed, the entry gets no `commit` key and a resume retries, so the router never makes a step commit whose paths it could not record.
+- Known limit: a pre-commit hook that stages extra files after the read is not seen.
+- The implement-class prompts (`implement`, `implement-segment`, `implement-retry`, `os-apply`) ask the subagent to commit its code under a typed Conventional Commits subject before the `RESULT:` line, so the record is empty in the normal case. `open-pr.mjs` reports `swept` for its leftover commit too (ADR-017).

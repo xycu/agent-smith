@@ -347,3 +347,143 @@ test("3.1 an isolated --archive run whose report a step commit took reports comm
   assert.equal(readMetaFile(wt).outcome.action, "halt");
   assert.match(readReportFile(wt), /^Outcome: halt/m);
 });
+
+// The test of "swept" (ADR-010 Amendment 1): the step commit records the paths outside the change folder it takes.
+// Plan ok, plan review ok: the run waits for the result of its first implement step (step 3).
+function toImplement(wt, plan) {
+  writePlan(wt, plan);
+  writeResult(wt, { status: "done", note: "planned" });
+  assert.equal(nextIn(wt).json.step, "plan-review");
+  writeReview(wt, "plan-review", { verdict: "SOUND" });
+  writeResult(wt, { status: "done", note: "reviewed" });
+  const impl = nextIn(wt);
+  assert.equal(impl.json.step, "implement", impl.stdout);
+}
+
+// A tracked src/old.js on the run branch, then the implement step's work: src/done.js committed by the step itself,
+// src/left.js new and src/old.js renamed to src/moved.js left uncommitted.
+function implementWithLeftovers(wt) {
+  fs.mkdirSync(path.join(wt.top, "src"), { recursive: true });
+  fs.writeFileSync(path.join(wt.top, "src/old.js"), "export const old = 1;\n");
+  gw(wt, ["add", "src/old.js"]);
+  gw(wt, ["commit", "-q", "-m", "chore: seed old"]);
+  toImplement(wt, planText({ phases: 1, rowsPerPhase: 1 }));
+  fs.writeFileSync(path.join(wt.top, "src/done.js"), "export const done = 1;\n");
+  gw(wt, ["add", "src/done.js"]);
+  gw(wt, ["commit", "-q", "-m", "feat(demo): done"]);
+  fs.writeFileSync(path.join(wt.top, "src/left.js"), "export const left = 1;\n");
+  gw(wt, ["mv", "src/old.js", "src/moved.js"]);
+  gw(wt, ["reset", "-q"]);
+  writePlan(wt, planText({ phases: 1, rowsPerPhase: 1, done: 1 }));
+  writeResult(wt, { status: "done", note: "implemented" });
+}
+
+const SWEPT = ["src/left.js", "src/moved.js", "src/old.js"];
+
+test("swept: a step commit records the paths outside the change folder it takes; status and report.md name them", { skip }, () => {
+  const { wt } = freshRun();
+  implementWithLeftovers(wt);
+  const res = nextIn(wt);
+  assert.equal(res.status, 0, res.stdout + res.stderr);
+  assert.equal(subject(wt), "chore(demo): step 3 implement");
+  const entries = readLogEntries(wt);
+  const impl = entries.find((e) => e.step === "implement");
+  assert.deepEqual(impl.swept, SWEPT);
+  assert.equal(Object.hasOwn(entries.find((e) => e.step === "plan"), "swept"), false);
+  const st = run(wt, ["status", "demo", "--report"], { env: gitEnv(wt) });
+  assert.deepEqual(st.json.steps.find((s) => s.step === "implement").swept, SWEPT);
+  assert.equal(st.json.steps.find((s) => s.step === "plan").swept, undefined);
+  const report = readReportFile(wt);
+  assert.match(report, /^Code under chore commits: 3 path\(s\) in 1 step commit\(s\); see "Code committed by the router"$/m);
+  assert.match(report, /^## Code committed by the router$/m);
+  assert.match(report, new RegExp(`^- step 3 implement \\(${impl.commit.slice(0, 7)}\\):$`, "m"));
+  for (const f of SWEPT) assert.match(report, new RegExp(`^  - \`${f.replace(".", "\\.")}\`$`, "m"));
+  assert.doesNotMatch(report, /src\/done\.js/);
+});
+
+test("swept: a run with no path outside the change folder has no key, no header line and no section", { skip }, () => {
+  const { wt } = freshRun();
+  planDone(wt);
+  assert.equal(nextIn(wt).json.action, "run");
+  assert.equal(Object.hasOwn(readLogEntries(wt)[0], "swept"), false);
+  run(wt, ["status", "demo", "--report"], { env: gitEnv(wt) });
+  const report = readReportFile(wt);
+  assert.doesNotMatch(report, /Code under chore commits/);
+  assert.doesNotMatch(report, /Code committed by the router/);
+});
+
+// A directory with a `git` that runs the real git, except that the given subcommand fails while the marker exists.
+function gitFailingNames(marker, sub = "diff --cached --name-only") {
+  const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).stdout.trim();
+  const bin = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-nonames-"));
+  fs.writeFileSync(path.join(bin, "git"), [
+    "#!/bin/sh",
+    `case " $* " in`,
+    `  *" ${sub} "*) if [ -e "${marker}" ]; then echo "fatal: no names" >&2; exit 128; fi;;`,
+    "esac",
+    `exec "${real}" "$@"`,
+    "",
+  ].join("\n"), { mode: 0o755 });
+  return bin;
+}
+
+test("swept: a failed name read halts with nothing committed and no commit key; the resume commits and records swept", { skip: skip || process.platform === "win32" }, () => {
+  const { wt } = freshRun();
+  implementWithLeftovers(wt);
+  const bin = gitFailingNames(path.join(wt.top, "..", "fail-names"));
+  const marker = path.join(wt.top, "..", "fail-names");
+  fs.writeFileSync(marker, "");
+  const before = head(wt);
+  try {
+    const env = { ...gitEnv(wt), PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+    const res = run(wt, ["next", wt.id], { env });
+    assert.equal(res.json.action, "halt", res.stdout);
+    assert.match(res.json.reason, /git diff --cached --name-only failed: .*no names/);
+    assert.match(res.json.reason, /Nothing was committed\./);
+    assert.equal(head(wt), before);
+    assert.ok(indexEmpty(wt));
+    const stuck = readLogEntries(wt).find((e) => e.step === "implement");
+    assert.equal(Object.hasOwn(stuck, "commit"), false);
+    assert.equal(Object.hasOwn(stuck, "swept"), false);
+    fs.rmSync(marker);
+    const again = run(wt, ["next", wt.id], { env });
+    assert.equal(again.json.action, "run", again.stdout);
+  } finally {
+    fs.rmSync(marker, { force: true });
+    removeTree(bin);
+  }
+  assert.equal(subject(wt), "chore(demo): step 3 implement");
+  assert.deepEqual(readLogEntries(wt).find((e) => e.step === "implement").swept, SWEPT);
+});
+
+test("swept: an unreadable show-prefix records no swept paths and does not halt", { skip: skip || process.platform === "win32" }, () => {
+  const { wt } = freshRun();
+  implementWithLeftovers(wt);
+  const marker = path.join(wt.top, "..", "fail-prefix");
+  const bin = gitFailingNames(marker, "rev-parse --show-prefix");
+  fs.writeFileSync(marker, "");
+  try {
+    const env = { ...gitEnv(wt), PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+    const res = run(wt, ["next", wt.id], { env });
+    assert.equal(res.json.action, "run", res.stdout);
+  } finally {
+    fs.rmSync(marker, { force: true });
+    removeTree(bin);
+  }
+  const impl = readLogEntries(wt).find((e) => e.step === "implement");
+  assert.equal(typeof impl.commit, "string", "the commit is made and recorded");
+  assert.equal(Object.hasOwn(impl, "swept"), false, "no path is guessed without the prefix");
+});
+
+test("swept: a step commit with an unreadable hash names its paths without empty parentheses", { skip }, () => {
+  const { wt } = freshRun();
+  implementWithLeftovers(wt);
+  assert.equal(nextIn(wt).status, 0);
+  const entries = readLogEntries(wt);
+  entries.find((e) => e.step === "implement").commit = null;
+  writeLog(wt, entries);
+  run(wt, ["status", "demo", "--report"], { env: gitEnv(wt) });
+  const report = readReportFile(wt);
+  assert.match(report, /^- step 3 implement:$/m);
+  assert.doesNotMatch(report, /\(\)/);
+});

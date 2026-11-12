@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction' fixes the outcome (parse --rigor in both skills, strip it from the goal, pass it to init only when named); open detail is what an invalid level value does, with no stated answer (change.md Fix direction)" },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/SKILL.md step 1 already parses --archive, --chrome and --pr-comment; the same pattern extends to --rigor" },
+    "coupling": { "score": 2, "evidence": "change.md names two SKILL.md files (public argument-hint), docs/REFERENCE.md and the router's INIT_FLAGS contract in skills/10x-pipeline/scripts/route.mjs:824" },
+    "discovery": { "score": 1, "evidence": "change.md names the locations (argument-hint, step 1 and step 4 of both skills, docs/REFERENCE.md headings, skill-loop.test.mjs, openspec-skill.test.mjs); the openspec step 1 wording was not read" },
+    "volume": { "score": 2, "evidence": "about 5 files: 2 SKILL.md, docs/REFERENCE.md, 2 test files, with a few lines each" },
+    "verification": { "score": 1, "evidence": "change.md Tests: existing content checks in skill-loop.test.mjs and openspec-skill.test.mjs cover the SKILL.md text; a few new assertions for --rigor are needed" }
+  },
+  "unknowns": [
+    "Behaviour of an invalid --rigor value (for example --rigor huge): halt or drop it; change.md does not say",
+    "Exact step 1 wording of skills/openspec-pipeline/SKILL.md, not read in this scoring pass"
+  ],
+  "confidence": "medium"
+}

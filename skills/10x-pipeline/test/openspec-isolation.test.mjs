@@ -101,6 +101,9 @@ test("a verified os-apply gets a step commit", { skip }, () => {
   assert.deepEqual(Object.keys(verify.before.mtimes).sort(), ["tasks", "verify"]);
   // The committed run.jsonl holds the step's result.
   assert.match(showFile(wt, "HEAD", `${CHANGE}/agent-smith/run.jsonl`), /"note":"applied"/);
+  // The code file is recorded as swept; nothing under the change folder is.
+  assert.deepEqual(applied.swept, ["src/hello.sh"]);
+  assert.equal(Object.hasOwn(verify, "swept"), false);
 });
 
 test("a failed os-apply resets the code and tasks.md to startSha and writes the side ref", { skip }, () => {

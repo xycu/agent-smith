@@ -347,7 +347,11 @@ test("ladder: a lean interactive step may run on opus/medium", () => {
 test("ladder: a ladder ordered by effort gives the old tiers and notes", () => {
   const over = {
     ladder: OLD_LADDER,
-    steps: { plan: { baseTier: 4, maxTier: 6 } },
+    // The 7-rung ladder has no tier 7, which the policy check rejects, so every step capped at 7 is capped at 6.
+    steps: {
+      plan: { baseTier: 4, maxTier: 6 }, implement: { maxTier: 6 }, fix: { maxTier: 6 },
+      "os-propose": { maxTier: 6 }, "os-apply": { maxTier: 6 },
+    },
     complexity: { firstPlan: { bump: { plain: -1, hard: 0 } } },
   };
   const project = makeProject({ policy: over });
