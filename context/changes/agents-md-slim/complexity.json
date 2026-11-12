@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction' fixes the outcome; open details are the export lists (move to docs/REFERENCE.md or drop) and whether the size check is added" },
+    "novelty": { "score": 1, "evidence": "change.md: index READMEs follow the existing skills/10x-pipeline/prompts/README.md pattern; size check follows tools/test/ conventions" },
+    "coupling": { "score": 2, "evidence": "change.md 'Fix direction': AGENTS.md is read by advisor.test.mjs, no-recursive-delete.test.mjs, pr-comment.test.mjs, helpers.mjs and tools/test/agents-md-no-imports.test.mjs; docs/REFERENCE.md also references AGENTS.md" },
+    "discovery": { "score": 1, "evidence": "change.md names the sections, bullets and the three tests; at-or-above.test.mjs is named as missing from the catalog, so one grep covers the rest" },
+    "volume": { "score": 2, "evidence": "change.md: rewrite AGENTS.md, create skills/10x-pipeline/test/README.md and docs/ADR/README.md, edit three pinning tests, optionally add a size test (about 6 files)" },
+    "verification": { "score": 1, "evidence": "change.md 'Tests': the existing suite (node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs) covers the pinned text; a size check is optional; 'CI is green' depends on the self-hosted runner, outside the repo" }
+  },
+  "unknowns": [
+    "Whether the export lists move to docs/REFERENCE.md or are dropped (change.md leaves the choice open)",
+    "Whether the optional size check is added",
+    "Whether CI on the self-hosted TrueNAS runner is available, so green CI cannot be confirmed from the repository"
+  ],
+  "confidence": "high"
+}
