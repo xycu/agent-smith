@@ -142,7 +142,7 @@ One extra `run.jsonl` write per `next` call that attaches a result. The file is 
 
 #### Automated
 
-- [ ] 1.1 New file fails on the unfixed code: `node --test skills/10x-pipeline/test/result-persist.test.mjs`
+- [x] 1.1 New file fails on the unfixed code: `node --test skills/10x-pipeline/test/result-persist.test.mjs` — 98191c8
 
 #### Manual
 
@@ -152,9 +152,9 @@ One extra `run.jsonl` write per `next` call that attaches a result. The file is 
 
 #### Automated
 
-- [ ] 2.1 New tests pass: `node --test skills/10x-pipeline/test/result-persist.test.mjs`
-- [ ] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 `init` and `status` on a scratch change folder print valid JSON: `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "x"` then `status <id>` in a scratch project
+- [x] 2.1 New tests pass: `node --test skills/10x-pipeline/test/result-persist.test.mjs` — 98191c8
+- [x] 2.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 98191c8
+- [x] 2.3 `init` and `status` on a scratch change folder print valid JSON: `node skills/10x-pipeline/scripts/route.mjs init <id> --goal "x"` then `status <id>` in a scratch project — 98191c8
 
 #### Manual
 
