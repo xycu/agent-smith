@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction': write writeLog(p.log, log) at the end of attachResult before fs.rmSync(p.result); a few details (neutralRetry order, resumed next) each have one obvious answer" },
+    "novelty": { "score": 1, "evidence": "flow.mjs attachResult (line ~486-499) and neutralRetry already write the log right after rmSync; the fix reorders an existing pattern" },
+    "coupling": { "score": 1, "evidence": "skills/10x-pipeline/scripts/flow.mjs attachResult, called only from route.mjs:82; run.jsonl is read later by isolation.mjs stepCommit and rollback, but the change keeps the same entry format" },
+    "discovery": { "score": 0, "evidence": "change.md names the location: flow.mjs attachResult and the fs.rmSync call; route.mjs:82 is the caller" },
+    "volume": { "score": 1, "evidence": "a one-line reorder in flow.mjs plus a regression case in route.test.mjs or a new test file, with an isolated-run variant" },
+    "verification": { "score": 1, "evidence": "change.md 'Tests' asks for two cases in the existing node:test harness, with hermetic git helpers in isolation tests; the suite covers the rest" }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
