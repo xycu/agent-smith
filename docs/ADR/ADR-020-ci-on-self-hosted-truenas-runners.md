@@ -1,6 +1,6 @@
 # ADR-020: Run CI on self-hosted TrueNAS runners
 
-- **Status:** Accepted (unattended plan and implementation runs of change `ci-self-hosted-truenas` for the readings below; no run has used the runners yet); amended (Amendment 1)
+- **Status:** Accepted (unattended plan and implementation runs of change `ci-self-hosted-truenas` for the readings below; CI has run on the runners since, as uid 0, so the non-root prerequisite is not met yet); amended (Amendment 1)
 - **Date:** 2026-11-11
 - **Deciders:** the repository owner (goal of change `ci-self-hosted-truenas`)
 - **Origin:** change `ci-self-hosted-truenas` (`context/changes/ci-self-hosted-truenas/plan.md`). It touches the CI job of ADR-008; no earlier decision is superseded.
