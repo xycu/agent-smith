@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md fixes the outcome in Done when, but the router safety net has two options (commit under a validated signals.commit, or keep the commit and record swept paths); change.md says the plan picks one" },
+    "novelty": { "score": 2, "evidence": "change.md Fix direction 2 adds a new validated signals.commit field to the RESULT line; the commit subject, commit-lint and report section patterns already exist in isolation.mjs and open-pr.mjs" },
+    "coupling": { "score": 3, "evidence": "change.md names isolation.mjs (stepCommit, routerCommit), policy.json:125, the four implement-class prompt templates, open-pr.mjs and report.md; commit subjects are a shared format read by release-please on main" },
+    "discovery": { "score": 2, "evidence": "change.md names stepCommit and routerCommit in skills/10x-pipeline/scripts/isolation.mjs and policy.json:125; the RESULT parser, report.md section and open-pr.mjs leftover commit (open-pr.mjs:219 area) are not named and need one search each" },
+    "volume": { "score": 2, "evidence": "about 8 to 10 files: isolation.mjs, open-pr.mjs, policy.json, four prompt templates (implement, implement-segment, implement-retry, os-apply), prompts.suffix, report output and tests" },
+    "verification": { "score": 1, "evidence": "change.md Tests names stepcommit.test.mjs, rules.test.mjs, nested-subagents.test.mjs and tools/commit-lint.mjs, which exist; a few new test cases are needed for the swept-path record" }
+  },
+  "unknowns": [
+    "Why the implement subagent skipped its commit in the observed runs is not established (change.md research item); the prompt fix depends on it",
+    "Which safety-net option the plan picks (signals.commit or recorded swept paths) is open until planning",
+    "Whether open-pr.mjs needs the same rule or only a named-paths output is not decided in change.md"
+  ],
+  "confidence": "medium"
+}
