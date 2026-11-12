@@ -203,9 +203,9 @@ None. Existing commits and runs are unchanged; resumed runs add the trailer to n
 
 #### Automated
 
-- [x] 3.1 Whole suite passes
-- [x] 3.2 Version fields untouched
-- [x] 3.3 ADR and docs exist
+- [x] 3.1 Whole suite passes — 6440612
+- [x] 3.2 Version fields untouched — 6440612
+- [x] 3.3 ADR and docs exist — 6440612
 
 #### Manual
 
