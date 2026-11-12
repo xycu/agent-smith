@@ -42,5 +42,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review PASS",
+    "manualPending": [
+      "2.4 CI on `main` is green on the self-hosted runner after the fix is merged"
+    ],
+    "manualNotProved": [
+      "2.4 CI on `main` is green on the self-hosted runner after the fix is merged — not proved: needs a CI run on main after the fix is merged; the fix is still on run branch agent-smith/coauthor-test-coarse-mtime, so no such run exists, and reading CI needs an external service"
+    ]
   }
 }
