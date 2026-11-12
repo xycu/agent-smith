@@ -200,11 +200,11 @@ Until the merge, the old `push` trigger is in force. After the merge, the releas
 
 #### Automated
 
-- [x] 1.1 New test file fails against the unchanged workflows, then passes: `node --test tools/test/release-gate.test.mjs`
-- [x] 1.2 Runner and pin tests stay green: `node --test tools/test/ci-runner.test.mjs tools/test/workflow-pins.test.mjs`
-- [x] 1.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 1.4 Version fields still equal: `node tools/version-check.mjs`
-- [x] 1.5 Workflows lint clean when `actionlint` is installed (skipped otherwise): `actionlint .github/workflows/ci.yml .github/workflows/release.yml`
+- [x] 1.1 New test file fails against the unchanged workflows, then passes: `node --test tools/test/release-gate.test.mjs` — be497dd
+- [x] 1.2 Runner and pin tests stay green: `node --test tools/test/ci-runner.test.mjs tools/test/workflow-pins.test.mjs` — be497dd
+- [x] 1.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — be497dd
+- [x] 1.4 Version fields still equal: `node tools/version-check.mjs` — be497dd
+- [x] 1.5 Workflows lint clean when `actionlint` is installed (skipped otherwise): `actionlint .github/workflows/ci.yml .github/workflows/release.yml` — be497dd
 
 #### Manual
 
@@ -214,8 +214,8 @@ Until the merge, the old `push` trigger is in force. After the merge, the releas
 
 #### Automated
 
-- [ ] 2.1 Suite and guards still pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.2 Amendment present and the original record untouched: `git diff --stat docs/ADR/ADR-008-release-packaging-and-semver.md` shows only added lines apart from the Status line
+- [x] 2.1 Suite and guards still pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.2 Amendment present and the original record untouched: `git diff --stat docs/ADR/ADR-008-release-packaging-and-semver.md` shows only added lines apart from the Status line
 
 #### Manual
 
