@@ -42,5 +42,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review PASS WITH NOTES",
+    "manualPending": [
+      "2.5 A live skill run with `--rigor thorough` starts a thorough run with a flag-free stored goal"
+    ],
+    "manualNotProved": [
+      "2.5 A live skill run with `--rigor thorough` starts a thorough run with a flag-free stored goal — not proved: row needs a live /agent-smith:10x-pipeline skill run (the orchestrator LLM strips the flag from the goal); an unattended subagent cannot launch a skill run or nested pipeline. Router half (init --rigo"
+    ]
   }
 }
