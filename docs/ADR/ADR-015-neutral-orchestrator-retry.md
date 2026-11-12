@@ -120,3 +120,11 @@ The owner named this record ADR-015. ADR-014 is not in this tree; the number is 
 
 - No live run has declared `orchestrator-error`. The router side is covered by `skills/10x-pipeline/test/neutral.test.mjs` on both chains and in an isolated run; the orchestrator's use of the status is not.
 - The cap of 2 is not calibrated.
+
+## Amendment 1: a malformed cap halts (change policy-limits-fail-open, ADR-022)
+
+The line of D5 "**GIVEN** `limits.maxNeutralRetries` is not a non-negative integer **WHEN** the router reads the cap **THEN** it **MUST** use 2." is replaced by:
+
+**GIVEN** `limits.maxNeutralRetries` is not a non-negative safe integer **WHEN** `init`, `next` or `usage` loads the policy **THEN** the router **MUST** halt with a reason that names `policy.limits.maxNeutralRetries` and write nothing.
+
+`0` still turns neutral reruns off. The rest of this ADR stands. See ADR-022.
