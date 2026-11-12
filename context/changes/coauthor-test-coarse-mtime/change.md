@@ -1,7 +1,7 @@
 ---
 change_id: coauthor-test-coarse-mtime
 title: Fix the coauthor tests that fail on Linux CI from a coarse file clock
-status: new
+status: planned
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null
