@@ -70,6 +70,7 @@ Rules, written as scenarios (the form of ADR-004):
 ### Consequences
 
 - The tag sits on the merge commit of the release PR, while the gate checks the head of `main`. If a later push lands before the CI run of that merge commit ends, the job skips that run (stale `head_sha`) and the next green run of the newer head tags the merge commit, whose own CI run may have failed. The gate guarantees a green head, not a green tagged commit. This gap is accepted; closing it needs a job step that reads the CI conclusion of the tagged commit.
+- The head check compares `workflow_run.head_sha` with `github.sha`, which is fixed when the release run is created, while `release-please-action` reads `main` through the API when its step runs. A push that lands in between, while the job waits for the `release-please` group or starts, passes the check and is read untested. The window is seconds to about a minute and leads to a tag only when the release PR is merged inside it. This gap is accepted with the one above.
 - A flake delays a release and does not lose it: rerunning the failed CI run until it passes starts the job again while `main` still points at that commit. If `main` moved on, the CI run of the newer head decides.
 - The release PR no longer updates on a red `main`, and it lags a push by the CI duration.
 - The tag and GitHub Release follow the CI run of the release-PR merge commit.
