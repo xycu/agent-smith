@@ -20,10 +20,12 @@ Commit type: `docs:`.
 
 ### Success criteria
 
+#### Automated Verification:
+
 - `grep -o "ADR-019 covers" AGENTS.md | wc -l` prints `1`.
-- Each `ADR-0NN covers` for NN 009 to 021 appears once, in ascending order.
-- The bullet ends with the ADR-021 sentence.
 - `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes.
+
+Also check by reading the bullet (no Progress row): `grep -o "ADR-0[0-9][0-9] [a-z]*" ` on line 57 shows ADR-009 to ADR-021 once each in ascending order after the opening list. Each summary starts `ADR-0NN covers`, except ADR-016, which starts `ADR-016 bans`. The bullet ends with the ADR-021 sentence.
 
 ## Out of scope
 
