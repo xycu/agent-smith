@@ -6,6 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { cleanupAll, makeProject, init, next, run, writeResult } from "./helpers.mjs";
 import { policyProblems } from "../scripts/state.mjs";
+import * as flow from "../scripts/flow.mjs";
+import * as steps from "../scripts/steps.mjs";
 
 after(cleanupAll);
 
@@ -157,4 +159,62 @@ test("the shipped policy.json passes and baseline-policy.json inits without a po
   const project = makeProject({ policy: BASELINE });
   const res = init(project, GOAL);
   assert.equal(res.json.action, "run", res.stdout);
+});
+
+// ---- prompt placeholders ----------------------------------------------------
+
+test("a misspelt placeholder in a template halts init naming the template and the word", () => {
+  const project = makeProject({ policy: { prompts: { plan: "Plan {gaol} for {id}" } } });
+  const before = snapshot(project.changeDir);
+  const res = init(project, GOAL);
+  assert.equal(res.status, 1, res.stdout);
+  assert.equal(res.json.action, "halt");
+  assert.ok(res.json.reason.includes("policy.prompts.plan"), res.json.reason);
+  assert.ok(res.json.reason.includes("{gaol}"), res.json.reason);
+  assert.ok(res.json.reason.includes(FILE), res.json.reason);
+  assert.ok(res.json.reason.endsWith("Nothing was written."), res.json.reason);
+  assert.deepEqual(snapshot(project.changeDir), before);
+  assert.equal(fs.existsSync(path.join(project.agentDir, "meta.json")), false);
+});
+
+test("status reports a prompt placeholder problem and next halts on it", () => {
+  const project = makeProject();
+  assert.equal(init(project, GOAL).json.action, "run");
+  writeResult(project, { status: "done", note: "ok" });
+  breakPolicy(project, { prompts: { plan: "Plan {idd}" } });
+  const before = snapshot(project.changeDir);
+  const res = next(project);
+  assert.equal(res.json.action, "halt");
+  assert.ok(res.json.reason.includes("{idd}"), res.json.reason);
+  assert.deepEqual(snapshot(project.changeDir), before);
+  const st = run(project, ["status", project.id]);
+  assert.equal(st.status, 0, st.stderr);
+  assert.ok(st.json.policyProblem.includes("{idd}"), st.stdout);
+});
+
+test("every placeholder the router fills is accepted and PROMPT_PLACEHOLDERS lists 17 names", () => {
+  assert.equal(steps.PROMPT_PLACEHOLDERS.length, 17);
+  const tpl = steps.PROMPT_PLACEHOLDERS.map((n) => `{${n}}`).join(" ");
+  assert.equal(flow.promptProblem({ ...SHIPPED, prompts: { ...SHIPPED.prompts, plan: tpl } }), null);
+});
+
+test("a JSON example with braces is not a placeholder", () => {
+  const tpl = ['End with RESULT: {"status":"done","note":"x"} and {  } and { id }.'];
+  assert.equal(flow.promptProblem({ ...SHIPPED, prompts: { ...SHIPPED.prompts, plan: tpl } }), null);
+});
+
+test("a template that does not resolve is skipped, checkPrompts reports it later", () => {
+  const bad = { ...SHIPPED, prompts: { ...SHIPPED.prompts, plan: "@prompts/nope.md", fix: 3, "plan-review": null } };
+  assert.equal(flow.promptProblem(bad), null);
+  assert.equal(flow.promptProblem({ ...SHIPPED, prompts: undefined }), null);
+});
+
+test("promptProblem names the template and the word and lists the known names", () => {
+  const reason = flow.promptProblem({ ...SHIPPED, prompts: { ...SHIPPED.prompts, fix: ["ok {id}", "bad {nope}"] } });
+  assert.match(reason, /^policy\.prompts\.fix uses \{nope\}, which the router never fills\. Known placeholders: .*\bid\b.*Fix it in context\/foundation\/agent-smith-policy\.json\. Nothing was written\.$/);
+});
+
+test("the shipped prompts all pass the placeholder check", () => {
+  assert.equal(flow.promptProblem(SHIPPED), null);
+  assert.equal(flow.promptProblem(BASELINE), null);
 });

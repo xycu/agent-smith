@@ -666,6 +666,13 @@ function firstAttemptDrop(d, log, policy, meta, fails, discount) {
   return cfg.drop;
 }
 
+// Every {name} the router fills in a prompt: the `vars` of route.mjs plus `workdir` of the worktree rules. promptProblem
+// halts on any other name; render() uses the same pattern.
+export const PROMPT_PLACEHOLDERS = [
+  "id", "goal", "verdict", "artifacts", "authority", "phase", "lastPhase", "retry", "uncommitted", "failure",
+  "unproven", "browserRows", "evidence", "lessonMax", "lessonChars", "findings", "workdir",
+];
+
 export function render(tpl, vars) {
   return tpl.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? "");
 }

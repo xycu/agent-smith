@@ -28,7 +28,7 @@ import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
 import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
 import {
-  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, artifactsLine, stepAgent,
+  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
   advisorOn, neutralRetry, cleanUsage,
 } from "./flow.mjs";
 import {
@@ -674,7 +674,7 @@ function status(id, flags, chain = "10x", policy = null) {
     })),
   };
   // status stays usable on a broken policy; the fault shows here, and init, next and usage halt on it.
-  const policyProblem = policyProblems(policy);
+  const policyProblem = policyProblems(policy) ?? promptProblem(policy);
   if (policyProblem) res.policyProblem = policyProblem;
   if (cost) {
     res.cost = {
@@ -839,7 +839,7 @@ function main() {
   const policy = loadPolicy();
   // A malformed cap, ladder or tier halts before the chain, the run lock or any write.
   if (["init", "next", "usage"].includes(cmd)) {
-    const bad = policyProblems(policy);
+    const bad = policyProblems(policy) ?? promptProblem(policy);
     if (bad) halt(bad);
   }
   const chain = resolveChain(cmd, id, flags);
