@@ -1,10 +1,10 @@
 ---
 change_id: agent-smith-coauthor
 title: Agent Smith co-authors commits like Claude does
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-12
-archived_at: null
+archived_at: 2026-11-12T00:42:14Z
 ---
 
 ## Notes
