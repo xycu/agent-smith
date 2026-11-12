@@ -1,10 +1,10 @@
 ---
 change_id: at-or-above-helper
 title: "The rigor gate test is written seven times"
-status: new
+status: archived
 created: 2026-11-11
-updated: 2026-11-11
-archived_at: null
+updated: 2026-11-12
+archived_at: 2026-11-12T12:39:42Z
 ---
 
 ## Notes
