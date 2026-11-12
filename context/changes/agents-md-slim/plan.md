@@ -248,8 +248,8 @@ None. Text that left `AGENTS.md` lives in the two new indexes (tests, ADRs), is 
 
 #### Manual
 
-- [ ] 1.4 The test index groups files by topic and a reader can find the test for a given feature without opening a file
-- [ ] 1.5 The ADR summaries match the ADR texts
+- [x] 1.4 The test index groups files by topic and a reader can find the test for a given feature without opening a file — evidence: evidence/judgment-index-and-agents-md.md
+- [x] 1.5 The ADR summaries match the ADR texts — evidence: evidence/judgment-index-and-agents-md.md
 
 ### Phase 2: Rewrite AGENTS.md and re-point the tests
 
@@ -264,10 +264,10 @@ None. Text that left `AGENTS.md` lives in the two new indexes (tests, ADRs), is 
 
 #### Manual
 
-- [ ] 2.7 Every rule that was in Hard Rules is still there word for word (diff the section against `main`)
-- [ ] 2.8 The smoke check, run as written in `AGENTS.md` in a fresh scratch project, returns `action: "run"` from `init`
-- [ ] 2.9 Every path named in `AGENTS.md` exists in the repository
-- [ ] 2.10 A reader who needs a prompt, a test or an ADR can find its index from the Layout section
+- [x] 2.7 Every rule that was in Hard Rules is still there word for word (diff the section against `main`) — evidence: evidence/command-hard-rules-diff.txt
+- [x] 2.8 The smoke check, run as written in `AGENTS.md` in a fresh scratch project, returns `action: "run"` from `init` — evidence: evidence/command-smoke-init.txt
+- [x] 2.9 Every path named in `AGENTS.md` exists in the repository — evidence: evidence/script-paths-exist.txt
+- [x] 2.10 A reader who needs a prompt, a test or an ADR can find its index from the Layout section — evidence: evidence/judgment-index-and-agents-md.md
 
 ### Phase 3: Verify and open the pull request
 
@@ -280,4 +280,4 @@ None. Text that left `AGENTS.md` lives in the two new indexes (tests, ADRs), is 
 #### Manual
 
 - [ ] 3.4 CI is green on the pull request (self-hosted runner, ADR-020; cannot be confirmed from the repository)
-- [ ] 3.5 The owner reads the new `AGENTS.md` and finds no statement that contradicts the repository
+- [x] 3.5 The owner reads the new `AGENTS.md` and finds no statement that contradicts the repository — evidence: evidence/judgment-index-and-agents-md.md

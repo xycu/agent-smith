@@ -1,0 +1,1 @@
+- 3.4 — CI result on the pull request lives on GitHub (self-hosted runner); no external read or push allowed, not provable from the repository

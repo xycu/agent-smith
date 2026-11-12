@@ -1,0 +1,89 @@
+script: extract backticked paths from AGENTS.md and test existence
+OK .github/workflows/
+OK .github/workflows/release.yml
+MISSING agent-smith/last-result.json
+OK AGENTS.md
+MISSING baseline-policy.json
+OK CHANGELOG.md
+MISSING ci.yml
+MISSING commit-lint.mjs
+OK context/archive/
+SKIP(placeholder) context/changes/<change-id>/agent-smith/run.jsonl
+SKIP(placeholder) context/changes/<id>/change.md
+OK context/foundation/agent-smith-policy.json
+OK docs/ADR/
+OK docs/ADR/README.md
+OK docs/REFERENCE.md
+MISSING flow.mjs
+MISSING isolation.mjs
+MISSING marketplace.json
+MISSING meta.json
+MISSING open-pr.mjs
+MISSING openspec.mjs
+SKIP(placeholder) openspec/changes/<change-id>/agent-smith/run.jsonl
+SKIP(placeholder) openspec/changes/<id>/
+OK openspec/config.yaml
+MISSING plugin.json
+MISSING policy.json
+MISSING pr-comment.mjs
+MISSING pr-common.mjs
+MISSING preplan.mjs
+OK README.md
+MISSING refs/agent-smith/
+OK release-please-config.json
+MISSING release.yml
+MISSING remove-tree.mjs
+MISSING route.mjs
+MISSING score.md
+MISSING scripts/flow.mjs
+MISSING scripts/openspec.mjs
+MISSING scripts/steps.mjs
+MISSING SKILL.md
+OK skills/10x-pipeline/
+OK skills/10x-pipeline/policy.json
+OK skills/10x-pipeline/prompts/
+OK skills/10x-pipeline/prompts/README.md
+OK skills/10x-pipeline/scripts/
+OK skills/10x-pipeline/scripts/open-pr.mjs
+OK skills/10x-pipeline/scripts/pr-comment.mjs
+OK skills/10x-pipeline/scripts/remove-tree.mjs
+OK skills/10x-pipeline/scripts/route.mjs
+OK skills/10x-pipeline/SKILL.md
+OK skills/10x-pipeline/test/
+OK skills/10x-pipeline/test/no-recursive-delete.test.mjs
+OK skills/10x-pipeline/test/README.md
+OK skills/openspec-pipeline/SKILL.md
+MISSING state.mjs
+MISSING steps.mjs
+OK tools/test/
+OK tools/version-check.mjs
+MISSING version-check.mjs
+MISSING workflow-pins.mjs
+script: bare filenames located by git ls-files
+OK baseline-policy.json -> skills/10x-pipeline/baseline-policy.json skills/10x-pipeline/baseline-policy.json 
+OK ci.yml -> .github/workflows/ci.yml .github/workflows/ci.yml 
+OK commit-lint.mjs -> tools/commit-lint.mjs tools/commit-lint.mjs 
+OK flow.mjs -> skills/10x-pipeline/scripts/flow.mjs skills/10x-pipeline/scripts/flow.mjs 
+OK isolation.mjs -> skills/10x-pipeline/scripts/isolation.mjs skills/10x-pipeline/scripts/isolation.mjs 
+OK marketplace.json -> .claude-plugin/marketplace.json .claude-plugin/marketplace.json 
+OK open-pr.mjs -> skills/10x-pipeline/scripts/open-pr.mjs skills/10x-pipeline/scripts/open-pr.mjs 
+OK openspec.mjs -> skills/10x-pipeline/scripts/openspec.mjs skills/10x-pipeline/scripts/openspec.mjs 
+OK plugin.json -> .claude-plugin/plugin.json .claude-plugin/plugin.json 
+OK policy.json -> skills/10x-pipeline/policy.json skills/10x-pipeline/policy.json 
+OK pr-comment.mjs -> skills/10x-pipeline/scripts/pr-comment.mjs skills/10x-pipeline/scripts/pr-comment.mjs 
+OK pr-common.mjs -> skills/10x-pipeline/scripts/pr-common.mjs skills/10x-pipeline/scripts/pr-common.mjs 
+OK preplan.mjs -> skills/10x-pipeline/scripts/preplan.mjs skills/10x-pipeline/scripts/preplan.mjs 
+OK release.yml -> .github/workflows/release.yml .github/workflows/release.yml 
+OK remove-tree.mjs -> skills/10x-pipeline/scripts/remove-tree.mjs skills/10x-pipeline/scripts/remove-tree.mjs 
+OK route.mjs -> skills/10x-pipeline/scripts/route.mjs skills/10x-pipeline/scripts/route.mjs 
+OK score.md -> agents/score.md skills/10x-pipeline/prompts/score.md agents/score.md skills/10x-pipeline/prompts/score.md 
+OK state.mjs -> skills/10x-pipeline/scripts/state.mjs skills/10x-pipeline/scripts/state.mjs 
+OK steps.mjs -> skills/10x-pipeline/scripts/steps.mjs skills/10x-pipeline/scripts/steps.mjs 
+OK SKILL.md -> .claude/skills/openspec-apply-change/SKILL.md .claude/skills/openspec-archive-change/SKILL.md .claude/skills/openspec-bulk-archive-change/SKILL.md .claude/skills/openspec-apply-change/SKILL.md .claude/skills/openspec-archive-change/SKILL.md .claude/skills/openspec-bulk-archive-change/SKILL.md 
+OK version-check.mjs -> tools/version-check.mjs tools/version-check.mjs 
+OK workflow-pins.mjs -> tools/workflow-pins.mjs tools/workflow-pins.mjs 
+OK .release-please-manifest.json -> .release-please-manifest.json .release-please-manifest.json 
+NOTE: agent-smith/last-result.json is a runtime file of a run, refs/agent-smith/ is a git ref namespace; meta.json/run.jsonl runtime; both not repo paths by design
+OK agents/
+OK assets/
+OK tools/
