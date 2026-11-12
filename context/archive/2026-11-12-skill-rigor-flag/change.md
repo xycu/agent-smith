@@ -1,10 +1,10 @@
 ---
 change_id: skill-rigor-flag
 title: Parse --rigor in both skills as the README offers it
-status: planned
+status: archived
 created: 2026-11-12
 updated: 2026-11-12
-archived_at: null
+archived_at: 2026-11-12T12:39:42Z
 ---
 
 ## Notes
