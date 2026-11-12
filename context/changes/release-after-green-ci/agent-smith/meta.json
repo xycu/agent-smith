@@ -45,5 +45,19 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths .claude-plugin/marketplace.json, .claude-plugin/plugin.json, .release-please-manifest.json +10"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.4 A CI run of `main` that fails produces a Release run whose job is skipped, with no release PR update and no tag",
+      "3.5 Rerunning that failed run until it passes starts the release job again",
+      "3.6 A Release run whose job is skipped does not cancel a pending valid run"
+    ],
+    "manualNotProved": [
+      "3.4 A CI run of `main` that fails produces a Release run whose job is skipped, with no release PR update and no tag — not proved: needs a live red CI run of main under the new workflow; 'gh run list --workflow CI --branch main' shows every run since the merge 5f033ba as success (one cancelled run, c5bffb2, predates it; the failu",
+      "3.5 Rerunning that failed run until it passes starts the release job again — not proved: needs a live rerun of such a failed run; none exists, and a rerun posts to an external service",
+      "3.6 A Release run whose job is skipped does not cancel a pending valid run — not proved: needs a skipped Release run beside a pending valid one; skipped runs 43183461174, 43183967966, 43183971597 exist (jobs skipped, no steps) and the later valid run 43184000512 succeeded, but it started"
+    ]
   }
 }
