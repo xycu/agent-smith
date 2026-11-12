@@ -1,1 +1,1 @@
-- 2.4 — needs CI run on main after merge; not merged yet, and reading CI would need an external service
+- 2.4 — needs a CI run on main after the fix is merged; the fix is still on run branch agent-smith/coauthor-test-coarse-mtime, so no such run exists, and reading CI needs an external service
