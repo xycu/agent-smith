@@ -85,7 +85,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `openspec-archive.test.mjs` | the archive branch and the read-only commands |
 | `openspec-contract.test.mjs` | contract test against the real CLI (`OPENSPEC_BIN`, default `openspec`); it skips when the binary does not start |
 | `openspec-readers.test.mjs` | the task row pattern of the CLI, the guarded readers of `tasks.md` and `verify.md`, the chain halt on a 10x run, the produced files of `compare` |
-| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md` |
+| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md`: its anti-stall section equals the 10x one, and the call places of `usage` in the `done`, `halt` and `archive` branches |
 
 ## Helpers
 
@@ -97,10 +97,10 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 
 | File | Scope |
 | --- | --- |
-| `agents-md-no-imports.test.mjs` | `AGENTS.md` has no `@path` import outside a code span |
+| `agents-md-no-imports.test.mjs` | `AGENTS.md`, and `CLAUDE.md` when present, has no `@path` import outside a code span |
 | `agents-md-size.test.mjs` | `AGENTS.md` stays at or under 12288 bytes; new detail goes into the index files |
 | `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` (self-hosted with the fork fallback; ADR-020) and that `release.yml` stays hosted |
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects, CLI exit codes |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |
 | `version-check.test.mjs` | `tools/version-check.mjs`: version fields equal and valid SemVer |
-| `workflow-pins.test.mjs` | `tools/workflow-pins.mjs` and its run on this repository: every remote action is pinned to a 40-hex SHA with a version comment |
+| `workflow-pins.test.mjs` | `tools/workflow-pins.mjs` and its run on this repository: every remote action is pinned to a 40-hex SHA with a version comment, so a tag reference fails the suite. To bump an action, replace the SHA and the version comment together |
