@@ -42,5 +42,9 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 6 (implement) needs a human: Row 3.1 needs the run branch merged to main and then a check of gh run list --workflow Release; an implement step cannot prove it, so further implement retries will loop."
   }
 }
