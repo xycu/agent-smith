@@ -3,7 +3,7 @@
 - **Status:** Accepted (implemented by an unattended run of change `policy-limits-fail-open`)
 - **Date:** 2026-11-12
 - **Deciders:** the repository owner (change `policy-limits-fail-open`, `change.md`); unattended plan and implementation runs for the readings below
-- **Origin:** change `policy-limits-fail-open` (`context/changes/policy-limits-fail-open/change.md` and `plan.md`). It amends ADR-015 (D5, the read of `limits.maxNeutralRetries`); no other decision is superseded.
+- **Origin:** change `policy-limits-fail-open` (`context/archive/2026-11-12-policy-limits-fail-open/change.md` and `plan.md`). It amends ADR-015 (D5, the read of `limits.maxNeutralRetries`); no other decision is superseded.
 
 ## Context
 

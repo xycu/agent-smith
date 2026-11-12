@@ -1,6 +1,6 @@
 # Waves
 
-The order of work for the 37 open changes in this folder (status `new`, no run yet), as of 2026-11-12.
+The order of work for the 31 open changes of waves 2 to 7 in this folder (status `new`, no run yet), as of 2026-11-12. Wave 1 is merged.
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -29,22 +29,20 @@ Each change was mapped to the files and regions its fix names. Changes that shar
 
 The map comes from the text of each `change.md` and the current layout of the files, not from finished diffs. Check it again when a plan is written.
 
-## Before wave 1
+## Wave 1: release and correctness (6) — merged
 
-Fourteen folders here belong to runs that already ended; they are not in a wave. Thirteen ended `done`: `agents-md-no-imports`, `archive-done-routercommit`, `array-prompt-override`, `at-or-above-helper`, `budget-halt-after-done`, `file-guard-dedup`, `init-goal-flag`, `init-needs-change-md`, `override-json-error-halt`, `pin-action-shas`, `pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`. Read the open findings of the three with the verdict NEEDS ATTENTION (`pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`), then archive all thirteen with `/10x-archive <id>`. `ci-self-hosted-truenas` halted on an owner setting and stays until its Progress row 2.3 is settled (see `ci-runner-non-root`).
+`coauthor-test-coarse-mtime`, `release-after-green-ci`, `step-commit-code-under-chore`, `policy-limits-fail-open`, `agents-md-duplicate-adr019` and `skill-rigor-flag` are in `main` (2026-11-12), and their open findings were closed in a follow-up pull request. `agents-md-duplicate-adr019` landed before `agents-md-slim`, as wave 2 needs.
 
-## Wave 1: release and correctness (6)
+## Archived after wave 1
 
-The three high-severity findings, and what must land before them or before wave 2.
+Eighteen folders were archived with `/10x-archive`: the thirteen runs that ended `done` before the waves (`agents-md-no-imports`, `archive-done-routercommit`, `array-prompt-override`, `at-or-above-helper`, `budget-halt-after-done`, `file-guard-dedup`, `init-goal-flag`, `init-needs-change-md`, `override-json-error-halt`, `pin-action-shas`, `pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`) and five of the six changes of wave 1 (`coauthor-test-coarse-mtime`, `step-commit-code-under-chore`, `policy-limits-fail-open`, `agents-md-duplicate-adr019`, `skill-rigor-flag`).
 
-| Change | Owns in this wave | Notes |
-| --- | --- | --- |
-| `coauthor-test-coarse-mtime` | `coauthor.test.mjs`, the `writePlan` imports of other test files | Merge first: it is the flake that failed the CI run of the `v1.5.0` commit, and the next row makes a red run block a release. |
-| `release-after-green-ci` | `ci.yml` (concurrency), `release.yml` | High. |
-| `step-commit-code-under-chore` | The implement, fix and `os-apply` templates of `policy.json`, the step commit in `isolation.mjs`, `open-pr.mjs` | High. |
-| `policy-limits-fail-open` | Policy load in `state.mjs`, template rendering in `steps.mjs`, command entry in `route.mjs` | High. |
-| `agents-md-duplicate-adr019` | One sentence of the ADR bullet in `AGENTS.md` | Must be merged before `agents-md-slim` (wave 2). |
-| `skill-rigor-flag` | Skills: `argument-hint`, Start steps 1 and 4 | |
+Two folders stay in this directory and are not in a wave:
+
+- `release-after-green-ci` (wave 1, merged): Progress rows 3.4 to 3.6 need a real CI failure on `main` and a rerun, and its run never reached the implementation review (steps 5 and 6 failed), so `reviews/impl-review.md` is missing. Run `/10x-impl-review`, settle the rows, then archive it.
+- `ci-self-hosted-truenas`: halted on an owner setting; stays until its Progress row 2.3 is settled (see `ci-runner-non-root`).
+
+Two Manual rows of archived changes are still open: `skill-rigor-flag` 2.5 (a live `--rigor thorough` run) and `pin-action-shas` 1.5 (CI and release-please have resolved the pinned actions since, so it can be ticked with `gh run list`).
 
 ## Wave 2: context cost (6)
 
