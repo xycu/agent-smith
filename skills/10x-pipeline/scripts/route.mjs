@@ -669,6 +669,7 @@ function status(id, flags, chain = "10x") {
       ...(Array.isArray(e.neutralRetries) && e.neutralRetries.length > 0 ? { neutralRetries: e.neutralRetries.length } : {}),
       ...(isObject(e.review) ? { review: e.review } : {}),
       ...(typeof e.commit === "string" ? { commit: e.commit.slice(0, 7) } : {}),
+      ...(Array.isArray(e.swept) && e.swept.length > 0 ? { swept: e.swept } : {}),
       ...(typeof e.rolledBack === "string" ? { rolledBack: e.rolledBack } : {}),
       ...(typeof e.kept === "string" ? { kept: e.kept } : {}),
     })),
