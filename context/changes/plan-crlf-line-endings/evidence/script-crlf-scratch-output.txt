@@ -1,0 +1,36 @@
+9
+== init
+exit=0
+valid JSON
+{
+  "action": "run",
+  "n": 1,
+  "step": "plan-review",
+  "model": "sonnet",
+  "effort": "medium",
+  "reason": "plan changed since last review; risk not measured (unavailable, 0 plan paths); tier 2 (base 2, -1 simple change (1 phase, 1 rows), floor medium (tier 2))",
+  "prompt": "Run /10x-plan-review context/changes/demo/plan.md\nSave the review to context/changes/demo/reviews/plan-review.md.\n- **GIVEN** the plan review has findings **WHEN** a finding carries a clear suggested fix to `context/changes/demo/plan.md` **THEN** you **MUST** apply that fix to `plan.md` yourself, for every CRITICAL,
+== status
+exit=0
+valid JSON
+{
+  "change": "demo",
+  "rigor": "lean",
+  "steps": [
+    {
+      "n": 1,
+      "step": "plan-review",
+      "template": "plan-review",
+      "model": "sonnet",
+      "effort": "medium",
+      "simple": false,
+      "ok": null,
+      "verified": null,
+      "note": null,
+      "reason": "plan changed since last review; risk not measured (unavailable, 0 plan paths)",
+      "usage": null
+    }
+  ]
+}
+
+no Router error

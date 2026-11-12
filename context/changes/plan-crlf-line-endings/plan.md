@@ -159,7 +159,7 @@ None; a regex split replaces a string split on files of a few KB.
 
 #### Manual
 
-- [ ] 1.3 Scratch CRLF plan: init and status print valid JSON and no Router error
+- [x] 1.3 Scratch CRLF plan: init and status print valid JSON and no Router error — evidence: evidence/script-crlf-scratch-output.txt
 
 ### Phase 2: Tests for CRLF plans
 
