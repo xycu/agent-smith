@@ -22,13 +22,13 @@ An error anywhere after `attachResult` keeps the result in `run.jsonl`. After th
 | `neutralRetry` | Unchanged | Already writes the log after its delete | Plan |
 | Test placement | New `result-persist.test.mjs` | Isolated case needs hermetic-git helpers that `route.test.mjs` lacks | Plan |
 | Isolated case entry | Failed `score` (advisory) entry | Neither `stepCommit` nor `rollback` writes the log for it | Plan |
-| Way to throw | `ladder: []` in the override | Reproduces the verified error; read only in `decide`/`tierFor` | Plan (from `change.md`) |
+| Way to throw | `rigor: { levels: null }` in the override | `ladder: []` is halted at load by `policyProblems` (ADR-022); `rigor.levels` is read only in `resolveRigor`, after `attachResult` | Plan review F1 |
 
 ## Scope
 
 **In scope:** reorder in `flow.mjs`; new test file with two cases. `AGENTS.md` is not edited (owned by `agents-md-slim` in this wave).
 
-**Out of scope:** OpenSpec-chain test, ladder validation at load, `SKILL.md`/`REFERENCE.md` edits, other routing code.
+**Out of scope:** OpenSpec-chain test, `rigor.levels` validation at load, `SKILL.md`/`REFERENCE.md` edits, other routing code.
 
 ## Architecture / Approach
 
@@ -47,7 +47,7 @@ Tests first (red), then move `fs.rmSync(p.result)` after a new `writeLog(p.log, 
 ## Open Risks & Assumptions
 
 - Assumes a failed `score` entry stays unwritten before `decide` on the current code; Phase 1 confirms it by failing red.
-- Assumes `ladder: []` passes `policyProblems` at load; if not, use another key read only in `decide`/`tierFor`.
+- A kill between the new `writeLog` and the `rmSync` leaves a stale `last-result.json` (an isolated run's step commit would commit it); not handled, window is two adjacent sync calls.
 
 ## Success Criteria (Summary)
 
