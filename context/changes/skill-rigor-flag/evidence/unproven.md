@@ -1,0 +1,1 @@
+- 2.5 — needs a live skill run with --rigor thorough; unattended step cannot launch a pipeline run (router-level behaviour covered by Automated 2.4)
