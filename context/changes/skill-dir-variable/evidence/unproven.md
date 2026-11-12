@@ -1,2 +1,2 @@
-- 3.5 — needs an installed plugin in a live Claude Code session (slash command substitution); not reproducible unattended
-- 3.6 — same, for /agent-smith:openspec-pipeline
+- 3.5 — needs an installed plugin in a live Claude Code session (slash command substitution of ${CLAUDE_SKILL_DIR}); no test or command reproduces it unattended, and the installed cache copy is not this change
+- 3.6 — same, for /agent-smith:openspec-pipeline through ../10x-pipeline
