@@ -1,0 +1,20 @@
+skills/10x-pipeline/test/coauthor.test.mjs — the start commit carries the trailer after its subject
+✔ the start commit carries the trailer after its subject (686.1155ms)
+✔ a step commit carries the trailer (1151.321292ms)
+✔ the rollback snapshot carries the trailer (1036.769458ms)
+✔ the pre-archive and the late-usage commits carry the trailer (1077.252542ms)
+✔ a malformed coAuthor halts the pre-archive commit and refuses the late-usage commit before staging (1175.104875ms)
+✔ coAuthor null gives no trailer (778.169083ms)
+✔ a malformed coAuthor halts the start commit at init with nothing staged; status still works (2094.52675ms)
+✔ a malformed coAuthor halts a step commit at next with nothing staged (3261.628416ms)
+✔ coAuthor does not change the provenance record (262.349709ms)
+✔ coAuthorProblem and coAuthorTrailer (0.426584ms)
+✔ open-pr.mjs coAuthorLine gives the router's trailer, and null where the router reports a problem (1.446208ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11745.387875
