@@ -64,7 +64,7 @@ The step commit records the paths outside the change folder that it commits; `st
 
 **Intent**: In `routerCommit`, when called without `rel` and the index is not empty after `git add -A`, read the staged names before `git commit` and return them, so the step commit knows what it holds. A failed read is handled like a failed add.
 
-**Contract**: `routerCommit(g, timeout, { rel, message, trailer })` returns `{ commit, made, names? }`; `names` (git-root-relative paths, `--no-renames`) is present only when `rel` is null and `made` is true. The `rel` callers (start, pre-archive, late-usage) are unchanged. Update the function's header comment.
+**Contract**: `routerCommit(g, timeout, { rel, message, trailer })` returns `{ commit, made, names? }`; `names` (git-root-relative paths, `--no-renames`) is present only when `rel` is null and `made` is true. The error return of the post-commit checks (`after()`, `made: true`) carries the same `names`, because `stepCommit` records `commit` on that path (`if (res.made || !res.error)`) and must record `swept` with it before it halts. The `rel` callers (start, pre-archive, late-usage) are unchanged. Update the function's header comment.
 
 #### 2. `swept` on the log entry
 
@@ -210,7 +210,7 @@ The four implement-class templates get one commit rule; the suffix stops reading
 
 **File**: `skills/openspec-pipeline/SKILL.md`, `docs/REFERENCE.md`, `skills/10x-pipeline/prompts/README.md`, `AGENTS.md`
 
-**Intent**: Bring every statement that `os-apply` never commits in line with the new rule: openspec SKILL.md line 53 and line 122 (isolation off: the code is now committed by `os-apply`; only change-folder files stay uncommitted), REFERENCE line 364 (`os-apply` stages its code by name and never the router files) and line 413, the `os-apply.md` row of `prompts/README.md` (line 31), and the suffix description in `prompts/README.md` if it quotes the old sentence. In AGENTS.md, extend the ADR-010 sentence of `docs/ADR/` with "its Amendment 1 records the paths a step commit takes from outside the change folder".
+**Intent**: Bring every statement that `os-apply` never commits in line with the new rule: openspec SKILL.md line 53 and line 122 (isolation off: the code is now committed by `os-apply`; only change-folder files stay uncommitted), REFERENCE line 364 (`os-apply` stages its code by name and never the router files) and line 413, the `os-apply.md` row of `prompts/README.md` (line 31), and the suffix description in `prompts/README.md` if it quotes the old sentence. Before this phase ends, grep `skills docs README.md AGENTS.md` (not `context/archive/`) for the other wordings of the old rule, `never archive or commit`, `forbid commits`, `forbid staging`, `nothing commits the code` and `not committed`, and bring every hit in line; the check in 3.3 matches only the two exact old sentences. In AGENTS.md, extend the ADR-010 sentence of `docs/ADR/` with "its Amendment 1 records the paths a step commit takes from outside the change folder".
 
 **Contract**: prose only.
 
