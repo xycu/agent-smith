@@ -246,8 +246,8 @@ A project template that holds a `{word}` outside the 17 known names (it used to 
 
 #### Automated
 
-- [ ] 3.1 Full suite passes (doc-content guards included): `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.2 No recursive delete pattern in the new docs and tests: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 3.1 Full suite passes (doc-content guards included): `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 48e475d
+- [x] 3.2 No recursive delete pattern in the new docs and tests: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — 48e475d
 
 #### Manual
 
