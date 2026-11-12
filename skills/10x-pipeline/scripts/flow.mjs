@@ -9,7 +9,7 @@ import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSum
 import {
   verifyImplement, executorNext, retryRows, unprovenTicks, retryNext, reviewWarning, doneNotes, withoutEvidence,
   manualUnprovenIds, manualUnprovenWhyRows, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
-  verifyCodeReplan, PROMPT_PLACEHOLDERS,
+  verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "./openspec.mjs";
 
@@ -184,7 +184,7 @@ function sweptLines(log, oneLine) {
       "lists no changelog line for them.",
     "",
     ...rows.flatMap((e) => [
-      `- step ${e.n} ${e.step} (${String(e.commit ?? "").slice(0, 7)}):`,
+      `- step ${e.n} ${e.step}${e.commit ? ` (${String(e.commit).slice(0, 7)})` : ""}:`,
       ...e.swept.map((path) => `  - \`${oneLine(path)}\``),
     ]),
     "",
@@ -818,8 +818,9 @@ export function checkPrompts(policy) {
   }
 }
 
-// The first {name} in a prompt template that the router never fills (PROMPT_PLACEHOLDERS), as a halt text, else null.
-// A template that does not resolve is skipped: checkPrompts reports it with its own text. Never throws.
+// The first {name} in a prompt template that the router never fills for it (PROMPT_PLACEHOLDERS, or its own shorter
+// list in NARROW_PLACEHOLDERS), as a halt text, else null. A template that does not resolve is skipped: checkPrompts
+// reports it with its own text. Never throws.
 export function promptProblem(policy) {
   const prompts = isObject(policy?.prompts) ? policy.prompts : {};
   for (const template of Object.keys(prompts)) {
@@ -829,9 +830,10 @@ export function promptProblem(policy) {
     } catch {
       continue;
     }
+    const known = Object.hasOwn(NARROW_PLACEHOLDERS, template) ? NARROW_PLACEHOLDERS[template] : PROMPT_PLACEHOLDERS;
     for (const [, name] of text.matchAll(/\{(\w+)\}/g)) {
-      if (!PROMPT_PLACEHOLDERS.includes(name)) {
-        return `policy.prompts.${template} uses {${name}}, which the router never fills. Known placeholders: ${PROMPT_PLACEHOLDERS.join(", ")}. ` +
+      if (!known.includes(name)) {
+        return `policy.prompts.${template} uses {${name}}, which the router never fills. Known placeholders: ${known.join(", ") || "none"}. ` +
           "Fix it in context/foundation/agent-smith-policy.json. Nothing was written.";
       }
     }

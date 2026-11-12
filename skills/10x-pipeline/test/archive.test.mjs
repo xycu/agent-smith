@@ -603,14 +603,14 @@ test("done with --archive commits the change folder and returns the archive acti
 
 test("array archive and suffix overrides render joined, @prompts parts resolved", { skip: noGit }, () => {
   const project = archiveProject({ policy: { prompts: {
-    archive: ["Run /10x-archive {id}", "- extra rule", "@prompts/impl-review-warn.md"],
+    archive: ["Run /10x-archive {id}", "- extra rule", "@prompts/impl-review-apply.md"],
     suffix: ["line one", "line two"],
   } } });
   const res = runNext(project);
   assert.equal(res.status, 0, res.stdout + res.stderr);
   assert.equal(res.json.action, "archive");
   // render() fills the part's {placeholders}, so compare the placeholder-free lines.
-  const warn = fs.readFileSync(new URL("../prompts/impl-review-warn.md", import.meta.url), "utf8").split("\n").filter((l) => l.trim() && !l.includes("{"));
+  const warn = fs.readFileSync(new URL("../prompts/impl-review-apply.md", import.meta.url), "utf8").split("\n").filter((l) => l.trim() && !l.includes("{"));
   assert.ok(warn.length > 0);
   assert.ok(res.json.prompt.startsWith("Run /10x-archive demo\n- extra rule\n"), res.json.prompt);
   for (const l of warn) assert.ok(res.json.prompt.includes(l), l);
@@ -619,7 +619,7 @@ test("array archive and suffix overrides render joined, @prompts parts resolved"
 });
 
 test("a string archive or suffix override that starts with @prompts/ is a file reference", { skip: noGit }, () => {
-  const project = archiveProject({ policy: { prompts: { archive: "@prompts/os-archive.md", suffix: "@prompts/worktree.md" } } });
+  const project = archiveProject({ policy: { prompts: { archive: "@prompts/os-archive.md", suffix: "@prompts/advisor.md" } } });
   const res = runNext(project);
   assert.equal(res.status, 0, res.stdout + res.stderr);
   assert.equal(res.json.action, "archive");
@@ -627,7 +627,7 @@ test("a string archive or suffix override that starts with @prompts/ is a file r
   const file = (name) => fs.readFileSync(new URL(`../prompts/${name}`, import.meta.url), "utf8").trim();
   // The archive text goes through render() and the suffix does not, so compare the first line and the raw suffix.
   assert.ok(res.json.prompt.startsWith(file("os-archive.md").split("\n")[0].replaceAll("{id}", "demo")), res.json.prompt);
-  assert.ok(res.json.prompt.endsWith("\n\n" + file("worktree.md")));
+  assert.ok(res.json.prompt.endsWith("\n\n" + file("advisor.md")));
 });
 
 test("a string archive or suffix reference that does not resolve halts before the pre-archive commit", { skip: noGit }, () => {

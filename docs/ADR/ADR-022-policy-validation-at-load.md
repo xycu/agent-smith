@@ -54,3 +54,8 @@ The text names the key, the value and `context/foundation/agent-smith-policy.jso
 - A project override that held a malformed value used to run with the bound off (or the default 2 for `maxNeutralRetries`); it now halts at the next `init`, `next` or `usage`. A run in flight resumes after the owner fixes the file; `run.jsonl` and `meta.json` do not change.
 - A project template with a `{word}` outside the 17 names, which used to render as empty text, now halts and names the template and the word.
 - Adding a placeholder to the router means adding it to `PROMPT_PLACEHOLDERS`.
+
+## Amendment 1
+
+- `promptProblem` checks the templates that the router renders with fewer names against their own list, `NARROW_PLACEHOLDERS` in `steps.mjs`: `archive`, `os-archive` and `frame-authority` get `id`, `worktree` gets `workdir`, and `suffix` is not rendered and gets none. A known name outside that list used to render as empty text, or stay literal in `suffix`, with no halt; it now halts and names the template. A new narrow render site adds its template to that map.
+- `policyProblems` also requires every `ladder[i].effort` to be one of `rigor.effortOrder`, which `tierFor` ranks by. With no usable `effortOrder` the effort is only a non-empty string, as before.

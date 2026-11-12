@@ -62,6 +62,7 @@ const CASES = {
   "ladder is empty": [{ ladder: [] }, "ladder"],
   "ladder is a string": [{ ladder: "x" }, "ladder"],
   "ladder entry has no effort": [{ ladder: [...SHIPPED.ladder.slice(0, 7), { model: "opus" }] }, "ladder[7].effort"],
+  "ladder entry effort is not in effortOrder": [{ ladder: [{ model: "haiku", effort: "turbo" }, ...SHIPPED.ladder.slice(1)] }, "ladder[0].effort"],
   "ladder entry model is blank": [{ ladder: [{ model: " ", effort: "low" }, ...SHIPPED.ladder.slice(1)] }, "ladder[0].model"],
   "ladder entry is null": [{ ladder: [null, ...SHIPPED.ladder.slice(1)] }, "ladder[0].model"],
   "a one-entry ladder leaves tiers out of range": [{ ladder: [SHIPPED.ladder[0]] }, "steps.plan.baseTier"],
@@ -212,6 +213,27 @@ test("a template that does not resolve is skipped, checkPrompts reports it later
 test("promptProblem names the template and the word and lists the known names", () => {
   const reason = flow.promptProblem({ ...SHIPPED, prompts: { ...SHIPPED.prompts, fix: ["ok {id}", "bad {nope}"] } });
   assert.match(reason, /^policy\.prompts\.fix uses \{nope\}, which the router never fills\. Known placeholders: .*\bid\b.*Fix it in context\/foundation\/agent-smith-policy\.json\. Nothing was written\.$/);
+});
+
+test("a narrow template is checked against the names its render site fills", () => {
+  const over = (template, tpl) => flow.promptProblem({ ...SHIPPED, prompts: { ...SHIPPED.prompts, [template]: tpl } });
+  for (const template of ["archive", "os-archive", "frame-authority"]) {
+    assert.equal(over(template, "Archive {id}."), null);
+    assert.match(over(template, "Archive {id} for {goal}."), new RegExp(`^policy\\.prompts\\.${template} uses \\{goal\\}, which the router never fills\\. Known placeholders: id\\. `));
+  }
+  assert.equal(over("worktree", "Work in {workdir}."), null);
+  assert.match(over("worktree", "Work in {workdir} for {id}."), /^policy\.prompts\.worktree uses \{id\}.*Known placeholders: workdir\. /);
+  assert.equal(over("suffix", "Finish with a RESULT line."), null);
+  assert.match(over("suffix", "Finish {id}."), /^policy\.prompts\.suffix uses \{id\}.*Known placeholders: none\. /);
+});
+
+test("a narrow template halts init before anything is written", () => {
+  const project = makeProject({ policy: { prompts: { archive: "Archive {id} with {goal}." } } });
+  const before = snapshot(path.join(project.root, "context"));
+  const res = init(project, GOAL);
+  assert.equal(res.status, 1, res.stdout);
+  assert.ok(res.json.reason.includes("policy.prompts.archive uses {goal}"), res.json.reason);
+  assert.deepEqual(snapshot(path.join(project.root, "context")), before);
 });
 
 test("the shipped prompts all pass the placeholder check", () => {
