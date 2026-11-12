@@ -1,7 +1,7 @@
 ---
 change_id: agent-smith-coauthor
 title: Agent Smith co-authors commits like Claude does
-status: planned
+status: implementing
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null

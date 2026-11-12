@@ -94,6 +94,31 @@ export function loadPrices() {
   try { return priceTable(mergedPolicy()); } catch { return null; }
 }
 
+// ---- co-author trailer --------------------------------------------------------
+
+// The fault of policy.coAuthor, or null when it is null, missing or valid: { name, email }, each a non-blank string
+// with no newline, "<" or ">". Never halts; each committing caller turns the message into its own stop.
+// open-pr.mjs holds a copy of this rule (coAuthorLine), since it imports no router module; coauthor.test.mjs checks parity.
+export function coAuthorProblem(policy) {
+  const c = policy?.coAuthor;
+  if (c === null || c === undefined) return null;
+  if (!isObject(c)) return "policy.coAuthor must be null or an object { name, email }.";
+  for (const key of ["name", "email"]) {
+    const v = c[key];
+    if (typeof v !== "string" || !v.trim() || /[\r\n<>]/.test(v)) {
+      return `policy.coAuthor ${key} must be a non-blank string with no newline, "<" or ">".`;
+    }
+  }
+  return null;
+}
+
+// The trailer line of policy.coAuthor, or null when it is off. Call only after coAuthorProblem returned null.
+export function coAuthorTrailer(policy) {
+  const c = policy?.coAuthor;
+  if (c === null || c === undefined) return null;
+  return `Co-Authored-By: ${c.name.trim()} <${c.email.trim()}>`;
+}
+
 // A blended-rate estimate over executed log entries. withFigures counts entries with a token figure (a non-negative
 // safe integer, the test of usage intake); priced counts those whose model alias has a price; usd sums
 // totalTokens * price / 1e6 over them, unrounded (each consumer rounds); unpriced lists the distinct aliases (unknown

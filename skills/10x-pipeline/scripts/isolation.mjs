@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, isFailure, isObject, SHA_RE, runGit,
-  ignoredProbePaths, halt,
+  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
@@ -16,7 +16,7 @@ import { finishRun, endRun, promptText } from "./flow.mjs";
 // plugin's agent definitions and the flags in force. Recorded once in meta.json and read by compare. Every input is
 // only read; computing the record never throws, so it never halts init or next.
 const PLUGIN_ROOT = path.resolve(SKILL_DIR, "../..");
-const PROVENANCE_DEFAULTS = { ignore: ["compare", "provenance", "prices"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } };
+const PROVENANCE_DEFAULTS = { ignore: ["compare", "provenance", "prices", "coAuthor"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } };
 
 // The provenance block of the policy. A list that is not an array of strings reads as the shipped default.
 export function provenanceConfig(policy) {
@@ -322,7 +322,7 @@ function isolationMessage(policy, key, vars) {
 // when nothing was staged or the hash could not be read, so it is never a label. An error with `reason`, `commit` and
 // `made` came from the post-commit checks; an error without them came before a commit and the router's own add was
 // unstaged.
-function routerCommit(g, timeout, { rel = null, message }) {
+function routerCommit(g, timeout, { rel = null, message, trailer = null }) {
   const failed = (what, res) => {
     const reset = g(rel ? ["reset", "-q", "--", rel] : ["reset", "-q"]);
     const note = res.timedOut ? ` git timed out after ${timeout} ms; a hook child may still run and an index.lock may remain.` : "";
@@ -339,7 +339,9 @@ function routerCommit(g, timeout, { rel = null, message }) {
   const made = check.status === 1;
   let commit = null;
   if (made) {
-    const res = g(rel ? ["commit", "-m", message, "--", rel] : ["commit", "-m", message]);
+    // The trailer sits right after the message and before the `--` of the pathspec form.
+    const msg = ["-m", message, ...(trailer ? ["--trailer", trailer] : [])];
+    const res = g(rel ? ["commit", ...msg, "--", rel] : ["commit", ...msg]);
     if (res.status !== 0) return failed("commit", res);
     const head = g(["rev-parse", "HEAD"]);
     if (head.status === 0 && head.stdout.trim()) commit = head.stdout.trim();
@@ -393,6 +395,8 @@ export function lateUsagePrecheck(p, id, meta, policy) {
   const g = (args) => runGit(args, { timeout });
   const rel = changeRel(p, id);
   if (usageMessage(policy, id, 1) === null) return "policy.archive.usageMessage must be a non-blank string.";
+  const bad = coAuthorProblem(policy);
+  if (bad) return bad;
   const unsafe = gitSafety(g, timeout, { id, chain: p.chain === "openspec" ? "openspec" : "10x" });
   if (unsafe) return unsafe;
   if (meta.isolated === true) {
@@ -414,7 +418,9 @@ export function lateUsageCommit(p, id, policy, n) {
   const g = (args) => runGit(args, { timeout });
   const message = usageMessage(policy, id, n);
   if (message === null) return { error: "policy.archive.usageMessage must be a non-blank string." };
-  return routerCommit(g, timeout, { rel: changeRel(p, id), message });
+  const bad = coAuthorProblem(policy);
+  if (bad) return { error: bad };
+  return routerCommit(g, timeout, { rel: changeRel(p, id), message, trailer: coAuthorTrailer(policy) });
 }
 
 // The start commit of the first init of an isolated run: the change folder as the orchestrator copied it, plus
@@ -431,8 +437,10 @@ export function startCommit(p, id, meta, policy) {
   if (unsafe) stop(unsafe);
   const message = isolationMessage(policy, "startMessage", { id });
   if (message === null) stop("policy.isolation.commit.startMessage must be a non-blank string.");
+  const bad = coAuthorProblem(policy);
+  if (bad) stop(bad);
   const rel = changeRel(p, id);
-  const res = routerCommit(g, timeout, { rel, message });
+  const res = routerCommit(g, timeout, { rel, message, trailer: coAuthorTrailer(policy) });
   if (res.made || !res.error) {
     meta.startCommit = res.commit;
     fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
@@ -460,7 +468,9 @@ export function stepCommit(p, id, meta, log, policy) {
   if (unsafe) stop(unsafe);
   const message = isolationMessage(policy, "message", { id, n: String(last.n), step: last.step });
   if (message === null) stop("policy.isolation.commit.message must be a non-blank string.");
-  const res = routerCommit(g, timeout, { message });
+  const bad = coAuthorProblem(policy);
+  if (bad) stop(bad);
+  const res = routerCommit(g, timeout, { message, trailer: coAuthorTrailer(policy) });
   if (res.made || !res.error) last.commit = res.commit;
   if (res.error) stop(res.error);
   writeLog(p.log, log);
@@ -532,6 +542,9 @@ export function rollback(p, id, meta, log, policy) {
   ref = typeof tpl === "string" ? render(tpl, { id, run: runToken(meta, ran, last), n: String(last.n) }).trim() : "";
   // Only the router's own namespace: refs/heads, refs/tags and refs/remotes are shared by every worktree of the repo.
   if (!ref.startsWith("refs/agent-smith/")) stop("policy.isolation.rollback.ref must render to a ref under refs/agent-smith/.");
+  const bad = coAuthorProblem(policy);
+  if (bad) stop(bad);
+  const trailer = coAuthorTrailer(policy);
   const left = fileTimes(p); // the times the failed step left, for the undo on halt
   const step = (args) => {
     const res = g(args);
@@ -540,7 +553,7 @@ export function rollback(p, id, meta, log, policy) {
   };
   step(["add", "-A"]);
   const tree = step(["write-tree"]);
-  const snapshot = step(["commit-tree", tree, "-p", "HEAD", "-m", `agent-smith: failed step ${last.n} (${last.step})`]);
+  const snapshot = step(["commit-tree", tree, "-p", "HEAD", "-m", `agent-smith: failed step ${last.n} (${last.step})`, ...(trailer ? ["-m", trailer] : [])]);
   step(["update-ref", ref, snapshot]); // a ref of that name from an earlier attempt is overwritten
   refMade = true;
   step(["reset", "-q", "--hard", last.startSha]);
@@ -619,6 +632,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   if (typeof template !== "string" || !template.trim()) precheck("policy.archive.commitMessage must be a non-blank string.");
   const message = render(template, { id }).trim();
   if (!message) precheck("policy.archive.commitMessage renders to a blank message.");
+  const badCoAuthor = coAuthorProblem(policy);
+  if (badCoAuthor) precheck(badCoAuthor);
   let settled;
   try {
     settled = tierFor({ step: openspec ? "os-archive" : "archive" }, ran, policy, readPlan(p.plan), meta, level);
@@ -648,7 +663,7 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
       committed: false,
     });
   }
-  const res = routerCommit(g, timeout, { rel, message });
+  const res = routerCommit(g, timeout, { rel, message, trailer: coAuthorTrailer(policy) });
   if (res.error) {
     return res.commit === undefined
       ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false })
