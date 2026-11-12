@@ -1,10 +1,14 @@
 // Rule-form check (ADR-004): every behavior rule is one line,
 // **GIVEN** ... **WHEN** ... **THEN** ... with exactly one bold RFC 2119 keyword.
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { TYPES } from "../../../tools/commit-lint.mjs";
+import { cleanupAll, init, makeProject, next, planText, writeResult, writeReview } from "./helpers.mjs";
+
+after(() => cleanupAll());
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const REPO = path.resolve(SKILL_DIR, "../..");
@@ -151,4 +155,55 @@ test("both confirm templates carry their apply-fixes rules", () => {
   assert.ok(flat(POLICY.prompts["impl-review-confirm"]).includes("@prompts/impl-review-apply.md"));
   assert.ok(flat(POLICY.prompts["impl-review-confirm"]).includes("@prompts/impl-review-confirm.md"));
   for (const k of ["plan-review-confirm", "impl-review-confirm"]) assert.doesNotMatch(flat(POLICY.prompts[k]).join("\n"), /Do not (apply fixes|fix findings)|choose to save and stop/, k);
+});
+
+// The commit rule of the implement-class templates (change step-commit-code-under-chore): the code is committed by the
+// subagent under a typed subject, never chore, so release-please lists it.
+const COMMIT_RULE = "- **GIVEN** a phase changed files outside `context/changes/{id}/` **WHEN** its gates pass **THEN** you **MUST** commit those files before you write the RESULT line, under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`.";
+const parts = (v) => (Array.isArray(v) ? v : [v]).flatMap((part) => String(part).split("\n"));
+
+test("implement, implement-segment and implement-retry carry the commit rule once", () => {
+  const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+  assert.equal(typeof policy.prompts.implement, "string", "implement stays a string");
+  for (const k of ["implement", "implement-segment", "implement-retry"]) {
+    assert.equal(parts(policy.prompts[k]).filter((l) => l === COMMIT_RULE).length, 1, k);
+  }
+  assert.deepEqual(ruleProblems(COMMIT_RULE), []);
+});
+
+test("the types of the commit rule are Conventional Commits types without chore", () => {
+  const listed = [...COMMIT_RULE.matchAll(/`(feat|fix|refactor|perf|test|docs|chore)`/g)].map((m) => m[1]);
+  assert.deepEqual(listed.slice(0, 6), ["feat", "fix", "refactor", "perf", "test", "docs"]);
+  assert.ok(listed.slice(0, 6).every((t) => TYPES.includes(t) && t !== "chore"));
+});
+
+test("os-apply.md commits the code by type, never chore, and no longer bans commits", () => {
+  const text = fs.readFileSync(path.join(SKILL_DIR, "prompts/os-apply.md"), "utf8");
+  const rule = text.split("\n").filter((l) => l.includes("**GIVEN**") && l.includes("Conventional Commits subject"));
+  assert.equal(rule.length, 1);
+  assert.match(rule[0], /`feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`/);
+  assert.match(rule[0], /stage those files one by one by name/);
+  assert.match(rule[0], /leave every file under `openspec\/changes\/\{id\}\/` unstaged/);
+  assert.deepEqual(ruleProblems(rule[0]), []);
+  assert.doesNotMatch(text, /\*\*MUST NOT\*\* commit/);
+  assert.ok(text.split("\n").some((l) => l.includes("**GIVEN**") && l.includes("**MUST NOT** stash")));
+});
+
+test("the suffix no longer reads as a ban on commits", () => {
+  const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+  assert.doesNotMatch(policy.prompts.suffix, /Do not commit unless/);
+  assert.match(policy.prompts.suffix, /Commit only where the skill or a rule of this prompt tells you to\./);
+});
+
+test("the router's implement prompt holds the commit rule once, before the RESULT line", () => {
+  const project = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
+  assert.equal(init(project, "add a parser for config files with tests").json.step, "plan-review");
+  writeReview(project, "plan-review");
+  writeResult(project, { status: "done" });
+  const res = next(project);
+  assert.equal(res.json.step, "implement");
+  const lines = res.json.prompt.split("\n");
+  const rule = COMMIT_RULE.replaceAll("{id}", "demo");
+  assert.equal(lines.filter((l) => l === rule).length, 1);
+  assert.ok(lines.indexOf(rule) < lines.findIndex((l) => l.startsWith("RESULT:")));
 });

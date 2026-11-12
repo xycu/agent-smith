@@ -133,6 +133,7 @@ function buildReport(id, meta, fullLog) {
     ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
     `Outcome: ${outcome}`,
     ...archiveLines(id, meta, oneLine),
+    ...sweptHeader(log),
     "",
     `| # | Step | Model | Effort | Tier | Simple | Result | Tokens |${cost ? " Cost (est.) |" : ""}`,
     `| --- | --- | --- | --- | --- | --- | --- | --- |${cost ? " --- |" : ""}`,
@@ -149,6 +150,7 @@ function buildReport(id, meta, fullLog) {
       ...skips.map((e) => `| ${e.afterN} | ${e.step} | ${oneLine(e.reason).replace(/\|/g, "/")} | ${e.rigor ?? "-"} |`),
       "",
     ] : []),
+    ...sweptLines(log, oneLine),
     ...rollbackLines(log),
     ...neutralLines(log),
     ...reviewLines(log),
@@ -156,6 +158,37 @@ function buildReport(id, meta, fullLog) {
     ...complexityLines(fullLog),
     ...lessonLines(log, oneLine),
   ].join("\n");
+}
+
+// The paths outside the change folder that step commits of an isolated run took under the chore subject (`swept` of a
+// log entry), per entry; entries without any are left out.
+const sweptEntries = (log) => log.filter((e) => Array.isArray(e.swept) && e.swept.length > 0);
+
+// The header line for sweptLines, so the pull request body (the report lines before the table) shows it. None, no line.
+function sweptHeader(log) {
+  const rows = sweptEntries(log);
+  if (!rows.length) return [];
+  const paths = rows.reduce((sum, e) => sum + e.swept.length, 0);
+  return [`Code under chore commits: ${paths} path(s) in ${rows.length} step commit(s); see "Code committed by the router"`];
+}
+
+// The "Code committed by the router" section: per step commit, the paths outside the change folder it holds. None, no
+// section.
+function sweptLines(log, oneLine) {
+  const rows = sweptEntries(log);
+  if (!rows.length) return [];
+  return [
+    "## Code committed by the router",
+    "",
+    "These paths sat uncommitted when a step ended and went into the router's `chore` step commit, so release-please " +
+      "lists no changelog line for them.",
+    "",
+    ...rows.flatMap((e) => [
+      `- step ${e.n} ${e.step} (${String(e.commit ?? "").slice(0, 7)}):`,
+      ...e.swept.map((path) => `  - \`${oneLine(path)}\``),
+    ]),
+    "",
+  ];
 }
 
 // The "Rolled-back steps" section of an isolated run: one line per failed step whose partial edits sit under a side

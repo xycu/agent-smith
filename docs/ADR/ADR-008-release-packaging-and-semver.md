@@ -1,6 +1,6 @@
 # ADR-008: Release packaging with release-please and Semantic Versioning
 
-- **Status:** Accepted (2026-11-02, repository owner)
+- **Status:** Accepted (2026-11-02, repository owner); amended 2026-11-12 (Amendment 1)
 - **Date:** 2026-11-02
 - **Deciders:** repository owner
 - **Origin:** the `release-packaging` change. Change folder: `context/changes/release-packaging/change.md`. The mechanics are copied from xycu/hegel-skill, with the differences below.
@@ -53,3 +53,34 @@ Rules, written as scenarios (the form of ADR-004):
 | Reconcile to 1.0.0 with a one-time `release-as` | not adopted | The router and policy keys are still uncalibrated, so 1.0.0 would promise stability the project does not have. |
 | Manual tags and a hand-written changelog | rejected | The version fields would drift, and the bump would depend on memory. |
 | Python guard as in hegel-skill | rejected | It would add a second runtime; ADR-006 and `AGENTS.md` set Node 24 and no dependencies. |
+
+## Amendment 1: release only after a green CI run (change release-after-green-ci)
+
+### Context
+
+- `release.yml` ran release-please on every push to `main` with no link to CI, and `ci.yml` cancelled its own runs on `main` when a later push arrived. Version 1.5.0 was tagged on `5160a8a`, whose CI run failed (`coauthor.test.mjs:158`). Of 97 CI runs on `main`, 38 were cancelled.
+- `main` has no branch protection (Context above), so nothing else blocks a release from a red or cancelled commit.
+
+### Rules
+
+- **GIVEN** a release job **WHEN** it starts **THEN** it **MUST** start only from a successful CI run of a push to `main` (`workflow_run` with `conclusion == 'success'` and `event == 'push'`) whose commit is still the head of `main` (`workflow_run.head_sha == github.sha`).
+- **GIVEN** a push to `main` **WHEN** a later push arrives **THEN** the CI run of the first push **MUST NOT** be cancelled or replaced while pending, so each such push has its own concurrency group (`github.sha`); only superseded pull request runs are cancelled.
+- **GIVEN** a CI run of `main` that failed or was cancelled **WHEN** the release workflow follows it **THEN** the job **MUST** be skipped, so no release PR update and no tag follow from it.
+
+### Consequences
+
+- The tag sits on the merge commit of the release PR, while the gate checks the head of `main`. If a later push lands before the CI run of that merge commit ends, the job skips that run (stale `head_sha`) and the next green run of the newer head tags the merge commit, whose own CI run may have failed. The gate guarantees a green head, not a green tagged commit. This gap is accepted; closing it needs a job step that reads the CI conclusion of the tagged commit.
+- A flake delays a release and does not lose it: rerunning the failed CI run until it passes starts the job again while `main` still points at that commit. If `main` moved on, the CI run of the newer head decides.
+- The release PR no longer updates on a red `main`, and it lags a push by the CI duration.
+- The tag and GitHub Release follow the CI run of the release-PR merge commit.
+- GitHub-hosted minutes are unchanged (`release.yml` stays hosted); the TrueNAS runner serialises more CI runs because pushes to `main` are no longer cancelled.
+- The `concurrency` block of `release.yml` moved from the workflow to the job, so a run whose job the `if` skips does not take the pending slot of the group. This and the rerun behaviour are unverified until the live check (rows 3.5 and 3.6 of the plan).
+- `release-please-action` runs no checked-out code, so the write token never meets code from a pull request. The `event == 'push'` condition keeps a pull request from a fork branch named `main` out.
+
+### Alternatives considered
+
+| Alternative | Verdict | Reason |
+| --- | --- | --- |
+| Branch protection with required checks | not adopted | This record runs the repository without branch protection or required checks (Context above); a workflow gate gives the same guard for releases without changing repository settings. |
+| A `needs:` job that runs CI inside `release.yml` | rejected | It would run the suite twice or move CI out of `ci.yml`, and pull request runs would lose their shared workflow. |
+| Change only `cancel-in-progress` on `ci.yml` | rejected | GitHub still replaces a pending run of the same group with a newer one, so three pushes together lose results; a group key unique per push does not. |

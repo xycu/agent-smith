@@ -321,7 +321,8 @@ function isolationMessage(policy, key, vars) {
 // { error, reason?, commit?, made? }. `made` says whether this call made a commit; `commit` is its full hash, or null
 // when nothing was staged or the hash could not be read, so it is never a label. An error with `reason`, `commit` and
 // `made` came from the post-commit checks; an error without them came before a commit and the router's own add was
-// unstaged.
+// unstaged. Without `rel` a commit that was made also returns `names`: the git-root-relative paths it holds
+// (`--no-renames`), read before the commit so the step commit can record them; a failed read is a failed add.
 function routerCommit(g, timeout, { rel = null, message, trailer = null }) {
   const failed = (what, res) => {
     const reset = g(rel ? ["reset", "-q", "--", rel] : ["reset", "-q"]);
@@ -338,6 +339,12 @@ function routerCommit(g, timeout, { rel = null, message, trailer = null }) {
   if (check.status !== 0 && check.status !== 1) return failed("diff --cached", check);
   const made = check.status === 1;
   let commit = null;
+  let names;
+  if (made && !rel) {
+    const listed = g(["diff", "--cached", "--name-only", "--no-renames", "-z"]);
+    if (listed.status !== 0) return failed("diff --cached --name-only", listed);
+    names = listed.stdout.split("\0").filter(Boolean);
+  }
   if (made) {
     // The trailer sits right after the message and before the `--` of the pathspec form.
     const msg = ["-m", message, ...(trailer ? ["--trailer", trailer] : [])];
@@ -351,11 +358,12 @@ function routerCommit(g, timeout, { rel = null, message, trailer = null }) {
     reason,
     commit,
     made,
+    ...(names ? { names } : {}),
   });
   const left = g(["diff", "--cached", "--quiet"]);
   if (left.status !== 0) {
-    const names = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
-    return after(`The index is not empty after the commit (a hook staged something): ${listNames(names)} (paths relative to the git root).`);
+    const staged = g(["diff", "--cached", "--name-only", "-z"]).stdout.split("\0").filter(Boolean);
+    return after(`The index is not empty after the commit (a hook staged something): ${listNames(staged)} (paths relative to the git root).`);
   }
   if (rel) {
     const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
@@ -372,7 +380,7 @@ function routerCommit(g, timeout, { rel = null, message, trailer = null }) {
       return after(`The change folder is not clean after the commit: ${listNames(unclean.map((e) => unprefix(e.file)))}.`);
     }
   }
-  return { commit, made };
+  return { commit, made, ...(names ? { names } : {}) };
 }
 
 // ---- late usage figure in the archive state ---------------------------------
@@ -451,7 +459,8 @@ export function startCommit(p, id, meta, policy) {
 // The step commit of an isolated run: right after attachResult, when the last executed entry is ok and has no
 // `commit` key, everything the step left is committed (run.jsonl first, so the commit holds the step's result).
 // The entry gets `commit` (the hash, or null for an empty index or an unreadable hash), so a resume never commits
-// again under its name;
+// again under its name; the paths of the commit outside the change folder go to `swept` (sorted, only when there are
+// any; ADR-010 Amendment 1), so a report can name the code that went in under the chore subject;
 // a failure before the commit leaves the key absent, so the resume retries. Halts on any failure.
 export function stepCommit(p, id, meta, log, policy) {
   if (meta.isolated !== true) return;
@@ -471,7 +480,15 @@ export function stepCommit(p, id, meta, log, policy) {
   const bad = coAuthorProblem(policy);
   if (bad) stop(bad);
   const res = routerCommit(g, timeout, { message, trailer: coAuthorTrailer(policy) });
-  if (res.made || !res.error) last.commit = res.commit;
+  if (res.made || !res.error) {
+    last.commit = res.commit;
+    if (res.names) {
+      const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
+      const inside = `${prefix}${changeRel(p, id)}/`;
+      const swept = res.names.filter((name) => !name.startsWith(inside)).sort();
+      if (swept.length) last.swept = swept;
+    }
+  }
   if (res.error) stop(res.error);
   writeLog(p.log, log);
 }

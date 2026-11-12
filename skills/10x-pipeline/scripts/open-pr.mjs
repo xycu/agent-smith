@@ -112,6 +112,7 @@ function result(fields) {
     committed: null,
     commit: null,
     commitError: null,
+    swept: null,
     branch: null,
     remote: null,
     base: null,
@@ -264,6 +265,18 @@ function commitLeftovers(id) {
   return { committed: true, commit: gitOut(["rev-parse", "HEAD"]) };
 }
 
+// The files of the leftover commit outside the change folder, sorted, top-level relative; null when the list cannot be
+// read. Never a failure: the script still pushes. Both the live change folder and the --report folder count as inside,
+// because a staged archive move (a failed chore(archive) commit) leaves paths under both.
+function sweptOf(opts, top) {
+  const shown = runGit(["show", "--name-only", "--no-renames", "-z", "--format=", "HEAD"]);
+  if (shown.status !== 0) return null;
+  const real = (p) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+  const inside = [changeDir({ ...opts, report: null }), changeDir(opts)]
+    .map((dir) => path.relative(real(top), real(dir)).split(path.sep).join("/") + "/");
+  return shown.stdout.split("\0").filter(Boolean).filter((name) => !inside.some((i) => name.startsWith(i))).sort();
+}
+
 function changeDir(opts) {
   if (opts.report !== null) return path.dirname(path.dirname(path.resolve(opts.report)));
   return opts.chain === "openspec" ? path.join("openspec", "changes", opts.id) : path.join("context", "changes", opts.id);
@@ -381,7 +394,10 @@ function run(opts) {
     return result({ ...base0, base, reason, pr: prSkip(reason), manual: `nothing to push: no commit beyond ${base}` });
   }
   const left = commitLeftovers(opts.id);
-  const committed = { committed: left.committed, commit: left.commit ?? null, commitError: left.error ?? null };
+  const committed = {
+    committed: left.committed, commit: left.commit ?? null, commitError: left.error ?? null,
+    swept: left.committed === true ? sweptOf(opts, top) : null,
+  };
   const push = runGit(["push", opts.remote, `refs/heads/${branch}:refs/heads/${branch}`]);
   if (push.status !== 0) {
     const reason = `push failed: ${gitError(push, "git push")}`;
