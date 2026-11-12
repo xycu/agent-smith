@@ -1,31 +1,44 @@
 name: Release
 
-# release-please in its release-PR model: every push to main updates one standing release PR
-# that collects the changes. Merging that PR bumps the version (plugin.json and both version
-# fields of marketplace.json, via release-please-config.json `extra-files`), creates the
-# vX.Y.Z tag and publishes a GitHub Release with a generated changelog. The bump follows
-# Semantic Versioning from the Conventional Commits on main: fix: patch, feat: minor,
-# ! or BREAKING CHANGE: major (minor while the version is below 1.0.0).
+# release-please in its release-PR model: one standing release PR collects the changes. Merging that
+# PR bumps the version (plugin.json and both version fields of marketplace.json, via
+# release-please-config.json `extra-files`), creates the vX.Y.Z tag and publishes a GitHub Release
+# with a generated changelog. The bump follows Semantic Versioning from the Conventional Commits on
+# main: fix: patch, feat: minor, ! or BREAKING CHANGE: major (minor while the version is below 1.0.0).
+#
+# Trigger: the end of a CI run, not a push. The job runs only when that run succeeded (a red or
+# cancelled run releases nothing), was a push to main (not a pull request from a fork branch named
+# main), and its commit is still the head of main. A workflow_run job reads main through the API,
+# not the tested commit, so the head_sha == github.sha check keeps a green run of commit A from
+# releasing commit B. Merging the release PR pushes a commit to main; the tag and the GitHub Release
+# are created by the job that follows that push's own green CI run. Rerunning a failed CI run that
+# then passes starts the job again, while main still points at that commit.
 #
 # Auth: the default GITHUB_TOKEN. One-time owner setting: Settings -> Actions -> General ->
 # "Allow GitHub Actions to create and approve pull requests", or release-please cannot open the PR.
 # A PR opened with GITHUB_TOKEN starts no other workflow, so ci.yml does not run on the release PR;
 # main has no required checks, so that does not block the merge.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
 
 permissions:
   contents: write
   pull-requests: write
 
-concurrency:
-  group: release-please
-  cancel-in-progress: false
-
 jobs:
   release-please:
     name: Maintain release PR / publish release
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_sha == github.sha
+    # On the job, not the workflow: a run whose job the if skips must not take the pending slot of the group.
+    concurrency:
+      group: release-please
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
