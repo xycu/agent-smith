@@ -209,4 +209,4 @@ None. Existing commits and runs are unchanged; resumed runs add the trailer to n
 
 #### Manual
 
-- [ ] 3.4 Scratch run shows the Agent Smith trailer on the start commit
+- [x] 3.4 Scratch run shows the Agent Smith trailer on the start commit — evidence: evidence/test-coauthor-start-commit.txt
