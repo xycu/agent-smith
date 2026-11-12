@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/xycu/agent-smith/compare/v1.6.0...v1.6.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **router:** address open findings of the Wave 1 changes ([99777a9](https://github.com/xycu/agent-smith/commit/99777a936c184a7ad432bfc0a70473e45c5d5add))
+* **router:** check narrow prompt templates and ladder effort at load ([c141d94](https://github.com/xycu/agent-smith/commit/c141d946ace13ba730a8965b274745a7776db928))
+
 ## [1.6.0](https://github.com/xycu/agent-smith/compare/v1.5.0...v1.6.0) (2026-11-12)
 
 
