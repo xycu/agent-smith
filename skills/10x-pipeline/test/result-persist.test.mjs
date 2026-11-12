@@ -79,4 +79,6 @@ test("the same in an isolated run with a failed advisory score entry", { skip },
   const again = nextIn();
   assert.equal(again.status, 0, again.stdout);
   assert.doesNotMatch(again.stdout, /has no result/);
+  assert.equal(again.json.action, "run");
+  assert.deepEqual(readLogEntries(wt)[0].result, first.result);
 });
