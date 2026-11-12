@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0](https://github.com/xycu/agent-smith/compare/v1.4.13...v1.5.0) (2026-11-12)
+
+
+### Features
+
+* **agent-smith-coauthor:** open-pr.mjs leftovers commit (p2) ([56aaa75](https://github.com/xycu/agent-smith/commit/56aaa75d0296e9c4f7cc837d411eda098f50c3eb))
+* **agent-smith-coauthor:** policy key and router commits (p1) ([854e1ca](https://github.com/xycu/agent-smith/commit/854e1ca0c8299f75d552a984ceff3577f7c889b8))
+
+
+### Bug Fixes
+
+* **agent-smith-coauthor:** apply impl-review fixes ([4650b1e](https://github.com/xycu/agent-smith/commit/4650b1ecec83650ef2f623b6ca5364b23f16b0cc))
+
 ## [1.4.13](https://github.com/xycu/agent-smith/compare/v1.4.12...v1.4.13) (2026-11-11)
 
 
