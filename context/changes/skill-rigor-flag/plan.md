@@ -35,7 +35,7 @@ Edit the three text surfaces (hint, Start step 1, REFERENCE headings) in both sk
 
 ### Overview
 
-Make both skills parse and strip `--rigor`, and list it in the hints and the reference headings.
+Make both skills parse and strip `--rigor`, list it in the hints and the reference headings, and move the one exact-hint assertion with the OpenSpec hint so the suite stays green at the end of this phase.
 
 ### Changes Required:
 
@@ -63,6 +63,14 @@ Make both skills parse and strip `--rigor`, and list it in the hints and the ref
 
 **Contract**: Line 5 heading `## \`/agent-smith:10x-pipeline <change-id> [goal] [--archive] [--chrome false] [--rigor <level>] [--pr-comment]\``; line 388 heading `## \`/agent-smith:openspec-pipeline <change-name> [goal] [--archive] [--rigor <level>] [--pr-comment]\``.
 
+#### 4. OpenSpec hint assertion
+
+**File**: `skills/10x-pipeline/test/openspec-skill.test.mjs`
+
+**Intent**: Keep the existing exact-hint assertion in step with the OpenSpec hint, in the same phase that changes the hint.
+
+**Contract**: Line 72 expects `<change-name> [goal text] [--archive] [--rigor <level>] [--pr-comment]`. No other change to this file in this phase.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -70,13 +78,13 @@ Make both skills parse and strip `--rigor`, and list it in the hints and the ref
 - The `argument-hint` of both skills contains `[--rigor <level>]`: `grep -c "^argument-hint:.*\[--rigor <level>\]" skills/10x-pipeline/SKILL.md skills/openspec-pipeline/SKILL.md`
 - Start step 1 of both skills names `--rigor`: `grep -n "^1\. Parse the arguments.*--rigor" skills/10x-pipeline/SKILL.md skills/openspec-pipeline/SKILL.md`
 - Both REFERENCE headings list the flag: `grep -n "^## .*agent-smith:.*pipeline.*--rigor" docs/REFERENCE.md`
-- Anti-stall sections and prompt rule checks still pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs`
+- Anti-stall sections, prompt rule checks and the hint assertions still pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs`
 
 #### Manual Verification:
 
 - Start step 1 and step 4 of each skill read as consistent: the flag form is parsed in step 1, a level in plain words is still handled in step 4, and the orchestrator never picks a level itself.
 
-**Implementation Note**: The OpenSpec hint test at `openspec-skill.test.mjs:72` fails after this phase until Phase 2 updates it; that is expected.
+**Implementation Note**: The hint edit and the assertion at `openspec-skill.test.mjs:72` land together in this phase, so a per-phase full-suite gate stays green.
 
 ---
 
@@ -84,7 +92,7 @@ Make both skills parse and strip `--rigor`, and list it in the hints and the ref
 
 ### Overview
 
-Pin the hint and step 1 of both skills.
+Pin the hint and step 1 of both skills with new content tests.
 
 ### Changes Required:
 
@@ -94,24 +102,24 @@ Pin the hint and step 1 of both skills.
 
 **Intent**: Add a test that the 10x hint and Start step 1 name `--rigor`.
 
-**Contract**: One test reading the loaded `skill`/`lines`: the `argument-hint:` line includes `[--rigor <level>]`; the line starting `1. Parse the arguments` includes `--rigor`, a removal from the goal text, and `lean`, `standard`, `thorough`. Same style as the existing content checks; no new helper beyond a local line lookup.
+**Contract**: One test reading the loaded `skill`/`lines`: the `argument-hint:` line includes `[--rigor <level>]`; the line starting `1. Parse the arguments` holds a sentence (split on `. `) that includes `--rigor`, `--rigor=<level>`, `goal text`, `lean`, `standard` and `thorough`, so the `--archive` sentence's own `goal text` cannot satisfy it. Same style as the existing content checks; no new helper beyond a local line lookup.
 
 #### 2. OpenSpec skill content check
 
 **File**: `skills/10x-pipeline/test/openspec-skill.test.mjs`
 
-**Intent**: Update the exact hint assertion and add the Start step 1 check.
+**Intent**: Add the Start step 1 check (the exact-hint assertion was updated in Phase 1).
 
-**Contract**: Line 72 expects `<change-name> [goal text] [--archive] [--rigor <level>] [--pr-comment]`. One new test with the same step 1 assertions as the 10x test, using this file's `lines`.
+**Contract**: One new test with the same step 1 assertions as the 10x test, using this file's `lines`.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
 - Skill content tests pass: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs`
-- Deliberate break: with the `--rigor` sentence removed from a scratch copy of the 10x skill, the new test fails: `SKILL_PATH=<scratch copy> node --test skills/10x-pipeline/test/skill-loop.test.mjs`
+- Deliberate break: with the `--rigor` sentence removed from a scratch copy of the 10x skill, the new test fails: `SKILL_PATH=<scratch copy> node --test skills/10x-pipeline/test/skill-loop.test.mjs`; the same for the OpenSpec skill with `OPENSPEC_SKILL_PATH=<scratch copy> node --test skills/10x-pipeline/test/openspec-skill.test.mjs`
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- Router still starts a run with the flag and keeps it out of the goal: in a scratch project, `init <id> --goal "fix typo" --rigor thorough` then `status <id>` prints valid JSON with rigor `thorough`.
+- Router still starts a run with the flag: in a scratch project with a change folder (git initialised, or `isolation.require` set to `false` in its override), `init <id> --goal "fix typo" --rigor thorough` then `status <id>` prints valid JSON with rigor `thorough`. This proves the router side only; that the flag stays out of the stored goal is the manual row below.
 
 #### Manual Verification:
 
