@@ -212,7 +212,7 @@ A Claude Code below 2.1.69 would leave `${CLAUDE_SKILL_DIR}` unsubstituted; the 
 - [x] 3.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - [x] 3.2 Router starts in a scratch project: `node skills/10x-pipeline/scripts/route.mjs init <scratch-id> --goal "check"` then `node skills/10x-pipeline/scripts/route.mjs status <scratch-id>` print valid JSON
 - [x] 3.3 Commit subjects are Conventional Commits: `node tools/commit-lint.mjs main..HEAD`
-- [ ] 3.4 CI is green on the run's pull request: `gh pr checks`
+- [x] 3.4 CI is green on the run's pull request: `gh pr checks` — 90ec69b (PR #140)
 
 #### Manual
 
