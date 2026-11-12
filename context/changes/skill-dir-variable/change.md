@@ -1,7 +1,7 @@
 ---
 change_id: skill-dir-variable
 title: Use the documented skill directory variable for the script paths in both skills
-status: new
+status: planned
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null
