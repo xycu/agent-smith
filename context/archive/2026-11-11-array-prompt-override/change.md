@@ -1,10 +1,10 @@
 ---
 change_id: array-prompt-override
 title: "An array-form archive prompt or suffix override breaks the run"
-status: new
+status: archived
 created: 2026-11-11
-updated: 2026-11-11
-archived_at: null
+updated: 2026-11-12
+archived_at: 2026-11-12T12:39:42Z
 ---
 
 ## Notes
