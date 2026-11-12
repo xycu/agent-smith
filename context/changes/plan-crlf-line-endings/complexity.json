@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (CRLF plan routes like LF, no reader throws); open detail is whether readers strip \\r or keep it, and change.md's fix direction answers it (split on /\\r?\\n/, row text without \\r)." },
+    "novelty": { "score": 0, "evidence": "change.md 'Fix direction': split(/\\r?\\n/) already used by aggregateGap, e2eSetup, readUnprovenReasons, readVerdict and open-pr.mjs, pr-common.mjs, preplan.mjs in the repo." },
+    "coupling": { "score": 2, "evidence": "change.md names readPlan in state.mjs, which route.mjs, flow.mjs and isolation.mjs all call, plus planFileTokens feeding planPaths and steps.mjs phaseFiles: an internal interface with several callers." },
+    "discovery": { "score": 1, "evidence": "change.md names the locations (state.mjs:181, :690; steps.mjs:135); one grep of split(\"\\n\") readers confirmed the remaining ones (readLog, readTasks, readFindings) and the createdValue exception." },
+    "volume": { "score": 1, "evidence": "change.md: edits in state.mjs and steps.mjs (few lines each), plus a new or extended test file for CRLF plan parity in route.test.mjs or a new file." },
+    "verification": { "score": 1, "evidence": "change.md 'Tests': LF vs CRLF parity of readPlan, init routing and risk output; existing route and risk tests and helpers.mjs plan builders cover most of it, a few CRLF tests to add." }
+  },
+  "unknowns": [
+    "Whether helpers.mjs plan builders can write CRLF plans without changes or need a small option.",
+    "Whether the row text stored by readPlan must strip a trailing \\r in every path, or only in the parsed rows."
+  ],
+  "confidence": "high"
+}

@@ -132,7 +132,7 @@ function e2eWanted(ph, log, policy, level, setup) {
 function phaseFiles(planFile) {
   const found = new Map();
   let phase = null;
-  for (const line of readText(planFile).split("\n")) {
+  for (const line of readText(planFile).split(/\r?\n/)) {
     const h = line.match(/^## (?:Phase|Faza) (\d+)/);
     if (h) { phase = Number(h[1]); if (!found.has(phase)) found.set(phase, new Set()); continue; }
     if (/^## /.test(line)) { phase = null; continue; }

@@ -218,7 +218,7 @@ export function readPlan(file) {
   res.hasProgress = true;
   let section = null;
   let cur = null;
-  for (const line of text.slice(idx).split("\n")) {
+  for (const line of text.slice(idx).split(/\r?\n/)) {
     if (/^## /.test(line) && !/^## Progress\s*$/.test(line)) break;
     if (/^### Phase \d+/.test(line)) {
       res.phases++;
@@ -717,7 +717,7 @@ export function normalizePlanPath(raw) {
 // The normalized path tokens of one **File**: / **Files**: plan line (backtick tokens, else comma-split text),
 // or null when the line is no such line.
 export function planFileTokens(line) {
-  const m = line.match(/^\*\*Files?\*\*:(.*)$/);
+  const m = line.match(/^\*\*Files?\*\*:(.*)\r?$/);
   if (!m) return null;
   const quoted = [...m[1].matchAll(/`([^`]+)`/g)].map((x) => x[1]);
   return (quoted.length ? quoted : m[1].split(",")).map(normalizePlanPath).filter(Boolean);
@@ -727,7 +727,7 @@ export function planFileTokens(line) {
 function planPaths(file) {
   if (typeof file !== "string" || !fs.existsSync(file)) return [];
   const found = new Set();
-  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
+  for (const line of fs.readFileSync(file, "utf8").split(/\r?\n/)) {
     for (const token of planFileTokens(line) ?? []) found.add(token);
   }
   return [...found].sort();

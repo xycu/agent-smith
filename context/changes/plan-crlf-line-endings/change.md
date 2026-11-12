@@ -1,7 +1,7 @@
 ---
 change_id: plan-crlf-line-endings
 title: Parse plan.md with CRLF line endings without crashing or dropping rows
-status: new
+status: planned
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null

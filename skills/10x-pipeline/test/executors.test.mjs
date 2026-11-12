@@ -843,6 +843,10 @@ test("phase files reader", () => {
   };
   const base = buildPlan([tddPhase()]);
   assert.equal(route(base), "implement-tdd");
+  // A CRLF plan reads the same: the files line is found, and one doc path still blocks the phase.
+  const crlf = (t) => t.replace(/\n/g, "\r\n");
+  assert.equal(route(crlf(base)), "implement-tdd");
+  assert.equal(route(crlf(base.replace("**File**: `src/parser.mjs`", "**Files**: src/parser.mjs, docs/notes.mjs"))), "implement");
   // A Polish heading, a **Files** line with comma-separated plain paths and a trailing note or :line are read.
   assert.equal(route(base.replace(/^## Phase 1/m, "## Faza 1")), "implement-tdd");
   assert.equal(route(base.replace("**File**: `src/parser.mjs`", "**Files**: src/parser.mjs, src/util.mjs")), "implement-tdd");
