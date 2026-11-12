@@ -1,10 +1,10 @@
 ---
 change_id: archive-done-routercommit
 title: "archiveDone duplicates the commit and post-commit checks of routerCommit"
-status: planned
+status: archived
 created: 2026-11-11
-updated: 2026-11-11
-archived_at: null
+updated: 2026-11-12
+archived_at: 2026-11-12T12:39:42Z
 ---
 
 ## Notes
