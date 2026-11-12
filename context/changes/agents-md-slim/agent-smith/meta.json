@@ -40,7 +40,7 @@
   },
   "startCommit": "9ccf4d50c964d47f6bb5219f72b383884d3337fa",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/test/advisor.test.mjs, skills/10x-pipeline/test/no-recursive-delete.test.mjs, skills/10x-pipeline/test/pr-comment.test.mjs"
   }
 }

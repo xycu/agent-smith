@@ -4,7 +4,7 @@
 
 ## What & Why
 
-`AGENTS.md` is 33 KB and loads in every agent session; 60 percent of it is a catalog of tests, prompts and ADRs that is unordered, incomplete, duplicated and partly false. Cut it to about 8 KB of rules, commands and pointers, and move the catalog to indexes next to what they index.
+`AGENTS.md` is 33 KB and loads in every agent session; 60 percent of it is a catalog of tests, prompts and ADRs that is unordered, incomplete, duplicated and partly false. Cut it to about 10 KB of rules, commands and pointers, and move the catalog to indexes next to what they index.
 
 ## Starting Point
 
@@ -50,11 +50,11 @@ Phase 1 only adds files, so the suite cannot break. Phase 2 changes `AGENTS.md` 
 ## Open Risks & Assumptions
 
 - Assumption: dropping the `state.mjs` export lists loses nothing an agent cannot read from the code.
-- Assumption: the 12 KB limit leaves room (target is 8 KB).
+- Assumption: the 12 KB limit leaves room (target is about 10 KB; Hard Rules alone are 2.4 KB and stay verbatim).
 - Risk: "CI is green" cannot be confirmed from the repository.
 
 ## Success Criteria (Summary)
 
-- `AGENTS.md` is about 8 KB and no statement in it contradicts the repository.
+- `AGENTS.md` is about 10 KB and no statement in it contradicts the repository.
 - Every test and ADR file is findable from an index; the full suite passes.
 - CI is green on the pull request.
