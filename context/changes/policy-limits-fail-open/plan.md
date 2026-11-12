@@ -226,8 +226,8 @@ A project template that holds a `{word}` outside the 17 known names (it used to 
 
 #### Manual
 
-- [ ] 1.6 In a scratch project, an override of `{"limits":{"maxTotalSteps":"14"}}` makes `route.mjs init` print a halt that names `policy.limits.maxTotalSteps` and `agent-smith-policy.json`, and `agent-smith/` is not created
-- [ ] 1.7 `route.mjs status <id>` on the same project prints valid JSON with `policyProblem`
+- [x] 1.6 In a scratch project, an override of `{"limits":{"maxTotalSteps":"14"}}` makes `route.mjs init` print a halt that names `policy.limits.maxTotalSteps` and `agent-smith-policy.json`, and `agent-smith/` is not created — evidence: evidence/script-manual-halts.out.txt
+- [x] 1.7 `route.mjs status <id>` on the same project prints valid JSON with `policyProblem` — evidence: evidence/script-manual-halts.out.txt
 
 ### Phase 2: Prompt placeholders and `maxNeutralRetries`
 
@@ -240,7 +240,7 @@ A project template that holds a `{word}` outside the 17 known names (it used to 
 
 #### Manual
 
-- [ ] 2.5 A scratch override that renames `{id}` to `{idd}` in the `plan` template makes `init` halt naming `policy.prompts.plan` and `{idd}`
+- [x] 2.5 A scratch override that renames `{id}` to `{idd}` in the `plan` template makes `init` halt naming `policy.prompts.plan` and `{idd}` — evidence: evidence/script-manual-halts.out.txt
 
 ### Phase 3: Docs and ADR
 
@@ -251,4 +251,4 @@ A project template that holds a `{word}` outside the 17 known names (it used to 
 
 #### Manual
 
-- [ ] 3.3 `docs/REFERENCE.md`, `prompts/README.md` and `AGENTS.md` read consistently about which commands halt and which warn
+- [x] 3.3 `docs/REFERENCE.md`, `prompts/README.md` and `AGENTS.md` read consistently about which commands halt and which warn — evidence: evidence/judgment-docs-consistency.md
