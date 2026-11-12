@@ -1,0 +1,4 @@
+- 2.3 — read-only `gh api repos/xycu/agent-smith/actions/runners` confirms 6 online Linux X64 runners (runner version 2.338.1, at or above the ADR's 2.327.1; labels self-hosted, Linux, X64, truenas), but Node 24 availability, git 2.x, writable temp dir and non-root service user are not visible from the API or this sandbox; owner must confirm on the host
+- 3.2 — needs a pull request run of this change's ci.yml on the TrueNAS runner; the change is unmerged and has no PR, and opening or pushing is an external action
+- 3.3 — needs a push to main after the merge and its CI run; external and not yet possible
+- 3.4 — needs a fork pull request run on GitHub; external and none available

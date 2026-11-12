@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { makeProject, run } from "./helpers.mjs";
+import { stampAhead } from "./ahead.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 // A tasks.md with `done` ticked and `open` open rows, numbered 1.1, 1.2, ...
@@ -12,24 +13,31 @@ export function tasksText({ done = 0, open = 0 } = {}) {
   return `## 1. Work\n\n${rows.join("\n")}\n`;
 }
 
+// A file a test writes to stand for a step's output gets an mtime ahead (see ahead.mjs); `fresh: false` skips that.
+function writeFresh(file, text, fresh) {
+  fs.writeFileSync(file, text);
+  if (fresh) stampAhead(file);
+}
+
 // Writes the artifact files of the change. `specs` is the number of specs/<cap-n>/spec.md files; `tasks` is
 // { done, open } or a raw string; `verify` is the text of agent-smith/verify.md. A missing key writes nothing.
-export function writeArtifacts(project, { proposal = false, design = false, specs = 0, tasks = null, verify = null } = {}) {
+// `fresh: false` leaves the plain mtime, for files that exist before the step starts.
+export function writeArtifacts(project, { proposal = false, design = false, specs = 0, tasks = null, verify = null } = {}, { fresh = true } = {}) {
   fs.mkdirSync(project.changeDir, { recursive: true });
-  if (proposal) fs.writeFileSync(path.join(project.changeDir, "proposal.md"), "## Why\n\nBecause.\n\n## What Changes\n\n- A thing.\n");
-  if (design) fs.writeFileSync(path.join(project.changeDir, "design.md"), "## Context\n\nSmall.\n");
+  if (proposal) writeFresh(path.join(project.changeDir, "proposal.md"), "## Why\n\nBecause.\n\n## What Changes\n\n- A thing.\n", fresh);
+  if (design) writeFresh(path.join(project.changeDir, "design.md"), "## Context\n\nSmall.\n", fresh);
   for (let n = 1; n <= specs; n++) {
     const dir = path.join(project.changeDir, "specs", `cap-${n}`);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, "spec.md"), "## ADDED Requirements\n\n### Requirement: Thing\n\nThe system SHALL do it.\n");
+    writeFresh(path.join(dir, "spec.md"), "## ADDED Requirements\n\n### Requirement: Thing\n\nThe system SHALL do it.\n", fresh);
   }
-  if (tasks !== null) fs.writeFileSync(path.join(project.changeDir, "tasks.md"), typeof tasks === "string" ? tasks : tasksText(tasks));
-  if (verify !== null) writeVerify(project, verify);
+  if (tasks !== null) writeFresh(path.join(project.changeDir, "tasks.md"), typeof tasks === "string" ? tasks : tasksText(tasks), fresh);
+  if (verify !== null) writeVerify(project, verify, { fresh });
 }
 
-export function writeVerify(project, text) {
+export function writeVerify(project, text, { fresh = true } = {}) {
   fs.mkdirSync(project.agentDir, { recursive: true });
-  fs.writeFileSync(path.join(project.agentDir, "verify.md"), text);
+  writeFresh(path.join(project.agentDir, "verify.md"), text, fresh);
 }
 
 // A scratch project with openspec/config.yaml and, unless `change` is false, the change folder as
@@ -53,7 +61,7 @@ export function makeOpenspecProject({ id = "demo", policy = null, change = true,
   if (change) {
     fs.mkdirSync(changeDir, { recursive: true });
     fs.writeFileSync(path.join(changeDir, ".openspec.yaml"), "schema: spec-driven\ncreated: 2026-01-01\n");
-    writeArtifacts(project, artifacts);
+    writeArtifacts(project, artifacts, { fresh: false });
   }
   return project;
 }

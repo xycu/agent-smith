@@ -1,4 +1,4 @@
-# ADR-020: Agent Smith co-authors the commits of the router
+# ADR-021: Agent Smith co-authors the commits of the router
 
 - **Status:** Accepted (implemented by an unattended run of change `agent-smith-coauthor`; the owner has not yet checked the GitHub attribution on a pushed commit)
 - **Date:** 2026-11-12

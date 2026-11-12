@@ -42,7 +42,7 @@ Rules, written as scenarios (the form of ADR-004):
 - The release PR is opened with `GITHUB_TOKEN`, so no other workflow runs on it. This is acceptable because `main` has no required checks.
 - The owner must switch on "Allow GitHub Actions to create and approve pull requests" once. Until then `release.yml` fails when it tries to open the PR.
 - The commit lint reads subjects only; it does not check the body or the `BREAKING CHANGE:` footer. A breaking change without `!` or a footer is released as the type it was committed with.
-- The workflows run only on GitHub. `ci.yml` and `release.yml` were checked with `actionlint` at implementation time; no workflow runs it, so the first pull request and the first release PR are the real proof.
+- The workflows run only in GitHub Actions, never locally. Since ADR-020 the CI jobs run on self-hosted TrueNAS runners (hosted for fork pull requests), and `release.yml` stays on GitHub-hosted runners. `ci.yml` and `release.yml` were checked with `actionlint` at implementation time; no workflow runs it, so the first pull request and the first release PR are the real proof.
 
 ## Alternatives considered
 

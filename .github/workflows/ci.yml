@@ -3,6 +3,10 @@ name: CI
 # Runs the test suite and the two guards on every pull request and on pushes to main.
 # The repository rebase-merges, so commit subjects land on main and release-please reads them:
 # the `commits` job lints each commit of the pull request, not the title.
+# Runner: the TrueNAS self-hosted runner (ADR-020), except for a pull request from a fork, which
+# falls back to a GitHub-hosted runner. The repository is public. The fallback only covers an honest
+# fork PR, because a fork PR runs the workflow file of its own branch and its author can edit
+# `runs-on`. The boundary is the repository setting "Require approval for all external contributors".
 on:
   pull_request:
   push:
@@ -18,7 +22,7 @@ concurrency:
 jobs:
   test:
     name: Tests and version check
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
@@ -32,7 +36,7 @@ jobs:
   commits:
     name: Conventional Commits
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:

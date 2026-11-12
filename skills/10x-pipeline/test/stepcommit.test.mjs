@@ -9,9 +9,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { removeTree } from "../scripts/remove-tree.mjs";
 import {
-  cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, writePlan,
-  writeReview, readLogEntries, readMetaFile, readReportFile, entry, planText,
+  cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile,
+  readLogEntries, readMetaFile, readReportFile, entry, planText
 } from "./helpers.mjs";
+import { writePlan, writeReview } from "./ahead.mjs";
 
 after(cleanupAll);
 
