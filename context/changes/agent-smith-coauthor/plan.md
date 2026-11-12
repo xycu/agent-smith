@@ -196,16 +196,16 @@ None. Existing commits and runs are unchanged; resumed runs add the trailer to n
 
 #### Automated
 
-- [x] 2.1 PR script tests pass
-- [x] 2.2 Parity of the two validators
+- [x] 2.1 PR script tests pass — 50a1f00
+- [x] 2.2 Parity of the two validators — 50a1f00
 
 ### Phase 3: Docs, ADR and full verification
 
 #### Automated
 
-- [ ] 3.1 Whole suite passes
-- [ ] 3.2 Version fields untouched
-- [ ] 3.3 ADR and docs exist
+- [x] 3.1 Whole suite passes
+- [x] 3.2 Version fields untouched
+- [x] 3.3 ADR and docs exist
 
 #### Manual
 
