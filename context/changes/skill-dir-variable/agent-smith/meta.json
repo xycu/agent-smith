@@ -42,5 +42,17 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.5 Installed plugin (not `--plugin-dir`): the substituted `ROUTER` path in `/agent-smith:10x-pipeline` is the plugin cache path and the router starts",
+      "3.6 Installed plugin: the same for `/agent-smith:openspec-pipeline` through `../10x-pipeline`"
+    ],
+    "manualNotProved": [
+      "3.5 Installed plugin (not `--plugin-dir`): the substituted `ROUTER` path in `/agent-smith:10x-pipeline` is the plugin cache path and the router starts — not proved: needs an installed plugin in a live Claude Code session (slash command substitution of ${CLAUDE_SKILL_DIR}); no test or command reproduces it unattended, and the installed cache copy is not this chang",
+      "3.6 Installed plugin: the same for `/agent-smith:openspec-pipeline` through `../10x-pipeline` — not proved: same, for /agent-smith:openspec-pipeline through ../10x-pipeline"
+    ]
   }
 }
