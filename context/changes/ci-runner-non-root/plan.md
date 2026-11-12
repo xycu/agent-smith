@@ -166,7 +166,7 @@ None. The step costs one `id` call.
 - [x] 1.3 The SHA-pin guard still passes: `node --test tools/test/workflow-pins.test.mjs`
 - [x] 1.4 ADR-020 records the amendment: `grep -q "Amendment 1" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md && grep -q "ci-runner-non-root" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md`
 - [x] 1.5 AGENTS.md names the guard: `grep -q "non-root guard step" AGENTS.md`
-- [ ] 1.6 Full suite passes locally (as non-root): `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.6 Full suite passes locally (as non-root): `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - [x] 1.7 Version fields still equal: `node tools/version-check.mjs`
 - [x] 1.8 Workflow lints clean when `actionlint` is installed: `actionlint .github/workflows/ci.yml` (skip if the binary is absent)
 
