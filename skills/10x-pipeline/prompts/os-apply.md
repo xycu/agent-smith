@@ -22,7 +22,8 @@ Unattended rules for /openspec-apply-change. No human answers, so every pause po
 - **GIVEN** fix mode **WHEN** you are tempted to edit `verify.md` **THEN** you **MUST NOT** change any file under `openspec/changes/{id}/agent-smith/`.
 - **GIVEN** every task is ticked, or every listed finding is fixed in fix mode **WHEN** the skill would suggest verifying or archiving **THEN** you **MUST NOT** archive, run `openspec archive`, run the sync-specs workflow or move any folder.
 - **GIVEN** you write a file **WHEN** you pick its path **THEN** you **MUST NOT** write into `openspec/specs/`, because the archive step merges the delta specs.
-- **GIVEN** the code and `tasks.md` are changed **WHEN** you end the step **THEN** you **MUST NOT** commit, stage or stash, because the router commits each step of an isolated run.
+- **GIVEN** you changed files outside `openspec/changes/{id}/` **WHEN** you end the step **THEN** you **MUST** stage those files one by one by name and commit them under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`, and leave every file under `openspec/changes/{id}/` unstaged, because the router commits the change folder.
+- **GIVEN** you end the step **WHEN** you would stash **THEN** you **MUST NOT** stash.
 - **GIVEN** the skill would show its "Implementation Paused" options or ask "What would you like to do?" **WHEN** you run unattended **THEN** you **MUST NOT** print a plain-text question or wait for input, and you answer by the rules above.
 - **GIVEN** every open task is ticked, or every listed finding is fixed in fix mode **WHEN** you finish **THEN** you **MUST** finish with status `done` and name the ticked rows or fixed findings in `note`.
 - **GIVEN** you record an assumption in the RESULT line **WHEN** you write it **THEN** you **MUST** cite the evidence for it.
