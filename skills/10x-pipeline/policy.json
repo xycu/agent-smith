@@ -98,8 +98,9 @@
     "targetDropPercent": null
   },
   "prices": null,
+  "coAuthor": { "name": "Agent Smith", "email": "agent-smith@ksycki.pl" },
   "provenance": {
-    "ignore": ["compare", "provenance", "prices"],
+    "ignore": ["compare", "provenance", "prices", "coAuthor"],
     "expected": { "pinned": ["ladder", "rigor", "score"], "unpinned": ["score"] }
   },
   "agents": {
