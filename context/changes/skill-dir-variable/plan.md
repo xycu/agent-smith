@@ -191,7 +191,7 @@ A Claude Code below 2.1.69 would leave `${CLAUDE_SKILL_DIR}` unsubstituted; the 
 
 #### Manual
 
-- [ ] 1.6 Read both changed SKILL.md heads and confirm each script path line reads naturally and still tells the orchestrator to run `node` from the run root
+- [x] 1.6 Read both changed SKILL.md heads and confirm each script path line reads naturally and still tells the orchestrator to run `node` from the run root — evidence: evidence/judgment-1.6-skill-heads.md
 
 ### Phase 2: README minimum Claude Code version
 
@@ -203,7 +203,7 @@ A Claude Code below 2.1.69 would leave `${CLAUDE_SKILL_DIR}` unsubstituted; the 
 
 #### Manual
 
-- [ ] 2.4 The README sentence is accurate against the Claude Code changelog entries for 2.1.69 and 2.1.292
+- [x] 2.4 The README sentence is accurate against the Claude Code changelog entries for 2.1.69 and 2.1.292 — evidence: evidence/judgment-2.4-readme-changelog.md
 
 ### Phase 3: Full suite, CI and live check
 

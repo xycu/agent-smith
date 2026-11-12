@@ -1,0 +1,2 @@
+- 3.5 — needs an installed plugin in a live Claude Code session (slash command substitution); not reproducible unattended
+- 3.6 — same, for /agent-smith:openspec-pipeline
