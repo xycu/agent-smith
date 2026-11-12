@@ -807,12 +807,14 @@ test("ADR-003 has a PR comment section with exactly seven rule lines, each once"
   for (const rule of ADR_RULES) assert.equal(lines.filter((l) => l === rule).length, 1, rule);
 });
 
-test("AGENTS.md names the script in Hard Rules and Commands and the test file in Commands", () => {
+test("AGENTS.md names the script in Hard Rules and Commands and the test index names the test file", () => {
   const agents = readRepo("AGENTS.md");
-  const rules = agents.slice(agents.indexOf("## Hard Rules"), agents.indexOf("## Project Structure"));
-  const commands = agents.slice(agents.indexOf("## Commands"), agents.indexOf("## Coding Style"));
+  const commandsAt = agents.indexOf("## Commands");
+  const rules = agents.slice(agents.indexOf("## Hard Rules"), commandsAt);
+  const commands = agents.slice(commandsAt, agents.indexOf("\n## ", commandsAt + 1));
   assert.ok(rules.includes("pr-comment.mjs"));
-  assert.ok(commands.includes("pr-comment.mjs") && commands.includes("pr-comment.test.mjs"));
+  assert.ok(commands.includes("pr-comment.mjs"));
+  assert.ok(readRepo("skills/10x-pipeline/test/README.md").includes("pr-comment.test.mjs"));
 });
 
 // ---- live, opt-in (run by a human with GH_LIVE=1) -----------------------------------
