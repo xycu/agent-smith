@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction' 2-3 and 'Done when' fix the outcome: a changeStatus field in the router done output and one line in the done branch; the exact wording of the line is open" },
+    "novelty": { "score": 1, "evidence": "state.mjs frontmatterField already reads change.md status, and steps.mjs doneNotes shows how done output gets extra fields; small adaptation" },
+    "coupling": { "score": 2, "evidence": "done output is built in route.mjs end() via steps.mjs doneNotes and in isolation.mjs finishRun; both chains share the done branch in skills/10x-pipeline/SKILL.md and skills/openspec-pipeline/SKILL.md" },
+    "discovery": { "score": 1, "evidence": "change.md names the router done output and the skills done branch; one grep found the done sites in route.mjs:150, isolation.mjs:673 and flow.mjs:319" },
+    "volume": { "score": 1, "evidence": "a few edits in 2-3 files (route/isolation output, two SKILL.md done branches) plus new tests; the housekeeping archive is already done per the goal" },
+    "verification": { "score": 1, "evidence": "test suite has route, archive and skill content checks (archive-gate.test.mjs, skill-loop.test.mjs); change.md Tests section needs a few new tests for changeStatus cases and the SKILL.md line" }
+  },
+  "unknowns": [
+    "Whether an isolated run's done output (isolation.mjs finishRun) and the plain route.mjs end() must both carry changeStatus; bears on coupling",
+    "Exact wording of the done line in each SKILL.md; decided in the plan, not here"
+  ],
+  "confidence": "medium"
+}

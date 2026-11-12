@@ -1,0 +1,17 @@
+change-status.test.mjs: done prints the status of change.md as it is; done prints null for a change.md without a status field or without frontmatter; an OpenSpec done has no changeStatus
+✔ done prints the status of change.md as it is (764.763042ms)
+✔ done prints null for a change.md without a status field or without frontmatter (492.302834ms)
+✔ the status is read at each call and stored nowhere (447.846833ms)
+✔ a halt output carries no changeStatus (143.291167ms)
+✔ an archive run returns the archive action with no changeStatus (962.655834ms)
+✔ an OpenSpec done has no changeStatus (103.399ms)
+✔ the 10x done branch reports a stale change status and names both ways to close the change (0.61625ms)
+✔ the OpenSpec done branch does not name changeStatus (0.294709ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3157.0885

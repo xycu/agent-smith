@@ -147,7 +147,10 @@ function next(id, policy, chain = "10x") {
   if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d);
   if (d.halt || d.done) {
     return end(d.done
-      ? { action: "done", reason: d.reason, manualPending: d.manualPending, ...doneNotes(d), steps: ran.length }
+      ? {
+        action: "done", reason: d.reason, manualPending: d.manualPending, ...doneNotes(d), steps: ran.length,
+        ...(openspec ? {} : { changeStatus: frontmatterField(path.join(p.change, "change.md"), "status") }),
+      }
       : { action: "halt", reason: d.halt, steps: ran.length });
   }
 

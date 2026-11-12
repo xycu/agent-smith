@@ -1,7 +1,7 @@
 ---
 change_id: finished-changes-left-open
 title: Archive the finished runs and report a stale change.md status at done
-status: new
+status: impl_reviewed
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null
