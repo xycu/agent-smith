@@ -7,8 +7,9 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeOverride, writeResult, writeLog,
-  writeMetaFile, writePlan, writeReview, readMetaFile, entry, planText,
+  writeMetaFile, writeReview, readMetaFile, entry, planText,
 } from "./helpers.mjs";
+import { writePlan } from "./ahead.mjs";
 import { coAuthorProblem, coAuthorTrailer } from "../scripts/state.mjs";
 
 after(cleanupAll);

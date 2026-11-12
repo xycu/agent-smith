@@ -129,16 +129,16 @@ None.
 
 #### Automated
 
-- [ ] 1.1 The coauthor tests pass: `node --test skills/10x-pipeline/test/coauthor.test.mjs`
-- [ ] 1.2 The import is split: `grep -n "ahead.mjs" skills/10x-pipeline/test/coauthor.test.mjs` prints the `writePlan` import and `writePlan` no longer appears in the `helpers.mjs` import list
+- [x] 1.1 The coauthor tests pass: `node --test skills/10x-pipeline/test/coauthor.test.mjs`
+- [x] 1.2 The import is split: `grep -n "ahead.mjs" skills/10x-pipeline/test/coauthor.test.mjs` prints the `writePlan` import and `writePlan` no longer appears in the `helpers.mjs` import list
 
 ### Phase 2: Prove the fix and run the suite
 
 #### Automated
 
-- [ ] 2.1 With the backdating hack and the plain import, the test reports `Rollback of step 1 (plan)`; with the `ahead.mjs` import, `node --test skills/10x-pipeline/test/coauthor.test.mjs` passes
-- [ ] 2.2 After removing the hack, `git diff --stat` lists only `skills/10x-pipeline/test/coauthor.test.mjs` (plus the change folder files)
-- [ ] 2.3 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 With the backdating hack and the plain import, the test reports `Rollback of step 1 (plan)`; with the `ahead.mjs` import, `node --test skills/10x-pipeline/test/coauthor.test.mjs` passes
+- [x] 2.2 After removing the hack, `git diff --stat` lists only `skills/10x-pipeline/test/coauthor.test.mjs` (plus the change folder files)
+- [x] 2.3 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
