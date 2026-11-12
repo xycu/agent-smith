@@ -438,12 +438,25 @@ test("leftover edits are committed once as the final run state and pushed", { sk
   const res = runScript(w);
   assert.equal(res.json.committed, true, res.stdout);
   assert.equal(res.json.commit, head(w));
+  assert.deepEqual(res.json.swept, [], "a report-only leftover holds nothing outside the change folder");
   assert.equal(g(w, w.wt, ["log", "-1", "--format=%s"]), "chore(demo): final run state");
   assert.equal(g(w, w.wt, ["status", "--porcelain"]), "");
   assert.equal(remoteRef(w), head(w));
   setAnswers(w, { "pr-list": { out: JSON.stringify([{ number: 7, url: PR_URL, state: "OPEN" }]) } });
-  assert.equal(runScript(w).json.committed, null);
+  const none = runScript(w).json;
+  assert.equal(none.committed, null);
+  assert.equal(none.swept, null);
   assert.equal(g(w, w.wt, ["log", "--format=%s"]).split("\n").filter((s) => s === "chore(demo): final run state").length, 1);
+});
+
+test("swept names the code a leftover commit holds outside the change folder", { skip }, () => {
+  const w = world();
+  fs.appendFileSync(path.join(w.wt, "context/changes/demo/agent-smith/report.md"), "late line\n");
+  fs.mkdirSync(path.join(w.wt, "src"), { recursive: true });
+  fs.writeFileSync(path.join(w.wt, "src/x.js"), "export const x = 1;\n");
+  const res = runScript(w);
+  assert.equal(res.json.committed, true, res.stdout);
+  assert.deepEqual(res.json.swept, ["src/x.js"]);
 });
 
 test("the leftover commit carries the Agent Smith trailer by default, none with coAuthor null, none with a malformed value", { skip }, () => {

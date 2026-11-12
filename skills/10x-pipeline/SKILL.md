@@ -107,7 +107,7 @@ The PR comment step runs only when TaskList shows an open task with the subject 
 Every run that ends in `done`, `archive` or `halt` does this step once, with or without `--pr-comment`, before the PR comment step and before any STOP. No flag turns it off (ADR-017). Do these in order:
 
 1. Run `cd "<run root>" && node $OPEN_PR <change-id>` from the run root. In `archive` on `archived: true`, append `--report "<archivePath>/agent-smith/report.md"`. Quote the script path and the change id for the shell, and the report path too. It prints one JSON object. When the run branch has commits beyond its base branch, it commits what the worktree still holds as `chore(<change-id>): final run state`, pushes `agent-smith/<change-id>` without force and opens a pull request, or leaves the open one updated by the push. It never merges.
-2. Print one line: `Pull request: <action>, <url or reason> (pushed <true|false>)`, from `pr.action`, `pr.url` (or `pr.reason` when there is no url) and `pushed` of that object.
+2. Print one line: `Pull request: <action>, <url or reason> (pushed <true|false>)`, from `pr.action`, `pr.url` (or `pr.reason` when there is no url) and `pushed` of that object. When `swept` is a non-empty array, also print `Pull request: the final run state commit holds code under chore: <paths>`, from `swept` joined by commas.
 3. When `pushed` is `false`, also print `Pull request: NOT pushed, <reason>. Branch agent-smith/<change-id> is local only: <manual>`, from `reason` and `manual`. When the script exits non-zero or prints no JSON object, print `Pull request: NOT pushed, script error. Branch agent-smith/<change-id> is local only: run the script by hand from the run root` instead of both lines.
 4. Keep `pr.url` for the PR comment step.
 
