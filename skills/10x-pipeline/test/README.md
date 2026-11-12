@@ -99,7 +99,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | --- | --- |
 | `agents-md-no-imports.test.mjs` | `AGENTS.md`, and `CLAUDE.md` when present, has no `@path` import outside a code span |
 | `agents-md-size.test.mjs` | `AGENTS.md` stays at or under 12288 bytes; new detail goes into the index files |
-| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` (self-hosted with the fork fallback; ADR-020) and that `release.yml` stays hosted |
+| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job, and that `release.yml` stays hosted |
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects, CLI exit codes |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |
 | `version-check.test.mjs` | `tools/version-check.mjs`: version fields equal and valid SemVer |

@@ -1,0 +1,5 @@
+- 2.1 — owner action on TrueNAS hosts; cannot be observed from this worktree
+- 2.2 — needs a live CI run on the TrueNAS runner; no push or external service allowed
+- 2.3 — needs the same live CI run log
+- 2.4 — needs a root runner job in CI; cannot be run here
+- 2.5 — owner decision after rows 2.2 and 2.3; edits another change's plan
