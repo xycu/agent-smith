@@ -266,13 +266,15 @@ function commitLeftovers(id) {
 }
 
 // The files of the leftover commit outside the change folder, sorted, top-level relative; null when the list cannot be
-// read. Never a failure: the script still pushes.
+// read. Never a failure: the script still pushes. Both the live change folder and the --report folder count as inside,
+// because a staged archive move (a failed chore(archive) commit) leaves paths under both.
 function sweptOf(opts, top) {
   const shown = runGit(["show", "--name-only", "--no-renames", "-z", "--format=", "HEAD"]);
   if (shown.status !== 0) return null;
   const real = (p) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
-  const inside = path.relative(real(top), real(changeDir(opts))).split(path.sep).join("/") + "/";
-  return shown.stdout.split("\0").filter(Boolean).filter((name) => !name.startsWith(inside)).sort();
+  const inside = [changeDir({ ...opts, report: null }), changeDir(opts)]
+    .map((dir) => path.relative(real(top), real(dir)).split(path.sep).join("/") + "/");
+  return shown.stdout.split("\0").filter(Boolean).filter((name) => !inside.some((i) => name.startsWith(i))).sort();
 }
 
 function changeDir(opts) {

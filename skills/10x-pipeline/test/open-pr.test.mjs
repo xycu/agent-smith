@@ -459,6 +459,15 @@ test("swept names the code a leftover commit holds outside the change folder", {
   assert.deepEqual(res.json.swept, ["src/x.js"]);
 });
 
+test("swept leaves out both sides of a staged archive move of the change folder", { skip }, () => {
+  const w = world();
+  fs.mkdirSync(path.join(w.wt, "context/archive"), { recursive: true });
+  g(w, w.wt, ["mv", "context/changes/demo", "context/archive/2026-11-09-demo"]);
+  const res = runScript(w, ["demo", "--report", path.join(w.wt, "context/archive/2026-11-09-demo/agent-smith/report.md")]);
+  assert.equal(res.json.committed, true, res.stdout);
+  assert.deepEqual(res.json.swept, []);
+});
+
 test("the leftover commit carries the Agent Smith trailer by default, none with coAuthor null, none with a malformed value", { skip }, () => {
   const TRAILER = "Co-Authored-By: Agent Smith <agent-smith@ksycki.pl>";
   const cases = [
