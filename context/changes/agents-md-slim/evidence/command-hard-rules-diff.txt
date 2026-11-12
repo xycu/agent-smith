@@ -1,0 +1,5 @@
+command: diff of Hard Rules section, main vs HEAD
+    2441 /tmp/hr_main.txt
+    2441 /tmp/hr_head.txt
+    4882 total
+IDENTICAL
