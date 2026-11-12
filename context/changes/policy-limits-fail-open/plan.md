@@ -218,11 +218,11 @@ A project template that holds a `{word}` outside the 17 known names (it used to 
 
 #### Automated
 
-- [ ] 1.1 New test file passes: `node --test skills/10x-pipeline/test/policy-validate.test.mjs`
-- [ ] 1.2 Four reproductions of `change.md` halt with the key name and write nothing: `node --test skills/10x-pipeline/test/policy-validate.test.mjs`
-- [ ] 1.3 `init`, `next` and `usage` write nothing on a malformed limit, ladder or tier, and `status` still prints JSON with `policyProblem`: `node --test skills/10x-pipeline/test/policy-validate.test.mjs`
-- [ ] 1.4 Shipped `policy.json` and `baseline-policy.json` pass the check: `node --test skills/10x-pipeline/test/policy-validate.test.mjs`
-- [ ] 1.5 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 New test file passes: `node --test skills/10x-pipeline/test/policy-validate.test.mjs` — c47b4e7
+- [x] 1.2 Four reproductions of `change.md` halt with the key name and write nothing: `node --test skills/10x-pipeline/test/policy-validate.test.mjs` — c47b4e7
+- [x] 1.3 `init`, `next` and `usage` write nothing on a malformed limit, ladder or tier, and `status` still prints JSON with `policyProblem`: `node --test skills/10x-pipeline/test/policy-validate.test.mjs` — c47b4e7
+- [x] 1.4 Shipped `policy.json` and `baseline-policy.json` pass the check: `node --test skills/10x-pipeline/test/policy-validate.test.mjs` — c47b4e7
+- [x] 1.5 Existing suite still passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — c47b4e7
 
 #### Manual
 
