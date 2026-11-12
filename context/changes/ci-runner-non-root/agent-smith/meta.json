@@ -42,5 +42,23 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.1 The owner has changed the runner user on every TrueNAS runner host (service user or fresh non-root container) and the work dataset is writable by it",
+      "2.2 A CI run of a pull request from this repository on the TrueNAS runner passes the uid step, and its log shows a non-root user",
+      "2.3 In that run the two privileged-skip tests of `no-recursive-delete.test.mjs` run with a pass mark, and `skipped` is 2 lower than the 10 of run 43134692634",
+      "2.4 A root runner fails the job: seen in a run before the owner's fix, or by temporarily running one job as root and reading the `::error::` line",
+      "2.5 After rows 2.2 and 2.3, the owner (or a later run) ticks row 2.3 of `context/changes/ci-self-hosted-truenas/plan.md`"
+    ],
+    "manualNotProved": [
+      "2.1 The owner has changed the runner user on every TrueNAS runner host (service user or fresh non-root container) and the work dataset is writable by it — not proved: owner action on TrueNAS hosts; cannot be observed from this worktree",
+      "2.2 A CI run of a pull request from this repository on the TrueNAS runner passes the uid step, and its log shows a non-root user — not proved: needs a live CI run on the TrueNAS runner; no push or external service allowed",
+      "2.3 In that run the two privileged-skip tests of `no-recursive-delete.test.mjs` run with a pass mark, and `skipped` is 2 lower than the 10 of run 43134692634 — not proved: needs the same live CI run log",
+      "2.4 A root runner fails the job: seen in a run before the owner's fix, or by temporarily running one job as root and reading the `::error::` line — not proved: needs a root runner job in CI; cannot be run here",
+      "2.5 After rows 2.2 and 2.3, the owner (or a later run) ticks row 2.3 of `context/changes/ci-self-hosted-truenas/plan.md` — not proved: owner decision after rows 2.2 and 2.3; edits another change's plan"
+    ]
   }
 }
