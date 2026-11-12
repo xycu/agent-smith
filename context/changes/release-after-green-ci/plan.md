@@ -11,13 +11,13 @@
 - `main` has no branch protection, so nothing blocks a release from a red or cancelled commit.
 - No `workflow_run` trigger exists in `.github/workflows/` today.
 - `tools/test/ci-runner.test.mjs` reads the workflow files as text (no YAML parser; no npm dependencies, ADR-006) and pins `release.yml` off self-hosted runners. `tools/test/workflow-pins.test.mjs` pins every `uses:` to a SHA.
-- The release PR is opened with `GITHUB_TOKEN`, so it starts no CI. Merging it pushes a commit to `main`, which starts CI; with this plan the tag and GitHub Release are then created only after that CI run is green.
+- The release PR is opened with `GITHUB_TOKEN`, so it starts no CI. Merging it pushes a commit to `main`, which starts CI; with this plan the tag and GitHub Release are then created only by a job that follows a green CI run of the head of `main`. release-please tags the merge commit of the release PR; when no later push lands before that commit's CI run ends, the tested commit is the tagged one (see Key Discoveries).
 
 ## Desired End State
 
 - A commit on `main` whose CI run failed or was cancelled produces no release PR update and no tag.
 - Every push to `main` has its own CI run that is not cancelled by a later push.
-- A rerun of a failed CI run that then passes starts the release job (a flake delays a release and does not lose it).
+- A rerun of a failed CI run that then passes starts the release job while `main` still points at that commit (a flake delays a release and does not lose it; if `main` moved on, the CI run of the newer head decides).
 - Verified by the static tests of Phase 1 and by the live check of Phase 3.
 
 ### Key Discoveries:
@@ -25,6 +25,7 @@
 - `workflow_run` runs the workflow file of the default branch, and `GITHUB_SHA` of that run is the head of `main` at that time, not `workflow_run.head_sha`. release-please reads `main` through the API, so a green CI run for commit A could release commit B pushed afterwards. A job guard `github.event.workflow_run.head_sha == github.sha` closes this. (`complexity.json` unknown 1.)
 - With `cancel-in-progress: false`, GitHub still replaces a pending run of the same concurrency group with a newer one. `cancel-in-progress` alone therefore does not give every push a result when three pushes land together. A group key that is unique per push (`github.sha`) does.
 - `workflow_run` with `branches: [main]` filters on the head branch name, which a pull request from a fork branch called `main` also matches. The job must also require `workflow_run.event == 'push'`.
+- release-please creates the tag at the merge commit of the release PR, not at the head of `main`. If a later push lands before the CI run of that merge commit ends, the job skips that run (stale `head_sha`) and the next green run of the newer head tags the merge commit, whose own CI run may have failed. The gate then guarantees a green head, not a green tagged commit. This residual gap is accepted and recorded in ADR-008's amendment and in `AGENTS.md`; Phase 3.2 and 3.4 show the common case. Closing it would need a job step that reads the CI conclusion of the tagged commit, which this plan does not add.
 - `release-please-action` runs no checked-out code, so the write token never meets code from a pull request.
 
 ## What We're NOT Doing
@@ -111,7 +112,7 @@ Bring `AGENTS.md` and ADR-008 in line. Header comments of the workflows are done
 
 **Intent**: In the `## Releases` section, replace the sentence that says every push to `main` updates one release PR, and add one bullet on the CI gate. In the Project Structure entry for `ci.yml` and `release.yml` and the `tools/test/` list, name the new test. Keep the "No checks on the release PR" bullet and fix its wording if the CI-run-on-merge fact needs a line.
 
-**Contract**: The section states: the release job runs from the `workflow_run` of a successful CI run of a push to `main`, only when `main` still points at that commit; a red or cancelled run releases nothing; rerunning a failed CI run that passes starts the job again; the tag is created by the job that follows the CI run of the release-PR merge commit.
+**Contract**: The section states: the release job runs from the `workflow_run` of a successful CI run of a push to `main`, only when `main` still points at that commit; a red or cancelled run releases nothing; rerunning a failed CI run that passes starts the job again only while `main` still points at that commit; the tagged commit is the release-PR merge commit, so a later push before its CI run ends can move the gate to a newer green head; the tag is created by the job that follows the CI run of the release-PR merge commit.
 
 #### 2. ADR-008
 
@@ -119,7 +120,7 @@ Bring `AGENTS.md` and ADR-008 in line. Header comments of the workflows are done
 
 **Intent**: Append `## Amendment 1: release only after a green CI run (change release-after-green-ci)`, in the form of ADR-012's Amendment 1. Leave the original text as written. Update the `Status` line the way ADR-012 does.
 
-**Contract**: The amendment records the problem (v1.5.0 on `5160a8a` with a red CI run; 38 of 97 CI runs on `main` cancelled), the decision as GIVEN/WHEN/THEN scenarios (a release job **MUST** start only from a successful CI run of a push to `main` whose commit is still the head of `main`; a push to `main` **MUST NOT** have its CI run cancelled by a later push), the consequences (a flake delays a release; the release PR no longer updates on a red `main`; the tag follows the CI run of the release-PR merge commit; GitHub-hosted minutes unchanged) and the rejected alternatives (branch protection with required checks; a `needs:` job that runs CI inside `release.yml`; `cancel-in-progress` change only).
+**Contract**: The amendment records the problem (v1.5.0 on `5160a8a` with a red CI run; 38 of 97 CI runs on `main` cancelled), the decision as GIVEN/WHEN/THEN scenarios (a release job **MUST** start only from a successful CI run of a push to `main` whose commit is still the head of `main`; a push to `main` **MUST NOT** have its CI run cancelled by a later push), the consequences (the residual gap that the tag sits on the release-PR merge commit while the gate checks the head of `main`; a flake delays a release; the release PR no longer updates on a red `main`; the tag follows the CI run of the release-PR merge commit; GitHub-hosted minutes unchanged) and the rejected alternatives (branch protection with required checks; a `needs:` job that runs CI inside `release.yml`; `cancel-in-progress` change only).
 
 ### Success Criteria:
 
@@ -138,7 +139,7 @@ Bring `AGENTS.md` and ADR-008 in line. Header comments of the workflows are done
 
 ### Overview
 
-`workflow_run` runs the workflow file of `main`, so a pull request cannot exercise it. The owner checks the first runs after the merge.
+`workflow_run` runs the workflow file of `main`, so a pull request cannot exercise it. The owner checks the first runs after the merge. The rows of this phase, including 3.1, can be proved only after the merge; they stay unticked in the implementation run and the owner ticks them.
 
 ### Changes Required:
 
