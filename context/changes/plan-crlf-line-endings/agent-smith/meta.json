@@ -42,5 +42,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 CI is green on the pull request of the run branch"
+    ],
+    "manualNotProved": [
+      "2.4 CI is green on the pull request of the run branch — not proved: needs CI result of a pull request on GitHub; no run exists yet and checking it needs external services"
+    ]
   }
 }
