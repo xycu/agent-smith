@@ -1,0 +1,1 @@
+- 2.6 — CI on the pull request needs the pushed run branch and a live GitHub check; not available in this unattended step

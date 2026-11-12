@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md Fix direction fixes the variable and the paths; open detail is the minimum Claude Code version, which has one obvious source (the skills docs the change cites)" },
+    "novelty": { "score": 1, "evidence": "change.md Problem: the ${CLAUDE_SKILL_DIR} substitution is a documented feature; the repo already names script paths in SKILL.md lines 25-27 (10x) and 28-30 (openspec), so the change adapts that pattern" },
+    "coupling": { "score": 2, "evidence": "change.md Tests: skill-loop.test.mjs and openspec-skill.test.mjs pin the lines; agents.test.mjs and provenance.test.mjs copy the plugin tree; both SKILL.md files and README are touched" },
+    "discovery": { "score": 1, "evidence": "change.md names the files and lines; grep of 'base directory' finds only SKILL.md (both) and the two pinned tests (openspec-skill.test.mjs:79,82,155; skill-loop.test.mjs:92)" },
+    "volume": { "score": 2, "evidence": "change.md Fix direction: two SKILL.md files, two content tests, README version note, plus the Manual live-run row; about 5 files" },
+    "verification": { "score": 2, "evidence": "change.md Fix direction: a live run of an installed plugin (not --plugin-dir) is a manual check; the content tests in the suite cover the rest" }
+  },
+  "unknowns": [
+    "Minimum Claude Code version that introduced ${CLAUDE_SKILL_DIR}; change.md asks to find it and I did not verify it",
+    "Whether agents.test.mjs and provenance.test.mjs depend on the placeholder text; I did not read them",
+    "Whether the installed-plugin live run can be done unattended; it is a Manual row"
+  ],
+  "confidence": "medium"
+}

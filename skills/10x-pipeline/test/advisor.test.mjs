@@ -579,7 +579,7 @@ test("3.6 ADR-009 rule lines follow the rule form and the decision rules are fix
   }
 });
 
-test("3.6 the reference and AGENTS.md describe the advisor flag", () => {
+test("3.6 the reference and the indexes describe the advisor flag", () => {
   const readme = readRepo("docs/REFERENCE.md");
   const start = readme.indexOf("\nAdvisor (opt-in):\n");
   assert.ok(start > readme.indexOf("\nRestricted step agents (opt-in):\n"), "the advisor bullets follow the restricted agents");
@@ -589,8 +589,10 @@ test("3.6 the reference and AGENTS.md describe the advisor flag", () => {
   assert.match(block, /never checks that a consult happened and never caps the consults/);
   assert.match(block, /record the advisor setting and the Claude Code version of both arms by hand/);
   assert.match(block, /ADR-009/);
+  assert.ok(readRepo("skills/10x-pipeline/prompts/README.md").includes("`advisor.md`"));
+  assert.ok(readRepo("skills/10x-pipeline/test/README.md").includes("advisor.test.mjs"));
+  const adrIndex = readRepo("docs/ADR/README.md");
+  assert.ok(adrIndex.includes("ADR-009") && adrIndex.includes("advisor"));
   const agents = readRepo("AGENTS.md");
-  for (const part of ["`skills/10x-pipeline/prompts/advisor.md`", "`skills/10x-pipeline/test/advisor.test.mjs`", "(ADR-001 to ADR-011)"]) {
-    assert.ok(agents.includes(part), part);
-  }
+  for (const part of ["skills/10x-pipeline/test/README.md", "docs/ADR/README.md"]) assert.ok(agents.includes(part), part);
 });

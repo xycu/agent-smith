@@ -1,0 +1,8 @@
+command: claims of AGENTS.md checked against code
+12:const USAGE = "usage: node pr-comment.mjs <change-id> [--report <path>] [--pr <url>] [--timeout-ms <n>]";
+24:    if (a === "--report" || a === "--pr" || a === "--timeout-ms") {
+no changelog-sections (default hidden sections)
+{
+  ".": "1.6.1"
+}
+2:// so no test needs the network. Opt-in live tests (GH_LIVE=1) are run by a human.

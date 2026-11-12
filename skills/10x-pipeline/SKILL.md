@@ -22,9 +22,9 @@ allowed-tools:
 
 You are the orchestrator. You do not plan, implement or review yourself. You do not pick models or effort levels. The router script decides every step; you execute what it returns.
 
-Router: `ROUTER=<this skill's base directory>/scripts/route.mjs`. Run it with `node` from the run root (see Start step 3).
-PR comment script: `PR_COMMENT=<this skill's base directory>/scripts/pr-comment.mjs`. Only the PR comment step runs it (see "PR comment (opt-in)").
-Pull request script: `OPEN_PR=<this skill's base directory>/scripts/open-pr.mjs`. Only the pull request step runs it (see "Pull request (always)").
+Router: `ROUTER="${CLAUDE_SKILL_DIR}/scripts/route.mjs"`. Run it with `node` from the run root (see Start step 3). When you put the path in a command, quote it for the shell.
+PR comment script: `PR_COMMENT="${CLAUDE_SKILL_DIR}/scripts/pr-comment.mjs"`. Only the PR comment step runs it (see "PR comment (opt-in)").
+Pull request script: `OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"`. Only the pull request step runs it (see "Pull request (always)").
 
 ## Start
 
@@ -61,6 +61,7 @@ The router prints one JSON object. Act on `action`:
   5. Run `cd "<run root>" && node $ROUTER next <change-id>` and repeat the loop with its output.
 - **`done`**: first attach late usage figures, so `status` and `report.md` show them: for each step whose usage figure arrived after `next` ran for it and is not attached yet, run `cd "<run root>" && node $ROUTER usage <change-id> <n> --tokens N --tool-uses N --duration-ms N` once, as a call of its own, omitting a flag whose figure is missing. `<n>` is the `n` of the `Step <n>` line you printed when the subagent whose notification carried the figure was launched, never a guess: a wrong `<n>` is accepted silently when that entry has no figure. Print `Usage: step <n> <attached|not attached>, <reason or commit>`. A refusal exits 1 with `attached: false`; it is no fault of yours, so write no `orchestrator-error` result for it, and it never changes the run.
   Then report the final verdict, the number of steps, and every entry in `manualPending` as a checklist for the human. When the output has `manualUnproven` or `uncommittedTicks`, list those row ids too, as ticks nobody proved. When it has `manualUnprovenWhy`, list each of its lines too, so the human sees why the router rejected the tick. When it has `manualNotProved`, list each of its lines, so the human sees why each pending row was not proved. Then run `cd "<run root>" && node $ROUTER status <change-id>` and show the model/effort used per step as a short list. Point the user to the router's `report` path (`report.md`); when the implementation review gave lesson candidates, that report also lists them, each with a ready `/10x-lesson` command for the user to run.
+  Then read `changeStatus` of the output. When it is not `impl_reviewed`, print one line: `Change status: <changeStatus or missing>, expected impl_reviewed. The run did not set change.md to that status.` (`null` is printed as `missing`). Always tell the user the change is still open in `context/changes/` and that `/10x-archive <change-id>` or running `/agent-smith:10x-pipeline <change-id> --archive` again closes it (a resume keeps the log and ends in the `archive` branch). When the run root is not `<root>`, add that both commands run from the run root, because the change folder and its status live on the run branch and the main checkout keeps the old status until that branch is merged. Never edit `change.md` yourself.
   Then do the pull request step.
   Then call TaskList. When a task with the subject `PR comment: <change-id>` for this run is open, do the PR comment step. If the call errors, post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`.
 - **`archive`** (only for a run started with `--archive`; the run is done and the router has committed the change folder, or found it already committed):
@@ -129,7 +130,7 @@ Every run that ends in `done`, `archive` or `halt` does this step once, with or 
 
 Routing lives in data, not in this file:
 
-- `<this skill's base directory>/policy.json` holds the defaults: the model/effort ladder, the base tier per step, escalation and de-escalation rules, retry caps, and prompt templates.
+- `${CLAUDE_SKILL_DIR}/policy.json` holds the defaults: the model/effort ladder, the base tier per step, escalation and de-escalation rules, retry caps, and prompt templates.
 - A project can override any key in `context/foundation/agent-smith-policy.json`. The router deep-merges it over the defaults. Arrays such as `ladder` are replaced whole.
 
 How the tier moves (see `tierFor` in `scripts/steps.mjs` and `decide` in `scripts/flow.mjs`):

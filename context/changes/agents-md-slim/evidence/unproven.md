@@ -1,0 +1,1 @@
+- 3.4 — no pull request exists yet for agent-smith/agents-md-slim (`gh pr list --head agent-smith/agents-md-slim` returned `[]`); CI result lives on GitHub and opening the PR is a push, which this step must not do
