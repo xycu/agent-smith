@@ -1,6 +1,8 @@
 name: CI
 
 # Runs the test suite and the two guards on every pull request and on pushes to main.
+# Every push to main ends with a CI result: only superseded pull request runs are cancelled, and each
+# push to main has its own concurrency group. release.yml starts from the result of this run.
 # The repository rebase-merges, so commit subjects land on main and release-please reads them:
 # the `commits` job lints each commit of the pull request, not the title.
 # Runner: the TrueNAS self-hosted runner (ADR-020), except for a pull request from a fork, which
@@ -16,8 +18,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   test:

@@ -69,7 +69,7 @@ function ruleProblems(line) {
 test("frontmatter names the skill openspec-pipeline with its argument hint", () => {
   const fields = frontmatter();
   assert.equal(fields.name, "openspec-pipeline");
-  assert.equal(fields["argument-hint"], "<change-name> [goal text] [--archive] [--pr-comment]");
+  assert.equal(fields["argument-hint"], "<change-name> [goal text] [--archive] [--rigor <level>] [--pr-comment]");
   assert.match(fields.description, /OpenSpec/);
 });
 
@@ -199,4 +199,13 @@ test("done, halt and archive call usage with --chain openspec before the pull re
   assert.ok(archive.includes(call), "archive has no usage call");
   assert.ok(archive.indexOf(call) < archive.indexOf("\n  3. Call the Agent tool"), "usage call after the archive subagent launch");
   assert.match(archive, /A figure that arrives after step 3 has launched the archive subagent is dropped\./);
+});
+
+test("the argument hint and Start step 1 name --rigor with its value and the goal text", () => {
+  assert.ok(lines.some((l) => l.startsWith("argument-hint:") && l.includes("[--rigor <level>]")));
+  const step = lines.find((l) => l.startsWith("1. Parse the arguments"));
+  assert.ok(step, "no Start step 1");
+  const sentence = step.split(". ").find((s) => s.includes("--rigor"));
+  assert.ok(sentence, "no --rigor sentence in step 1");
+  for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough"]) assert.ok(sentence.includes(w), w);
 });

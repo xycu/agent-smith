@@ -1,0 +1,1 @@
+- 2.5 — row needs a live /agent-smith:10x-pipeline skill run (the orchestrator LLM strips the flag from the goal); an unattended subagent cannot launch a skill run or nested pipeline. Router half (init --rigor thorough, flag kept out of goal) is Automated 2.4; step 1 text is pinned by skill-loop.test.mjs. Reading the skill text is not a run, so the row stays pending.

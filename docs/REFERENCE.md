@@ -2,7 +2,7 @@
 
 Full behavior of `/agent-smith:10x-pipeline`: routing, run isolation, review routing, rigor, archive, pre-plan steps, budget, executors, manual verification, scoring, reports, comparison, provenance, opt-in features and limits. The OpenSpec chain, `/agent-smith:openspec-pipeline`, has its own section at the end; everything it does not name works as in the 10x chain. For install and a first run, see the [README](../README.md). Decisions and their reasons are in [`docs/ADR/`](ADR/).
 
-## `/agent-smith:10x-pipeline <change-id> [goal] [--archive] [--chrome false] [--pr-comment]`
+## `/agent-smith:10x-pipeline <change-id> [goal] [--archive] [--chrome false] [--rigor <level>] [--pr-comment]`
 
 Runs a 10xDevs change end to end: plan, plan review, implement, implementation review, fix. With `--archive` it also commits the change folder and archives the change when the run is done (see "Archive (opt-in)").
 
@@ -385,7 +385,7 @@ PR comment (opt-in):
 - A change id is at most 100 characters for the script (the marker must fit in the comment head). The router has no such limit, so a longer id ends in `PR comment: skipped, script error`.
 - A run that ended before the pull request existed: open the pull request, check out its branch and run `node <plugin>/skills/10x-pipeline/scripts/pr-comment.mjs <change-id> [--report context/archive/<date>-<change-id>/agent-smith/report.md]` from the project root. The comment goes to the pull request of the branch checked out now, so run it from the branch of that pull request. The result prints the pull request url. `--report` accepts only a file named `report.md` inside a directory named `agent-smith`, whose first line is `# Run report: <change-id>`.
 
-## `/agent-smith:openspec-pipeline <change-name> [goal] [--archive] [--pr-comment]`
+## `/agent-smith:openspec-pipeline <change-name> [goal] [--archive] [--rigor <level>] [--pr-comment]`
 
 Runs an existing OpenSpec change (`openspec/changes/<change-name>/`) through the steps `os-propose`, `os-apply` and `os-verify`, a fix loop on a failed verify, and, with `--archive`, the OpenSpec CLI archive. The skill is `skills/openspec-pipeline/SKILL.md`; it calls the same router (`skills/10x-pipeline/scripts/route.mjs`) with `--chain openspec` on every call and reads the same policy and override file. The decisions are in ADR-013. Everything this section does not name works as described above for the 10x chain: the ladder and the effort floor, the step budget, rigor raised by failed steps and `signals.rigor`, `signals.needsHuman`, provenance, run isolation with its start commit, step commits and rollback, `report.md`, `--pr-comment` and the pull request step, which the skill runs as `open-pr.mjs <change-name> --chain openspec` and which reads the default report under `openspec/changes/<change-name>/agent-smith/` (see "Pull request (always)" and ADR-017).
 

@@ -150,3 +150,12 @@ test("the run branch points at rule 3 for a figure that arrives after next, and 
   assert.match(branch("run"), /rule 3 of the anti-stall rules covers one that arrives after `next`/);
   assert.match(sectionOf("## Rules"), /`usage` command is the only way to add a usage figure to a logged step/);
 });
+
+test("the argument hint and Start step 1 name --rigor with its value and the goal text", () => {
+  assert.ok(lines.some((l) => l.startsWith("argument-hint:") && l.includes("[--rigor <level>]")));
+  const step = lines.find((l) => l.startsWith("1. Parse the arguments"));
+  assert.ok(step, "no Start step 1");
+  const sentence = step.split(". ").find((s) => s.includes("--rigor"));
+  assert.ok(sentence, "no --rigor sentence in step 1");
+  for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough"]) assert.ok(sentence.includes(w), w);
+});

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md Fix direction: delete the second ADR-019 copy after ADR-021 and keep the first in ADR order; the outcome is fixed" },
+    "novelty": { "score": 0, "evidence": "change.md is a docs-only edit to the docs/ADR bullet of AGENTS.md (line 57), a pattern the file already uses" },
+    "coupling": { "score": 0, "evidence": "change.md scope: one bullet in AGENTS.md; no code, policy or prompt changes" },
+    "discovery": { "score": 0, "evidence": "change.md names the location (AGENTS.md line 57); grep for ADR-0NN found the duplicate ADR-019 sentence and no other repeated summary" },
+    "volume": { "score": 0, "evidence": "change.md: delete one repeated sentence in one line of AGENTS.md" },
+    "verification": { "score": 0, "evidence": "change.md Done when: the existing suite (node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs), which already scans AGENTS.md via no-recursive-delete.test.mjs" }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
