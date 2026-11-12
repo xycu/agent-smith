@@ -166,10 +166,10 @@ None. A resume with `--rigor` can only raise the stored level (existing router r
 
 #### Automated
 
-- [ ] 1.1 The `argument-hint` of both skills contains `[--rigor <level>]`
-- [ ] 1.2 Start step 1 of both skills names `--rigor`
-- [ ] 1.3 Both REFERENCE headings list the flag
-- [ ] 1.4 Anti-stall sections and prompt rule checks still pass
+- [x] 1.1 The `argument-hint` of both skills contains `[--rigor <level>]`
+- [x] 1.2 Start step 1 of both skills names `--rigor`
+- [x] 1.3 Both REFERENCE headings list the flag
+- [x] 1.4 Anti-stall sections and prompt rule checks still pass
 
 #### Manual
 
@@ -179,10 +179,10 @@ None. A resume with `--rigor` can only raise the stored level (existing router r
 
 #### Automated
 
-- [ ] 2.1 Skill content tests pass
-- [ ] 2.2 Deliberate break fails the new 10x test
-- [ ] 2.3 Full suite passes
-- [ ] 2.4 Router starts a run with the flag and keeps it out of the goal
+- [x] 2.1 Skill content tests pass
+- [x] 2.2 Deliberate break fails the new 10x test
+- [x] 2.3 Full suite passes
+- [x] 2.4 Router starts a run with the flag and keeps it out of the goal
 
 #### Manual
 
