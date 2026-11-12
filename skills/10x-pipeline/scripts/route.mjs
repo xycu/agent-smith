@@ -20,7 +20,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
-  ROOT, out, parseFlags, loadPolicy, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
+  ROOT, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
 } from "./state.mjs";
@@ -28,7 +28,7 @@ import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
 import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
 import {
-  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, artifactsLine, stepAgent,
+  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
   advisorOn, neutralRetry, cleanUsage,
 } from "./flow.mjs";
 import {
@@ -630,7 +630,7 @@ function compareCommand(id, flags, policy, chain = "10x") {
   out(pair);
 }
 
-function status(id, flags, chain = "10x") {
+function status(id, flags, chain = "10x", policy = null) {
   const p = paths(id, null, chain);
   // A moved OpenSpec run halts as archived instead of printing an empty log.
   if (chain === "openspec") guardArchived(p, id);
@@ -674,6 +674,9 @@ function status(id, flags, chain = "10x") {
       ...(typeof e.kept === "string" ? { kept: e.kept } : {}),
     })),
   };
+  // status stays usable on a broken policy; the fault shows here, and init, next and usage halt on it.
+  const policyProblem = policyProblems(policy) ?? promptProblem(policy);
+  if (policyProblem) res.policyProblem = policyProblem;
   if (cost) {
     res.cost = {
       usd: cost.priced ? roundUsd(cost.usd) : null, currency: "USD", rate: "blended",
@@ -835,6 +838,11 @@ function main() {
     halt(`Invalid --chain ${flags.chain === true ? "(no value)" : flags.chain}. Use one of: ${CHAINS.join(", ")}.`);
   }
   const policy = loadPolicy();
+  // A malformed cap, ladder or tier halts before the chain, the run lock or any write.
+  if (["init", "next", "usage"].includes(cmd)) {
+    const bad = policyProblems(policy) ?? promptProblem(policy);
+    if (bad) halt(bad);
+  }
   const chain = resolveChain(cmd, id, flags);
   // openspec/changes/archive/ is OpenSpec's archive root, so the name archive cannot be an OpenSpec change.
   if (chain === "openspec" && id === "archive") {
@@ -937,7 +945,7 @@ function main() {
   } else if (cmd === "next") {
     next(id, policy, chain);
   } else if (cmd === "status") {
-    status(id, flags, chain);
+    status(id, flags, chain, policy);
   } else if (cmd === "risk") {
     riskCommand(id, policy, chain);
   } else if (cmd === "usage") {

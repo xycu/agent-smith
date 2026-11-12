@@ -1044,13 +1044,14 @@ test("a blank commit message halts as kind A and never stages the folder", { ski
   assert.equal(commitCount(project), 1);
 });
 
-test("a custom ladder too short for the pinned archive tier halts before git add", { skip: noGit }, () => {
+test("a custom ladder too short for the step tiers halts at load before git add", { skip: noGit }, () => {
   const ladder = [{ model: "haiku", effort: "low" }, { model: "haiku", effort: "low" }, { model: "sonnet", effort: "low" }];
   const project = archiveProject({ policy: { ladder } });
   const res = runNext(project);
   assert.equal(res.json.action, "halt");
-  assert.match(res.json.reason, /policy\.ladder has no entry for tier 3/);
-  assert.equal(res.json.committed, false);
+  // The policy check now rejects the short ladder at load, so the halt comes before any archive step.
+  assert.match(res.json.reason, /^policy\.steps\.plan\.baseTier must be an integer from 0 to 2/);
+  assert.equal(res.json.committed, undefined);
   git(project, ["diff", "--cached", "--quiet"]);
   assert.equal(commitCount(project), 1);
 });

@@ -112,6 +112,43 @@ export function coAuthorProblem(policy) {
   return null;
 }
 
+// The first fault in the keys that cap the spend of a run, as text that names the key and the override file, or null.
+// Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder, steps. Never throws and never halts;
+// main() halts for init, next and usage and status reports it. A baseTier outside [minTier, maxTier] is allowed (tierFor clamps it).
+export function policyProblems(policy) {
+  const bad = (key, rule, v) => `policy.${key} must be ${rule} (got ${v === undefined ? "undefined" : JSON.stringify(v)}). Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`;
+  const p = policy ?? {};
+  for (const key of ["limits", "escalation", "rigor", "steps"]) {
+    if (!isObject(p[key])) return bad(key, "an object", p[key]);
+  }
+  if (!isObject(p.rigor.budgetDelta)) return bad("rigor.budgetDelta", "an object", p.rigor.budgetDelta);
+  const int = (v, min) => Number.isSafeInteger(v) && v >= min;
+  for (const [key, min] of [["maxTotalSteps", 1], ["maxPlanRevisions", 0], ["maxFixLoops", 0], ["maxNeutralRetries", 0]]) {
+    if (!int(p.limits[key], min)) return bad(`limits.${key}`, min ? "a positive integer" : "a non-negative integer", p.limits[key]);
+  }
+  if (!int(p.escalation.maxAttemptsPerStep, 1)) return bad("escalation.maxAttemptsPerStep", "a positive integer", p.escalation.maxAttemptsPerStep);
+  for (const [level, v] of Object.entries(p.rigor.budgetDelta)) {
+    if (!Number.isSafeInteger(v)) return bad(`rigor.budgetDelta.${level}`, "an integer", v);
+  }
+  if (!Array.isArray(p.ladder) || p.ladder.length === 0) return bad("ladder", "a non-empty array", p.ladder);
+  for (let i = 0; i < p.ladder.length; i++) {
+    const rung = p.ladder[i];
+    for (const field of ["model", "effort"]) {
+      const v = isObject(rung) ? rung[field] : undefined;
+      if (typeof v !== "string" || !v.trim()) return bad(`ladder[${i}].${field}`, "a non-empty string", v);
+    }
+  }
+  const top = p.ladder.length - 1;
+  for (const [name, step] of Object.entries(p.steps)) {
+    if (!isObject(step)) return bad(`steps.${name}`, "an object", step);
+    for (const field of ["baseTier", "minTier", "maxTier"]) {
+      if (!int(step[field], 0) || step[field] > top) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
+    }
+    if (step.minTier > step.maxTier) return bad(`steps.${name}.minTier`, `at most maxTier ${step.maxTier}`, step.minTier);
+  }
+  return null;
+}
+
 // The trailer line of policy.coAuthor, or null when it is off. Call only after coAuthorProblem returned null.
 export function coAuthorTrailer(policy) {
   const c = policy?.coAuthor;

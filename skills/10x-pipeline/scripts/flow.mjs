@@ -9,7 +9,7 @@ import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSum
 import {
   verifyImplement, executorNext, retryRows, unprovenTicks, retryNext, reviewWarning, doneNotes, withoutEvidence,
   manualUnprovenIds, manualUnprovenWhyRows, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
-  verifyCodeReplan,
+  verifyCodeReplan, PROMPT_PLACEHOLDERS,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "./openspec.mjs";
 
@@ -341,11 +341,10 @@ export const ORCHESTRATOR_ERROR = "orchestrator-error";
 // The longest note kept per neutral rerun, in code points.
 const NEUTRAL_NOTE_MAX = 200;
 
-// limits.maxNeutralRetries, read tolerantly: a value that is not a non-negative integer reads as the shipped default (2);
+// limits.maxNeutralRetries, validated at load (policyProblems): a non-negative integer.
 // 0 turns neutral reruns off, so the status then reads as any unknown status (a failed attempt).
 export function maxNeutralRetries(policy) {
-  const v = policy?.limits?.maxNeutralRetries;
-  return Number.isSafeInteger(v) && v >= 0 ? v : 2;
+  return policy.limits.maxNeutralRetries;
 }
 
 // Runs before attachResult. When the last executed entry has no result and last-result.json holds the status
@@ -817,6 +816,27 @@ export function checkPrompts(policy) {
       throw new Error(`${e instanceof Error ? e.message : String(e)}. The result file and the log are untouched: fix the policy and run next again.`);
     }
   }
+}
+
+// The first {name} in a prompt template that the router never fills (PROMPT_PLACEHOLDERS), as a halt text, else null.
+// A template that does not resolve is skipped: checkPrompts reports it with its own text. Never throws.
+export function promptProblem(policy) {
+  const prompts = isObject(policy?.prompts) ? policy.prompts : {};
+  for (const template of Object.keys(prompts)) {
+    let text;
+    try {
+      text = promptText(policy, template);
+    } catch {
+      continue;
+    }
+    for (const [, name] of text.matchAll(/\{(\w+)\}/g)) {
+      if (!PROMPT_PLACEHOLDERS.includes(name)) {
+        return `policy.prompts.${template} uses {${name}}, which the router never fills. Known placeholders: ${PROMPT_PLACEHOLDERS.join(", ")}. ` +
+          "Fix it in context/foundation/agent-smith-policy.json. Nothing was written.";
+      }
+    }
+  }
+  return null;
 }
 
 // The upstream artifacts of preplan.artifacts that exist in the change folder, as a prompt line, else "".

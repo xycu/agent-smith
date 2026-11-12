@@ -1,0 +1,16 @@
+== 1.6 limits.maxTotalSteps string
+{
+  "action": "halt",
+  "reason": "policy.limits.maxTotalSteps must be a positive integer (got \"14\"). Fix it in context/foundation/agent-smith-policy.json. Nothing was written."
+}
+exit=1
+change.md
+== 1.7 status
+valid JSON; policyProblem="policy.limits.maxTotalSteps must be a positive integer (got \"14\"). Fix it in context/foundation/agent-smith-policy.json. Nothing was written."
+== 2.5 plan template {idd}
+{
+  "action": "halt",
+  "reason": "policy.prompts.plan uses {idd}, which the router never fills. Known placeholders: id, goal, verdict, artifacts, authority, phase, lastPhase, retry, uncommitted, failure, unproven, browserRows, evidence, lessonMax, lessonChars, findings, workdir. Fix it in context/foundation/agent-smith-policy.json. Nothing was written."
+}
+exit=1
+change.md

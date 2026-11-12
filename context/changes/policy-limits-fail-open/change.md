@@ -1,7 +1,7 @@
 ---
 change_id: policy-limits-fail-open
 title: Validate policy limits, ladder and tiers at load instead of failing open
-status: new
+status: impl_reviewed
 created: 2026-11-12
 updated: 2026-11-12
 archived_at: null
