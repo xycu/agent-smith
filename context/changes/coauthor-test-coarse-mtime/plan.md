@@ -15,10 +15,11 @@
 
 - Audit of the other files that import the plain `writePlan` from `helpers.mjs` (checked in context, each call site):
   - Plan written, then stamped ahead by the test itself (`later`, `future` or `fs.utimesSync`), so safe: `agents.test.mjs:65`, `advisor.test.mjs:391,442,529`, `compare.test.mjs:80,114,482`, `cost.test.mjs:176`, `lessons.test.mjs:94`, `provenance.test.mjs:44`, `route.test.mjs:365,406,535`.
-  - Fixture written before `init` or before the step that reads it, or the output of an `implement` step (no `startedAt` check on the plan file for that step), so not affected: `churn.test.mjs:67`, `executors.test.mjs:47,226,325,836,920`, `advisor.test.mjs:141,393,442`, `agents.test.mjs:67`, `provenance.test.mjs:278`, `firstattempt.test.mjs` (imports it, never calls it).
+  - Fixture written before `init` or before the step that reads it, or the output of an `implement` step (no `startedAt` check on the plan file for that step), so not affected: `churn.test.mjs:67`, `executors.test.mjs:47,226,325,836,920`, `advisor.test.mjs:141,393,531`, `agents.test.mjs:67`, `provenance.test.mjs:278`, `firstattempt.test.mjs` (imports it, never calls it).
   - `archive.test.mjs:948,960` rewrite `plan.md` with `fs.writeFileSync` before `next` on a run whose pending step is not a plan step; not affected.
   - Result: `coauthor.test.mjs` is the only file that needs a change.
 - `helpers.mjs` must stay as it is (AGENTS.md); `ahead.mjs` exists for this.
+- Not audited here: the plain `writeReview` and the `research`, `frame` and `score` output writers of other test files. They fall under the same `startedAt` check (`flow.mjs:479-503`). Several files still import the plain `writeReview`; a stamped or fixture use is likely, but this plan did not check it. Treat it as a follow-up change if the suite flakes again on a review step.
 
 ## Desired End State
 
@@ -30,6 +31,7 @@
 - No change to the other test files: their plain writes are stamped by the test or are fixtures (audit above). Converting the stamped ones to `ahead.mjs` is cosmetic churn.
 - No guard test. A source-text check cannot tell a fixture write before `init` from a step-output write after it, and a guard flagging every plain import would flag the safe fixtures. The change notes allow leaving it out.
 - No change to `writeReview` in `coauthor.test.mjs` (fixtures).
+- No audit of review, research, frame or score writers in other test files (see Key Discoveries); a follow-up if needed.
 
 ## Implementation Approach
 
@@ -49,7 +51,7 @@ Switch the plan writer of `coauthor.test.mjs`.
 
 **Intent**: Write the plans of lines 69 and 162 through the writer that stamps the file a minute ahead, so the router always sees the plan as written after the step started.
 
-**Contract**: Remove `writePlan` from the `./helpers.mjs` import (line 8-11) and add `import { writePlan } from "./ahead.mjs";`. `writeReview` stays on `./helpers.mjs`. Call sites do not change.
+**Contract**: Remove `writePlan` from the `./helpers.mjs` import (line 8-11) and add `import { writePlan } from "./ahead.mjs";`. `writeReview` stays on `./helpers.mjs`. Call sites do not change. Spot check beside the grep of the criteria: `grep -n "writePlan" skills/10x-pipeline/test/coauthor.test.mjs` prints the one `./ahead.mjs` import and the two call sites (lines 69 and 162 before the import line shifts them), and no `writePlan` inside the `./helpers.mjs` import block.
 
 ### Success Criteria:
 
@@ -74,7 +76,7 @@ Show the timing dependency is gone, then run the whole suite. The hack is local 
 
 **Intent**: Make the plain `writePlan` set the file's mtime to the step's `startedAt` (read it from `agent-smith/run.jsonl`, or use a time of one second ago), the way a coarse Linux clock can. Run `coauthor.test.mjs` against the old import to see the CI failure, then against the new import to see it pass. Because `ahead.mjs` stamps after the plain write, the new import ends a minute ahead whatever the plain helper does.
 
-**Contract**: The edit exists only during the check. `git diff --stat` shows only `coauthor.test.mjs` before the commit step of the pipeline.
+**Contract**: Two temporary edits exist only during the check: the `writePlan` backdating in `helpers.mjs`, and, for the "old import" run, the import of `coauthor.test.mjs` put back to `./helpers.mjs` (undo it with Edit too, so the final import is the `./ahead.mjs` one of Phase 1). Backdate to a time before the step's `startedAt` (one second ago is enough; `mtime == startedAt` also fails the router's `>` check). `git diff --stat` shows only `coauthor.test.mjs` before the commit step of the pipeline.
 
 ### Success Criteria:
 
