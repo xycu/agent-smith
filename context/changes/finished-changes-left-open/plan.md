@@ -180,10 +180,10 @@ None. `changeStatus` is a new optional key of an existing output; the skills ign
 
 #### Automated
 
-- [ ] 1.1 New tests fail against the unchanged router, then pass: `node --test skills/10x-pipeline/test/change-status.test.mjs`
-- [ ] 1.2 Existing router, archive and OpenSpec tests stay green: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/openspec-steps.test.mjs`
-- [ ] 1.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.4 No recursive delete in the new test: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 1.1 New tests fail against the unchanged router, then pass: `node --test skills/10x-pipeline/test/change-status.test.mjs` — 48a761d
+- [x] 1.2 Existing router, archive and OpenSpec tests stay green: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/openspec-steps.test.mjs` — 48a761d
+- [x] 1.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 48a761d
+- [x] 1.4 No recursive delete in the new test: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — 48a761d
 
 #### Manual
 
@@ -193,10 +193,10 @@ None. `changeStatus` is a new optional key of an existing output; the skills ign
 
 #### Automated
 
-- [ ] 2.1 Skill content tests fail before the edit, then pass: `node --test skills/10x-pipeline/test/change-status.test.mjs`
-- [ ] 2.2 Anti-stall, archive-gate, rule-form and no-model-word checks stay green: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs`
-- [ ] 2.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.4 Version fields still equal: `node tools/version-check.mjs`
+- [x] 2.1 Skill content tests fail before the edit, then pass: `node --test skills/10x-pipeline/test/change-status.test.mjs` — 48a761d
+- [x] 2.2 Anti-stall, archive-gate, rule-form and no-model-word checks stay green: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs` — 48a761d
+- [x] 2.3 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 48a761d
+- [x] 2.4 Version fields still equal: `node tools/version-check.mjs` — 48a761d
 
 #### Manual
 
