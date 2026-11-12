@@ -23,4 +23,4 @@
 - **Impact**: LOW — cosmetic
 - **Location**: `plan.md` `## Progress`
 - **Detail**: The progress convention appends ` — <commit sha>` to a landed row; rows 1.1 and 1.2 have none. The router owns that step and the review may not edit `## Progress`.
-- **Decision**: PENDING — outside this review's remit (`## Progress` must not be edited); the owner or the implement step may add the sha if wanted.
+- **Decision**: APPLIED in the Wave 1 findings branch — the commit shas were added to Progress rows 1.1 and 1.2 of `plan.md` by the owner side, after the review.

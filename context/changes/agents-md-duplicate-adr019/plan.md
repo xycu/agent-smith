@@ -43,5 +43,5 @@ Code, policy, prompts, other `AGENTS.md` lines, ADR files.
 
 #### Automated
 
-- [x] 1.1 `AGENTS.md` holds exactly one `ADR-019 covers` sentence: `test "$(grep -o 'ADR-019 covers' AGENTS.md | wc -l)" -eq 1`
-- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 `AGENTS.md` holds exactly one `ADR-019 covers` sentence: `test "$(grep -o 'ADR-019 covers' AGENTS.md | wc -l)" -eq 1` — b77d8cb
+- [x] 1.2 Whole suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — b77d8cb

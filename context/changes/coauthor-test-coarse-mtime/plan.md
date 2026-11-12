@@ -142,4 +142,4 @@ None.
 
 #### Manual
 
-- [ ] 2.4 CI on `main` is green on the self-hosted runner after the fix is merged
+- [x] 2.4 CI on `main` is green on the self-hosted runner after the fix is merged — CI runs 43183412112 (9a87bc0), 43185083547 (8ee639b), 43186827475 (4d4db96) and 43187465934 (bfc514a) on `main` are green; the last ran on runner `truenas-agent-smith-2` (labels self-hosted,linux,truenas)
