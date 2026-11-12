@@ -98,6 +98,7 @@ Rigor:
 
 Archive (opt-in):
 
+- A 10x run that ends `done` without `--archive` prints `changeStatus`: the `status` of `change.md` at that call, or `null` when it cannot be read. The router never writes `change.md`. `archive`, `halt`, `meta.json`, `report.md` and the OpenSpec chain carry none; the 10x skill uses it in its `done` branch to tell the user the change is still open.
 - `init <id> --archive` stores `archive: true` in `meta.json`; a resume keeps it and `--archive false` turns it off. Without the flag the router makes no pre-archive commit: `done` stays `done`. A run that is not isolated then writes nothing to git and only reads history, for churn risk; an isolated run also makes the start and step commits and the rollback of "Run isolation".
 - `init --archive` halts, and writes nothing, when the project is not a git work tree or git ignores any of `agent-smith/run.jsonl`, `agent-smith/meta.json`, `agent-smith/report.md` or `change.md` of the change. The same checks run again at `done`.
 - At `done`, the router checks the git state first. It halts if anything is staged, HEAD is detached, a merge, rebase, cherry-pick or revert is in progress, `change.md` has no `created: YYYY-MM-DD` line, or the archive folder `context/archive/<created>-<id>` already exists. With `archive.haltOnManualPending` set to `true` it also halts when Manual rows are pending; the default is `false`.
