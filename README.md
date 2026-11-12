@@ -27,6 +27,8 @@ A Claude Code plugin that runs your [10xDevs](https://10xdevs.pl) or [OpenSpec](
 /plugin install agent-smith@agent-smith
 ```
 
+Needs Claude Code 2.1.292 or later: `${CLAUDE_SKILL_DIR}` in skill content needs 2.1.69 and the `effort` parameter of the Agent tool needs 2.1.292.
+
 ## 🏁 Quick start
 
 ### 📐 OpenSpec

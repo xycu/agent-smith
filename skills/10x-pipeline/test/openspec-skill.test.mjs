@@ -76,13 +76,19 @@ test("frontmatter names the skill openspec-pipeline with its argument hint", () 
 test("the router is the shared 10x-pipeline route.mjs, and it exists next to the skill folder", () => {
   const router = lines.filter((l) => l.startsWith("Router: "));
   assert.equal(router.length, 1);
-  assert.ok(router[0].includes("`ROUTER=<this skill's base directory>/../10x-pipeline/scripts/route.mjs`"), router[0]);
+  assert.ok(router[0].includes('`ROUTER="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/route.mjs"`'), router[0]);
   assert.ok(fs.statSync(path.resolve(OS_SKILL_DIR, "../10x-pipeline/scripts/route.mjs")).isFile());
   const pr = lines.find((l) => l.startsWith("PR comment script: "));
-  assert.ok(pr && pr.includes("`PR_COMMENT=<this skill's base directory>/../10x-pipeline/scripts/pr-comment.mjs`"), pr);
+  assert.ok(pr && pr.includes('`PR_COMMENT="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/pr-comment.mjs"`'), pr);
   assert.ok(fs.statSync(path.resolve(OS_SKILL_DIR, "../10x-pipeline/scripts/pr-comment.mjs")).isFile());
   // No copy of the router in the skill folder (ADR-013 D1).
   assert.equal(fs.existsSync(path.join(OS_SKILL_DIR, "scripts")), false);
+});
+
+test("the old base-directory placeholder is gone and Tuning names policy.json through ${CLAUDE_SKILL_DIR}", () => {
+  assert.equal(skill.includes("<this skill's base directory>"), false);
+  const tuning = lines.find((l) => l.includes("policy.json` holds the defaults"));
+  assert.ok(tuning && tuning.startsWith("- `${CLAUDE_SKILL_DIR}/../10x-pipeline/policy.json`"), tuning);
 });
 
 test("every router command line carries --chain openspec", () => {
@@ -152,7 +158,7 @@ const PR_HEADING = "## Pull request (always)";
 
 test("the OPEN_PR line points at the shared open-pr script, which exists", () => {
   const line = lines.find((l) => l.startsWith("Pull request script: "));
-  assert.ok(line && line.includes("`OPEN_PR=<this skill's base directory>/../10x-pipeline/scripts/open-pr.mjs`"), line);
+  assert.ok(line && line.includes('`OPEN_PR="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/open-pr.mjs"`'), line);
   assert.ok(fs.statSync(path.resolve(OS_SKILL_DIR, "../10x-pipeline/scripts/open-pr.mjs")).isFile());
   // The PR comment line keeps its shape.
   assert.ok(lines.some((l) => l.startsWith("PR comment script: ")));

@@ -22,9 +22,9 @@ allowed-tools:
 
 You are the orchestrator. You do not plan, implement or review yourself. You do not pick models or effort levels. The router script decides every step; you execute what it returns.
 
-Router: `ROUTER=<this skill's base directory>/scripts/route.mjs`. Run it with `node` from the run root (see Start step 3).
-PR comment script: `PR_COMMENT=<this skill's base directory>/scripts/pr-comment.mjs`. Only the PR comment step runs it (see "PR comment (opt-in)").
-Pull request script: `OPEN_PR=<this skill's base directory>/scripts/open-pr.mjs`. Only the pull request step runs it (see "Pull request (always)").
+Router: `ROUTER="${CLAUDE_SKILL_DIR}/scripts/route.mjs"`. Run it with `node` from the run root (see Start step 3). When you put the path in a command, quote it for the shell.
+PR comment script: `PR_COMMENT="${CLAUDE_SKILL_DIR}/scripts/pr-comment.mjs"`. Only the PR comment step runs it (see "PR comment (opt-in)").
+Pull request script: `OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"`. Only the pull request step runs it (see "Pull request (always)").
 
 ## Start
 
@@ -129,7 +129,7 @@ Every run that ends in `done`, `archive` or `halt` does this step once, with or 
 
 Routing lives in data, not in this file:
 
-- `<this skill's base directory>/policy.json` holds the defaults: the model/effort ladder, the base tier per step, escalation and de-escalation rules, retry caps, and prompt templates.
+- `${CLAUDE_SKILL_DIR}/policy.json` holds the defaults: the model/effort ladder, the base tier per step, escalation and de-escalation rules, retry caps, and prompt templates.
 - A project can override any key in `context/foundation/agent-smith-policy.json`. The router deep-merges it over the defaults. Arrays such as `ladder` are replaced whole.
 
 How the tier moves (see `tierFor` in `scripts/steps.mjs` and `decide` in `scripts/flow.mjs`):
