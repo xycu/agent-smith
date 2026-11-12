@@ -22,7 +22,7 @@ A 10x `done` output carries `changeStatus` (the status string, or `null`). The 1
 | Missing status | `changeStatus: null` | `frontmatterField` returns `null`; the skill prints it as `missing` | Plan |
 | OpenSpec chain | No `changeStatus`, `openspec-pipeline` skill unchanged | No `change.md` status there (`change.md` Tests) | Plan |
 | Router writes `change.md` | No | The 10x skills own it (`change.md` fix direction 2) | Plan |
-| Skill wording | One line `Change status: <value or missing>, expected impl_reviewed. change.md was not updated by the run.` plus the two closing commands, no `**GIVEN**` line | Fixed text lets a content test match it; GIVEN count stays six | Plan |
+| Skill wording | One line `Change status: <value or missing>, expected impl_reviewed. The run did not set change.md to that status.` plus the two closing commands and, in an isolated run, a note that they run from the run root, no `**GIVEN**` line | Fixed text lets a content test match it; GIVEN count stays six | Plan |
 | Research item 4 | Left open in `change.md` | The goal limits the plan to router output and skill text | Plan |
 | Tests | New `change-status.test.mjs` (router and skill content) | One file for one feature, like `archive-gate.test.mjs` | Plan |
 

@@ -108,7 +108,7 @@ Tell the user at `done` that the change is still open, and how to close it.
 **Intent**: Content check of the new `done` text in `SKILL.md`, in the style of `archive-gate.test.mjs`. It fails before the skill edit.
 
 **Contract**: Tests on the `done` branch of `skills/10x-pipeline/SKILL.md` (slice from the line starting `- **`done`**` to the next `- **` line):
-- It names `changeStatus`, `impl_reviewed`, `/10x-archive <change-id>` and `--archive`.
+- It names `changeStatus`, `impl_reviewed`, `/10x-archive <change-id>`, `--archive` and the phrase `both commands run from the run root` (the bare words `run root` already occur in the branch).
 - The new text sits after the `status` call and before `Then do the pull request step`.
 - It contains no `AskUserQuestion` and no `**GIVEN**` (the six-rule count stays: `skill-loop.test.mjs`).
 - `skills/openspec-pipeline/SKILL.md` `done` branch does not name `changeStatus`.
@@ -117,7 +117,7 @@ Tell the user at `done` that the change is still open, and how to close it.
 
 **File**: `skills/10x-pipeline/SKILL.md`
 
-**Intent**: In the `done` branch, after the lines that report verdict, steps, checklist, `status` and the `report` path, add two sentences. First: when `changeStatus` is not `impl_reviewed`, print one line `Change status: <changeStatus or missing>, expected impl_reviewed. change.md was not updated by the run.` (`null` is printed as `missing`). Second, always: tell the user the change is still open in `context/changes/` and name the two ways to close it, `/10x-archive <change-id>` or running `/agent-smith:10x-pipeline <change-id> --archive` again (a resume keeps the log and ends in the `archive` branch). The orchestrator never edits `change.md` itself.
+**Intent**: In the `done` branch, after the lines that report verdict, steps, checklist, `status` and the `report` path, add three sentences. First: when `changeStatus` is not `impl_reviewed`, print one line `Change status: <changeStatus or missing>, expected impl_reviewed. The run did not set change.md to that status.` (`null` is printed as `missing`). Second, always: tell the user the change is still open in `context/changes/` and name the two ways to close it, `/10x-archive <change-id>` or running `/agent-smith:10x-pipeline <change-id> --archive` again (a resume keeps the log and ends in the `archive` branch). Third, when the run root is not `<root>` (an isolated run), say that both commands run from the run root (the worktree), because the change folder and its status live on the run branch and the main checkout keeps the old status until that branch is merged. The orchestrator never edits `change.md` itself.
 
 **Contract**: Plain prose in the existing `done` bullet, no new `**GIVEN**` line, no model, effort or tier word. The wording of the printed line is the one above, so the content test can match it.
 
