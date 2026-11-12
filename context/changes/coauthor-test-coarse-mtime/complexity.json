@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (coauthor.test.mjs uses ahead.mjs writePlan; no other file writes a step's plan with the plain helper); open detail is whether the other files need a change and whether the optional guard test is worth adding" },
+    "novelty": { "score": 0, "evidence": "skills/10x-pipeline/test/ahead.mjs already exports writePlan and stampAhead, used by stepcommit.test.mjs and rollback.test.mjs" },
+    "coupling": { "score": 1, "evidence": "test-only change: coauthor.test.mjs import line 10 plus possibly a few sibling test files; helpers.mjs is not changed per change.md" },
+    "discovery": { "score": 1, "evidence": "grep of writePlan( in skills/10x-pipeline/test/*.mjs finds 17 files; change.md names the ten to check, one search narrows which write a plan after init" },
+    "volume": { "score": 1, "evidence": "one import change in coauthor.test.mjs, plus at most a few switches in the other named test files" },
+    "verification": { "score": 2, "evidence": "node --test suite covers the tests, but proving the timing fix needs a reproduction with a backdated mtime (temporary hack, not committed) and a green CI run on main, which is external" }
+  },
+  "unknowns": [
+    "Whether any of the other named test files writes a plan after init or next without ahead.mjs, which decides if they need a switch",
+    "Whether CI on main is green after the fix on the self-hosted runner, which can only be confirmed after the push",
+    "Whether a reliable source-text guard against plain writePlan calls is feasible without flagging safe fixture writes"
+  ],
+  "confidence": "medium"
+}
