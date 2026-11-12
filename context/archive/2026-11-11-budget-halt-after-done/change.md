@@ -1,10 +1,10 @@
 ---
 change_id: budget-halt-after-done
 title: "A finished run is reported as halted when it ends exactly on the step budget"
-status: planned
+status: archived
 created: 2026-11-11
-updated: 2026-11-11
-archived_at: null
+updated: 2026-11-12
+archived_at: 2026-11-12T12:39:42Z
 ---
 
 ## Notes
