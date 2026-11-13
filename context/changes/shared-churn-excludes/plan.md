@@ -116,4 +116,4 @@ One fewer read and parse of `policy.json` per implement verification when the ch
 
 #### Manual
 
-- [ ] 1.6 Diff shows one fallback of the shipped exclude list, in state.mjs only, and about 5 fewer lines net in the scripts
+- [x] 1.6 Diff shows one fallback of the shipped exclude list, in state.mjs only, and about 5 fewer lines net in the scripts — evidence: evidence/judgment-diff-one-fallback.md
