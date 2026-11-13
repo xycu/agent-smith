@@ -1,6 +1,6 @@
 # ADR-008: Release packaging with release-please and Semantic Versioning
 
-- **Status:** Accepted (2026-11-02, repository owner); amended 2026-11-12 (Amendment 1)
+- **Status:** Accepted (2026-11-02, repository owner); amended 2026-11-12 (Amendment 1) and 2026-11-13 (Amendment 2: squash-only merging)
 - **Date:** 2026-11-02
 - **Deciders:** repository owner
 - **Origin:** the `release-packaging` change. Change folder: `context/changes/release-packaging/change.md`. The mechanics are copied from xycu/hegel-skill, with the differences below.
@@ -9,8 +9,8 @@
 
 - The plugin had a hand-written version (`0.1.0` in `.claude-plugin/plugin.json`), no tag, no release and no CI.
 - hegel-skill ships with release-please in the release-PR model: one standing release PR bumps the version, tags `vX.Y.Z` and publishes a GitHub Release with a changelog. A drift guard keeps its version fields equal, and a lint enforces Conventional Commits.
-- This repository rebase-merges, so commit subjects land on `main` as written. hegel-skill squash-merges and lints the PR title.
-- `main` has no branch protection or ruleset, so the GitHub App token and the signed-commits workflow that hegel-skill needs have no counterpart here.
+- This repository rebase-merges, so commit subjects land on `main` as written. hegel-skill squash-merges and lints the PR title. (Superseded: the repository squash-merges since 2026-11-13, see Amendment 2.)
+- `main` has no branch protection or ruleset, so the GitHub App token and the signed-commits workflow that hegel-skill needs have no counterpart here. (Superseded: ruleset `main` exists since 2026-11-13, see Amendment 2.)
 - `AGENTS.md` forbids npm dependencies and sets the Node 24 floor (ADR-006), so the guard and the lint cannot be Python or use a package.
 
 ## Decision
@@ -49,7 +49,7 @@ Rules, written as scenarios (the form of ADR-004):
 | Alternative | Verdict | Reason |
 | --- | --- | --- |
 | GitHub App token as in hegel-skill | not adopted | It solves a signed-commits ruleset and required checks on the release PR; this repository has neither. It can be added when they exist. |
-| Lint the PR title (`amannn/action-semantic-pull-request`) | rejected | The repository rebase-merges, so the PR title never reaches `main`. |
+| Lint the PR title (`amannn/action-semantic-pull-request`) | rejected | The repository rebase-merges, so the PR title never reaches `main`. Superseded: adopted in Amendment 2. |
 | Reconcile to 1.0.0 with a one-time `release-as` | not adopted | The router and policy keys are still uncalibrated, so 1.0.0 would promise stability the project does not have. |
 | Manual tags and a hand-written changelog | rejected | The version fields would drift, and the bump would depend on memory. |
 | Python guard as in hegel-skill | rejected | It would add a second runtime; ADR-006 and `AGENTS.md` set Node 24 and no dependencies. |
@@ -59,7 +59,7 @@ Rules, written as scenarios (the form of ADR-004):
 ### Context
 
 - `release.yml` ran release-please on every push to `main` with no link to CI, and `ci.yml` cancelled its own runs on `main` when a later push arrived. Version 1.5.0 was tagged on `5160a8a`, whose CI run failed (`coauthor.test.mjs:158`). Of 97 CI runs on `main`, 38 were cancelled.
-- `main` has no branch protection (Context above), so nothing else blocks a release from a red or cancelled commit.
+- `main` has no branch protection (Context above), so nothing else blocks a release from a red or cancelled commit. (Superseded: a ruleset without required checks exists since 2026-11-13, see Amendment 2.)
 
 ### Rules
 
@@ -82,6 +82,43 @@ Rules, written as scenarios (the form of ADR-004):
 
 | Alternative | Verdict | Reason |
 | --- | --- | --- |
-| Branch protection with required checks | not adopted | This record runs the repository without branch protection or required checks (Context above); a workflow gate gives the same guard for releases without changing repository settings. |
+| Branch protection with required checks | not adopted | This record runs the repository without branch protection or required checks (Context above; a ruleset without required checks exists since Amendment 2); a workflow gate gives the same guard for releases without changing repository settings. |
 | A `needs:` job that runs CI inside `release.yml` | rejected | It would run the suite twice or move CI out of `ci.yml`, and pull request runs would lose their shared workflow. |
 | Change only `cancel-in-progress` on `ci.yml` | rejected | GitHub still replaces a pending run of the same group with a newer one, so three pushes together lose results; a group key unique per push does not. |
+
+## Amendment 2: squash-only merging and a PR title lint (change squash-merge-pr-title-lint)
+
+### Context
+
+- On 2026-11-13 the owner changed the repository to squash-only merging. Mixed merge methods did not fit the rule "fix a conflict by merging `main` into the branch, never force-push": a branch holding a merge commit cannot be rebase-merged, and one pull request went in as a merge commit that put a `feat` commit on `main`.
+- Ruleset `main` (id 27167880, active): block deletion and force pushes, pull request required, review threads must be resolved, linear history, no bypass actors. It has no required status checks, because a release PR opened with `GITHUB_TOKEN` runs no workflow and a required check would never report on it.
+- The squash default is `PR_TITLE` plus `COMMIT_MESSAGES`: the subject is the pull request title, and the body is the branch commit messages, so the `Co-Authored-By` trailers stay on `main`.
+- The pull request title is now the one commit subject that lands on `main` and the only input release-please reads on every merge. The `commits` job lints the branch commits, which only appear in the body.
+- release-please 17.6.0 splits a message only at a blank line followed by an unbulleted `type(scope): ` line. GitHub writes the branch commits as `* feat: x` bullets, so they give no changelog line and no bump. A squash title without a type gives zero parsed commits: no changelog line, no bump, no error. Two residual cases remain: a `BREAKING CHANGE:` footer line in a branch commit body makes the whole squash major, and an unbulleted paragraph that starts with a type prefix is read as an extra commit.
+
+### Rules
+
+- **GIVEN** a pull request **WHEN** its title, its head or a title edit changes **THEN** `.github/workflows/pr-title.yml` **MUST** run `node tools/commit-lint.mjs --title "$TITLE"` in a concurrency group of its own, keyed by the pull request number, so a title edit never cancels the `test` job of `ci.yml`.
+- **GIVEN** the title check **WHEN** it fails **THEN** it **MUST NOT** block the merge: it stays advisory and is not a required check, for the reason in Context.
+- **GIVEN** the title workflow **WHEN** it passes the title to the script **THEN** it **MUST** use `env:`, never a `${{ }}` expression in the `run:` text, because the title is user-controlled.
+- **GIVEN** a commit body **WHEN** the change is not breaking **THEN** it **MUST NOT** contain a `BREAKING CHANGE:` line, because the squash body carries it and makes the squash major.
+- **GIVEN** the squash settings **WHEN** they are chosen **THEN** `PR_TITLE` plus `COMMIT_MESSAGES` **MUST** stay, so the trailers remain on `main` and the bullets give no extra entry.
+
+### Consequences
+
+- The `commits` job stays as early hygiene for the branch commit subjects; `lintSubject` no longer exempts a subject that starts with `Merge `, and `git log --no-merges` leaves real merge commits out, so an "Update branch" merge commit does not fail the job.
+- Run pull requests get a derived conventional title (ADR-017, Amendment 1).
+- The old sentences that say the repository rebase-merges or has no ruleset stay as history and point here.
+- The body bytes and the ` (#N)` suffix of the first squash commit are to be read after the first squash merge (row 5.4 of the plan); an "Observed" paragraph is added here if they differ from this description.
+
+### Alternatives considered
+
+| Alternative | Verdict | Reason |
+| --- | --- | --- |
+| Lint the PR title (`amannn/action-semantic-pull-request`) | rejected | A third-party action for a lint that `lintSubject` already does in a few lines; the earlier row of this ADR stays as history. |
+| Lint the PR title with `commit-lint.mjs --title` in `pr-title.yml` | adopted | Reuses `lintSubject`, adds no dependency, and needs no write permission. |
+| Add `edited` to `ci.yml` | rejected | `ci.yml` cancels in-progress pull request runs per ref, so every title edit would cancel the `test` job. |
+| `pull_request_target` | rejected | It runs with a write token in the base context and gives nothing here, because the title is available to `pull_request`. |
+| Make the title check a required check | rejected | A release PR opened with `GITHUB_TOKEN` runs no workflow, so a required check would never report on it. |
+| Drop the `commits` job | not adopted | The branch commit subjects still appear in the squash body, and `AGENTS.md` asks for Conventional Commits on every commit. |
+| Change the squash setting to `COMMIT_OR_PR_TITLE` or a blank body | not adopted | It would drop the `Co-Authored-By` trailers from `main`; the bullets already give no entry. |

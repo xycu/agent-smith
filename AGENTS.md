@@ -31,11 +31,11 @@ Standalone scripts under `skills/10x-pipeline/scripts/`, run from the run root:
 
 - `node skills/10x-pipeline/scripts/open-pr.mjs <id> [--chain 10x|openspec] [--report <p>] [--remote <name>] [--base <branch>] [--draft] [--timeout-ms <n>]` — commit leftovers, push the run branch without force, open or keep its pull request (ADR-017).
 - `node skills/10x-pipeline/scripts/pr-comment.mjs <id> [--report <p>] [--pr <url>] [--timeout-ms <n>]` — post the run report as a comment on the pull request, or edit its earlier comment. `GH_LIVE=1` enables its read-only live tests, which a human runs.
-- `node tools/version-check.mjs` — exit 0 when every version field is equal and valid SemVer. `node tools/commit-lint.mjs <range>` (for example `main..HEAD`) — exit 0 when every subject is a Conventional Commit.
+- `node tools/version-check.mjs` — exit 0 when every version field is equal and valid SemVer. `node tools/commit-lint.mjs <range>` (for example `main..HEAD`) — exit 0 when every subject is a Conventional Commit; `--title "<text>"` lints one pull request title.
 
 ## Commits
 
-Every commit subject follows [Conventional Commits](https://www.conventionalcommits.org/): `type(scope)!: description`, with `type` one of `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `perf`, `test`, `build`, `revert`. The `commits` job in `ci.yml` checks each commit of a pull request, because the owner rebase-merges and the subjects land on `main`. The type sets the SemVer bump (ADR-008):
+Every commit subject follows [Conventional Commits](https://www.conventionalcommits.org/): `type(scope)!: description`, with `type` one of `feat`, `fix`, `docs`, `chore`, `ci`, `refactor`, `perf`, `test`, `build`, `revert`. The owner squash-merges, so the pull request title is the one subject on `main`: `pr-title.yml` lints it and the `commits` job in `ci.yml` lints each branch commit, both advisory. Run PRs get a derived title (ADR-017). Do not put a `BREAKING CHANGE:` line in a commit body unless the change is breaking, because the squash body carries it. The type sets the SemVer bump (ADR-008):
 
 | Commit | Bump |
 | --- | --- |
@@ -67,7 +67,7 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 - `docs/REFERENCE.md` — routing behavior; read it only when the task needs it.
 - `docs/ADR/` — architecture decisions, indexed in `docs/ADR/README.md`.
 - `context/` — 10x workflow docs (`changes/`, `archive/`, `foundation/`; a README in each). `openspec/` holds this repository's own OpenSpec specs.
-- `.github/workflows/` — `ci.yml` and `release.yml` (ADR-008, ADR-020).
+- `.github/workflows/` — `ci.yml`, `pr-title.yml` and `release.yml` (ADR-008, ADR-020).
 - `assets/` — README header image only.
 
 A new test, prompt or ADR gets its row in the README of its folder, not in `AGENTS.md`.

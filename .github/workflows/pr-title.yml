@@ -1,0 +1,38 @@
+name: PR title
+
+# The repository squash-merges, so the pull request title is the one commit subject that lands on main
+# and the only input release-please reads on every merge (ADR-008, Amendment 2). This lints that title.
+# It is a separate file because ci.yml cancels in-progress runs per ref and has no `edited` trigger:
+# editing a title here must never cancel the `test` job. Its concurrency group is keyed by the pull
+# request number, so it only cancels a superseded title run.
+# Advisory: it is not a required check, because a release PR opened with GITHUB_TOKEN runs no workflow
+# and a required check would never report on it. A manual "re-run" replays the old title; an edit
+# starts a fresh run with the new one.
+# The title reaches the script through `env:`, never through a `${{ }}` expression in `run:`.
+# Runner: as in ci.yml (ADR-020), with the uid guard as the first step.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  title:
+    name: Conventional PR title
+    runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}
+    steps:
+      - name: Refuse to run as root (ADR-020)
+        run: test "$(id -u)" -ne 0 || { echo "::error::the runner runs this job as uid 0; ADR-020 requires a non-root service user"; exit 1; }
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - name: Lint the pull request title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: node tools/commit-lint.mjs --title "$TITLE"

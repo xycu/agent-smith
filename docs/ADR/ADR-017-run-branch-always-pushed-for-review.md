@@ -1,6 +1,6 @@
 # ADR-017: Push every run branch and open its pull request for human review
 
-- **Status:** Accepted (the repository owner decided the two open review findings on 2026-11-09; the live checks below are still pending)
+- **Status:** Accepted (the repository owner decided the two open review findings on 2026-11-09; the live checks below are still pending). Amendment 1 (2026-11-13) derives a conventional title for the pull request
 - **Date:** 2026-11-09
 - **Deciders:** unattended implementation run of change `worktree-pr-only`; the repository owner decided the opt-out (F1) and the number of this record (F9)
 - **Origin:** change `worktree-pr-only` (`context/changes/worktree-pr-only/change.md`, `plan.md` and `reviews/plan-review.md`). The goal: "All work must done on worktrees and always pushed to be reviewd by human on PRs - no exceptions". It builds on ADR-010 (run worktree, start and step commits) and on the relaxed git rule of `AGENTS.md` (Hard Rules, commit 2d28f0c), which lets code, skills and prompts push a branch and create or edit pull requests and forbids only operations that cannot be undone.
@@ -41,7 +41,7 @@ The owner decided (review finding F1) to keep the `isolation.require: false` opt
 2. Base: `--base`, else the nearest remote branch the run descends from (fewest commits between it and HEAD, ties to the branch `<remote>/HEAD` points to; `<remote>/HEAD`, the run branch's own remote ref and `<remote>/agent-smith/*` are left out), else `<remote>/HEAD`, else `gh repo view`. No commit beyond the base skips with nothing committed.
 3. Leftover commit: what the worktree still holds is committed as `chore(<change-id>): final run state` with `git add -A`, hooks and signing. A failed commit unstages only the paths its own add staged, so an entry staged before the script ran stays staged, and the script pushes what exists.
 4. Push: `git push <remote> refs/heads/<branch>:refs/heads/<branch>`, no force.
-5. Pull request: `gh pr list --repo <owner>/<repo> --head <branch> --state all`. An open one is left as the push updated it; a merged or closed one creates nothing; none gives `gh pr create --repo <owner>/<repo> --head <branch> --base <base>`, titled from `change.md` and with the report header as its body. `<owner>/<repo>` comes from the remote url, so `gh` never picks a repository by itself.
+5. Pull request: `gh pr list --repo <owner>/<repo> --head <branch> --state all`. An open one is left as the push updated it; a merged or closed one creates nothing; none gives `gh pr create --repo <owner>/<repo> --head <branch> --base <base>`, titled as Amendment 1 says and with the report header as its body. `<owner>/<repo>` comes from the remote url, so `gh` never picks a repository by itself.
 
 The PR comment step now runs from the run root and names the pull request with `--pr <url>`, because a branch pushed without upstream config may not be found by `gh pr view` of the current branch.
 
@@ -71,3 +71,29 @@ The PR comment step now runs from the run root and names the pull request with `
 - Push from a subagent step: rejected. The step prompts forbid pushing, and a step can be rolled back after it pushed.
 - Make the pull request opt-in, like `--pr-comment`: rejected. The goal says no exceptions.
 - Remove the `isolation.require: false` opt-out in this change: rejected by the owner (F1). It breaks projects without git and the test harness; the opt-out stays as the single exception above.
+
+## Amendment 1: conventional PR title (2026-11-13)
+
+### Context
+
+- The repository squash-merges only (ADR-008, Amendment 2). The pull request title is the one commit subject that lands on `main`, and release-please reads it to pick the changelog line and the SemVer bump. A squash subject without a type gives no changelog line and no bump, and no error.
+- Step 5 of the Decision titled the pull request with the plain `title:` of `change.md`, or the change id for an OpenSpec run. Neither is a Conventional Commit.
+- Router commits are all `chore(<change-id>): ...`; the code commits of implement steps carry the real type.
+
+### Rules
+
+**GIVEN** `open-pr.mjs` creates a pull request **WHEN** it picks the title **THEN** it **MUST** use `<type>(<change-id>): <title>`, where `<title>` is the `titleFor` result (the `title:` of `change.md`, else the change id) and `<type>` is the highest-ranked type among the subjects of `<base ref>..HEAD`, ranked `feat`, `fix`, `perf`, `revert`, `refactor`, `build`, `ci`, `test`, `docs`, `chore`.
+
+**GIVEN** a subject that is not `type(scope)!: description` with a ranked type (a `Merge ` commit, a `Revert "..."` default subject, free text) **WHEN** the type is picked **THEN** the script **MUST** ignore it, and a run with no parseable subject gets `chore`, because bookkeeping commits are all `chore`.
+
+**GIVEN** the highest-ranked commit carries `!` **WHEN** the title is built **THEN** the title **MUST** carry `!` after the scope. A `!` on a lower-ranked commit is not carried; the owner edits the title for that rare case.
+
+**GIVEN** `git log` fails **WHEN** the title is built **THEN** the script **MUST** fall back to the untyped `titleFor` result and never fail; the title check of `pr-title.yml` then flags it.
+
+**GIVEN** a pull request of the run branch exists in any state **WHEN** the script runs again **THEN** it **MUST NOT** change its title: the title is set once, at creation, and an owner edit stays. A fix added after review is not re-typed.
+
+### Consequences
+
+- The normal run PR squash-merges with a title release-please can read, with no owner edit.
+- The type list is a copy of `TYPES` in `tools/commit-lint.mjs` (the script imports no `tools/` file); `open-pr.test.mjs` pins the parity.
+- The scope is the change id, which `ID_RE` already restricts to the characters the lint accepts.

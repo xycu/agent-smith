@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md fixes the outcome in Done when, but research.md lists open design choices with more than one reasonable answer: where the title check lives, derive vs type key vs owner edit for run titles, keep or drop the commits job, Merge exemption fix order." },
+    "novelty": { "score": 1, "evidence": "research.md: the title check reuses lintSubject in tools/commit-lint.mjs and the ci.yml pattern (pins, runs-on, env: passing), so it adapts existing patterns; run-title derivation from git log is new code in open-pr.mjs." },
+    "coupling": { "score": 2, "evidence": "change.md Gap 1-3 spans a new workflow, tools/commit-lint.mjs, skills/10x-pipeline/scripts/open-pr.mjs, release-please subject contract, and ADR-008; several modules and the release-please reader of commit subjects." },
+    "discovery": { "score": 2, "evidence": "research.md names most locations, but also found stale text not in change.md (ADR-008 lines 13, 62, 85 say no branch protection; ruleset 27167880 contradicts it) and ci-runner test scope gaps." },
+    "volume": { "score": 2, "evidence": "research.md 'Text that still says rebase-merge' and change.md Gap 3 list about 6-8 files, plus a new workflow file, open-pr.mjs and open-pr.test.mjs, commit-lint.mjs, and a ci-runner or test README row; roughly 8-10 files." },
+    "verification": { "score": 2, "evidence": "tools/test suite covers workflow pins, ci-runner, agents-md-size and titleFor, but a new workflow needs a new text-pinning test, and the edited-title re-run and advisory red check are only verifiable on GitHub (research.md Open Questions 2)." }
+  },
+  "unknowns": [
+    "Exact body bytes GitHub writes for PR_TITLE plus COMMIT_MESSAGES, and whether it appends ' (#N)' to the subject (verifiable only after the first squash merge).",
+    "Whether the edited activity type fires when only the base branch changes, and how the merge box shows a failing non-required check under ruleset 27167880.",
+    "Whether 10x-archive and other lifecycle skills keep an unknown change.md key (only matters for the type-key option).",
+    "Whether a 10x-plan step will pick a title mode in commit-lint.mjs or a separate script (a plan decision, not a fact)."
+  ],
+  "confidence": "medium"
+}

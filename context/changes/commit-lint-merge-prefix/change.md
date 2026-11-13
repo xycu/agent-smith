@@ -31,3 +31,5 @@ Second gap: `.github/workflows/ci.yml:38` runs the lint only on `pull_request`. 
 ### Done when
 
 A non-merge commit whose subject starts with "Merge " fails the `commits` job.
+
+**Rescoped 2026-11-13.** Gap 1 (the `Merge ` exemption) is folded into `squash-merge-pr-title-lint` phase 1. Gap 2 (lint pushes to `main`) no longer applies: the ruleset blocks direct pushes, and with squash-only merging the pull request title is the one subject on `main`.
