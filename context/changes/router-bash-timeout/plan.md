@@ -160,10 +160,10 @@ None. 600000 is a ceiling; calls that finish sooner are unaffected.
 
 #### Automated
 
-- [ ] 1.1 New 10x content test passes: `node --test skills/10x-pipeline/test/skill-loop.test.mjs`
-- [ ] 1.2 New OpenSpec content test passes: `node --test skills/10x-pipeline/test/openspec-skill.test.mjs`
-- [ ] 1.3 Anti-stall, rule-form and nested-subagent pins still pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs`
-- [ ] 1.4 Deliberate-break check: the new tests fail on a SKILL.md copy without the line, via `SKILL_PATH` and `OPENSPEC_SKILL_PATH`
+- [x] 1.1 New 10x content test passes: `node --test skills/10x-pipeline/test/skill-loop.test.mjs` — 9035a00
+- [x] 1.2 New OpenSpec content test passes: `node --test skills/10x-pipeline/test/openspec-skill.test.mjs` — 9035a00
+- [x] 1.3 Anti-stall, rule-form and nested-subagent pins still pass: `node --test skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs` — 9035a00
+- [x] 1.4 Deliberate-break check: the new tests fail on a SKILL.md copy without the line, via `SKILL_PATH` and `OPENSPEC_SKILL_PATH` — 9035a00
 
 #### Manual
 
@@ -173,8 +173,8 @@ None. 600000 is a ceiling; calls that finish sooner are unaffected.
 
 #### Automated
 
-- [ ] 2.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.2 The bullet exists: `grep -n "Bash limit" docs/REFERENCE.md`
+- [x] 2.1 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 9035a00
+- [x] 2.2 The bullet exists: `grep -n "Bash limit" docs/REFERENCE.md` — 9035a00
 
 #### Manual
 
