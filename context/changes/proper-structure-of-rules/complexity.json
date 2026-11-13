@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md fixes the three levels and the always-true/default split, and the owner chose skills/openspec-pipeline (prompt). Research.md Open Questions 2-4 (how always-true is made binding, file layout of layers, @prompts resolver form) are still open, each with several reasonable answers." },
+    "novelty": { "score": 2, "evidence": "research.md Architecture Insights: no layers exist; ADR-004 keyword vocabulary (MUST/SHOULD) and ADR-022 fail-closed load check are related precedents, but a layered always-true carrier with precedence has no direct precedent in the repo." },
+    "coupling": { "score": 3, "evidence": "research.md: policy.json is read by route.mjs, flow.mjs, state.mjs (deepMerge), and is the public override surface for consumer projects (docs/REFERENCE.md:229, prompts.suffix). Chain branches sit in state, flow, isolation, steps, route, open-pr; ADR-013:141 ties one policy file to both chains." },
+    "discovery": { "score": 2, "evidence": "change.md names the OpenSpec definitions and the goal names the folders; research.md already located the prompts, policy keys, openspec.mjs, seven OpenSpec-only tests, docs and ADRs. Some areas were not named and not fully read: open changes' plans and reviews, and any consumer override of prompts.suffix." },
+    "volume": { "score": 3, "evidence": "research.md: 24 prompt files in skills/10x-pipeline/prompts/, policy.json os-* and suffix blocks, two SKILL.md files, openspec.mjs, about nine OpenSpec-only and shared tests, AGENTS.md, REFERENCE.md, README.md, ADR-013 amendment, and a CI glob change. Clearly more than 10 files with large mechanical moves." },
+    "verification": { "score": 2, "evidence": "Existing tests cover much (rules.test.mjs:104-116 form check, archive, nested-subagents, no-recursive-delete, CI glob in ci.yml:39). Needs new harness parts: a load-time check for always-true blocks, a new prompt resolver test, and a manual check that skills/openspec-pipeline installs and resolves ${CLAUDE_SKILL_DIR} paths (research open question 5, unproved)." }
+  },
+  "unknowns": [
+    "Whether an installed plugin keeps the skills/openspec-pipeline folder intact and resolves ${CLAUDE_SKILL_DIR}-relative paths (research open question 5, rows 3.5 and 3.6 unproved).",
+    "Whether any consumer project overrides prompts.suffix or other always-true keys today (research open question 7).",
+    "The content of the open changes' plans and reviews, which were not read; the collision and ordering with step-subagent-git-guard, nested-subagent-hard-stop and skill-md-context-diet is inferred from their change.md only.",
+    "Exact line anchors in research.md for the router modules were worker-reported and not all re-read; the scope of chain branches per module is therefore estimated.",
+    "Scope of the ADR-013 amendment and whether the always-true mechanism needs an ADR of its own."
+  ],
+  "confidence": "medium"
+}
