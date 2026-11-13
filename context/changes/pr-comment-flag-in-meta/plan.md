@@ -221,9 +221,9 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Automated
 
-- [x] 1.1 New init and output tests pass: `node --test skills/10x-pipeline/test/pr-comment-flag.test.mjs`
-- [x] 1.2 Existing init and archive tests pass with the new flag list: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/openspec-archive.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
-- [x] 1.3 No router module mentions `gh` or a task tool: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs` (the guard tests in them)
+- [x] 1.1 New init and output tests pass: `node --test skills/10x-pipeline/test/pr-comment-flag.test.mjs` — aa228af
+- [x] 1.2 Existing init and archive tests pass with the new flag list: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/openspec-archive.test.mjs skills/10x-pipeline/test/provenance.test.mjs` — aa228af
+- [x] 1.3 No router module mentions `gh` or a task tool: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs` (the guard tests in them) — aa228af
 
 #### Manual
 
@@ -233,9 +233,9 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Automated
 
-- [ ] 2.1 Skill-content tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
-- [ ] 2.2 The skills share their anti-stall section and bans: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/agents.test.mjs`
-- [ ] 2.3 No task tool is named in either skill: `grep -c "TaskList\|TaskCreate\|TaskUpdate" skills/10x-pipeline/SKILL.md skills/openspec-pipeline/SKILL.md` prints 0 for both
+- [x] 2.1 Skill-content tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
+- [x] 2.2 The skills share their anti-stall section and bans: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/agents.test.mjs`
+- [x] 2.3 No task tool is named in either skill: `grep -c "TaskList\|TaskCreate\|TaskUpdate" skills/10x-pipeline/SKILL.md skills/openspec-pipeline/SKILL.md` prints 0 for both
 
 #### Manual
 

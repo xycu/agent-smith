@@ -63,6 +63,19 @@ for (const [chain, rel] of Object.entries(SKILLS)) {
     }
   });
 
+  test(`${chain}: no task tool; done, archive and halt read prComment: true`, () => {
+    // Built from parts, so a grep of skills/ for the tool names finds none.
+    const tools = ["Create", "Update", "List"].map((s) => ["Task", s].join(""));
+    const front = skill.split("\n---")[0];
+    for (const t of tools) {
+      assert.ok(!front.includes(t), `allowed-tools lists ${t}`);
+      assert.ok(!skill.includes(t), `the skill names ${t}`);
+    }
+    for (const name of ["done", "archive", "halt"]) {
+      assert.equal(branch(skill, name).split("`prComment: true`").length - 1, 1, `${name}: prComment: true`);
+    }
+  });
+
   test(`${chain}: still exactly six GIVEN lines`, () => {
     assert.equal(skill.split("\n").filter((l) => l.includes("**GIVEN**")).length, 6);
   });

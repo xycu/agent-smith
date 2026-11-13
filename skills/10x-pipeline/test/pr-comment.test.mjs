@@ -695,7 +695,6 @@ test("real gh without a login is not authenticated", { skip: win || !realGh }, (
 
 const REPO = path.resolve(path.dirname(SCRIPT), "../../..");
 const readRepo = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8");
-const SUBJECT = "PR comment: <change-id>";
 
 // A SKILL.md loop branch: from the line starting `- **`<name>`**` to the next line that starts with `- **` or `## `.
 function branch(skill, name) {
@@ -722,30 +721,24 @@ test("SKILL.md: flag, script variable and the single node $PR_COMMENT call", () 
   assert.ok(call > section && call < rules, "node $PR_COMMENT must lie inside the section");
 });
 
-test("SKILL.md: Start step 4 stores the flag as a task and fails closed", () => {
+test("SKILL.md: Start step 4 passes --pr-comment to init and Start has no task step", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const start = skill.slice(skill.indexOf("## Start"), skill.indexOf("## Loop"));
-  for (const needle of ["TaskList", "TaskCreate", "--pr-comment", SUBJECT, "task list unavailable", "completed", "another change"]) {
-    assert.ok(start.includes(needle), `Start section lacks ${needle}`);
-  }
-  // F18: the printed fallback needs the flag; without it a task tool error is silent.
-  const fallback = start.split("\n").find((l) => l.includes("task list unavailable"));
-  assert.match(fallback, /`--pr-comment` was given/);
-  assert.ok(start.includes("a task tool error is silent"));
+  const step4 = start.split("\n").find((l) => l.startsWith("4. "));
+  assert.ok(step4.includes("Add `--pr-comment` only when the user gave it"), step4);
+  assert.ok(step4.includes("`--pr-comment false` turns it off"));
+  assert.ok(!/^5\. /m.test(start), "Start has a step 5");
+  assert.ok(!/\btask\b/i.test(start.replace(/task notification/g, "")), "Start still names a task");
 });
 
-test("SKILL.md: done, archive and halt each point at TaskList, the subject and the PR comment step once", () => {
+test("SKILL.md: done, archive and halt each carry the prComment: true condition and the PR comment step once", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
+  const list = ["Task", "List"].join("");
   for (const name of ["done", "archive", "halt"]) {
     const text = branch(skill, name);
     assert.equal(countOf(text, "PR comment step"), 1, `${name}: PR comment step`);
-    assert.equal(countOf(text, "TaskList"), 1, `${name}: TaskList`);
-    assert.equal(countOf(text, SUBJECT), 1, `${name}: subject`);
-    // F18: a TaskList error at an end branch posts nothing and says so.
-    assert.equal(countOf(text, "task list unavailable"), 1, `${name}: task list unavailable`);
-    assert.match(text, /post nothing/, `${name}: fail closed`);
-    // The printed line needs the flag, as in Start step 4: a run without it stays silent.
-    assert.match(text, /post nothing, and when `--pr-comment` was given print `PR comment: skipped, task list unavailable`/, `${name}: line only with the flag`);
+    assert.equal(countOf(text, "`prComment: true`"), 1, `${name}: prComment: true`);
+    assert.equal(countOf(text, list), 0, `${name}: ${list}`);
   }
   const archive = branch(skill, "archive");
   // ADR-017: the comment goes to the run branch's pull request after the move, behind the pull request step in step 5.
@@ -754,10 +747,11 @@ test("SKILL.md: done, archive and halt each point at TaskList, the subject and t
   assert.match(branch(skill, "halt"), /Before you STOP/);
 });
 
-test("SKILL.md: the PR comment section names the task, the subject and the script-error fallback", () => {
+test("SKILL.md: the PR comment section is gated on prComment: true and keeps the script-error fallback", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const section = skill.slice(skill.indexOf("## PR comment (opt-in)"), skill.indexOf("## Rules"));
-  assert.ok(section.includes("TaskList") && section.includes(SUBJECT));
+  assert.ok(section.includes("`prComment: true`"));
+  assert.ok(!/\btask\b/i.test(section), "the section still names a task");
   // F20: no JSON or a non-zero exit is a skip, and the id length difference is named.
   assert.ok(section.includes("PR comment: skipped, script error"));
   assert.ok(section.includes("100 characters"));
@@ -770,7 +764,7 @@ test("SKILL.md: lines about the PR comment name no model, effort or tier", () =>
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const banned = /\b(sonnet|opus|haiku|fable|effort|tier|model)\b/i;
   const lines = skill.split("\n").filter((l) => /PR_COMMENT|--pr-comment|PR comment/.test(l));
-  assert.ok(lines.length >= 8, "expected the PR comment lines");
+  assert.ok(lines.length >= 16, "expected the PR comment lines");
   for (const line of lines) assert.doesNotMatch(line, banned, line);
 });
 
@@ -781,7 +775,7 @@ test("README documents the flag, and the reference PR comment group lies after L
   const group = readme.indexOf("\nPR comment (opt-in):");
   assert.ok(limits >= 0 && group > limits);
   const text = readme.slice(group);
-  for (const needle of ["task list unavailable", "unsupported host", "gh timed out", "100 characters", "script error", "report.md", "agent-smith"]) {
+  for (const needle of ["unsupported host", "gh timed out", "100 characters", "script error", "report.md", "agent-smith"]) {
     assert.ok(text.includes(needle), `README group lacks ${needle}`);
   }
 });
