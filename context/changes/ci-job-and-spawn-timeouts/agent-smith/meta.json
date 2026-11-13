@@ -42,5 +42,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.7 CI is green on the pull request and both jobs carry the 15-minute limit (self-hosted runner, ADR-020; cannot be confirmed from the repository)"
+    ],
+    "manualNotProved": [
+      "2.7 CI is green on the pull request and both jobs carry the 15-minute limit (self-hosted runner, ADR-020; cannot be confirmed from the repository) — not proved: CI green on the pull request is a GitHub result; the run's PR is opened only at the end of the run (open-pr.mjs, ADR-017), so none exists to read, and reading or triggering CI needs an external servic"
+    ]
   }
 }
