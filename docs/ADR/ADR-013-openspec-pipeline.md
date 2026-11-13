@@ -150,3 +150,22 @@ Evidence lives in `context/changes/openspec-pipeline/evidence/`.
 - `context/changes/openspec-pipeline/research.md` and its open questions 1 to 12; the OpenSpec probe of 2026-11-09 (extra folder and file inside the change folder, CLI 1.16.1).
 - `context/foundation/shape-notes.md:19-20`, `:50`; `context/foundation/prd.md:98`, `:143`; `docs/ADR/ADR-001-phased-complexity-routing.md:54`.
 - `docs/ADR/ADR-004`, `ADR-006`, `ADR-009`, `ADR-010`, `ADR-011` and `ADR-012`.
+
+## Amendment 1: the chain's definitions live in its skill folder (change proper-structure-of-rules)
+
+### Context
+
+- The OpenSpec definitions sat inside the 10x skill: the `os-` guides in `skills/10x-pipeline/prompts/`, the `os-` steps and prompts in `skills/10x-pipeline/policy.json`, the module `openspec.mjs` and seven OpenSpec test files. `skills/openspec-pipeline/` held `SKILL.md` only.
+
+### Rules
+
+- **GIVEN** a definition that only the OpenSpec chain uses **WHEN** it is added or moved **THEN** it **MUST** live in `skills/openspec-pipeline/`: `policy.json` (the `os-` steps and prompts), `prompts/os-*.md`, `rules/chain.md` (ADR-023), `scripts/openspec.mjs` and `test/`.
+- **GIVEN** the router loads the policy **WHEN** it reads the plugin files **THEN** it **MUST** merge `skills/10x-pipeline/policy.json` with `skills/openspec-pipeline/policy.json` (`deepMerge(base, fragment)`, disjoint keys) into one plugin policy, and then merge the one project override on top, for both chains alike.
+- **GIVEN** a policy prompt part **WHEN** it starts with `@<skill>/prompts/` **THEN** the router **MUST** read it from `skills/<skill>/prompts/`, with `<skill>` matching `[a-z0-9][a-z0-9-]*`; the OpenSpec templates use `@openspec-pipeline/prompts/os-*.md`.
+- **GIVEN** CI or a contributor runs the suite **WHEN** they name the test files **THEN** the command **MUST** include `skills/openspec-pipeline/test/*.test.mjs`.
+
+### Consequences
+
+- The first Consequence above now reads: one router, one merged plugin policy from two files with disjoint keys, one report format and one override file for both chains.
+- The router stays in `skills/10x-pipeline/scripts/`, so the line "it carries no copy" in D1 stays true; `openspec.mjs` imports `state.mjs` from there.
+- A project override that names `@prompts/os-*.md` halts with "cannot be read"; the fix is `@openspec-pipeline/prompts/os-*.md`.

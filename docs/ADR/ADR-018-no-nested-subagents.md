@@ -23,6 +23,8 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** the router returns a prompt **WHEN** it appends `prompts.suffix` **THEN** the prompt **MUST** carry the rule above, so every template, the `os-` templates and the `archive` prompt included, gets it.
 
+Amendment (change `proper-structure-of-rules`): the rule now lives in the always-true file `skills/10x-pipeline/rules/top.md` (ADR-023), which the router appends after `prompts.suffix` to every prompt; the prompt still carries it, and a suffix override no longer removes it.
+
 **GIVEN** a template runs `/10x-goal-implement` (`implement`, `implement-segment`, `implement-retry`) **WHEN** the skill would dispatch a subagent for the code of a phase or for a gate fix **THEN** the template **MUST** tell the subagent to write that code and those fixes itself, for every phase (A1, A3).
 
 **GIVEN** the `implement-tdd` or `implement-e2e` guide runs its skill **WHEN** the skill would hand a search, an analysis, a test or a spec to a subagent **THEN** the guide **MUST** tell the subagent to do that work itself.

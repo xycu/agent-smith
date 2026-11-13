@@ -397,12 +397,12 @@ Each prompt gains the heading lines and the two precedence rules, a few hundred 
 
 #### Automated
 
-- [ ] 2.1 The full suite passes over both test folders and tools
-- [ ] 2.2 rule-levels.test.mjs passes with cases (a) to (h)
-- [ ] 2.3 The suffix holds no invariant
-- [ ] 2.4 Each moved rule has one home
-- [ ] 2.5 No hand-written precedence is left
-- [ ] 2.6 The smoke checks of both chains return action run and each prompt ends with the RESULT line of rules/top.md
+- [x] 2.1 The full suite passes over both test folders and tools — f8e1260
+- [x] 2.2 rule-levels.test.mjs passes with cases (a) to (h) — f8e1260
+- [x] 2.3 The suffix holds no invariant — f8e1260
+- [x] 2.4 Each moved rule has one home — f8e1260
+- [x] 2.5 No hand-written precedence is left — f8e1260
+- [x] 2.6 The smoke checks of both chains return action run and each prompt ends with the RESULT line of rules/top.md — f8e1260
 
 #### Manual
 

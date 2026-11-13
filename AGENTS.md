@@ -58,9 +58,10 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 
 - `.claude-plugin/` — `plugin.json` and `marketplace.json`; keep `name` and `description` aligned between the two and with `README.md`. `version` is set only by the release PR, and the `marketplace.json` plugin entry carries none.
 - `skills/10x-pipeline/` — `SKILL.md` (the orchestrator loop), `policy.json` (ladder, tiers, escalation, limits, prompt templates) and `baseline-policy.json` (the baseline arm of `compare`; data the user copies, the router does not read it).
-- `skills/openspec-pipeline/` — the OpenSpec chain (ADR-013): `SKILL.md` (the same loop on the shared router; its `## Anti-stall rules` section equals the one of the 10x skill), `policy.json` (the `os-` steps and prompts, merged with the 10x `policy.json` at load), `prompts/` (indexed in its `README.md`), `scripts/openspec.mjs` (the OpenSpec router module) and `test/` (the OpenSpec tests and `openspec-helpers.mjs`, indexed in its `README.md`).
+- `skills/openspec-pipeline/` — the OpenSpec chain (ADR-013): `SKILL.md` (the same loop on the shared router; its `## Anti-stall rules` section equals the one of the 10x skill), `policy.json` (the `os-` steps and prompts, merged with the 10x `policy.json` at load), `prompts/` (indexed in its `README.md`), `rules/chain.md` (the always-true rules of the chain, ADR-023), `scripts/openspec.mjs` (the OpenSpec router module) and `test/` (the OpenSpec tests and `openspec-helpers.mjs`, indexed in its `README.md`).
 - `skills/10x-pipeline/scripts/` — the router modules and the standalone scripts (`open-pr.mjs`, `pr-comment.mjs`, `pr-common.mjs`, `remove-tree.mjs`); the import order is under Coding Style.
 - `skills/10x-pipeline/prompts/` — prompt files, indexed in `skills/10x-pipeline/prompts/README.md`.
+- `skills/10x-pipeline/rules/` — the always-true rule files that no override reaches (`top.md`, `steps/<step>.md`; ADR-023), indexed with the OpenSpec one in `skills/10x-pipeline/rules/README.md`.
 - `skills/10x-pipeline/test/` — the suite and its helpers, indexed in `skills/10x-pipeline/test/README.md`.
 - `tools/` and `tools/test/` — `version-check.mjs`, `commit-lint.mjs` and `workflow-pins.mjs` (every remote action in `.github/` is pinned to a 40-hex SHA with a version comment); tests are in the test index.
 - `agents/` — `score.md`, the restricted agent of the `score` step.

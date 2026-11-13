@@ -133,4 +133,5 @@ Routing lives in data, not in this file:
 
 - `${CLAUDE_SKILL_DIR}/../10x-pipeline/policy.json` holds the defaults for both chains. The steps of this chain, `os-propose`, `os-apply`, `os-verify` and `os-archive` under `steps`, and their prompts under `prompts` live in `${CLAUDE_SKILL_DIR}/policy.json`; the router merges the two files into one plugin policy.
 - A project can override any key in `context/foundation/agent-smith-policy.json`. The router deep-merges it over the defaults. Arrays such as `ladder` are replaced whole.
+- The always-true step rules live in `${CLAUDE_SKILL_DIR}/rules/chain.md` for this chain and in `${CLAUDE_SKILL_DIR}/../10x-pipeline/rules/top.md` for every step (ADR-023); the router reads them by fixed path, and no override reaches them.
 - The routing rules of this chain (step order, verdict, fix loop, archive, limits) are in the plugin's `docs/REFERENCE.md`, section `/agent-smith:openspec-pipeline`.
