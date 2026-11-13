@@ -41,7 +41,7 @@
   },
   "startCommit": "9e848455c072a28056bc9bd553b20caa6be3fe0c",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "signals, hot paths .github/workflows/ci.yml, skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/flow.mjs +4"
   }
 }

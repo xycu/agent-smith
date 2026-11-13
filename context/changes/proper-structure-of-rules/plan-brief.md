@@ -20,7 +20,7 @@ Every step prompt ends with the defaults (chain, then generic suffix) and an alw
 | Decision | Choice | Why (1 sentence) | Source |
 | --- | --- | --- | --- |
 | Binding of always-true | Plugin files under `<skill>/rules/`, read by fixed path outside the policy merge; missing `top.md` halts | Only a place the merge cannot reach is safe from overrides | Research + Plan |
-| Precedence | Always-true wins over all; among defaults the earlier rule wins, and the prompt lists step, then chain, then generic | One general rule replaces three hand-written precedence lines | Plan |
+| Precedence | Always-true wins over all, and the higher level wins between two always-true rules; among defaults the earlier rule wins, and the prompt lists step, then chain, then generic | One general rule replaces three hand-written precedence lines | Plan |
 | Layout | L1 `10x-pipeline/rules/top.md` + `prompts.suffix`; L2 `<chain>/rules/chain.md` + `prompts.chain-<chain>`; L3 `<chain>/rules/steps/<step>.md` + step templates | Reuses the existing keys, so current overrides keep working | Plan |
 | Step-level key | By step name, not template | `research`, `research-with-map` and `research-revise` all run as step `research` | Research |
 | Reference form | Keep `@prompts/<f>.md`; add `@<skill>/prompts/<f>.md`, skill `[a-z0-9-]+` | Backward compatible, no path escape | Plan |

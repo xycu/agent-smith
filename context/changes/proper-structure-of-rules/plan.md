@@ -63,7 +63,7 @@ Three phases, each green on its own:
 
 ### Decisions settled (from the open questions of `research.md`)
 
-1. **Binding of always-true.** Always-true rules live in plugin files under `<skill>/rules/`, outside `policy.json`. The router reads them by fixed path and never through the merged policy, so neither the project override nor a lower-level default can remove them. A missing `skills/10x-pipeline/rules/top.md` halts like a missing prompt file. Defaults stay policy keys, overridable as today. Precedence inside one prompt is one always-true rule in `top.md`: an always-true rule wins over every other rule, and among the other rules the one written earlier in the prompt wins. The prompt lists step, then chain, then generic defaults, so the more specific level wins. Evidence: `research.md` Architecture Insights ("a place the merge cannot reach"); ADR-022 for fail-closed halts; ADR-004 keywords stay independent of category (a default may say **MUST**).
+1. **Binding of always-true.** Always-true rules live in plugin files under `<skill>/rules/`, outside `policy.json`. The router reads them by fixed path and never through the merged policy, so neither the project override nor a lower-level default can remove them. A missing `skills/10x-pipeline/rules/top.md` halts like a missing prompt file. Defaults stay policy keys, overridable as today. Precedence inside one prompt is one always-true rule in `top.md`: an always-true rule wins over every other rule, between two always-true rules the higher level wins (top, then chain, then step), and among the other rules the one written earlier in the prompt wins. The prompt lists step, then chain, then generic defaults, so the more specific level wins. Evidence: `research.md` Architecture Insights ("a place the merge cannot reach"); ADR-022 for fail-closed halts; ADR-004 keywords stay independent of category (a default may say **MUST**).
 2. **File layout.**
 
    | Level | Always-true (no override) | Defaults (overridable) |
@@ -76,12 +76,12 @@ Three phases, each green on its own:
    `prompts.suffix` keeps its key, so existing overrides keep working and now replace only the defaults. `skills/10x-pipeline/rules/README.md` indexes the files of both skills and states the table.
 3. **Reference form.** `@prompts/<file>.md` keeps its meaning, a file under `skills/10x-pipeline/prompts/`. The new form `@<skill>/prompts/<file>.md` names a folder under the plugin's `skills/`, with `<skill>` matching `[a-z0-9][a-z0-9-]*` (no dot, no slash, so no path escapes). A part that starts with `@prompts/` or matches `^@[a-z0-9][a-z0-9-]*/prompts/` is a reference; any other part is literal text. The OpenSpec prompts are referenced as `@openspec-pipeline/prompts/os-*.md`.
 4. **OpenSpec policy and ADR-013.** `skills/openspec-pipeline/policy.json` holds `steps.os-*` and `prompts.os-*`. The router loads it with the 10x `policy.json` as one plugin policy (`deepMerge(base, fragment)`), then merges the one project override on top, for both chains alike. ADR-013 Amendment 1 rewords Consequence `:141` from "one policy" to "one merged plugin policy from two files with disjoint keys, one override file", and records the folder contents of `skills/openspec-pipeline/`. `:35` (the skill carries no router copy) stays true.
-5. **Order against the open changes.** Run this change alone, after wave 3 (merged in 1.8.0) and before wave 4. Every colliding change is still `new` without a plan, so retargeting costs only `change.md` text. Going later would force rebases over planned work. It overlaps `ci.yml` (the wave-4 `ci-scratch-in-runner-temp` lane), `state.mjs` (wave 4 `run-state-atomic-writes`), the prompt assembly (wave 6 `step-prompt-by-file`), `prompts/README.md`, `REFERENCE.md` and ADRs (wave 6 `docs-drift-fixes`), ADR-018 (wave 6 `nested-subagent-hard-stop`), `openspec-contract.test.mjs` (wave 5 `ci-fail-on-unexpected-skips`) and both `SKILL.md` (wave 7 `skill-md-context-diet`). `step-subagent-git-guard` runs after this change and puts its bans in `rules/top.md`. The owner records the order in `WAVES.md` on `main` (Manual row 3.7).
+5. **Order against the open changes.** Run this change alone, after wave 3 (merged in 1.8.0) and before wave 4. Every colliding change is still `new` without a plan, so retargeting costs only `change.md` text. Going later would force rebases over planned work. It overlaps `ci.yml` (the wave-4 `ci-scratch-in-runner-temp` lane), `state.mjs` (wave 4 `run-state-atomic-writes`), the prompt assembly (wave 6 `step-prompt-by-file`), `prompts/README.md`, `REFERENCE.md` and ADRs (wave 6 `docs-drift-fixes`), ADR-018 (wave 6 `nested-subagent-hard-stop`), `openspec-contract.test.mjs` (wave 5 `ci-fail-on-unexpected-skips`) and both `SKILL.md` (wave 7 `skill-md-context-diet`). Four more `new` changes without a plan name a moved path or a re-pinned rule: `tests-strip-git-env` (the OpenSpec tests), `agent-call-parameters` (`openspec-skill.test.mjs`), `delete-guard-gaps` (`no-recursive-delete.test.mjs`, which pins suffix rules) and `coverage-and-failed-undo-test` (the `ci.yml` test command). `step-subagent-git-guard` runs after this change and puts its bans in `rules/top.md`. The owner records the order in `WAVES.md` on `main` (Manual row 3.7).
 
 ## Critical Implementation Details
 
 - **Assembly order and the `RESULT:` line.** The `RESULT:` format moves from the suffix to the end of `rules/top.md`, and `top.md` is always the last part of the prompt, so the reply contract still closes every prompt. An override that keeps the old full suffix text then carries the `RESULT:` block twice; that is harmless and is noted in `docs/REFERENCE.md`.
-- **Rendering.** The always-true files and `prompts.chain-*` are rendered with the same `vars` as the template at the run site, and with `{ id }` only at the archive site. `prompts.suffix` stays unrendered (`NARROW_PLACEHOLDERS.suffix: []`). Add `chain-10x` and `chain-openspec` to `NARROW_PLACEHOLDERS` with `["id"]`, because the archive site fills only `id`. A static test keeps the rule files within the same limits: `top.md` without placeholders, `chain.md` within `["id"]`, step files within `PROMPT_PLACEHOLDERS` (within `["id"]` for `archive` and `os-archive`).
+- **Rendering.** The step file, the chain file and `prompts.chain-*` are rendered with the same `vars` as the template at the run site, and with `{ id }` only at the archive site. `top.md` is not rendered, because `render` would blank any `{word}` in a file that nothing may change. `prompts.suffix` stays unrendered (`NARROW_PLACEHOLDERS.suffix: []`). Add `chain-10x` and `chain-openspec` to `NARROW_PLACEHOLDERS` with `["id"]`, because the archive site fills only `id`. A static test keeps the rule files within the same limits: `top.md` without placeholders, `chain.md` within `["id"]`, step files within `PROMPT_PLACEHOLDERS` (within `["id"]` for `archive` and `os-archive`).
 - **Step file lookup.** Build `rules/steps/<step>.md` only from a step name matching `^[a-z0-9][a-z0-9-]*$`; any other name reads as no file. Step names can come from an override.
 
 ## Phase 1: Move the OpenSpec definitions into skills/openspec-pipeline
@@ -157,7 +157,7 @@ const PROMPT_REF = /^@(?:([a-z0-9][a-z0-9-]*)\/)?prompts\/([A-Za-z0-9._-]+\.md)$
 - The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - No OpenSpec file is left in the 10x folder: `ls skills/10x-pipeline/prompts skills/10x-pipeline/scripts skills/10x-pipeline/test | grep -iE '^os-|openspec'` prints nothing
 - No `os-` key is left in the 10x policy: `node -e 'const p=require("./skills/10x-pipeline/policy.json");process.exit(Object.keys({...p.steps,...p.prompts}).some(k=>k.startsWith("os-"))?1:0)'` exits 0
-- The four prompt files moved byte for byte: `git diff -M --name-status b79777b..HEAD -- skills | grep -c '^R100.*prompts/os-'` prints 4
+- The four prompt files moved byte for byte, checked at the Phase 1 commit because Phase 2 edits them: `git diff -M --name-status b79777b..HEAD -- skills | grep -c '^R100.*prompts/os-'` prints 4
 - CI runs the moved tests: `grep -n 'skills/openspec-pipeline/test/\*.test.mjs' .github/workflows/ci.yml AGENTS.md` matches both files
 - The new resolver and fragment tests pass (disjoint keys, every reference resolves, the accepted and rejected forms listed above)
 - The OpenSpec smoke check of `AGENTS.md` (scratch project with `openspec/config.yaml`, `openspec/changes/demo/` and `isolation.require: false`) returns `action: "run"` with step `os-propose` from `init demo --chain openspec --goal "x"`
@@ -165,7 +165,7 @@ const PROMPT_REF = /^@(?:([a-z0-9][a-z0-9-]*)\/)?prompts\/([A-Za-z0-9._-]+\.md)$
 
 #### Manual Verification:
 
-- An OpenSpec run prompt returned by `init --chain openspec` reads the same as before the move (spot-check the `os-propose` prompt against the text of `git show b79777b:skills/10x-pipeline/prompts/os-propose.md`)
+- At the end of Phase 1, before Phase 2 edits the os prompt files, an OpenSpec run prompt returned by `init --chain openspec` reads the same as before the move (spot-check the `os-propose` prompt against the text of `git show b79777b:skills/10x-pipeline/prompts/os-propose.md`)
 
 ---
 
@@ -186,9 +186,9 @@ The router appends the level defaults and the always-true block to every step pr
 **Contract**: `export function ruleTail(policy, { chain, step, vars, dirs })` returns `"\n\n"`-joined parts, empty parts skipped:
 1. `render(promptText(policy, "chain-" + chain), vars)` when that key exists;
 2. `promptText(policy, "suffix")`, unrendered;
-3. the rendered always-true files: `<chainDir>/rules/steps/<step>.md`, then `<chainDir>/rules/chain.md` (each optional, ENOENT reads as none), then `<SKILL_DIR>/rules/top.md` (required; unreadable throws `Error("skills/10x-pipeline/rules/top.md cannot be read")`).
+3. the always-true files: `<chainDir>/rules/steps/<step>.md` and `<chainDir>/rules/chain.md`, rendered (each optional, ENOENT reads as none), then `<SKILL_DIR>/rules/top.md`, unrendered like the suffix (required; unreadable throws `Error("skills/10x-pipeline/rules/top.md cannot be read")`).
 
-`dirs` defaults to `{ "10x": SKILL_DIR, openspec: OPENSPEC_DIR }` and exists so tests can point at a scratch tree. `checkPrompts` also reads `rules/top.md`, so a broken install halts before `next` consumes the result file.
+`dirs` defaults to `{ "10x": SKILL_DIR, openspec: OPENSPEC_DIR }` and exists so tests can point at a scratch tree. `checkPrompts` also reads `rules/top.md`, `rules/chain.md` of both chains and `rules/steps/<step>.md` for every step name of `policy.steps`, through the same reader. A rule file that exists but cannot be read (permission error, a folder in its place) throws with its path, so a broken install halts before `next` consumes the result file instead of in the middle of prompt assembly.
 
 #### 2. Both assembly sites
 
@@ -214,7 +214,7 @@ The router appends the level defaults and the always-true block to every step pr
 
 **Contract**:
 - `top.md`: a heading line ("Always-true rules for every step of agent-smith. No other rule of this prompt and no project policy changes them."), "You run as an unattended subagent. AskUserQuestion is unavailable.", the short-status rule, both ADR-016 delete rules, the ADR-018 nesting rule, two precedence rules, then the two `RESULT:` lines, last.
-  - Precedence 1: a rule under an always-true heading wins over every other rule of the prompt.
+  - Precedence 1: a rule under an always-true heading wins over every other rule of the prompt, and between two always-true rules the one for every step wins over the one of the chain, which wins over the one of the step.
   - Precedence 2: among the other rules, the one written earlier in the prompt wins, because the prompt lists the step rules first, then the chain rules, then the generic defaults.
   - Rule texts are copied verbatim from `policy.json:212`.
 - `prompts.suffix`: one heading line ("Default rules for every step. A rule earlier in this prompt may change them."), "Commit only where the skill or a rule of this prompt tells you to.", the decide-from-evidence rule, the `blocked` rule and the `signals.rigor` **MAY** rule. All are verbatim.
@@ -245,11 +245,11 @@ The router appends the level defaults and the always-true block to every step pr
 - (a) the order of a returned 10x and OpenSpec run prompt: template, then chain defaults (set by override), then suffix, then step file, then chain file, then `top.md`. The prompt ends with the `RESULT:` line.
 - (b) an override of `prompts.suffix` replaces the defaults and leaves every line of `top.md` in the prompt.
 - (c) `ruleTail` with a scratch `dirs` tree reads `steps/<step>.md` and `chain.md` for both chains, and skips a missing file and a step name like `../x`.
-- (d) a missing `top.md` (scratch `dirs`) throws, and `checkPrompts` turns it into the halt.
+- (d) a missing `top.md` (scratch `dirs`) throws, and `checkPrompts` turns it into the halt; so does an unreadable `chain.md` (a folder in its place).
 - (e) the `archive` and `os-archive` prompts end with `top.md`.
 - (f) the placeholder limits of the rule files.
 - (g) the `ruleFiles` provenance section exists and changes when a rule file changes.
-- (h) `top.md`, `chain.md` and the step files pass `lineProblems(…, { strict: true })`, and `rules.test.mjs` scans `skills/*/rules/*.md` and `skills/*/rules/steps/*.md`.
+- (h) `top.md`, `chain.md` and the step files pass `lineProblems(…, { strict: true })`, and `rules.test.mjs` scans `skills/*/rules/*.md` and `skills/*/rules/steps/*.md`; `top.md` holds both precedence rules, the higher-level-wins clause included.
 
 ### Success Criteria:
 
@@ -330,7 +330,7 @@ Consequences:
 #### Manual Verification:
 
 - The plugin installed from this branch runs: in a scratch OpenSpec project, `/agent-smith:openspec-pipeline demo` reaches its first step with a prompt that ends with the `rules/top.md` rules, and `/agent-smith:10x-pipeline` does the same in a scratch 10x project
-- After the merge, the owner records in `context/changes/WAVES.md` on `main` that this change ran before wave 4. The owner also notes the moved paths in the `change.md` files of `ci-fail-on-unexpected-skips`, `docs-drift-fixes`, `step-prompt-by-file`, `nested-subagent-hard-stop` and `step-subagent-git-guard`, the last with `rules/top.md` as its carrier
+- After the merge, the owner records in `context/changes/WAVES.md` on `main` that this change ran before wave 4. The owner also notes the moved paths in the `change.md` files of `ci-fail-on-unexpected-skips`, `docs-drift-fixes`, `step-prompt-by-file`, `nested-subagent-hard-stop`, `tests-strip-git-env`, `agent-call-parameters`, `delete-guard-gaps`, `coverage-and-failed-undo-test` and `step-subagent-git-guard`, the last with `rules/top.md` as its carrier
 
 ---
 
