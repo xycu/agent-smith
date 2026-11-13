@@ -15,13 +15,13 @@ Manual checks not proved: 2
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | score | haiku | low | 0 | no | ok (854213e), 1 neutral rerun | 76866 |
 | 2 | plan | opus | high | 5 | no | ok (2ba5b44) | 114739 |
-| 3 | plan-review | sonnet | high | 3 | no | ok (12491b6) | - |
+| 3 | plan-review | sonnet | high | 3 | no | ok (12491b6) | 149170 |
 | 4 | implement | opus | high | 5 | no | ok (2d8b3be) | - |
 | 5 | manual-verify | sonnet | medium | 2 | no | ok (f30ff7f) | - |
 | 6 | manual-verify | sonnet | high | 3 | no | ok (d8ded1c) | - |
 | 7 | impl-review | opus | high | 5 | no | ok (0967490) | - |
 
-Steps: 7 · Tokens: 191605 (figures for 2 of 7 steps)
+Steps: 7 · Tokens: 340775 (figures for 3 of 7 steps)
 
 ## Neutral reruns
 
