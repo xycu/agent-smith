@@ -1,0 +1,4 @@
+- 5.1 — needs a live GitHub pull request and check run; pushing/editing a PR is external
+- 5.2 — needs live GitHub Actions runs
+- 5.3 — needs the real PR title on GitHub
+- 5.4 — needs the squash merge on main to happen first

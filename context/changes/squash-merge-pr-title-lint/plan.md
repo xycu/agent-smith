@@ -334,7 +334,7 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Manual
 
-- [ ] 1.4 The header comment of `tools/commit-lint.mjs` no longer says the repository rebase-merges
+- [x] 1.4 The header comment of `tools/commit-lint.mjs` no longer says the repository rebase-merges — evidence: evidence/judgment-phase1-4-docs.md
 
 ### Phase 2: PR title workflow and the tests that pin it
 
@@ -347,7 +347,7 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Manual
 
-- [ ] 2.5 `pr-title.yml` reads correctly end to end and `ci.yml` changed only in its header comment
+- [x] 2.5 `pr-title.yml` reads correctly end to end and `ci.yml` changed only in its header comment — evidence: evidence/judgment-phase1-4-docs.md
 
 ### Phase 3: Conventional titles for run PRs
 
@@ -359,7 +359,7 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Manual
 
-- [ ] 3.4 ADR-017 Decision step 5 points at Amendment 1, and the Amendment states the fallback and the set-once rule
+- [x] 3.4 ADR-017 Decision step 5 points at Amendment 1, and the Amendment states the fallback and the set-once rule — evidence: evidence/judgment-phase1-4-docs.md
 
 ### Phase 4: Docs say squash
 
@@ -372,8 +372,8 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Manual
 
-- [ ] 4.5 ADR-008 reads consistently: Amendment 2 exists, the five old sentences point at it
-- [ ] 4.6 AGENTS.md Commits section reads correctly and states both checks are advisory
+- [x] 4.5 ADR-008 reads consistently: Amendment 2 exists, the five old sentences point at it — evidence: evidence/judgment-phase1-4-docs.md
+- [x] 4.6 AGENTS.md Commits section reads correctly and states both checks are advisory — evidence: evidence/judgment-phase1-4-docs.md
 
 ### Phase 5: Live check on GitHub
 
