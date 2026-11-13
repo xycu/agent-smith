@@ -66,7 +66,7 @@ Needs: the skills `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-i
 | `--archive` | Archive the change when the run is done; asks first when Manual checks are pending or unproved. |
 | `--rigor lean\|standard\|thorough` | Start at a rigor level. Default: picked from the goal. |
 | `--chrome false` | Keep the manual-check step off the Chrome browser tools. |
-| `--pr-comment` | Post the run report to the open pull request. Needs `gh`. |
+| `--pr-comment` | Post the run report to the open pull request. Stored with the run, so a resume keeps it; `--pr-comment false` turns it off. Needs `gh`. |
 
 ## ⚙️ Configure
 

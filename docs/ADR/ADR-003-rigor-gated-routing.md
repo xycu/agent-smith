@@ -1,6 +1,6 @@
 # ADR-003: Rigor-gated routing: a per-change rigor level decides optional steps, budget and effort floor
 
-- **Status:** Proposed
+- **Status:** Proposed. Amendment 1 (2026-11-13) stores the `--pr-comment` request in `meta.json`.
 - **Date:** 2026-10-30
 - **Deciders:** repository owner
 - **Origin:** research for `rigor-gated-routing`, split into four changes on 2026-10-30, later split into five (S-09 into `archive-adapter` and `lesson-candidates`); change 5 is written up in "Lesson candidates". Research and owner decisions: `context/archive/2026-10-30-rigor-levels/research.md` (Follow-ups 1 to 3). Builds on ADR-001 (cheap deterministic signals first) and ADR-002 (change lifecycle, optional steps).
@@ -443,3 +443,26 @@ Decided without a human. The caps are overridable in `context/foundation/agent-s
 | 9 | Nothing is printed in the `done`, `archive` or `halt` JSON or in `status`; the report is the carrier. | Low. |
 
 Sources: `context/archive/2026-10-30-rigor-levels/research.md` (Follow-up 1), `context/changes/lesson-candidates/plan.md`.
+
+## Amendment 1: --pr-comment stored in meta.json (2026-11-13)
+
+### Context
+
+- "### PR comment" kept the `--pr-comment` request as a session task of the orchestrator. The task tools need an env key and permissions that only this repository set; a project that installs the plugin has neither, so the skill skipped the comment and dropped the user's explicit request.
+- A resume in a new session depended on what that session's task list held, not on the run.
+- `pr-comment.mjs` edits its own marker comment, so "post once" needs no task.
+
+### Decision
+
+The request moves into `meta.json`, as the alternative "The flag in `meta.json`: kept as the fallback" of the original text anticipated. `init --pr-comment [true|false]` stores `prComment` like `--archive`. The `done`, `archive` (before the move) and `halt` outputs and `status` carry `prComment: true` when it is set, and the orchestrator runs the PR comment step when it reads that field. The orchestrator still runs `pr-comment.mjs`; the router still never calls `gh`, and `policy.json` has no key for it. The task tools leave both skills.
+
+### Consequences
+
+- The request persists with the run: a resume without the flag still posts, and `--pr-comment false` is the only way to turn it off, as for `--archive`.
+- A run started before this amendment has no `prComment` key and posts nothing unless `--pr-comment` is given again on resume.
+
+### Rules
+
+- **GIVEN** `init` with `--pr-comment` **WHEN** it writes `meta.json` **THEN** it **MUST** store `prComment: true`.
+- **GIVEN** a stored `prComment: true` **WHEN** `init` resumes the run without the flag **THEN** it **MUST** keep it.
+- **GIVEN** a run whose `meta.json` holds `prComment: true` **WHEN** the router prints its `done`, `archive` or `halt` output at the end of the run **THEN** the output **MUST** carry `prComment: true`.

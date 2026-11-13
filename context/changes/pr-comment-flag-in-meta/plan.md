@@ -233,9 +233,9 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Automated
 
-- [x] 2.1 Skill-content tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs`
-- [x] 2.2 The skills share their anti-stall section and bans: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/agents.test.mjs`
-- [x] 2.3 No task tool is named in either skill: `grep -c "TaskList\|TaskCreate\|TaskUpdate" skills/10x-pipeline/SKILL.md skills/openspec-pipeline/SKILL.md` prints 0 for both
+- [x] 2.1 Skill-content tests pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/openspec-skill.test.mjs skills/10x-pipeline/test/archive-gate.test.mjs` — f5d787f
+- [x] 2.2 The skills share their anti-stall section and bans: `node --test skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/no-recursive-delete.test.mjs skills/10x-pipeline/test/agents.test.mjs` — f5d787f
+- [x] 2.3 No task tool is named in either skill: `grep -c "TaskList\|TaskCreate\|TaskUpdate" skills/10x-pipeline/SKILL.md skills/openspec-pipeline/SKILL.md` prints 0 for both — f5d787f
 
 #### Manual
 
@@ -245,10 +245,10 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Automated
 
-- [ ] 3.1 The ADR, docs and index pins pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs tools/test/*.test.mjs`
-- [ ] 3.2 `.claude/settings.json` parses and has no task entry: `node -e "const s=JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'));if(s.env||s.permissions)process.exit(1)"`
-- [ ] 3.3 No stale task wording remains in live docs: `grep -rn "TaskList\|TaskCreate\|TaskUpdate\|TODO_TOOLS\|task list unavailable" README.md AGENTS.md docs skills .claude` prints nothing (the ADR-003 amendment says "task tools" and names none)
-- [ ] 3.4 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 The ADR, docs and index pins pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs tools/test/*.test.mjs`
+- [x] 3.2 `.claude/settings.json` parses and has no task entry: `node -e "const s=JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'));if(s.env||s.permissions)process.exit(1)"`
+- [x] 3.3 No stale task wording remains in live docs: `grep -rn "TaskList\|TaskCreate\|TaskUpdate\|TODO_TOOLS\|task list unavailable" README.md AGENTS.md docs skills .claude` prints nothing (the ADR-003 amendment says "task tools" and names none)
+- [x] 3.4 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 
