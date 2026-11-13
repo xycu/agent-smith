@@ -7,13 +7,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { pluginPolicy } from "../../10x-pipeline/scripts/state.mjs";
+import { promptText, checkPrompts } from "../../10x-pipeline/scripts/flow.mjs";
 
-const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const OS_SKILL_DIR = path.resolve(SKILL_DIR, "../openspec-pipeline");
+const OS_SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const SKILL_DIR = path.resolve(OS_SKILL_DIR, "../10x-pipeline");
 const skill = fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(OS_SKILL_DIR, "SKILL.md"), "utf8");
 const lines = skill.split("\n");
 const tenx = fs.readFileSync(path.join(SKILL_DIR, "SKILL.md"), "utf8").split("\n");
-const POLICY = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+const POLICY = pluginPolicy();
 
 const HEADING = "## Anti-stall rules";
 
@@ -81,14 +83,15 @@ test("the router is the shared 10x-pipeline route.mjs, and it exists next to the
   const pr = lines.find((l) => l.startsWith("PR comment script: "));
   assert.ok(pr && pr.includes('`PR_COMMENT="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/pr-comment.mjs"`'), pr);
   assert.ok(fs.statSync(path.resolve(OS_SKILL_DIR, "../10x-pipeline/scripts/pr-comment.mjs")).isFile());
-  // No copy of the router in the skill folder (ADR-013 D1).
-  assert.equal(fs.existsSync(path.join(OS_SKILL_DIR, "scripts")), false);
+  // No copy of the router in the skill folder (ADR-013 D1): its scripts folder holds only the OpenSpec module.
+  assert.deepEqual(fs.readdirSync(path.join(OS_SKILL_DIR, "scripts")), ["openspec.mjs"]);
 });
 
 test("the old base-directory placeholder is gone and Tuning names policy.json through ${CLAUDE_SKILL_DIR}", () => {
   assert.equal(skill.includes("<this skill's base directory>"), false);
   const tuning = lines.find((l) => l.includes("policy.json` holds the defaults"));
   assert.ok(tuning && tuning.startsWith("- `${CLAUDE_SKILL_DIR}/../10x-pipeline/policy.json`"), tuning);
+  assert.ok(tuning.includes("live in `${CLAUDE_SKILL_DIR}/policy.json`"), tuning);
 });
 
 test("every router command line carries --chain openspec", () => {
@@ -145,11 +148,45 @@ test("every os- step has a template, and every os- template resolves to existing
   assert.ok(templates.includes("os-apply-fix"));
   for (const name of templates) {
     const parts = Array.isArray(POLICY.prompts[name]) ? POLICY.prompts[name] : [POLICY.prompts[name]];
-    const refs = parts.map((part) => String(part).match(/^@prompts\/([A-Za-z0-9._-]+\.md)$/)).filter(Boolean);
+    const refs = parts.map((part) => String(part).match(/^@openspec-pipeline\/prompts\/([A-Za-z0-9._-]+\.md)$/)).filter(Boolean);
     assert.ok(refs.length >= 1, `${name} references no prompt file`);
-    for (const [, file] of refs) assert.ok(fs.statSync(path.join(SKILL_DIR, "prompts", file)).isFile(), `${name}: ${file}`);
+    for (const [, file] of refs) assert.ok(fs.statSync(path.join(OS_SKILL_DIR, "prompts", file)).isFile(), `${name}: ${file}`);
   }
   assert.ok(POLICY.prompts["os-apply-fix"].join("\n").includes("{findings}"));
+});
+
+// ---- the policy fragment and the @<skill>/prompts/ reference (ADR-013 Amendment 1) ------------
+
+const readPolicy = (dir) => JSON.parse(fs.readFileSync(path.join(dir, "policy.json"), "utf8"));
+
+test("the OpenSpec policy fragment holds only os- steps and prompts, and shares no key with the 10x policy", () => {
+  const tenxPolicy = readPolicy(SKILL_DIR);
+  const fragment = readPolicy(OS_SKILL_DIR);
+  assert.deepEqual(Object.keys(fragment).sort(), ["prompts", "steps"]);
+  for (const block of ["steps", "prompts"]) {
+    assert.ok(Object.keys(fragment[block]).every((k) => k.startsWith("os-")), block);
+    assert.deepEqual(Object.keys(fragment[block]).filter((k) => Object.hasOwn(tenxPolicy[block], k)), [], block);
+  }
+  assert.deepEqual(Object.keys(pluginPolicy().steps).filter((k) => k.startsWith("os-")).sort(), ["os-apply", "os-archive", "os-propose", "os-verify"]);
+});
+
+test("every prompt of the plugin policy resolves, the @<skill>/prompts/ references included", () => {
+  const policy = pluginPolicy();
+  for (const name of Object.keys(policy.prompts)) assert.equal(typeof promptText(policy, name), "string", name);
+  assert.doesNotThrow(() => checkPrompts(policy));
+});
+
+test("the resolver accepts @<skill>/prompts/<file>.md and rejects paths that leave the skills folder", () => {
+  const text = (part) => promptText({ prompts: { t: [part] } }, "t");
+  const apply = fs.readFileSync(path.join(OS_SKILL_DIR, "prompts/os-apply.md"), "utf8").trim();
+  assert.equal(text("@openspec-pipeline/prompts/os-apply.md"), apply);
+  assert.equal(text("@10x-pipeline/prompts/advisor.md"), text("@prompts/advisor.md"));
+  assert.throws(() => text("@openspec-pipeline/prompts/../a.md"), /has a bad reference @openspec-pipeline\/prompts\/\.\.\/a\.md$/);
+  assert.throws(() => text("@no-such-skill/prompts/a.md"), /refers to @no-such-skill\/prompts\/a\.md, which cannot be read$/);
+  assert.throws(() => checkPrompts({ prompts: { t: "@no-such-skill/prompts/a.md" } }), /cannot be read\. The result file and the log are untouched/);
+  // A skill name with a dot, a slash or a capital is no reference: the part stays literal text and reads no file.
+  assert.equal(text("@Open/prompts/a.md"), "@Open/prompts/a.md");
+  assert.equal(text("@../x/prompts/a.md"), "@../x/prompts/a.md");
 });
 
 // ---- Pull request (always), ADR-017 ---------------------------------------------------------

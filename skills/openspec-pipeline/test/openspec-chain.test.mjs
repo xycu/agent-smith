@@ -6,14 +6,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, run, init, writeResult, readLogEntries, readMetaFile,
-} from "./helpers.mjs";
+  cleanupAll, makeProject, run, init, writeResult, readLogEntries, readMetaFile, ruleTail,
+} from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, initOpenspec, moveToArchive } from "./openspec-helpers.mjs";
+import { pluginPolicy } from "../../10x-pipeline/scripts/state.mjs";
 
 after(cleanupAll);
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const POLICY = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+const POLICY = pluginPolicy();
 const SUFFIX = POLICY.prompts.suffix;
 const PROPOSE_GUIDE = fs.readFileSync(path.join(SKILL_DIR, "prompts/os-propose.md"), "utf8");
 
@@ -184,7 +185,7 @@ test("a tasks.md without a checkbox row halts", () => {
   }
 });
 
-test("the os-propose prompt holds the lead line, the guide text and prompts.suffix", () => {
+test("the os-propose prompt holds the lead line, the guide text, prompts.suffix and the always-true chain rules", () => {
   const project = makeOpenspecProject();
   const res = initOpenspec(project, "Add a greeting script");
   assert.equal(res.json.step, "os-propose");
@@ -194,7 +195,9 @@ test("the os-propose prompt holds the lead line, the guide text and prompts.suff
   assert.ok(rules.length > 0);
   for (const line of rules) assert.ok(prompt.includes(line.replaceAll("{id}", "demo")), line);
   assert.equal(prompt.includes("{id}"), false);
-  assert.ok(prompt.endsWith("\n\n" + SUFFIX));
+  // ADR-023: the suffix, then the chain file with {id} filled, then top.md.
+  assert.ok(prompt.endsWith("\n\n" + ruleTail(SUFFIX, { chain: "openspec", step: "os-propose" })));
+  assert.ok(prompt.includes('pass `--change "demo"`'));
 });
 
 test("next and status on a moved OpenSpec run halt as archived without the flag, and verify-archive confirms it", () => {

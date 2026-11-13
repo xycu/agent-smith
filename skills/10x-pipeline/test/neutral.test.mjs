@@ -11,7 +11,7 @@ import {
   readReportFile, writeMetaFile, gitAvailable, gitEnv, gitInit, git, commitFiles
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
-import { makeOpenspecProject, initOpenspec, writeArtifacts, moveToArchive } from "./openspec-helpers.mjs";
+import { makeOpenspecProject, initOpenspec, writeArtifacts, moveToArchive } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
 after(cleanupAll);
 

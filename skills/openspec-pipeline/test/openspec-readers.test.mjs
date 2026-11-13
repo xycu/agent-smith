@@ -5,10 +5,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { cleanupAll, run, writeLog, writeMetaFile, entry } from "./helpers.mjs";
+import { cleanupAll, run, writeLog, writeMetaFile, entry } from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject, initOpenspec } from "./openspec-helpers.mjs";
 import { readTasks, readVerdict } from "../scripts/openspec.mjs";
-import { removeTree } from "../scripts/remove-tree.mjs";
+import { removeTree } from "../../10x-pipeline/scripts/remove-tree.mjs";
 
 after(cleanupAll);
 

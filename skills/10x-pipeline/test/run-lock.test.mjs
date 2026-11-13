@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { cleanupAll, makeProject, run, writeLog, writeMetaFile, entry } from "./helpers.mjs";
-import { makeOpenspecProject } from "./openspec-helpers.mjs";
+import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { runLockPath } from "../scripts/state.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 

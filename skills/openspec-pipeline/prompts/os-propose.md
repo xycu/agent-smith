@@ -3,8 +3,6 @@ Unattended rules for /openspec-propose. No human answers, so every ask point of 
 ## Rules
 
 - **GIVEN** `openspec/changes/{id}/` already exists **WHEN** Step 4 would create the change or the guardrails would ask whether to continue it or create a new one **THEN** you **MUST** continue `{id}` and never run `openspec new change` or create a change under any other name.
-- **GIVEN** Step 1 derives a kebab-case name from the request **WHEN** you pick the change name **THEN** you **MUST** use `{id}` as given and pass `--change "{id}"` to every `openspec` command that takes it.
-- **GIVEN** the store selection block of the skill **WHEN** a command accepts `--store` **THEN** you **MUST NOT** pass `--store`, because the run covers only a change inside this project's `openspec/changes/`.
 - **GIVEN** Step 3 picks a schema **WHEN** you run a command **THEN** you **MUST NOT** pass `--schema`, so the schema recorded in `openspec/changes/{id}/.openspec.yaml` stays in force.
 - **GIVEN** the project check or `openspec context --json` reports no root, a store declaration error or any other failure **WHEN** the skill would stop and ask how to proceed **THEN** you **MUST** finish with status `blocked` and `signals.needsHuman` quoting the CLI `message`, and never run `openspec init`.
 - **GIVEN** Step 1 would ask what to build **WHEN** the goal, `proposal.md` or another file already in `openspec/changes/{id}/` describes the change **THEN** you **MUST** take the missing input from them and cite the source.

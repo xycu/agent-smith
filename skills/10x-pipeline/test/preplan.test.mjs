@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, planText, writeReview, init, next, run, writeLog, entry, writeResult,
   readLogEntries, readMetaFile, readReportFile, writeOverride,
+  ruleTail,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -23,10 +24,11 @@ const STATUS_RULE = "- **GIVEN** you save context/changes/{id}/research.md **WHE
 
 const parts = (value) => (Array.isArray(value) ? value : [value]);
 
-// The prompt text without the shared suffix (the suffix holds a JSON example with braces).
+// The prompt text without the shared suffix and the always-true rules after it (top.md holds a JSON example with braces).
+const TAIL = `\n\n${ruleTail(SUFFIX)}`;
 const withoutSuffix = (prompt) => {
-  assert.ok(prompt.endsWith(`\n\n${SUFFIX}`), "prompt ends with the shared suffix");
-  return prompt.slice(0, -(SUFFIX.length + 2));
+  assert.ok(prompt.endsWith(TAIL), "prompt ends with the shared suffix and the always-true rules");
+  return prompt.slice(0, -TAIL.length);
 };
 
 const touch = (project, file, text = "x\n") => {
@@ -131,10 +133,13 @@ test("every prompt file is wired or documented as not wired", () => {
   ]);
 });
 
-test("research templates ask for status frontmatter", () => {
+test("research templates ask for status frontmatter through the always-true step file", () => {
+  // The rule lives once, in rules/steps/research.md, which the router appends to every template of the step research.
   for (const name of ["research", "research-with-map", "research-revise"]) {
-    assert.ok(parts(policy.prompts[name]).includes(STATUS_RULE), `${name} holds the status rule line`);
+    assert.ok(!parts(policy.prompts[name]).includes(STATUS_RULE), `${name} no longer repeats the status rule line`);
   }
+  const stepRules = fs.readFileSync(path.join(SKILL_DIR, "rules/steps/research.md"), "utf8").split("\n");
+  assert.equal(stepRules.filter((l) => l === STATUS_RULE).length, 1);
   // The shipped legacy prompt stays unedited: it asks for no frontmatter itself.
   const legacy = fs.readFileSync(path.join(PROMPTS_DIR, "research-with-map.md"), "utf8");
   assert.ok(!/frontmatter/i.test(legacy));
@@ -165,7 +170,7 @@ test("loader joins array parts and resolves a file reference", () => {
   const res = init(project, "fix typo");
   assert.equal(res.status, 0);
   const guide = fs.readFileSync(path.join(PROMPTS_DIR, "frame-unattended.md"), "utf8").trim().replaceAll("{id}", "demo");
-  assert.equal(res.json.prompt, `Run it demo\n${guide}\n\n${SUFFIX}`);
+  assert.equal(res.json.prompt, `Run it demo\n${guide}${TAIL}`);
 });
 
 test("a goal text never resolves a prompt reference", () => {
@@ -232,7 +237,7 @@ test("plan prompt without artifacts equals today's text", () => {
   assert.equal(res.status, 0);
   assert.equal(
     res.json.prompt,
-    "Run /10x-plan demo fix typo\nWrite the plan to context/changes/demo/plan.md with a valid ## Progress section.\n\n" + SUFFIX,
+    "Run /10x-plan demo fix typo\nWrite the plan to context/changes/demo/plan.md with a valid ## Progress section." + TAIL,
   );
 });
 
@@ -243,7 +248,7 @@ test("plan-revise prompt without artifacts equals today's text", () => {
   assert.equal(res.json.step, "plan");
   assert.equal(
     res.json.prompt,
-    "Run /10x-plan demo\nRevise the existing context/changes/demo/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/demo/reviews/plan-review.md (verdict: RETHINK). Keep the ## Progress contract, step indices and titles.\n\n" + SUFFIX,
+    "Run /10x-plan demo\nRevise the existing context/changes/demo/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/demo/reviews/plan-review.md (verdict: RETHINK). Keep the ## Progress contract, step indices and titles." + TAIL,
   );
 });
 

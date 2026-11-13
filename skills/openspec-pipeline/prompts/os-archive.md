@@ -10,7 +10,6 @@ Unattended rules for archiving the OpenSpec change `{id}` with the OpenSpec CLI.
 - **GIVEN** the command failed **WHEN** you would retry it, pass `--no-validate` or `--skip-specs`, or fix the cause **THEN** you **MUST NOT** run any further `openspec` command or change any file.
 - **GIVEN** the command succeeded with an `archive` object **WHEN** you commit **THEN** you **MUST** stage only the paths the CLI changed (`git add -A -- openspec/changes/{id} openspec/changes/archive/<archive.archivedAs> openspec/specs`) and commit them with the message `chore(archive): close {id}`.
 - **GIVEN** you staged those paths **WHEN** `git diff --cached --name-only` lists a path outside `openspec/changes/{id}/`, `openspec/changes/archive/<archive.archivedAs>/` and `openspec/specs/` **THEN** you **MUST NOT** commit, and you finish with status `blocked` and `signals.needsHuman` naming those paths.
-- **GIVEN** the generic unattended rules say not to commit **WHEN** the archive succeeded **THEN** the commit rule above **MUST** win.
 - **GIVEN** you commit **WHEN** a hook runs **THEN** you **MUST NOT** pass `--no-verify`, amend, push or change any git setting.
 - **GIVEN** the commit fails **WHEN** git prints its error **THEN** you **MUST** finish with status `blocked` and `signals.needsHuman` quoting git's message, and leave the archived folder where the CLI put it.
 - **GIVEN** the command printed a warning **WHEN** you write the RESULT line **THEN** you **MUST** copy each warning into `assumptions`.

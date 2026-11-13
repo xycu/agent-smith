@@ -70,7 +70,7 @@ Needs: the skills `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-i
 
 ## ⚙️ Configure
 
-Override any policy key per project in `context/foundation/agent-smith-policy.json`. Defaults live in `skills/10x-pipeline/policy.json`.
+Override any policy key per project in `context/foundation/agent-smith-policy.json`. Defaults live in `skills/10x-pipeline/policy.json`; the OpenSpec chain's steps and prompts live in `skills/openspec-pipeline/policy.json`, which the router merges with it. The always-true step rules live in `skills/10x-pipeline/rules/` and `skills/openspec-pipeline/rules/`; no override reaches them (ADR-023, `skills/10x-pipeline/rules/README.md`).
 
 ```json
 { "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2 } } }

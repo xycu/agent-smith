@@ -125,6 +125,7 @@ Routing lives in data, not in this file:
 
 - `${CLAUDE_SKILL_DIR}/policy.json` holds the defaults: the model/effort ladder, the base tier per step, escalation and de-escalation rules, retry caps, and prompt templates.
 - A project can override any key in `context/foundation/agent-smith-policy.json`. The router deep-merges it over the defaults. Arrays such as `ladder` are replaced whole.
+- The always-true step rules live in `${CLAUDE_SKILL_DIR}/rules/` (`top.md` for every step of both chains, `steps/<step>.md` for one step; ADR-023); the router reads them by fixed path, and no override reaches them.
 
 How the tier moves (see `tierFor` in `scripts/steps.mjs` and `decide` in `scripts/flow.mjs`):
 

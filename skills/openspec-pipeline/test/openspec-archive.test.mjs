@@ -8,15 +8,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, run, git, gitAvailable, gitEnv, gitInit, commitFiles, writeLog, writeMetaFile, readMetaFile, readLogEntries,
-  readReportFile, entry,
-} from "./helpers.mjs";
+  readReportFile, entry, ruleTail,
+} from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, moveToArchive } from "./openspec-helpers.mjs";
-import { removeTree } from "../scripts/remove-tree.mjs";
+import { pluginPolicy } from "../../10x-pipeline/scripts/state.mjs";
+import { removeTree } from "../../10x-pipeline/scripts/remove-tree.mjs";
 
 after(cleanupAll);
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const POLICY = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+const POLICY = pluginPolicy();
 const MESSAGE = (id) => `chore(${id}): commit change folder before archive`;
 const PASS = "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n";
 const TICKED = { proposal: true, specs: 1, tasks: { done: 2, open: 0 } };
@@ -67,7 +68,7 @@ test("PASS with --archive commits only openspec/changes/<id>/ and returns the os
   assert.ok(j.prompt.startsWith("Archive the OpenSpec change demo with the OpenSpec CLI.\n"), j.prompt.slice(0, 200));
   assert.ok(j.prompt.includes("`openspec archive demo --yes --json`"));
   assert.equal(j.prompt.includes("{id}"), false);
-  assert.ok(j.prompt.endsWith("\n\n" + POLICY.prompts.suffix));
+  assert.ok(j.prompt.endsWith("\n\n" + ruleTail(POLICY.prompts.suffix, { chain: "openspec", step: "os-archive" })));
   assert.equal(j.resultFile, undefined);
   // The commit holds only the change folder, and the folder is clean.
   assert.equal(git(project, ["log", "-1", "--format=%s"]), MESSAGE("demo"));

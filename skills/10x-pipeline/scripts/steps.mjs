@@ -666,9 +666,11 @@ export const PROMPT_PLACEHOLDERS = [
 ];
 
 // Templates the router renders with fewer names than a step prompt gets (isolation.mjs render sites), and the names
-// each one is given. `suffix` is appended without render(). promptProblem checks these against their own list.
+// each one is given. `suffix` is appended without render(). The chain defaults (chain-10x, chain-openspec) get only
+// `id`, because the archive site fills nothing else. promptProblem checks these against their own list.
 export const NARROW_PLACEHOLDERS = {
   archive: ["id"], "os-archive": ["id"], "frame-authority": ["id"], worktree: ["workdir"], suffix: [],
+  "chain-10x": ["id"], "chain-openspec": ["id"],
 };
 
 export function render(tpl, vars) {

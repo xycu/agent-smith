@@ -1,6 +1,6 @@
 # Tests
 
-Index of `skills/10x-pipeline/test/` and `tools/test/`, by topic. Run everything with `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. A new test file gets its row here, not in `AGENTS.md`.
+Index of `skills/10x-pipeline/test/` and `tools/test/`, by topic. Run everything with `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. A new test file gets its row here, not in `AGENTS.md`.
 
 A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; the block each file uses is named in its row.
 
@@ -11,7 +11,8 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `route.test.mjs` | `init`, `next`, `status` and the main routing paths |
 | `churn.test.mjs` | `risk` command: churn hot paths, plan hits and diff hits |
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |
-| `rules.test.mjs` | rule form of every prompt (GIVEN/WHEN/THEN, one RFC 2119 keyword; ADR-004) |
+| `rules.test.mjs` | rule form of every prompt and rule file (GIVEN/WHEN/THEN, one RFC 2119 keyword; ADR-004) |
+| `rule-levels.test.mjs` | rule levels (ADR-023): the order after the template (chain defaults, suffix, step file, chain file, `rules/top.md`), a suffix override keeps `top.md`, `ruleTail` on a scratch rule tree, the halts on a missing or unreadable rule file, the archive prompts of both chains, the placeholder limits, the `ruleFiles` provenance section and the precedence rules. A test that changes a rule file uses a scratch copy of the plugin tree |
 | `compare.test.mjs` | `compare`: totals, coverage, tokens by model and tier, verdict, `--unpinned` |
 | `lessons.test.mjs` | lesson candidates: sanitizer, report section, prompt wiring |
 | `at-or-above.test.mjs` | `atOrAbove` rigor comparison; an unknown level fails closed |
@@ -73,8 +74,8 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | --- | --- |
 | `skill-loop.test.mjs` | the `## Anti-stall rules` section of `SKILL.md`: six rules in order, placement outside the Loop branches, no model, effort or tier word; pins rule 3 and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement after the `Pull request script:` line) |
 | `archive-gate.test.mjs` | the Manual gate in the `archive` branch of both `SKILL.md` files (ADR-014): `AskUserQuestion` in `allowed-tools`, placement, labels, fail-closed text, six `**GIVEN**` lines, no `AskUserQuestion` in the router scripts |
-| `nested-subagents.test.mjs` | no nested subagents (ADR-018): the suffix rule and its place before the `RESULT:` line, the same-subagent lines of the executor prompts, the sixth anti-stall rule of both skills, the `docs/REFERENCE.md` and ADR-018 checks |
-| `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `README.md` and `AGENTS.md`; checks the rule stays in `prompts.suffix`, `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
+| `nested-subagents.test.mjs` | no nested subagents (ADR-018): the `rules/top.md` rule and its place before the `RESULT:` line, the same-subagent lines of the executor prompts, the sixth anti-stall rule of both skills, the `docs/REFERENCE.md` and ADR-018 checks |
+| `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `README.md` and `AGENTS.md`; checks the rule stays in `rules/top.md` and out of `prompts.suffix`, in `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
 | `open-pr.test.mjs` | `open-pr.mjs` (ADR-017): a real bare remote, a real linked worktree, a logging `git` shim and a fake `gh`; also checks that no router module pushes or calls `gh` |
 | `pr-comment.test.mjs` | `pr-comment.mjs`; `GH_LIVE=1` enables the read-only live tests, which a human runs. Also pins that `AGENTS.md` names the script in Hard Rules and Commands |
 | `pr-comment-flag.test.mjs` | `init --pr-comment` stores, keeps and clears `prComment` in `meta.json` on both chains; the `done`, `archive` and `halt` outputs and `status` carry `prComment: true` only when it is set |
@@ -82,22 +83,13 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 
 ## OpenSpec chain (ADR-013)
 
-| File | Scope |
-| --- | --- |
-| `openspec-helpers.mjs` | helper: scratch OpenSpec projects built on `helpers.mjs` |
-| `openspec-chain.test.mjs` | the `--chain` switch, run state, collisions and routing order |
-| `openspec-steps.test.mjs` | step verification, the `verify.md` verdict, the fix loop, tiers and dropped features |
-| `openspec-isolation.test.mjs` | the start and step commits and the rollback of an isolated run |
-| `openspec-archive.test.mjs` | the archive branch and the read-only commands |
-| `openspec-contract.test.mjs` | contract test against the real CLI (`OPENSPEC_BIN`, default `openspec`); it skips when the binary does not start |
-| `openspec-readers.test.mjs` | the task row pattern of the CLI, the guarded readers of `tasks.md` and `verify.md`, the chain halt on a 10x run, the produced files of `compare` |
-| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md`: its anti-stall section equals the 10x one, and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement, equality with the 10x copy) |
+The OpenSpec tests and `openspec-helpers.mjs` live in `skills/openspec-pipeline/test/`, indexed in its `README.md`.
 
 ## Helpers
 
 - `helpers.mjs`: scratch projects, `run.jsonl` fixtures, hermetic git. `run` and `git` time out after `SPAWN_TIMEOUT_MS` (120000 ms) and throw when the spawn fails. It stays as it was except `writeOverride(project, policy)`, which `makeProject` always calls and which adds `score: { minRigor: null }`, `isolation: { require: false }` and `manualVerify: { minRigor: null }` unless the test gives its own key (so existing tests keep `plan` as the first step and run in a plain scratch project), and `cleanupAll`, which calls `removeTree` for every scratch folder, goes on past one it cannot remove and then throws one `AggregateError` naming each folder left behind.
 - `ahead.mjs`: wraps `writePlan` and `writeReview` and exports `stampAhead`. A file a test writes as a step's output gets an mtime a minute ahead, because the router needs an mtime later than the step's `startedAt` and Linux stamps files from a coarse clock. A test that writes such a file right after `next` uses it.
-- `phase-helpers.mjs`, `budget-helpers.mjs` and `openspec-helpers.mjs`: see their groups above.
+- `phase-helpers.mjs` and `budget-helpers.mjs`: see their groups above. `openspec-helpers.mjs` is in `skills/openspec-pipeline/test/`.
 
 ## tools/test
 

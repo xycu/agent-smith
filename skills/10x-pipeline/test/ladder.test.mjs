@@ -9,11 +9,12 @@ import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, planText, writeReview, init, next, writeResult, writeLog, entry, readLogEntries,
 } from "./helpers.mjs";
+import { pluginPolicy } from "../scripts/state.mjs";
 
 after(cleanupAll);
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+const policy = pluginPolicy();
 
 const GOAL = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ");
 const HARD_GOAL = "refactor the session store";

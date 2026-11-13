@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile, readLogEntries,
   writeLog, writeMetaFile, entry, gitAvailable, gitEnv, gitInit, commitFiles,
+  ruleTail,
 } from "./helpers.mjs";
 import { buildPlan } from "./phase-helpers.mjs";
 
@@ -42,11 +43,12 @@ const ranOf = (project) => readLogEntries(project).filter((e) => !e.skipped);
 const future = () => new Date(Date.now() + 60_000);
 
 // The prompt of a listed template with the advisor on: the default prompt with the advisor rules between the rendered
-// template and the suffix, each part separated by one blank line.
+// template and the suffix, each part separated by one blank line. The always-true rules (ADR-023) follow the suffix.
 function withAdvisor(prompt) {
-  const tail = "\n\n" + SUFFIX;
-  assert.ok(prompt.endsWith(tail), "the default prompt ends with the suffix");
-  return prompt.slice(0, -tail.length) + "\n\n" + ADVISOR + tail;
+  const at = prompt.lastIndexOf("\n\n" + SUFFIX);
+  assert.ok(at >= 0, "the default prompt holds the suffix");
+  assert.ok(prompt.endsWith(ruleTail("").split("\n\n").at(-1)), "the default prompt ends with top.md");
+  return prompt.slice(0, at) + "\n\n" + ADVISOR + prompt.slice(at);
 }
 
 // The problems of one rule line in the form of ADR-004 (the full check runs in rules.test.mjs).
@@ -302,7 +304,7 @@ test("3.1 the cases reach every step template of the policy", () => {
 test("3.1 with the default policy no prompt contains the advisor text, for every template", () => {
   for (const c of runnable) {
     const { json, entry: logged } = runCase(c);
-    assert.ok(json.prompt.endsWith("\n\n" + SUFFIX), c.template);
+    assert.ok(json.prompt.endsWith("\n\n" + ruleTail(SUFFIX, { step: json.step })), c.template);
     assert.equal(json.prompt.includes(ADVISOR), false, c.template);
     for (const line of RULE_LINES) assert.equal(json.prompt.includes(line), false, `${c.template}: ${line}`);
     assert.equal(/advisor/i.test(json.prompt), false, c.template);
@@ -333,7 +335,7 @@ test("3.1 the archive prompt never carries the advisor text", { skip: noGit }, (
     return res.json.prompt;
   };
   const shipped = archived({});
-  assert.ok(shipped.endsWith("\n\n" + SUFFIX));
+  assert.ok(shipped.endsWith("\n\n" + ruleTail(SUFFIX)));
   assert.equal(/advisor/i.test(shipped), false);
   // Even a list that names the archive gives it no advisor text: the archive prompt is built on its own path.
   assert.equal(archived({ advisor: { enabled: true, templates: [...LISTED, "archive"] } }), shipped);

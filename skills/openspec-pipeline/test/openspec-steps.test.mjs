@@ -7,15 +7,16 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { cleanupAll, run, writeResult, readLogEntries, readMetaFile, readReportFile } from "./helpers.mjs";
+import { cleanupAll, run, writeResult, readLogEntries, readMetaFile, readReportFile, ruleTail } from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, initOpenspec } from "./openspec-helpers.mjs";
+import { pluginPolicy } from "../../10x-pipeline/scripts/state.mjs";
 import { readVerdict } from "../scripts/openspec.mjs";
-import { removeTree } from "../scripts/remove-tree.mjs";
+import { removeTree } from "../../10x-pipeline/scripts/remove-tree.mjs";
 
 after(cleanupAll);
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const POLICY = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+const POLICY = pluginPolicy();
 const APPLY_GUIDE = fs.readFileSync(path.join(SKILL_DIR, "prompts/os-apply.md"), "utf8");
 
 const GOAL = "Add a thing";
@@ -195,7 +196,7 @@ test("FAIL returns os-apply in fix mode with the critical lines in the prompt", 
   assert.equal(prompt.includes("- style"), false);
   const fixRule = APPLY_GUIDE.split("\n").find((line) => line.includes("(fix mode)"));
   assert.ok(prompt.includes(fixRule.replaceAll("{id}", "demo")));
-  assert.ok(prompt.endsWith("\n\n" + POLICY.prompts.suffix));
+  assert.ok(prompt.endsWith("\n\n" + ruleTail(POLICY.prompts.suffix, { chain: "openspec", step: "os-apply" })));
 });
 
 test("a FAIL with no critical line sends see verify.md", () => {

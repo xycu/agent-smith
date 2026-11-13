@@ -673,7 +673,7 @@ test("usage errors exit 2 with no JSON on stdout", { skip }, () => {
 // ---- guards -----------------------------------------------------------------------------
 
 test("guard: the router modules spawn no gh and make no git push (ADR-017)", () => {
-  for (const file of ["route.mjs", "state.mjs", "preplan.mjs", "steps.mjs", "openspec.mjs", "flow.mjs", "isolation.mjs"]) {
+  for (const file of ["route.mjs", "state.mjs", "preplan.mjs", "steps.mjs", "../../openspec-pipeline/scripts/openspec.mjs", "flow.mjs", "isolation.mjs"]) {
     const source = fs.readFileSync(path.join(SCRIPTS, file), "utf8");
     assert.equal(/["'`]gh["'`]/.test(source), false, `${file} must not call gh`);
     assert.equal(/["'`]push["'`]/.test(source), false, `${file} must not call git push`);

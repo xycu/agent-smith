@@ -1,0 +1,4 @@
+Check: os-propose.md at end of Phase 1 (6a55f80, skills/openspec-pipeline/prompts/) vs b79777b:skills/10x-pipeline/prompts/os-propose.md
+$ git show 6a55f80:skills/openspec-pipeline/prompts/os-propose.md | diff - <(git show b79777b:skills/10x-pipeline/prompts/os-propose.md)
+no diff, exit 0: identical
+Later change (Phase 2, two rules moved to rules/chain.md) is expected and outside this row.

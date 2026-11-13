@@ -24,6 +24,8 @@ One procedure for every directory delete, in prose and in code, and one helper t
 
 **GIVEN** the router returns a prompt **WHEN** it appends `prompts.suffix` **THEN** the prompt **MUST** carry both rules above, so every template, the `os-` templates and the `archive` prompt included, gets them (A3).
 
+Amendment (change `proper-structure-of-rules`): both rules now live in the always-true file `skills/10x-pipeline/rules/top.md` (ADR-023), which the router appends after `prompts.suffix` to every prompt; the prompt still carries them, and a suffix override no longer removes them.
+
 **GIVEN** `manual-verify` made a scratch directory with `mktemp -d` **WHEN** it removes it before the step ends **THEN** it **MUST** follow the same procedure.
 
 **GIVEN** the orchestrator tells the user to remove the stale main-checkout copy of the change folder **WHEN** it names the method **THEN** it **MUST** name the file-by-file procedure and no recursive delete.

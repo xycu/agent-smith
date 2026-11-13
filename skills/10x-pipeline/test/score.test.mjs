@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, init, next, run, writeOverride, writeResult, writeReview, planText, readMetaFile,
   readLogEntries, readReportFile, gitAvailable, gitEnv, gitInit, commitFiles,
+  ruleTail,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -81,7 +82,7 @@ test("score data: prompts.score resolves through the router", () => {
   const res = init(project, "fix typo");
   assert.equal(res.status, 0, res.stdout);
   const guide = fs.readFileSync(path.join(PROMPTS_DIR, "score.md"), "utf8").trim().replaceAll("{id}", "demo");
-  assert.equal(res.json.prompt, `Score the complexity of change demo before it is planned. Goal: fix typo\n${guide}\n\n${SUFFIX}`);
+  assert.equal(res.json.prompt, `Score the complexity of change demo before it is planned. Goal: fix typo\n${guide}\n\n${ruleTail(SUFFIX)}`);
 });
 
 test("score data: prompts/score.md is listed as wired", () => {
@@ -107,7 +108,8 @@ test("score data: scorer prompt carries the rules and a four-level rubric per fa
   has((l) => l.includes("signals.rigor") && l.includes("**MUST NOT**"), "never adds signals.rigor");
   has((l) => l.includes("needsHuman") && l.includes("goal is empty"), "needsHuman only for an empty goal");
   has((l) => l.includes("lower `confidence` instead of lowering"), "unknowns lower confidence, not a score");
-  has((l) => l.includes("generic unattended rules disagree") && l.includes("**MUST** win"), "precedence over the suffix");
+  // The precedence over the generic defaults lives once, in the always-true rules/top.md (ADR-023).
+  assert.doesNotMatch(text, /generic unattended\s+rules/, "the generic precedence line is back in score.md");
   // The rubric table: one row per factor with four non-empty, distinct levels.
   const factors = [...policy.score.factors.cognitive, ...policy.score.factors.execution];
   for (const factor of factors) {
