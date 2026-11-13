@@ -1,10 +1,10 @@
 ---
 change_id: squash-merge-pr-title-lint
 title: Squash-only merging: lint the PR title, fix run PR titles, update the docs
-status: impl_reviewed
+status: archived
 created: 2026-11-13
 updated: 2026-11-13
-archived_at: null
+archived_at: 2026-11-13T01:31:37Z
 ---
 
 ## Notes
