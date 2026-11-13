@@ -26,6 +26,10 @@ test("every job of ci.yml stops after 15 minutes", () => {
   for (const block of blocks) assert.equal(block.match(/^ {4}timeout-minutes: 15$/gm)?.length, 1);
 });
 
+test("the job of pr-title.yml stops after 15 minutes", () => {
+  assert.equal(read("pr-title.yml").match(/^ {4}timeout-minutes: 15$/gm)?.length, 1);
+});
+
 test("release.yml stays off self-hosted runners", () => {
   assert.doesNotMatch(read("release.yml"), /self-hosted/);
 });

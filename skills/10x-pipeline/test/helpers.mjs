@@ -9,11 +9,13 @@ import { removeTree } from "../scripts/remove-tree.mjs";
 
 export const SPAWN_TIMEOUT_MS = 120000;
 
-// A spawn that timed out or could not start fails the calling test with the command in the message.
+// A spawn that timed out, could not start or was killed by a signal fails the calling test with the command in the message.
 function throwOnSpawnError(res, label, timeout) {
-  if (!res.error) return;
-  if (res.error.code === "ETIMEDOUT") throw new Error(`${label} timed out after ${timeout} ms`);
-  throw new Error(`${label} could not run: ${res.error.message}`);
+  if (res.error) {
+    if (res.error.code === "ETIMEDOUT") throw new Error(`${label} timed out after ${timeout} ms`);
+    throw new Error(`${label} could not run: ${res.error.message}`);
+  }
+  if (res.signal) throw new Error(`${label} was killed by ${res.signal}`);
 }
 
 const created = [];

@@ -18,7 +18,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `override-json.test.mjs` | a project override that does not parse, or is not an object, halts every command with the file name; a missing file is no override |
 | `file-guard.test.mjs` | `guardedStat`, `readGuarded` and `planFileTokens` of `state.mjs`, and two symlink cases of their callers (a symlinked score file, a symlinked evidence file); calls the modules directly |
 | `provenance.test.mjs` | run provenance: the record in `meta.json`, hash stability, drift, legacy runs, `compare` warnings. A test that changes a plugin file copies the plugin tree to a scratch directory and spawns the copy's `route.mjs`; it never edits a repository file |
-| `helpers-timeout.test.mjs` | the `run` and `git` helpers of `helpers.mjs` time out and throw a clear error naming the command; the fast path keeps its return shape |
+| `helpers-timeout.test.mjs` | the `run` and `git` helpers of `helpers.mjs` time out or die on a signal and throw a clear error naming the command; the fast path keeps its return shape |
 
 ## Pre-plan steps and loops
 
@@ -100,7 +100,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | --- | --- |
 | `agents-md-no-imports.test.mjs` | `AGENTS.md`, and `CLAUDE.md` when present, has no `@path` import outside a code span |
 | `agents-md-size.test.mjs` | `AGENTS.md` stays at or under 12288 bytes; new detail goes into the index files |
-| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` has `timeout-minutes: 15`, and that `release.yml` stays hosted |
+| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, and that `release.yml` stays hosted |
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects (no `Merge ` exemption), range mode with a real merge commit, title mode, CLI exit codes |
 | `pr-title-workflow.test.mjs` | `.github/workflows/pr-title.yml` as text: the four `types`, no `pull_request_target`, concurrency group by PR number, title passed through `env:`, name not `CI`; `ci.yml` has no `edited` (ADR-008, Amendment 2) |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |

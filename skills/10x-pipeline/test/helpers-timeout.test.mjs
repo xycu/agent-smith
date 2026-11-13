@@ -21,6 +21,12 @@ test("run throws a clear error when the script outlives the timeout", () => {
   assert.ok(Date.now() - start < 10000);
 });
 
+test("run throws a clear error when the script is killed by a signal", { skip: process.platform === "win32" }, () => {
+  const project = makeProject();
+  const script = writeScript(project, 'process.kill(process.pid, "SIGKILL");\n');
+  assert.throws(() => run(project, ["status", "x"], { script, timeout: 5000 }), /route\.mjs status x was killed by SIGKILL/);
+});
+
 test("run still returns the result of a fast script", () => {
   const project = makeProject();
   const script = writeScript(project, 'console.log(JSON.stringify({ ok: true }));\n');
