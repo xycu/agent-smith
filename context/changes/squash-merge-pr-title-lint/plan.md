@@ -328,9 +328,9 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [x] 1.1 commit-lint tests pass: `node --test tools/test/commit-lint.test.mjs`
-- [x] 1.2 Title mode accepts a conventional title and rejects `Update stuff`
-- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 commit-lint tests pass: `node --test tools/test/commit-lint.test.mjs` — 1d8b47a
+- [x] 1.2 Title mode accepts a conventional title and rejects `Update stuff` — 1d8b47a
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 1d8b47a
 
 #### Manual
 
@@ -340,10 +340,10 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [ ] 2.1 New and widened workflow tests pass: `node --test tools/test/pr-title-workflow.test.mjs tools/test/ci-runner.test.mjs`
-- [ ] 2.2 Action pins hold for the new file: `node --test tools/test/workflow-pins.test.mjs`
-- [ ] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.4 `pr-title.yml` holds exactly two pinned actions
+- [x] 2.1 New and widened workflow tests pass: `node --test tools/test/pr-title-workflow.test.mjs tools/test/ci-runner.test.mjs`
+- [x] 2.2 Action pins hold for the new file: `node --test tools/test/workflow-pins.test.mjs`
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.4 `pr-title.yml` holds exactly two pinned actions
 
 #### Manual
 

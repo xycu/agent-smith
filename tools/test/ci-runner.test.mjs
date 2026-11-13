@@ -43,3 +43,15 @@ test("the uid guard command fails for uid 0 and passes for another uid", { skip:
   assert.match(root.stdout, /::error::/);
   assert.equal(run(1000).status, 0);
 });
+
+test("pr-title.yml has one runs-on line equal to the ci.yml expression", () => {
+  const runsOn = read("pr-title.yml").split("\n").map((l) => l.trim()).filter((l) => l.startsWith("runs-on:"));
+  assert.deepEqual(runsOn, [EXPECTED]);
+});
+
+test("the first step of pr-title.yml is the uid guard, before the commit-lint step", () => {
+  const wf = read("pr-title.yml");
+  const first = wf.split("\n").find((l) => l.trimStart().startsWith("- "));
+  assert.match(first, /name: Refuse to run as root \(ADR-020\)/);
+  assert.ok(wf.indexOf('test "$(id -u)" -ne 0') < wf.indexOf("commit-lint"));
+});
