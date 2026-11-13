@@ -227,7 +227,7 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Manual
 
-- [ ] 1.4 In a scratch project, `init <id> --goal x --pr-comment` then `status <id>` shows `prComment: true`, and `meta.json` holds `"prComment": true`.
+- [x] 1.4 In a scratch project, `init <id> --goal x --pr-comment` then `status <id>` shows `prComment: true`, and `meta.json` holds `"prComment": true`. — evidence: evidence/command-init-status-prcomment.txt
 
 ### Phase 2: Skills drop the task and read the router
 
@@ -239,7 +239,7 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Manual
 
-- [ ] 2.4 Read Start and the `done`, `archive` and `halt` branches of both skills: no sentence still refers to a task, a task subject or `task list unavailable`, and step numbers in Start run 1 to 4.
+- [x] 2.4 Read Start and the `done`, `archive` and `halt` branches of both skills: no sentence still refers to a task, a task subject or `task list unavailable`, and step numbers in Start run 1 to 4. — evidence: evidence/judgment-skills-no-task-wording.md
 
 ### Phase 3: Docs, ADR amendment and settings
 
@@ -252,4 +252,4 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Manual
 
-- [ ] 3.5 Read the ADR-003 amendment next to the original "### PR comment" text: the original is unchanged and the amendment states what changed and why.
+- [x] 3.5 Read the ADR-003 amendment next to the original "### PR comment" text: the original is unchanged and the amendment states what changed and why. — evidence: evidence/judgment-adr003-amendment.md
