@@ -43,5 +43,17 @@
   "rigor": {
     "level": "thorough",
     "by": "signals, hot paths .github/workflows/ci.yml, skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/flow.mjs +4"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.6 The plugin installed from this branch runs both chains with prompts that end with the rules/top.md rules",
+      "3.7 The owner records the order in WAVES.md on main and notes the moved paths in the open changes"
+    ],
+    "manualNotProved": [
+      "3.6 The plugin installed from this branch runs both chains with prompts that end with the rules/top.md rules — not proved: needs the plugin installed from this branch and live /agent-smith:openspec-pipeline and /agent-smith:10x-pipeline runs in scratch projects; not possible in a subagent without a live pipeline run",
+      "3.7 The owner records the order in WAVES.md on main and notes the moved paths in the open changes — not proved: owner action on main (WAVES.md and change.md notes in other changes); outside this run root and after merge"
+    ]
   }
 }
