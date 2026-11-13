@@ -88,7 +88,7 @@ The PR comment step now runs from the run root and names the pull request with `
 
 **GIVEN** the highest-ranked commit carries `!` **WHEN** the title is built **THEN** the title **MUST** carry `!` after the scope. A `!` on a lower-ranked commit is not carried; the owner edits the title for that rare case.
 
-**GIVEN** `git log` fails **WHEN** the title is built **THEN** the script **MUST** fall back to the untyped `titleFor` result and **MUST NOT** fail; the title check of `pr-title.yml` then flags it.
+**GIVEN** `git log` fails **WHEN** the title is built **THEN** the script **MUST** fall back to the untyped `titleFor` result and never fail; the title check of `pr-title.yml` then flags it.
 
 **GIVEN** a pull request of the run branch exists in any state **WHEN** the script runs again **THEN** it **MUST NOT** change its title: the title is set once, at creation, and an owner edit stays. A fix added after review is not re-typed.
 
