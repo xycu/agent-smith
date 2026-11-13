@@ -10,7 +10,7 @@
 - Per-test times from CI (change.md): longest legal path 25.0 s, failure path fits 2.1, lean runs manual-verify 1.8, raised cap 27.9, scorer failures skip 26.5, confirm rounds ship off 25.2, each confirm round adds 62.5, confirm round with shipped budgetDelta 28.9.
 - `helpers.mjs` and `phase-helpers.mjs` are the pattern: plain `.mjs` modules beside the tests, imported by several `*.test.mjs` files. CI and the documented command glob `*.test.mjs` only, so a helper not named `*.test.mjs` is not run as a test.
 - `after(cleanupAll)` is registered per test file; `makeProject` scratch folders are per process, so splitting needs the hook in every new file.
-- Only `skills/10x-pipeline/test/README.md:40` indexes the file (`AGENTS.md` no longer lists test files; `agents-md-slim` landed). ADR-011:97, ADR-012:74,165 and archived plans name `budget-executors.test.mjs`; that file keeps its name and its first three tests, so those references stay true. `ladder-fable-rung/change.md:34` expects `budget-executors.test.mjs` unchanged; its tests stay in place and unedited.
+- Only `skills/10x-pipeline/test/README.md:40` indexes the file (`AGENTS.md` no longer lists test files; `agents-md-slim` landed). ADR-011:97, ADR-012:74,165 and archived plans name `budget-executors.test.mjs`; that file keeps its name and its first three tests, so those references stay true. `ladder-fable-rung/change.md:34` (a live change) expects `budget-executors.test.mjs` and the tier literals of the characterized loop tests to stay unchanged. After the split five of the eight tests live in the three new files, so that check reads the four `budget-*.test.mjs` files (glob `skills/10x-pipeline/test/budget-*.test.mjs`) and their unedited test bodies; the file named there keeps three tests. Mention this in the PR so the ladder-fable-rung owner reads the glob.
 
 ## Desired End State
 
@@ -47,7 +47,7 @@ Create `budget-helpers.mjs` with everything above the test bodies, and make `bud
 
 **Intent**: Record the pre-change test names and counts so the end state can be compared mechanically.
 
-**Contract**: Run the full suite once on the unmodified tree with the spec reporter; save the list of the eight budget test names and the `# tests` / `# pass` / `# skip` totals in the scratchpad (not in the repository).
+**Contract**: Run the full suite once on the unmodified tree with the spec reporter; save the list of the eight budget test names and the `# tests` / `# pass` / `# skip` totals in the scratchpad (not in the repository). Also record `BASE=$(git rev-parse HEAD)` and save `git show $BASE:skills/10x-pipeline/test/budget-executors.test.mjs` as a scratchpad copy, which the body comparison of Phase 2 uses instead of a relative `HEAD~1`.
 
 #### 2. Helper module
 
@@ -55,7 +55,7 @@ Create `budget-helpers.mjs` with everything above the test bodies, and make `bud
 
 **Intent**: Hold the fixtures, the plan renderer, both walkers and the shared derivations, moved verbatim from `budget-executors.test.mjs` lines 16-228 and 346-410 (everything except `test(...)` calls, `after(cleanupAll)` and `RAISED_EXTRA`).
 
-**Contract**: Plain ES module, header comment in the style of `phase-helpers.mjs`, no `test()` or `after()` calls (so importing it registers nothing). Exports: `policy`, `noGit`, `CRITICAL`, `CLEAN`, `SOUND`, `TABLE`, `FIXTURES`, `pairs`, `budgetOf`, `ranOf`, `statusOf`, `longScript`, `walkFixture`, `longest`, `walkAware`, `confirmScript`, `confirmOverride`, `confirmCount`. Everything else stays module-private. `SKILL_DIR` resolves from the helper's own `import.meta.url`, which is the same directory, so `policy.json` loads unchanged. Imports from `./helpers.mjs` and `./phase-helpers.mjs` only what the moved code uses.
+**Contract**: Plain ES module, header comment in the style of `phase-helpers.mjs`, no `test()` or `after()` calls (so importing it registers nothing). The comment blocks inside lines 346-410 (the section header at 346-349 and the `confirmOverride` comment) move into the helper with that code and are not repeated in a test file. Exports: `policy`, `noGit`, `CRITICAL`, `CLEAN`, `SOUND`, `TABLE`, `FIXTURES`, `pairs`, `budgetOf`, `ranOf`, `statusOf`, `longScript`, `walkFixture`, `longest`, `walkAware`, `confirmScript`, `confirmOverride`, `confirmCount`. Everything else stays module-private. `SKILL_DIR` resolves from the helper's own `import.meta.url`, which is the same directory, so `policy.json` loads unchanged. Imports from `./helpers.mjs` and `./phase-helpers.mjs` only what the moved code uses.
 
 #### 3. Original test file
 
@@ -111,9 +111,9 @@ Each file: a first-line comment saying which part of the budget it covers, the "
 
 **File**: `skills/10x-pipeline/test/README.md`
 
-**Intent**: Replace the single `budget-executors.test.mjs` row (line 40) with four rows, one per test file, each stating its scope, and add a `budget-helpers.mjs` line to the `## Helpers` list next to the `phase-helpers.mjs` line.
+**Intent**: Replace the single `budget-executors.test.mjs` row (line 40) with four rows, one per test file, each stating its scope, add a `budget-helpers.mjs` row beside the `phase-helpers.mjs` row (line 41), and extend the `phase-helpers.mjs` bullet of the `## Helpers` list (line 94).
 
-**Contract**: Rows go in the `## Phase executors` table; keep the file names in backticks as the other rows do. The helper bullet names what it holds (fixtures, plan renderer, `walkFixture`, `walkAware`) and that it registers no tests.
+**Contract**: Rows go in the `## Phase executors` table; keep the file names in backticks as the other rows do. Follow the `phase-helpers.mjs` pattern: a `budget-helpers.mjs` table row after the four test rows (`helper: fixtures, plan renderer, walkFixture and walkAware; registers no tests`), and change the `## Helpers` bullet at line 94 to "`phase-helpers.mjs`, `budget-helpers.mjs` and `openspec-helpers.mjs`: see their groups above." instead of a separate description.
 
 ### Success Criteria:
 
@@ -121,7 +121,7 @@ Each file: a first-line comment saying which part of the budget it covers, the "
 
 - Each new file runs alone and passes: `node --test skills/10x-pipeline/test/budget-executors.test.mjs skills/10x-pipeline/test/budget-pool-score.test.mjs skills/10x-pipeline/test/budget-confirm-shipped.test.mjs skills/10x-pipeline/test/budget-confirm-rounds.test.mjs`
 - The same eight test names appear once each, compared with the saved baseline: `node --test --test-reporter=spec skills/10x-pipeline/test/budget-*.test.mjs`
-- Test bodies are unchanged: the concatenation of the `test(` blocks of the four files equals the baseline's eight blocks (diff of `git show HEAD~1:skills/10x-pipeline/test/budget-executors.test.mjs` against the four files, ignoring moved lines, shows no changed line inside a body)
+- Test bodies are unchanged: every non-blank line of the original from line 230 on appears in the four test files or the helper, and no line is added to a body: `diff <(sed -n '230,$p' <saved-copy-of-BASE-file> | grep -v '^$' | sort -u) <(cat skills/10x-pipeline/test/budget-*.mjs | grep -v '^$' | sort -u) | grep '^<'` prints nothing (`<saved-copy-of-BASE-file>` is the scratchpad copy from step 1.1; the `HEAD~1` of a run branch with step commits is not the baseline)
 - The full suite passes with the same total number of tests as the baseline: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - The index names every new file: `grep -c "budget-" skills/10x-pipeline/test/README.md` and each of the four test files plus `budget-helpers.mjs` appears in it
 - No recursive deletes or other rules broken: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs tools/test/*.test.mjs`
@@ -130,7 +130,7 @@ Each file: a first-line comment saying which part of the budget it covers, the "
 
 - After the PR runs in CI, the `duration_ms` of the suite step is under 90 s (the baseline is 205.9 s, run 43134692634); note both figures in the PR. If the runner has fewer cores than four test files plus the other files need, the figure can stay higher; report it and the runner's core count.
 
-**Implementation Note**: Commit as `test(budget-test-file-split): split the budget executors tests into four files`. Pause for the manual CI timing check after the PR run.
+**Implementation Note**: Commit as `test(budget-test-file-split): split the budget executors tests into four files`. Row 2.7 needs the PR's CI run, which exists only after the run ends and opens its pull request, so in an unattended run it stays pending (the `manual-verify` step lists it as not proved and the run goes on); the owner ticks it after reading the CI log and notes both figures in the PR.
 
 ---
 
