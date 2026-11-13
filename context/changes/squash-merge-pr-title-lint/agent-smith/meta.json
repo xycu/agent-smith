@@ -43,5 +43,21 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "5.1 A bad PR title gives a red `PR title` check that does not block the merge, and fixing the title turns the new run green",
+      "5.2 A title edit does not cancel the running `test` job and starts no second `test` run",
+      "5.3 The title of this PR is conventional before the squash merge",
+      "5.4 After the squash merge, the subject and body on `main` are read and any difference from the documented shape is recorded in Amendment 2"
+    ],
+    "manualNotProved": [
+      "5.1 A bad PR title gives a red `PR title` check that does not block the merge, and fixing the title turns the new run green — not proved: needs a live GitHub pull request and check run; 'gh pr list --head agent-smith/squash-merge-pr-title-lint --state all' returns [] (no PR yet); opening or editing a PR is external",
+      "5.2 A title edit does not cancel the running `test` job and starts no second `test` run — not proved: needs live GitHub Actions runs on a PR; no PR exists yet",
+      "5.3 The title of this PR is conventional before the squash merge — not proved: no PR exists yet, so there is no PR title to read",
+      "5.4 After the squash merge, the subject and body on `main` are read and any difference from the documented shape is recorded in Amendment 2 — not proved: needs the squash merge on main to happen first"
+    ]
   }
 }
