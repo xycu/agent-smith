@@ -31,7 +31,7 @@ Method: reviewed directly (no sub-agents: the run forbids nested subagents). Dif
 - **Location**: AGENTS.md:59
 - **Detail**: Phase 2 Intent says to also state in the `.claude-plugin/` Layout bullet that the plugin entry carries no `version`. The bullet still said only "`version` is set only by the release PR". The Contract and the Releases bullet were met, so this is a small omission.
 - **Fix**: Append "and the `marketplace.json` plugin entry carries none" to the bullet (AGENTS.md stays far below 12288 bytes).
-- **Decision**: APPLIED — fix commit on this branch (`fix: state in the AGENTS.md layout bullet that the plugin entry carries no version`)
+- **Decision**: APPLIED — commit b5fe956 (`fix: state in the AGENTS.md layout bullet that the plugin entry carries no version`)
 
 ### F2 — Progress row 2.5 is open
 
