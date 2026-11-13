@@ -651,6 +651,14 @@ export function globToRegex(glob) {
   return new RegExp(`^${re}$`);
 }
 
+// The churn exclude globs as regexes: the override's list, else the shipped one, else none. Independent of the other churn keys.
+export function churnExcludes(policy) {
+  let exclude = policy.risk?.churn?.exclude;
+  if (!Array.isArray(exclude)) exclude = readJson(path.join(SKILL_DIR, "policy.json"), {}).risk?.churn?.exclude;
+  if (!Array.isArray(exclude)) exclude = [];
+  return exclude.filter((g) => typeof g === "string").map(globToRegex);
+}
+
 // Validated churn settings, or null when the block is unusable. A bad exclude falls back to the shipped list.
 export function churnConfig(policy) {
   const c = policy.risk?.churn;
@@ -659,10 +667,7 @@ export function churnConfig(policy) {
   if (typeof c.since !== "string" || !SINCE_RE.test(c.since)) return null;
   if (!posInt(c.maxCommits) || !posInt(c.minCommitsInWindow) || !posInt(c.hotMinCommits)) return null;
   if (!Number.isFinite(c.hotPercentile) || c.hotPercentile <= 0 || c.hotPercentile > 100) return null;
-  let exclude = c.exclude;
-  if (!Array.isArray(exclude)) exclude = readJson(path.join(SKILL_DIR, "policy.json"), {}).risk?.churn?.exclude;
-  if (!Array.isArray(exclude)) exclude = [];
-  return { ...c, exclude: exclude.filter((g) => typeof g === "string").map(globToRegex) };
+  return { ...c, exclude: churnExcludes(policy) };
 }
 
 // Commits per path from `git log`, or null when git fails. `since` null means all history.
