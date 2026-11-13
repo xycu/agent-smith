@@ -1,10 +1,10 @@
 ---
 change_id: attach-result-persist-first
 title: Persist the step result in run.jsonl before deleting last-result.json
-status: impl_reviewed
+status: archived
 created: 2026-11-12
-updated: 2026-11-12
-archived_at: null
+updated: 2026-11-13
+archived_at: 2026-11-13T11:26:26Z
 ---
 
 ## Notes
