@@ -56,7 +56,7 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 
 ## Layout
 
-- `.claude-plugin/` — `plugin.json` and `marketplace.json`; keep `name` and `description` aligned between the two and with `README.md`. `version` is set only by the release PR.
+- `.claude-plugin/` — `plugin.json` and `marketplace.json`; keep `name` and `description` aligned between the two and with `README.md`. `version` is set only by the release PR, and the `marketplace.json` plugin entry carries none.
 - `skills/10x-pipeline/` — `SKILL.md` (the orchestrator loop), `policy.json` (ladder, tiers, escalation, limits, prompt templates) and `baseline-policy.json` (the baseline arm of `compare`; data the user copies, the router does not read it).
 - `skills/openspec-pipeline/SKILL.md` — the OpenSpec chain (ADR-013): the same loop on the shared router; its `## Anti-stall rules` section equals the one of the 10x skill.
 - `skills/10x-pipeline/scripts/` — the router modules and the standalone scripts (`open-pr.mjs`, `pr-comment.mjs`, `pr-common.mjs`, `remove-tree.mjs`); the import order is under Coding Style.
