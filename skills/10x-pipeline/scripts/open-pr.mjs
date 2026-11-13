@@ -212,7 +212,7 @@ function countAhead(remote, base) {
   for (const ref of [`refs/remotes/${remote}/${base}`, `refs/heads/${base}`]) {
     if (runGit(["rev-parse", "-q", "--verify", `${ref}^{commit}`]).status !== 0) continue;
     const count = Number(gitOut(["rev-list", "--count", `${ref}..HEAD`]));
-    if (Number.isInteger(count)) return { count };
+    if (Number.isInteger(count)) return { count, ref };
   }
   return { skip: `base branch ${base} not found on ${remote} or locally` };
 }
@@ -311,6 +311,22 @@ export function titleFor(id, text) {
   return id;
 }
 
+// Highest first. A copy of TYPES in tools/commit-lint.mjs, in rank order (open-pr.test.mjs checks parity).
+const TYPE_RANK = ["feat", "fix", "perf", "revert", "refactor", "build", "ci", "test", "docs", "chore"];
+const SUBJECT_RE = new RegExp(`^(${TYPE_RANK.join("|")})(?:\\([^()\\s]*\\))?(!)?: \\S`);
+
+// Squash merging makes the pull request title the commit subject on main (ADR-008, Amendment 2): `<type>(<id>): <title>`,
+// where type is the highest-ranked Conventional Commit type among the subjects, chore when none parses. A "!" is taken
+// from the highest-ranked subject only (the first one on a tie). Merge, Revert "..." and free-text subjects are ignored.
+export function prTitleFor(id, text, subjects) {
+  let best = null;
+  for (const subject of subjects ?? []) {
+    const m = SUBJECT_RE.exec(subject);
+    if (m && (best === null || TYPE_RANK.indexOf(m[1]) < TYPE_RANK.indexOf(best.type))) best = { type: m[1], bang: m[2] ?? "" };
+  }
+  return `${best?.type ?? "chore"}(${id})${best?.bang ?? ""}: ${titleFor(id, text)}`;
+}
+
 export function markerFor(id) {
   return `<!-- agent-smith:pr change=${id} -->`;
 }
@@ -328,7 +344,7 @@ export function buildBody(id, reportText, reportFile) {
   return capBody(`${markerFor(id)}\n\n${head}\n`);
 }
 
-function openPullRequest(opts, branch, base, repo) {
+function openPullRequest(opts, branch, base, repo, ref) {
   const list = runGh(["pr", "list", "--repo", repo, "--head", branch, "--state", "all", "--json", "number,url,state"], opts.timeoutMs);
   if (list.status !== 0 || list.missing || list.timedOut) return prSkip(ghFailure(list, "gh pr list"));
   let prs = null;
@@ -341,7 +357,10 @@ function openPullRequest(opts, branch, base, repo) {
   if (prs.length > 0) {
     return prSkip(`pull request is ${prs[0].state}`, { url: prs[0].url, state: prs[0].state });
   }
-  const title = titleFor(opts.id, readFile(path.join(changeDir(opts), "change.md")));
+  const changeText = readFile(path.join(changeDir(opts), "change.md"));
+  const log = runGit(["log", "--format=%s", `${ref}..HEAD`]);
+  // If git log fails the title stays untyped and the title check flags it; this never fails the script.
+  const title = log.status === 0 ? prTitleFor(opts.id, changeText, log.stdout.split("\n")) : titleFor(opts.id, changeText);
   const file = reportPath(opts);
   const body = buildBody(opts.id, readFile(file), file);
   return withTempDir("as-opr-", (dir) => {
@@ -407,7 +426,7 @@ function run(opts) {
   if (!repo) {
     return result({ ...pushed, pr: prSkip(`remote ${opts.remote} is not a github.com repository`) });
   }
-  const pr = openPullRequest(opts, branch, base, repo);
+  const pr = openPullRequest(opts, branch, base, repo, ahead.ref);
   // A MERGED or CLOSED pull request is a decision a human made: no manual command reopens it.
   return result({ ...pushed, pr, manual: pr.action === "skipped" && pr.state === null ? manualPr(repo, branch, base) : null });
 }

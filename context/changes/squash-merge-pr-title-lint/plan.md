@@ -340,10 +340,10 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [x] 2.1 New and widened workflow tests pass: `node --test tools/test/pr-title-workflow.test.mjs tools/test/ci-runner.test.mjs`
-- [x] 2.2 Action pins hold for the new file: `node --test tools/test/workflow-pins.test.mjs`
-- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.4 `pr-title.yml` holds exactly two pinned actions
+- [x] 2.1 New and widened workflow tests pass: `node --test tools/test/pr-title-workflow.test.mjs tools/test/ci-runner.test.mjs` — f34dcc8
+- [x] 2.2 Action pins hold for the new file: `node --test tools/test/workflow-pins.test.mjs` — f34dcc8
+- [x] 2.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — f34dcc8
+- [x] 2.4 `pr-title.yml` holds exactly two pinned actions — f34dcc8
 
 #### Manual
 
@@ -353,9 +353,9 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [ ] 3.1 open-pr tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs`
-- [ ] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.3 No recursive delete introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 3.1 open-pr tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs`
+- [x] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.3 No recursive delete introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
 
 #### Manual
 

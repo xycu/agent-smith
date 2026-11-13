@@ -14,7 +14,8 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { buildBody, markerFor, parseRepo, pathsToStage, titleFor } from "../scripts/open-pr.mjs";
+import { buildBody, markerFor, parseRepo, pathsToStage, prTitleFor, titleFor } from "../scripts/open-pr.mjs";
+import { TYPES, lintSubject } from "../../../tools/commit-lint.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/open-pr.mjs");
@@ -214,7 +215,7 @@ test("create: the branch lands on the bare remote and gh pr create gets --repo, 
   const [list, create] = ghCalls(w);
   assert.deepEqual(list, ["pr", "list", "--repo", "acme/demo", "--head", "agent-smith/demo", "--state", "all", "--json", "number,url,state"]);
   assert.equal(create.length, 12);
-  assert.deepEqual(create.slice(0, 11), ["pr", "create", "--repo", "acme/demo", "--head", "agent-smith/demo", "--base", "main", "--title", "Demo title", "--body-file"]);
+  assert.deepEqual(create.slice(0, 11), ["pr", "create", "--repo", "acme/demo", "--head", "agent-smith/demo", "--base", "main", "--title", "chore(demo): Demo title", "--body-file"]);
   assert.equal(ghCalls(w).length, 2);
   const push = gitCalls(w).filter((a) => a[0] === "push");
   assert.deepEqual(push, [["push", "origin", "refs/heads/agent-smith/demo:refs/heads/agent-smith/demo"]]);
@@ -544,7 +545,7 @@ test("openspec chain: default report under openspec/changes and the id as title"
   const res = runScript(w, ["demo", "--chain", "openspec"]);
   assert.equal(res.json.pr.action, "created", res.stdout);
   const create = ghCalls(w).find((a) => a[1] === "create");
-  assert.equal(create[9], "demo");
+  assert.equal(create[9], "chore(demo): demo");
   assert.ok(capturedBody(w).includes("Outcome: done"));
 });
 
@@ -557,7 +558,7 @@ test("--report names the archived report and its change folder holds the title",
   const res = runScript(w, ["demo", "--report", path.join(archived, "agent-smith/report.md")]);
   assert.equal(res.json.committed, true);
   const create = ghCalls(w).find((a) => a[1] === "create");
-  assert.equal(create[9], "Archived title");
+  assert.equal(create[9], "chore(demo): Archived title");
   assert.ok(capturedBody(w).includes("Outcome: archived"));
 });
 
@@ -588,6 +589,43 @@ test("title: frontmatter title, quotes stripped, else the id", () => {
   assert.equal(titleFor("demo", "---\ntitle:\n---\n"), "demo");
   assert.equal(titleFor("demo", "title: not frontmatter\n"), "demo");
   assert.equal(titleFor("demo", null), "demo");
+});
+
+test("run PR title: the highest-ranked type of the run commits, bookkeeping only gives chore", { skip }, () => {
+  const w = world();
+  commitFile(w, w.wt, "src/a.txt", "a\n", "fix(demo): repair a");
+  const res = runScript(w);
+  assert.equal(res.json.pr.action, "created", res.stdout);
+  assert.equal(ghCalls(w).find((a) => a[1] === "create")[9], "fix(demo): Demo title");
+});
+
+test("run PR title: if git log fails the title is the untyped titleFor result", { skip }, () => {
+  const w = world();
+  fs.writeFileSync(path.join(w.bin, "git"), `#!/bin/sh\ncase "$1" in log) exit 1;; esac\nexec "${REAL_GIT}" "$@"\n`, { mode: 0o755 });
+  const res = runScript(w);
+  assert.equal(res.json.pr.action, "created", res.stdout);
+  assert.equal(ghCalls(w).find((a) => a[1] === "create")[9], "Demo title");
+});
+
+test("prTitleFor: rank, bang, ignored subjects, chore fallback, lint-valid results", () => {
+  const t = (subjects) => prTitleFor("demo", CHANGE_MD, subjects);
+  assert.equal(t(["chore(demo): a", "feat(demo): b"]), "feat(demo): Demo title");
+  assert.equal(t(["docs(demo): a", "fix(demo): b"]), "fix(demo): Demo title");
+  assert.equal(t(["chore(demo): a"]), "chore(demo): Demo title");
+  assert.equal(t(["chore(demo): a", "feat(demo)!: b"]), "feat(demo)!: Demo title");
+  assert.equal(t(["feat(demo): a", "feat(demo)!: b"]), "feat(demo): Demo title");
+  assert.equal(t(["fix(demo)!: a", "feat(demo): b"]), "feat(demo): Demo title");
+  assert.equal(t(["Merge branch 'main' into x", 'Revert "feat: x"', "wip", "feat:x", "feature: y", ""]), "chore(demo): Demo title");
+  assert.equal(t([]), "chore(demo): Demo title");
+  assert.equal(prTitleFor("demo", null, ["fix: x"]), "fix(demo): demo");
+  for (const subjects of [[], ["feat(demo)!: b"], ["revert: x", "docs: y"], ["build: z"]]) assert.equal(lintSubject(t(subjects)), null);
+});
+
+test("prTitleFor: the type list is the one of tools/commit-lint.mjs", () => {
+  for (const type of TYPES) assert.equal(prTitleFor("demo", null, [`${type}: x`]), `${type}(demo): demo`);
+  const src = fs.readFileSync(SCRIPT, "utf8");
+  const list = /const TYPE_RANK = \[(.*)\];/.exec(src)[1].split(",").map((x) => x.trim().replaceAll('"', ""));
+  assert.deepEqual([...list].sort(), [...TYPES].sort());
 });
 
 test("repo: https, ssh and scp forms of github.com parse; other hosts and garbage do not", () => {
