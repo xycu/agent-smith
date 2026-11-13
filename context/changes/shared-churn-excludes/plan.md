@@ -9,7 +9,7 @@
 - `churnConfig` (`skills/10x-pipeline/scripts/state.mjs:655-667`) returns `null` when `since`, `maxCommits`, `minCommitsInWindow`, `hotMinCommits` or `hotPercentile` is malformed. Otherwise it uses the override's `exclude` when it is an array, else reads the shipped list from `policy.json` (line 663), else `[]`, filters to strings and maps `globToRegex`.
 - `evidenceExcludes` (`skills/10x-pipeline/scripts/steps.mjs:37-42`) calls `churnConfig`; on `null` it reads the same file and key again and builds the regexes itself. So with an invalid `since` and a valid custom `exclude`, the commit-evidence check of `commitEvidence` (steps.mjs:58) uses the shipped list and ignores the override.
 - `evidenceExcludes` is the only user of `SKILL_DIR` and `readJson` in steps.mjs besides the import line (verified by grep: lines 4 and 40 only). `path` stays: it is used at lines 84, 158, 325 and others.
-- `churnConfig` has two other callers inside state.mjs (`hotSet`, line 689); the risk path stays on `churnConfig`'s `null` rule for the other keys.
+- `churnConfig` has one other caller, `hotSet` (state.mjs:689), and no caller outside state.mjs; the risk path stays on `churnConfig`'s `null` rule for the other keys.
 - The merged policy (`deepMerge`, state.mjs:36-43) replaces arrays, so an override `exclude` replaces the shipped list.
 - Existing commit-evidence test: `strict verify git edge cases` in `skills/10x-pipeline/test/executors.test.mjs:235-282` covers the shipped list (docs, lockfile, change folder).
 
@@ -64,7 +64,7 @@ Move the exclude-glob fallback into one exported function and use it from both c
 
 **Intent**: Prove the commit-evidence check honours a custom `exclude` when another churn key is invalid. Add it as a new `test(...)` after `strict verify git edge cases`.
 
-**Contract**: Project from `strictProject({ policy: { risk: { churn: { since: "bogus", exclude: ["src/gen/**"] } } } })`; `tickAll`; `commitFiles(project, ["src/gen/out.mjs"])`; `finish(project).e.ok === false` (a commit touching only an excluded path is not code-commit evidence). Add a second commit of `src/real.mjs` in the same test and assert `ok === true`, so the exclusion is shown to be path specific. Skip with `{ skip: noGit }` like its neighbours. Before the change the first assertion fails (shipped list does not cover `src/gen/`).
+**Contract**: Project from `strictProject({ policy: { risk: { churn: { since: "bogus", exclude: ["src/gen/**"] } } } })`; `tickAll`; `commitFiles(project, ["src/gen/out.mjs"])`; `finish(project).e.ok === false` (a commit touching only an excluded path is not code-commit evidence). `finish` consumes the pending `implement` entry, so it runs once per project: for the path-specific half, build a second `strictProject` with the same policy, `tickAll`, `commitFiles(project2, ["src/real.mjs"])` and assert `finish(project2).e.ok === true` (the pattern of the `docs`, `odd` and `side` blocks in `strict verify git edge cases`), so the exclusion is shown to be path specific. Skip with `{ skip: noGit }` like its neighbours. Before the change the first assertion fails (shipped list does not cover `src/gen/`). Write this test first and run it red against the unchanged scripts before the edits to state.mjs and steps.mjs; row 1.1's command only shows green.
 
 ### Success Criteria:
 
