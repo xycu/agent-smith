@@ -167,7 +167,7 @@ None. 600000 is a ceiling; calls that finish sooner are unaffected.
 
 #### Manual
 
-- [ ] 1.5 The line reads clearly next to the three script path lines in both skills
+- [x] 1.5 The line reads clearly next to the three script path lines in both skills — evidence: evidence/judgment-1.5-skill-line.md
 
 ### Phase 2: Reference note and full suite
 
@@ -178,4 +178,4 @@ None. 600000 is a ceiling; calls that finish sooner are unaffected.
 
 #### Manual
 
-- [ ] 2.3 The bullet states the relation unambiguously and matches `policy.json` and `open-pr.mjs:17`
+- [x] 2.3 The bullet states the relation unambiguously and matches `policy.json` and `open-pr.mjs:17` — evidence: evidence/judgment-2.3-reference-bullet.md
