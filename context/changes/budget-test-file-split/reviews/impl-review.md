@@ -40,4 +40,4 @@
 - **Location**: context/changes/budget-test-file-split/plan.md (Phase 2, "Test bodies are unchanged" command)
 - **Detail**: The command compares base lines 230-end with the new files. Base lines 346-410 are the moved helper code, which now carries `export`, so four declarations (`confirmCount`, `confirmOverride`, `confirmScript`, `walkAware`) plus the `// ---- tests` header print as `<` lines. The command as written does not print nothing. The test bodies themselves are unchanged (verified by hand against lines 230-345 and 411-end).
 - **Fix**: Limit the comparison to the test-body ranges, or strip `export ` from the new files before comparing. Plan text only; no code change.
-- **Decision**: PENDING — the fix edits the plan's success criteria, which is outside the code and the implementation review's scope, and the owner decides whether to amend a plan whose phases are all done.
+- **Decision**: APPLIED — plan.md, Phase 2 "Test bodies are unchanged": the command now drops the `export ` prefix of the new files and the `// ----` section header of the base, and prints nothing against the base `a506d63` and the committed split (run by hand after the edit).
