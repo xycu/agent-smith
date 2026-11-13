@@ -328,9 +328,9 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [ ] 1.1 commit-lint tests pass: `node --test tools/test/commit-lint.test.mjs`
-- [ ] 1.2 Title mode accepts a conventional title and rejects `Update stuff`
-- [ ] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.1 commit-lint tests pass: `node --test tools/test/commit-lint.test.mjs`
+- [x] 1.2 Title mode accepts a conventional title and rejects `Update stuff`
+- [x] 1.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 
 #### Manual
 

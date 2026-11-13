@@ -56,7 +56,6 @@ test("valid subjects pass", () => {
     "chore(llm-complexity-scorer): x",
     "docs(adr): split ADR-007 rule lines",
     "revert: x",
-    "Merge branch 'main' into feature",
     'Revert "feat: x"',
   ]) {
     assert.equal(lintSubject(subject), null, subject);
@@ -64,7 +63,7 @@ test("valid subjects pass", () => {
 });
 
 test("invalid subjects fail", () => {
-  for (const subject of ["Update stuff", "feat:x", "feat(): x", "FEAT: x", "feat: ", "feature: x", "feat (x): y", "feat(Router): x", 'Revert "wip stuff"', 'Revert ""']) {
+  for (const subject of ["Update stuff", "feat:x", "feat(): x", "FEAT: x", "feat: ", "feature: x", "feat (x): y", "feat(Router): x", "Merge the two parsers into one", 'Revert "wip stuff"', 'Revert ""']) {
     assert.notEqual(lintSubject(subject), null, subject);
   }
 });
@@ -91,4 +90,25 @@ test("the CLI exits 2 on a missing argument, an empty range or a bad range", () 
   assert.equal(cli(dir, "HEAD..HEAD").status, 2);
   assert.equal(cli(dir, "nope..HEAD").status, 2);
   assert.equal(cli(dir, "--all").status, 2);
+});
+
+test("a real merge commit in the range is skipped", () => {
+  const dir = makeRepo(["feat: one"]);
+  git(dir, "switch", "-q", "-c", "side", "base");
+  git(dir, "commit", "-q", "--allow-empty", "-m", "fix: side");
+  git(dir, "merge", "-q", "--no-ff", "-m", "Merge branch 'main' into side", "main");
+  const run = cli(dir, "main..HEAD");
+  assert.equal(run.status, 0, run.stderr);
+});
+
+test("title mode exits 0, 1 or 2", () => {
+  const dir = makeRepo([]);
+  assert.equal(cli(dir, "--title", "feat(x): y").status, 0);
+  assert.equal(cli(dir, "--title", "Update stuff").status, 1);
+  assert.equal(cli(dir, "--title", "Merge the two parsers into one").status, 1);
+  assert.equal(cli(dir, "--title", "").status, 1);
+  assert.equal(cli(dir, "--title", "-x").status, 1);
+  assert.equal(cli(dir, "--title").status, 2);
+  const bad = cli(dir, "--title", "Update stuff");
+  assert.ok(bad.stderr.includes("Update stuff"), bad.stderr);
 });
