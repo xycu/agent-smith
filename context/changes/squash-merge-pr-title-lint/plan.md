@@ -101,7 +101,7 @@ A separate workflow lints the title with its own concurrency group, so a title e
 - `on.pull_request.types: [opened, edited, synchronize, reopened]`. Never `pull_request_target`.
 - `permissions: contents: read`.
 - `concurrency.group` keyed by `${{ github.event.pull_request.number }}`, `cancel-in-progress: true`; it must not use `github.ref` and so never shares a group with `ci.yml`.
-- One job, `runs-on` byte-identical to the expression of `ci.yml` (TrueNAS runner, hosted fallback for fork PRs; ADR-020). Steps: `actions/checkout` and `actions/setup-node` (Node 24) pinned to the same SHAs and version comments as `ci.yml:32-36`, then a step with `env: TITLE: ${{ github.event.pull_request.title }}` and `run: node tools/commit-lint.mjs --title "$TITLE"`. No `${{ }}` expression inside the `run:` text.
+- One job, `runs-on` byte-identical to the expression of `ci.yml` (TrueNAS runner, hosted fallback for fork PRs; ADR-020). Steps: first the uid guard step of `ci.yml` (`Refuse to run as root (ADR-020)`, same command; ADR-020 Amendment 1 wants it before checkout and before any branch code runs on the persistent runner), then `actions/checkout` and `actions/setup-node` (Node 24) pinned to the same SHAs and version comments as `ci.yml:32-36`, then a step with `env: TITLE: ${{ github.event.pull_request.title }}` and `run: node tools/commit-lint.mjs --title "$TITLE"`. No `${{ }}` expression inside the `run:` text.
 - Header comment: why a separate file (cancel group), why advisory (ADR-008), that a manual "re-run" replays the old title and an edit starts a fresh run.
 
 #### 2. Update the `ci.yml` header
@@ -118,7 +118,7 @@ A separate workflow lints the title with its own concurrency group, so a title e
 
 **Intent**: Pin the facts the design depends on, the way `ci-runner` and `release-gate` pin theirs, by reading the YAML as text.
 
-**Contract**: the new test asserts: the four `types` and nothing else; no `pull_request_target` anywhere in `.github/workflows/`; the concurrency group contains `pull_request.number` and not `github.ref`; the `run:` line of the lint step has no `${{`; the title reaches the step through `env:`; the workflow `name` is not `CI`; `ci.yml` has no `edited` and no `types:` under `pull_request`. `ci-runner.test.mjs` gains one test that `pr-title.yml` has exactly one `runs-on` line equal to `EXPECTED`.
+**Contract**: the new test asserts: the four `types` and nothing else; no `pull_request_target` anywhere in `.github/workflows/`; the concurrency group contains `pull_request.number` and not `github.ref`; the `run:` line of the lint step has no `${{`; the title reaches the step through `env:`; the workflow `name` is not `CI`; `ci.yml` has no `edited` and no `types:` under `pull_request`. `ci-runner.test.mjs` gains one test that `pr-title.yml` has exactly one `runs-on` line equal to `EXPECTED`, and one that the first step of its job is the uid guard, before the `commit-lint` step.
 
 #### 4. Test index
 
@@ -157,7 +157,7 @@ A separate workflow lints the title with its own concurrency group, so a title e
 
 **File**: `skills/10x-pipeline/scripts/open-pr.mjs`
 
-**Intent**: Read the subjects of `<base ref>..HEAD`, pick the highest-ranked Conventional Commit type, and prefix the existing `titleFor` result. `titleFor` itself stays as is (description part). `countAhead` already resolves the ref (`refs/remotes/<remote>/<base>` or `refs/heads/<base>`); reuse that ref for `git log --format=%s` instead of resolving it twice. The script stays standalone, built-ins only, and imports no `tools/` file.
+**Intent**: Read the subjects of `<base ref>..HEAD`, pick the highest-ranked Conventional Commit type, and prefix the existing `titleFor` result. `titleFor` itself stays as is (description part). `countAhead` already resolves the ref (`refs/remotes/<remote>/<base>` or `refs/heads/<base>`) but returns only `{ count }`; make it also return `ref`, pass it from `main` (`open-pr.mjs:390`) into `openPullRequest`, and use it for `git log --format=%s` instead of resolving it twice. The script stays standalone, built-ins only, and imports no `tools/` file.
 
 **Contract**:
 - New exported pure function, for example `prTitleFor(id, changeText, subjects)`, returning the title string.
@@ -245,7 +245,7 @@ Add short pointers ("superseded, see Amendment 2") to the old sentences at Conte
 #### Automated Verification:
 
 - AGENTS.md size and import guards pass: `node --test tools/test/agents-md-size.test.mjs tools/test/agents-md-no-imports.test.mjs`
-- No file outside `context/` and `CHANGELOG.md` says the repository rebase-merges: `git grep -n -i "rebase-merge" -- . ':!context' ':!CHANGELOG.md'` shows only lines that carry an Amendment 2 pointer (ADR-008 history lines) and no other file
+- No file outside `context/` and `CHANGELOG.md` says the repository rebase-merges: `git grep -n -i "rebase-merges" -- . ':!context' ':!CHANGELOG.md'` (the plural form; the singular also matches the git directory name `rebase-merge` in `skills/10x-pipeline/scripts/isolation.mjs:160`, which stays) shows only lines that carry an Amendment 2 pointer (ADR-008 history lines) and no other file
 - Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
 - Commit subjects lint: `node tools/commit-lint.mjs main..HEAD`
 
