@@ -6,7 +6,7 @@ Nothing stops a hung test run: neither CI job sets `timeout-minutes` (GitHub def
 
 ## Current State Analysis
 
-- `.github/workflows/ci.yml`: two jobs, `test` (line 23) and `commits` (line 36), neither with `timeout-minutes`. A normal run takes about 3.5 minutes (`duration_ms 205939`, per `change.md`), so 15 minutes leaves four times the headroom.
+- `.github/workflows/ci.yml`: two jobs, `test` (line 26) and `commits` (line 41), neither with `timeout-minutes`. A normal run takes about 3.5 minutes (`duration_ms 205939`, per `change.md`), so 15 minutes leaves four times the headroom.
 - `skills/10x-pipeline/test/helpers.mjs`:
   - `run` (line 98) calls `spawnSync(process.execPath, [ROUTE, ...args], { cwd, encoding, env })` and returns `{ status, json, stdout, stderr }`. A spawn that fails or times out gives `status: null` and an empty `stdout`, so the caller sees a JSON parse failure or a null `json`, not the cause.
   - `git` (line 200) calls `spawnSync("git", ...)` and throws only when `res.status !== 0`; for a timed-out spawn `res.stderr` is empty, so the message is `git ... failed: `.
@@ -33,7 +33,7 @@ Nothing stops a hung test run: neither CI job sets `timeout-minutes` (GitHub def
 
 - No `timeout-minutes` on `pr-title.yml` or `release.yml`; `change.md` scopes the change to the two jobs of `ci.yml`. (Follow-up candidate: `pr-title.yml`'s one job.)
 - No `--test-timeout` flag on `node --test` and no per-test timeouts; the spawn timeout and the job timeout are the two bounds asked for.
-- No change to router code, `policy.json`, the git timeouts that tests pass through policy, `gitAvailable`, or the `spawnSync` calls in other test files (`openspec-contract.test.mjs` already sets its own).
+- No change to router code, `policy.json`, the git timeouts that tests pass through policy, `gitAvailable`, or the `spawnSync` calls in other test files (`openspec-contract.test.mjs` already sets its own). Test files that call the router or git through their own `spawnSync` (for example `agents.test.mjs:315`, `provenance.test.mjs:73`, `open-pr.test.mjs:150`, `pr-comment.test.mjs:105`, `rollback.test.mjs:52`) stay without a spawn timeout; the 120 s bound covers only the `run` and `git` helpers, and the 15-minute job limit is the backstop for those files.
 - No change to `AGENTS.md` or `docs/REFERENCE.md`; nothing there describes the helpers or the CI limits.
 - No environment variable to change the timeout (YAGNI; the `timeout` option covers one-off needs).
 
@@ -112,7 +112,7 @@ Give `run` and `git` a default timeout and a clear failure, test it, and index t
 **Contract**: Import `makeProject`, `cleanupAll`, `run`, `git`, `gitAvailable` from `./helpers.mjs`; `afterEach(cleanupAll)` as the sibling tests do. Tests:
 - "run throws a clear error when the script outlives the timeout": write a script in the scratch project (`setTimeout(() => {}, 60000)` held open, for example `await new Promise((r) => setTimeout(r, 60000))`), call `run(project, ["status", "x"], { script, timeout: 300 })`, assert it throws with a message matching `/route\.mjs status x timed out after 300 ms/`, and assert the call took under 10 seconds.
 - "run still returns the result of a fast script": a script that prints `{"ok":true}`, `run(..., { script, timeout: 5000 })` gives `status 0` and `json.ok === true` (guards the unchanged return shape).
-- "git throws a timeout error": `{ skip: !gitAvailable() }`, `git(project, ["--version"], { timeout: 1 })` throws a message matching `/git --version timed out after 1 ms/`. A 1 ms limit expires before any process can start and exit; if the spawn instead fails to start the test would show `could not run`, which is a failure too.
+- "git throws a timeout error": `{ skip: !gitAvailable() }`, `git(project, ["-c", "alias.slow=!exec sleep 5", "slow"], { timeout: 300 })` throws a message matching `/git -c alias\.slow=!exec sleep 5 slow timed out after 300 ms/`, and the call took under 10 seconds. A git alias that sleeps makes the timeout deterministic; a 1 ms limit on `git --version` would race a process that can start and exit within 1 ms. If the spawn instead fails to start the test shows `could not run`, which is a failure too.
 
 #### 3. Test index
 
