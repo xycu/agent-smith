@@ -71,7 +71,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 
 | File | Scope |
 | --- | --- |
-| `skill-loop.test.mjs` | the `## Anti-stall rules` section of `SKILL.md`: six rules in order, placement outside the Loop branches, no model, effort or tier word; pins rule 3 and the call places of `usage` in the `done`, `halt` and `archive` branches |
+| `skill-loop.test.mjs` | the `## Anti-stall rules` section of `SKILL.md`: six rules in order, placement outside the Loop branches, no model, effort or tier word; pins rule 3 and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement after the `Pull request script:` line) |
 | `archive-gate.test.mjs` | the Manual gate in the `archive` branch of both `SKILL.md` files (ADR-014): `AskUserQuestion` in `allowed-tools`, placement, labels, fail-closed text, six `**GIVEN**` lines, no `AskUserQuestion` in the router scripts |
 | `nested-subagents.test.mjs` | no nested subagents (ADR-018): the suffix rule and its place before the `RESULT:` line, the same-subagent lines of the executor prompts, the sixth anti-stall rule of both skills, the `docs/REFERENCE.md` and ADR-018 checks |
 | `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `README.md` and `AGENTS.md`; checks the rule stays in `prompts.suffix`, `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
@@ -90,7 +90,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `openspec-archive.test.mjs` | the archive branch and the read-only commands |
 | `openspec-contract.test.mjs` | contract test against the real CLI (`OPENSPEC_BIN`, default `openspec`); it skips when the binary does not start |
 | `openspec-readers.test.mjs` | the task row pattern of the CLI, the guarded readers of `tasks.md` and `verify.md`, the chain halt on a 10x run, the produced files of `compare` |
-| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md`: its anti-stall section equals the 10x one, and the call places of `usage` in the `done`, `halt` and `archive` branches |
+| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md`: its anti-stall section equals the 10x one, and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement, equality with the 10x copy) |
 
 ## Helpers
 

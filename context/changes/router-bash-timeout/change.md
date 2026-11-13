@@ -1,9 +1,9 @@
 ---
 change_id: router-bash-timeout
 title: Run router and open-pr calls with a Bash timeout above the git timeouts
-status: new
+status: impl_reviewed
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-13
 archived_at: null
 ---
 
