@@ -1,7 +1,7 @@
 ---
 change_id: budget-test-file-split
 title: Split the budget executors test file that sets the suite wall time
-status: planned
+status: impl_reviewed
 created: 2026-11-12
 updated: 2026-11-13
 archived_at: null
