@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, run, git, gitAvailable, gitEnv, gitInit, commitFiles, writeLog, writeMetaFile, readMetaFile, readLogEntries,
-  readReportFile, entry,
+  readReportFile, entry, ruleTail,
 } from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, moveToArchive } from "./openspec-helpers.mjs";
 import { pluginPolicy } from "../../10x-pipeline/scripts/state.mjs";
@@ -68,7 +68,7 @@ test("PASS with --archive commits only openspec/changes/<id>/ and returns the os
   assert.ok(j.prompt.startsWith("Archive the OpenSpec change demo with the OpenSpec CLI.\n"), j.prompt.slice(0, 200));
   assert.ok(j.prompt.includes("`openspec archive demo --yes --json`"));
   assert.equal(j.prompt.includes("{id}"), false);
-  assert.ok(j.prompt.endsWith("\n\n" + POLICY.prompts.suffix));
+  assert.ok(j.prompt.endsWith("\n\n" + ruleTail(POLICY.prompts.suffix, { chain: "openspec", step: "os-archive" })));
   assert.equal(j.resultFile, undefined);
   // The commit holds only the change folder, and the folder is clean.
   assert.equal(git(project, ["log", "-1", "--format=%s"]), MESSAGE("demo"));

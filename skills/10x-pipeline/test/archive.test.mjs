@@ -9,6 +9,7 @@ import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, run, init, next, writeLog, entry, ROUTE, gitEnv, gitInit, writeResult, readMetaFile, writeMetaFile,
   planText, writeReview, readReportFile, readLogEntries, commitFiles, git, gitAvailable,
+  ruleTail,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -506,11 +507,11 @@ test("policy.archive holds the commit message template and the manual-pending ga
   assert.ok(Number.isInteger(POLICY.archive.gitTimeoutMs) && POLICY.archive.gitTimeoutMs > 0);
 });
 
-test("prompts.archive gives the archive answers as nine one-line rules", () => {
+test("prompts.archive gives the archive answers as eight one-line rules", () => {
   const lines = POLICY.prompts.archive.split("\n");
   assert.equal(lines[0], "Run /10x-archive {id}");
   const rules = lines.slice(1);
-  assert.equal(rules.length, 9);
+  assert.equal(rules.length, 8);
   for (const line of rules) assert.ok(line.startsWith("- **GIVEN**"), line);
   const text = POLICY.prompts.archive;
   for (const needle of [
@@ -520,6 +521,8 @@ test("prompts.archive gives the archive answers as nine one-line rules", () => {
   ]) assert.ok(text.includes(needle), `missing ${needle}`);
   assert.ok(rules.some((l) => l.includes("**MUST NOT**") && /\bask\b/.test(l)), "no MUST NOT about asking");
   assert.ok(rules.some((l) => l.includes("blocking rule") && l.includes("**MUST**") && /\bwin\b/.test(l)), "no precedence rule");
+  // The precedence between the generic rules and the step rules lives once, in the always-true rules/top.md (ADR-023).
+  assert.doesNotMatch(text, /generic unattended\s+rules/, "the generic precedence line is back in the template");
   // The router renders {id} only; any other placeholder would render empty.
   const names = [...text.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
   assert.ok(names.length > 0 && names.every((n) => n === "id"), names.join(","));
@@ -614,7 +617,7 @@ test("array archive and suffix overrides render joined, @prompts parts resolved"
   assert.ok(warn.length > 0);
   assert.ok(res.json.prompt.startsWith("Run /10x-archive demo\n- extra rule\n"), res.json.prompt);
   for (const l of warn) assert.ok(res.json.prompt.includes(l), l);
-  assert.ok(res.json.prompt.endsWith("line one\nline two"));
+  assert.ok(res.json.prompt.endsWith(ruleTail("line one\nline two")));
   assert.ok(!res.json.prompt.includes("line one,line two"));
 });
 
@@ -627,7 +630,7 @@ test("a string archive or suffix override that starts with @prompts/ or @<skill>
   const file = (name, dir = "..") => fs.readFileSync(new URL(`${dir}/prompts/${name}`, import.meta.url), "utf8").trim();
   // The archive text goes through render() and the suffix does not, so compare the first line and the raw suffix.
   assert.ok(res.json.prompt.startsWith(file("os-archive.md", "../../openspec-pipeline").split("\n")[0].replaceAll("{id}", "demo")), res.json.prompt);
-  assert.ok(res.json.prompt.endsWith("\n\n" + file("advisor.md")));
+  assert.ok(res.json.prompt.endsWith("\n\n" + ruleTail(file("advisor.md"))));
 });
 
 test("a string archive or suffix reference that does not resolve halts before the pre-archive commit", { skip: noGit }, () => {

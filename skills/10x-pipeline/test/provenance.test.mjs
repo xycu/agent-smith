@@ -92,16 +92,17 @@ test("1.1 policy.json ships the provenance block", () => {
   assert.deepEqual(DEFAULT.provenance, { ignore: ["compare", "provenance", "prices", "coAuthor"], expected: { pinned: ["ladder", "rigor", "score"], unpinned: ["score"] } });
 });
 
-test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except the ignored ones, prompts, agentFiles and flags", () => {
+test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except the ignored ones, prompts, agentFiles, ruleFiles and flags", () => {
   const rec = freshRecord();
   assert.deepEqual(Object.keys(rec).sort(), ["flags", "plugin", "schemaVersion", "sections"]);
   assert.equal(rec.schemaVersion, 1);
   assert.equal(rec.plugin, PLUGIN.version);
-  const want = [...Object.keys(DEFAULT).filter((k) => !["compare", "provenance", "prices", "coAuthor"].includes(k)), "agentFiles"].sort();
+  const want = [...Object.keys(DEFAULT).filter((k) => !["compare", "provenance", "prices", "coAuthor"].includes(k)), "agentFiles", "ruleFiles"].sort();
   assert.ok(want.includes("prompts"));
   assert.deepEqual(Object.keys(rec.sections), want, "every section but compare, provenance, prices and coAuthor, sorted");
   for (const [name, hash] of Object.entries(rec.sections)) {
     if (name === "agentFiles") assert.ok(hash === null || HEX16.test(hash), `agentFiles ${hash}`);
+    else if (name === "ruleFiles") assert.match(hash, HEX16, "the shipped rule files hash");
     else assert.match(hash, HEX16, name);
   }
   assert.equal(new Set(Object.values(rec.sections).filter((h) => h !== null)).size, want.length - (rec.sections.agentFiles === null ? 1 : 0), "distinct sections give distinct hashes");

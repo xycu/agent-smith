@@ -121,6 +121,25 @@ test("skills/10x-pipeline/prompts/*.md and skills/openspec-pipeline/prompts/*.md
   }
 });
 
+test("skills/*/rules/*.md and skills/*/rules/steps/*.md follow the rule form (ADR-023)", () => {
+  const skills = path.join(REPO, "skills");
+  const found = [];
+  for (const skill of fs.readdirSync(skills)) {
+    for (const sub of ["rules", "rules/steps"]) {
+      const dir = path.join(skills, skill, sub);
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir).filter((name) => name.endsWith(".md") && name !== "README.md")) {
+        found.push(`${skill}/${sub}/${f}`);
+        const lines = fs.readFileSync(path.join(dir, f), "utf8").split("\n");
+        assert.deepEqual(lineProblems(lines, { strict: true }), [], `${skill}/${sub}/${f}`);
+      }
+    }
+  }
+  for (const f of ["10x-pipeline/rules/top.md", "10x-pipeline/rules/steps/research.md", "openspec-pipeline/rules/chain.md"]) {
+    assert.ok(found.includes(f), `the scan reaches ${f}`);
+  }
+});
+
 test("SKILL.md anti-stall rules follow the rule form", () => {
   const lines = fs.readFileSync(path.join(SKILL_DIR, "SKILL.md"), "utf8").split("\n");
   const start = lines.findIndex((l) => l === "## Anti-stall rules");

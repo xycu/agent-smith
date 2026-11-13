@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  SKILL_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
+  SKILL_DIR, OPENSPEC_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
   executed, writeLog, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
   halt, prCommentField,
 } from "./state.mjs";
@@ -9,7 +9,7 @@ import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSum
 import {
   verifyImplement, executorNext, retryRows, unprovenTicks, retryNext, reviewWarning, doneNotes, withoutEvidence,
   manualUnprovenIds, manualUnprovenWhyRows, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
-  verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS,
+  verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS, render,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "../../openspec-pipeline/scripts/openspec.mjs";
 
@@ -814,8 +814,8 @@ export function promptText(policy, template) {
 
 // Every prompt of the policy must resolve before next() consumes last-result.json. A bad @prompts/ reference then ends
 // the call with a clear halt and leaves the result file and the log untouched, so the run is recoverable after the
-// policy is fixed.
-export function checkPrompts(policy) {
+// policy is fixed. The rule files must read too (checkRules), so a broken install halts here and not mid-assembly.
+export function checkPrompts(policy, dirs = RULE_DIRS) {
   const prompts = isObject(policy.prompts) ? policy.prompts : {};
   for (const template of Object.keys(prompts)) {
     try {
@@ -824,6 +824,61 @@ export function checkPrompts(policy) {
       throw new Error(`${e instanceof Error ? e.message : String(e)}. The result file and the log are untouched: fix the policy and run next again.`);
     }
   }
+  try {
+    checkRules(policy, dirs);
+  } catch (e) {
+    throw new Error(`${e instanceof Error ? e.message : String(e)}. The result file and the log are untouched: restore the plugin file and run next again.`);
+  }
+}
+
+// ---- rule levels (ADR-023) ------------------------------------------------------
+
+// The always-true rule files live outside policy.json, so no project override reaches them: <skill>/rules/top.md
+// (every step of both chains, in the 10x skill next to the shared router), <chain skill>/rules/chain.md and
+// <chain skill>/rules/steps/<step>.md. `dirs` maps a chain to its skill folder; tests point it at a scratch tree.
+export const RULE_DIRS = { "10x": SKILL_DIR, openspec: OPENSPEC_DIR };
+const RULE_STEP = /^[a-z0-9][a-z0-9-]*$/;
+const ruleDir = (dirs, chain) => dirs[chain === "openspec" ? "openspec" : "10x"];
+
+// The trimmed text of a rule file. A missing optional file reads as "". A missing top.md, or any file that exists but
+// cannot be read (a permission error, a folder in its place), throws an Error naming its path from the plugin root.
+function ruleFile(dirs, file, required = false) {
+  try {
+    return fs.readFileSync(file, "utf8").trim();
+  } catch (e) {
+    if (!required && e?.code === "ENOENT") return "";
+    throw new Error(`${path.relative(path.resolve(dirs["10x"], "../.."), file).split(path.sep).join("/")} cannot be read`);
+  }
+}
+
+const stepRuleFile = (dirs, chain, step) => (typeof step === "string" && RULE_STEP.test(step) ? path.join(ruleDir(dirs, chain), "rules/steps", `${step}.md`) : null);
+
+// Reads every rule file the router may append, for every step of policy.steps and both chains. Throws like ruleFile.
+export function checkRules(policy, dirs = RULE_DIRS) {
+  ruleFile(dirs, path.join(dirs["10x"], "rules/top.md"), true);
+  for (const chain of ["10x", "openspec"]) {
+    ruleFile(dirs, path.join(ruleDir(dirs, chain), "rules/chain.md"));
+    for (const step of Object.keys(isObject(policy.steps) ? policy.steps : {})) {
+      const file = stepRuleFile(dirs, chain, step);
+      if (file) ruleFile(dirs, file);
+    }
+  }
+}
+
+// Everything after the step template and the advisor rules, "\n\n"-joined with empty parts skipped: the chain defaults
+// (prompts.chain-<chain>, rendered), the generic defaults (prompts.suffix, unrendered), then the always-true block: the
+// step file and the chain file (rendered, each optional) and top.md last (unrendered, required), so the RESULT format
+// ends every prompt. Earlier defaults are more specific, and top.md states the precedence.
+export function ruleTail(policy, { chain = "10x", step, vars = {}, dirs = RULE_DIRS } = {}) {
+  const key = chain === "openspec" ? "chain-openspec" : "chain-10x";
+  const stepFile = stepRuleFile(dirs, chain, step);
+  return [
+    policy.prompts?.[key] === undefined ? "" : render(promptText(policy, key), vars),
+    promptText(policy, "suffix"),
+    stepFile ? render(ruleFile(dirs, stepFile), vars) : "",
+    render(ruleFile(dirs, path.join(ruleDir(dirs, chain), "rules/chain.md")), vars),
+    ruleFile(dirs, path.join(dirs["10x"], "rules/top.md"), true),
+  ].map((part) => part.trim()).filter(Boolean).join("\n\n");
 }
 
 // The first {name} in a prompt template that the router never fills for it (PROMPT_PLACEHOLDERS, or its own shorter

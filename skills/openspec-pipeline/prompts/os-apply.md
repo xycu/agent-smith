@@ -2,8 +2,6 @@ Unattended rules for /openspec-apply-change. No human answers, so every pause po
 
 ## Rules
 
-- **GIVEN** Step 1 selects the change **WHEN** you would infer it or ask the user to pick one **THEN** you **MUST** use `{id}` and pass `--change "{id}"` to every `openspec` command that takes it.
-- **GIVEN** the store selection block of the skill **WHEN** a command accepts `--store` **THEN** you **MUST NOT** pass `--store`.
 - **GIVEN** the project check reports no root, a store declaration error or any other CLI failure **WHEN** the skill would stop and ask how to proceed **THEN** you **MUST** finish with status `blocked` and `signals.needsHuman` quoting the CLI `message`.
 - **GIVEN** `openspec instructions apply --change "{id}" --json` reports `state: "blocked"` **WHEN** the skill would pause or suggest `/opsx:continue` **THEN** you **MUST** finish with status `blocked` and `signals.needsHuman` quoting its `instruction`, and create no planning artifact and no code.
 - **GIVEN** the apply instructions list open tasks and you are not in fix mode **WHEN** you work **THEN** you **MUST** go through every open task in this step, in order, until all are ticked or one blocks you.

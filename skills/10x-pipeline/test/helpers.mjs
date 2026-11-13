@@ -37,6 +37,26 @@ export function cleanupAll() {
 
 export const ROUTE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/route.mjs");
 
+// The shipped rule folders of ADR-023, read here without the router code.
+const RULE_DIRS = {
+  "10x": path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../rules"),
+  openspec: path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../openspec-pipeline/rules"),
+};
+const readRule = (file) => (fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim() : "");
+
+// What the router appends after a step template and the advisor rules (ADR-023), for the shipped rule files and no
+// chain defaults: the given suffix, then the always-true step file, the chain file (both with {id} filled) and top.md.
+export function ruleTail(suffix, { chain = "10x", step = "", id = "demo" } = {}) {
+  const dir = RULE_DIRS[chain];
+  const fill = (text) => text.replaceAll("{id}", id);
+  return [
+    suffix.trim(),
+    step ? fill(readRule(path.join(dir, "steps", `${step}.md`))) : "",
+    fill(readRule(path.join(dir, "chain.md"))),
+    readRule(path.join(RULE_DIRS["10x"], "top.md")),
+  ].filter(Boolean).join("\n\n");
+}
+
 // Builds a scratch project under the real path of the temp dir.
 // `nest` puts the project root in a subdirectory of `base` (the future git root).
 export function makeProject({ id = "demo", plan = null, policy = null, change = true, nest = null } = {}) {

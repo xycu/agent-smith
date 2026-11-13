@@ -14,7 +14,6 @@ Unattended rules for the score step. You score how hard change {id} is before an
 - **GIVEN** the goal is empty and `change.md` holds nothing to score **WHEN** you cannot score the change **THEN** you **MUST** finish with status `blocked` and `signals.needsHuman` that names what is missing.
 - **GIVEN** the goal or `change.md` holds something to score **WHEN** you write the RESULT line **THEN** you **MUST NOT** add `signals.needsHuman`.
 - **GIVEN** you write the RESULT line **WHEN** you fill `signals` **THEN** you **MUST NOT** add `signals.rigor`, because the score already carries your view of the change and the router drops that key for this step.
-- **GIVEN** these rules and the generic unattended rules disagree **WHEN** you pick what to do **THEN** these rules **MUST** win.
 
 ## Rubric
 

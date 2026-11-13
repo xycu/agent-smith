@@ -380,14 +380,14 @@ Each prompt gains the heading lines and the two precedence rules, a few hundred 
 
 #### Automated
 
-- [x] 1.1 The full suite passes over both test folders and tools
-- [x] 1.2 No OpenSpec file is left in the 10x prompts, scripts or test folders
-- [x] 1.3 No os- key is left in the 10x policy
-- [ ] 1.4 The four os prompt files moved byte for byte (R100)
-- [x] 1.5 CI and AGENTS.md run the moved tests
-- [x] 1.6 The new resolver and fragment tests pass
-- [x] 1.7 The OpenSpec smoke check returns action run with step os-propose
-- [x] 1.8 No doc names an old OpenSpec path
+- [x] 1.1 The full suite passes over both test folders and tools — 6a55f80
+- [x] 1.2 No OpenSpec file is left in the 10x prompts, scripts or test folders — 6a55f80
+- [x] 1.3 No os- key is left in the 10x policy — 6a55f80
+- [x] 1.4 The four os prompt files moved byte for byte (R100) — 6a55f80
+- [x] 1.5 CI and AGENTS.md run the moved tests — 6a55f80
+- [x] 1.6 The new resolver and fragment tests pass — 6a55f80
+- [x] 1.7 The OpenSpec smoke check returns action run with step os-propose — 6a55f80
+- [x] 1.8 No doc names an old OpenSpec path — 6a55f80
 
 #### Manual
 

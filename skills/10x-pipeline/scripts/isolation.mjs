@@ -8,7 +8,7 @@ import {
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
 import { readOpenspec, openspecArchivePath } from "../../openspec-pipeline/scripts/openspec.mjs";
-import { finishRun, endRun, promptText } from "./flow.mjs";
+import { finishRun, endRun, promptText, ruleTail } from "./flow.mjs";
 
 // ---- run provenance -------------------------------------------------------------
 
@@ -60,13 +60,30 @@ function agentFilesHash() {
   } catch { return null; }
 }
 
+// The always-true rule files (ADR-023): every .md file except README.md under skills/10x-pipeline/rules/ and
+// skills/openspec-pipeline/rules/, keyed by <skill>/rules/<relative path>. null when a folder or a file is unreadable.
+function ruleFilesHash() {
+  try {
+    const files = {};
+    for (const skill of ["10x-pipeline", "openspec-pipeline"]) {
+      const dir = path.join(PLUGIN_ROOT, "skills", skill, "rules");
+      for (const rel of fs.readdirSync(dir, { recursive: true })) {
+        const name = rel.split(path.sep).join("/");
+        if (!name.endsWith(".md") || path.basename(name) === "README.md") continue;
+        files[`${skill}/rules/${name}`] = fs.readFileSync(path.join(dir, rel), "utf8");
+      }
+    }
+    return hash16(canonicalJson(files));
+  } catch { return null; }
+}
+
 // The version of the plugin manifest, only read (release-please owns it). null when the file is unreadable.
 function pluginVersion() {
   const manifest = readJson(path.join(PLUGIN_ROOT, ".claude-plugin/plugin.json"), null);
   return isObject(manifest) && typeof manifest.version === "string" ? manifest.version : null;
 }
 
-// One hash per section of the merged policy except the ignored ones, plus agentFiles, sorted by name.
+// One hash per section of the merged policy except the ignored ones, plus agentFiles and ruleFiles, sorted by name.
 function provenanceSections(policy) {
   const ignore = new Set(provenanceConfig(policy).ignore);
   const sections = {};
@@ -74,6 +91,7 @@ function provenanceSections(policy) {
     if (!ignore.has(key)) sections[key] = key === "prompts" ? promptsHash(policy) : hash16(canonicalJson(policy[key]));
   }
   sections.agentFiles = agentFilesHash();
+  sections.ruleFiles = ruleFilesHash();
   return Object.fromEntries(Object.entries(sections).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
@@ -694,7 +712,9 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   // "HEAD" stands for a commit this call made whose hash could not be read; null means no commit was made.
   const commit = res.made ? (res.commit ? res.commit.slice(0, 7) : "HEAD") : null;
   const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(promptText(policy, "archive"), { id });
-  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + promptText(policy, "suffix");
+  // The rule tail of ADR-023, as at the run site; the archive site fills only {id}.
+  const tail = ruleTail(policy, { chain: openspec ? "openspec" : "10x", step: openspec ? "os-archive" : "archive", vars: { id } });
+  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + tail;
   return out({
     action: "archive",
     model: target.model,

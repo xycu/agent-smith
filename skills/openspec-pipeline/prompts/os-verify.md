@@ -2,8 +2,6 @@ Unattended rules for /openspec-verify-change. The skill asks nothing beyond pick
 
 ## Rules
 
-- **GIVEN** Step 1 selects the change **WHEN** you would infer it or ask the user to pick one **THEN** you **MUST** use `{id}` and pass `--change "{id}"` to every `openspec` command that takes it.
-- **GIVEN** the store selection block of the skill **WHEN** a command accepts `--store` **THEN** you **MUST NOT** pass `--store`.
 - **GIVEN** the project check or `openspec status` reports no root, a store declaration error or any other CLI failure **WHEN** you cannot load the change **THEN** you **MUST** finish with status `blocked` and `signals.needsHuman` quoting the CLI `message`, and write no verdict file.
 - **GIVEN** you verify the change **WHEN** you check completeness, correctness and coherence **THEN** you **MUST** follow every step of the skill as written, including its heuristics for false positives.
 - **GIVEN** the verify step is read-only **WHEN** you find an issue **THEN** you **MUST NOT** change code, tests, `tasks.md`, any artifact in `openspec/changes/{id}/` or anything in `openspec/specs/`, and you only report it.
