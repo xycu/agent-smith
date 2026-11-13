@@ -19,7 +19,7 @@ Smoke check: in a scratch project that has `context/changes/<id>/change.md` (or,
 
 Router: `node skills/10x-pipeline/scripts/route.mjs <command>`. Every command takes `--chain 10x|openspec` (any other value halts before anything is read); flag details and halt rules are in `docs/REFERENCE.md`.
 
-- `init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive] [--chrome false] [--chain openspec]` — start or resume a run. Every flag also reads `--key=value`. It halts, writing nothing, on words that belong to no flag.
+- `init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive] [--chrome false] [--pr-comment] [--chain openspec]` — start or resume a run. Every flag also reads `--key=value`. It halts, writing nothing, on words that belong to no flag.
 - `next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `status <id> [--report]` — the per-step model and effort log.
 - `risk <id>` — churn hot paths, plan hits and diff hits; writes nothing.

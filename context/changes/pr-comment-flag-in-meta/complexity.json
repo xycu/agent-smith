@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (prComment in meta.json like --archive, skills drop task tools); open details are small: whether archive carries prComment before the folder move (stated in Fix direction) and whether a bare --pr-comment means true." },
+    "novelty": { "score": 1, "evidence": "change.md 'Fix direction': init --pr-comment mirrors the existing --archive flag stored in meta.json (skills/10x-pipeline/scripts/route.mjs, INIT_FLAGS at line 831)." },
+    "coupling": { "score": 3, "evidence": "change.md: the init flag, meta.json field and the done/archive/halt/status output shape are consumed by both SKILL.md files and the router modules; a public CLI interface with several consumers." },
+    "discovery": { "score": 2, "evidence": "Named locations in change.md cover route.mjs, both SKILL.md, three tests, REFERENCE.md, README, an ADR and .claude/settings.json; a grep also shows skills/10x-pipeline/test/pr-comment.test.mjs (lines 728-760) asserting TaskList in SKILL.md, which change.md does not name." },
+    "volume": { "score": 2, "evidence": "change.md 'Fix direction' and 'Tests' name about 10 files: route.mjs, status code, skills/10x-pipeline/SKILL.md, skills/openspec-pipeline/SKILL.md, skill-loop, openspec-skill and archive-gate tests, docs/REFERENCE.md, README.md, an ADR, .claude/settings.json; mostly small edits." },
+    "verification": { "score": 1, "evidence": "change.md 'Tests': init, archive action and skill-content checks extend existing suites (skill-loop.test.mjs, openspec-skill.test.mjs, archive-gate.test.mjs); the suite runs the real router in scratch projects, so only a few new assertions are needed." }
+  },
+  "unknowns": [
+    "pr-comment.test.mjs (lines 728-760) asserts TaskList, TaskCreate and the task-list wording in SKILL.md; change.md says it is unchanged, so it will fail unless updated or the change is wrong about it.",
+    "Which ADR records the task-based --pr-comment design and needs an amendment; not identified from change.md.",
+    "Whether status output or the archive action in route.mjs has a separate code path that also needs the prComment field."
+  ],
+  "confidence": "medium"
+}

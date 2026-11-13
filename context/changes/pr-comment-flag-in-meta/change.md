@@ -1,9 +1,9 @@
 ---
 change_id: pr-comment-flag-in-meta
 title: Store the --pr-comment request in meta.json instead of a session task
-status: new
+status: impl_reviewed
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-13
 archived_at: null
 ---
 

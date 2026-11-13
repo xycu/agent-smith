@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
   executed, writeLog, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
-  halt,
+  halt, prCommentField,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
@@ -326,7 +326,8 @@ export function finishRun(p, id, meta, log, result) {
   try { report = writeReport(p, id, meta, log); } catch (e) { reportError = e.message; }
   const extra = meta.archive === true && result.action === "halt" && result.archive === undefined
     ? { archive: "skipped: run halted", committed: false } : {};
-  return reportError ? { ...result, ...extra, report, reportError } : { ...result, ...extra, report };
+  const pr = prCommentField(meta);
+  return reportError ? { ...result, ...extra, ...pr, report, reportError } : { ...result, ...extra, ...pr, report };
 }
 
 // Every end of run goes through here so no branch can skip the report.

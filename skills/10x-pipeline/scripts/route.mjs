@@ -4,7 +4,7 @@
 // review verdicts) plus the run log. The orchestrator never picks a model itself.
 //
 // Usage (run from the project root):
-//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome [false]]   # Chrome is on unless --chrome false
+//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome [false]] [--pr-comment [false]]   # Chrome is on unless --chrome false
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
@@ -23,6 +23,7 @@ import {
   ROOT, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
+  prCommentField,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
@@ -641,9 +642,11 @@ function status(id, flags, chain = "10x", policy = null) {
   // The cost estimate, only when the merged policy prices a model; without prices status has no cost key.
   const prices = loadPrices();
   const cost = prices ? estimateCost(executed(log), prices) : null;
+  const stored = readMeta(p.meta, {});
   const res = {
     change: id,
-    rigor: readMeta(p.meta, {}).rigor?.level ?? null,
+    rigor: stored.rigor?.level ?? null,
+    ...prCommentField(stored),
     steps: log.map((e) => e.skipped ? {
       skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null,
       ...(e.score ? { score: e.score } : {}),
@@ -828,12 +831,12 @@ function resolveChain(cmd, id, flags) {
 // ---- main -----------------------------------------------------------------
 
 // The flags init reads; any other flag halts it.
-const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain"];
+const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "pr-comment", "chain"];
 
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest, ["goal"]);
   // --chain is checked before anything is read.
@@ -873,6 +876,14 @@ function main() {
       if (flags.chrome === true || flags.chrome === "true") chrome = true;
       else if (flags.chrome === "false") chrome = false;
       else halt(`Invalid --chrome ${flags.chrome}. Use --chrome, --chrome true or --chrome false.`);
+    }
+    // --pr-comment is checked before anything is written, like --archive; it needs no git, the orchestrator posts the report.
+    let prComment;
+    const prFlag = flags["pr-comment"];
+    if (prFlag !== undefined) {
+      if (prFlag === true || prFlag === "true") prComment = true;
+      else if (prFlag === "false") prComment = false;
+      else halt(`Invalid --pr-comment ${prFlag}. Use --pr-comment, --pr-comment true or --pr-comment false.`);
     }
     // A flag init does not read (a typo such as --gaol) would take the next word as its value and start
     // the run without it, so it halts before anything is written.
@@ -919,6 +930,7 @@ function main() {
     if (!isObject(prev.rigor)) delete meta.rigor;
     if (archive !== undefined) meta.archive = archive;
     if (chrome !== undefined) meta.chrome = chrome;
+    if (prComment !== undefined) meta.prComment = prComment;
     // Only an OpenSpec run carries a chain key; a 10x meta.json stays as it was.
     if (chain === "openspec") meta.chain = "openspec";
     if (branch !== null && fresh) { meta.isolated = true; meta.branch = branch; }

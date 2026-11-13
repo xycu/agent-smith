@@ -464,6 +464,11 @@ export function readMeta(file, fallback) {
   return m && typeof m === "object" && !Array.isArray(m) ? m : fallback;
 }
 
+// The --pr-comment request of init, as the end-of-run outputs and status carry it: present only as true.
+export function prCommentField(meta) {
+  return meta?.prComment === true ? { prComment: true } : {};
+}
+
 export function writeLog(file, entries) {
   fs.writeFileSync(file, entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
 }
