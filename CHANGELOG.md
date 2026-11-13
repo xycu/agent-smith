@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/xycu/agent-smith/compare/v1.8.0...v1.9.0) (2026-11-13)
+
+
+### Features
+
+* **proper-structure-of-rules:** Hierarchical rule levels for skills, with OpenSpec definitions outside the 10x folder ([#155](https://github.com/xycu/agent-smith/issues/155)) ([377f259](https://github.com/xycu/agent-smith/commit/377f2592ed34440769aacf59edc2bc5c69d84736))
+
 ## [1.8.0](https://github.com/xycu/agent-smith/compare/v1.7.0...v1.8.0) (2026-11-13)
 
 

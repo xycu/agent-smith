@@ -1,7 +1,7 @@
 {
   "name": "agent-smith",
   "displayName": "Agent Smith",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Orchestrates AI SDLC skill chains (10xDevs and OpenSpec) and routes each step to a model and effort level based on the results of earlier steps",
   "author": {
     "name": "xycu"
