@@ -1,1 +1,1 @@
-- 2.7 — CI result on the pull request lives on GitHub; no PR exists yet from this run and reading or triggering it needs an external service, so it cannot be proved locally
+- 2.7 — CI green on the pull request is a GitHub result; the run's PR is opened only at the end of the run (open-pr.mjs, ADR-017), so none exists to read, and reading or triggering CI needs an external service. The 15-minute limit on both jobs is covered locally by row 1.1, but the green CI part cannot be proved here.
