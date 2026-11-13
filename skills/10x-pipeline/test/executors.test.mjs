@@ -267,6 +267,19 @@ test("strict verify git edge cases", { skip: noGit }, () => {
   assert.equal(finish(docs.project).e.ok, false);
 });
 
+test("commit evidence honours a custom exclude when another churn key is invalid", { skip: noGit }, () => {
+  const policy = { risk: { churn: { since: "bogus", exclude: ["src/gen/**"] } } };
+  const gen = strictProject({ policy });
+  tickAll(gen.project);
+  commitFiles(gen.project, ["src/gen/out.mjs"]);
+  assert.equal(finish(gen.project).e.ok, false);
+
+  const real = strictProject({ policy });
+  tickAll(real.project);
+  commitFiles(real.project, ["src/real.mjs"]);
+  assert.equal(finish(real.project).e.ok, true);
+});
+
 // ---- phase 2 fixtures -------------------------------------------------------
 
 const POLICY = JSON.parse(fs.readFileSync(path.join(REPO, "skills/10x-pipeline/policy.json"), "utf8"));

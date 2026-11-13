@@ -1,9 +1,9 @@
 ---
 change_id: ci-job-and-spawn-timeouts
 title: Add job timeouts to CI and a spawn timeout to the test helpers
-status: new
+status: impl_reviewed
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-13
 archived_at: null
 ---
 

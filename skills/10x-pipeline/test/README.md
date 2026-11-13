@@ -18,6 +18,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `override-json.test.mjs` | a project override that does not parse, or is not an object, halts every command with the file name; a missing file is no override |
 | `file-guard.test.mjs` | `guardedStat`, `readGuarded` and `planFileTokens` of `state.mjs`, and two symlink cases of their callers (a symlinked score file, a symlinked evidence file); calls the modules directly |
 | `provenance.test.mjs` | run provenance: the record in `meta.json`, hash stability, drift, legacy runs, `compare` warnings. A test that changes a plugin file copies the plugin tree to a scratch directory and spawns the copy's `route.mjs`; it never edits a repository file |
+| `helpers-timeout.test.mjs` | the `run` and `git` helpers of `helpers.mjs` time out or die on a signal and throw a clear error naming the command; the fast path keeps its return shape |
 
 ## Pre-plan steps and loops
 
@@ -37,7 +38,11 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `executors.test.mjs` | commit check, fallback, executor routing, retry, the report label |
 | `codereplan.test.mjs` | code re-plans |
 | `manualverify.test.mjs` | `manual-verify` and `--chrome` (ADR-012): every row in scope at every level, outside the pool, browser rows and their proof kinds, the reason in the outputs, report marks, tier and retry, evidence kinds, `evidence/unproven.md` reasons, the prompt and the Chrome default. Turn the step on with `manualVerify: { minRigor: "lean" }` |
-| `budget-executors.test.mjs` | the budget derived from the longest legal path, `manual-verify` and its retry included, at `lean`, `standard` and `thorough` |
+| `budget-executors.test.mjs` | the budget derived from the longest legal path, `manual-verify` and its retry included, at `lean`, `standard` and `thorough`: longest legal path, failure path, lean without a pool step |
+| `budget-pool-score.test.mjs` | the budget with a raised pool allowance and with scorer failures skipped |
+| `budget-confirm-shipped.test.mjs` | the confirmation round at the shipped policy (off) and at the shipped `budgetDelta` |
+| `budget-confirm-rounds.test.mjs` | each confirmation round adds a `plan-review` and an `impl-review` step, which a `budgetDelta` raised by 2 per round holds |
+| `budget-helpers.mjs` | helper: fixtures, plan renderer, `walkFixture` and `walkAware`; registers no tests |
 | `phase-helpers.mjs` | helper: plan builders, log fixtures and `gateCheck` for the plan's Progress rows |
 
 ## Isolation, commits and recovery
@@ -66,7 +71,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 
 | File | Scope |
 | --- | --- |
-| `skill-loop.test.mjs` | the `## Anti-stall rules` section of `SKILL.md`: six rules in order, placement outside the Loop branches, no model, effort or tier word; pins rule 3 and the call places of `usage` in the `done`, `halt` and `archive` branches |
+| `skill-loop.test.mjs` | the `## Anti-stall rules` section of `SKILL.md`: six rules in order, placement outside the Loop branches, no model, effort or tier word; pins rule 3 and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement after the `Pull request script:` line) |
 | `archive-gate.test.mjs` | the Manual gate in the `archive` branch of both `SKILL.md` files (ADR-014): `AskUserQuestion` in `allowed-tools`, placement, labels, fail-closed text, six `**GIVEN**` lines, no `AskUserQuestion` in the router scripts |
 | `nested-subagents.test.mjs` | no nested subagents (ADR-018): the suffix rule and its place before the `RESULT:` line, the same-subagent lines of the executor prompts, the sixth anti-stall rule of both skills, the `docs/REFERENCE.md` and ADR-018 checks |
 | `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `README.md` and `AGENTS.md`; checks the rule stays in `prompts.suffix`, `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
@@ -86,13 +91,13 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `openspec-archive.test.mjs` | the archive branch and the read-only commands |
 | `openspec-contract.test.mjs` | contract test against the real CLI (`OPENSPEC_BIN`, default `openspec`); it skips when the binary does not start |
 | `openspec-readers.test.mjs` | the task row pattern of the CLI, the guarded readers of `tasks.md` and `verify.md`, the chain halt on a 10x run, the produced files of `compare` |
-| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md`: its anti-stall section equals the 10x one, and the call places of `usage` in the `done`, `halt` and `archive` branches |
+| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md`: its anti-stall section equals the 10x one, and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement, equality with the 10x copy) |
 
 ## Helpers
 
-- `helpers.mjs`: scratch projects, `run.jsonl` fixtures, hermetic git. It stays as it was except `writeOverride(project, policy)`, which `makeProject` always calls and which adds `score: { minRigor: null }`, `isolation: { require: false }` and `manualVerify: { minRigor: null }` unless the test gives its own key (so existing tests keep `plan` as the first step and run in a plain scratch project), and `cleanupAll`, which calls `removeTree` for every scratch folder, goes on past one it cannot remove and then throws one `AggregateError` naming each folder left behind.
+- `helpers.mjs`: scratch projects, `run.jsonl` fixtures, hermetic git. `run` and `git` time out after `SPAWN_TIMEOUT_MS` (120000 ms) and throw when the spawn fails. It stays as it was except `writeOverride(project, policy)`, which `makeProject` always calls and which adds `score: { minRigor: null }`, `isolation: { require: false }` and `manualVerify: { minRigor: null }` unless the test gives its own key (so existing tests keep `plan` as the first step and run in a plain scratch project), and `cleanupAll`, which calls `removeTree` for every scratch folder, goes on past one it cannot remove and then throws one `AggregateError` naming each folder left behind.
 - `ahead.mjs`: wraps `writePlan` and `writeReview` and exports `stampAhead`. A file a test writes as a step's output gets an mtime a minute ahead, because the router needs an mtime later than the step's `startedAt` and Linux stamps files from a coarse clock. A test that writes such a file right after `next` uses it.
-- `phase-helpers.mjs` and `openspec-helpers.mjs`: see their groups above.
+- `phase-helpers.mjs`, `budget-helpers.mjs` and `openspec-helpers.mjs`: see their groups above.
 
 ## tools/test
 
@@ -100,9 +105,9 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | --- | --- |
 | `agents-md-no-imports.test.mjs` | `AGENTS.md`, and `CLAUDE.md` when present, has no `@path` import outside a code span |
 | `agents-md-size.test.mjs` | `AGENTS.md` stays at or under 12288 bytes; new detail goes into the index files |
-| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, and that `release.yml` stays hosted |
+| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, and that `release.yml` stays hosted |
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects (no `Merge ` exemption), range mode with a real merge commit, title mode, CLI exit codes |
 | `pr-title-workflow.test.mjs` | `.github/workflows/pr-title.yml` as text: the four `types`, no `pull_request_target`, concurrency group by PR number, title passed through `env:`, name not `CI`; `ci.yml` has no `edited` (ADR-008, Amendment 2) |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |
-| `version-check.test.mjs` | `tools/version-check.mjs`: version fields equal and valid SemVer |
+| `version-check.test.mjs` | `tools/version-check.mjs`: three version fields equal and valid SemVer, no `version` in a marketplace plugin entry |
 | `workflow-pins.test.mjs` | `tools/workflow-pins.mjs` and its run on this repository: every remote action is pinned to a 40-hex SHA with a version comment, so a tag reference fails the suite. To bump an action, replace the SHA and the version comment together |

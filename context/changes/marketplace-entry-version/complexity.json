@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction' fixes the outcome; the one open detail, whether metadata.version stays, has one check against the Claude Code marketplace guide (change.md Fix direction, last bullet)" },
+    "novelty": { "score": 1, "evidence": "tools/version-check.mjs already checks several version fields and release-please-config.json already uses jsonpath extra-files; the change adapts both" },
+    "coupling": { "score": 3, "evidence": ".claude-plugin/marketplace.json is a shared data format read by Claude Code; it is linked to release-please-config.json, tools/version-check.mjs, ci.yml and release.yml" },
+    "discovery": { "score": 1, "evidence": "change.md names the files to change (marketplace.json, release-please-config.json, tools/version-check.mjs, AGENTS.md, docs/REFERENCE.md, ADR-008); one grep for the remaining version mentions is enough" },
+    "volume": { "score": 2, "evidence": "about 7 files with small edits (marketplace.json, release-please-config.json, version-check.mjs, its test file, AGENTS.md, docs/REFERENCE.md, ADR-008 amendment)" },
+    "verification": { "score": 1, "evidence": "change.md Tests: tools/test/version-check.test.mjs and node tools/version-check.mjs already cover drift; add cases for a version in the plugin entry; claude plugin validate is a Manual row" }
+  },
+  "unknowns": [
+    "The Claude Code marketplace guide was not re-read in this run; change.md cites it as read 2026-11-12, so metadata.version is kept or dropped only after the plan step checks it",
+    "Whether docs/REFERENCE.md names the version fields was not checked in this run",
+    "The exact current text of ADR-008 was not read, so the amendment size is estimated"
+  ],
+  "confidence": "medium"
+}

@@ -11,8 +11,7 @@
     {
       "name": "agent-smith",
       "source": "./",
-      "description": "Orchestrates AI SDLC skill chains (10xDevs and OpenSpec) with dynamic model and effort routing",
-      "version": "1.7.0"
+      "description": "Orchestrates AI SDLC skill chains (10xDevs and OpenSpec) with dynamic model and effort routing"
     }
   ]
 }

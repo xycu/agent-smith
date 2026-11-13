@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md Fix direction fixes timeout-minutes 15, timeout 120000 and a clear res.error failure; only the wording of the error message is open." },
+    "novelty": { "score": 1, "evidence": "change.md Notes: spawnSync timeout in helpers.mjs run and git helpers; a small adaptation of the existing spawnSync calls and of timeout options elsewhere in the router scripts." },
+    "coupling": { "score": 2, "evidence": "skills/10x-pipeline/test/helpers.mjs exports run, git and gitAvailable used by many test files, so the helper change reaches several test modules." },
+    "discovery": { "score": 1, "evidence": "change.md names .github/workflows/ci.yml:23-51, helpers.mjs:98-107 and tools/test/ci-runner.test.mjs; one search confirmed the locations." },
+    "volume": { "score": 1, "evidence": "Edits in about 3 files: ci.yml (two timeout-minutes lines), helpers.mjs (run and git), plus new tests in ci-runner.test.mjs and the helper test." },
+    "verification": { "score": 1, "evidence": "Existing suite (node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs) covers the helpers; a few new tests (run timeout, timeout-minutes check) are to be added." }
+  },
+  "unknowns": ["Whether the git helper timeout must be overridable per call, since change.md only says tests passing their own git timeouts through policy are not affected.", "Exact name of the new run-timeout test file; not decided by the inputs."],
+  "confidence": "high"
+}

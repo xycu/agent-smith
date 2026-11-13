@@ -25,6 +25,7 @@ This skill drives an OpenSpec change (`openspec/changes/<change-name>/`) through
 Router: `ROUTER="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/route.mjs"`. Run it with `node` from the run root (see Start step 3). When you put the path in a command, quote it for the shell. Every router call carries `--chain openspec`.
 PR comment script: `PR_COMMENT="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/pr-comment.mjs"`. Only the PR comment step runs it (see "PR comment (opt-in)").
 Pull request script: `OPEN_PR="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/open-pr.mjs"`. Only the pull request step runs it (see "Pull request (always)").
+Bash timeout: run every `route.mjs`, `open-pr.mjs` and `pr-comment.mjs` call with the Bash tool's `timeout: 600000`, its maximum. The default of 120000 ms equals the router's git timeouts, so the Bash tool would kill the router inside a slow `git commit`.
 
 ## Start
 

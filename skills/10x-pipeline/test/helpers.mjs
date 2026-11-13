@@ -1,11 +1,22 @@
 // Shared test helpers: scratch projects, the router CLI, run.jsonl fixtures and a hermetic git environment.
-// Plain node: built-ins only.
+// Plain node: built-ins only. Spawns of `run` and `git` time out after SPAWN_TIMEOUT_MS.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
+
+export const SPAWN_TIMEOUT_MS = 120000;
+
+// A spawn that timed out, could not start or was killed by a signal fails the calling test with the command in the message.
+function throwOnSpawnError(res, label, timeout) {
+  if (res.error) {
+    if (res.error.code === "ETIMEDOUT") throw new Error(`${label} timed out after ${timeout} ms`);
+    throw new Error(`${label} could not run: ${res.error.message}`);
+  }
+  if (res.signal) throw new Error(`${label} was killed by ${res.signal}`);
+}
 
 const created = [];
 // Tries every scratch folder, then throws one AggregateError that names each folder it could not remove.
@@ -95,12 +106,14 @@ export function writeReview(project, name, { verdict = "SOUND", findings = "0 cr
 }
 
 // Runs route.mjs in the project root. Returns { status, json, stdout, stderr }.
-export function run(project, args, { env = {} } = {}) {
-  const res = spawnSync(process.execPath, [ROUTE, ...args], {
+export function run(project, args, { env = {}, timeout = SPAWN_TIMEOUT_MS, script = ROUTE } = {}) {
+  const res = spawnSync(process.execPath, [script, ...args], {
     cwd: project.root,
     encoding: "utf8",
     env: { ...process.env, ...env },
+    timeout,
   });
+  throwOnSpawnError(res, `route.mjs ${args.join(" ")}`, timeout);
   let json = null;
   try { json = JSON.parse(res.stdout); } catch { /* leave null */ }
   return { status: res.status, json, stdout: res.stdout, stderr: res.stderr };
@@ -197,14 +210,16 @@ export function gitEnv(project) {
 }
 
 // Runs git in project.base. `date` (ISO string) sets both author and committer date.
-export function git(project, args, { date = null } = {}) {
+export function git(project, args, { date = null, timeout = SPAWN_TIMEOUT_MS } = {}) {
   const env = gitEnv(project);
   if (date) { env.GIT_AUTHOR_DATE = date; env.GIT_COMMITTER_DATE = date; }
   const res = spawnSync("git", ["-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main", ...args], {
     cwd: project.base,
     encoding: "utf8",
     env,
+    timeout,
   });
+  throwOnSpawnError(res, `git ${args.join(" ")}`, timeout);
   if (res.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${res.stderr}`);
   return res.stdout.trim();
 }
