@@ -215,3 +215,14 @@ test("the argument hint and Start step 1 name --rigor with its value and the goa
   assert.ok(sentence, "no --rigor sentence in step 1");
   for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough"]) assert.ok(sentence.includes(w), w);
 });
+
+test("the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section, equal to the 10x copy", () => {
+  const hits = lines.filter((l) => l.startsWith("Bash timeout: "));
+  assert.equal(hits.length, 1, "exactly one Bash timeout line");
+  for (const needle of ["route.mjs", "open-pr.mjs", "pr-comment.mjs", "`timeout: 600000`"]) {
+    assert.ok(hits[0].includes(needle), `Bash timeout line names ${needle}`);
+  }
+  assert.equal(lines.indexOf(hits[0]), lines.findIndex((l) => l.startsWith("Pull request script: ")) + 1);
+  assert.ok(!section(lines, HEADING).includes(hits[0]), "not inside the anti-stall section");
+  assert.equal(hits[0], tenx.find((l) => l.startsWith("Bash timeout: ")));
+});
