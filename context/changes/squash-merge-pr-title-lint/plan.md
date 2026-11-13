@@ -365,10 +365,10 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [x] 4.1 AGENTS.md size and import guards pass
-- [x] 4.2 No file outside `context/` and `CHANGELOG.md` says the repository rebase-merges, except ADR-008 history lines with an Amendment 2 pointer
-- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 4.4 Commit subjects lint: `node tools/commit-lint.mjs main..HEAD`
+- [x] 4.1 AGENTS.md size and import guards pass — e556488
+- [x] 4.2 No file outside `context/` and `CHANGELOG.md` says the repository rebase-merges, except ADR-008 history lines with an Amendment 2 pointer — e556488
+- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — e556488
+- [x] 4.4 Commit subjects lint: `node tools/commit-lint.mjs main..HEAD` — e556488
 
 #### Manual
 
