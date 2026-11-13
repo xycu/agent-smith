@@ -353,9 +353,9 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [x] 3.1 open-pr tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs`
-- [x] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 3.3 No recursive delete introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 3.1 open-pr tests pass: `node --test skills/10x-pipeline/test/open-pr.test.mjs` — f6074e0
+- [x] 3.2 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — f6074e0
+- [x] 3.3 No recursive delete introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — f6074e0
 
 #### Manual
 
@@ -365,10 +365,10 @@ None. No data or state moves. Open PRs keep their titles; `open-pr.mjs` changes 
 
 #### Automated
 
-- [ ] 4.1 AGENTS.md size and import guards pass
-- [ ] 4.2 No file outside `context/` and `CHANGELOG.md` says the repository rebase-merges, except ADR-008 history lines with an Amendment 2 pointer
-- [ ] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 4.4 Commit subjects lint: `node tools/commit-lint.mjs main..HEAD`
+- [x] 4.1 AGENTS.md size and import guards pass
+- [x] 4.2 No file outside `context/` and `CHANGELOG.md` says the repository rebase-merges, except ADR-008 history lines with an Amendment 2 pointer
+- [x] 4.3 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 4.4 Commit subjects lint: `node tools/commit-lint.mjs main..HEAD`
 
 #### Manual
 
