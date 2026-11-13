@@ -11,7 +11,7 @@ import {
   manualUnprovenIds, manualUnprovenWhyRows, manualVerifyNext, mergedReasons, manualNotProvedRows, verifyManual, CODE_REPLANS, codeReplanNext,
   verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS,
 } from "./steps.mjs";
-import { verifyOpenspecStep } from "./openspec.mjs";
+import { verifyOpenspecStep } from "../../openspec-pipeline/scripts/openspec.mjs";
 
 // ---- report ---------------------------------------------------------------
 
@@ -785,22 +785,27 @@ export function decide(p, fullLog, policy, meta, ctx) {
 
 // ---- prompt text ------------------------------------------------------------
 
-const PROMPT_REF = /^@prompts\/[A-Za-z0-9._-]+\.md$/;
+// @prompts/<file>.md (under this skill) or @<skill>/prompts/<file>.md (under another skill folder of this plugin).
+// The skill name has no dot or slash, so no reference leaves the plugin's skills/ folder.
+const PROMPT_REF = /^@(?:([a-z0-9][a-z0-9-]*)\/)?prompts\/([A-Za-z0-9._-]+\.md)$/;
+const isPromptRef = (part) => part.startsWith("@prompts/") || /^@[a-z0-9][a-z0-9-]*\/prompts\//.test(part);
 
 // A prompt value is a string or an array of strings, joined with newlines. A part that is @prompts/<name>.md is
-// replaced by the trimmed text of that file under the skill directory. References resolve before render(), so a goal
-// text never injects one. Throws an Error naming the template when the key is missing or a reference does not
-// resolve; main turns it into a JSON halt.
+// replaced by the trimmed text of that file under the skill directory, and @<skill>/prompts/<name>.md by the file
+// under skills/<skill>/prompts/. References resolve before render(), so a goal text never injects one. Throws an Error
+// naming the template when the key is missing or a reference does not resolve; main turns it into a JSON halt.
 export function promptText(policy, template) {
   const value = policy.prompts?.[template];
   const parts = typeof value === "string" ? [value] : Array.isArray(value) ? value : null;
   if (!parts) throw new Error(`policy.prompts.${template} is missing or is not a string or an array of strings`);
   return parts.map((part) => {
     if (typeof part !== "string") throw new Error(`policy.prompts.${template} has a part that is not a string`);
-    if (!part.startsWith("@prompts/")) return part;
-    if (!PROMPT_REF.test(part)) throw new Error(`policy.prompts.${template} has a bad reference ${part}`);
+    if (!isPromptRef(part)) return part;
+    const ref = PROMPT_REF.exec(part);
+    if (!ref) throw new Error(`policy.prompts.${template} has a bad reference ${part}`);
+    const dir = ref[1] ? path.join(SKILL_DIR, "..", ref[1], "prompts") : path.join(SKILL_DIR, "prompts");
     try {
-      return fs.readFileSync(path.join(SKILL_DIR, part.slice(1)), "utf8").trim();
+      return fs.readFileSync(path.join(dir, ref[2]), "utf8").trim();
     } catch {
       throw new Error(`policy.prompts.${template} refers to ${part}, which cannot be read`);
     }

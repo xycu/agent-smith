@@ -8,7 +8,7 @@ import {
   cleanupAll, makeProject, run, init, readMetaFile, writeMetaFile, writeLog, entry, planText, writeReview, gitInit,
   commitFiles, gitAvailable, gitEnv, git,
 } from "./helpers.mjs";
-import { makeOpenspecProject, initOpenspec } from "./openspec-helpers.mjs";
+import { makeOpenspecProject, initOpenspec } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
 after(cleanupAll);
 

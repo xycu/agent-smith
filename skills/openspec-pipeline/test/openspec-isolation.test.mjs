@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import {
   cleanupAll, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog, writeMetaFile, readLogEntries,
   readMetaFile, entry,
-} from "./helpers.mjs";
+} from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify } from "./openspec-helpers.mjs";
 
 after(cleanupAll);

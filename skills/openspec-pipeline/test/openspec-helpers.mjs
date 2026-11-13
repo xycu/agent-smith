@@ -2,9 +2,9 @@
 // Plain node: built-ins only.
 import fs from "node:fs";
 import path from "node:path";
-import { makeProject, run } from "./helpers.mjs";
-import { stampAhead } from "./ahead.mjs";
-import { removeTree } from "../scripts/remove-tree.mjs";
+import { makeProject, run } from "../../10x-pipeline/test/helpers.mjs";
+import { stampAhead } from "../../10x-pipeline/test/ahead.mjs";
+import { removeTree } from "../../10x-pipeline/scripts/remove-tree.mjs";
 
 // A tasks.md with `done` ticked and `open` open rows, numbered 1.1, 1.2, ...
 export function tasksText({ done = 0, open = 0 } = {}) {

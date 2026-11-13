@@ -2,7 +2,7 @@
 // It never calls the openspec CLI (D2). Import order: state, preplan, steps, openspec, then flow, isolation and route.
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, executed, mtime, archiveRoot, DATED_ID, readGuarded } from "./state.mjs";
+import { ROOT, executed, mtime, archiveRoot, DATED_ID, readGuarded } from "../../10x-pipeline/scripts/state.mjs";
 
 // A task row of tasks.md, the pattern of the OpenSpec CLI (1.16.1, dist/utils/task-progress.js TASK_LINE_PATTERN): a list
 // item under `-`, `*`, `+` or `1.`/`1)` with a checkbox that holds at most one non-space marker. A row is complete only

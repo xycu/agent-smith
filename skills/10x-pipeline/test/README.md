@@ -1,6 +1,6 @@
 # Tests
 
-Index of `skills/10x-pipeline/test/` and `tools/test/`, by topic. Run everything with `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. A new test file gets its row here, not in `AGENTS.md`.
+Index of `skills/10x-pipeline/test/` and `tools/test/`, by topic. Run everything with `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects and checks the rule form of every prompt. A new test file gets its row here, not in `AGENTS.md`.
 
 A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; the block each file uses is named in its row.
 
@@ -82,22 +82,13 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 
 ## OpenSpec chain (ADR-013)
 
-| File | Scope |
-| --- | --- |
-| `openspec-helpers.mjs` | helper: scratch OpenSpec projects built on `helpers.mjs` |
-| `openspec-chain.test.mjs` | the `--chain` switch, run state, collisions and routing order |
-| `openspec-steps.test.mjs` | step verification, the `verify.md` verdict, the fix loop, tiers and dropped features |
-| `openspec-isolation.test.mjs` | the start and step commits and the rollback of an isolated run |
-| `openspec-archive.test.mjs` | the archive branch and the read-only commands |
-| `openspec-contract.test.mjs` | contract test against the real CLI (`OPENSPEC_BIN`, default `openspec`); it skips when the binary does not start |
-| `openspec-readers.test.mjs` | the task row pattern of the CLI, the guarded readers of `tasks.md` and `verify.md`, the chain halt on a 10x run, the produced files of `compare` |
-| `openspec-skill.test.mjs` | the content of `skills/openspec-pipeline/SKILL.md`: its anti-stall section equals the 10x one, and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement, equality with the 10x copy) |
+The OpenSpec tests and `openspec-helpers.mjs` live in `skills/openspec-pipeline/test/`, indexed in its `README.md`.
 
 ## Helpers
 
 - `helpers.mjs`: scratch projects, `run.jsonl` fixtures, hermetic git. `run` and `git` time out after `SPAWN_TIMEOUT_MS` (120000 ms) and throw when the spawn fails. It stays as it was except `writeOverride(project, policy)`, which `makeProject` always calls and which adds `score: { minRigor: null }`, `isolation: { require: false }` and `manualVerify: { minRigor: null }` unless the test gives its own key (so existing tests keep `plan` as the first step and run in a plain scratch project), and `cleanupAll`, which calls `removeTree` for every scratch folder, goes on past one it cannot remove and then throws one `AggregateError` naming each folder left behind.
 - `ahead.mjs`: wraps `writePlan` and `writeReview` and exports `stampAhead`. A file a test writes as a step's output gets an mtime a minute ahead, because the router needs an mtime later than the step's `startedAt` and Linux stamps files from a coarse clock. A test that writes such a file right after `next` uses it.
-- `phase-helpers.mjs`, `budget-helpers.mjs` and `openspec-helpers.mjs`: see their groups above.
+- `phase-helpers.mjs` and `budget-helpers.mjs`: see their groups above. `openspec-helpers.mjs` is in `skills/openspec-pipeline/test/`.
 
 ## tools/test
 

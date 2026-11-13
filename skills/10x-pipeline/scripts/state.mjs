@@ -6,6 +6,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// The OpenSpec chain's skill folder: its policy fragment, prompts, rules and module (ADR-013 Amendment 1).
+export const OPENSPEC_DIR = path.resolve(SKILL_DIR, "../openspec-pipeline");
 export const ROOT = process.cwd();
 
 export function out(obj, code = 0) {
@@ -47,9 +49,20 @@ export function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return fallback; }
 }
 
-// policy.json deep-merged with the project override. null when policy.json is unreadable; each caller decides.
-function mergedPolicy() {
+// The plugin policy: the 10x policy.json deep-merged with the OpenSpec fragment (skills/openspec-pipeline/policy.json,
+// the os- steps and prompts; ADR-013 Amendment 1), without the project override. null when either file is unreadable
+// or not an object.
+export function pluginPolicy() {
   const base = readJson(path.join(SKILL_DIR, "policy.json"), null);
+  const fragment = readJson(path.join(OPENSPEC_DIR, "policy.json"), null);
+  if (!isObject(base) || !isObject(fragment)) return null;
+  return deepMerge(base, fragment);
+}
+
+// The plugin policy deep-merged with the project override. null when a plugin policy file is unreadable; each caller
+// decides.
+function mergedPolicy() {
+  const base = pluginPolicy();
   if (!base) return null;
   const file = path.join(ROOT, "context/foundation/agent-smith-policy.json");
   if (!fs.existsSync(file)) return base;
@@ -67,7 +80,11 @@ function mergedPolicy() {
 
 export function loadPolicy() {
   const policy = mergedPolicy();
-  if (!policy) out({ action: "halt", reason: `Cannot read ${path.join(SKILL_DIR, "policy.json")}` }, 1);
+  if (!policy) {
+    const files = [path.join(SKILL_DIR, "policy.json"), path.join(OPENSPEC_DIR, "policy.json")];
+    const bad = files.filter((file) => !isObject(readJson(file, null)));
+    out({ action: "halt", reason: `Cannot read ${(bad.length ? bad : files).join(" or ")}` }, 1);
+  }
   return policy;
 }
 

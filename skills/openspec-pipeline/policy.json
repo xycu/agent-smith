@@ -1,0 +1,30 @@
+{
+  "steps": {
+    "os-propose":    { "skill": "openspec-propose",       "baseTier": 5, "minTier": 2, "maxTier": 7, "interactive": true },
+    "os-apply":      { "skill": "openspec-apply-change",  "baseTier": 3, "minTier": 2, "maxTier": 7 },
+    "os-verify":     { "skill": "openspec-verify-change", "baseTier": 3, "minTier": 2, "maxTier": 6, "interactive": true },
+    "os-archive":    { "skill": null,                     "baseTier": 3, "minTier": 3, "maxTier": 3, "interactive": true }
+  },
+  "prompts": {
+    "os-propose": [
+      "Run /openspec-propose for the existing OpenSpec change {id} (openspec/changes/{id}/). Goal: {goal}",
+      "@openspec-pipeline/prompts/os-propose.md"
+    ],
+    "os-apply": [
+      "Run /openspec-apply-change for the OpenSpec change {id} (openspec/changes/{id}/). Implement every open task of tasks.md.",
+      "@openspec-pipeline/prompts/os-apply.md"
+    ],
+    "os-apply-fix": [
+      "Run /openspec-apply-change for the OpenSpec change {id} (openspec/changes/{id}/) in fix mode. Critical findings from openspec/changes/{id}/agent-smith/verify.md:\n{findings}",
+      "@openspec-pipeline/prompts/os-apply.md"
+    ],
+    "os-verify": [
+      "Run /openspec-verify-change for the OpenSpec change {id} (openspec/changes/{id}/) and write openspec/changes/{id}/agent-smith/verify.md.",
+      "@openspec-pipeline/prompts/os-verify.md"
+    ],
+    "os-archive": [
+      "Archive the OpenSpec change {id} with the OpenSpec CLI.",
+      "@openspec-pipeline/prompts/os-archive.md"
+    ]
+  }
+}

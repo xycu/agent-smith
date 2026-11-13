@@ -6,7 +6,7 @@ context: |
   - Prompt rules use GIVEN/WHEN/THEN form with exactly one bold RFC 2119 keyword per rule (ADR-004).
   - Every commit subject is a Conventional Commit (ADR-008).
   - `context/archive/` is read-only and is never edited.
-  - Routing decisions live only in `skills/10x-pipeline/scripts/route.mjs` (and the modules it imports under `scripts/`) and `skills/10x-pipeline/policy.json`.
+  - Routing decisions live only in `skills/10x-pipeline/scripts/route.mjs` (and the modules it imports, `skills/openspec-pipeline/scripts/openspec.mjs` included), `skills/10x-pipeline/policy.json` and `skills/openspec-pipeline/policy.json`.
 
 rules:
   proposal:
@@ -16,11 +16,11 @@ rules:
   specs:
     - "Describe behavior, not file paths."
     - "Keep the OpenSpec form: requirements use SHALL or MUST, scenarios use #### Scenario: with WHEN and THEN bullets."
-    - "The ADR-004 form applies to prompt files under skills/10x-pipeline/prompts/ and policy.json prompt strings, not to delta specs."
+    - "The ADR-004 form applies to prompt files under skills/10x-pipeline/prompts/ and skills/openspec-pipeline/prompts/ and to the policy.json prompt strings of both skills, not to delta specs."
   design:
     - "Name the ADR a decision follows or changes, by number."
     - "New code uses only node: built-ins and runs on Node 24."
   tasks:
-    - "Each task names its verification command; router, prompt or tool changes run node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs."
+    - "Each task names its verification command; router, prompt or tool changes run node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs."
     - "No task edits context/archive/ or hand-edits agent-smith/run.jsonl or meta.json."
     - "Commit subjects are Conventional Commits."

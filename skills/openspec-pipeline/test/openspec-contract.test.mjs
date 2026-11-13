@@ -6,7 +6,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cleanupAll, run } from "./helpers.mjs";
+import { cleanupAll, run } from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject } from "./openspec-helpers.mjs";
 
 after(cleanupAll);

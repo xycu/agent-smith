@@ -7,7 +7,7 @@ import {
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
-import { readOpenspec, openspecArchivePath } from "./openspec.mjs";
+import { readOpenspec, openspecArchivePath } from "../../openspec-pipeline/scripts/openspec.mjs";
 import { finishRun, endRun, promptText } from "./flow.mjs";
 
 // ---- run provenance -------------------------------------------------------------

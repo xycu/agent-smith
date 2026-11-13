@@ -7,13 +7,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, run, init, writeResult, readLogEntries, readMetaFile,
-} from "./helpers.mjs";
+} from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, initOpenspec, moveToArchive } from "./openspec-helpers.mjs";
+import { pluginPolicy } from "../../10x-pipeline/scripts/state.mjs";
 
 after(cleanupAll);
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const POLICY = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+const POLICY = pluginPolicy();
 const SUFFIX = POLICY.prompts.suffix;
 const PROPOSE_GUIDE = fs.readFileSync(path.join(SKILL_DIR, "prompts/os-propose.md"), "utf8");
 

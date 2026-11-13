@@ -295,13 +295,16 @@ test("2.4 every value of agents.steps is <plugin name>:<file> for an existing ag
 
 // ---- 2.5 provenance --------------------------------------------------------------------------
 
-// skills/10x-pipeline (without its tests), .claude-plugin and agents, with the same relative layout.
+// skills/10x-pipeline and skills/openspec-pipeline (without their tests), .claude-plugin and agents, with the same relative layout.
 function pluginCopy() {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-plugin-"));
   copies.push(root);
   const skill = path.join(root, "skills/10x-pipeline");
   const tests = path.join(SKILL_DIR, "test");
   fs.cpSync(SKILL_DIR, skill, { recursive: true, filter: (src) => src !== tests });
+  const osSkill = path.resolve(SKILL_DIR, "../openspec-pipeline");
+  const osTests = path.join(osSkill, "test");
+  fs.cpSync(osSkill, path.join(root, "skills/openspec-pipeline"), { recursive: true, filter: (src) => src !== osTests });
   fs.cpSync(path.join(REPO, ".claude-plugin"), path.join(root, ".claude-plugin"), { recursive: true });
   fs.cpSync(path.join(REPO, "agents"), path.join(root, "agents"), { recursive: true });
   return { root, route: path.join(skill, "scripts/route.mjs") };

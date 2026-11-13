@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   cleanupAll, makeProject, entry, writeLog, writeMetaFile, run, init, next, writePlan, planText, writeResult, readReportFile,
 } from "./helpers.mjs";
-import { makeOpenspecProject, initOpenspec, writeArtifacts } from "./openspec-helpers.mjs";
+import { makeOpenspecProject, initOpenspec, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { priceTable, estimateCost } from "../scripts/state.mjs";
 
 after(cleanupAll);

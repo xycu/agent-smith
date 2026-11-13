@@ -56,13 +56,16 @@ function freshRecord(policy = null, goal = "fix typo") {
 
 // ---- scratch copy of the plugin tree ---------------------------------------------------
 
-// skills/10x-pipeline (without its tests), .claude-plugin and, when it exists, agents, with the same relative layout.
+// skills/10x-pipeline and skills/openspec-pipeline (without their tests), .claude-plugin and, when it exists, agents, with the same relative layout.
 function pluginCopy() {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "as-plugin-"));
   copies.push(root);
   const skill = path.join(root, "skills/10x-pipeline");
   const tests = path.join(SKILL_DIR, "test");
   fs.cpSync(SKILL_DIR, skill, { recursive: true, filter: (src) => src !== tests });
+  const osSkill = path.resolve(SKILL_DIR, "../openspec-pipeline");
+  const osTests = path.join(osSkill, "test");
+  fs.cpSync(osSkill, path.join(root, "skills/openspec-pipeline"), { recursive: true, filter: (src) => src !== osTests });
   fs.cpSync(path.join(REPO, ".claude-plugin"), path.join(root, ".claude-plugin"), { recursive: true });
   if (fs.existsSync(path.join(REPO, "agents"))) fs.cpSync(path.join(REPO, "agents"), path.join(root, "agents"), { recursive: true });
   return { root, skill, route: path.join(skill, "scripts/route.mjs") };
@@ -168,6 +171,18 @@ test("1.1 an unreadable plugin.json gives plugin null, and agentFiles hashes age
   assert.equal(copyRecord(copy).sections.agentFiles, first, "only *.md files count");
   fs.appendFileSync(path.join(agents, "score.md"), "More.\n");
   assert.notEqual(copyRecord(copy).sections.agentFiles, first, "an edit changes the hash");
+});
+
+test("1.1 an unreadable OpenSpec policy fragment halts init and names the file (ADR-013 Amendment 1)", () => {
+  const copy = pluginCopy();
+  const fragment = path.join(copy.root, "skills/openspec-pipeline/policy.json");
+  fs.writeFileSync(fragment, "{ not json");
+  const project = makeProject();
+  const res = runCopy(copy, project, ["init", project.id, "--goal", "fix typo"]);
+  assert.equal(res.status, 1, res.stdout);
+  assert.equal(res.json.action, "halt");
+  assert.equal(res.json.reason, `Cannot read ${fragment}`);
+  assert.equal(fs.existsSync(path.join(project.root, "context/changes", project.id, "agent-smith/run.jsonl")), false);
 });
 
 // ---- 1.2 stability and sensitivity ---------------------------------------------------------

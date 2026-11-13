@@ -27,7 +27,7 @@ import {
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
-import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
+import { readOpenspec, decideOpenspec, missingChangeReason } from "../../openspec-pipeline/scripts/openspec.mjs";
 import {
   writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
   advisorOn, neutralRetry, cleanUsage,
