@@ -1,0 +1,2 @@
+- 3.6 — needs the plugin installed from this branch and live /agent-smith:openspec-pipeline and /agent-smith:10x-pipeline runs in scratch projects; not possible in a subagent without a live pipeline run
+- 3.7 — owner action on main (WAVES.md and change.md notes in other changes); outside this run root and after merge

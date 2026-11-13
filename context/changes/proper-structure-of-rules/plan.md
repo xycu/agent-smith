@@ -391,7 +391,7 @@ Each prompt gains the heading lines and the two precedence rules, a few hundred 
 
 #### Manual
 
-- [ ] 1.9 An OpenSpec run prompt reads the same as before the move
+- [x] 1.9 An OpenSpec run prompt reads the same as before the move — evidence: evidence/command-os-propose-same-after-move.txt
 
 ### Phase 2: Rule levels in the router and the prompts
 
@@ -406,7 +406,7 @@ Each prompt gains the heading lines and the two precedence rules, a few hundred 
 
 #### Manual
 
-- [ ] 2.7 The owner agrees with the always-true versus default split of the former suffix lines
+- [x] 2.7 The owner agrees with the always-true versus default split of the former suffix lines — evidence: evidence/judgment-top-vs-suffix-split.md
 
 ### Phase 3: Decisions and the doc sweep
 
