@@ -21,7 +21,7 @@ The `--pr-comment` request lives in a session task today. That needs task tools,
 | Where the flag lives | `meta.prComment`, written by `init` like `--archive` | The sibling flag already works this way and a resume keeps it. | Change |
 | `--pr-comment false` | Stores `false`; outputs show the field only as `true` | Mirrors `--archive` and `--chrome`; no `false` noise in outputs. | Plan |
 | Bare `--pr-comment` | Means `true` | Same rule as `--archive`. | Plan |
-| Where outputs get the field | `finishRun` (all `endRun` outputs) plus the five direct `out()` calls of `archiveDone` | One spread covers every ordinary end; the archive path bypasses `finishRun`. | Plan |
+| Where outputs get the field | `finishRun` (all `endRun` outputs) plus the five direct `out()` calls of `archiveDone`, both through one `prCommentField(meta)` helper in `state.mjs` | One spread covers every ordinary end; the archive path bypasses `finishRun`; one helper keeps the rule in one place. | Plan |
 | `archive` action | Top-level `prComment`, `summary` unchanged | Tests `deepEqual` the summary. | Plan |
 | Provenance and `report.md` | Not recorded | `prComment` does not route. | Plan |
 | `pr-comment.test.mjs` | Updated, not "unchanged" | It asserts `TaskList`, `TaskCreate` and the task subject. | Plan |
