@@ -10,6 +10,7 @@ name: CI
 # fork PR, because a fork PR runs the workflow file of its own branch and its author can edit
 # `runs-on`. The boundary is the repository setting "Require approval for all external contributors".
 # The first step of `test` refuses uid 0, because ADR-020 D4 requires a non-root runner user.
+# Each job stops after 15 minutes (a normal suite run takes about 3.5).
 on:
   pull_request:
   push:
@@ -26,6 +27,7 @@ jobs:
   test:
     name: Tests and version check
     runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}
+    timeout-minutes: 15
     steps:
       - name: Refuse to run as root (ADR-020)
         run: test "$(id -u)" -ne 0 || { echo "::error::the runner runs this job as uid 0; ADR-020 requires a non-root service user"; exit 1; }
@@ -42,6 +44,7 @@ jobs:
     name: Conventional Commits
     if: github.event_name == 'pull_request'
     runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
