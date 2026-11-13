@@ -23,9 +23,9 @@ Manual checks not proved: 4
 | 4 | implement | sonnet | high | 3 | no | ok (148dcc2) | 160006 |
 | 5 | manual-verify | sonnet | medium | 2 | no | ok (460673b) | 77137 |
 | 6 | manual-verify | sonnet | high | 3 | no | ok (9670da6) | 69100 |
-| 7 | impl-review | opus | high | 5 | no | ok (5646948) | - |
+| 7 | impl-review | opus | high | 5 | no | ok (5646948) | 136367 |
 
-Steps: 7 · Tokens: 643706 (figures for 6 of 7 steps)
+Steps: 7 · Tokens: 780073 (figures for 7 of 7 steps)
 
 ## Review findings
 
