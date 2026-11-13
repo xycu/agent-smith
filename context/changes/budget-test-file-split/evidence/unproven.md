@@ -1,0 +1,1 @@
+- 2.7 — needs the CI run of the pull request, which does not exist until this run ends and opens the PR; local timing is not the CI figure
