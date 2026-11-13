@@ -723,6 +723,7 @@ test("kind C: a failing pre-commit hook halts with its output, nothing staged, o
   assert.match(res.json.reason, /Nothing was committed/);
   assert.equal(res.json.committed, false);
   assert.equal(res.json.archive, "skipped: pre-archive commit failed");
+  assert.equal(res.json.report, `${relDir(project)}/agent-smith/report.md`);
   git(project, ["diff", "--cached", "--quiet"]);
   assert.equal(commitCount(project), 1);
   assert.equal(metaOutcome(project).action, "done");
@@ -907,6 +908,7 @@ test("kind D: a pre-commit hook that stages another file halts after the commit 
   assert.match(res.json.reason, /commit exists, is local/);
   assert.equal(res.json.committed, true);
   assert.equal(res.json.archive, "skipped: pre-archive commit exists; run not archived");
+  assert.equal(res.json.report, `${relDir(project)}/agent-smith/report.md`);
   assert.equal(commitCount(project), 2);
   assertFilesAsCommitted(project);
 });

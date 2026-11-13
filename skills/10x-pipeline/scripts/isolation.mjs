@@ -686,8 +686,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   const res = routerCommit(g, timeout, { rel, message, trailer: coAuthorTrailer(policy) });
   if (res.error) {
     return res.commit === undefined
-      ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false, ...pr })
-      : out({ action: "halt", reason: `${res.reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true, ...pr });
+      ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false, report: done.report, ...pr })
+      : out({ action: "halt", reason: `${res.reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true, report: done.report, ...pr });
   }
 
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
