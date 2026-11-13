@@ -108,11 +108,11 @@ One fewer read and parse of `policy.json` per implement verification when the ch
 
 #### Automated
 
-- [ ] 1.1 New test passes and fails on the pre-change code: `node --test skills/10x-pipeline/test/executors.test.mjs`
-- [ ] 1.2 Churn tests pass unchanged: `node --test skills/10x-pipeline/test/churn.test.mjs`
-- [ ] 1.3 No-recursive-delete guard passes: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
-- [ ] 1.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.5 `steps.mjs` no longer reads policy.json: `! grep -n "policy.json\|readJson\|SKILL_DIR" skills/10x-pipeline/scripts/steps.mjs`
+- [x] 1.1 New test passes and fails on the pre-change code: `node --test skills/10x-pipeline/test/executors.test.mjs` — da214ab
+- [x] 1.2 Churn tests pass unchanged: `node --test skills/10x-pipeline/test/churn.test.mjs` — da214ab
+- [x] 1.3 No-recursive-delete guard passes: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — da214ab
+- [x] 1.4 Full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — da214ab
+- [x] 1.5 `steps.mjs` no longer reads policy.json: `! grep -n "policy.json\|readJson\|SKILL_DIR" skills/10x-pipeline/scripts/steps.mjs` — da214ab
 
 #### Manual
 
