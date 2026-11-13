@@ -324,7 +324,8 @@ export function prTitleFor(id, text, subjects) {
     const m = SUBJECT_RE.exec(subject);
     if (m && (best === null || TYPE_RANK.indexOf(m[1]) < TYPE_RANK.indexOf(best.type))) best = { type: m[1], bang: m[2] ?? "" };
   }
-  return `${best?.type ?? "chore"}(${id})${best?.bang ?? ""}: ${titleFor(id, text)}`;
+  // The whole title stays within TITLE_CAP (GitHub's limit), not only the description.
+  return `${best?.type ?? "chore"}(${id})${best?.bang ?? ""}: ${titleFor(id, text)}`.slice(0, TITLE_CAP);
 }
 
 export function markerFor(id) {

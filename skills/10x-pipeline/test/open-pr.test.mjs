@@ -619,6 +619,9 @@ test("prTitleFor: rank, bang, ignored subjects, chore fallback, lint-valid resul
   assert.equal(t([]), "chore(demo): Demo title");
   assert.equal(prTitleFor("demo", null, ["fix: x"]), "fix(demo): demo");
   for (const subjects of [[], ["feat(demo)!: b"], ["revert: x", "docs: y"], ["build: z"]]) assert.equal(lintSubject(t(subjects)), null);
+  const long = prTitleFor("demo", `---\ntitle: ${"x".repeat(300)}\n---\n`, ["feat(demo)!: b"]);
+  assert.equal(long.length, 256);
+  assert.ok(long.startsWith("feat(demo)!: xxx"), long);
 });
 
 test("prTitleFor: the type list is the one of tools/commit-lint.mjs", () => {
