@@ -37,7 +37,11 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `executors.test.mjs` | commit check, fallback, executor routing, retry, the report label |
 | `codereplan.test.mjs` | code re-plans |
 | `manualverify.test.mjs` | `manual-verify` and `--chrome` (ADR-012): every row in scope at every level, outside the pool, browser rows and their proof kinds, the reason in the outputs, report marks, tier and retry, evidence kinds, `evidence/unproven.md` reasons, the prompt and the Chrome default. Turn the step on with `manualVerify: { minRigor: "lean" }` |
-| `budget-executors.test.mjs` | the budget derived from the longest legal path, `manual-verify` and its retry included, at `lean`, `standard` and `thorough` |
+| `budget-executors.test.mjs` | the budget derived from the longest legal path, `manual-verify` and its retry included, at `lean`, `standard` and `thorough`: longest legal path, failure path, lean without a pool step |
+| `budget-pool-score.test.mjs` | the budget with a raised pool allowance and with scorer failures skipped |
+| `budget-confirm-shipped.test.mjs` | the confirmation round at the shipped policy (off) and at the shipped `budgetDelta` |
+| `budget-confirm-rounds.test.mjs` | each confirmation round adds a `plan-review` and an `impl-review` step, which a `budgetDelta` raised by 2 per round holds |
+| `budget-helpers.mjs` | helper: fixtures, plan renderer, `walkFixture` and `walkAware`; registers no tests |
 | `phase-helpers.mjs` | helper: plan builders, log fixtures and `gateCheck` for the plan's Progress rows |
 
 ## Isolation, commits and recovery
@@ -91,7 +95,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 
 - `helpers.mjs`: scratch projects, `run.jsonl` fixtures, hermetic git. It stays as it was except `writeOverride(project, policy)`, which `makeProject` always calls and which adds `score: { minRigor: null }`, `isolation: { require: false }` and `manualVerify: { minRigor: null }` unless the test gives its own key (so existing tests keep `plan` as the first step and run in a plain scratch project), and `cleanupAll`, which calls `removeTree` for every scratch folder, goes on past one it cannot remove and then throws one `AggregateError` naming each folder left behind.
 - `ahead.mjs`: wraps `writePlan` and `writeReview` and exports `stampAhead`. A file a test writes as a step's output gets an mtime a minute ahead, because the router needs an mtime later than the step's `startedAt` and Linux stamps files from a coarse clock. A test that writes such a file right after `next` uses it.
-- `phase-helpers.mjs` and `openspec-helpers.mjs`: see their groups above.
+- `phase-helpers.mjs`, `budget-helpers.mjs` and `openspec-helpers.mjs`: see their groups above.
 
 ## tools/test
 
