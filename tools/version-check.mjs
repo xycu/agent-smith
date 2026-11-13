@@ -1,7 +1,7 @@
 // Version-drift guard for the plugin package.
-// The plugin version sits in several fields that must stay equal and be valid SemVer 2.0.0:
+// The plugin version sits in three fields that must stay equal and be valid SemVer 2.0.0:
 //   .claude-plugin/plugin.json       -> version
-//   .claude-plugin/marketplace.json  -> metadata.version and plugins[0].version
+//   .claude-plugin/marketplace.json  -> metadata.version (no plugin entry may set version)
 //   .release-please-manifest.json    -> "."
 // release-please updates them together (release-please-config.json `extra-files`); this check fails
 // if a manual edit, a bad updater config or a partial revert makes them differ.
@@ -38,7 +38,6 @@ export function collect(root = ROOT) {
   const fields = [
     ["plugin.json:version", plugin.version],
     ["marketplace.json:metadata.version", marketplace.metadata?.version],
-    ["marketplace.json:plugins[0].version", marketplace.plugins?.[0]?.version],
   ];
   fields.push([".release-please-manifest.json:.", readJson(root, ".release-please-manifest.json")["."]]);
   for (const [label, value] of fields) {
@@ -56,6 +55,14 @@ export function check(root = ROOT) {
     return [error.message];
   }
   const errors = [];
+  const plugins = readJson(root, ".claude-plugin/marketplace.json").plugins;
+  if (Array.isArray(plugins)) {
+    plugins.forEach((entry, i) => {
+      if (entry && typeof entry === "object" && !Array.isArray(entry) && Object.hasOwn(entry, "version")) {
+        errors.push(`marketplace.json:plugins[${i}].version must not be set (plugin.json:version is the plugin version)`);
+      }
+    });
+  }
   const reference = fields[0][1];
   for (const [label, value] of fields) {
     if (!SEMVER.test(value)) errors.push(`${label} = ${JSON.stringify(value)} is not a SemVer 2.0.0 version`);

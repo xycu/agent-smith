@@ -108,5 +108,5 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects (no `Merge ` exemption), range mode with a real merge commit, title mode, CLI exit codes |
 | `pr-title-workflow.test.mjs` | `.github/workflows/pr-title.yml` as text: the four `types`, no `pull_request_target`, concurrency group by PR number, title passed through `env:`, name not `CI`; `ci.yml` has no `edited` (ADR-008, Amendment 2) |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |
-| `version-check.test.mjs` | `tools/version-check.mjs`: version fields equal and valid SemVer |
+| `version-check.test.mjs` | `tools/version-check.mjs`: three version fields equal and valid SemVer, no `version` in a marketplace plugin entry |
 | `workflow-pins.test.mjs` | `tools/workflow-pins.mjs` and its run on this repository: every remote action is pinned to a 40-hex SHA with a version comment, so a tag reference fails the suite. To bump an action, replace the SHA and the version comment together |

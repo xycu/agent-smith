@@ -12,14 +12,14 @@ import { removeTree } from "../../skills/10x-pipeline/scripts/remove-tree.mjs";
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../version-check.mjs");
 const created = [];
 
-function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry = "0.1.0", manifest = "0.1.0" } = {}) {
+function makeRoot({ plugin = "0.1.0", meta = "0.1.0", entry, manifest = "0.1.0" } = {}) {
   const root = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "vc-"));
   created.push(root);
   fs.mkdirSync(path.join(root, ".claude-plugin"));
   fs.writeFileSync(path.join(root, ".claude-plugin/plugin.json"), JSON.stringify({ name: "x", version: plugin }));
   fs.writeFileSync(
     path.join(root, ".claude-plugin/marketplace.json"),
-    JSON.stringify({ name: "x", metadata: { version: meta }, plugins: [{ name: "x", version: entry }] }),
+    JSON.stringify({ name: "x", metadata: { version: meta }, plugins: [{ name: "x", ...(entry === undefined ? {} : { version: entry }) }] }),
   );
   if (manifest !== null) fs.writeFileSync(path.join(root, ".release-please-manifest.json"), JSON.stringify({ ".": manifest }));
   return root;
@@ -31,15 +31,32 @@ test.after(() => {
 
 test("equal valid versions pass", () => {
   assert.deepEqual(check(makeRoot()), []);
-  assert.deepEqual(check(makeRoot({ plugin: "1.2.3-rc.1+build.5", meta: "1.2.3-rc.1+build.5", entry: "1.2.3-rc.1+build.5", manifest: "1.2.3-rc.1+build.5" })), []);
+  assert.deepEqual(check(makeRoot({ plugin: "1.2.3-rc.1+build.5", meta: "1.2.3-rc.1+build.5", manifest: "1.2.3-rc.1+build.5" })), []);
 });
 
 test("a drifted field is named", () => {
-  const errors = check(makeRoot({ entry: "0.2.0" }));
+  const errors = check(makeRoot({ meta: "0.2.0" }));
   assert.equal(errors.length, 1);
-  assert.match(errors[0], /marketplace\.json:plugins\[0\]\.version/);
-  const both = check(makeRoot({ meta: "0.3.0", entry: "0.2.0" }));
-  assert.equal(both.length, 2);
+  assert.match(errors[0], /marketplace\.json:metadata\.version/);
+});
+
+test("a version in a marketplace plugin entry fails", () => {
+  for (const entry of ["0.1.0", "0.2.0", null]) {
+    const errors = check(makeRoot({ entry }));
+    assert.equal(errors.length, 1);
+    assert.match(errors[0], /plugins\[0\]\.version must not be set/);
+  }
+  const second = makeRoot();
+  fs.writeFileSync(
+    path.join(second, ".claude-plugin/marketplace.json"),
+    JSON.stringify({ name: "x", metadata: { version: "0.1.0" }, plugins: [{ name: "x" }, { name: "y", version: "0.1.0" }] }),
+  );
+  assert.match(check(second)[0], /plugins\[1\]\.version must not be set/);
+  for (const plugins of [[null], "x"]) {
+    const odd = makeRoot();
+    fs.writeFileSync(path.join(odd, ".claude-plugin/marketplace.json"), JSON.stringify({ name: "x", metadata: { version: "0.1.0" }, plugins }));
+    assert.deepEqual(check(odd), []);
+  }
 });
 
 test("the release-please manifest is required and checked", () => {
@@ -61,17 +78,17 @@ test("release-please-config.json updates every file the guard reads", () => {
   const extra = config.packages["."]["extra-files"];
   const byPath = new Map(extra.map((entry) => [entry.path, entry]));
   assert.equal(byPath.get(".claude-plugin/plugin.json")?.jsonpath, "$.version");
-  // $..version reaches metadata.version and plugins[0].version, the two marketplace fields the guard reads.
-  assert.equal(byPath.get(".claude-plugin/marketplace.json")?.jsonpath, "$..version");
+  assert.equal(byPath.get(".claude-plugin/marketplace.json")?.jsonpath, "$.metadata.version");
   assert.equal(extra.length, 2);
   const manifest = JSON.parse(fs.readFileSync(path.join(repo, ".claude-plugin/marketplace.json"), "utf8"));
   const found = JSON.stringify(manifest).match(/"version"/g).length;
-  assert.equal(found, 2, "a new version key in marketplace.json is rewritten by $..version and must be guarded");
+  assert.equal(found, 1, "a new version key in marketplace.json would not be updated by $.metadata.version");
+  assert.ok(manifest.plugins.every((p) => !("version" in p)));
 });
 
 test("a version that is not SemVer fails", () => {
   for (const bad of ["1.0", "v1.0.0", "01.0.0", "1.0.0.0", ""]) {
-    const errors = check(makeRoot({ plugin: bad, meta: bad, entry: bad, manifest: bad }));
+    const errors = check(makeRoot({ plugin: bad, meta: bad, manifest: bad }));
     assert.ok(errors.length >= 1, `"${bad}" must fail`);
     assert.match(errors[0], /not a SemVer 2\.0\.0 version/);
   }
