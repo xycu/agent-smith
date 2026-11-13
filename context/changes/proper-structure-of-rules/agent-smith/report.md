@@ -19,9 +19,9 @@ Manual checks not proved: 2
 | 4 | implement | opus | high | 5 | no | ok (2d8b3be) | 228060 |
 | 5 | manual-verify | sonnet | medium | 2 | no | ok (f30ff7f) | 83214 |
 | 6 | manual-verify | sonnet | high | 3 | no | ok (d8ded1c) | 69315 |
-| 7 | impl-review | opus | high | 5 | no | ok (0967490) | - |
+| 7 | impl-review | opus | high | 5 | no | ok (0967490) | 200445 |
 
-Steps: 7 · Tokens: 721364 (figures for 6 of 7 steps)
+Steps: 7 · Tokens: 921809 (figures for 7 of 7 steps)
 
 ## Neutral reruns
 
