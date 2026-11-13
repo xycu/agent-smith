@@ -1077,7 +1077,7 @@ test("report shows fallback", () => {
   assert.equal(run(project, ["status", project.id, "--report"]).status, 0);
   const rows = Object.fromEntries(readReportFile(project).split("\n").filter((l) => /^\| \d+ \|/.test(l)).map((l) => {
     const cells = l.split("|").map((c) => c.trim());
-    return [cells[1], { step: cells[2], result: cells[7] }];
+    return [cells[1], { step: cells[2], result: cells[8] }];
   }));
   assert.deepEqual(rows[1], { step: "plan", result: "ok" });
   assert.deepEqual(rows[2], { step: "implement (implement-e2e)", result: "fallback" });

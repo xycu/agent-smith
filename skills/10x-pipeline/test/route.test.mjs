@@ -694,7 +694,7 @@ test("a flag init does not read halts at init, is named and writes nothing", () 
     const res = run(project, ["init", project.id, ...args]);
     assert.equal(res.status, 1);
     assert.equal(res.json.action, "halt");
-    assert.ok(res.json.reason.startsWith(`Unknown flag(s) for init: ${names}. init reads: --goal, --rigor, --archive, --chrome, --chain. Nothing was written.`), res.json.reason);
+    assert.ok(res.json.reason.startsWith(`Unknown flag(s) for init: ${names}. init reads: --goal, --rigor, --archive, --chrome, --chain, --host. Nothing was written.`), res.json.reason);
     assert.equal(fs.existsSync(project.agentDir), false);
   }
 });

@@ -9,6 +9,7 @@
     { "model": "opus",   "effort": "xhigh" },
     { "model": "opus",   "effort": "max" }
   ],
+  "codex": { "profile": null },
   "steps": {
     "plan":        { "skill": "10x-plan",           "baseTier": 5, "minTier": 2, "maxTier": 7, "interactive": true },
     "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 1, "maxTier": 6, "interactive": true },

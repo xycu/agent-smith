@@ -71,6 +71,25 @@ export function loadPolicy() {
   return policy;
 }
 
+// Missing provider/host fields belong to runs and overrides made before OpenAI support.
+export const providerOf = (target) => target?.provider === undefined ? "claude" : target.provider;
+export const hostOf = (meta) => meta?.host === undefined ? "claude" : meta.host;
+
+export function dispatchTarget(policy, tier) {
+  const rung = policy.ladder[tier];
+  const provider = providerOf(rung);
+  return { provider, model: rung.model, effort: rung.effort,
+    ...(provider === "openai" ? { profile: policy.codex?.profile ?? null } : {}) };
+}
+
+export function hostProblem(policy, host) {
+  if (host !== "claude" && host !== "codex") return `Invalid host ${JSON.stringify(host)}. Use claude or codex. Nothing was written.`;
+  if (host === "codex" && policy.ladder.some((rung) => providerOf(rung) !== "openai")) {
+    return "A Codex host requires an OpenAI-only ladder. Configure the codex-policy.json overlay in context/foundation/agent-smith-policy.json. Nothing was written.";
+  }
+  return null;
+}
+
 // ---- cost estimate ----------------------------------------------------------
 
 // The price table of the policy: { usdPerMillionTokens: { <model alias>: <number> } }, or null when prices are off.
@@ -140,6 +159,14 @@ export function policyProblems(policy) {
       if (typeof v !== "string" || !v.trim()) return bad(`ladder[${i}].${field}`, "a non-empty string", v);
     }
     if (efforts.length && !efforts.includes(rung.effort)) return bad(`ladder[${i}].effort`, `one of ${efforts.join(", ")} (rigor.effortOrder)`, rung.effort);
+    if (rung.provider !== undefined && rung.provider !== "claude" && rung.provider !== "openai") {
+      return bad(`ladder[${i}].provider`, "claude or openai", rung.provider);
+    }
+  }
+  if (p.codex !== undefined && !isObject(p.codex)) return bad("codex", "an object", p.codex);
+  const profile = p.codex?.profile;
+  if (profile !== undefined && profile !== null && (typeof profile !== "string" || !profile.trim() || /[\r\n\0]/.test(profile))) {
+    return bad("codex.profile", "null or a non-blank profile name without control characters", profile);
   }
   const top = p.ladder.length - 1;
   for (const [name, step] of Object.entries(p.steps)) {

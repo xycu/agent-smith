@@ -29,8 +29,8 @@ const SCORE_AGENT = "agent-smith:score";
 const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
 const SCORER = { score: { minRigor: "standard" } };
 const RESTRICTED = { ...SCORER, agents: { restricted: true } };
-const RUN_KEYS = ["action", "n", "step", "model", "effort", "reason", "prompt", "resultFile"];
-const RUN_KEYS_AGENT = ["action", "n", "step", "agent", "model", "effort", "reason", "prompt", "resultFile"];
+const RUN_KEYS = ["action", "n", "step", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
+const RUN_KEYS_AGENT = ["action", "n", "step", "agent", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
 const FACTORS = [...DEFAULT.score.factors.cognitive, ...DEFAULT.score.factors.execution];
 
 const copies = [];

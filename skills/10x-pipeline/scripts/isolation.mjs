@@ -3,12 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, isFailure, isObject, SHA_RE, runGit,
-  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer,
+  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, hostOf, dispatchTarget,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
 import { readOpenspec, openspecArchivePath } from "./openspec.mjs";
-import { finishRun, endRun, promptText } from "./flow.mjs";
+import { finishRun, endRun, promptText, dispatchProblem } from "./flow.mjs";
 
 // ---- run provenance -------------------------------------------------------------
 
@@ -89,6 +89,7 @@ function provenanceFlags(policy, meta) {
     "agents.restricted": isObject(policy.agents) && policy.agents.restricted === true,
     "advisor.enabled": isObject(policy.advisor) && policy.advisor.enabled === true,
     ...(typeof meta.chain === "string" ? { chain: meta.chain } : {}),
+    ...(hostOf(meta) === "codex" ? { host: "codex" } : {}),
   };
 }
 
@@ -662,6 +663,10 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   if (!isObject(target) || typeof target.model !== "string" || typeof target.effort !== "string") {
     precheck(`policy.ladder has no entry for tier ${settled.tier}, which the archive step is pinned to.`);
   }
+  const dispatch = dispatchTarget(policy, settled.tier);
+  const archiveStep = openspec ? "os-archive" : "archive";
+  const unsupported = dispatchProblem(policy, dispatch, archiveStep, archiveStep);
+  if (unsupported) precheck(unsupported);
 
   // 3. Ignored files are reported, never a halt.
   const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
@@ -695,8 +700,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + promptText(policy, "suffix");
   return out({
     action: "archive",
-    model: target.model,
-    effort: target.effort,
+    host: hostOf(meta),
+    ...dispatch,
     reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${settled.tier} (${settled.tierWhy})`,
     prompt,
     summary: { reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length },

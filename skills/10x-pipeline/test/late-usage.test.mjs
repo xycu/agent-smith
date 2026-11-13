@@ -174,7 +174,7 @@ test("1.4 an ended done run: report.md shows the figure, the totals count it and
   assert.equal(res.status, 0, res.stdout);
   assert.equal(res.json.report, "context/changes/demo/agent-smith/report.md");
   const report = readReportFile(project);
-  assert.match(report, /\| 2 \| plan-review \| sonnet \| high \| 3 \| no \| ok \| 1200 \|/);
+  assert.match(report, /\| 2 \| plan-review \| claude \| sonnet \| high \| 3 \| no \| ok \| 1200 \|/);
   assert.match(report, /Tokens: 1501200 \(figures for 3 of 3 steps\)/);
   assert.equal(readMetaFile(project).outcome.action, "done");
 });
@@ -192,7 +192,7 @@ test("1.4 with prices set the Cost (est.) cell and the Cost (estimate) line incl
   const res = usage(project, 2, ["--tokens", "500000"]);
   assert.equal(res.status, 0, res.stdout);
   const report = readReportFile(project);
-  assert.match(report, /\| 2 \| plan-review \| sonnet \| high \| 3 \| no \| ok \| 500000 \| \$3\.0000 \|/);
+  assert.match(report, /\| 2 \| plan-review \| claude \| sonnet \| high \| 3 \| no \| ok \| 500000 \| \$3\.0000 \|/);
   assert.match(report, /Cost \(estimate\): \$24\.00 at a blended rate/);
   assert.match(report, /priced 3 of 3 steps with a token figure/);
 });
@@ -409,7 +409,7 @@ test("2.1 10x --archive: after the archive action the figure commits the folder 
   assert.ok(names.includes(`${rel(project)}/agent-smith/report.md`));
   assert.equal(folderStatus(project), "");
   git(project, ["diff", "--cached", "--quiet"]);
-  assert.match(blob(project, "agent-smith/report.md"), /\| 4 \| impl-review \| sonnet \| high \| 3 \| no \| ok \| 1200 \|/);
+  assert.match(blob(project, "agent-smith/report.md"), /\| 4 \| impl-review \| claude \| sonnet \| high \| 3 \| no \| ok \| 1200 \|/);
   assert.deepEqual(JSON.parse(blob(project, "agent-smith/run.jsonl").split("\n")[3]).usage, FIG);
   // The same figure again is a no-op and makes no commit.
   const count = git(project, ["rev-list", "--count", "HEAD"]);

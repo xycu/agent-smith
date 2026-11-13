@@ -23,13 +23,14 @@ import {
   ROOT, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
+  providerOf, hostOf, hostProblem, dispatchTarget,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
 import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
 import {
   writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
-  advisorOn, neutralRetry, cleanUsage,
+  advisorOn, neutralRetry, cleanUsage, dispatchProblem,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
@@ -180,8 +181,10 @@ function next(id, policy, chain = "10x") {
     fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
 
-  const { model, effort } = policy.ladder[tier];
+  const target = dispatchTarget(policy, tier);
   const template = d.template ?? d.step;
+  const unsupported = dispatchProblem(policy, target, d.step, template);
+  if (unsupported) return end({ action: "halt", reason: unsupported, steps: ran.length });
   const vars = {
     id, goal: meta.goal, verdict: d.verdict ?? "", artifacts: artifactsLine(p, policy), authority: authorityLine(p, policy, template),
     phase: d.phase === undefined ? "" : String(d.phase), lastPhase: d.lastPhase === undefined ? "" : String(d.lastPhase),
@@ -203,8 +206,7 @@ function next(id, policy, chain = "10x") {
     template,
     skill: d.skill ?? policy.steps[d.step].skill,
     tier,
-    model,
-    effort,
+    ...target,
     reason: d.reason,
     tierWhy,
     simple,
@@ -252,8 +254,8 @@ function next(id, policy, chain = "10x") {
     n: entry.n,
     step: d.step,
     ...(agent ? { agent } : {}),
-    model,
-    effort,
+    host: hostOf(meta),
+    ...target,
     reason: `${d.reason}; tier ${tier} (${tierWhy})`,
     prompt,
     resultFile: path.relative(ROOT, p.result),
@@ -352,7 +354,7 @@ function riskCommand(id, policy, chain = "10x") {
 // Read-only: compares the usage of a routed run with a baseline run of the same change.
 // Each side is a run folder in its own checkout. Nothing is written, nothing is routed.
 
-const BASELINE_PIN = { model: "sonnet", effort: "high" };
+const BASELINE_PIN = { provider: "claude", model: "sonnet", effort: "high" };
 
 // A figure counts only when it is a non-negative safe integer; run.jsonl may be edited by hand.
 function validFigure(v) {
@@ -411,6 +413,8 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
   // Tokens per model alias, and per tier as <model>/<effort>: byModel cannot show an effort move.
   const byModel = {};
   const byTier = {};
+  const byProviderModel = {};
+  const byProviderTier = {};
   for (const e of steps) {
     const v = e.usage?.totalTokens;
     if (!validFigure(v)) continue;
@@ -418,21 +422,28 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
     const effort = typeof e.effort === "string" && e.effort ? e.effort : "unknown";
     byModel[model] = (byModel[model] ?? 0) + v;
     byTier[`${model}/${effort}`] = (byTier[`${model}/${effort}`] ?? 0) + v;
+    const providerModel = `${providerOf(e)}/${model}`;
+    byProviderModel[providerModel] = (byProviderModel[providerModel] ?? 0) + v;
+    byProviderTier[`${providerModel}/${effort}`] = (byProviderTier[`${providerModel}/${effort}`] ?? 0) + v;
   }
   // The cost estimate at a blended rate: USD in total and per alias over priced steps, summed before rounding.
   let cost = null;
   if (prices) {
     const est = estimateCost(steps, prices);
     const usdByModel = {};
+    const usdByProviderModel = {};
     for (const e of steps) {
       const usd = est.perEntry[e.n];
       if (typeof usd !== "number") continue;
       const model = typeof e.model === "string" && e.model ? e.model : "unknown";
       usdByModel[model] = (usdByModel[model] ?? 0) + usd;
+      const providerModel = `${providerOf(e)}/${model}`;
+      usdByProviderModel[providerModel] = (usdByProviderModel[providerModel] ?? 0) + usd;
     }
     cost = {
       usd: est.priced ? roundUsd(est.usd) : null, priced: est.priced, withFigures: est.withFigures, unpriced: est.unpriced,
       byModel: Object.fromEntries(Object.entries(usdByModel).map(([m, v]) => [m, roundUsd(v)])),
+      byProviderModel: Object.fromEntries(Object.entries(usdByProviderModel).map(([m, v]) => [m, roundUsd(v)])),
     };
   }
   const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
@@ -463,12 +474,12 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
     failedAttempts: steps.filter((e) => e.ok === false && !e.fallback).length,
     plan,
     inputFiles,
-    tokens: { ...figure("totalTokens"), byModel, byTier },
+    tokens: { ...figure("totalTokens"), byModel, byTier, byProviderModel, byProviderTier },
     cost,
     toolUses: figure("toolUses"),
     durationMs: figure("durationMs"),
     alsoArchived: found.alsoArchived,
-    pinned: steps.length > 0 && steps.every((e) => e.model === BASELINE_PIN.model && e.effort === BASELINE_PIN.effort),
+    pinned: steps.length > 0 && steps.every((e) => providerOf(e) === BASELINE_PIN.provider && e.model === BASELINE_PIN.model && e.effort === BASELINE_PIN.effort),
   };
 }
 
@@ -521,6 +532,8 @@ function comparePair(id, flags, policy, chain = "10x") {
   if (baseline.steps > 0 && !baseline.pinned && !unpinned) reasons.push("baseline-not-pinned");
   if (unpinned) warnings.push("baseline-unpinned");
   const sides = [["baseline", baseline], ["routed", routed]];
+  const providers = new Set(sides.flatMap(([, side]) => Object.keys(side.tokens.byProviderModel).map((key) => key.split("/")[0])));
+  if (providers.size > 1) warnings.push("cross-provider-raw-tokens");
   for (const [name, s] of sides) {
     if (s.steps === 0) reasons.push(`no-steps:${name}`);
     if (s.outcome !== "done") reasons.push(`outcome-not-done:${name}`);
@@ -613,11 +626,14 @@ function compareMarkdown(pair) {
     `Tokens by tier, baseline: ${tiers(b)}`,
     `Tokens by tier, routed: ${tiers(r)}`,
     ...(priced ? [`Cost by model, baseline: ${costModels(b)}`, `Cost by model, routed: ${costModels(r)}`] : []),
+    `Tokens by provider/model, baseline: ${Object.entries(b.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${value}`).join(", ") || "none"}`,
+    `Tokens by provider/model, routed: ${Object.entries(r.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${value}`).join(", ") || "none"}`,
     "",
     `Baseline pinned to sonnet at high effort: ${pair.pinned ? "yes" : "no"}`,
     `Drop: ${pair.dropPercent === null ? "none" : `${pair.dropPercent}%`} (rounded down to 2 decimals; the verdict uses exact tokens)`,
     `Target: ${pair.targetDropPercent === null ? "not set" : `${pair.targetDropPercent}%`}`,
     `Verdict: ${pair.verdict}. Unit: raw tokens, a proxy for the weekly limit.${priced ? " Cost is an estimate at a blended rate and does not enter the verdict." : ""}`,
+    ...(pair.warnings.includes("cross-provider-raw-tokens") ? ["Cross-provider token counts are raw; they are not normalized for tokenizer work or billing."] : []),
     `Reasons: ${list(pair.reasons)}`,
     `Warnings: ${list(pair.warnings)}`,
     "",
@@ -643,12 +659,14 @@ function status(id, flags, chain = "10x", policy = null) {
   const cost = prices ? estimateCost(executed(log), prices) : null;
   const res = {
     change: id,
+    host: hostOf(readMeta(p.meta, {})),
     rigor: readMeta(p.meta, {}).rigor?.level ?? null,
     steps: log.map((e) => e.skipped ? {
       skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null,
       ...(e.score ? { score: e.score } : {}),
     } : ({
-      n: e.n, step: e.step, template: e.template ?? null, model: e.model, effort: e.effort, simple: e.simple ?? null,
+      n: e.n, step: e.step, template: e.template ?? null, provider: providerOf(e), model: e.model, effort: e.effort, simple: e.simple ?? null,
+      ...(providerOf(e) === "openai" ? { profile: e.profile ?? null } : {}),
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       usage: e.usage ?? null,
       ...(cost ? { cost: typeof cost.perEntry[e.n] === "number" ? roundUsd(cost.perEntry[e.n]) : null } : {}),
@@ -828,7 +846,7 @@ function resolveChain(cmd, id, flags) {
 // ---- main -----------------------------------------------------------------
 
 // The flags init reads; any other flag halts it.
-const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain"];
+const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host"];
 
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
@@ -840,6 +858,9 @@ function main() {
   if (flags.chain !== undefined && !CHAINS.includes(flags.chain)) {
     halt(`Invalid --chain ${flags.chain === true ? "(no value)" : flags.chain}. Use one of: ${CHAINS.join(", ")}.`);
   }
+  if (flags.host !== undefined && (cmd !== "init" || !["claude", "codex"].includes(flags.host))) {
+    halt("--host is an init option and needs claude or codex. Nothing was written.");
+  }
   const policy = loadPolicy();
   // A malformed cap, ladder or tier halts before the chain, the run lock or any write.
   if (["init", "next", "usage"].includes(cmd)) {
@@ -850,6 +871,16 @@ function main() {
   // openspec/changes/archive/ is OpenSpec's archive root, so the name archive cannot be an OpenSpec change.
   if (chain === "openspec" && id === "archive") {
     halt("The change name archive is reserved: openspec/changes/archive/ is OpenSpec's archive folder. Use another name. Nothing was written.");
+  }
+  if (["init", "next", "usage"].includes(cmd)) {
+    const p = paths(id, null, chain);
+    const stored = readMeta(p.meta, {});
+    const host = cmd === "init" ? flags.host ?? hostOf(stored) : hostOf(stored);
+    if (cmd === "init" && fs.existsSync(p.meta) && host !== hostOf(stored)) {
+      halt(`Run host is ${hostOf(stored)}; --host ${host} cannot resume it. Use the original host or a new change. Nothing was written.`);
+    }
+    const incompatible = hostProblem(policy, host);
+    if (incompatible) halt(incompatible);
   }
   if (["init", "next", "usage"].includes(cmd)) acquireRunLock(id, chain);
 
@@ -915,7 +946,7 @@ function main() {
     // An empty, blank or valueless --goal keeps the stored goal.
     const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
     // Keep every stored field (rigor and whatever later changes add); a stored rigor that is no object is dropped.
-    const meta = { ...prev, id, goal };
+    const meta = { ...prev, id, goal, host: flags.host ?? hostOf(prev) };
     if (!isObject(prev.rigor)) delete meta.rigor;
     if (archive !== undefined) meta.archive = archive;
     if (chrome !== undefined) meta.chrome = chrome;
