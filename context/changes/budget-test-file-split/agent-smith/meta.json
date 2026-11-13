@@ -42,5 +42,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.7 After the PR runs in CI, the suite `duration_ms` is under 90 s, with both figures noted in the PR"
+    ],
+    "manualNotProved": [
+      "2.7 After the PR runs in CI, the suite `duration_ms` is under 90 s, with both figures noted in the PR — not proved: needs the CI run of the pull request, which does not exist until this run ends and opens the PR; local timing is not the CI figure"
+    ]
   }
 }
