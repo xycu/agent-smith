@@ -18,6 +18,14 @@ test("every job of ci.yml uses the self-hosted labels with the fork fallback", (
   for (const line of runsOn) assert.equal(line, EXPECTED);
 });
 
+test("every job of ci.yml stops after 15 minutes", () => {
+  const ci = read("ci.yml");
+  const body = ci.slice(ci.indexOf("\njobs:"));
+  const blocks = body.split(/\n(?= {2}[\w-]+:\s*\n)/).slice(1);
+  assert.equal(blocks.length, 2);
+  for (const block of blocks) assert.equal(block.match(/^ {4}timeout-minutes: 15$/gm)?.length, 1);
+});
+
 test("release.yml stays off self-hosted runners", () => {
   assert.doesNotMatch(read("release.yml"), /self-hosted/);
 });
