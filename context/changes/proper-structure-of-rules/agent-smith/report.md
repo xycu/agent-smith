@@ -17,11 +17,11 @@ Manual checks not proved: 2
 | 2 | plan | opus | high | 5 | no | ok (2ba5b44) | 114739 |
 | 3 | plan-review | sonnet | high | 3 | no | ok (12491b6) | 149170 |
 | 4 | implement | opus | high | 5 | no | ok (2d8b3be) | 228060 |
-| 5 | manual-verify | sonnet | medium | 2 | no | ok (f30ff7f) | - |
+| 5 | manual-verify | sonnet | medium | 2 | no | ok (f30ff7f) | 83214 |
 | 6 | manual-verify | sonnet | high | 3 | no | ok (d8ded1c) | - |
 | 7 | impl-review | opus | high | 5 | no | ok (0967490) | - |
 
-Steps: 7 · Tokens: 568835 (figures for 4 of 7 steps)
+Steps: 7 · Tokens: 652049 (figures for 5 of 7 steps)
 
 ## Neutral reruns
 
