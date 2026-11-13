@@ -1,6 +1,6 @@
 # ADR-008: Release packaging with release-please and Semantic Versioning
 
-- **Status:** Accepted (2026-11-02, repository owner); amended 2026-11-12 (Amendment 1) and 2026-11-13 (Amendment 2: squash-only merging)
+- **Status:** Accepted (2026-11-02, repository owner); amended 2026-11-12 (Amendment 1) and 2026-11-13 (Amendment 2: squash-only merging; Amendment 3: no version in the marketplace plugin entry)
 - **Date:** 2026-11-02
 - **Deciders:** repository owner
 - **Origin:** the `release-packaging` change. Change folder: `context/changes/release-packaging/change.md`. The mechanics are copied from xycu/hegel-skill, with the differences below.
@@ -15,7 +15,7 @@
 
 ## Decision
 
-Releases follow Semantic Versioning 2.0.0 and are made by release-please from Conventional Commits. The version lives in `.claude-plugin/plugin.json` (`version`), `.claude-plugin/marketplace.json` (`metadata.version` and `plugins[0].version`) and `.release-please-manifest.json`. Two dependency-free Node scripts guard the inputs: `tools/version-check.mjs` and `tools/commit-lint.mjs`.
+Releases follow Semantic Versioning 2.0.0 and are made by release-please from Conventional Commits. The version lives in `.claude-plugin/plugin.json` (`version`), `.claude-plugin/marketplace.json` (`metadata.version` and `plugins[0].version`) and `.release-please-manifest.json`. (Superseded: `plugins[0].version` was removed, see Amendment 3.) Two dependency-free Node scripts guard the inputs: `tools/version-check.mjs` and `tools/commit-lint.mjs`.
 
 Rules, written as scenarios (the form of ADR-004):
 
@@ -122,3 +122,30 @@ Rules, written as scenarios (the form of ADR-004):
 | Make the title check a required check | rejected | A release PR opened with `GITHUB_TOKEN` runs no workflow, so a required check would never report on it. |
 | Drop the `commits` job | not adopted | The branch commit subjects still appear in the squash body, and `AGENTS.md` asks for Conventional Commits on every commit. |
 | Change the squash setting to `COMMIT_OR_PR_TITLE` or a blank body | not adopted | It would drop the `Co-Authored-By` trailers from `main`; the bullets already give no entry. |
+
+## Amendment 3: no version in the marketplace plugin entry (change marketplace-entry-version)
+
+### Context
+
+- The marketplace reference (https://code.claude.com/docs/en/plugins/marketplace-reference, read 2026-11-13) says that when `plugin.json` also sets `version`, `plugin.json` takes precedence and `claude plugin validate` warns. The host-marketplace guide (https://code.claude.com/docs/en/plugins/host-marketplace, "Release a new version") says not to set `version` in both `plugin.json` and the marketplace entry. The entry field was redundant for users.
+- `metadata.version` is the marketplace manifest version, not a second location of the plugin version. Keeping it equal to the plugin version is a repository convention that lets release-please write one number, not a Claude Code requirement.
+
+### Rules
+
+- **GIVEN** a plugin entry in `.claude-plugin/marketplace.json` **WHEN** it is written or edited **THEN** it **MUST NOT** carry `version`.
+- **GIVEN** `release-please-config.json` **WHEN** it lists the `marketplace.json` extra-file **THEN** its `jsonpath` **MUST** be `$.metadata.version`.
+- **GIVEN** `metadata.version` **WHEN** a release is made **THEN** it **MUST** equal the plugin version, by convention.
+
+### Consequences
+
+- The version lives in three fields. `tools/version-check.mjs` checks them and fails when any plugin entry owns a `version` key.
+- The next release PR changes `plugin.json`, `marketplace.json` `metadata.version`, the manifest and `CHANGELOG.md`, to be confirmed on that PR.
+- The Decision sentence naming `plugins[0].version` stays as history and points here.
+
+### Alternatives considered
+
+| Alternative | Verdict | Reason |
+| --- | --- | --- |
+| Drop `metadata.version` too | rejected | The reference treats it as the marketplace version, a different field from the plugin version. |
+| Keep both versions and guard them | rejected | The guide advises against setting `version` in both places. |
+| Omit `version` everywhere and track commits | rejected | release-please tags and SemVer releases are the release model of this ADR. |

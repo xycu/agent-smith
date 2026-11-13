@@ -76,7 +76,7 @@ A new test, prompt or ADR gets its row in the README of its folder, not in `AGEN
 
 Releases are made by [release-please](https://github.com/googleapis/release-please) in the release-PR model (`.github/workflows/release.yml`, `release-please-config.json`, `.release-please-manifest.json`; ADR-008). One release PR collects the changes. Merging it sets the version, creates the tag `vX.Y.Z` and publishes a GitHub Release with the changelog (`CHANGELOG.md`).
 
-- **One version, four fields.** `plugin.json` `version`, `marketplace.json` `metadata.version` and `plugins[0].version`, and the manifest `.` hold the same version. release-please updates them together; never edit them by hand. `tools/version-check.mjs` fails on drift in `ci.yml`.
+- **One version, three fields.** `plugin.json` `version`, `marketplace.json` `metadata.version` and the manifest `.` hold the same version; the `plugins[0]` entry carries no `version` (ADR-008 Amendment 3). release-please updates them together; never edit them by hand. `tools/version-check.mjs` fails on drift or an entry `version` in `ci.yml`.
 - **Owner setting, once.** Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests". Without it `release.yml` fails when it opens the PR.
 - **Release only after a green CI run.** The release job runs from the `workflow_run` of a green CI run of a push to `main`, and only while `main` still points at that commit; ADR-008 Amendment 1 has the rest.
 - **No checks on the release PR.** A PR opened with `GITHUB_TOKEN` starts no other workflow. `main` has no required checks, so the owner merges it after reading the diff.

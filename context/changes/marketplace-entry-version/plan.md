@@ -195,10 +195,10 @@ None for users: Claude Code already takes the plugin version from `plugin.json` 
 
 #### Automated
 
-- [ ] 1.1 `node tools/version-check.mjs` exits 0 and prints `version-check: OK (1.7.0)`
-- [ ] 1.2 `node --test tools/test/version-check.test.mjs` passes, including the new entry-version cases
-- [ ] 1.3 `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
-- [ ] 1.4 `node -e` check: `.claude-plugin/marketplace.json` parses and `plugins.every(p => !("version" in p))` is true
+- [x] 1.1 `node tools/version-check.mjs` exits 0 and prints `version-check: OK (1.7.0)`
+- [x] 1.2 `node --test tools/test/version-check.test.mjs` passes, including the new entry-version cases
+- [x] 1.3 `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes
+- [x] 1.4 `node -e` check: `.claude-plugin/marketplace.json` parses and `plugins.every(p => !("version" in p))` is true
 
 #### Manual
 
@@ -208,9 +208,9 @@ None for users: Claude Code already takes the plugin version from `plugin.json` 
 
 #### Automated
 
-- [ ] 2.1 `grep -n "four fields\|plugins\[0\]\.version" AGENTS.md docs/ADR/README.md skills/10x-pipeline/test/README.md tools/version-check.mjs` returns no line that describes `plugins[0].version` as a version field
-- [ ] 2.2 `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes (includes the `AGENTS.md` size and no-import tests)
-- [ ] 2.3 `node tools/version-check.mjs` exits 0
+- [x] 2.1 `grep -n "four fields\|plugins\[0\]\.version" AGENTS.md docs/ADR/README.md skills/10x-pipeline/test/README.md tools/version-check.mjs` returns no line that describes `plugins[0].version` as a version field
+- [x] 2.2 `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes (includes the `AGENTS.md` size and no-import tests)
+- [x] 2.3 `node tools/version-check.mjs` exits 0
 
 #### Manual
 
