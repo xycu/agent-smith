@@ -104,7 +104,7 @@ Remove the entry version, narrow the release-please path, update the guard and i
 
 #### Manual Verification:
 
-- `claude plugin validate .` on the repository root ends with `✔ Validation passed` and shows no version warning
+- `claude plugin validate .` on the repository root ends with `✔ Validation passed` and shows no version warning — evidence: evidence/command-plugin-validate.txt
 
 **Implementation Note**: After this phase and its automated verification pass, pause for the manual check before Phase 2. Phase blocks use plain bullets; the checkboxes live in `## Progress`.
 
@@ -155,7 +155,7 @@ Describe the three fields where the repository documents them, as an amendment t
 
 #### Manual Verification:
 
-- ADR-008 reads as an amendment: the Decision sentence and older amendments are unchanged except the Status line and the one Superseded parenthetical
+- ADR-008 reads as an amendment: the Decision sentence and older amendments are unchanged except the Status line and the one Superseded parenthetical — evidence: evidence/judgment-adr008-amendment.md
 - After the next release PR opens, its diff changes only `.claude-plugin/plugin.json` `version`, `.claude-plugin/marketplace.json` `metadata.version`, `.release-please-manifest.json` `.` and `CHANGELOG.md`
 
 ---
