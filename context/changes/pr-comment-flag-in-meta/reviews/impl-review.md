@@ -70,4 +70,4 @@ Evidence: commits aa228af (p1), f5d787f (p2), 6d9f426 (p3) against base a506d63.
   - Tradeoff: The `prComment` field on these halts has no effect.
   - Confidence: HIGH — current behaviour.
   - Blind spot: None significant.
-- **Decision**: PENDING — outside this plan's scope (the plan keeps report.md and the output shape except the new field) and the pre-change behaviour is the same; the owner decides whether archiveDone halts after a written report should carry `report` so the comment posts (Fix A) or stay as they are (Fix B).
+- **Decision**: APPLIED (Fix A) — commit db974ae: the two commit-step halts of `archiveDone` (the failed commit and the held commit) carry `report: done.report`; the pre-check halts and the halt for a `report.md` that could not be written carry none, because they halt before this call writes a report; a later `next` that reaches the commit step writes it. `archive.test.mjs` pins the key in the kind C and kind D halt tests, and `docs/REFERENCE.md` says which halts carry it. Full suite: 1161 tests, 1158 pass, 0 fail, 3 skipped.
