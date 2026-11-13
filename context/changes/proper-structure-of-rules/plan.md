@@ -412,11 +412,11 @@ Each prompt gains the heading lines and the two precedence rules, a few hundred 
 
 #### Automated
 
-- [ ] 3.1 The full suite passes, the ADR rule-form check included
-- [ ] 3.2 ADR-023 exists and is indexed
-- [ ] 3.3 ADR-013 carries Amendment 1
-- [ ] 3.4 No doc says the suffix carries the delete, nesting or RESULT rules
-- [ ] 3.5 version-check exits 0
+- [x] 3.1 The full suite passes, the ADR rule-form check included — 30fae5a
+- [x] 3.2 ADR-023 exists and is indexed — 30fae5a
+- [x] 3.3 ADR-013 carries Amendment 1 — 30fae5a
+- [x] 3.4 No doc says the suffix carries the delete, nesting or RESULT rules — 30fae5a
+- [x] 3.5 version-check exits 0 — 30fae5a
 
 #### Manual
 
