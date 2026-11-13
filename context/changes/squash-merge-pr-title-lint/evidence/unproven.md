@@ -1,4 +1,4 @@
-- 5.1 — needs a live GitHub pull request and check run; pushing/editing a PR is external
-- 5.2 — needs live GitHub Actions runs
-- 5.3 — needs the real PR title on GitHub
+- 5.1 — needs a live GitHub pull request and check run; `gh pr list --head agent-smith/squash-merge-pr-title-lint --state all` returns [] (no PR yet); opening or editing a PR is external
+- 5.2 — needs live GitHub Actions runs on a PR; no PR exists yet
+- 5.3 — no PR exists yet, so there is no PR title to read
 - 5.4 — needs the squash merge on main to happen first
