@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, isFailure, isObject, SHA_RE, runGit,
-  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer,
+  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
@@ -598,6 +598,7 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   const ran = executed(log);
   const timeout = policy.archive?.gitTimeoutMs;
   const g = (args) => runGit(args, { timeout });
+  const pr = prCommentField(meta);
 
   // 1. Already committed and clean (a resume).
   const tracked = g(["ls-files", "--error-unmatch", "--", `${rel}/agent-smith/report.md`]).status === 0;
@@ -614,7 +615,7 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   // 2. Pre-checks. Kind A (folder not committed) writes the run's end state, kind B prints only.
   const precheck = (reason) => {
     if (committed) {
-      return out({ action: "halt", reason: `${reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
+      return out({ action: "halt", reason: `${reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true, ...pr });
     }
     return endRun(p, id, meta, log, { action: "halt", reason: `${reason} Nothing was committed.`, steps: ran.length });
   };
@@ -679,13 +680,14 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
       steps: ran.length,
       archive: SKIP_FAILED,
       committed: false,
+      ...pr,
     });
   }
   const res = routerCommit(g, timeout, { rel, message, trailer: coAuthorTrailer(policy) });
   if (res.error) {
     return res.commit === undefined
-      ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false })
-      : out({ action: "halt", reason: `${res.reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
+      ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false, ...pr })
+      : out({ action: "halt", reason: `${res.reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true, ...pr });
   }
 
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
@@ -704,5 +706,6 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
     archivePath,
     commit,
     ignored,
+    ...pr,
   });
 }

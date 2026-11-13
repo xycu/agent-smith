@@ -221,9 +221,9 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Automated
 
-- [ ] 1.1 New init and output tests pass: `node --test skills/10x-pipeline/test/pr-comment-flag.test.mjs`
-- [ ] 1.2 Existing init and archive tests pass with the new flag list: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/openspec-archive.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
-- [ ] 1.3 No router module mentions `gh` or a task tool: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs` (the guard tests in them)
+- [x] 1.1 New init and output tests pass: `node --test skills/10x-pipeline/test/pr-comment-flag.test.mjs`
+- [x] 1.2 Existing init and archive tests pass with the new flag list: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/archive.test.mjs skills/10x-pipeline/test/openspec-archive.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
+- [x] 1.3 No router module mentions `gh` or a task tool: `node --test skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/open-pr.test.mjs` (the guard tests in them)
 
 #### Manual
 
