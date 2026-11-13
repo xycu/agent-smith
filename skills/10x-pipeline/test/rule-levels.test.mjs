@@ -17,6 +17,7 @@ import {
 import { makeOpenspecProject, initOpenspec } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { ruleTail, checkPrompts } from "../scripts/flow.mjs";
 import { pluginPolicy } from "../scripts/state.mjs";
+import { PROMPT_PLACEHOLDERS } from "../scripts/steps.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -200,8 +201,9 @@ test("(e) the os-archive prompt of the OpenSpec chain ends with the chain file a
 
 // ---- (f) placeholder limits -----------------------------------------------------
 
-test("(f) the rule files use only {id}, top.md uses none, and a chain default with another placeholder halts", () => {
-  // The archive site renders the step and chain files with {id} only, so any other placeholder would render empty there.
+test("(f) top.md uses no placeholder, chain files and archive step files only {id}, step files the router's names", () => {
+  // top.md is not rendered; the archive site renders the chain file and the archive step files with {id} only, so any
+  // other placeholder would render empty there; a run step renders its step file with the template's names.
   const files = [];
   for (const dir of [SKILL_DIR, OS_DIR]) {
     for (const rel of fs.readdirSync(path.join(dir, "rules"), { recursive: true })) {
@@ -211,8 +213,11 @@ test("(f) the rule files use only {id}, top.md uses none, and a chain default wi
   assert.ok(files.length >= 3);
   for (const file of files) {
     const names = [...fs.readFileSync(file, "utf8").matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
-    if (file.endsWith(path.join("rules", "top.md"))) assert.deepEqual(names, [], file);
-    else assert.ok(names.every((n) => n === "id"), `${file}: ${names.join(",")}`);
+    const step = path.basename(file, ".md");
+    const known = file.endsWith(path.join("rules", "top.md")) ? []
+      : path.basename(path.dirname(file)) !== "steps" || ["archive", "os-archive"].includes(step) ? ["id"]
+        : PROMPT_PLACEHOLDERS;
+    assert.ok(names.every((n) => known.includes(n)), `${file}: ${names.join(",")}`);
   }
   for (const key of ["chain-10x", "chain-openspec"]) {
     const res = init(makeProject({ policy: { prompts: { [key]: "Goal {goal}" } } }), "fix typo");
