@@ -172,21 +172,21 @@ None. No policy, router or data change.
 
 #### Automated
 
-- [ ] 1.1 Baseline recorded: full suite on the unmodified tree, eight budget test names and totals saved
-- [ ] 1.2 The helper registers no tests and exports the listed names
-- [ ] 1.3 The test bodies are unchanged: the diff shows only removed module-level code and import lines
-- [ ] 1.4 The single file still passes with all eight tests
+- [x] 1.1 Baseline recorded: full suite on the unmodified tree, eight budget test names and totals saved — 9dd5f25
+- [x] 1.2 The helper registers no tests and exports the listed names — 9dd5f25
+- [x] 1.3 The test bodies are unchanged: the diff shows only removed module-level code and import lines — 9dd5f25
+- [x] 1.4 The single file still passes with all eight tests — 9dd5f25
 
 ### Phase 2: Split into four test files and update the index
 
 #### Automated
 
-- [ ] 2.1 Each new file runs alone and passes
-- [ ] 2.2 The same eight test names appear once each, compared with the saved baseline
-- [ ] 2.3 Test bodies are unchanged across the four files
-- [ ] 2.4 The full suite passes with the same total number of tests as the baseline
-- [ ] 2.5 The index names every new file
-- [ ] 2.6 No recursive deletes or other rules broken
+- [x] 2.1 Each new file runs alone and passes — 9dd5f25
+- [x] 2.2 The same eight test names appear once each, compared with the saved baseline — 9dd5f25
+- [x] 2.3 Test bodies are unchanged across the four files — 9dd5f25
+- [x] 2.4 The full suite passes with the same total number of tests as the baseline — 9dd5f25
+- [x] 2.5 The index names every new file — 9dd5f25
+- [x] 2.6 No recursive deletes or other rules broken — 9dd5f25
 
 #### Manual
 
