@@ -64,7 +64,7 @@ No `**GIVEN**`, no `node $ROUTER`, no model, effort or tier word.
 
 **Intent**: Pin the line in the 10x skill.
 
-**Contract**: New test "the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section": exactly one line starts with `Bash timeout: `; it includes `route.mjs`, `open-pr.mjs`, `pr-comment.mjs` and `` `timeout: 600000` ``; its index is after the `Pull request script: ` line and before `## Start`; it is not inside `section()`.
+**Contract**: New test "the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section": exactly one line starts with `Bash timeout: `; it includes `route.mjs`, `open-pr.mjs`, `pr-comment.mjs` and `` `timeout: 600000` ``; its index is exactly one after the index of the `Pull request script: ` line (so it also lies before `## Start`); it is not inside `section()`.
 
 #### 4. OpenSpec content test
 
@@ -73,6 +73,14 @@ No `**GIVEN**`, no `node $ROUTER`, no model, effort or tier word.
 **Intent**: Pin the line in the OpenSpec skill and keep the two copies equal.
 
 **Contract**: Same assertions as above against `lines`, plus `assert.equal` of the line with the one found in `tenx`.
+
+#### 5. Test index
+
+**File**: `skills/10x-pipeline/test/README.md`
+
+**Intent**: Keep the index rows true (AGENTS.md: a new test gets its row in the README of its folder).
+
+**Contract**: Extend the existing rows of `skill-loop.test.mjs` (line 69) and `openspec-skill.test.mjs` (line 88) with the pin of the `Bash timeout:` line (presence, content, placement; for the OpenSpec row also equality with the 10x copy). No new row, because both tests live in existing files.
 
 ### Success Criteria:
 
@@ -103,7 +111,12 @@ Document how the Bash limit relates to `gitTimeoutMs`.
 
 **Intent**: Under the isolation bullets (after "Step commits"), state the rule so a project with slow hooks knows what to set.
 
-**Contract**: One bullet, "Bash limit": the skills run every `route.mjs`, `open-pr.mjs` and `pr-comment.mjs` call with the Bash tool's `timeout: 600000`, its maximum; the shipped `isolation.gitTimeoutMs` and `archive.gitTimeoutMs` (120000 each, per git call) stay below it, and the Bash limit must stay above any one git timeout; a router call makes several git calls, so a project whose hooks run near 120 s lowers neither but may need `context/foundation/agent-smith-policy.json` overrides of both keys, kept so one call stays under 600000 ms; the push of `open-pr.mjs` uses a fixed 120000 ms (`GIT_TIMEOUT_MS`) and has no override; a Bash kill inside `git commit` leaves the router's `git add` staged, and the next `next` halts in the staged-index check, so check with `git diff --cached --name-only`. Both chains share it (the OpenSpec section points at it, no copy).
+**Contract**: One bullet, "Bash limit", in this order:
+1. The skills run every `route.mjs`, `open-pr.mjs` and `pr-comment.mjs` call with the Bash tool's `timeout: 600000`, its maximum. The shipped `isolation.gitTimeoutMs` and `archive.gitTimeoutMs` are 120000 ms each, applied per git call, so the router's own git timeout fires first and the router unstages its own add (`routerCommit`). The rule: the git timeouts of one call must add up to less than the Bash limit.
+2. A project whose hooks run longer than 120 s raises both keys in `context/foundation/agent-smith-policy.json`, and keeps the sum of the git calls of one router call (safety reads, add, commit, post-commit checks) under 600000 ms. Raising a key is the only direction that helps; the shipped values are not lowered.
+3. `open-pr.mjs` pushes and commits with a fixed 120000 ms (`GIT_TIMEOUT_MS`, no override); `pr-comment.mjs` runs only `gh` calls, bounded by `--timeout-ms` (default 20000), no git.
+4. A Bash kill inside `git commit` leaves the router's `git add` staged, and the next `next` halts in the staged-index check without naming the cause; check with `git diff --cached --name-only`.
+5. Both chains share the bullet. The OpenSpec section of the file already inherits everything it does not name (line 400), so it gets no edit and no copy.
 
 ### Success Criteria:
 
