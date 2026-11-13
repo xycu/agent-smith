@@ -17,3 +17,4 @@ These plugin directory checks do not change the result below.
 The directory also runs a safety scan and a policy review that this command does not.
 
 ✔ Validation passed
+exit: 0

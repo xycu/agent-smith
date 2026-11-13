@@ -202,7 +202,7 @@ None for users: Claude Code already takes the plugin version from `plugin.json` 
 
 #### Manual
 
-- [ ] 1.5 `claude plugin validate .` on the repository root ends with `✔ Validation passed` and shows no version warning
+- [x] 1.5 `claude plugin validate .` on the repository root ends with `✔ Validation passed` and shows no version warning — evidence: evidence/command-plugin-validate.txt
 
 ### Phase 2: Docs and ADR-008 Amendment 3
 
@@ -214,5 +214,5 @@ None for users: Claude Code already takes the plugin version from `plugin.json` 
 
 #### Manual
 
-- [ ] 2.4 ADR-008 reads as an amendment: the Decision sentence and older amendments are unchanged except the Status line and the one Superseded parenthetical
+- [x] 2.4 ADR-008 reads as an amendment: the Decision sentence and older amendments are unchanged except the Status line and the one Superseded parenthetical — evidence: evidence/judgment-adr008-amendment.md
 - [ ] 2.5 After the next release PR opens, its diff changes only `.claude-plugin/plugin.json` `version`, `.claude-plugin/marketplace.json` `metadata.version`, `.release-please-manifest.json` `.` and `CHANGELOG.md`
