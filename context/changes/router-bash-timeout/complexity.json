@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction' fixes the outcome (one Bash timeout line in each SKILL.md, content tests, REFERENCE.md note); only the open question on keeping gitTimeoutMs at 120000 is left, with an obvious doc-only answer" },
+    "novelty": { "score": 1, "evidence": "change.md 'Fix direction' and 'Tests': the skill files already carry script path lines and the Anti-stall rules section, and skill-loop.test.mjs and openspec-skill.test.mjs already pin skill text, so the new line and tests follow existing patterns" },
+    "coupling": { "score": 2, "evidence": "change.md 'Fix direction' and 'Tests': two SKILL.md files, two skill test files whose anti-stall equality checks also touch nested-subagents.test.mjs, and docs/REFERENCE.md; several files pinned to each other, but no public interface or shared data format" },
+    "discovery": { "score": 1, "evidence": "change.md names every target file; one grep of skills/ shows the route.mjs, open-pr.mjs and pr-comment.mjs path lines in both SKILL.md files, so the placement needs one search" },
+    "volume": { "score": 2, "evidence": "change.md 'Fix direction' and 'Tests': about 5 files edited (2 SKILL.md, 2 skill test files, docs/REFERENCE.md), each by a few lines; the optional gitSafety halt message would add a 6th" },
+    "verification": { "score": 1, "evidence": "change.md 'Tests' and 'Done when': the existing suite (node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs) covers the skills; a few new content tests are needed in two files" }
+  },
+  "unknowns": [
+    "Whether the shipped gitTimeoutMs values in policy.json (120000) should stay, or be raised or documented as overridable; change.md leaves this as an open question for the plan",
+    "Whether the optional gitSafety staged-index halt message change is in scope for this change"
+  ],
+  "confidence": "medium"
+}
