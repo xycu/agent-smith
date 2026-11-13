@@ -322,20 +322,20 @@ The implementation overlaps the open changes `pr-comment-flag-in-meta`, `router-
 
 #### Automated
 
-- [x] 1.1 Provider tests prove default/legacy Claude behavior, both explicit providers, host validation and write-free rejection of malformed or incompatible inputs.
-- [x] 1.2 Router tests prove provider propagation through normal actions, exact neutral retries, both archive actions, reports, provenance and baseline comparison.
-- [x] 1.3 Preset checks prove eight OpenAI rungs with exactly the approved models/efforts and unchanged shipped Claude defaults and tier indexes.
-- [x] 1.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Provider tests prove default/legacy Claude behavior, both explicit providers, host validation and write-free rejection of malformed or incompatible inputs. — 49da3cf
+- [x] 1.2 Router tests prove provider propagation through normal actions, exact neutral retries, both archive actions, reports, provenance and baseline comparison. — 49da3cf
+- [x] 1.3 Preset checks prove eight OpenAI rungs with exactly the approved models/efforts and unchanged shipped Claude defaults and tier indexes. — 49da3cf
+- [x] 1.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 49da3cf
 
 ### Phase 2: Codex Runner
 
 #### Automated
 
-- [ ] 2.1 Fake-CLI tests prove exact argv/stdin/cwd, model/effort pinning, disabled delegation, preserved RESULT fields and zero router-owned state writes.
-- [ ] 2.2 Runner tests prove final-snapshot token accounting, omitted tool-use counts, completion/failure distinctions and rejection of stale or malformed actions.
-- [ ] 2.3 Process tests prove contention refusal, lock retention until child close, handled cancellation and temporary-file cleanup on both chains including archive moves.
-- [ ] 2.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [ ] 2.5 Permission checks prove selected-profile Git access in a real linked worktree, preserve pre-RESULT commit evidence, and refuse insufficient profiles before model launch.
+- [x] 2.1 Fake-CLI tests prove exact argv/stdin/cwd, model/effort pinning, disabled delegation, preserved RESULT fields and zero router-owned state writes.
+- [x] 2.2 Runner tests prove final-snapshot token accounting, omitted tool-use counts, completion/failure distinctions and rejection of stale or malformed actions.
+- [x] 2.3 Process tests prove contention refusal, lock retention until child close, handled cancellation and temporary-file cleanup on both chains including archive moves.
+- [x] 2.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.5 Permission checks prove selected-profile Git access in a real linked worktree, preserve pre-RESULT commit evidence, and refuse insufficient profiles before model launch.
 
 ### Phase 3: Host Integration
 

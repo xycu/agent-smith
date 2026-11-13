@@ -50,7 +50,9 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `rollback.test.mjs` | the failed-step rollback and its undo on halt (ADR-010) |
 | `firstattempt.test.mjs` | the cheaper first implement attempt (ADR-010) |
 | `coauthor.test.mjs` | the `coAuthor` trailer (ADR-021): start commit, step commit, rollback snapshot, pre-archive and late-usage commits carry it; `coAuthor: null` gives none; a malformed value halts; parity of `coAuthorProblem`/`coAuthorTrailer` in `state.mjs` with `coAuthorLine` in `open-pr.mjs` |
-| `run-lock.test.mjs` | the per-run lock of `init`, `next` and `usage`: a live pid halts with nothing written, a dead or unparsable lock is replaced, release on success and halt, read-only commands ignore it, both chains. `TMPDIR` points the lock into a scratch directory |
+| `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight refusal, RESULT/completion/usage boundaries, cancellation, cleanup and archive moves on both chains |
+| `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd and a controllable child lifetime |
+| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: a live pid halts with nothing written, a dead or unparsable lock is replaced, release on success and halt, read-only commands ignore it, both chains. `TMPDIR` points the lock into a scratch directory |
 
 ## Reviews, cost, retries and policy
 

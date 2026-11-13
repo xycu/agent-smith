@@ -48,26 +48,26 @@ export function readJson(file, fallback) {
 }
 
 // policy.json deep-merged with the project override. null when policy.json is unreadable; each caller decides.
-function mergedPolicy() {
+function mergedPolicy(onError = halt) {
   const base = readJson(path.join(SKILL_DIR, "policy.json"), null);
   if (!base) return null;
   const file = path.join(ROOT, "context/foundation/agent-smith-policy.json");
   if (!fs.existsSync(file)) return base;
   let override;
   try { override = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) {
-    halt(`Cannot parse ${file}: ${e.message}. Fix the JSON or remove the file.`);
+    onError(`Cannot parse ${file}: ${e.message}. Fix the JSON or remove the file.`);
   }
   // Any other JSON value would replace the whole policy (an array, a number) or be dropped silently (null, false).
   if (!isObject(override)) {
     const kind = override === null ? "null" : Array.isArray(override) ? "an array" : `a ${typeof override}`;
-    halt(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
+    onError(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
   }
   return deepMerge(base, override);
 }
 
-export function loadPolicy() {
-  const policy = mergedPolicy();
-  if (!policy) out({ action: "halt", reason: `Cannot read ${path.join(SKILL_DIR, "policy.json")}` }, 1);
+export function loadPolicy(onError = halt) {
+  const policy = mergedPolicy(onError);
+  if (!policy) onError(`Cannot read ${path.join(SKILL_DIR, "policy.json")}`);
   return policy;
 }
 
@@ -860,7 +860,7 @@ function pidAlive(pid) {
 
 // Takes the lock of the run or halts. The pid is in the file from the moment it exists: written to a private temp file,
 // then linked to the lock name, so a second caller never reads an empty lock as stale.
-export function acquireRunLock(id, chain) {
+export function acquireRunLock(id, chain, onBusy = halt) {
   const lock = runLockPath(paths(id, null, chain).dir);
   const tmp = `${lock}.${process.pid}.tmp`;
   const own = String(process.pid);
@@ -885,7 +885,7 @@ export function acquireRunLock(id, chain) {
         try { pid = Number(fs.readFileSync(lock, "utf8").trim()); } catch { /* vanished: retry */ }
         if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
           release();
-          halt(`Another init, next or usage of change ${id} is running (lock file ${lock}, pid ${pid}). Run router calls one at a time. A lock left by a dead process is removed automatically. Nothing was written.`);
+          onBusy(`Another init, next or usage of change ${id} is running, or execution/status --report holds its lock (lock file ${lock}, pid ${pid}). Run calls one at a time. A lock left by a dead process is removed automatically. Nothing was written.`);
         }
         if (attempt > 0) throw e;
         unlinkQuiet(lock); // stale: remove it and try once more; another caller may have removed it already
@@ -897,4 +897,5 @@ export function acquireRunLock(id, chain) {
   }
   unlinkQuiet(tmp);
   process.on("exit", release);
+  return release;
 }

@@ -283,6 +283,9 @@ function runCase(c, variant = "default", policy = VARIANTS[variant]) {
     const { project, res } = c.make(policy);
     assert.equal(res.status, 0, `${c.template} (${variant}): ${res.stdout}${res.stderr}`);
     assert.equal(res.json.action, "run", `${c.template} (${variant}): ${res.stdout}`);
+    assert.equal(res.json.root, project.root);
+    res.json.root = "<run-root>";
+    res.stdout = res.stdout.replaceAll(project.root, "<run-root>");
     const logged = ranOf(project).at(-1);
     assert.equal(logged.template, c.template, `${c.template} (${variant}): the fixture reached ${logged.template}`);
     cache.set(key, { project, res, json: res.json, entry: logged });

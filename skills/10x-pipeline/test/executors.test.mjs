@@ -680,10 +680,14 @@ test("lean keeps plain implement", () => {
   // A lean walk is the same with and without the feature: same step, model, effort, reason and prompt.
   const without = e2eProject({ specs, setup: false });
   const base = start(without, "lean", "fix typo");
-  assert.deepEqual(lean.json, base.json);
+  assert.equal(lean.json.root, withSetup.root);
+  assert.equal(base.json.root, without.root);
+  assert.deepEqual({ ...lean.json, root: "<run-root>" }, { ...base.json, root: "<run-root>" });
   const walked = advance(withSetup, specs, [1]);
   const baseWalk = advance(without, specs, [1]);
-  assert.deepEqual(walked.json, baseWalk.json);
+  assert.equal(walked.json.root, withSetup.root);
+  assert.equal(baseWalk.json.root, without.root);
+  assert.deepEqual({ ...walked.json, root: "<run-root>" }, { ...baseWalk.json, root: "<run-root>" });
   // The lean budget is 12: eleven executed steps still run, twelve halt.
   for (const [count, action] of [[11, "run"], [12, "halt"]]) {
     const project = e2eProject({ specs });

@@ -386,6 +386,7 @@ export function neutralRetry(p, id, meta, log, policy) {
   }
   out({
     action: "run",
+    change: id, root: ROOT, chain: p.chain ?? "10x",
     n: last.n,
     step: last.step,
     ...(typeof last.agent === "string" ? { agent: last.agent } : {}),

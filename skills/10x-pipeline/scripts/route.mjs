@@ -251,6 +251,7 @@ function next(id, policy, chain = "10x") {
   writeLog(p.log, log);
   out({
     action: "run",
+    change: id, root: ROOT, chain,
     n: entry.n,
     step: d.step,
     ...(agent ? { agent } : {}),
@@ -882,7 +883,7 @@ function main() {
     const incompatible = hostProblem(policy, host);
     if (incompatible) halt(incompatible);
   }
-  if (["init", "next", "usage"].includes(cmd)) acquireRunLock(id, chain);
+  if (["init", "next", "usage"].includes(cmd) || (cmd === "status" && flags.report)) acquireRunLock(id, chain);
 
   if (cmd === "init") {
     const levels = rigorLevels(policy);

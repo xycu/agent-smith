@@ -29,8 +29,8 @@ const SCORE_AGENT = "agent-smith:score";
 const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
 const SCORER = { score: { minRigor: "standard" } };
 const RESTRICTED = { ...SCORER, agents: { restricted: true } };
-const RUN_KEYS = ["action", "n", "step", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
-const RUN_KEYS_AGENT = ["action", "n", "step", "agent", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
+const RUN_KEYS = ["action", "change", "root", "chain", "n", "step", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
+const RUN_KEYS_AGENT = ["action", "change", "root", "chain", "n", "step", "agent", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
 const FACTORS = [...DEFAULT.score.factors.cognitive, ...DEFAULT.score.factors.execution];
 
 const copies = [];
@@ -78,6 +78,12 @@ function walk(policy) {
   for (let i = 0; i < 12 && answers.at(-1).json?.action === "run"; i++) answers.push(respond(project, answers.at(-1).json.step));
   for (const res of answers) assert.equal(res.status, 0, res.stdout + res.stderr);
   assert.equal(answers.at(-1).json.action, "done", answers.at(-1).stdout);
+  for (const res of answers) {
+    if (res.json.action !== "run") continue;
+    assert.equal(res.json.root, project.root);
+    res.json.root = "<run-root>";
+    res.stdout = res.stdout.replaceAll(project.root, "<run-root>");
+  }
   return { project, answers, runs: answers.filter((res) => res.json.action === "run") };
 }
 
