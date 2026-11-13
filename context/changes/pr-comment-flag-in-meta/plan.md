@@ -245,10 +245,10 @@ A run started before this change has no `prComment` key and behaves as a run wit
 
 #### Automated
 
-- [x] 3.1 The ADR, docs and index pins pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs tools/test/*.test.mjs`
-- [x] 3.2 `.claude/settings.json` parses and has no task entry: `node -e "const s=JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'));if(s.env||s.permissions)process.exit(1)"`
-- [x] 3.3 No stale task wording remains in live docs: `grep -rn "TaskList\|TaskCreate\|TaskUpdate\|TODO_TOOLS\|task list unavailable" README.md AGENTS.md docs skills .claude` prints nothing (the ADR-003 amendment says "task tools" and names none)
-- [x] 3.4 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.1 The ADR, docs and index pins pass: `node --test skills/10x-pipeline/test/pr-comment.test.mjs tools/test/*.test.mjs` — 6d9f426
+- [x] 3.2 `.claude/settings.json` parses and has no task entry: `node -e "const s=JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'));if(s.env||s.permissions)process.exit(1)"` — 6d9f426
+- [x] 3.3 No stale task wording remains in live docs: `grep -rn "TaskList\|TaskCreate\|TaskUpdate\|TODO_TOOLS\|task list unavailable" README.md AGENTS.md docs skills .claude` prints nothing (the ADR-003 amendment says "task tools" and names none) — 6d9f426
+- [x] 3.4 The full suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 6d9f426
 
 #### Manual
 
