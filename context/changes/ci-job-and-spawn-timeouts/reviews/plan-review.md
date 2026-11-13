@@ -51,7 +51,7 @@ Grounding: 6/6 paths ✓ (`ci.yml`, `helpers.mjs`, `ci-runner.test.mjs`, `test/R
 - **Location**: What We're NOT Doing, first bullet; `change.md` "Done when"
 - **Detail**: `change.md` ends with "no CI job can run longer than 15 minutes". `pr-title.yml` (one job, `title`, same self-hosted runner expression) now exists and has no `timeout-minutes`. The plan excludes it on the grounds that `change.md` scopes the change to the two jobs of `ci.yml`, but the "Done when" sentence is not limited to `ci.yml`. Adding the key to `pr-title.yml` is a one-line change plus one test assertion, but it widens the scope the plan set on purpose.
 - **Fix**: Either extend Phase 1 to `pr-title.yml` (key plus one assertion in `ci-runner.test.mjs`), or keep the exclusion and reword the done-when reading to "no job of `ci.yml`". Which one is the owner's call.
-- **Decision**: PENDING — the owner has to decide whether this change covers `pr-title.yml` or keeps it as a follow-up; the plan already names it as a follow-up candidate, so no fix is guessed.
+- **Decision**: APPLIED — commit 8e7f245: `pr-title.yml` carries `timeout-minutes: 15` and `ci-runner.test.mjs` asserts it, so "no CI job can run longer than 15 minutes" holds for every job of the repository's workflows that runs on the self-hosted runner (`release.yml` stays hosted).
 
 ### F4 — Stale line numbers for the ci.yml jobs
 

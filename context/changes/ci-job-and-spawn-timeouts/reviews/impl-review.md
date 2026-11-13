@@ -36,4 +36,4 @@
 - **Location**: skills/10x-pipeline/test/helpers.mjs:17
 - **Detail**: `throwOnSpawnError` acts only on `res.error`. A child killed by a signal other than the timeout kill (for example the OOM killer on the runner) sets `res.signal` with `status: null` and no `error`, so `run` still returns a null `json`, the symptom the plan set out to remove. The plan specifies `res.error` only, so the code matches the plan; the case is outside the plan's scope.
 - **Fix**: Optional follow-up: also throw `<label> was killed by <res.signal>` when `res.signal` is set.
-- **Decision**: PENDING — outside the plan's scope (the plan names `res.error` as the trigger); the owner decides whether to widen the helper.
+- **Decision**: APPLIED — commit 8e7f245: `throwOnSpawnError` also throws `<label> was killed by <signal>` when `res.signal` is set and no error was reported; `helpers-timeout.test.mjs` kills a script with SIGKILL and fails without the check (deliberate break run by hand). Full suite: 1155 tests, 1152 pass, 0 fail, 3 skipped.
