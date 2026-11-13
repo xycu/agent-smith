@@ -6,6 +6,8 @@ Source: the 10xDevs 4.0 course prompts in `10xdevs4-content/.claude/prompts/`, i
 
 A string or an array part that starts with `@prompts/` is a reference in every template, `archive` and `suffix` included, also in a project override: it is never literal text, and one that does not resolve halts the run at `init` or `next`. Literal text starts with any other character.
 
+The shared suffix loads named installed skills through the active host and treats slash spellings as skill names with arguments. It forbids Agent, Task, `spawn_agent` and other nested delegation mechanisms. OpenAI manual verification uses the dedicated `manual-verify-openai` policy template, with the shared manual guide and test/command/script browser fallback. An explicit `--chrome false` keeps the existing no-Chrome template.
+
 ## Wired
 
 | File | Source | Step | Wired as |

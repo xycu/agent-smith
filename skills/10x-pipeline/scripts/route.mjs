@@ -182,7 +182,8 @@ function next(id, policy, chain = "10x") {
   }
 
   const target = dispatchTarget(policy, tier);
-  const template = d.template ?? d.step;
+  const template = d.step === "manual-verify" && target.provider === "openai" && meta.chrome !== false
+    ? "manual-verify-openai" : d.template ?? d.step;
   const unsupported = dispatchProblem(policy, target, d.step, template);
   if (unsupported) return end({ action: "halt", reason: unsupported, steps: ran.length });
   const vars = {
@@ -661,6 +662,7 @@ function status(id, flags, chain = "10x", policy = null) {
   const res = {
     change: id,
     host: hostOf(readMeta(p.meta, {})),
+    prComment: readMeta(p.meta, {}).prComment === true,
     rigor: readMeta(p.meta, {}).rigor?.level ?? null,
     steps: log.map((e) => e.skipped ? {
       skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null,
@@ -847,7 +849,7 @@ function resolveChain(cmd, id, flags) {
 // ---- main -----------------------------------------------------------------
 
 // The flags init reads; any other flag halts it.
-const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host"];
+const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "pr-comment"];
 
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
@@ -861,6 +863,9 @@ function main() {
   }
   if (flags.host !== undefined && (cmd !== "init" || !["claude", "codex"].includes(flags.host))) {
     halt("--host is an init option and needs claude or codex. Nothing was written.");
+  }
+  if (flags["pr-comment"] !== undefined && cmd !== "init") {
+    halt("--pr-comment is an init option. Nothing was written.");
   }
   const policy = loadPolicy();
   // A malformed cap, ladder or tier halts before the chain, the run lock or any write.
@@ -905,6 +910,12 @@ function main() {
       if (flags.chrome === true || flags.chrome === "true") chrome = true;
       else if (flags.chrome === "false") chrome = false;
       else halt(`Invalid --chrome ${flags.chrome}. Use --chrome, --chrome true or --chrome false.`);
+    }
+    let prComment;
+    if (flags["pr-comment"] !== undefined) {
+      if (flags["pr-comment"] === true || flags["pr-comment"] === "true") prComment = true;
+      else if (flags["pr-comment"] === "false") prComment = false;
+      else halt(`Invalid --pr-comment ${flags["pr-comment"]}. Use --pr-comment, --pr-comment true or --pr-comment false.`);
     }
     // A flag init does not read (a typo such as --gaol) would take the next word as its value and start
     // the run without it, so it halts before anything is written.
@@ -951,6 +962,7 @@ function main() {
     if (!isObject(prev.rigor)) delete meta.rigor;
     if (archive !== undefined) meta.archive = archive;
     if (chrome !== undefined) meta.chrome = chrome;
+    if (prComment !== undefined) meta.prComment = prComment;
     // Only an OpenSpec run carries a chain key; a 10x meta.json stays as it was.
     if (chain === "openspec") meta.chain = "openspec";
     if (branch !== null && fresh) { meta.isolated = true; meta.branch = branch; }

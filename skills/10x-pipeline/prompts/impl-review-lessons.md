@@ -5,7 +5,7 @@
 - **GIVEN** a finding is specific to this change **WHEN** you pick lesson candidates **THEN** you **MUST NOT** turn it into a candidate.
 - **GIVEN** you write a candidate **WHEN** you phrase it **THEN** you **MUST** make it one sentence in rule form ("Always ...", "Never ...") of at most {lessonChars} characters, with no backticks and no line breaks.
 - **GIVEN** no finding recurs across changes **WHEN** you write the RESULT line **THEN** you **MUST** leave `lessonCandidates` out and not pad it.
-- **GIVEN** you have lesson candidates **WHEN** you finish **THEN** you **MUST NOT** run `/10x-lesson`.
+- **GIVEN** you have lesson candidates **WHEN** you finish **THEN** you **MUST NOT** invoke the installed `10x-lesson` skill through any host mechanism.
 - **GIVEN** you have lesson candidates **WHEN** you finish **THEN** you **MUST NOT** write `context/foundation/lessons.md`.
 
 The RESULT fragment looks like this: `"signals":{"lessonCandidates":["Always ...","Never ..."]}`

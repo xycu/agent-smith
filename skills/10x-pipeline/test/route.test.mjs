@@ -623,19 +623,20 @@ test("a RESULT without signals behaves as before", () => {
   assert.equal(readLogEntries(project)[0].needsHumanAck, undefined);
 });
 
-test("the plan prompt carries the seven rules and the RESULT line with signals", () => {
+test("the plan prompt carries named-skill loading, seven safety rules and the RESULT line with signals", () => {
   const project = makeProject();
   const res = init(project, "fix typo");
   const prompt = res.json.prompt;
   const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
-  assert.equal(rules.length, 7);
-  assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
-  assert.match(rules[1], /`signals\.needsHuman`/);
-  assert.match(rules[2], /\*\*MAY\*\* add `signals\.rigor`/);
-  assert.match(rules[3], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
-  assert.match(rules[4], /\*\*MUST NOT\*\* use `rm -rf`/);
-  assert.match(rules[5], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
-  assert.match(rules[6], /\*\*MUST NOT\*\* call the Agent tool/);
+  assert.equal(rules.length, 8);
+  assert.match(rules[0], /\*\*MUST\*\* load its SKILL\.md through the host/);
+  assert.match(rules[1], /\*\*MUST\*\* decide from researched best practice/);
+  assert.match(rules[2], /`signals\.needsHuman`/);
+  assert.match(rules[3], /\*\*MAY\*\* add `signals\.rigor`/);
+  assert.match(rules[4], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
+  assert.match(rules[5], /\*\*MUST NOT\*\* use `rm -rf`/);
+  assert.match(rules[6], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
+  assert.match(rules[7], /\*\*MUST NOT\*\* call the Agent tool/);
   const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
   assert.match(prompt, /`signals` object is optional/);
@@ -694,7 +695,7 @@ test("a flag init does not read halts at init, is named and writes nothing", () 
     const res = run(project, ["init", project.id, ...args]);
     assert.equal(res.status, 1);
     assert.equal(res.json.action, "halt");
-    assert.ok(res.json.reason.startsWith(`Unknown flag(s) for init: ${names}. init reads: --goal, --rigor, --archive, --chrome, --chain, --host. Nothing was written.`), res.json.reason);
+    assert.ok(res.json.reason.startsWith(`Unknown flag(s) for init: ${names}. init reads: --goal, --rigor, --archive, --chrome, --chain, --host, --pr-comment. Nothing was written.`), res.json.reason);
     assert.equal(fs.existsSync(project.agentDir), false);
   }
 });

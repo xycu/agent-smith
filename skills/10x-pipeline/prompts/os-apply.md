@@ -1,5 +1,7 @@
 Unattended rules for /openspec-apply-change. No human answers, so every pause point of the skill has a fixed answer here. The change is `{id}` at `openspec/changes/{id}/`; fix mode is a prompt whose first lines list critical findings from `openspec/changes/{id}/agent-smith/verify.md`.
 
+Load the named installed `openspec-apply-change` skill through the host's native skill mechanism in both normal and fix mode. Its work stays in this child.
+
 ## Rules
 
 - **GIVEN** Step 1 selects the change **WHEN** you would infer it or ask the user to pick one **THEN** you **MUST** use `{id}` and pass `--change "{id}"` to every `openspec` command that takes it.

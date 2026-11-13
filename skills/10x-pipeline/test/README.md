@@ -64,6 +64,8 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `late-usage.test.mjs` | the `usage` command (ADR-019): arguments and refusals that leave the change folder byte-identical, attaching on both chains, an unchanged and a refused second figure, the rewritten report and cost of an ended run, `compare`, survival of an isolated rollback, and the archive state (folder commit of `archive.usageMessage`, restore after a hook failure, `next` resume with `commit: null`) |
 | `policy-validate.test.mjs` | the policy check at load (ADR-022): `init`, `next` and `usage` halt with the key name and write nothing on a malformed limit, ladder, step tier or prompt placeholder; `status` reports `policyProblem`; the shipped `policy.json` and `baseline-policy.json` pass |
 | `providers.test.mjs` | per-rung provider and fixed run host: legacy Claude defaults, GPT overlay/profile validation, exact neutral retry, capability refusals, both archive actions, provenance and provider-aware report/comparison aggregates |
+| `host-integration.test.mjs` | Shared host instruction and packaging contracts, OpenAI manual template selection and truthful browser evidence kinds |
+| `pr-comment-intent.test.mjs` | Router-owned boolean opt-in/reset/resume intent and terminal done/halt/archive propagation on both chains |
 
 ## Orchestrator skills and pull-request scripts
 

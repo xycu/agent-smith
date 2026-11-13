@@ -34,9 +34,9 @@ Deep verification used one independent subagent to check runner permissions, run
 - **Dimension**: End-State Alignment
 - **Location**: Phase 2 — Standalone action execution
 - **Detail**: The original plan fixed workspace-write sandboxing and `approval_policy="never"`, but Codex protects `.git` and the resolved Git directory of a linked worktree as read-only. The implementation prompts require typed commits before RESULT (`skills/10x-pipeline/policy.json:224`, `:267`, `:286`; `prompts/os-apply.md:25`; `prompts/os-archive.md:11`). Strict executor verification reads commit evidence in `scripts/steps.mjs:77–98`, and `route.mjs:82–84` attaches/verifies the result before the router's own commit sweep. That later sweep cannot satisfy the child's pre-RESULT commit contract. Source: [Codex protected paths](https://learn.chatgpt.com/docs/agent-approvals-security#protected-paths-in-writable-roots).
-- **Fix A — Recommended**: Preserve child-owned commits; require an explicitly user-authorized Git-capable execution profile and prove capability before model launch.
+- **Fix A — Recommended**: Preserve child-owned commits and prove Git capability under the existing effective Codex configuration before model launch. A named configuration profile is optional.
   - Strength: Preserves existing phase commits, Progress SHAs and verification ordering.
-  - Tradeoff: Permission-profile configuration becomes a prerequisite; the runner cannot force the original fixed permission settings.
+  - Tradeoff: Execution depends on actual Git capability under the existing configuration and host restrictions. The runner cannot force the original fixed permission settings.
   - Confidence: MEDIUM — the original incompatibility and profile CLI support are established; an actual selected profile still needs validation.
   - Blind spot: Effective permissions inherited from each host and the actual linked-worktree Git paths.
 - **Fix B**: Move required Git operations into an authorized parent orchestration boundary.

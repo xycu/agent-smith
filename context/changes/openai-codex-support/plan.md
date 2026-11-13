@@ -331,20 +331,20 @@ The implementation overlaps the open changes `pr-comment-flag-in-meta`, `router-
 
 #### Automated
 
-- [x] 2.1 Fake-CLI tests prove exact argv/stdin/cwd, model/effort pinning, disabled delegation, preserved RESULT fields and zero router-owned state writes.
-- [x] 2.2 Runner tests prove final-snapshot token accounting, omitted tool-use counts, completion/failure distinctions and rejection of stale or malformed actions.
-- [x] 2.3 Process tests prove contention refusal, lock retention until child close, handled cancellation and temporary-file cleanup on both chains including archive moves.
-- [x] 2.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [x] 2.5 Permission checks prove selected-profile Git access in a real linked worktree, preserve pre-RESULT commit evidence, and refuse insufficient profiles before model launch.
+- [x] 2.1 Fake-CLI tests prove exact argv/stdin/cwd, model/effort pinning, disabled delegation, preserved RESULT fields and zero router-owned state writes. — 96bd62a
+- [x] 2.2 Runner tests prove final-snapshot token accounting, omitted tool-use counts, completion/failure distinctions and rejection of stale or malformed actions. — 96bd62a
+- [x] 2.3 Process tests prove contention refusal, lock retention until child close, handled cancellation and temporary-file cleanup on both chains including archive moves. — 96bd62a
+- [x] 2.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 96bd62a
+- [x] 2.5 Permission checks prove selected-profile Git access in a real linked worktree, preserve pre-RESULT commit evidence, and refuse insufficient profiles before model launch. — 96bd62a
 
 ### Phase 3: Host Integration
 
 #### Automated
 
-- [ ] 3.1 Skill/prompt tests prove shared host dispatch, equal Anti-stall rules, portable wired instructions, nesting prohibition and fail-closed archive approval on both chains.
-- [ ] 3.2 Router tests prove durable PR-comment opt-in/reset/resume behavior and actionable capability refusals without unauthorized dispatch or posting.
-- [ ] 3.3 Prompt/evidence tests prove OpenAI browser fallback records truthful reasons and never accepts invented browser proof; packaging checks retain shared skills and unchanged version fields.
-- [ ] 3.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 3.1 Skill/prompt tests prove shared host dispatch, equal Anti-stall rules, portable wired instructions, nesting prohibition and fail-closed archive approval on both chains.
+- [x] 3.2 Router tests prove durable PR-comment opt-in/reset/resume behavior and actionable capability refusals without unauthorized dispatch or posting.
+- [x] 3.3 Prompt/evidence tests prove OpenAI browser fallback records truthful reasons and never accepts invented browser proof; packaging checks retain shared skills and unchanged version fields.
+- [x] 3.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 ### Phase 4: Verification
 

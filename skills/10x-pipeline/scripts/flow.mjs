@@ -326,7 +326,8 @@ export function finishRun(p, id, meta, log, result) {
   try { report = writeReport(p, id, meta, log); } catch (e) { reportError = e.message; }
   const extra = meta.archive === true && result.action === "halt" && result.archive === undefined
     ? { archive: "skipped: run halted", committed: false } : {};
-  return reportError ? { ...result, ...extra, report, reportError } : { ...result, ...extra, report };
+  return { ...result, ...extra, ...(meta.prComment === true ? { prComment: true } : {}), report,
+    ...(reportError ? { reportError } : {}) };
 }
 
 // Every end of run goes through here so no branch can skip the report.
@@ -892,6 +893,8 @@ export function advisorOn(policy, template) {
 export function dispatchProblem(policy, target, step, template) {
   if (providerOf(target) !== "openai") return null;
   if (stepAgent(policy, step)) return `OpenAI step ${step} cannot use the configured restricted agent. Disable agents.restricted or route this step to Claude.`;
-  if (advisorOn(policy, template)) return `OpenAI step ${step} cannot use the native Claude advisor. Disable advisor.enabled or route this step to Claude.`;
+  if (advisorOn(policy, template) || (template === "manual-verify-openai" && advisorOn(policy, "manual-verify"))) {
+    return `OpenAI step ${step} cannot use the native Claude advisor. Disable advisor.enabled or route this step to Claude.`;
+  }
   return null;
 }

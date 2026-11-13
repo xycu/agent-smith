@@ -269,6 +269,11 @@ const CASES = [
     const project = staged({ ...policy, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
     return { project, res: standard(project, "Parse blank lines", ["--chrome", "false"]) };
   } },
+  { template: "manual-verify-openai", make: (policy) => {
+    const ladder = DEFAULT.ladder.map((rung) => ({ ...rung, provider: "openai" }));
+    const project = staged({ ...policy, ladder, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
+    return { project, res: standard(project) };
+  } },
 ];
 const CASE = Object.fromEntries(CASES.map((c) => [c.template, c]));
 const runnable = CASES.filter((c) => !(c.git && noGit));

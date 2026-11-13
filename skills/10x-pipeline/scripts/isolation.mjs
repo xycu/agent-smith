@@ -607,6 +607,7 @@ export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.
 // names the folder `openspec archive` will create and returns the os-archive prompt at the tier of steps["os-archive"].
 export function archiveDone(p, id, meta, log, policy, level, d) {
   const openspec = p.chain === "openspec";
+  const intent = meta.prComment === true ? { prComment: true } : {};
   const rel = changeRel(p, id);
   const ran = executed(log);
   const timeout = policy.archive?.gitTimeoutMs;
@@ -627,7 +628,7 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   // 2. Pre-checks. Kind A (folder not committed) writes the run's end state, kind B prints only.
   const precheck = (reason) => {
     if (committed) {
-      return out({ action: "halt", reason: `${reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
+      return out({ action: "halt", reason: `${reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true, ...intent });
     }
     return endRun(p, id, meta, log, { action: "halt", reason: `${reason} Nothing was committed.`, steps: ran.length });
   };
@@ -696,13 +697,14 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
       steps: ran.length,
       archive: SKIP_FAILED,
       committed: false,
+      ...intent,
     });
   }
   const res = routerCommit(g, timeout, { rel, message, trailer: coAuthorTrailer(policy) });
   if (res.error) {
     return res.commit === undefined
-      ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false })
-      : out({ action: "halt", reason: `${res.reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true });
+      ? out({ action: "halt", reason: res.error, steps: ran.length, archive: SKIP_FAILED, committed: false, ...intent })
+      : out({ action: "halt", reason: `${res.reason} ${COMMIT_EXISTS}`, steps: ran.length, archive: SKIP_COMMITTED, committed: true, ...intent });
   }
 
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
@@ -712,6 +714,7 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + promptText(policy, "suffix");
   return out({
     action: "archive",
+    ...intent,
     change: id, root: ROOT, chain: p.chain ?? "10x",
     host: hostOf(meta),
     ...dispatch,

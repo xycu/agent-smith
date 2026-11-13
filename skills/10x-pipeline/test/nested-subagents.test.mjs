@@ -42,6 +42,7 @@ test("the suffix has exactly one rule that bans the Agent tool, in rule form, be
   const [rule] = rules;
   assert.ok(rule.includes("**MUST NOT**"), rule);
   assert.match(rule, /Task tool/);
+  assert.match(rule, /spawn_agent or any other delegation tool/);
   assert.match(rule, /top session/);
   assert.deepEqual(ruleProblems(rule), []);
   const at = SUFFIX.indexOf(rule);
