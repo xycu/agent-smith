@@ -1,10 +1,10 @@
 ---
 change_id: skill-dir-variable
 title: Use the documented skill directory variable for the script paths in both skills
-status: impl_reviewed
+status: archived
 created: 2026-11-12
-updated: 2026-11-12
-archived_at: null
+updated: 2026-11-13
+archived_at: 2026-11-13T11:26:26Z
 ---
 
 ## Notes
