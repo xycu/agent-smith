@@ -1,10 +1,10 @@
 ---
 change_id: agents-md-slim
 title: Slim AGENTS.md to rules and pointers and fix its stale statements
-status: impl_reviewed
+status: archived
 created: 2026-11-12
-updated: 2026-11-12
-archived_at: null
+updated: 2026-11-13
+archived_at: 2026-11-13T11:26:26Z
 ---
 
 ## Notes
