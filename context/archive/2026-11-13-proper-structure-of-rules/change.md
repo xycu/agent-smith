@@ -1,10 +1,10 @@
 ---
 change_id: proper-structure-of-rules
 title: Hierarchical rule levels for skills, with OpenSpec definitions outside the 10x folder
-status: impl_reviewed
+status: archived
 created: 2026-11-13
 updated: 2026-11-13
-archived_at: null
+archived_at: 2026-11-13T17:15:19Z
 ---
 
 ## Notes
