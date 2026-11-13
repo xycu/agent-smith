@@ -1,0 +1,1 @@
+- 2.7 — CI result on the pull request lives on GitHub; no PR exists yet from this run and reading or triggering it needs an external service, so it cannot be proved locally
