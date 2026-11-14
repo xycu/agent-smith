@@ -1,10 +1,10 @@
 ---
 change_id: skills-disable-model-invocation
 title: Decide whether the model may start a pipeline run on its own
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-14
-archived_at: null
+archived_at: 2026-11-14T17:36:46.371Z
 ---
 
 ## Notes
