@@ -29,6 +29,8 @@ A Claude Code plugin that runs 10xDevs and OpenSpec workflows end to end through
 
 Needs Claude Code 2.1.292 or later: `${CLAUDE_SKILL_DIR}` in skill content needs 2.1.69 and the `effort` parameter of the Agent tool needs 2.1.292.
 
+Fable compatibility checked 2026-11-14. Fable 5.2 requires Claude Code 2.1.321+. With `ANTHROPIC_DEFAULT_FABLE_MODEL` unset, `fable` resolves to Fable 5 in Claude apps gateway sessions and Fable 5.2 elsewhere. Before opting in, check the version requirement for the resolved model, environment/provider mapping, exposed Agent model alias and effort parameters, and account access. The router performs no version or capability detection. [Model configuration](https://code.claude.com/docs/en/model-config) · [Subagents](https://code.claude.com/docs/en/sub-agents)
+
 ### Codex and OpenAI steps
 
 The shared `10x-pipeline` and `openspec-pipeline` skills also support Codex hosting OpenAI steps, and Claude Code hosting a mixed Claude/OpenAI ladder. Codex CLI 0.169.0 is the verified runner contract. Node.js 24+, authenticated model access, project trust and separately installed upstream toolkit skills are required. Confirm that a fresh CLI child can discover those skills from the run worktree.
@@ -99,10 +101,14 @@ These compatibility statements follow Anthropic documentation reviewed on 2026-1
 Override any policy key per project in `context/foundation/agent-smith-policy.json`. Defaults live in `skills/10x-pipeline/policy.json`; the OpenSpec chain's steps and prompts live in `skills/openspec-pipeline/policy.json`, which the router merges with it. The always-true step rules live in `skills/10x-pipeline/rules/` and `skills/openspec-pipeline/rules/`; no override reaches them (ADR-023, `skills/10x-pipeline/rules/README.md`).
 
 ```json
-{ "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2 } } }
+{ "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2, "fable": 12 } } }
 ```
 
-That one adds a dollar estimate to every report. 💰
+All numbers above are illustrative user-supplied blended rates. Supply current rates for your deployment. Pricing is a separate opt-in, with `prices: null` as the default. The estimate uses `totalTokens * rate / 1e6`, with one rate per model key across providers and efforts and no input/output/cache split. Omit unknown prices, since `0` is a real zero rate. Estimates carry no billing or savings guarantee.
+
+Eligible Claude hosts can merge the complete opt-in fable ladder and four selected ceilings into their project override. Arrays replace whole, so preserve unrelated keys deliberately. The shipped rigor floors remain supported. A custom `xhigh` floor skips the high rung and can exceed a lower ceiling, while a custom `max` floor exhausts this extension at xhigh. A Codex host requires an OpenAI-only ladder. Combining this example with the GPT overlay requires a deliberate provider and ladder redesign. [Opt-in fable ladder](docs/REFERENCE.md#opt-in-fable-ladder)
+
+With a price table missing fable, status gives its step cost as `null`, the report cell is `-` and the summary names `no price for: fable`. Compare adds `cost-incomplete:routed` while preserving the token verdict. All-unpriced status totals are `null`. With prices off, status/report omit costs and compare side costs stay `null`.
 
 Opt-in extras: restricted step agents, advisor prompts, confirmation review rounds. All in the [reference](docs/REFERENCE.md).
 

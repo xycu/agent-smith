@@ -1,0 +1,4 @@
+Command: claude --version
+Exit status: 0
+
+2.1.311 (Claude Code)

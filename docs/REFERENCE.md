@@ -61,7 +61,7 @@ Requirements in the target project:
 
 How routing works:
 
-- `skills/10x-pipeline/policy.json` defines a ladder of model/effort tiers, a base tier per step, and escalation rules.
+- `skills/10x-pipeline/policy.json` defines a ladder of model/effort tiers, a base tier per step, and escalation rules. Compatible Claude hosts can append two rungs with the [opt-in fable ladder](#opt-in-fable-ladder).
 - `skills/10x-pipeline/scripts/route.mjs` reads `plan.md` (`## Progress`) and `reviews/*.md` (verdict, finding counts) after every step and returns the next step, model, effort and prompt. It stays a script: it makes no model or network call (ADR-006). The complexity score comes from a step it schedules (ADR-007).
 - The tier goes up for large plans, `RETHINK`/`REVISE`/`REJECTED` verdicts (a `REVISE` or `NEEDS ATTENTION` counts when findings are still open) and failed attempts. It goes down after a clean review and for a simple change (a small plan or a short goal). A hard keyword in the goal, such as `refactor` or `security`, keeps the first plan at the plan step's base tier.
 - In a run with its own worktree (see "Run isolation") the first attempt of an implement step (`implement`, `implement-segment`, `implement-tdd`, `implement-e2e`) runs one tier lower (`escalation.firstAttempt`), because a failed attempt is rolled back and retried. No drop applies when that step already failed in the run or the simple-change discount applies, and the clamp and the effort floor still bound it: a tdd or e2e step on the floor keeps its tier and `tierWhy` reads `-1 first attempt not applied (clamp or floor)`. An execution-sum score up shift cancels it the same way (`-1 first attempt not applied (cancelled by the score shift)`), and the step runs on the tier it would have without both. The entry carries `cheap: true` only when the drop survived the score shift, the clamp and the floor. Its failure raises no rigor and uses no step budget, but it counts as a failed attempt for the retry tier, `maxAttemptsPerStep` and the code re-plan, so the retry runs two tiers above it. The drop counts as a discount for the score down shift, so the two never stack. A failed cheap attempt is neutral only for rigor and the step budget, on purpose: the implementation review after it still runs one tier up, and for the rest of the run the simple-change discount is withheld and the score down shift is blocked, as after any failed step. `drop: 0` turns it off.
@@ -284,6 +284,41 @@ Rule levels (ADR-023):
 - The step file, the chain file and `prompts.chain-<chain>` are rendered with the template's placeholders at a run step and with `{id}` only at the archive step. `top.md` and `prompts.suffix` are not rendered.
 - Upgrade notes: an override of `prompts.suffix` now replaces only the defaults; the always-true rules stay. An override that copies the old full suffix text carries the `RESULT:` block twice, which is harmless. The prompts and the new rule files change, so a run in flight records `provenance.drift` for `prompts` and `ruleFiles` at its next call. Routing is unaffected.
 
+### Opt-in fable ladder
+
+```json
+{
+  "ladder": [
+    { "model": "haiku", "effort": "low" },
+    { "model": "sonnet", "effort": "low" },
+    { "model": "sonnet", "effort": "medium" },
+    { "model": "sonnet", "effort": "high" },
+    { "model": "opus", "effort": "medium" },
+    { "model": "opus", "effort": "high" },
+    { "model": "opus", "effort": "xhigh" },
+    { "model": "opus", "effort": "max" },
+    { "model": "fable", "effort": "high" },
+    { "model": "fable", "effort": "xhigh" }
+  ],
+  "steps": {
+    "plan": { "maxTier": 9 },
+    "plan-review": { "maxTier": 9 },
+    "impl-review": { "maxTier": 9 },
+    "fix": { "maxTier": 9 }
+  }
+}
+```
+
+Merge this object into `context/foundation/agent-smith-policy.json` before a new run, preserving unrelated project keys. Arrays replace whole, while objects merge key by key. The example repeats tiers 0–7 exactly and appends fable/high at 8 and fable/xhigh at 9. Omitted providers use the existing Claude default. Only `plan`, `plan-review`, `impl-review` and `fix` ceilings rise to 9. Every base/min tier, budget, retry limit and `os-` step ceiling keeps its existing value. Keep the baseline override separate. A Codex host requires an OpenAI-only ladder. Combining this example with the GPT overlay requires a deliberate provider and ladder redesign.
+
+Compatibility checked 2026-11-14. With `ANTHROPIC_DEFAULT_FABLE_MODEL` unset, `fable` resolves to Fable 5 in Claude apps gateway sessions and Fable 5.2 elsewhere. Fable 5.2 requires Claude Code 2.1.321+, while general Agent effort support requires 2.1.292+. Check the version requirement for the resolved model, environment/provider mapping, exposed Agent model alias and effort parameters, and account access before adoption. The router performs no version or capability detection. A pre-launch orchestration refusal follows the existing `orchestrator-error` handling described above. [Model configuration](https://code.claude.com/docs/en/model-config) · [Subagents](https://code.claude.com/docs/en/sub-agents)
+
+Tier order expresses intended model capability. Effort labels are calibrated per model, so opus/max to fable/high lowers the effort label. The shipped lean/standard/thorough floors remain medium/high/high and both appended rungs satisfy them. The final effort floor applies after clamps and can exceed a lower step ceiling. A custom `xhigh` floor skips tier 8 to 9, even with a ceiling of 8. A custom `max` floor is incompatible with this extension when routing above tier 7, since the ladder exhausts at xhigh.
+
+These ceilings permit higher dispatch targets. Ordinary first plans, score shifts and bounded retries have their existing reach. In the two-phase RETHINK path, the revision runs at tier 7 opus/max, its first failed retry reaches tier 8 fable/high, and two failed revisions hit the unchanged revision cap. Pure tier calculations with larger bumps can reach tier 9. Opting in can increase paid usage and latency, with no measured capability equivalence or cost ordering.
+
+To stop opting in, restore the previous ladder and the four previous ceilings together. Removing only the appended rungs leaves invalid out-of-range maxima. Preserve unrelated keys. Pending and neutral retries can retain stored dispatch targets, and historical logs keep their recorded targets.
+
 Usage report:
 
 - When a run ends (`done` or `halt`, including a spent step budget or repeated failures), the router writes `context/changes/<change-id>/agent-smith/report.md` and adds its path to the output as `report`.
@@ -309,10 +344,11 @@ Late usage figure (ADR-019):
 
 Cost estimate:
 
-- Off by default: `policy.json` ships `"prices": null`, so no price is invented. Turn it on in `context/foundation/agent-smith-policy.json` with `{ "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2 } } }`, USD per million tokens per model alias (the `model` the log records, never a model id). You supply the numbers; they go stale when the prices change.
+- Off by default: `policy.json` ships `"prices": null`, so no price is invented. Turn it on in `context/foundation/agent-smith-policy.json` with `{ "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2, "fable": 12 } } }`, USD per million tokens per model alias (the `model` the log records, never a model id). All numbers in this example are illustrative user-supplied blended rates. Supply current rates for your deployment. Pricing is a separate opt-in from the ladder. Rates are keyed by model across providers and efforts. Estimates carry no billing or savings guarantee. Omit unknown prices, since `0` is a real zero rate.
 - The rate is blended: the host reports one `totalTokens` per step, with no input, output or cache split, so a step costs `totalTokens * price / 1e6`. Only steps with a token figure and a price count. A `0` price is a price.
 - `report.md` then gets a `Cost (est.)` column after `Tokens` (`$` and 4 decimals, `-` for a step with no figure or no price) and a line under the totals line: `Cost (estimate): $X.XX at a blended rate (USD per million tokens, no input/output split) · priced N of M steps with a token figure`, plus ` · no price for: <aliases>` when an alias with a figure has no price. With nothing priced the line reads `Cost (estimate): - (no step with a token figure has a price) at a blended rate`. Without prices the report is as before.
 - `status` then adds `cost` (USD at 4 decimals, or `null`) to each executed step row and a top-level `cost: { usd, currency: "USD", rate: "blended", priced, withFigures, unpriced }`; `usd` is `null` when nothing is priced. Without prices it has no `cost` key.
+- With an active table missing fable, its per-step status cost is `null`, the report cell is `-` and the summary names `no price for: fable`. Mixed runs total only priced steps. All-unpriced status totals are `null`. Compare adds `cost-incomplete:routed` while preserving its token verdict. With prices off, status/report omit costs and compare side costs remain `null`.
 - Both chains read the same log entries, so an OpenSpec run gets the same column, line and `status` object.
 - A `prices` block of another shape reads as off, and an entry that is not a number of 0 or more is dropped (that alias is unpriced); nothing halts.
 - The report computes the estimate with the override as it reads when the report is written. An archived `report.md` keeps the text it was written with; a later price change does not touch it.
