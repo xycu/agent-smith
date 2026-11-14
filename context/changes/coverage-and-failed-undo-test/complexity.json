@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 1,
+      "evidence": "change.md fixes per-module coverage without a threshold and both failed-undo assertions; coverage evidence location and runtime fallback remain minor choices."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "rollback.test.mjs already exercises ordinary halt and router-error undo; stepcommit.test.mjs demonstrates PATH-injected git failures, and change.md demonstrates native coverage."
+    },
+    "coupling": {
+      "score": 1,
+      "evidence": "context/changes/WAVES.md assigns only ci.yml test command and rollback.test.mjs; route.mjs and isolation.mjs supply existing internal recovery behavior."
+    },
+    "discovery": {
+      "score": 2,
+      "evidence": "change.md names route.mjs, flow.mjs, steps.mjs and isolation.mjs, but locating uncovered halt/recovery ranges requires a full coverage run and cross-module inspection."
+    },
+    "volume": {
+      "score": 1,
+      "evidence": "Wave 6 ownership limits implementation to .github/workflows/ci.yml and skills/10x-pipeline/test/rollback.test.mjs, with coverage evidence recorded in change artifacts."
+    },
+    "verification": {
+      "score": 2,
+      "evidence": "rollback.test.mjs supplies real-worktree assertions, but the goal adds child-process coverage measurement and requires CI-log evidence plus inspection of uncovered recovery ranges."
+    }
+  },
+  "unknowns": [
+    "The originating repo review of 2026-11-12 (tests, tools and CI audit) is cited in change.md without a path; no standalone review artifact was located in the worktree.",
+    "Full-suite coverage ranges and coverage overhead on the CI runner are unmeasured at this pre-plan scoring stage."
+  ],
+  "confidence": "medium"
+}

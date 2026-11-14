@@ -1,9 +1,9 @@
 ---
 change_id: coverage-and-failed-undo-test
 title: Measure coverage in CI and test the halt text of a rollback that was not undone
-status: new
+status: impl_reviewed
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 archived_at: null
 ---
 

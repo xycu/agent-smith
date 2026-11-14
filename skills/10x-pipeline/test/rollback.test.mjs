@@ -356,6 +356,99 @@ test("4.1 a router error after the rollback undoes it: partial edits back, entry
   assert.equal(Object.hasOwn(last, "rolledBack"), false);
 });
 
+// The injector lives in the main fixture, outside the linked worktree that rollback resets.
+function gitFailingUndo(wt, ref, start, reset) {
+  const real = spawnSync("sh", ["-c", "command -v git"], { encoding: "utf8" });
+  assert.equal(real.status, 0, real.stderr);
+  const bin = path.join(wt.base, "undo-bin");
+  fs.mkdirSync(bin);
+  const marker = path.join(bin, "invocations");
+  fs.writeFileSync(path.join(bin, "git"), [
+    "#!/bin/sh",
+    `case " $* " in`,
+    `  *" reset -q --hard $UNDO_START ")`,
+    `    "$UNDO_REAL_GIT" "$@" || exit $?`,
+    `    printf "rollback %s\\n" "$("$UNDO_REAL_GIT" rev-parse HEAD)" >> "$UNDO_MARKER"`,
+    "    exit 0;;",
+    `  *" $UNDO_RESET ")`,
+    `    snapshot=$("$UNDO_REAL_GIT" rev-parse --verify "$UNDO_REF") || exit $?`,
+    `    printf "undo %s\\n" "$snapshot" >> "$UNDO_MARKER"`,
+    `    echo "fatal: injected undo reset failure" >&2`,
+    "    exit 128;;",
+    "esac",
+    `exec "$UNDO_REAL_GIT" "$@"`,
+    "",
+  ].join("\n"), { mode: 0o755 });
+  return {
+    marker,
+    env: {
+      ...gitEnv(wt), PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+      UNDO_REAL_GIT: real.stdout.trim(), UNDO_REF: ref, UNDO_START: start, UNDO_MARKER: marker,
+      UNDO_RESET: reset === "hard" ? `reset -q --hard ${ref}` : `reset -q ${ref}^`,
+    },
+  };
+}
+
+for (const caller of ["attempt-cap", "router-error"]) {
+  for (const reset of ["hard", "mixed"]) {
+    test(`4.1 failed undo: ${caller}, ${reset} reset retains recovery text and snapshot`, { skip: skip || process.platform === "win32" }, () => {
+      const { wt } = freshRun();
+      if (caller === "attempt-cap") {
+        for (let n = 1; n <= 2; n++) {
+          writeResult(wt, { status: "failed", note: `attempt ${n}` });
+          assert.equal(nextIn(wt).json.step, "plan");
+        }
+      } else {
+        toImplement(wt, planText({ phases: 1, rowsPerPhase: 2 }));
+      }
+      const start = readLogEntries(wt).at(-1).startSha;
+      assert.equal(head(wt), start);
+      // Distinguish the step start from the HEAD its failed work leaves.
+      fs.writeFileSync(path.join(wt.top, "committed.txt"), "committed before failure\n");
+      gw(wt, ["add", "committed.txt"]);
+      gw(wt, ["commit", "-q", "-m", "test(demo): partial step commit"]);
+      const left = head(wt);
+      const trackedFile = path.join(wt.changeDir, "change.md");
+      const tracked = fs.readFileSync(trackedFile, "utf8") + "partial tracked work\n";
+      fs.writeFileSync(trackedFile, tracked);
+      fs.writeFileSync(path.join(wt.top, "partial.txt"), "partial untracked work\n");
+      if (caller === "router-error") {
+        const override = path.join(wt.top, "context/foundation/agent-smith-policy.json");
+        const current = JSON.parse(fs.readFileSync(override, "utf8"));
+        fs.writeFileSync(override, JSON.stringify({ ...current, complexity: { appliesTo: null } }));
+      }
+      const ref = REF(wt, readLogEntries(wt).at(-1).n);
+      const injector = gitFailingUndo(wt, ref, start, reset);
+      writeResult(wt, { status: "failed", note: "undo failure" });
+      const res = run(wt, ["next", wt.id], { env: injector.env });
+      assert.equal(res.status, caller === "attempt-cap" ? 0 : 1, res.stdout + res.stderr);
+      assert.equal(res.json?.action, "halt", res.stdout);
+      if (caller === "attempt-cap") {
+        assert.match(res.json.reason, /plan failed 3 times in a row\. Last note: undo failure/);
+        assert.ok(res.json.reason.includes(`The partial edits are kept under ${ref}.`), res.stdout);
+      } else {
+        assert.match(res.json.reason, /^Router error: /);
+      }
+      assert.ok(res.json.reason.includes("The rollback was not undone:"), res.stdout);
+      assert.ok(res.json.reason.includes("fatal: injected undo reset failure"), res.stdout);
+      const diagnostic = reset === "hard" ? `git reset --hard ${ref} failed:` : `git reset ${ref}^ failed:`;
+      assert.ok(res.json.reason.includes(diagnostic), res.stdout);
+      assert.ok(refExists(wt, ref));
+      const snapshot = gw(wt, ["rev-parse", ref]);
+      assert.equal(showFile(wt, ref, `${CHANGE}/change.md`), tracked.trim());
+      assert.equal(showFile(wt, ref, "partial.txt"), "partial untracked work");
+      assert.equal(showFile(wt, ref, "committed.txt"), "committed before failure");
+      assert.equal(gw(wt, ["rev-parse", `${ref}^`]), left);
+      assert.equal(fs.readFileSync(injector.marker, "utf8"), `rollback ${start}\nundo ${snapshot}\n`);
+      assert.equal(head(wt), reset === "hard" ? start : snapshot);
+      if (reset === "mixed") {
+        assert.ok(res.json.reason.includes(`The run branch now points at the snapshot commit of ${ref}`), res.stdout);
+        assert.ok(res.json.reason.includes(`run git reset -q ${ref}^ in the run worktree before resuming.`), res.stdout);
+      }
+    });
+  }
+}
+
 test("4.1 a rollback ref outside refs/agent-smith/ halts before any git write", { skip }, () => {
   // refs/heads/* is shared by every worktree of the repository: such a ref would move or create another branch.
   const main = repo({ policy: { isolation: { require: true, rollback: { ref: "refs/heads/elsewhere" } } } });
