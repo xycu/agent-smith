@@ -43,5 +43,8 @@
       "model": "gpt-6-astra",
       "effort": "max"
     }
-  ]
+  ],
+  "limits": {
+    "maxNeutralRetries": 3
+  }
 }
