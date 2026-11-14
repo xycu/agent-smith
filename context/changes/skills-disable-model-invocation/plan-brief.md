@@ -37,7 +37,7 @@ Both skills carry the unquoted YAML boolean `disable-model-invocation: true` and
 
 ## Architecture / Approach
 
-Claude Code evaluates invocation metadata before loading the orchestrator. Use its built-in boolean and the existing content-test seams. The README presents both namespaced slash commands, current headless expansion support, scheduled-fire plain-text behavior and the Skill-tool invocation restriction with source links.
+Claude Code evaluates invocation metadata before loading the orchestrator. Use its built-in boolean and the existing content-test seams. Count raw frontmatter invocation keys before checking the parsed value, and cover duplicate keys with deliberate-break copies. Preserve the absent `user-invocable` field and test that adding false fails. The README presents both namespaced slash commands, current headless expansion support, scheduled-fire plain-text behavior and current-user-message authorization for Skill-tool calls with source links. A command at the start runs directly, and a matching command word after prose permits Claude to call the skill for that message.
 
 ## Phases at a Glance
 
@@ -51,7 +51,7 @@ Wave 5 ownership and the explicit owner choice supply the prerequisites. Node 24
 
 - The unattended task settles interview and phase-approval choices using the goal, code and authoritative documentation.
 - Anthropic’s documentation retrieved on 2026-11-14 establishes invocation behavior. The minimum supported Claude Code 2.1.292 still needs live verification, and evidence should name the tested version.
-- Direct print-mode skill expansion has documentation support. Full headless pipeline completion retains its existing execution prerequisites and live-acceptance caveat.
+- Direct print-mode skill expansion and background-work waiting have current documentation support. The reference's older immediate-exit prediction is explicitly unverified. Full headless pipeline completion needs version-specific live evidence.
 - Invocation-control claims apply to Claude Code. README already documents Codex skill-picker selection, and cross-host enforcement needs host-specific evidence.
 
 ## Success Criteria (Summary)
@@ -64,5 +64,7 @@ Wave 5 ownership and the explicit owner choice supply the prerequisites. Node 24
 
 - [Change brief](change.md) and the repository Wave 5 ownership table in `context/changes/WAVES.md`.
 - [Anthropic skills invocation control](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill)
+- [Anthropic current-message command authorization](https://code.claude.com/docs/en/skills#where-you-write-the-skills-name)
 - [Anthropic headless command support](https://code.claude.com/docs/en/headless)
+- [Anthropic background-work waiting](https://code.claude.com/docs/en/headless#background-tasks-at-exit)
 - [Anthropic scheduled skill behavior](https://code.claude.com/docs/en/scheduled-tasks#run-a-prompt-repeatedly-with-loop)

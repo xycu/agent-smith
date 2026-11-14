@@ -27,9 +27,9 @@ Both plugin descriptions agree exactly, and the README introduction communicates
 | Direct `/agent-smith:10x-pipeline <change-id>` | User invocation loads the skill with the flag enabled. | Anthropic skills invocation-control table |
 | Direct `/agent-smith:openspec-pipeline <change-name>` | User invocation loads the skill with the flag enabled. | Anthropic skills invocation-control table |
 | Plain-language requests such as `pipeline this change` | Automatic loading is disabled and the description is absent from model context. | Anthropic skills invocation-control section |
-| `claude -p "/agent-smith:10x-pipeline <change-id>"` and the OpenSpec equivalent | User-invoked skill commands expand in print mode. Full pipeline execution also depends on the existing host, toolkit and foreground-completion contracts. | Anthropic headless command-support note and `docs/REFERENCE.md:421` |
+| `claude -p "/agent-smith:10x-pipeline <change-id>"` and the OpenSpec equivalent | User-invoked skill commands expand in print mode. Current documentation describes waiting for background work subject to an idle ceiling. Full pipeline completion requires version-specific live evidence. | Anthropic headless command-support and background-tasks-at-exit sections |
 | `/loop 5m /agent-smith:10x-pipeline <change-id>` and the OpenSpec equivalent | A scheduled fire delivers the disabled skill prompt as plain text. Automatic skill expansion is disabled. | Anthropic scheduled-tasks documentation |
-| Another skill calling either pipeline through the Skill tool | Claude cannot invoke a skill carrying the flag through that tool. Such integrations require an explicit user command entry point. | Anthropic skills access-control section |
+| Another skill calling either pipeline through the Skill tool | Calls require explicit authorization through the matching slash command in the current user message. A separate command word after prose permits Claude to call the skill. A command at the start invokes it directly. | Anthropic invocation-control and command-placement sections |
 
 Scope these enforcement claims to Claude Code. The README also documents Codex skill-picker selection, and Anthropic identifies invocation control as a Claude Code extension. Cross-host enforcement claims need host-specific evidence.
 
@@ -38,6 +38,7 @@ Scope these enforcement claims to Claude Code. The README also documents Codex s
 - Claude Code owns invocation gating before the orchestrator loads. The native frontmatter field is the responsible layer. [Skills frontmatter reference](https://code.claude.com/docs/en/skills#frontmatter-reference)
 - The control preserves direct user invocation and removes automatic discovery by the model. [Control who invokes a skill](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill)
 - Current official documentation explicitly supports user-invoked skills in `claude -p` prompts. This settles the brief’s headless-entry-point question at the documentation level. [Run Claude Code programmatically](https://code.claude.com/docs/en/headless)
+- Current headless documentation describes background-work waiting. The prediction of immediate exit in `docs/REFERENCE.md:421` is an older, explicitly unverified hypothesis. README guidance must identify that provenance and use current official documentation for present host behavior. Version-specific end-to-end acceptance remains pending. [Background tasks at exit](https://code.claude.com/docs/en/headless#background-tasks-at-exit)
 - `/loop` scheduled fires honor `disable-model-invocation` and deliver such prompts as plain text. [Run prompts on a schedule](https://code.claude.com/docs/en/scheduled-tasks#run-a-prompt-repeatedly-with-loop)
 
 ## Scope Boundaries
@@ -66,6 +67,7 @@ Use one cohesive implementation phase because the feature consists of native con
 - The owner’s explicit slash-command choice settles the brief’s decision branch. Record the rationale in the plan and README invocation guidance using the existing frontmatter capability.
 - Align the plugin manifest and marketplace plugin-entry descriptions exactly. Align the README and chain-specific skill descriptions semantically, including explicit invocation. Each skill retains its own name and chain purpose, and marketplace metadata retains its marketplace purpose. Evidence comes from the repository’s Hard Rules and Layout guidance.
 - Preserve default user invocation by retaining the current frontmatter fields. The official reference defines `user-invocable` as true by default.
+- Explicit user invocation includes a matching slash command written as a separate word after prose in the current message. That permits a Skill-tool call for that message. Integrations that only name the pipeline inside another skill's body need the user-command entry point. [Where you write the skill's name](https://code.claude.com/docs/en/skills#where-you-write-the-skills-name)
 - Documentation retrieved on 2026-11-14 establishes the compatibility matrix. Live behavior on the repository’s minimum supported Claude Code 2.1.292 remains an acceptance risk. Record the actual host version whenever live evidence is obtained.
 - Put invocation guidance and authoritative links in README. Its shared-file ownership permits this addition, and the existing reference already records the headless completion caveat.
 
@@ -99,7 +101,7 @@ Ship the native invocation controls, user-facing descriptions, compatibility gui
 
 **Intent** Explain how to start the two pipelines and the compatibility impact on headless calls, scheduled prompts and Skill-tool integrations.
 
-**Contract** Align the introduction with the manifest descriptions and add a concise Claude Code invocation subsection near Quick start. Include both existing slash commands, the flag’s purpose, the matrix outcomes above and authoritative source links. Identify published documentation as evidence and live acceptance as pending until observed. Cite the existing reference for headless completion limitations. Preserve the Codex installation/selection guidance and neighboring options content.
+**Contract** Align the introduction with the manifest descriptions and add a concise Claude Code invocation subsection near Quick start. Include both existing slash commands, the flag’s purpose, the matrix outcomes above and authoritative source links. Explain the current-user-message authorization condition for Skill-tool integrations. Identify published documentation as evidence and live acceptance as pending until observed. Cite current official headless documentation for background-work waiting and identify the existing reference's immediate-exit prediction as historical and unverified. Preserve the Codex installation/selection guidance and neighboring options content.
 
 #### 4. Frontmatter regression checks
 
@@ -107,7 +109,7 @@ Ship the native invocation controls, user-facing descriptions, compatibility gui
 
 **Intent** Catch a missing, false or malformed invocation flag before release and protect direct user invocation and aligned descriptions.
 
-**Contract** Bound assertions to the first frontmatter block. Reuse OpenSpec’s existing parser and the current file-loading seams. Require the unquoted true value and reject a `user-invocable: false` field. Assert chain identity and explicit command wording without freezing the entire description. Add small manifest-description equality and README invocation-guidance assertions in the existing 10x content test. Preserve all existing checks and environment override behavior.
+**Contract** Bound assertions to the first frontmatter block. Reuse OpenSpec’s existing parser and the current file-loading seams. Count top-level `disable-model-invocation` keys in that raw block and require exactly one, then require its unquoted true value. The existing OpenSpec parser overwrites duplicate keys, so parsed-value equality alone leaves the exactly-one contract unproved. Require `user-invocable` to remain absent, preserving the current default. Assert chain identity and explicit command wording without freezing the entire description. Add small manifest-description equality and README invocation-guidance assertions in the existing 10x content test. Preserve all existing checks and environment override behavior.
 
 ### Success Criteria
 
@@ -129,7 +131,7 @@ Ship the native invocation controls, user-facing descriptions, compatibility gui
 
 Use the existing content-test infrastructure for the positive frontmatter case and description alignment. A string search over the whole document cannot prove a YAML field exists in frontmatter. Reuse the OpenSpec parser, and keep any 10x extraction local to its new assertions.
 
-Create deliberate-break copies inside this worktree under the change folder. Exercise each mutation independently for both skills through the existing environment variables. Each negative run must fail the invocation assertion specifically. Remove the copies individually after verification and remove their directory when empty.
+Create deliberate-break copies inside this worktree under the change folder. Exercise each mutation independently for both skills through the existing environment variables. In addition to the four mutations in row 1.2, cover duplicate invocation keys with two true values and conflicting true/false values in both orders. These cases prove the exactly-one contract in row 1.1. Also insert `user-invocable: false` to prove the direct-user-invocation guard. Each negative run must fail the invocation assertion specifically. Remove the copies individually after verification and remove their directory when empty.
 
 Run focused tests first, then the version check and full suite. The two-file baseline recorded during planning has 49 passes and zero skips. New assertion counts may increase that total.
 
@@ -140,7 +142,7 @@ Run focused tests first, then the version check and full suite. The two-file bas
 3. In a separate fresh session, use the plain-language request with an existing change. Record that neither pipeline skill is invoked and that pipeline setup/state has no new writes.
 4. Save the relevant observations in this change folder’s `evidence/` directory. The single Manual row requires all these checks for both chains.
 
-The headless, scheduled-fire and Skill-tool compatibility statements use the official sources below. A live full-pipeline headless success claim requires a completed run transcript and the existing foreground-completion acceptance conditions.
+The headless, scheduled-fire and Skill-tool compatibility statements use the official sources below. Record the tested host version with any live result. A live full-pipeline headless success claim requires a completed run transcript proving that the orchestrator consumed each completion. The older immediate-exit hypothesis in the existing reference supplies historical context, while current host waiting behavior comes from the official headless documentation.
 
 ## Performance Considerations
 
@@ -148,7 +150,7 @@ Claude Code evaluates the native frontmatter policy at skill selection. This fea
 
 ## Migration Notes
 
-Consumers currently starting a pipeline through another skill’s Skill-tool call must use an explicit user command. Users scheduling pipeline skills through `/loop` receive the documented plain-text prompt behavior at scheduled fire time. Direct `claude -p` slash-command expansion is documented by Anthropic, subject to the existing execution prerequisites.
+Consumers currently starting a pipeline through another skill’s Skill-tool call need the matching slash command in the current user message. Starting the message with that command invokes it directly, and placing it after prose as a separate word permits Claude to invoke it for that message. Users scheduling pipeline skills through `/loop` receive the documented plain-text prompt behavior at scheduled fire time. Direct `claude -p` slash-command expansion and background-work waiting are documented by Anthropic. Version-specific pipeline completion still requires a recorded end-to-end run.
 
 Reload the updated plugin before acceptance. A normal follow-up commit can restore earlier invocation behavior if the owner changes the product decision.
 
@@ -161,7 +163,9 @@ Reload the updated plugin before acceptance. A normal follow-up commit can resto
 - Existing headless execution caveat in `docs/REFERENCE.md:421`.
 - Anthropic frontmatter ownership and direct invocation guidance, retrieved 2026-11-14. [Skills](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill)
 - Anthropic Skill-tool access guidance, retrieved 2026-11-14. [Restrict Claude’s skill access](https://code.claude.com/docs/en/skills#restrict-claudes-skill-access)
+- Anthropic current-message command authorization, retrieved 2026-11-14. [Where you write the skill's name](https://code.claude.com/docs/en/skills#where-you-write-the-skills-name)
 - Anthropic print-mode command expansion guidance, retrieved 2026-11-14. [Headless mode](https://code.claude.com/docs/en/headless)
+- Anthropic current print-mode waiting behavior, retrieved 2026-11-14. [Background tasks at exit](https://code.claude.com/docs/en/headless#background-tasks-at-exit)
 - Anthropic scheduled-fire behavior, retrieved 2026-11-14. [Scheduled tasks](https://code.claude.com/docs/en/scheduled-tasks#run-a-prompt-repeatedly-with-loop)
 
 ## Progress
