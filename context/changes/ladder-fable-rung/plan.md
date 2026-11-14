@@ -187,8 +187,8 @@ No state migration or tier renumbering. Users deliberately merge the full array 
 
 #### Automated
 
-- [ ] 1.1 The canonical reference JSON parses and exactly preserves tiers 0–7, appends tiers 8–9 and changes only the four selected maxTier keys.
-- [ ] 1.2 README and reference agree on compatibility, merge semantics, floor limitations and illustrative pricing; default policies, skill/manifest descriptions, WAVES.md and archive paths have no diff.
+- [x] 1.1 The canonical reference JSON parses and exactly preserves tiers 0–7, appends tiers 8–9 and changes only the four selected maxTier keys.
+- [x] 1.2 README and reference agree on compatibility, merge semantics, floor limitations and illustrative pricing; default policies, skill/manifest descriptions, WAVES.md and archive paths have no diff.
 
 ### Phase 2: Prove the published configuration through regression tests
 
