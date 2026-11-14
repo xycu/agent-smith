@@ -1,10 +1,10 @@
 ---
 change_id: ci-scratch-in-runner-temp
 title: Put the test scratch folders of CI into the runner temp directory
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-14
-archived_at: null
+archived_at: 2026-11-14T14:20:01Z
 ---
 
 ## Notes
