@@ -34,7 +34,6 @@ process.stdin.on("end", async () => {
     execFileSync("git", ["commit", "-m", mode.commitMessage, "-m", "Co-Authored-By: Codex <noreply@openai.com>"], { cwd: process.cwd(), stdio: ["ignore", "ignore", "pipe"] });
   }
   if (mode.hold) {
-    fs.writeFileSync(path.join(fixture, "ready"), String(process.pid));
     await new Promise(resolve => {
       const terminate = () => {
         fs.writeFileSync(path.join(fixture, "terminating"), "yes");
@@ -42,6 +41,7 @@ process.stdin.on("end", async () => {
       };
       process.on("SIGTERM", terminate);
       process.on("SIGINT", terminate);
+      fs.writeFileSync(path.join(fixture, "ready"), String(process.pid));
       const timer = setInterval(() => {
         if (fs.existsSync(path.join(fixture, "release"))) { clearInterval(timer); resolve(); }
       }, 10);

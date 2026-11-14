@@ -43,7 +43,7 @@ const hash16 = (text) => crypto.createHash("sha256").update(text).digest("hex").
 function promptsHash(policy) {
   const texts = {};
   try {
-    for (const template of Object.keys(isObject(policy.prompts) ? policy.prompts : {})) texts[template] = promptText(policy, template);
+    for (const template of Object.keys(isObject(policy.prompts) ? policy.prompts : {}).filter((key) => key !== "byFile")) texts[template] = promptText(policy, template);
   } catch { return null; }
   return hash16(canonicalJson(texts));
 }

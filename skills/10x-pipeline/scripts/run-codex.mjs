@@ -9,7 +9,7 @@ import {
   ROOT, acquireRunLock, archiveDirs, paths, readMeta, readLog, executed, hostOf, providerOf,
   loadPolicy, policyProblems, parseFlags, isObject, guardedStat,
 } from "./state.mjs";
-import { dispatchProblem } from "./flow.mjs";
+import { dispatchProblem, promptFilePath } from "./flow.mjs";
 import { archiveDescriptor } from "./isolation.mjs";
 import { removeTree } from "./remove-tree.mjs";
 
@@ -55,14 +55,24 @@ function validateAction(action, id, chain, policy) {
     if (meta.outcome || !entry || entry.result !== undefined || fs.existsSync(p.result)
       || !Number.isSafeInteger(action.n) || action.n < 1 || entry.n !== action.n || entry.step !== action.step
       || providerOf(entry) !== "openai" || entry.model !== action.model || entry.effort !== action.effort
-      || entry.profile !== action.profile || entry.pendingPrompt !== action.prompt
+      || entry.profile !== action.profile
       || action.resultFile !== path.relative(ROOT, p.result) || action.agent !== entry.agent) {
       refuse("Run action is stale, already consumed, or differs from the exact pending dispatch.");
+    }
+    if (entry.pendingHandoff) {
+      const file = promptFilePath(p);
+      if (entry.pendingHandoff.promptFile !== path.relative(ROOT, file)
+        || action.promptFile !== entry.pendingHandoff.promptFile || action.prompt !== entry.pendingHandoff.prompt
+        || !guardedStat(file, p.dir) || !fs.readFileSync(file).equals(Buffer.from(entry.pendingPrompt))) {
+        refuse("File handoff differs from the exact pending dispatch or task bytes.");
+      }
+    } else if (Object.hasOwn(action, "promptFile") || entry.pendingPrompt !== action.prompt) {
+      refuse("Run action differs from the exact inline pending dispatch.");
     }
     const unsupported = dispatchProblem(policy, entry, entry.step, entry.template ?? entry.step);
     if (unsupported) refuse(unsupported);
   } else {
-    if (meta.archive !== true || meta.outcome?.action !== "done" || Object.hasOwn(action, "resultFile")) {
+    if (meta.archive !== true || meta.outcome?.action !== "done" || Object.hasOwn(action, "resultFile") || Object.hasOwn(action, "promptFile") || Object.hasOwn(action, "pendingHandoff")) {
       refuse("Archive action requires an ended archive run and no result destination.");
     }
     const expected = archiveDescriptor(p, id, meta, log, policy);

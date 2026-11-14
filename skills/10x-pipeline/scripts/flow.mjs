@@ -335,6 +335,56 @@ export function endRun(p, id, meta, log, result) {
   return out(finishRun(p, id, meta, log, result));
 }
 
+// The fixed path is the only authority for task I/O; stored/action paths are compared, never followed.
+export function promptFilePath(p) {
+  const file = path.join(p.dir, "prompt.md");
+  if (fs.realpathSync(p.dir) !== path.join(fs.realpathSync(ROOT), path.relative(ROOT, p.dir))) {
+    throw new Error("Prompt directory must belong to the run root without symlink redirects");
+  }
+  try {
+    if (!fs.lstatSync(file).isFile()) throw new Error("Prompt must be a regular file without redirects");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  return file;
+}
+
+export function prepareHandoff(p, entry) {
+  const file = promptFilePath(p);
+  if (fs.existsSync(file)) throw new Error("Unowned prompt.md collision; preserve or move it before retrying");
+  const contract = entry.pendingPrompt.trimEnd().split("\n").at(-1);
+  if (!contract.startsWith("RESULT: ")) throw new Error("Task has no final RESULT contract");
+  entry.pendingHandoff = {
+    promptFile: path.relative(ROOT, file),
+    prompt: `Read the entire task file at ${JSON.stringify(file)} and follow it exactly. Do not stage this transient file. If unreadable, report status "failed" with the reason. Finish with exactly one line (signals optional):\n${contract}`,
+  };
+}
+
+export function publishHandoff(p, entry) {
+  if (!entry.pendingHandoff) return { prompt: entry.pendingPrompt };
+  const file = promptFilePath(p);
+  if (entry.pendingHandoff.promptFile !== path.relative(ROOT, file)) throw new Error("Stored prompt path differs from the fixed task path");
+  writeFileAtomic(file, entry.pendingPrompt);
+  return entry.pendingHandoff;
+}
+
+// The marker survives result persistence and every cleanup failure, including a failed final log write.
+export function cleanupHandoff(p, log) {
+  const last = executed(log).at(-1);
+  if (!last?.result || !last.pendingHandoff) return;
+  removeHandoffFile(p, last);
+  try { fs.unlinkSync(p.result); } catch (error) { if (error.code !== "ENOENT") throw error; }
+  delete last.pendingHandoff;
+  writeLog(p.log, log);
+}
+
+function removeHandoffFile(p, entry) {
+  if (!entry.pendingHandoff) return;
+  const file = promptFilePath(p);
+  if (entry.pendingHandoff.promptFile !== path.relative(ROOT, file)) throw new Error("Stored prompt path differs from the fixed task path");
+  try { fs.unlinkSync(file); } catch (error) { if (error.code !== "ENOENT") throw error; }
+}
+
 // ---- neutral rerun after an orchestrator fault ------------------------------
 
 // The result status an orchestrator writes when the fault is its own and no subagent of the step ran or still runs.
@@ -367,8 +417,9 @@ export function neutralRetry(p, id, meta, log, policy) {
       `Write ${resultFile} with {"status":"failed","note":"..."} to count the attempt, then run next.`);
   }
   const reruns = Array.isArray(last.neutralRetries) ? last.neutralRetries : [];
-  fs.rmSync(p.result);
   if (reruns.length >= cap) {
+    removeHandoffFile(p, last);
+    fs.rmSync(p.result);
     return endRun(p, id, meta, log, {
       action: "halt",
       reason: `Step ${last.n} (${last.step}) hit its limit of ${cap} neutral reruns after orchestrator faults (limits.maxNeutralRetries). Needs a human. ` +
@@ -377,7 +428,9 @@ export function neutralRetry(p, id, meta, log, policy) {
       steps: ran.length,
     });
   }
+  const handoff = publishHandoff(p, last);
   const note = typeof result.note === "string" ? Array.from(result.note.replace(/\s+/g, " ").trim()).slice(0, NEUTRAL_NOTE_MAX).join("") : "";
+  fs.rmSync(p.result);
   last.neutralRetries = [...reruns, { at: Date.now(), note }];
   writeLog(p.log, log);
   // A continued run must not keep the outcome of an earlier end (as next() does before a new step).
@@ -397,7 +450,7 @@ export function neutralRetry(p, id, meta, log, policy) {
     model: last.model,
     effort: last.effort,
     reason: `${last.reason}; tier ${last.tier} (${last.tierWhy})`,
-    prompt: last.pendingPrompt,
+    ...handoff,
     resultFile,
     neutralRetry: { count: last.neutralRetries.length, cap },
   });
@@ -821,7 +874,7 @@ export function promptText(policy, template) {
 // policy is fixed. The rule files must read too (checkRules), so a broken install halts here and not mid-assembly.
 export function checkPrompts(policy, dirs = RULE_DIRS) {
   const prompts = isObject(policy.prompts) ? policy.prompts : {};
-  for (const template of Object.keys(prompts)) {
+  for (const template of Object.keys(prompts).filter((key) => key !== "byFile")) {
     try {
       promptText(policy, template);
     } catch (e) {
@@ -890,7 +943,7 @@ export function ruleTail(policy, { chain = "10x", step, vars = {}, dirs = RULE_D
 // reports it with its own text. Never throws.
 export function promptProblem(policy) {
   const prompts = isObject(policy?.prompts) ? policy.prompts : {};
-  for (const template of Object.keys(prompts)) {
+  for (const template of Object.keys(prompts).filter((key) => key !== "byFile")) {
     let text;
     try {
       text = promptText(policy, template);

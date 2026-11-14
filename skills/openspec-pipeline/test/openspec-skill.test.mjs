@@ -182,7 +182,7 @@ test("the OpenSpec policy fragment holds only os- steps and prompts, and shares 
 
 test("every prompt of the plugin policy resolves, the @<skill>/prompts/ references included", () => {
   const policy = pluginPolicy();
-  for (const name of Object.keys(policy.prompts)) assert.equal(typeof promptText(policy, name), "string", name);
+  for (const name of Object.keys(policy.prompts).filter((key) => key !== "byFile")) assert.equal(typeof promptText(policy, name), "string", name);
   assert.doesNotThrow(() => checkPrompts(policy));
 });
 
