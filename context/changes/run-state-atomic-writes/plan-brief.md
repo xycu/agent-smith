@@ -18,9 +18,9 @@ Each state target exposes complete old or new bytes during publication. Writing 
 
 | Decision | Choice | Reason | Source |
 | --- | --- | --- | --- |
-| Publication | Shared same-directory temp-and-rename writer, supporting strings and Buffers | Covers ordinary writes and byte-exact restoration through one owner | Change and existing lock pattern |
+| Publication | Shared same-directory temp-and-rename writer, supporting strings and Buffers and preserving existing file permissions | Covers ordinary writes and byte-exact restoration through one owner | Change, current file-write behavior and existing lock pattern |
 | Cleanup | Exact three-basename/PID temp pattern and immediate regular files | Restricts deletion to recognized router state temps | Change and Wave 4 scope |
-| Ordering | Lock, guards, strict log validation, cleanup, mutation/staging | Preserves damaged logs and pending results during refusal | Change and ADR-019 |
+| Ordering | Lock, guards, strict log validation, command eligibility and identical-figure return, cleanup, mutation/staging | Preserves damaged logs, pending results and stale temps during refusal or an unchanged usage response | Change and ADR-019 |
 | Writing status | Strict handling for `status --report` | It already writes a report under the shared lock | Current router |
 | Log values | JSON objects with arbitrary fields, empty physical lines and CRLF | Matches routing consumers and legacy serialization | Current reader/writer and planning probe |
 | Diagnostics | Populated fields only, independent comparison-side fields and Markdown display | Preserves clean output and allows narrow reader-boundary changes | Current output assembly |
@@ -35,6 +35,8 @@ Wave 4 assigns comparison failure semantics, helper environments, setup, skills 
 ## Architecture / Approach
 
 Use synchronous Node built-ins in the existing shared storage layer. Publish through an exclusively created temp file, close it and rename over the target. Inspect logs through an explicit `{ entries, logProblems }` result with strict behavior by default. Router mutations clean recognized stale files after successful validation while holding the current run lock.
+
+Preserve existing regular-target permission bits on the temp before writing data. Archive-state usage checks policy, Git safety, branch and cleanliness through reads first, tolerating only recognized untracked regular temps through the shared matcher. Cleanup follows those checks. Refused and identical-figure usage responses preserve all candidate temps.
 
 ## Phases at a Glance
 

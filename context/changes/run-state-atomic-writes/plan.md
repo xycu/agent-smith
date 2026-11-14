@@ -66,12 +66,15 @@ Extend the responsible shared layer in `state.mjs` using synchronous Node built-
 4. Recognized abandoned temps are immediate regular files named exactly `<state-basename>.<positive-decimal-pid>.tmp`, for the three state basenames only. Shared lock exclusion establishes that a previous router publication has ended. Matching symlinks, directories and unrelated temp names retain their contents. Exclusive temp creation protects pre-existing entries at the current process's temp path. [Change](change.md) [Guarded file precedent](../../../skills/10x-pipeline/scripts/state.mjs#L792)
 5. A corruption refusal preserves all run-folder bytes, including abandoned temps. Therefore strict validation precedes stale-temp cleanup. Cleanup follows argument, chain and archive guards, and precedes publication and staging for an otherwise eligible command. This reconciles the ticket's cleanup and write-nothing requirements. [Change](change.md) [ADR-019 guards](../../../docs/ADR/ADR-019-late-usage-figure.md)
 6. Read-only diagnostics are additive and appear only when problems exist. Comparison exposes them independently on `baseline.logProblems` and `routed.logProblems`, plus the Markdown rendering, so the shared read boundary can carry the feature within Wave 4. [Comparison side assembly](../../../skills/10x-pipeline/scripts/route.mjs#L412) [Wave 4 ownership](../WAVES.md)
+7. Atomic replacement preserves existing regular-target permission bits, including owner-only state files. Fresh targets retain the current umask-derived creation mode. The current in-place `fs.writeFileSync` calls retain an existing inode's permissions, so the replacement writer must carry that behavior into its temp file. [Current log writer](../../../skills/10x-pipeline/scripts/state.mjs#L516) [Node file-write options](https://nodejs.org/api/fs.html#fswritefilesyncfile-data-options)
 
 ## Critical Implementation Details
 
 ### State sequencing
 
 Take the existing run lock before inspecting mutable log state. After argument and identity guards, validate the complete log, then perform owned-temp cleanup before state writes and Git staging. Keep cleanup in router mutation preflight so `run-codex.mjs` continues to validate state through reads. Preserve its child-ownership lock protocol.
+
+Command-specific eligibility checks precede temp deletion. In `init`, finish the existing isolation checks first. In `usage`, validate the requested step, result and figure, and take the identical-figure return, before cleanup. For archive-state usage, complete the existing policy, Git safety and run-branch checks and a read-only cleanliness check first. That cleanliness check uses the shared name/type matcher to tolerate only exact untracked regular state-temp candidates, with individual untracked paths requested from Git. Tracked matching paths and every other dirty path retain the existing refusal behavior. Then remove the validated candidates before publication and staging. A refused usage call and an identical-figure response preserve candidate temps along with all other run-folder bytes. [Usage guards](../../../skills/10x-pipeline/scripts/route.mjs#L748) [Archive-state precheck](../../../skills/10x-pipeline/scripts/isolation.mjs#L420) [ADR-019](../../../docs/ADR/ADR-019-late-usage-figure.md)
 
 `attachResult` must complete atomic log publication before removing the pending result. Rollback and undo must restore the in-memory log and metadata through the atomic writer in their current order. `usage` restoration must pass the captured Buffers directly to that writer and restore original absence where applicable. Preserve the existing distinction between a failed commit creation and a failure after a commit exists. [Result persistence](../../../skills/10x-pipeline/scripts/flow.mjs#L563) [Rollback](../../../skills/10x-pipeline/scripts/isolation.mjs#L558) [Late usage](../../../skills/10x-pipeline/scripts/route.mjs#L748)
 
@@ -95,6 +98,8 @@ Add `writeFileAtomic(file, data)` and reuse it from `writeLog`. Centralize the t
 
 Accept UTF-8 strings and Buffers. Create the same-directory `<file>.<pid>.tmp` exclusively, complete and close it, then rename it over the destination. Preserve the destination when creation, write, close or rename fails. On failure, remove only a temp this invocation created, and propagate the original failure with any cleanup failure observable. Cleanup enumerates immediate directory entries, checks the exact naming pattern and regular-file type, and unlinks eligible files individually. A missing run directory is an empty cleanup set. An actual inspection/deletion failure stops the writer before staging.
 
+For an existing regular target, read its permission bits and apply them to the exclusively created temp before writing data, preserving them through rename. Fresh targets use the existing umask-derived creation mode. Permission inspection/setup failures abort publication and preserve the target. Candidate inspection is read-only and shares the cleanup matcher so command guards can establish eligibility before any unlink.
+
 #### Every publication and restoration call site
 
 **Files**: `skills/10x-pipeline/scripts/route.mjs`, `skills/10x-pipeline/scripts/flow.mjs`, `skills/10x-pipeline/scripts/isolation.mjs`
@@ -102,6 +107,8 @@ Accept UTF-8 strings and Buffers. Create the same-directory `<file>.<pid>.tmp` e
 **Intent**
 
 Replace direct state writes at `init`, rigor/provenance updates, outcome clearing, `writeReport`, `finishRun`, `neutralRetry`, `startCommit`, `writeState` and late-usage restoration. Invoke owned-temp cleanup in the guarded locked mutation path, allowing Phase 2's strict validation to run first.
+
+Extend `lateUsagePrecheck`'s read-only dirty-path inspection for the recognized untracked regular temp candidates described in State sequencing. Keep all refusal guards and the identical-figure return ahead of deletion, and keep cleanup ahead of successful publication and staging.
 
 **Contract**
 
@@ -118,6 +125,10 @@ Prove publication and cleanup independently of routing decisions, and cover both
 **Contract**
 
 Use built-in test mocking for synchronous filesystem failures and a disposable child fixture for termination at the rename boundary. The child can patch `fs.renameSync` locally to announce a barrier and wait, allowing deterministic termination immediately before or after the real rename. Exercise both existing and absent destinations, strings and Buffers, a partial temp write followed by failure, rename failure and temp-name collision with a symlink. Inspect target bytes and temp ownership after each outcome. Keep fault injection test-local.
+
+On POSIX, assert that replacing each existing state target with mode `0600` under umask `0022` preserves `0600`, including Buffer restoration. Assert fresh-file mode compatibility and inject a permission-setup failure to prove the old target survives. Restore any test-local umask change in `finally`.
+
+Combine recognized stale temps with usage refusals for an unknown step, a pending result, a conflicting figure, staged changes, an invalid archive usage message, a wrong run branch and unrelated dirty files. Snapshot temps, run files, index and refs around each call. Also assert that an identical-figure response retains temps, while eligible archive-state usage with only untracked recognized regular temps cleans them and commits successfully. A tracked matching temp retains the existing dirty-folder refusal. These cases refine Progress criteria 1.1–1.3 without changing their titles.
 
 ### Success Criteria
 
@@ -226,7 +237,7 @@ Index the new test and add only recovery assertions that the existing suites do 
 
 **Contract**
 
-Add exact Buffer comparisons for archive-state usage after a rejected pre-commit hook, including distinctive original JSON whitespace/report bytes and original report absence. Verify an identical repeated usage attachment performs zero publications. Exercise failed atomic result persistence with a pending result retained, late usage through rollback and undo-on-halt, both-chain reports and archive-state cleanup before cleanliness checks. Test that restoration failure produces an observable error identifying the incomplete recovery.
+Add exact Buffer comparisons for archive-state usage after a rejected pre-commit hook, including distinctive original JSON whitespace/report bytes and original report absence. Verify an identical repeated usage attachment performs zero publications and preserves recognized stale temps. Exercise failed atomic result persistence with a pending result retained, late usage through rollback and undo-on-halt, both-chain reports and archive-state read-only eligibility checks followed by cleanup before publication and staging. Test that restoration failure produces an observable error identifying the incomplete recovery.
 
 ### Success Criteria
 
