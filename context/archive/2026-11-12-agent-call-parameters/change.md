@@ -1,10 +1,10 @@
 ---
 change_id: agent-call-parameters
 title: Make the step Agent call match the Agent tool and give it a fixed description
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-14
-archived_at: null
+archived_at: 2026-11-14T14:20:02Z
 ---
 
 ## Notes
