@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-14. Waves 1–5 are merged into `main`. Waves 2–5 are archived. This folder holds 13 active changes, including 11 new changes and two older merged changes awaiting acceptance or archival. Wave 6 is next. GitHub PR merge state and change frontmatter were checked after wave 5 against `main` at `3971ce9` (v1.10.2, release PR #174).
+Work order and status as of 2026-11-14. Waves 1–6 are merged into `main`. Waves 2–6 are archived. This folder holds eight active changes, including six new changes and two older merged changes awaiting acceptance or archival. Wave 7 is next. GitHub PR merge state and change frontmatter were checked after wave 6 against `main` at `3d6b7e6` (v1.11.0, release PR #181).
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -112,17 +112,23 @@ Four Manual rows remain unticked in the archived plans. Three require live Claud
 
 Combined main CI passed 1,476 tests with zero failures and three expected skips before release PR #174. [CI evidence](https://github.com/xycu/agent-smith/actions/runs/43619562032)
 
-## Wave 6: prompts, ids and document drift (5) — next
+## Wave 6: prompts, ids and document drift (5) — merged and archived
 
-| Change | Owns in this wave | Notes |
-| --- | --- | --- |
-| `coverage-and-failed-undo-test` | `ci.yml` (test command), `rollback.test.mjs` | |
-| `step-prompt-by-file` | The prompt output in `flow.mjs`, a new key in the `prompts` block of `policy.json`; skills: Loop step 2 | After `agent-call-parameters` (wave 4). Decide the default from `compare` data. |
-| `change-id-length-cap` | The id check of `init`; skills: the 100-character parenthesis of the PR comment section | |
-| `docs-drift-fixes` | `README.md`, `docs/REFERENCE.md`, six ADRs, `prompts/README.md`, the manifest descriptions, `tools/version-check.mjs` | After `pr-comment-flag-in-meta` (wave 3), which removes its item 2, and after the description change of wave 5. |
-| `nested-subagent-hard-stop` | `.claude/settings.json`, ADR-018, optionally `agents/step.md` and the `agents` block of `policy.json` | |
+All five implementations merged on 2026-11-14 in the order #176, #177, #178, #180 and #179. Release PR #181 published v1.11.0 after green combined main CI and green release-commit CI. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. The 44 completed Progress rows retain their original SHA suffixes, referencing 12 original implementation commits. Retained Git refs preserve those commits after worktree cleanup. [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.0)
 
-## Wave 7: skill rewrite (3)
+Four Manual rows remain unticked in the archived plans. Coverage row 2.6 now has passing TrueNAS CI evidence. The other three rows require live host acceptance or matched comparison runs. Any further acceptance work belongs in a new change referencing the archive.
+
+| Change | Merged PR | Owns in this wave | Remaining Progress and decisions |
+| --- | --- | --- | --- |
+| `coverage-and-failed-undo-test` | [#178](https://github.com/xycu/agent-smith/pull/178) | `ci.yml` test command and `rollback.test.mjs` | Manual 2.6 stays unticked, with passing combined CI evidence covering the module coverage table, all four Linux failed-undo cases, expected skips and runner timing. Inline coverage was retained after 8.33% measured local overhead. |
+| `step-prompt-by-file` | [#180](https://github.com/xycu/agent-smith/pull/180) | Prompt rendering and lifecycle in `flow.mjs`, `isolation.mjs`, `route.mjs`, `run-codex.mjs` and `state.mjs`, the `prompts.byFile` policy key and both skills' dispatch instructions | Manual 3.4 requires live Claude/OpenAI acceptance for both chains. Manual 3.5 requires five matched inline/file pairs with quality review and orchestrator telemetry. The opt-in ships with its default false. |
+| `change-id-length-cap` | [#177](https://github.com/xycu/agent-smith/pull/177) | Init ID validation in `route.mjs` and `state.mjs`, both skills' PR-comment caveats and shared guidance | All Progress rows complete. Init accepts up to 100 characters, with both-chain boundaries and legacy-command compatibility tested. |
+| `docs-drift-fixes` | [#179](https://github.com/xycu/agent-smith/pull/179) | `README.md`, `docs/REFERENCE.md`, six ADRs, `prompts/README.md` and the manifest description contract in `tools/version-check.mjs` | All Progress rows complete. Current documentation and historical amendments were reconciled, and description equality is enforced. |
+| `nested-subagent-hard-stop` | [#176](https://github.com/xycu/agent-smith/pull/176) | `.claude/settings.json`, ADR-018, nesting documentation and contract tests | Manual 2.4 requires live Claude depth-1 acceptance. This repository sets `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`, with optional adoption documented for plugin users. |
+
+Combined main CI passed 1,520 tests with zero failures and three expected skips before release PR #181. The native coverage table reports the router modules, and all four failed-undo regressions passed. [CI evidence](https://github.com/xycu/agent-smith/actions/runs/43643146352)
+
+## Wave 7: skill rewrite (3) — next
 
 | Change | Owns in this wave | Notes |
 | --- | --- | --- |
@@ -132,7 +138,7 @@ Combined main CI passed 1,476 tests with zero failures and three expected skips 
 
 ## Follow-ups awaiting scheduling (3)
 
-These new changes are outside the original wave tables. Plan their ownership before running them in parallel with waves 6–7.
+These new changes are outside the original wave tables. Plan their ownership before running them in parallel with wave 7.
 
 | Change | Origin and ownership to reconcile |
 | --- | --- |
