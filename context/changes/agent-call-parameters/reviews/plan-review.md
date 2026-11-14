@@ -4,17 +4,17 @@
 - **Plan**: context/changes/agent-call-parameters/plan.md
 - **Mode**: Deep
 - **Date**: 2026-11-14
-- **Verdict**: REVISE
-- **Findings**: 0 critical, 2 warnings, 0 observations
-- **Reviewed revision**: SHA-256 `ffdb5b23cba2ee2fd836f8e10ad52ce510738c4e21f8200a9abf3e44e4ad359d`
+- **Verdict**: SOUND
+- **Findings**: 0 critical, 1 warning, 0 observations
+- **Reviewed revision**: SHA-256 `3c13f606b0ea4a1a6840ceaf3c5d881a1a208ab0febb2b8c4212591fae64ed8d`
 
-The verdict and counts describe the plan before these review edits. Both findings have been applied. Open findings total zero.
+The verdict and counts describe the recovery plan before this review's edits. F1 is applied. Open findings total zero. This review supersedes the earlier review of the original implementation plan.
 
 ## Verdicts
 
 | Dimension | Verdict |
 | --- | --- |
-| End-State Alignment | WARNING |
+| End-State Alignment | PASS |
 | Lean Execution | PASS |
 | Architectural Fitness | PASS |
 | Blind Spots | WARNING |
@@ -22,52 +22,39 @@ The verdict and counts describe the plan before these review edits. Both finding
 
 ## Grounding
 
-Grounding checked 8/8 planned edit paths, 5/5 referenced fields and test overrides, and brief-to-plan consistency. The fields and overrides are `change`, `n`, `step`, `SKILL_PATH` and `OPENSPEC_SKILL_PATH`. Every planned edit target exists. The Progress section has one phase and six pending rows, with five Automated criteria and one Manual criterion matching the phase criteria.
+Grounding checked 11/11 planned edit paths, 8/8 referenced symbols and fields, and brief-to-plan consistency. The symbols and fields are `change`, `n`, `step`, `SKILL_PATH`, `OPENSPEC_SKILL_PATH`, `closeDelay`, `waitForFile` and `startRunner`. Every planned existing target exists. The phase's seven Automated criteria and one Manual criterion match all eight Progress rows. The plan has one final Progress section and one matching phase, with three completed Automated rows, four pending Automated rows and one pending Manual row.
 
-Deep verification was performed directly in this subagent under the supplied no-nesting rule. The highest-risk claims were traced as follows.
+Deep verification ran directly in this subagent under the supplied no-nesting instruction. The riskiest claims were traced through their owners and callers.
 
-- Ordinary dispatch supplies `change`, `n` and `step`. Neutral retry returns the same logged values, so descriptions can be constructed in the orchestrator and repeat on neutral retries. [Ordinary dispatch](../../../../skills/10x-pipeline/scripts/route.mjs#L268) [Neutral retry](../../../../skills/10x-pipeline/scripts/flow.mjs#L389)
-- Archive dispatch supplies the change identifier and omits a numbered result entry. Both skills reuse run parameters and have a separate completion continuation, which supports the planned description override. [Archive action](../../../../skills/10x-pipeline/scripts/isolation.mjs#L730) [10x archive](../../../../skills/10x-pipeline/SKILL.md#L68) [OpenSpec archive](../../../../skills/openspec-pipeline/SKILL.md#L75)
-- Usage selection currently occurs in Loop step 4, while numbered late usage is handled in the three terminal branches. Their selection instructions need one ownership contract. [10x usage selection](../../../../skills/10x-pipeline/SKILL.md#L61) [OpenSpec usage selection](../../../../skills/openspec-pipeline/SKILL.md#L69) [Usage guards](../../../../docs/ADR/ADR-019-late-usage-figure.md#guards-d2)
-- Existing content assertions cover six shared rules, archive parameter reuse and chain flags. The blast-radius sweep also checked `nested-subagents.test.mjs`, which pins rule 6 and the ADR's scenario form. Its existing guard words and scenario structure fit the proposed correction. [Loop assertions](../../../../skills/10x-pipeline/test/skill-loop.test.mjs#L35) [Dispatch assertion](../../../../skills/10x-pipeline/test/agents.test.mjs#L359) [Nested-agent assertions](../../../../skills/10x-pipeline/test/nested-subagents.test.mjs#L126)
-- The reported Claude schema comes from the change request. The plan correctly gives live acceptance its own Manual row. This host exposes no callable Claude Agent tool, and the supplied unattended rule prohibits a nested acceptance launch. [Change request](../change.md#problem) [Plan verification](../plan.md#live-acceptance-procedure)
+- Commit `43e28f3aaf5f37a7becd05f9933c67da60b9ff93` contains both skill corrections, content assertions and the reference/ADR changes. Its file list also includes router state and AGENTS.md. The plan correctly identifies that checkpoint and specifies a scoped rollback. The current skill and documentation contracts agree. [10x dispatch](../../../../skills/10x-pipeline/SKILL.md#L57) [OpenSpec dispatch](../../../../skills/openspec-pipeline/SKILL.md#L65) [Reference](../../../../docs/REFERENCE.md#L385)
+- Ordinary dispatch supplies the fields used to construct descriptions. Neutral retry returns the logged number and step again. Separate invocation records handle reused descriptions within the existing skill layer. [Dispatch fields](../../../../skills/10x-pipeline/scripts/route.mjs#L268) [Neutral retry](../../../../skills/10x-pipeline/scripts/flow.mjs#L389)
+- The captured OpenSpec failure checks lock retention after a 350 ms child-close timer. The shared fake CLI already polls a release marker, providing the planned synchronization seam. The raw-output cancellation test has the same pattern at 250 ms. The saved failure supports the timing diagnosis, with runtime defects remaining subject to fresh verification. [Failure evidence](../evidence/run-lock-failure.tap) [Fake CLI](../../../../skills/10x-pipeline/test/codex-helpers.mjs#L36) [Lock test](../../../../skills/10x-pipeline/test/run-lock.test.mjs#L188) [Raw-output test](../../../../skills/10x-pipeline/test/codex-runner.test.mjs#L155)
+- The runner waits for child close, clears ownership, removes temporary output and releases its lock. It retains a five-second SIGKILL fallback. Its child exit metadata exposes the graceful-release proof required by F1. [Termination and close](../../../../skills/10x-pipeline/scripts/run-codex.mjs#L154) [Envelope and cleanup](../../../../skills/10x-pipeline/scripts/run-codex.mjs#L269)
+- The fixture's consumers are `run-lock.test.mjs`, `codex-runner.test.mjs` and `codex-chain.test.mjs`. The latter uses its default behavior. The planned opt-in mode preserves that interface. Wave 4 and the Git-environment change assign the sibling-owned helper and CI regions separately from this bounded fixture correction. [Chain consumer](../../../../skills/10x-pipeline/test/codex-chain.test.mjs#L12) [Wave ownership](../../WAVES.md#wave-4-run-state-and-isolation-setup-6) [Sibling scope](../../tests-strip-git-env/change.md)
+- `makeProject` allocates sibling scratch roots and `codexFixture` provides a separate runner temporary directory. `gitEnv` stops discovery at the scratch parent. The planned worktree-local scratch root and process-level Git environment handling fit those interfaces. [Project allocation](../../../../skills/10x-pipeline/test/helpers.mjs#L62) [Runner fixture](../../../../skills/10x-pipeline/test/codex-helpers.mjs#L69) [Git environment](../../../../skills/10x-pipeline/test/helpers.mjs#L216)
 
 ## Findings
 
-### F1 — Apply launch ownership to on-time usage selection
+### F1 — Verify graceful child exit after explicit release
 
 - **Severity**: WARNING
 - **Impact**: LOW — quick decision, the fix is obvious and narrowly scoped
-- **Dimension**: End-State Alignment
-- **Location**: Desired End State and Phase 1, paired skill dispatch and focused content checks
-- **Detail**: The original phase explicitly fixes terminal late-usage paragraphs and completion rule 6, while Loop step 4 still takes figures from whichever Agent result or notification is already in the conversation. When a current report has no usage and an earlier step's usage notification is present, that selection can attach the earlier figure to the current result. The original assertions cover terminal correlation and can pass with this gap. A later correction is refused once the step already has a different figure. [10x Loop step 4](../../../../skills/10x-pipeline/SKILL.md#L61) [OpenSpec Loop step 4](../../../../skills/openspec-pipeline/SKILL.md#L69) [Overwrite guard](../../../../docs/ADR/ADR-019-late-usage-figure.md#guards-d2)
-- **Fix**: Put a usage ownership guard in the owned Loop step 2 region that also governs step 4. Select the current invocation's matched figure for its result, retain earlier-step figures for their existing late-usage path, and continue in the same turn without usage when the current figure is absent. Add corresponding content assertions and acceptance guidance.
-- **Decision**: APPLIED — changed Desired End State, Scope Boundaries, Assumptions and Decisions A4, Phase 1 paired skill dispatch, focused content regression checks, matching documentation, and Testing Strategy. Updated the brief's Desired End State and Architecture / Approach.
-
-### F2 — Resolve reused descriptions at the invocation level
-
-- **Severity**: WARNING
-- **Impact**: MEDIUM — real tradeoff, requires reasoning about ambiguous notifications
 - **Dimension**: Blind Spots
-- **Location**: Assumptions and Decisions A2/A4 and Phase 1 completion-correlation contract
-- **Detail**: A2 correctly preserves the same description across neutral retries. The original rule-6 contract then accepts a recorded id or an exact description without specifying precedence, metadata conflicts or description-only ambiguity across successive invocations. A delayed completion from a superseded invocation can share the current description, and a conflicting id can be overlooked if the description alone is sufficient. The existing rule requires the awaited call's own report, so matching must retain invocation identity. [Neutral retry output](../../../../skills/10x-pipeline/scripts/flow.mjs#L389) [Own-report rule](../../../../skills/10x-pipeline/SKILL.md#L92) [Recovery after an interrupted invocation](../../../../docs/REFERENCE.md#L394)
-- **Fix**: Keep per-invocation launch records. Use a known agent id as authoritative and require agreement with any supplied description. Otherwise require one unique exact-description match with no conflict against a recorded id. If that uniquely matched launch returned no id, associate an id first received in its notification. Accept completion only for the awaited invocation. Apply the same resolution to usage ownership.
-  - **Strength**: Preserves the requested fixed formats, neutral-retry numbering and matching when a launch returns no id.
-  - **Tradeoff**: Ambiguous description-only notifications remain unaccepted and may require later host evidence to resolve.
-  - **Confidence**: HIGH — grounded in the router's repeated neutral-retry fields and the existing invocation-specific own-report rule.
-  - **Blind spot**: Live host notification fields remain unverified under the Manual acceptance row.
-- **Decision**: APPLIED — changed Desired End State, Assumptions and Decisions A4, Phase 1 paired skill dispatch, focused content regression checks, matching documentation, and Testing Strategy. Updated the brief's Desired End State, Key Decisions Made and Architecture / Approach.
+- **Location**: Phase 1, Changes Required 4, deterministic cancellation fixture and assertions
+- **Detail**: The plan rejects forced SIGKILL before explicit release and then retains the existing cancellation-envelope checks after release. The runner records `completion.code` and `completion.signal`, then returns the cancellation reason whenever `cancelled` is set. Both graceful exit and the five-second SIGKILL fallback therefore produce `launched: true`, `completed: false` and the cancellation reason. The existing tests omit child exit-code and signal assertions. A child killed during output draining after release could satisfy those checks and be recorded as controlled-release success. [Child metadata and cancellation](../../../../skills/10x-pipeline/scripts/run-codex.mjs#L269) [Existing lock assertions](../../../../skills/10x-pipeline/test/run-lock.test.mjs#L218) [Existing raw-output assertions](../../../../skills/10x-pipeline/test/codex-runner.test.mjs#L165)
+- **Fix**: Require child `exitCode === 0` and `signal === null` after release in both cancellation tests for both chains. Retain cancellation-envelope and cleanup checks, and include the envelope in diagnostics for any forced termination.
+- **Decision**: APPLIED — added the explicit child-exit assertions and forced-termination diagnostic requirement to Phase 1, Changes Required 4. Updated the brief's Open Risks & Assumptions. Progress indices, titles and checkbox states remain identical.
 
 ## Assumptions
 
-- The supplied unattended instructions authorize applying both clear fixes. The usage guard belongs in Loop step 2 because the Wave 4 ownership table assigns that region to this change, and it can state how Loop step 4 selects usage. [Wave 4 ownership](../../WAVES.md#wave-4-run-state-and-isolation-setup-6)
-- Completion matching should preserve the identity of the specific awaited invocation even when descriptions repeat. Known ids resolve conflicts, and a unique compatible description preserves the requested fallback when launch ids are unavailable. [Own-report rule](../../../../docs/ADR/ADR-018-no-nested-subagents.md#orchestrator-side) [Neutral retry](../../../../skills/10x-pipeline/scripts/flow.mjs#L389)
+- The supplied unattended instructions authorize applying the clear fix and restrict edits to the plan, brief and review. The repository's `runCodex` child metadata and default fake-child exit code establish the expected values. [Runner metadata](../../../../skills/10x-pipeline/scripts/run-codex.mjs#L269) [Fake-child exit](../../../../skills/10x-pipeline/test/codex-helpers.mjs#L65)
+- Live Claude acceptance remains a top-level handoff under Manual 1.6. This host exposes no Claude Agent tool and the supplied rule prohibits nested agents. [Manual evidence](../evidence/unproven.md) [Repository lesson](../../../foundation/lessons.md#never-let-a-subagent-spawn-its-own-subagent)
 
 ## Verification
 
-- Ran `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs` on Node v26.13.1. All 30 tests passed, with zero failures and zero skips.
-- Checked the review with the router's read-only `readReview` and `openCounts` functions. The original verdict remains REVISE, with zero critical findings and two warnings. Both finding blocks parse as APPLIED, with zero open findings.
-- Checked the plan with `readPlan` and compared the complete Progress block against its pre-edit contents. All six indices, titles and checkbox states are identical.
-- Ran `git diff --check` and checked the edit scope. This review updates the plan, brief and review report.
+- Ran `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs` on Node v24.19.0. All 47 tests passed, with zero failures, cancellations and skips.
+- Verified the review through the router's read-only `readReview` and `openCounts` functions. The measured verdict is SOUND, with zero critical findings and one warning. F1 parses as APPLIED, with zero open findings.
+- Verified phase/criteria consistency with dependency-free assertions and `readPlan`. Compared the complete Progress block with its pre-edit SHA-256 `2665b2dad58f1443c77c9d6aa9012e0a31d64de753af79ae5c3b6038cb89dda3`.
+- Ran `git diff --check` and checked the edit scope. This review changes only the plan, brief and review report. The pre-existing router-owned run-log modification remains outside these edits.
 
-Live Claude acceptance remains unverified under Manual row 1.6. The full implementation suite belongs to the later implementation phase.
+Full-suite recovery and live Claude acceptance remain pending implementation and top-level acceptance work, respectively.

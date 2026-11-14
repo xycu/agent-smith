@@ -21,7 +21,7 @@ Every Claude step has description `agent-smith <change-id> step <n> <step>`, and
 | Description ownership | Construct from existing router action fields in Loop step 2 | Fits the assigned skill region and existing interface | Plan, router dispatch |
 | Background flag | Set false when exposed, otherwise omit | Fits both schemas described by the request | Change request |
 | Archive description | Define its override in Loop step 2 | Archive step 3 already reuses these parameters | Plan, current skills |
-| Completion and usage | Match known agent ids first, require consistent descriptions, and allow a unique exact-description fallback compatible with recorded ids | Neutral retries reuse descriptions and earlier usage can arrive during a newer step | Change request, ADR-018, ADR-019, plan review F1–F2 |
+| Completion and usage | Match known agent ids first, require consistent descriptions, and allow a unique exact-description fallback compatible with recorded ids | Neutral retries reuse descriptions and earlier usage can arrive during a newer step | Change request, ADR-018, ADR-019, implemented skill contract |
 | Provider behavior | OpenAI actions use the shared runner and its current envelope handling | Preserves the explicit provider-dispatch requirement | User instruction, current skills |
 | Verification | Deterministic fixture release, focused regression checks and a completed full suite at concurrency 2 | Remove the race without weakening locking assertions | Saved failure evidence, fixture and runner code |
 | Commit recovery | Reuse `43e28f3`; commit scoped recovery after green automated gates | The final-run commit already holds the implementation | Git history, current skills |
@@ -53,7 +53,7 @@ Execute new row 1.7 before full-suite row 1.4, prepare handoff row 1.8, then clo
 - A Claude executable exists on `PATH`, but this session exposes no Claude Agent tool and prohibits nested agents. Manual row 1.6 stays pending until its required live evidence exists.
 - A wrong existing number can receive usage silently. Unmatched or ambiguous notifications remain unattached.
 - Scratch checks use worktree-local `TMPDIR` and `GIT_CEILING_DIRECTORIES`, with runner output outside individual fixture roots. Preserve safe deletion and sibling-owned Git helpers.
-- The runner still forces termination after five seconds. Tests must release explicitly after bounded retention assertions, clean up on failure, and reject premature forced shutdown. A real runtime defect remains a blocker, not permission to weaken the gate.
+- The runner still forces termination after five seconds. Tests must release explicitly after bounded retention assertions, require child `exitCode === 0` and `signal === null` after release, and await cleanup on failure. Include the cancellation envelope in failure diagnostics. A real runtime defect remains a blocker for the gate.
 
 ## Success Criteria (Summary)
 
