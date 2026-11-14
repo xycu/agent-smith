@@ -108,6 +108,8 @@ Add `--experimental-test-coverage` to the current test invocation so each run ex
 
 The suite continues to run the existing three test globs and propagate test failures. Its native coverage report includes router-module rows and uncovered line ranges. Percentage thresholds are a later calibration decision.
 
+Progress row 1.1 initially verifies inline coverage. If the measured-overhead fallback below is used, that row verifies the combined CI configuration instead. The required ordinary suite keeps the three test globs and failure propagation, and a second step runs those same globs with `--experimental-test-coverage` and step-level `continue-on-error: true`. Record the selected configuration and its coverage table in the evidence document.
+
 #### Baseline evidence
 
 **File**: `context/changes/coverage-and-failed-undo-test/coverage-evidence.md`
@@ -168,7 +170,7 @@ Append the post-test full-suite table, the four case outcomes and the updated re
 
 **Contract**
 
-Evidence ties each caller and reset failure to its assertion and source location. Compare the baseline and final tables at their recorded revisions, and preserve test-failure visibility. The final record includes the CI coverage table and the performance observation that supports retaining inline coverage. The ticket's separate non-blocking coverage-step fallback is available if same-runner measurement demonstrates that inline coverage prevents timely suite completion, while the ordinary suite remains a required check.
+Evidence ties each caller and reset failure to its assertion and source location. Compare the baseline and final tables at their recorded revisions, and preserve test-failure visibility. The final record includes the CI coverage table and the same-runner performance comparison supporting the selected configuration. Start with inline coverage. If coverage slows the run noticeably, document the measured increase and use the ticket's separate non-blocking coverage step when the combined setup, required ordinary suite and coverage run fit the existing 15-minute job limit. Both suite steps use the existing temporary-directory environment and three test globs. The ordinary suite propagates test failures, and the coverage step uses step-level `continue-on-error: true`. A completed passing coverage run and its table satisfy coverage acceptance in either configuration. An incomplete coverage run leaves the coverage acceptance rows pending. Record a job-budget conflict for the owner if neither configuration completes within the existing limit.
 
 ### Success Criteria
 

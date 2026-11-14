@@ -24,7 +24,7 @@ Each CI log contains the per-module coverage table and uncovered ranges. Four de
 | Test technique | A local Git wrapper forwards real commands and fails the targeted undo command | Existing `stepcommit.test.mjs` convention. |
 | Failure proof | Assert original context, exact ref, snapshot contents and HEAD position | The ref is the recovery pointer, and the mixed-reset path provides an explicit repair command. |
 | Evidence location | This change's `coverage-evidence.md` | Wave 6 owns the CI test command and existing rollback test file. |
-| Runtime fallback | Use same-runner timings to evaluate the task's separate coverage-step fallback | Instrumentation follows many spawned router processes. |
+| Runtime fallback | Use same-runner timings to evaluate a second coverage step with `continue-on-error: true`, keeping the ordinary suite required | Setup and both runs must fit the existing 15-minute job limit, and coverage acceptance needs a completed passing run and table. |
 
 ## Scope
 
