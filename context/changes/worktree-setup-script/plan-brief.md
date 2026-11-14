@@ -23,6 +23,7 @@ Both skills call `prepare-run.mjs`, consume one JSON result and continue from it
 | Failure reporting | Runtime JSON/exit 0 with `reason`; failed `runRoot` is null; usage exit 2 | Callers must not interpret process success as successful setup. | change.md; open-pr.mjs; plan |
 | Policy | Relevant isolation projection, tested against the real loader | Preserve strict-true and merge semantics without a general loader refactor. | state.mjs; isolation.mjs |
 | Cleanup | None; `left` is empty in Wave 4 | Cleanup needs the later start commit and belongs to Wave 5. | WAVES.md; stale-main-change-copy |
+| Setup serialization | Exclusive per-branch filesystem lock in the Git common directory through the complete copy | Git registers a reusable worktree before its copied inputs are ready. | Plan review F1; real Git publication proof |
 | Tests | New real-script suite and setup-only content assertions | Protect behavior without editing sibling-owned test environments. | Wave 4 ownership |
 
 ## Scope
@@ -48,7 +49,7 @@ The skill invokes the script from the original project root. The script resolves
 ## Open Risks & Assumptions
 
 - Unattended planning assumes medium complexity and two phases based on the six shared stateful paths; no human decisions remain unresolved.
-- Setup failures can leave a branch/worktree or partial copy; the script reports failure and preserves resources for inspection instead of destructive recovery.
+- Setup failures can leave a branch/worktree or partial copy for inspection. Concurrent setup fails while the shared branch lock is held. Process interruption can leave a lock requiring inspection before manual removal.
 - Existing `agent-smith/` linked branches are accepted even for a different requested id, matching current skill behavior; the router remains the enforcement layer.
 - Invalid present policy fails before setup writes, matching the current router loader. Missing overrides retain defaults.
 - Host permission behavior is unchanged and not proven by local CLI tests. No live Claude/Codex launch is required or claimed here.
@@ -56,7 +57,7 @@ The skill invokes the script from the original project root. The script resolves
 
 ## Success Criteria (Summary)
 
-- The real CLI proves all six cases for both chains, policy parity, subdirectory paths, preserved copy timestamps and unchanged resumes.
+- The real CLI proves all six cases for both chains, policy parity, subdirectory paths, preserved copy timestamps, unchanged resumes and concurrent-setup exclusion. Its real Git-timeout test uses a 150000 ms outer deadline to observe the script's 120000 ms failure result.
 - Both skills use the shared script and stop on failure while retaining their existing safety rules; setup commands are absent from their prose.
 - Focused and full repository suites pass, and the scoped diff respects Wave 4 ownership. The full plan has seven automated Progress rows, initially unchecked.
 
