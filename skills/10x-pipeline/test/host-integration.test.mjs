@@ -102,7 +102,7 @@ test("OpenAI browser fallback preserves native advisor refusals under either tem
 });
 
 test("shared wired prompts explain named skills and forbid every child delegation mechanism", () => {
-  for (const template of Object.keys(POLICY.prompts)) {
+  for (const template of Object.keys(POLICY.prompts).filter((key) => key !== "byFile")) {
     const text = promptText(POLICY, template);
     assert.equal(typeof text, "string", template);
   }

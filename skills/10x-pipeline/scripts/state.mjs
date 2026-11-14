@@ -154,6 +154,9 @@ export function coAuthorProblem(policy) {
 export function policyProblems(policy) {
   const bad = (key, rule, v) => `policy.${key} must be ${rule} (got ${v === undefined ? "undefined" : JSON.stringify(v)}). Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`;
   const p = policy ?? {};
+  if (Object.hasOwn(p.prompts ?? {}, "byFile") && typeof p.prompts.byFile !== "boolean") {
+    return bad("prompts.byFile", "a boolean", p.prompts.byFile);
+  }
   for (const key of ["limits", "escalation", "rigor", "steps"]) {
     if (!isObject(p[key])) return bad(key, "an object", p[key]);
   }
@@ -533,7 +536,7 @@ export function prCommentField(meta) {
   return meta?.prComment === true ? { prComment: true } : {};
 }
 
-const STATE_BASENAMES = ["run.jsonl", "meta.json", "report.md"];
+const STATE_BASENAMES = ["run.jsonl", "meta.json", "report.md", "prompt.md"];
 const STATE_TEMP_RE = new RegExp(`^(?:${STATE_BASENAMES.map((name) => name.replaceAll(".", "\\.")).join("|")})\\.[1-9][0-9]*\\.tmp$`);
 const stateTempPath = (file) => `${file}.${process.pid}.tmp`;
 
@@ -543,6 +546,10 @@ export function stateTempFiles(dir) {
   try { names = fs.readdirSync(dir); } catch (error) {
     if (error.code === "ENOENT") return [];
     throw error;
+  }
+  if (names.some((name) => /^prompt\.md\.[1-9][0-9]*\.tmp$/.test(name))
+    && fs.realpathSync(dir) !== path.join(fs.realpathSync(ROOT), path.relative(ROOT, dir))) {
+    throw new Error("Prompt temporary directory must not use symlink redirects");
   }
   return names.filter((name) => STATE_TEMP_RE.test(name))
     .map((name) => path.join(dir, name)).filter((file) => fs.lstatSync(file).isFile());

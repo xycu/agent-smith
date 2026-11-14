@@ -206,6 +206,7 @@
     }
   },
   "prompts": {
+    "byFile": false,
     "suffix": "Default rules for every step. A rule earlier in this prompt may change them.\nCommit only where the skill or a rule of this prompt tells you to.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.",
     "plan": "Run /10x-plan {id} {goal}{artifacts}\nWrite the plan to context/changes/{id}/plan.md with a valid ## Progress section.",
     "plan-revise": "Run /10x-plan {id}{artifacts}\nRevise the existing context/changes/{id}/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Keep the ## Progress contract, step indices and titles.{authority}",

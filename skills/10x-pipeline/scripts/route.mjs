@@ -32,7 +32,7 @@ import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs
 import { readOpenspec, decideOpenspec, missingChangeReason } from "../../openspec-pipeline/scripts/openspec.mjs";
 import {
   writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
-  advisorOn, neutralRetry, cleanUsage, dispatchProblem, ruleTail, checkRules,
+  advisorOn, neutralRetry, cleanUsage, dispatchProblem, ruleTail, checkRules, prepareHandoff, publishHandoff, cleanupHandoff,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
@@ -95,6 +95,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   // any other case returns here and goes on as before.
   neutralRetry(p, id, meta, log, policy);
   attachResult(p, log, policy);
+  cleanupHandoff(p, log);
   // An isolated run commits what a successful step left before risk, rigor and decide read the files.
   stepCommit(p, id, meta, log, policy);
   // An isolated run rolls a failed step back before risk, rigor and decide read the files. When this call ends in a
@@ -263,6 +264,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   }
   // The exact prompt, kept only while the step is pending, so a neutral rerun returns it unchanged; attachResult drops it.
   entry.pendingPrompt = prompt;
+  if (policy.prompts.byFile === true) prepareHandoff(p, entry);
   log.push(entry);
   writeLog(p.log, log);
   out({
@@ -274,7 +276,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
     host: hostOf(meta),
     ...target,
     reason: `${d.reason}; tier ${tier} (${tierWhy})`,
-    prompt,
+    ...publishHandoff(p, entry),
     resultFile: path.relative(ROOT, p.result),
   });
 }

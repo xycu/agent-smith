@@ -271,3 +271,28 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(runnerLeftovers(w), []);
   });
 }
+
+test("fake child readiness guarantees immediate cancellation can be handled", async (t) => {
+  const w = codexFixture("openspec", { mode: { hold: true, holdUntilRelease: true } });
+  const bin = path.join(w.fixture, "bin/codex");
+  const ready = 'fs.writeFileSync(path.join(fixture, "ready"), String(process.pid));';
+  const source = fs.readFileSync(bin, "utf8");
+  assert.ok(source.includes(ready));
+  // Deliver cancellation at the earliest instant another process can observe readiness.
+  fs.writeFileSync(bin, source.replace(ready, ready + '\nprocess.kill(process.pid, "SIGTERM");'));
+  const running = startRunner(w);
+  const release = path.join(w.fixture, "release");
+  t.after(async () => {
+    fs.writeFileSync(release, "yes");
+    running.child.kill("SIGTERM");
+    await running.closed;
+  });
+  await waitForFile(path.join(w.fixture, "ready"));
+  await waitForFile(path.join(w.fixture, "terminating"));
+  running.child.kill("SIGTERM");
+  fs.writeFileSync(release, "yes");
+  const result = await running.closed;
+  assert.equal(result.json.exitCode, 0, result.stdout);
+  assert.equal(result.json.signal, null, result.stdout);
+  assert.deepEqual(runnerLeftovers(w), []);
+});
