@@ -1,6 +1,12 @@
 # Unproven manual verification
 
-- 1.6: Live Claude Code acceptance remains pending. This Codex-hosted unattended subagent has no callable Claude Agent tool, and the explicit no-nesting instruction prohibits launching a live acceptance agent. Static content tests prove the written schema, description and correlation contract only; they do not prove actual Claude parameter acceptance or notification attribution. An authorized top-level Claude Code session must record step/archive calls, completion matching and on-time/late usage as specified in plan.md.
+- 1.6 — Live Claude Code acceptance remains pending. This Codex-hosted unattended subagent has no callable Claude Agent tool, and the explicit no-nesting instruction prohibits launching a live acceptance agent. Actual Claude parameter acceptance, completion matching and notification usage attribution require observations from an authorized top-level Claude Code session as specified in plan.md.
+
+## Manual verification attempt on 2026-11-14
+
+Read the prior unproven evidence, change request, plan, paired skill dispatch and notification instructions, content tests and automated evidence. Checked the currently available tool inventory for a callable Claude Agent tool. None is available. Considered existing content tests as an alternate proof. `skills/10x-pipeline/test/skill-loop.test.mjs:184` describes its assertions as “Written contracts only; live notification acceptance remains a Manual criterion.” These assertions read skill text. The saved automated evidence likewise records instruction reviews and keeps live acceptance pending. No existing evidence establishes the required live observations.
+
+Manual 1.6 remains unchecked. No test was run during this attempt because the available content tests cannot establish the required live observations. No nested agent was launched. The inspected HEAD is `3209dfb`; the automated recovery commit is `8b2afca`, already recorded beside Automated rows 1.4, 1.5, 1.7 and 1.8 in `../plan.md`.
 
 ## Recovery handoff on 2026-11-14
 
