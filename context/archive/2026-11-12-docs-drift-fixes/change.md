@@ -1,10 +1,10 @@
 ---
 change_id: docs-drift-fixes
 title: Fix the places where README, REFERENCE, the ADRs and the manifests disagree with the code
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-14
-archived_at: null
+archived_at: 2026-11-14T21:50:50Z
 ---
 
 ## Notes
