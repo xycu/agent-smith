@@ -1,7 +1,7 @@
 ---
 change_id: docs-drift-fixes
 title: Fix the places where README, REFERENCE, the ADRs and the manifests disagree with the code
-status: implementing
+status: implemented
 created: 2026-11-12
 updated: 2026-11-14
 archived_at: null
@@ -59,7 +59,7 @@ Each of the seven items reads the same in the document and in the code.
 
 - Phase 1 source and link checks passed. All 88 focused tests passed. Full suite passed with 1,476 passing tests, zero failures and three skips. Commit 15eda5d.
 - Phase 2 historical-text, link, ladder and provenance checks passed. All 38 focused tests passed. Full suite passed with 1,476 passing tests, zero failures and three skips. Commit 6840d4c.
-- Phase 3 full suite passed with 1,481 passing tests, zero failures and the same three skips. Final ownership, protected-path, release-version and whitespace checks passed.
+- Phase 3 full suite passed with 1,481 passing tests, zero failures and the same three skips. Commit 0413dec. Final ownership, protected-path, release-version and whitespace checks passed.
 - Phase 3 repository CLI reports version-check OK (1.10.2). All 13 focused tests passed. Deliberately disabling equality made the drift and CLI tests fail, after which the original code was restored unconditionally.
 - Scratch fixtures use TMPDIR under the worktree. The initial focused run exposed enclosing-repository Git discovery in scratch fixtures. A scratch-parent .git boundary restored the fixtures’ expected unavailable-Git state. The rerun passed. Production and fixture logic required no change for this environment issue.
 - The suite’s three skips are the two GH_LIVE opt-in network/authenticated-gh probes and the absent CLAUDE.md import check. OpenSpec CLI contract fixtures ran successfully.

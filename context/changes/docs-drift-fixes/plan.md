@@ -254,7 +254,7 @@ Concurrent Wave 6 merges may require context adjustments. Preserve sibling addit
 
 #### Automated
 
-- [x] 3.1 Version-check tests cover equality, drift, invalid and absent descriptions, CLI failure and read-only behavior while preserving prior version guarantees.
-- [x] 3.2 The repository version-check CLI and focused version-check tests pass using the Phase 3 commands in Testing Strategy.
-- [x] 3.3 The full suite passes using the repository command in Testing Strategy, with every environment-dependent skip identified.
-- [x] 3.4 The seven-item reconciliation and diff pass ownership, historical-text, protected-path and release-version checks, and git diff --check succeeds.
+- [x] 3.1 Version-check tests cover equality, drift, invalid and absent descriptions, CLI failure and read-only behavior while preserving prior version guarantees. — 0413dec
+- [x] 3.2 The repository version-check CLI and focused version-check tests pass using the Phase 3 commands in Testing Strategy. — 0413dec
+- [x] 3.3 The full suite passes using the repository command in Testing Strategy, with every environment-dependent skip identified. — 0413dec
+- [x] 3.4 The seven-item reconciliation and diff pass ownership, historical-text, protected-path and release-version checks, and git diff --check succeeds. — 0413dec
