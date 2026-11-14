@@ -20,7 +20,7 @@ Every brief example produces a diagnostic. Nonrecursive deletion, recursive crea
 | --- | --- | --- | --- |
 | Implementation ownership | Existing `no-recursive-delete.test.mjs` | Wave 5 assigns the complete guard to this file. | WAVES.md and plan |
 | Shell checks | Extend and share the current pattern mechanism | Source strings and argument arrays need the same recursive-flag coverage as prose. | Change brief and scanner |
-| Filesystem options | Accept absent options or transparent literal objects without recursion | Variables, spreads, shorthand, and opaque keys cannot establish safe options. | Change brief |
+| Filesystem options | Accept absent options or transparent literal objects without recursion, reject every shorthand property, and allow explicit quoted or escaped nonrecursive keys | The brief explicitly rejects shorthand and requires a recursive key to be absent in every spelling. | Change brief and plan review F1 |
 | Recursive property values | Reject a recursive key even when false | The brief requires the key to be absent in every spelling. | Change brief |
 | Discovery proof | Scratch YAML and shell fixtures plus real repository scan | String-only tests cannot establish file-discovery coverage. | Plan |
 | Delivery structure | One phase with five Automated rows | The scanner and its checks share one owner and one entry point. | Plan assumption |
@@ -31,7 +31,7 @@ The implementation belongs in `skills/10x-pipeline/test/no-recursive-delete.test
 
 ## Architecture / Approach
 
-Retain the scanner's diagnostic-array interfaces. Extend shell matching for JavaScript and split flags, inspect filesystem options structurally and conservatively, and add `.github`, `.yml`, `.yaml`, and `.sh` to discovery. Reuse the existing scratch and safe cleanup helpers for fixtures.
+Retain the scanner's diagnostic-array interfaces. Extend shell matching for JavaScript and split flags, inspect filesystem options structurally and conservatively, and add `.github`, `.yml`, `.yaml`, and `.sh` to discovery. Argument parsing covers regular-expression literals and template interpolation, with diagnostics when lexical ambiguity prevents establishing the actual options argument. Reuse the existing scratch and safe cleanup helpers for fixtures.
 
 ## Phases at a Glance
 
@@ -45,7 +45,7 @@ Estimated effort is one focused implementation and verification pass in the exis
 ## Open Risks & Assumptions
 
 - The unattended instruction delegates interview and phase decisions to researched evidence. The brief and ownership table support one phase and a conservative options policy.
-- Structural scanning must account for quoted delimiters and nested expressions when identifying the second argument.
+- Structural scanning must account for quoted delimiters, regular-expression literals, division, and nested template interpolation when identifying the second argument. An apparent one-argument call requires established lexical boundaries.
 - Static source scanning has limits for arbitrary runtime-generated commands and aliases.
 - Historical ADR-016 exclusions for options variables and workflow coverage are superseded by this change brief.
 
