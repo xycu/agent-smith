@@ -12,7 +12,7 @@ The router already returns the change identifier, step number and step name, inc
 
 ## Desired End State
 
-Every Claude step has description `agent-smith <change-id> step <n> <step>`, and archive has `agent-smith <change-id> archive`. OpenSpec uses its change name as the identifier. Agent calls include the background flag only when the exposed schema declares it. Recorded descriptions and returned agent ids establish completion ownership and the numbered step for late usage.
+Every Claude step has description `agent-smith <change-id> step <n> <step>`, and archive has `agent-smith <change-id> archive`. OpenSpec uses its change name as the identifier. Agent calls include the background flag only when the exposed schema declares it. Per-invocation records establish ownership for completion and both on-time and late usage. Known agent ids take precedence and require consistent descriptions. Description fallback requires one unique compatible launch, including across neutral retries, and can associate an id first received in a notification when the launch returned none.
 
 ## Key Decisions Made
 
@@ -21,7 +21,7 @@ Every Claude step has description `agent-smith <change-id> step <n> <step>`, and
 | Description ownership | Construct from existing router action fields in Loop step 2 | Fits the assigned skill region and existing interface | Plan, router dispatch |
 | Background flag | Set false when exposed, otherwise omit | Fits both schemas described by the request | Change request |
 | Archive description | Define its override in Loop step 2 | Archive step 3 already reuses these parameters | Plan, current skills |
-| Completion and usage | Match exact assigned description or recorded agent id | Step names repeat and late messages can arrive during a newer step | Change request, ADR-019 |
+| Completion and usage | Match known agent ids first, require consistent descriptions, and allow a unique exact-description fallback compatible with recorded ids | Neutral retries reuse descriptions and earlier usage can arrive during a newer step | Change request, ADR-018, ADR-019, plan review F1–F2 |
 | Provider behavior | OpenAI actions use the shared runner and its current envelope handling | Preserves the explicit provider-dispatch requirement | User instruction, current skills |
 | Verification | Existing content assertions, regression suite and a live Manual row | Live Claude evidence requires an authorized top-level session | Change request, no-nesting rule |
 
@@ -33,7 +33,7 @@ Sibling changes own isolation setup, CI scratch, test Git environments, router s
 
 ## Architecture / Approach
 
-The existing Claude dispatch branch adapts the call to the tool schema and records the launch identity. Shared anti-stall rules use that identity for completion. Each terminal late-usage paragraph uses the same launch record to recover the earlier numbered step before the current cutoff. OpenAI actions continue through their runner process and normalized-result path.
+The existing Claude dispatch branch adapts the call to the tool schema and records each invocation separately. Its usage ownership guard governs Loop step 4, so only the current invocation's matched figure enters the current result. An earlier step's figure follows its late-usage path. Shared anti-stall rules reject conflicting metadata, ambiguous description-only notifications and completions from superseded invocations. A unique description still matches when the launch returned no id. Each terminal late-usage paragraph uses the same launch records to recover the earlier numbered step before the current cutoff. OpenAI actions continue through their runner process and normalized-result path.
 
 ## Phases at a Glance
 
