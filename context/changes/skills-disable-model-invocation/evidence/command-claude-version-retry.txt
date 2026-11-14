@@ -1,0 +1,2 @@
+Command claude --version
+2.1.311 (Claude Code)
