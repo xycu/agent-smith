@@ -1,9 +1,9 @@
 ---
 change_id: worktree-setup-script
 title: Move run isolation setup from skill prose into a script
-status: new
+status: planned
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 archived_at: null
 ---
 
