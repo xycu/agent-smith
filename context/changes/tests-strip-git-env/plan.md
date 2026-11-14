@@ -67,6 +67,8 @@ Sanitize only the inherited base. Filtering a merged environment would erase fix
 
 Initialize and inspect the victim with an independently constructed clean observer environment. A child must receive hostile variables directly at its `node --test` boundary so the production test builders encounter them as inherited values. Using `run` to inject that outer environment could hide the defect. Keep victim setup, child scratch directories and lock files under a temporary parent inside this run worktree, and snapshot the victim before launching the child.
 
+Every such temporary parent needs a filesystem Git-discovery boundary. Place a harness-owned `.git` file in that parent with a `gitdir:` target naming a deliberately absent path inside the same parent. Before launching tests, use the independent observer environment to check that an uninitialized child scratch directory cannot resolve a repository or HEAD, and that a separate initialized child repository resolves its own top level. This contains Git discovery after inherited `GIT_` values are removed, including for `run` callers that supply no `gitEnv`. An environment-only ceiling would be removed by the sanitizer under test. The victim and initialized fixtures each retain their own Git metadata below the boundary.
+
 ## Phase 1: Sanitize shared and standalone test environments
 
 ### Overview
@@ -142,6 +144,8 @@ Create a committed victim with a tracked sentinel and an existing non-empty inde
 
 Compare independently captured before/after HEAD, refs, commit count, index bytes and staged entries, plus a sorted path-and-content snapshot of the entire victim including `.git` and its worktree. Collect observational Git data with optional index refresh disabled. Each scenario starts with its own victim state. Use bounded child execution and adequate output buffers. Keep temporary-parent overrides on the child environment and use `removeTree` for inspected scratch cleanup.
 
+Establish and preflight the temporary parent's filesystem discovery boundary before each scenario, as specified in Critical Implementation Details. Assert that a plain child scratch directory cannot discover this run worktree while a locally initialized fixture resolves its own repository. These checks are part of the existing hostile-scenario verification in Progress row 2.1.
+
 #### Test index
 
 **File**: `skills/10x-pipeline/test/README.md`
@@ -173,6 +177,8 @@ The child suite matrix covers the shared Git path through OpenSpec isolation and
 ### Full-suite acceptance driver
 
 Use a one-off Node driver from this worktree for the final hostile-suite check. Create a disposable parent and victim inside the change folder, initialize and snapshot the victim using a separately clean observer environment, and enumerate every `*.test.mjs` file from the three directories in the ordinary suite command. Spawn `process.execPath` with `--test` and those paths, the combined hostile variables, `GH_LIVE=0`, and temporary-directory values pointing inside the disposable parent. Require no error or signal and status 0, then compare the victim snapshots. Preserve the child counts, skips and victim comparison in the implementation evidence. The driver is a verification command and needs no permanent configuration or package dependency.
+
+Install and preflight the same filesystem discovery boundary in the disposable parent before starting the full suite. The clean observer must confirm that an uninitialized descendant resolves neither a repository nor HEAD, and that an initialized descendant resolves its own top level. Record both checks with the existing Progress row 2.3 evidence. `score.test.mjs` includes a no-repository scenario that calls `run` without `gitEnv`, so the enclosing worktree must be unreachable through filesystem discovery even after successful sanitization.
 
 Victim setup and observation must independently strip the caller's inherited Git variables even when this acceptance driver itself starts in a hook environment. Build each child environment from the clean base and deliberately append the selected hostile variables last. A helper-generated environment used for observing the victim cannot independently prove that helper's safety.
 

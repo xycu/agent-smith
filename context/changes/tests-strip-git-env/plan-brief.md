@@ -48,6 +48,7 @@ Node 24+ and Git are prerequisites. The existing OpenSpec CLI and live GitHub te
 - Explicit ownership of test environment sites includes newer copied-router/provenance wrappers. Imports and environment arguments are the patch boundary within files containing sibling-owned assertions.
 - The observed pre-fix reproduction ran on Node `v26.13.1` and Git `2.54.0`. Post-fix safety and full-suite proof belong to implementation.
 - Victim repositories, child scratch directories and lock files stay under a disposable parent inside this run worktree. Independent snapshots include `.git` and worktree files.
+- Each disposable parent gets a filesystem Git-discovery boundary and independent preflight checks for plain and initialized scratch directories. This keeps sanitized child processes from discovering the enclosing run worktree.
 
 ## Success Criteria (Summary)
 
