@@ -1,7 +1,7 @@
 ---
 change_id: delete-guard-gaps
 title: Close the gaps of the recursive delete guard
-status: implementing
+status: implemented
 created: 2026-11-12
 updated: 2026-11-14
 archived_at: null

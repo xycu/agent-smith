@@ -159,8 +159,8 @@ The stricter guard takes effect through the existing test entry point. Current d
 
 #### Automated
 
-- [x] 1.1 Shell regressions report JavaScript strings, argument arrays, combined flags, and split flags while accepting nonrecursive commands and preserving prose allowances.
-- [x] 1.2 Filesystem regressions reject unsafe or opaque options across all four delete APIs while accepting the specified deletion, creation, and copying forms.
-- [x] 1.3 Discovery fixtures report banned content in `.github` YAML and shell files through the repository scan path, and the real repository scan passes.
-- [x] 1.4 The focused guard file and complete repository test suite pass on Node 24 or later with every failure or skip accounted for.
-- [x] 1.5 The implementation diff respects Wave 5 ownership and preserves protected files and unrelated work.
+- [x] 1.1 Shell regressions report JavaScript strings, argument arrays, combined flags, and split flags while accepting nonrecursive commands and preserving prose allowances. — a96105c
+- [x] 1.2 Filesystem regressions reject unsafe or opaque options across all four delete APIs while accepting the specified deletion, creation, and copying forms. — a96105c
+- [x] 1.3 Discovery fixtures report banned content in `.github` YAML and shell files through the repository scan path, and the real repository scan passes. — a96105c
+- [x] 1.4 The focused guard file and complete repository test suite pass on Node 24 or later with every failure or skip accounted for. — a96105c
+- [x] 1.5 The implementation diff respects Wave 5 ownership and preserves protected files and unrelated work. — a96105c
