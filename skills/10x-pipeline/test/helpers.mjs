@@ -213,8 +213,12 @@ export function writeLog(project, entries) {
 // ---- git -------------------------------------------------------------------
 
 export function gitAvailable() {
-  const res = spawnSync("git", ["--version"], { encoding: "utf8" });
-  return res.status === 0;
+  const res = spawnSync("git", ["--version"], { encoding: "utf8", timeout: SPAWN_TIMEOUT_MS });
+  if (process.env.CI) {
+    throwOnSpawnError(res, "git --version", SPAWN_TIMEOUT_MS);
+    if (res.status !== 0) throw new Error(`git --version exited ${res.status}`);
+  }
+  return !res.error && !res.signal && res.status === 0;
 }
 
 // Hermetic environment: no global or system config, no hooks from elsewhere, fixed identity,

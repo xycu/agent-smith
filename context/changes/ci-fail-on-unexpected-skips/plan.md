@@ -191,11 +191,11 @@ The change affects test execution and job setup. The install prefix and npm stat
 
 #### Automated
 
-- [ ] 1.1 Focused CI regression tests pass with `node --test tools/test/ci-runner.test.mjs`.
-- [ ] 1.2 Missing and nonzero-exit Git probes return false locally and fail in CI with Git-specific diagnostics, while successful probes return true in both modes.
-- [ ] 1.3 Missing and nonzero-exit OpenSpec probes yield five local fixture skips and a nonzero CI test-file exit naming the selected binary.
-- [ ] 1.4 Probe coverage proves bounded failure handling and independent CI, PATH, and OPENSPEC_BIN environments, including an empty CI value.
-- [ ] 1.5 The repository suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Focused CI regression tests pass with `node --test tools/test/ci-runner.test.mjs`.
+- [x] 1.2 Missing and nonzero-exit Git probes return false locally and fail in CI with Git-specific diagnostics, while successful probes return true in both modes.
+- [x] 1.3 Missing and nonzero-exit OpenSpec probes yield five local fixture skips and a nonzero CI test-file exit naming the selected binary.
+- [x] 1.4 Probe coverage proves bounded failure handling and independent CI, PATH, and OPENSPEC_BIN environments, including an empty CI value.
+- [x] 1.5 The repository suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 ### Phase 2: Install the pinned CI tool and account for skips
 
