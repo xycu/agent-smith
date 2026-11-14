@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-14. Waves 1–4 are merged into `main`. Waves 2–3 are archived. This folder holds 24 active changes, including 16 new changes and eight merged changes awaiting acceptance or archival. Wave 5 is next. GitHub PR merge state and change frontmatter were checked against `main` at `4b19689` after wave 4.
+Work order and status as of 2026-11-14. Waves 1–4 are merged into `main`. Waves 2–4 are archived. This folder holds 18 active changes, including 16 new changes and two older merged changes awaiting acceptance or archival. Wave 5 is next. GitHub PR merge state and change frontmatter were checked against `main` at `5926d58` (v1.10.1) after wave 4.
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -81,9 +81,11 @@ These rows report the checkboxes at archive time. The three pending Manual rows 
 | `budget-test-file-split` | `budget-executors.test.mjs` and a new helper module | Cuts the suite wall time for every later run. |
 | `shared-churn-excludes` | Churn config in `state.mjs`, `evidenceExcludes` in `steps.mjs` | |
 
-## Wave 4: run state and isolation setup (6) — merged
+## Wave 4: run state and isolation setup (6) — merged and archived
 
-All six implementations merged on 2026-11-14 in the order #164, #162, #161, #160, #165 and #163. Their change folders have `status: impl_reviewed` and remain open in `context/changes/`.
+All six implementations merged on 2026-11-14 in the order #164, #162, #161, #160, #165 and #163. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. Original Progress checkboxes and SHA suffixes were preserved, including 38 suffixes referencing original branch commits and three completed `agent-call-parameters` rows (1.1–1.3) without suffixes.
+
+The pending Manual rows below remain recorded in their archived plans. Any further acceptance work belongs in a new change referencing the archive.
 
 | Change | Merged PR | Owns in this wave | Notes |
 | --- | --- | --- | --- |
