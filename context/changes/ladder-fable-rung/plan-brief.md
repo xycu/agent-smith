@@ -21,7 +21,7 @@ A complete reference JSON example repeats tiers 0–7, appends fable/high and fa
 | Delivery | Documentation-only project override | Owner approved opt-in; defaults must stay unchanged | Task and change brief |
 | Ladder | Append high/xhigh at 8/9 | Supported efforts, no renumbering | Brief and official Claude docs |
 | Ceilings | Only four named 10x steps to 9 | Limits scope and preserves base/min tiers and OpenSpec bounds | Brief and task |
-| Compatibility | Claude host; current default Fable 5.2 requires 2.1.321+ | The 2.1.311 observation is not a proven minimum | Official model/subagent docs |
+| Compatibility | Claude host, 2.1.321+ for Fable 5.2, resolved-model check required | With ANTHROPIC_DEFAULT_FABLE_MODEL unset, the alias selects Fable 5 in Claude apps gateway sessions and Fable 5.2 elsewhere | Official model/subagent docs |
 | Cost | Illustrative fable rate 12, explicitly not a provider quote | User supplies blended rates; missing prices remain unknown | Existing estimator contract |
 | Ownership | README Configure/compatibility, reference routing/configuration/cost, ladder tests | Invocation change owns skill/manifest descriptions | Wave 5 |
 | Limits | Preserve budgets and effort-floor algorithm | No need to change routing for the approved configuration | CLI and pure-function probes |
