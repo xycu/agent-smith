@@ -1,9 +1,9 @@
 ---
 change_id: workflow-pins-local-actions
 title: Check local actions outside .github in the pin guard
-status: planned
+status: implementing
 created: 2026-11-12
-updated: 2026-11-14
+updated: 2026-11-15
 archived_at: null
 ---
 
@@ -34,3 +34,12 @@ Probe in a scratch directory:
 ### Done when
 
 An unpinned remote action in a local action outside `.github/` fails the suite.
+
+
+## Implementation verification
+
+- Verified on 2026-11-14–15 with Node v24.19.0. All 19 focused tests pass with zero skips.
+- The regression suite failed 11 cases against the original implementation. Deliberately restoring the local-reference skip also failed 11 cases, then the working implementation was restored.
+- The required full suite completed with 1,532 passing tests, zero failures and three skips out of 1,535 tests. The skips were the two opt-in live GitHub tests requiring `GH_LIVE=1` and authenticated network access, and the absent `CLAUDE.md` import check.
+- Fixtures used a worktree-local `TMPDIR`. An invalid `.git` discovery boundary in its scratch parent prevented non-repository fixtures from inheriting the run repository. The initial unisolated attempt exposed this through executor tests reading the run branch HEAD, and all three reproduced executor failures passed after isolation.
+- `node tools/version-check.mjs` and `git diff --check` pass. The implementation changes only the guard, its existing tests and the workflow-pins parenthetical in AGENTS. No Manual rows are pending.
