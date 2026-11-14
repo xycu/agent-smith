@@ -174,11 +174,11 @@ Reload the updated plugin before acceptance. A normal follow-up commit can resto
 
 #### Automated
 
-- [ ] 1.1 Both skills pass frontmatter and explicit-command description assertions, including default user invocation, using `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
-- [ ] 1.2 Deliberate-break copies for each skill fail their corresponding content tests when the key is removed, set to false, quoted as a string, or placed only after the closing frontmatter delimiter, using the existing `SKILL_PATH` and `OPENSPEC_SKILL_PATH` overrides.
-- [ ] 1.3 Plugin descriptions are equal, README guidance covers both commands and the supported invocation matrix, and release-owned version fields pass `node tools/version-check.mjs`.
-- [ ] 1.4 The full suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, with any skips reported by name and reason.
-- [ ] 1.5 The implementation diff stays within the seven-file ownership table and change-local planning/evidence artifacts, the skill bodies and other frontmatter fields match the pre-implementation copies, protected paths have no edits, and `git diff --check` passes.
+- [x] 1.1 Both skills pass frontmatter and explicit-command description assertions, including default user invocation, using `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
+- [x] 1.2 Deliberate-break copies for each skill fail their corresponding content tests when the key is removed, set to false, quoted as a string, or placed only after the closing frontmatter delimiter, using the existing `SKILL_PATH` and `OPENSPEC_SKILL_PATH` overrides.
+- [x] 1.3 Plugin descriptions are equal, README guidance covers both commands and the supported invocation matrix, and release-owned version fields pass `node tools/version-check.mjs`.
+- [x] 1.4 The full suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, with any skips reported by name and reason.
+- [x] 1.5 The implementation diff stays within the seven-file ownership table and change-local planning/evidence artifacts, the skill bodies and other frontmatter fields match the pre-implementation copies, protected paths have no edits, and `git diff --check` passes.
 
 #### Manual
 

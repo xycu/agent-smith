@@ -1,12 +1,10 @@
 ---
 name: openspec-pipeline
 description: >
-  Run an existing OpenSpec change end to end (propose, apply, verify, fix loop, optional
-  CLI archive) with each step in its own subagent. The shared agent-smith router picks
-  the next step and its model and effort from the OpenSpec files on disk: the planning
-  artifacts, the ticked rows of tasks.md and the verify verdict. Use when the user wants
-  an orchestrated or unattended OpenSpec run, "pipeline this OpenSpec change", or
-  "run the OpenSpec chain".
+  Run an OpenSpec change end to end by explicit /agent-smith:openspec-pipeline
+  command. Propose, apply, verify and fix in separate subagents, with a shared
+  router selecting each step from the change artifacts and verification results.
+disable-model-invocation: true
 argument-hint: <change-name> [goal text] [--archive] [--rigor <level>] [--pr-comment]
 allowed-tools:
   - Agent
