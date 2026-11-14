@@ -39,6 +39,8 @@ Rules, written as scenarios (the form of ADR-004):
 
 - The first release comes from the history after `bootstrap-sha` (`9503c35`). release-please shows `feat`, `fix`, `perf` and `revert` in the changelog and hides `docs`, `chore`, `refactor`, `test`, `build` and `ci` by default; a run of only hidden commits is expected to open no release PR (to be confirmed by the first release PR).
 - The plugin stays on a `0.x` version, so semver.org item 4 applies: anything may change. Breaking changes bump minor until the owner cuts 1.0.0.
+
+> Updated 2026-11-09. Release 1.0.0 superseded the 0.x assumption. The Decision rules above apply a major bump to breaking changes at 1.0.0 and above. [Changelog](../../CHANGELOG.md#100-2026-11-09) · [Release commit 9fceddd](https://github.com/xycu/agent-smith/commit/9fceddd)
 - The release PR is opened with `GITHUB_TOKEN`, so no other workflow runs on it. This is acceptable because `main` has no required checks.
 - The owner must switch on "Allow GitHub Actions to create and approve pull requests" once. Until then `release.yml` fails when it tries to open the PR.
 - The commit lint reads subjects only; it does not check the body or the `BREAKING CHANGE:` footer. A breaking change without `!` or a footer is released as the type it was committed with.

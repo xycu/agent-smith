@@ -17,6 +17,8 @@
 The baseline arm is data in a second checkout, and the comparison is one new command that reads two run folders.
 
 - `skills/10x-pipeline/baseline-policy.json` is a per-project override. The user copies it to `context/foundation/agent-smith-policy.json` in the baseline checkout. It pins all seven ladder tiers to `sonnet` at `high`, sets every `rigor.fromGoal` class to `standard` and sets `rigor.skipPlanReviewAt` to `[]`. No flag is needed at `init`, and no routing code changes.
+
+> Amended by ADR-010. The ladder now has eight rungs, reflected in both the current policy and baseline policy. [ADR-010](ADR-010-run-worktree-step-commits-and-rollback.md#the-ladder-and-the-effort-floor) · [Policy](../../skills/10x-pipeline/policy.json) · [Baseline policy](../../skills/10x-pipeline/baseline-policy.json)
 - `route.mjs compare <change-id> --baseline <dir> [--routed <dir>] [--format md]` is read-only. It prints per-side totals and coverage, whether the baseline is pinned, `comparable`, `reasons`, `warnings`, `dropPercent`, `targetDropPercent` and a verdict.
 - The unit is raw `totalTokens`. It is a proxy for the weekly limit: it understates savings from `haiku` steps and overstates a drop bought by moving work to `opus`.
 - `compare.targetDropPercent` in `policy.json` ships as `null`. The verdict reads `target not set` until the owner fills it.
