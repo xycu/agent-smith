@@ -1,0 +1,26 @@
+# Git and GitHub operations are generally authorized by AGENTS.md.
+prefix_rule(pattern = ["git"], decision = "allow")
+prefix_rule(pattern = ["gh"], decision = "allow")
+
+# State-dependent operations go to auto-review to verify recoverability.
+# Preserve affected work in a commit, ref, or snapshot before discarding it.
+prefix_rule(pattern = ["git", "reset", "--hard"], decision = "prompt")
+prefix_rule(pattern = ["git", "clean"], decision = "prompt")
+prefix_rule(pattern = ["git", "checkout", "--"], decision = "prompt")
+prefix_rule(pattern = ["git", "restore"], decision = "prompt")
+prefix_rule(pattern = ["git", "stash", ["drop", "clear"]], decision = "prompt")
+prefix_rule(pattern = ["git", "branch", ["-d", "-D", "--delete"]], decision = "prompt")
+prefix_rule(pattern = ["git", "tag", ["-d", "--delete"]], decision = "prompt")
+prefix_rule(pattern = ["git", "worktree", "remove"], decision = "prompt")
+prefix_rule(pattern = ["git", "update-ref"], decision = "prompt")
+prefix_rule(pattern = ["git", "push", ["--delete", "-d"]], decision = "prompt")
+prefix_rule(pattern = ["git", "prune"], decision = "prompt")
+prefix_rule(pattern = ["git", "gc"], decision = "prompt")
+prefix_rule(pattern = ["git", "reflog", ["expire", "delete", "drop"]], decision = "prompt")
+
+# Explicit repository prohibitions. Prefix guards cover direct forms only.
+# AGENTS.md also governs reordered flags, wrappers, and API equivalents.
+prefix_rule(pattern = ["git", "push", ["--force", "--force-with-lease", "-f", "--mirror"]], decision = "forbidden", justification = "AGENTS.md forbids force-pushing or rewriting pushed history.")
+prefix_rule(pattern = ["git", "commit", "--no-verify"], decision = "forbidden", justification = "AGENTS.md requires repository hooks to run.")
+prefix_rule(pattern = ["gh", ["repo", "release", "issue"], "delete"], decision = "forbidden", justification = "AGENTS.md forbids permanent GitHub deletion.")
+prefix_rule(pattern = ["rm", ["-r", "-rf", "-fr", "-R", "-Rf", "-fR", "--recursive"]], decision = "forbidden", justification = "Repository rules require inspected per-file deletion, followed by removal of empty directories.")
