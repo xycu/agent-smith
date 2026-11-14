@@ -1,12 +1,20 @@
-Test file: skills/10x-pipeline/test/skill-loop.test.mjs; test names: 10x: cleanup uses saved fresh setup after successful init and before each dispatch; openspec: cleanup uses saved fresh setup after successful init and before each dispatch
-Supporting instruction-content checks for row 3.5. Live host execution remains unverified.
-✔ 10x: cleanup uses saved fresh setup after successful init and before each dispatch (1.028833ms)
-✔ openspec: cleanup uses saved fresh setup after successful init and before each dispatch (0.130916ms)
-ℹ tests 2
+Test file: skills/10x-pipeline/test/skill-loop.test.mjs; test names: 10x: cleanup uses saved fresh setup after successful init and before each dispatch; openspec: cleanup uses saved fresh setup after successful init and before each dispatch; 10x: change inputs follow root selection with original-root diagnostic fallback; openspec: change inputs follow root selection with original-root diagnostic fallback; done, archive and halt run the pull request step before the PR comment step and before any STOP
+Supporting contract checks for row 3.5, repeated and expanded for this attempt.
+Command: node --test --test-reporter=spec --test-name-pattern="cleanup uses saved fresh setup after successful init and before each dispatch|change inputs follow root selection with original-root diagnostic fallback|done, archive and halt run the pull request step before the PR comment step and before any STOP" skills/10x-pipeline/test/skill-loop.test.mjs
+Node: v24.19.0
+
+✔ done, archive and halt run the pull request step before the PR comment step and before any STOP (6.338458ms)
+✔ 10x: cleanup uses saved fresh setup after successful init and before each dispatch (0.326834ms)
+✔ 10x: change inputs follow root selection with original-root diagnostic fallback (0.160917ms)
+✔ openspec: cleanup uses saved fresh setup after successful init and before each dispatch (0.108792ms)
+✔ openspec: change inputs follow root selection with original-root diagnostic fallback (0.096542ms)
+ℹ tests 5
 ℹ suites 0
-ℹ pass 2
+ℹ pass 5
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 87.415375
+ℹ duration_ms 117.577917
+
+Exit status: 0
