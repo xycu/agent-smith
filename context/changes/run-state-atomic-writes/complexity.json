@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md specifies atomic writes, owned stale temp cleanup, malformed-log behavior, and affected commands; exact cleanup name matching follows the stated `<file>.<pid>.tmp` pattern." },
+    "novelty": { "score": 1, "evidence": "state.mjs already uses same-directory temp files and rename for run locks, while run-lock.test.mjs covers lock lifecycle." },
+    "coupling": { "score": 2, "evidence": "Wave 4 row in context/changes/WAVES.md assigns state.mjs plus init, next, and usage call sites, with state consumed by route, flow, and isolation modules." },
+    "discovery": { "score": 1, "evidence": "change.md and the Wave 4 ownership row name state.mjs and call sites; one search identifies report/meta writers and read-only consumers." },
+    "volume": { "score": 2, "evidence": "The change spans several router modules and both chain paths, plus focused tests for malformed logs, temp cleanup, and late usage." },
+    "verification": { "score": 1, "evidence": "Existing router CLI, run-lock, archive, and late-usage suites cover most behavior; change.md calls for a few targeted cases." }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
