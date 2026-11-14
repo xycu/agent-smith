@@ -50,5 +50,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.6 An authorized top-level Claude Code session records the exposed Agent schema, accepted step and archive descriptions, own-report completion matching, and on-time plus late usage attributed to the correct numbered step; this row stays pending in unattended recovery."
+    ],
+    "manualNotProved": [
+      "1.6 An authorized top-level Claude Code session records the exposed Agent schema, accepted step and archive descriptions, own-report completion matching, and on-time plus late usage attributed to the correct numbered step; this row stays pending in unattended recovery. — not proved: Live top-level Claude Code acceptance remains unverified. This unattended Codex subagent exposes no callable Claude Agent tool, and the task prohibits launching another agent. Available content tests"
+    ]
   }
 }
