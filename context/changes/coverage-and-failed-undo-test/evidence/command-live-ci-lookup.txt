@@ -1,0 +1,27 @@
+Read-only live CI lookup for pending Manual row 2.6
+Checked at 2026-11-14T20:29:39.858402+00:00
+
+$ git rev-parse HEAD
+exit 0
+3b742105381795e65ba81771ad1ad1490110e3bc
+
+$ git branch --show-current
+exit 0
+agent-smith/coverage-and-failed-undo-test
+
+$ gh run list --repo xycu/agent-smith --branch agent-smith/coverage-and-failed-undo-test --limit 100 --json databaseId,headSha,conclusion,status,url,workflowName,createdAt
+exit 0
+[]
+
+$ gh run list --repo xycu/agent-smith --commit 3b742105381795e65ba81771ad1ad1490110e3bc --limit 100 --json databaseId,headSha,conclusion,status,url,workflowName,createdAt
+exit 0
+[]
+
+$ gh pr list --repo xycu/agent-smith --head agent-smith/coverage-and-failed-undo-test --state all --json number,url,state,headRefOid
+exit 0
+[]
+
+$ git ls-remote --heads origin refs/heads/agent-smith/coverage-and-failed-undo-test
+exit 0
+(empty stdout)
+
