@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.10.2](https://github.com/xycu/agent-smith/compare/v1.10.1...v1.10.2) (2026-11-14)
+
+
+### Bug Fixes
+
+* **ci-fail-on-unexpected-skips:** fail missing-tool checks in CI ([b8f02f9](https://github.com/xycu/agent-smith/commit/b8f02f90ffb31b4433e72fea1ad068695acb5e8a))
+* **delete-guard-gaps:** close recursive-delete guard gaps ([0077614](https://github.com/xycu/agent-smith/commit/007761407a1489973ad7db709a71d7ff028c8f04))
+* **skills-disable-model-invocation:** require explicit pipeline invocation ([68c377a](https://github.com/xycu/agent-smith/commit/68c377a9b50b1216111ea8768bd6bcb73c2c03a0))
+* **stale-main-change-copy:** clean committed source copies safely ([eab471e](https://github.com/xycu/agent-smith/commit/eab471e7acb80c1847d9671819cafcb2e90949c9))
+
 ## [1.10.1](https://github.com/xycu/agent-smith/compare/v1.10.0...v1.10.1) (2026-11-14)
 
 
