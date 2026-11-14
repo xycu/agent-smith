@@ -5,18 +5,21 @@ import { fileURLToPath } from "node:url";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
 
 const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const USAGE = "Usage: prepare-run.mjs <id> [--chain 10x|openspec]";
+const USAGE = "Usage: prepare-run.mjs <id> [--chain 10x|openspec] [--cleanup]";
 const GIT_TIMEOUT_MS = 120000;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
 function parseArgs(args) {
-  const [id, ...rest] = args;
+  const [id, ...flags] = args;
+  const cleanup = flags.includes("--cleanup");
+  const rest = flags.filter((flag) => flag !== "--cleanup");
+  if (flags.length - rest.length > 1) throw new Error("--cleanup may appear only once");
   if (!ID_RE.test(id ?? "")) throw new Error("a valid change id is required");
-  if (rest.length === 0) return { id, chain: "10x" };
+  if (rest.length === 0) return { id, chain: "10x", cleanup };
   if (rest.length !== 2 || rest[0] !== "--chain" || !["10x", "openspec"].includes(rest[1])) {
     throw new Error("expected only --chain 10x|openspec after the id");
   }
-  return { id, chain: rest[1] };
+  return { id, chain: rest[1], cleanup };
 }
 
 function readPolicy(file) {
@@ -46,8 +49,8 @@ function isolationRequired(root) {
   return isObject(isolation) && isolation.require === true;
 }
 
-function git(args) {
-  return spawn("git", args, GIT_TIMEOUT_MS, { ...process.env, GIT_OPTIONAL_LOCKS: "0" });
+function git(args, input) {
+  return spawn("git", args, GIT_TIMEOUT_MS, { ...process.env, GIT_OPTIONAL_LOCKS: "0" }, input);
 }
 
 function checked(res, label, allowed = [0]) {
@@ -57,8 +60,8 @@ function checked(res, label, allowed = [0]) {
   return res;
 }
 
-function gitText(args) {
-  return checked(git(args), `git ${args[0]}`).stdout.replace(/\n$/, "");
+function gitText(args, input) {
+  return checked(git(args, input), `git ${args[0]}`).stdout.replace(/\n$/, "");
 }
 
 function branchExists(branch) {
@@ -129,6 +132,24 @@ function copyChange(source, destination, worktree) {
   });
 }
 
+function withSetupLock(common, branch, operation) {
+  const lock = path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}.lock`);
+  let fd;
+  try {
+    try { fd = fs.openSync(lock, "wx"); } catch (error) {
+      if (error.code === "EEXIST") throw new Error(`Setup lock exists at ${lock}. Wait for setup to finish; after an interruption inspect it before manual removal.`);
+      throw error;
+    }
+    fs.writeFileSync(fd, `${process.pid}\n`);
+    return operation();
+  } finally {
+    if (fd !== undefined) {
+      fs.closeSync(fd);
+      fs.unlinkSync(lock);
+    }
+  }
+}
+
 function prepare(opts, result) {
   const inside = git(["rev-parse", "--is-inside-work-tree"]);
   if (inside.missing || (inside.status === 128 && /not a git repository/i.test(inside.stderr))) {
@@ -154,14 +175,7 @@ function prepare(opts, result) {
     result.runRoot = result.root;
     return;
   }
-  const lock = path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}.lock`);
-  let fd;
-  try {
-    try { fd = fs.openSync(lock, "wx"); } catch (error) {
-      if (error.code === "EEXIST") throw new Error(`Setup lock exists at ${lock}. Wait for setup to finish; after an interruption inspect it before manual removal.`);
-      throw error;
-    }
-    fs.writeFileSync(fd, `${process.pid}\n`);
+  withSetupLock(common, branch, () => {
     result.branch = branch;
     if (inRun) {
       result.case = "in-run-worktree";
@@ -175,11 +189,12 @@ function prepare(opts, result) {
         return;
       }
       result.case = "created";
+      const source = path.join(result.root, change);
+      if (!fs.lstatSync(source).isDirectory()) throw new Error(`Change folder is not a directory: ${source}`);
       addExclude(prefix, opts.id, result);
       result.notInRun = outsidePaths(prefix, change);
       result.worktree = path.join(result.root, ".claude/worktrees", `agent-smith-${opts.id}`);
       checked(git(["worktree", "add", "--no-track", "-b", branch, result.worktree, "HEAD"]), "create run worktree");
-      const source = path.join(result.root, change);
       copyChange(source, path.join(result.worktree, prefix, change), result.worktree);
       result.copied = true;
     } else {
@@ -202,26 +217,177 @@ function prepare(opts, result) {
       throw new Error(`Run worktree no longer belongs to this repository and branch ${branch}: ${runRoot}`);
     }
     result.runRoot = runRoot;
-  } finally {
-    if (fd !== undefined) {
-      fs.closeSync(fd);
-      fs.unlinkSync(lock);
-    }
+  });
+}
+
+function readSetupInput() {
+  const saved = JSON.parse(fs.readFileSync(0, "utf8"));
+  const nullablePath = (value) => value === null || (typeof value === "string" && path.isAbsolute(value));
+  const pathList = (value) => Array.isArray(value) && value.every((item) => typeof item === "string");
+  if (!isObject(saved) || typeof saved.root !== "string" || !path.isAbsolute(saved.root)
+    || !nullablePath(saved.runRoot) || !nullablePath(saved.worktree)
+    || !(saved.branch === null || typeof saved.branch === "string")
+    || ![null, "created", "reused", "attached", "in-run-worktree", "in-flight-main", "opt-out"].includes(saved.case)
+    || typeof saved.copied !== "boolean" || typeof saved.excludeAdded !== "boolean"
+    || !pathList(saved.notInRun) || !pathList(saved.left)
+    || !(saved.reason === null || typeof saved.reason === "string")) {
+    throw new Error("stdin must hold the original setup JSON object");
   }
+  return saved;
+}
+
+function checkAncestors(root, target) {
+  const relative = path.relative(root, target);
+  if (!relative || relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) {
+    throw new Error(`Source path escapes the project: ${target}`);
+  }
+  let parent = root;
+  for (const part of relative.split(path.sep).slice(0, -1)) {
+    parent = path.join(parent, part);
+    if (!fs.lstatSync(parent).isDirectory()) throw new Error(`Source ancestor is not a directory: ${parent}`);
+  }
+}
+
+function sourceEntries(root, change) {
+  const files = [];
+  const dirs = [];
+  const visit = (file) => {
+    checkAncestors(root, file);
+    let stat;
+    try { stat = fs.lstatSync(file); } catch (error) {
+      if (error.code === "ENOENT") return;
+      throw error;
+    }
+    if (stat.isDirectory()) {
+      dirs.push(file);
+      for (const name of fs.readdirSync(file).sort()) visit(path.join(file, name));
+    } else files.push({ file, rel: path.relative(root, file), stat });
+  };
+  try { visit(path.join(root, change)); } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  return { files, dirs };
+}
+
+function trackedPaths(top, change) {
+  const spec = `:(literal)${change}`;
+  return new Set([
+    ...gitText(["-C", top, "ls-files", "--cached", "-z", "--", spec]).split("\0"),
+    ...gitText(["-C", top, "ls-tree", "-r", "--name-only", "-z", "HEAD", "--", spec]).split("\0"),
+  ]);
+}
+
+const sameFile = (a, b) => ["dev", "ino", "mode", "size", "mtimeMs", "ctimeMs"].every((key) => a[key] === b[key]);
+
+function sourceHash(entry) {
+  const stat = fs.lstatSync(entry.file);
+  if (!stat.isFile() || !sameFile(stat, entry.stat)) return null;
+  const fd = fs.openSync(entry.file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  try {
+    if (!sameFile(fs.fstatSync(fd), entry.stat)) return null;
+    const hash = gitText(["hash-object", "--no-filters", "--stdin"], fs.readFileSync(fd));
+    return sameFile(fs.lstatSync(entry.file), entry.stat) ? hash : null;
+  } finally { fs.closeSync(fd); }
+}
+
+function cleanup(opts, result) {
+  if (fs.realpathSync(result.root) !== process.cwd()) throw new Error("Setup root differs from the invocation root");
+  if (result.reason !== null || result.runRoot === null) throw new Error("Setup did not succeed");
+  if (result.case !== "created" || result.copied !== true) return;
+  const branch = `agent-smith/${opts.id}`;
+  const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
+  const prefix = gitText(["rev-parse", "--show-prefix"]);
+  const top = gitText(["rev-parse", "--show-toplevel"]);
+  const common = gitText(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  withSetupLock(common, branch, () => {
+    const expected = path.join(result.root, ".claude/worktrees", `agent-smith-${opts.id}`);
+    if (result.branch !== branch || result.worktree !== expected
+      || result.runRoot !== path.resolve(expected, prefix) || result.runRoot === result.root
+      || fs.realpathSync(result.runRoot) !== result.runRoot) {
+      throw new Error("Cleanup roots, project prefix or branch differ from fresh setup");
+    }
+    checkAncestors(result.root, path.join(result.root, change));
+    const registered = registeredWorktree(branch);
+    const selectedTop = gitText(["-C", result.runRoot, "rev-parse", "--show-toplevel"]);
+    const selectedCommon = gitText(["-C", result.runRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+    const selectedBranch = gitText(["-C", result.runRoot, "symbolic-ref", "--quiet", "--short", "HEAD"]);
+    if (registered === null || fs.realpathSync(registered) !== fs.realpathSync(expected)
+      || fs.realpathSync(selectedTop) !== fs.realpathSync(expected)
+      || fs.realpathSync(selectedCommon) !== fs.realpathSync(common) || selectedBranch !== branch
+      || gitText(["-C", result.runRoot, "rev-parse", "--show-prefix"]) !== prefix) {
+      throw new Error("Cleanup run is not the registered worktree of this repository and branch");
+    }
+    const meta = readPolicy(path.join(result.runRoot, change, "agent-smith/meta.json"));
+    const sha = meta.startCommit;
+    if (meta.id !== opts.id || meta.isolated !== true || meta.branch !== branch
+      || (meta.chain ?? "10x") !== opts.chain || meta.outcome?.action === "halt"
+      || typeof sha !== "string" || !/^[0-9a-f]{40,64}$/.test(sha)) {
+      throw new Error("Cleanup needs a successful isolated init with a retained start commit");
+    }
+    if (gitText(["-C", result.runRoot, "rev-parse", "--verify", `${sha}^{commit}`]) !== sha) {
+      throw new Error("Start commit does not resolve to the recorded commit");
+    }
+    checked(git(["-C", result.runRoot, "merge-base", "--is-ancestor", sha, `refs/heads/${branch}`]), "retain start commit on run branch");
+    const fullChange = `${prefix}${change}`;
+    const retained = new Map();
+    for (const row of gitText(["-C", top, "ls-tree", "-r", "-z", sha, "--", `:(literal)${fullChange}`]).split("\0")) {
+      const match = row.match(/^(100644|100755) blob ([0-9a-f]+)\t([\s\S]+)$/);
+      if (match) retained.set(match[3], match[2]);
+    }
+    const { files, dirs } = sourceEntries(result.root, change);
+    const tracked = trackedPaths(top, fullChange);
+    // Validate the complete list before the first unlink. Read blobs only from the immutable start commit.
+    const approved = files.filter((entry) => entry.stat.isFile() && !tracked.has(`${prefix}${entry.rel}`)
+      && retained.has(`${prefix}${entry.rel}`) && sourceHash(entry) === retained.get(`${prefix}${entry.rel}`));
+    for (const entry of approved) {
+      checkAncestors(result.root, entry.file);
+      if (trackedPaths(top, fullChange).has(`${prefix}${entry.rel}`)
+        || sourceHash(entry) !== retained.get(`${prefix}${entry.rel}`)) continue;
+      checkAncestors(result.root, entry.file);
+      if (!sameFile(fs.lstatSync(entry.file), entry.stat)) continue;
+      fs.unlinkSync(entry.file);
+    }
+    for (const dir of dirs.reverse()) {
+      checkAncestors(result.root, dir);
+      if (!fs.lstatSync(dir).isDirectory()) throw new Error(`Source directory changed: ${dir}`);
+      try { fs.rmdirSync(dir); } catch (error) {
+        if (!["ENOTEMPTY", "EEXIST", "ENOENT"].includes(error.code)) throw error;
+      }
+    }
+  });
 }
 
 function main() {
   let opts;
-  try { opts = parseArgs(process.argv.slice(2)); } catch (error) {
+  let saved;
+  try {
+    opts = parseArgs(process.argv.slice(2));
+    if (opts.cleanup) saved = readSetupInput();
+  } catch (error) {
     process.stderr.write(`${firstLine(error.message)}\n${USAGE}\n`);
     process.exitCode = 2;
     return;
   }
-  const result = { root: process.cwd(), runRoot: null, worktree: null, branch: null,
+  const result = saved ? { ...saved, left: [] } : { root: process.cwd(), runRoot: null, worktree: null, branch: null,
     case: null, copied: false, excludeAdded: false, notInRun: [], left: [], reason: null };
-  try { prepare(opts, result); } catch (error) {
+  try {
+    if (opts.cleanup) cleanup(opts, result);
+    else prepare(opts, result);
+  } catch (error) {
     result.runRoot = null;
     result.reason = firstLine(error.message, 1000) || "Run setup failed";
+  }
+  if (opts.cleanup && saved.case === "created" && saved.copied === true) {
+    const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
+    try {
+      const { files, dirs } = sourceEntries(process.cwd(), change);
+      result.left = [...files.map((entry) => entry.rel),
+        ...dirs.filter((dir) => fs.readdirSync(dir).length === 0).map((dir) => path.relative(process.cwd(), dir))].sort();
+    } catch (error) {
+      result.left = [change];
+      result.runRoot = null;
+      result.reason = firstLine(`${result.reason ?? ""} Surviving paths could not be listed: ${error.message}`, 1000);
+    }
   }
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }

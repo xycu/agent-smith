@@ -228,19 +228,19 @@ After complete source cleanup, invoke the skill from the original checkout as be
 
 #### Automated
 
-- [x] 1.1 Both-chain init regressions reject matching live/archive pairs without changing files, index, refs or existing router temps.
-- [x] 1.2 Archived-only and half-archived guards, suffix/date matching, chain selection and ordinary fresh/resumed initialization retain their specified behavior.
-- [x] 1.3 The required complete repository test suite passes after the router change.
+- [x] 1.1 Both-chain init regressions reject matching live/archive pairs without changing files, index, refs or existing router temps. — e92775b
+- [x] 1.2 Archived-only and half-archived guards, suffix/date matching, chain selection and ordinary fresh/resumed initialization retain their specified behavior. — e92775b
+- [x] 1.3 The required complete repository test suite passes after the router change. — e92775b
 
 ### Phase 2: Add verified post-init source cleanup
 
 #### Automated
 
-- [ ] 2.1 Both chains remove only identical untracked regular files after a real retained start commit and prune only empty source directories.
-- [ ] 2.2 Tracked, edited, additional, unsupported and unretained paths survive with accurate `left` reporting across root and nested-project fixtures.
-- [ ] 2.3 Resume cases and failed retention or identity checks delete nothing, including deterministic source-change and partial-failure regressions.
-- [ ] 2.4 Existing setup policy, copy fidelity, concurrency, command restrictions and runtime error tests pass alongside the cleanup tests.
-- [ ] 2.5 The required complete repository test suite passes after the setup-script change.
+- [x] 2.1 Both chains remove only identical untracked regular files after a real retained start commit and prune only empty source directories.
+- [x] 2.2 Tracked, edited, additional, unsupported and unretained paths survive with accurate `left` reporting across root and nested-project fixtures.
+- [x] 2.3 Resume cases and failed retention or identity checks delete nothing, including deterministic source-change and partial-failure regressions.
+- [x] 2.4 Existing setup policy, copy fidelity, concurrency, command restrictions and runtime error tests pass alongside the cleanup tests.
+- [x] 2.5 The required complete repository test suite passes after the setup-script change.
 
 ### Phase 3: Integrate both skills and document the lifecycle
 

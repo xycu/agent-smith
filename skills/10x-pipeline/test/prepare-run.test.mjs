@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { cleanupAll, makeProject, run, git, gitEnv, gitInit, ROUTE } from "./helpers.mjs";
+import { cleanupAll, makeProject, run, git, gitEnv, gitInit, ROUTE, planText, writeReview } from "./helpers.mjs";
 
 after(cleanupAll);
 const PREPARE_RUN = fileURLToPath(new URL("../scripts/prepare-run.mjs", import.meta.url));
@@ -66,7 +66,7 @@ function snapshot(file) {
 }
 
 // A Node wrapper delegates only the permitted commands to real Git, records argv, and can fail or pause a call.
-function wrapper(p, mode = "", match = "") {
+function wrapper(p, mode = "", match = "", mutation = null) {
   const bin = path.join(p.base, "wrapper");
   fs.mkdirSync(bin, { recursive: true });
   const log = path.join(bin, "commands.jsonl");
@@ -78,7 +78,7 @@ import { spawnSync } from "node:child_process";
 const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");
 const command = args[0] === "-C" ? args[2] : args[0];
-const allowed = ["rev-parse", "symbolic-ref", "show-ref", "status", "check-ignore", "worktree"];
+const allowed = ["rev-parse", "symbolic-ref", "show-ref", "status", "check-ignore", "worktree", "ls-files", "ls-tree", "merge-base", "hash-object"];
 if (!allowed.includes(command) || (command === "worktree" && !["add", "list"].includes(args[1]))) process.exit(99);
 const matched = args.join(" ").includes(${JSON.stringify(match)});
 if (${JSON.stringify(mode)} === "fail" && matched) { process.stderr.write("injected Git failure"); process.exit(70); }
@@ -86,7 +86,15 @@ if (${JSON.stringify(mode)} === "timeout" && matched) {
   process.on("SIGTERM", () => { fs.writeFileSync(${JSON.stringify(signal)}, "terminated"); process.exit(0); });
   setTimeout(() => process.exit(71), 130000);
 } else {
-  const res = spawnSync(${JSON.stringify(REAL_GIT)}, args, { env: process.env, encoding: "utf8" });
+  const mutation = ${JSON.stringify(mutation)};
+  if (${JSON.stringify(mode)} === "edit" && matched) {
+    const calls = fs.readFileSync(${JSON.stringify(log)}, "utf8").trim().split("\\n").map(JSON.parse);
+    if (calls.filter((call) => call.join(" ").includes(${JSON.stringify(match)})).length === mutation.after) {
+      fs.writeFileSync(mutation.file, mutation.text);
+    }
+  }
+  const res = spawnSync(${JSON.stringify(REAL_GIT)}, args, { env: process.env, encoding: "utf8",
+    input: command === "hash-object" ? fs.readFileSync(0) : undefined });
   if (${JSON.stringify(mode)} === "pause" && command === "worktree" && args[1] === "add" && res.status === 0) {
     fs.writeFileSync(${JSON.stringify(signal)}, "registered");
     const deadline = Date.now() + 90000;
@@ -380,9 +388,12 @@ test("operational failures return honest JSON and leave created resources intact
   assert.equal(failure.case, "created");
   assert.equal(failure.copied, false);
   assert.ok(failure.reason);
+  assert.equal(failure.worktree, null);
+  assert.equal(failure.excludeAdded, false);
+  assert.equal(git(missing, ["branch", "--list", "agent-smith/demo"]), "");
   fs.renameSync(`${missing.changeDir}-saved`, missing.changeDir);
-  const resumed = success(missing, "reused");
-  assert.equal(fs.existsSync(path.join(resumed.runRoot, relChange("10x"), "change.md")), false);
+  const resumed = success(missing, "created");
+  assert.equal(fs.existsSync(path.join(resumed.runRoot, relChange("10x"), "change.md")), true);
   const copy = fixture("10x", null, true);
   fs.unlinkSync(path.join(copy.changeDir, "change.md"));
   fs.mkdirSync(path.join(copy.changeDir, "change.md"));
@@ -522,3 +533,305 @@ test("real Git deadline returns failure JSON before the outer helper deadline", 
   assert.ok(Date.now() - start >= 120000);
   assert.equal(fs.readFileSync(w.signal, "utf8"), "terminated");
 });
+
+function cleanup(p, saved, { env = {}, input = JSON.stringify(saved), preload = null, args = [] } = {}) {
+  const res = spawnSync(process.execPath, [...(preload ? ["--import", preload] : []), PREPARE_RUN,
+    "demo", "--chain", p.chain, "--cleanup", ...args], {
+    cwd: p.root, env: { ...gitEnv(p), ...env }, input, encoding: "utf8", timeout: 120000,
+  });
+  let json;
+  try { json = JSON.parse(res.stdout); } catch { /* usage errors have no JSON */ }
+  return { ...res, json };
+}
+
+function cleanSuccess(p, saved, options) {
+  const res = cleanup(p, saved, options);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json?.reason, null, res.stdout);
+  assert.equal(res.json.runRoot, saved.runRoot);
+  return res.json;
+}
+
+function initialize(p, saved = success(p, "created"), flags = []) {
+  const res = run({ ...p, root: saved.runRoot }, ["init", "demo", "--goal", GOAL, "--chain", p.chain, ...flags], { env: gitEnv(p) });
+  assert.ok(["run", "done", "archive"].includes(res.json?.action), res.stdout + res.stderr);
+  const file = path.join(saved.runRoot, relChange(p.chain), "agent-smith/meta.json");
+  const meta = JSON.parse(fs.readFileSync(file));
+  assert.match(meta.startCommit, /^[0-9a-f]{40,64}$/);
+  return { saved, res, meta, file };
+}
+
+function originalState(p) {
+  return {
+    index: fs.readFileSync(path.join(p.base, ".git/index")),
+    config: fs.readFileSync(path.join(p.base, ".git/config")),
+    head: git(p, ["rev-parse", "HEAD"]),
+    branch: git(p, ["symbolic-ref", "HEAD"]),
+    refs: git(p, ["show-ref"]),
+  };
+}
+
+function blob(p, meta, file) {
+  const prefix = path.relative(p.base, p.root);
+  const name = path.posix.join(prefix.split(path.sep).join("/"), relChange(p.chain), file);
+  const res = spawnSync(REAL_GIT, ["show", `${meta.startCommit}:${name}`], { cwd: p.base, env: gitEnv(p) });
+  assert.equal(res.status, 0, res.stderr.toString());
+  return res.stdout;
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const nest of [null, "apps/widget", "apps/żółć [a]*? #! space"]) {
+    test(`${chain}: cleanup retains exact blobs and permits source-absent resume (${nest})`, () => {
+      const p = fixture(chain, nest);
+      const inputs = { "change.md": fs.readFileSync(path.join(p.changeDir, "change.md")),
+        "binary": Buffer.from([0, 255, 128, 13, 10]), ".hidden/nested/text": Buffer.from("retained żółć\n") };
+      for (const [file, bytes] of Object.entries(inputs)) {
+        fs.mkdirSync(path.dirname(path.join(p.changeDir, file)), { recursive: true });
+        fs.writeFileSync(path.join(p.changeDir, file), bytes);
+      }
+      fs.mkdirSync(path.join(p.changeDir, "empty/deep"), { recursive: true });
+      const { saved, meta } = initialize(p);
+      const state = originalState(p);
+      const beforeMeta = snapshot(path.join(saved.runRoot, relChange(chain), "agent-smith/meta.json"));
+      const w = wrapper(p);
+      assert.deepEqual(cleanSuccess(p, saved, { env: w.env }).left, []);
+      assert.equal(fs.existsSync(p.changeDir), false);
+      assert.deepEqual(originalState(p), state);
+      for (const [file, bytes] of Object.entries(inputs)) assert.deepEqual(blob(p, meta, file), bytes);
+      assert.deepEqual(cleanSuccess(p, saved).left, []);
+      const resumed = success(p, "reused");
+      assert.equal(resumed.runRoot, saved.runRoot);
+      assert.deepEqual(cleanSuccess(p, resumed).left, []);
+      assert.deepEqual(snapshot(path.join(saved.runRoot, relChange(chain), "agent-smith/meta.json")), beforeMeta);
+      const again = run({ ...p, root: resumed.runRoot }, ["init", "demo", "--chain", chain], { env: gitEnv(p) });
+      assert.match(again.json.reason, /Step 1 .* has no result/);
+      assert.deepEqual(originalState(p), state);
+    });
+  }
+
+  test(`${chain}: cleanup reports tracked, edited, additional, unretained and unsupported inputs`, () => {
+    const p = fixture(chain, "apps/widget", true);
+    const put = (file, text) => fs.writeFileSync(path.join(p.changeDir, file), text);
+    for (const name of ["tracked-same", "tracked-modified", "tracked-staged", "removed-index"]) put(name, name);
+    git(p, ["add", "--", path.relative(p.base, p.changeDir)]);
+    git(p, ["commit", "-qm", "retain tracked inputs"]);
+    put("tracked-modified", "modified");
+    put("tracked-staged", "staged");
+    git(p, ["add", "--", path.relative(p.base, path.join(p.changeDir, "tracked-staged"))]);
+    git(p, ["rm", "--cached", "--", path.relative(p.base, path.join(p.changeDir, "removed-index"))]);
+    for (const name of ["after-copy", "after-init", "unretained", "eligible"]) put(name, name);
+    fs.symlinkSync("../../../../tracked.txt", path.join(p.changeDir, "link"));
+    const saved = success(p, "created");
+    put("after-copy", "edited after copying");
+    fs.unlinkSync(path.join(saved.runRoot, relChange(chain), "unretained"));
+    const { meta } = initialize(p, saved);
+    put("after-init", "edited after init");
+    put("new", "new source input");
+    put("staged-add", "index owns this");
+    git(p, ["add", "--", path.relative(p.base, path.join(p.changeDir, "staged-add"))]);
+    assert.equal(spawnSync("mkfifo", [path.join(p.changeDir, "fifo")]).status, 0);
+    const retained = ["change.md", "tracked-same", "tracked-modified", "tracked-staged", "removed-index",
+      "after-copy", "after-init", "unretained", "link", "new", "staged-add", "fifo"];
+    const bytes = retained.filter((name) => !["link", "fifo"].includes(name)).map((name) => [name, snapshot(path.join(p.changeDir, name))]);
+    const state = originalState(p);
+    const out = cleanSuccess(p, saved);
+    assert.deepEqual(out.left, retained.map((name) => `${relChange(chain)}/${name}`).sort());
+    for (const [name, value] of bytes) assert.deepEqual(snapshot(path.join(p.changeDir, name)), value);
+    assert.equal(fs.lstatSync(path.join(p.changeDir, "link")).isSymbolicLink(), true);
+    assert.equal(fs.lstatSync(path.join(p.changeDir, "fifo")).isFIFO(), true);
+    assert.equal(fs.readFileSync(path.join(p.root, "tracked.txt"), "utf8"), "original\n");
+    assert.deepEqual(blob(p, meta, "eligible"), Buffer.from("eligible"));
+    assert.deepEqual(originalState(p), state);
+    assert.deepEqual(cleanSuccess(p, saved).left, out.left);
+  });
+
+  test(`${chain}: cleanup skips every valid resume, opt-out and in-flight result`, () => {
+    const p = fixture(chain);
+    const saved = success(p, "created");
+    const source = snapshot(path.join(p.changeDir, "change.md"));
+    cleanSuccess(p, success(p, "reused"));
+    const current = { ...p, root: saved.runRoot };
+    cleanSuccess(current, success(current, "in-run-worktree"));
+    assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), source);
+    const q = fixture(chain, null, true);
+    git(q, ["branch", "agent-smith/demo"]);
+    cleanSuccess(q, success(q, "attached"));
+    const flight = fixture(chain);
+    fs.mkdirSync(path.join(flight.changeDir, "agent-smith"));
+    fs.writeFileSync(path.join(flight.changeDir, "agent-smith/meta.json"), "{}");
+    cleanSuccess(flight, success(flight, "in-flight-main"));
+    override(flight, { isolation: { require: false } });
+    cleanSuccess(flight, success(flight, "opt-out"));
+    assert.ok(fs.existsSync(path.join(flight.changeDir, "change.md")));
+    const absent = fixture(chain, null, true);
+    git(absent, ["branch", "agent-smith/demo"]);
+    fs.renameSync(absent.changeDir, `${absent.changeDir}-saved`);
+    const attached = success(absent, "attached");
+    assert.ok(fs.existsSync(path.join(attached.runRoot, relChange(chain), "change.md")));
+  });
+
+  test(`${chain}: cleanup requires successful init and reachable isolated start-commit metadata`, () => {
+    const p = fixture(chain);
+    const saved = success(p, "created");
+    const before = snapshot(path.join(p.changeDir, "change.md"));
+    assert.ok(cleanup(p, saved).json.reason);
+    assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), before);
+    const { meta, file } = initialize(p, saved);
+    const orphan = git(p, ["commit-tree", git(p, ["rev-parse", "HEAD^{tree}"]), "-m", "unreachable start"]);
+    for (const patch of [{ startCommit: undefined }, { startCommit: null }, { startCommit: "HEAD" },
+      { startCommit: "a".repeat(40) }, { startCommit: orphan }, { isolated: false },
+      { branch: "agent-smith/other" }, { chain: chain === "10x" ? "openspec" : "10x" }, { outcome: { action: "halt" } }]) {
+      fs.writeFileSync(file, JSON.stringify({ ...meta, ...patch }));
+      const out = cleanup(p, saved);
+      assert.equal(out.status, 0, out.stderr);
+      assert.ok(out.json.reason, JSON.stringify(patch));
+      assert.equal(out.json.runRoot, null);
+      assert.deepEqual(out.json.left, [`${relChange(chain)}/change.md`]);
+      assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), before);
+    }
+    fs.writeFileSync(file, JSON.stringify(meta));
+    assert.deepEqual(cleanSuccess(p, saved).left, []);
+  });
+
+  test(`${chain}: cleanup rejects malformed input and wrong roots, prefix, branch and repository`, () => {
+    const p = fixture(chain);
+    const { saved } = initialize(p);
+    const before = snapshot(path.join(p.changeDir, "change.md"));
+    const w = wrapper(p);
+    for (const input of ["{", "null", "[]", "{}", JSON.stringify({ ...saved, copied: "true" }), JSON.stringify({ ...saved, left: null })]) {
+      const res = cleanup(p, saved, { input, env: w.env });
+      assert.equal(res.status, 2, res.stderr);
+      assert.equal(res.stdout, "");
+    }
+    assert.equal(fs.existsSync(w.log), false);
+    const other = fixture(chain);
+    const elsewhere = success(other, "created");
+    for (const patch of [{ root: other.root }, { branch: "agent-smith/other" }, { worktree: p.root },
+      { runRoot: path.join(saved.runRoot, "context") }, { worktree: elsewhere.worktree, runRoot: elsewhere.runRoot }]) {
+      const res = cleanup(p, { ...saved, ...patch });
+      assert.ok(res.json.reason, JSON.stringify(patch));
+      assert.equal(res.json.runRoot, null);
+      assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), before);
+    }
+    // The saved paths can still match after another repository replaces the registered checkout.
+    fs.renameSync(saved.worktree, `${saved.worktree}-saved`);
+    fs.mkdirSync(saved.worktree);
+    git(p, ["-C", saved.worktree, "init", "-q"]);
+    assert.ok(cleanup(p, saved).json.reason);
+    assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), before);
+  });
+
+  test(`${chain}: cleanup preserves sources behind symlinked ancestors`, () => {
+    const p = fixture(chain);
+    const { saved } = initialize(p);
+    const parent = path.dirname(p.changeDir);
+    fs.renameSync(parent, `${parent}-saved`);
+    fs.symlinkSync(`${parent}-saved`, parent);
+    const file = path.join(`${parent}-saved`, "demo/change.md");
+    const before = snapshot(file);
+    const out = cleanup(p, saved);
+    assert.ok(out.json.reason);
+    assert.deepEqual(snapshot(file), before);
+    assert.deepEqual(out.json.left, [relChange(chain)]);
+  });
+
+  test(`${chain}: cleanup rechecks edits made after candidate enumeration`, () => {
+    const p = fixture(chain);
+    const { saved } = initialize(p);
+    const file = path.join(p.changeDir, "change.md");
+    const w = wrapper(p, "edit", "hash-object", { after: 2, file, text: "concurrent source edit" });
+    const out = cleanSuccess(p, saved, { env: w.env });
+    assert.deepEqual(out.left, [`${relChange(chain)}/change.md`]);
+    assert.equal(fs.readFileSync(file, "utf8"), "concurrent source edit");
+    assert.deepEqual(cleanSuccess(p, saved).left, out.left);
+  });
+
+  test(`${chain}: cleanup failures report survivors and retain every deleted byte`, () => {
+    for (const fault of ["read", "lookup", "unlink", "rmdir", "list", "lock"]) {
+      const p = fixture(chain);
+      for (const name of ["a", "b"]) fs.writeFileSync(path.join(p.changeDir, name), name);
+      const { saved, meta } = initialize(p);
+      let options = {};
+      if (fault === "lookup") options.env = wrapper(p, "fail", "ls-tree").env;
+      else if (fault === "lock") fs.writeFileSync(path.join(p.base, ".git/agent-smith-setup-agent-smith%2Fdemo.lock"), "keep lock");
+      else {
+        const method = { read: "openSync", unlink: "unlinkSync", rmdir: "rmdirSync", list: "readdirSync" }[fault];
+        const target = ["rmdir", "list"].includes(fault) ? p.changeDir : path.join(p.changeDir, "b");
+        const preload = path.join(p.base, "fault.mjs");
+        fs.writeFileSync(preload, `import fs from "node:fs";
+const original = fs.${method};
+fs.${method} = function(file, ...args) {
+  if (file === ${JSON.stringify(target)}) throw Object.assign(new Error("injected ${fault} failure"), {code: "EACCES"});
+  return original.call(this, file, ...args);
+};`);
+        options.preload = preload;
+      }
+      const out = cleanup(p, saved, options);
+      assert.equal(out.status, 0, out.stderr);
+      assert.equal(out.json.runRoot, null);
+      assert.match(out.json.reason, /injected|Setup lock exists/);
+      if (fault === "rmdir") {
+        assert.deepEqual(out.json.left, [relChange(chain)]);
+      } else if (fault === "unlink") {
+        assert.equal(fs.existsSync(path.join(p.changeDir, "a")), false);
+        assert.deepEqual(out.json.left, ["b", "change.md"].map((name) => `${relChange(chain)}/${name}`));
+      } else {
+        assert.equal(fs.readFileSync(path.join(p.changeDir, "a"), "utf8"), "a");
+        assert.equal(fs.readFileSync(path.join(p.changeDir, "b"), "utf8"), "b");
+        assert.ok(out.json.left.length);
+      }
+      assert.deepEqual(blob(p, meta, "a"), Buffer.from("a"));
+    }
+  });
+
+  test(`${chain}: absent fresh inputs create no resources and keep archive diagnostics`, () => {
+    const p = fixture(chain);
+    fs.renameSync(p.changeDir, `${p.changeDir}-saved`);
+    const archive = `${chain === "openspec" ? "openspec/changes/archive" : "context/archive"}/2026-11-14-demo`;
+    fs.mkdirSync(path.join(p.root, archive), { recursive: true });
+    fs.writeFileSync(path.join(p.root, archive, "change.md"), "---\nstatus: archived\n---\n");
+    const state = originalState(p);
+    const exclude = snapshot(path.join(p.base, ".git/info/exclude"));
+    const out = setup(p);
+    assert.ok(out.reason);
+    assert.equal(out.runRoot, null);
+    assert.equal(out.worktree, null);
+    assert.deepEqual(originalState(p), state);
+    assert.deepEqual(snapshot(path.join(p.base, ".git/info/exclude")), exclude);
+    assert.equal(fs.existsSync(path.join(p.root, ".claude")), false);
+    assert.equal(run(p, ["verify-archive", "demo", "--chain", chain]).json.archived, true);
+  });
+
+  test(`${chain}: halted duplicate initialization preserves the original copy`, () => {
+    const p = fixture(chain);
+    const saved = success(p, "created");
+    const archive = chain === "openspec" ? "openspec/changes/archive" : "context/archive";
+    fs.mkdirSync(path.join(saved.runRoot, archive, "2026-11-14-demo"), { recursive: true });
+    const before = snapshot(path.join(p.changeDir, "change.md"));
+    const result = run({ ...p, root: saved.runRoot }, ["init", "demo", "--chain", chain, "--goal", GOAL], { env: gitEnv(p) });
+    assert.equal(result.json.action, "halt");
+    assert.match(result.json.reason, /live folder .* next to archive/);
+    assert.ok(cleanup(p, saved).json.reason);
+    assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), before);
+    assert.equal(success(p, "reused").runRoot, saved.runRoot);
+    assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), before);
+  });
+}
+
+for (const archive of [false, true]) {
+  test(`10x: cleanup follows immediate ${archive ? "archive" : "done"} initialization`, () => {
+    const p = fixture();
+    fs.writeFileSync(path.join(p.changeDir, "change.md"), "---\nchange_id: demo\nstatus: planned\ncreated: 2026-11-14\n---\n");
+    fs.writeFileSync(path.join(p.changeDir, "plan.md"), planText({ done: 1 }));
+    writeReview(p, "plan-review", { verdict: "SOUND" });
+    writeReview(p, "impl-review", { verdict: "APPROVED" });
+    const time = Date.now() / 1000;
+    fs.utimesSync(path.join(p.changeDir, "reviews/plan-review.md"), time + 2, time + 2);
+    fs.utimesSync(path.join(p.changeDir, "reviews/impl-review.md"), time + 4, time + 4);
+    const { saved, res, meta } = initialize(p, undefined, archive ? ["--archive"] : []);
+    assert.equal(res.json.action, archive ? "archive" : "done", res.stdout);
+    assert.deepEqual(cleanSuccess(p, saved).left, []);
+    assert.equal(fs.existsSync(p.changeDir), false);
+    assert.ok(blob(p, meta, "plan.md").includes(Buffer.from("- [x]")));
+  });
+}
