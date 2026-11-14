@@ -47,5 +47,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal hard"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 On a compatible Claude host, record version, exposed Agent model/effort support and successful foreground fable high/xhigh invocations; verify an older host without the opt-in continues to use the default ladder."
+    ],
+    "manualNotProved": [
+      "2.4 On a compatible Claude host, record version, exposed Agent model/effort support and successful foreground fable high/xhigh invocations; verify an older host without the opt-in continues to use the default ladder. — not proved: Fresh claude --version reports 2.1.311 and claude --help advertises fable plus high/xhigh session options. The OpenAI runner exposes no Claude Agent tool or live schema, and the unattended rules forbi"
+    ]
   }
 }
