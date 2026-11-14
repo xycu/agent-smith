@@ -6,6 +6,8 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// The OpenSpec chain's skill folder: its policy fragment, prompts, rules and module (ADR-013 Amendment 1).
+export const OPENSPEC_DIR = path.resolve(SKILL_DIR, "../openspec-pipeline");
 export const ROOT = process.cwd();
 
 export function out(obj, code = 0) {
@@ -47,9 +49,20 @@ export function readJson(file, fallback) {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return fallback; }
 }
 
-// policy.json deep-merged with the project override. null when policy.json is unreadable; each caller decides.
-function mergedPolicy(onError = halt) {
+// The plugin policy: the 10x policy.json deep-merged with the OpenSpec fragment (skills/openspec-pipeline/policy.json,
+// the os- steps and prompts; ADR-013 Amendment 1), without the project override. null when either file is unreadable
+// or not an object.
+export function pluginPolicy() {
   const base = readJson(path.join(SKILL_DIR, "policy.json"), null);
+  const fragment = readJson(path.join(OPENSPEC_DIR, "policy.json"), null);
+  if (!isObject(base) || !isObject(fragment)) return null;
+  return deepMerge(base, fragment);
+}
+
+// The plugin policy deep-merged with the project override. null when a plugin policy file is unreadable; each caller
+// decides.
+function mergedPolicy(onError = halt) {
+  const base = pluginPolicy();
   if (!base) return null;
   const file = path.join(ROOT, "context/foundation/agent-smith-policy.json");
   if (!fs.existsSync(file)) return base;
@@ -67,7 +80,11 @@ function mergedPolicy(onError = halt) {
 
 export function loadPolicy(onError = halt) {
   const policy = mergedPolicy(onError);
-  if (!policy) onError(`Cannot read ${path.join(SKILL_DIR, "policy.json")}`);
+  if (!policy) {
+    const files = [path.join(SKILL_DIR, "policy.json"), path.join(OPENSPEC_DIR, "policy.json")];
+    const bad = files.filter((file) => !isObject(readJson(file, null)));
+    onError(`Cannot read ${(bad.length ? bad : files).join(" or ")}`);
+  }
   return policy;
 }
 
@@ -491,6 +508,11 @@ export function readMeta(file, fallback) {
   return m && typeof m === "object" && !Array.isArray(m) ? m : fallback;
 }
 
+// The --pr-comment request of init, as the end-of-run outputs and status carry it: present only as true.
+export function prCommentField(meta) {
+  return meta?.prComment === true ? { prComment: true } : {};
+}
+
 export function writeLog(file, entries) {
   fs.writeFileSync(file, entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
 }
@@ -678,6 +700,14 @@ export function globToRegex(glob) {
   return new RegExp(`^${re}$`);
 }
 
+// The churn exclude globs as regexes: the override's list, else the shipped one, else none. Independent of the other churn keys.
+export function churnExcludes(policy) {
+  let exclude = policy.risk?.churn?.exclude;
+  if (!Array.isArray(exclude)) exclude = readJson(path.join(SKILL_DIR, "policy.json"), {}).risk?.churn?.exclude;
+  if (!Array.isArray(exclude)) exclude = [];
+  return exclude.filter((g) => typeof g === "string").map(globToRegex);
+}
+
 // Validated churn settings, or null when the block is unusable. A bad exclude falls back to the shipped list.
 export function churnConfig(policy) {
   const c = policy.risk?.churn;
@@ -686,10 +716,7 @@ export function churnConfig(policy) {
   if (typeof c.since !== "string" || !SINCE_RE.test(c.since)) return null;
   if (!posInt(c.maxCommits) || !posInt(c.minCommitsInWindow) || !posInt(c.hotMinCommits)) return null;
   if (!Number.isFinite(c.hotPercentile) || c.hotPercentile <= 0 || c.hotPercentile > 100) return null;
-  let exclude = c.exclude;
-  if (!Array.isArray(exclude)) exclude = readJson(path.join(SKILL_DIR, "policy.json"), {}).risk?.churn?.exclude;
-  if (!Array.isArray(exclude)) exclude = [];
-  return { ...c, exclude: exclude.filter((g) => typeof g === "string").map(globToRegex) };
+  return { ...c, exclude: churnExcludes(policy) };
 }
 
 // Commits per path from `git log`, or null when git fails. `since` null means all history.

@@ -1,0 +1,6 @@
+Scratch project (git init, context/changes/x/change.md, isolation.require=false)
+$ node skills/10x-pipeline/scripts/route.mjs init x --goal x --pr-comment   -> action: "run", step plan, "prComment": true
+$ node skills/10x-pipeline/scripts/route.mjs status x | grep -n prComment
+4:  "prComment": true,
+$ grep prComment context/changes/x/agent-smith/meta.json
+  "prComment": true,

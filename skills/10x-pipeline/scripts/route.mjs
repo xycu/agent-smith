@@ -4,7 +4,7 @@
 // review verdicts) plus the run log. The orchestrator never picks a model itself.
 //
 // Usage (run from the project root):
-//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome [false]]   # Chrome is on unless --chrome false
+//   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome [false]] [--pr-comment [false]]   # Chrome is on unless --chrome false
 //   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
@@ -15,7 +15,8 @@
 //   Every command takes --chain 10x|openspec. Without it, a run whose openspec/changes/<id>/agent-smith/meta.json
 //   (or that of its archive folder) holds chain "openspec" is an OpenSpec run; any other run is 10x.
 //
-// Policy: <skill>/policy.json, deep-merged with context/foundation/agent-smith-policy.json if present.
+// Policy: <skill>/policy.json and skills/openspec-pipeline/policy.json, deep-merged with
+// context/foundation/agent-smith-policy.json if present. Always-true rules: <skill>/rules/ (ADR-023).
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -24,13 +25,14 @@ import {
   readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
   providerOf, hostOf, hostProblem, dispatchTarget,
+  prCommentField,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
-import { readOpenspec, decideOpenspec, missingChangeReason } from "./openspec.mjs";
+import { readOpenspec, decideOpenspec, missingChangeReason } from "../../openspec-pipeline/scripts/openspec.mjs";
 import {
   writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
-  advisorOn, neutralRetry, cleanUsage, dispatchProblem,
+  advisorOn, neutralRetry, cleanUsage, dispatchProblem, ruleTail, checkRules,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
@@ -64,6 +66,17 @@ function undoRollback(p, meta, log, rb) {
 // A 10x run needs change.md (same text as decide in flow.mjs); halt before any write of init, next and status --report.
 function haltNoChangeMd(p, id) {
   if (!fs.existsSync(path.join(p.change, "change.md"))) halt(`No change folder. Run /10x-new ${id} first.`);
+}
+
+// A rule file that cannot be read (a missing rules/top.md, a folder in place of a file) as a halt text, else null, so
+// init, next and usage halt on a broken install before anything is written (ADR-023).
+function ruleProblem(policy) {
+  try {
+    checkRules(policy);
+    return null;
+  } catch (e) {
+    return `${e instanceof Error ? e.message : String(e)}. Restore the plugin file. Nothing was written.`;
+  }
 }
 
 function next(id, policy, chain = "10x") {
@@ -194,12 +207,13 @@ function next(id, policy, chain = "10x") {
     lessonMax: String(lessonLimits(policy).maxCandidates), lessonChars: String(lessonLimits(policy).maxChars),
     findings: d.findings ?? "",
   };
-  // The working-directory rules of an isolated run (meta.isolated), the rendered template, then the advisor rules for a
-  // listed template (advisor.enabled), then the generic suffix.
+  // The working-directory rules of an isolated run (meta.isolated), the rendered template (the step defaults), then the
+  // advisor rules for a listed template (advisor.enabled), then the rule tail (ADR-023): the chain defaults, the generic
+  // defaults (prompts.suffix), the always-true step and chain files and rules/top.md last.
   const advisor = advisorOn(policy, template);
   const prompt = worktreeLine(policy, meta) + render(promptText(policy, template), vars).trim()
     + (advisor ? "\n\n" + render(promptText(policy, "advisor"), vars).trim() : "")
-    + "\n\n" + promptText(policy, "suffix");
+    + "\n\n" + ruleTail(policy, { chain, step: d.step, vars });
   const agent = stepAgent(policy, d.step);
   const entry = {
     n: ran.length + 1,
@@ -659,11 +673,12 @@ function status(id, flags, chain = "10x", policy = null) {
   // The cost estimate, only when the merged policy prices a model; without prices status has no cost key.
   const prices = loadPrices();
   const cost = prices ? estimateCost(executed(log), prices) : null;
+  const stored = readMeta(p.meta, {});
   const res = {
     change: id,
-    host: hostOf(readMeta(p.meta, {})),
-    prComment: readMeta(p.meta, {}).prComment === true,
-    rigor: readMeta(p.meta, {}).rigor?.level ?? null,
+    host: hostOf(stored),
+    rigor: stored.rigor?.level ?? null,
+    ...prCommentField(stored),
     steps: log.map((e) => e.skipped ? {
       skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null,
       ...(e.score ? { score: e.score } : {}),
@@ -854,7 +869,7 @@ const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "pr-c
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest, ["goal"]);
   // --chain is checked before anything is read.
@@ -870,7 +885,7 @@ function main() {
   const policy = loadPolicy();
   // A malformed cap, ladder or tier halts before the chain, the run lock or any write.
   if (["init", "next", "usage"].includes(cmd)) {
-    const bad = policyProblems(policy) ?? promptProblem(policy);
+    const bad = policyProblems(policy) ?? promptProblem(policy) ?? ruleProblem(policy);
     if (bad) halt(bad);
   }
   const chain = resolveChain(cmd, id, flags);

@@ -8,7 +8,7 @@ import {
   readLogEntries, readMetaFile, readReportFile, planText,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
-import { makeOpenspecProject, writeArtifacts } from "./openspec-helpers.mjs";
+import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { codexFixture, execute, calls, setMode, runnerLeftovers } from "./codex-helpers.mjs";
 
 after(cleanupAll);

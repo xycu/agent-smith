@@ -8,7 +8,7 @@ import {
   planText, gitInit, gitEnv, commitFiles,
 } from "./helpers.mjs";
 import { writeReview } from "./ahead.mjs";
-import { makeOpenspecProject, writeArtifacts } from "./openspec-helpers.mjs";
+import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
 after(cleanupAll);
 const PASS = "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n";
@@ -45,7 +45,7 @@ for (const chain of ["10x", "openspec"]) {
       const project = projectFor(chain);
       assert.equal(start(project, flags).json.action, "run");
       assert.equal(readMetaFile(project).prComment, expected);
-      assert.equal(run(project, ["status", project.id, "--chain", chain]).json.prComment, expected);
+      assert.equal(run(project, ["status", project.id, "--chain", chain]).json.prComment, expected ? true : undefined);
     }
   });
 
@@ -57,7 +57,7 @@ for (const chain of ["10x", "openspec"]) {
     start(project, ["--pr-comment", "false"]);
     start(project);
     assert.equal(readMetaFile(project).prComment, false);
-    assert.equal(run(project, ["status", project.id, "--chain", chain]).json.prComment, false);
+    assert.equal(Object.hasOwn(run(project, ["status", project.id, "--chain", chain]).json, "prComment"), false);
   });
 
   test(`${chain}: malformed PR intent is refused before changing run state`, () => {

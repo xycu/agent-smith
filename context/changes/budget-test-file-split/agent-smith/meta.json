@@ -1,0 +1,56 @@
+{
+  "id": "budget-test-file-split",
+  "goal": "Split skills/10x-pipeline/test/budget-executors.test.mjs into about four test files and move its walkers (walkFixture, walkAware) and fixtures into a helper module next to phase-helpers.mjs, with no test body changes, so the suite's CI wall time falls under 90 seconds with the same tests; update the test index README. Scope and details in context/changes/budget-test-file-split/change.md. Done when the same test names pass, the total number of tests is unchanged, and the full suite passes locally.",
+  "isolated": true,
+  "branch": "agent-smith/budget-test-file-split",
+  "baseSha": "a506d638d72d1c47fd9e25fc8f004faa99953b07",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.7.0",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "abc849dc039be5b6",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "complexity": "997fa59224abe417",
+      "escalation": "1222803c4bfef379",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "isolation": "cda0720f290e645e",
+      "ladder": "6d379f1181bd2624",
+      "lessons": "92d849fccafd0527",
+      "limits": "a39ce9aad2987e71",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "e78c59492c84ced5",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "score": "dc16b78fdf08a0df",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  },
+  "startCommit": "67ae87d99b390cf4eb35d62eb743da82f4142fc1",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.7 After the PR runs in CI, the suite `duration_ms` is under 90 s, with both figures noted in the PR"
+    ],
+    "manualNotProved": [
+      "2.7 After the PR runs in CI, the suite `duration_ms` is under 90 s, with both figures noted in the PR — not proved: needs the CI run of the pull request, which does not exist until this run ends and opens the PR; local timing is not the CI figure"
+    ]
+  }
+}

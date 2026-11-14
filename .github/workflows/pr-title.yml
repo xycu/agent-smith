@@ -9,7 +9,7 @@ name: PR title
 # and a required check would never report on it. A manual "re-run" replays the old title; an edit
 # starts a fresh run with the new one.
 # The title reaches the script through `env:`, never through a `${{ }}` expression in `run:`.
-# Runner: as in ci.yml (ADR-020), with the uid guard as the first step.
+# Runner: as in ci.yml (ADR-020), with the uid guard as the first step. Timeout: 15 minutes, as in ci.yml.
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -25,6 +25,7 @@ jobs:
   title:
     name: Conventional PR title
     runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}
+    timeout-minutes: 15
     steps:
       - name: Refuse to run as root (ADR-020)
         run: test "$(id -u)" -ne 0 || { echo "::error::the runner runs this job as uid 0; ADR-020 requires a non-root service user"; exit 1; }

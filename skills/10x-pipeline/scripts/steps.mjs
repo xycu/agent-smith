@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  SKILL_DIR, readJson, isFailure, trailingFailures, goalClass, isObject, atOrAbove, SHA_RE, runGit, gitOut,
-  globToRegex, churnConfig, planFileTokens, guardedStat,
+  isFailure, trailingFailures, goalClass, isObject, atOrAbove, SHA_RE, runGit, gitOut,
+  globToRegex, churnExcludes, planFileTokens, guardedStat,
 } from "./state.mjs";
 import { readText, goalPhrase, predicate, scoreShift } from "./preplan.mjs";
 
@@ -33,14 +33,6 @@ export function beforeExtra(policy, template, plan) {
   return { head: SHA_RE.test(head) ? head : null, done: doneIds(plan) };
 }
 
-// The churn exclude globs as regexes; the shipped list when the override is unusable.
-function evidenceExcludes(policy) {
-  const cfg = churnConfig(policy);
-  if (cfg) return cfg.exclude;
-  const shipped = readJson(path.join(SKILL_DIR, "policy.json"), {}).risk?.churn?.exclude;
-  return (Array.isArray(shipped) ? shipped : []).filter((g) => typeof g === "string").map(globToRegex);
-}
-
 // Is there a code commit in before.head..HEAD? null: no check possible (no head recorded, no repository, unknown
 // commit), the count rule applies. false: no counted commit, or a SHA suffix of `ids` names no counted commit.
 // true otherwise. A commit counts when it touched a path outside the change folder that the churn exclude globs
@@ -55,7 +47,7 @@ function commitEvidence(before, ids, plan, id, policy) {
   if (log.status !== 0) return null;
   // Output: \x01<sha>\x01, then \0, an optional \n, and the paths separated by \0.
   const parts = log.stdout.split("\x01");
-  const exclude = evidenceExcludes(policy);
+  const exclude = churnExcludes(policy);
   const prefix = `context/changes/${id}/`;
   const counted = [];
   for (let i = 1; i + 1 < parts.length; i += 2) {
@@ -676,9 +668,11 @@ export const PROMPT_PLACEHOLDERS = [
 ];
 
 // Templates the router renders with fewer names than a step prompt gets (isolation.mjs render sites), and the names
-// each one is given. `suffix` is appended without render(). promptProblem checks these against their own list.
+// each one is given. `suffix` is appended without render(). The chain defaults (chain-10x, chain-openspec) get only
+// `id`, because the archive site fills nothing else. promptProblem checks these against their own list.
 export const NARROW_PLACEHOLDERS = {
   archive: ["id"], "os-archive": ["id"], "frame-authority": ["id"], worktree: ["workdir"], suffix: [],
+  "chain-10x": ["id"], "chain-openspec": ["id"],
 };
 
 export function render(tpl, vars) {

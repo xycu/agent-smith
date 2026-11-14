@@ -240,12 +240,14 @@ test("guard: no scanned file uses a recursive or forced directory delete", () =>
 });
 
 test("guard: the rule stays where agents read it", () => {
+  // The rule lives in the always-true rules/top.md (ADR-023), which no policy key or project override changes.
   const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
-  const suffix = policy.prompts.suffix.split("\n");
-  assert.ok(suffix.some((l) => l.includes("**GIVEN**") && l.includes("**MUST NOT**") && l.includes("`rm -rf`") && l.includes("recursive: true")), "suffix ban");
-  assert.ok(suffix.some((l) => l.includes("**GIVEN**") && l.includes("**MUST**") && l.includes("one by one") && l.includes("`rmdir`") && l.includes("deepest first")), "suffix procedure");
-  const ban = suffix.findIndex((l) => l.includes("`rm -rf`"));
-  assert.ok(ban < suffix.findIndex((l) => l.startsWith("RESULT:")), "rules come before the RESULT instructions");
+  assert.ok(!policy.prompts.suffix.includes("`rm -rf`"), "the overridable suffix no longer carries the ban");
+  const top = fs.readFileSync(path.join(SKILL_DIR, "rules/top.md"), "utf8").split("\n");
+  assert.ok(top.some((l) => l.includes("**GIVEN**") && l.includes("**MUST NOT**") && l.includes("`rm -rf`") && l.includes("recursive: true")), "top.md ban");
+  assert.ok(top.some((l) => l.includes("**GIVEN**") && l.includes("**MUST**") && l.includes("one by one") && l.includes("`rmdir`") && l.includes("deepest first")), "top.md procedure");
+  const ban = top.findIndex((l) => l.includes("`rm -rf`"));
+  assert.ok(ban < top.findIndex((l) => l.startsWith("RESULT:")), "rules come before the RESULT instructions");
   const mv = fs.readFileSync(path.join(SKILL_DIR, "prompts/manual-verify.md"), "utf8").split("\n");
   assert.ok(mv.some((l) => l.includes("**GIVEN**") && l.includes("`mktemp -d`") && l.includes("`rmdir`") && l.includes("one by one")), "manual-verify rule");
   for (const skill of ["skills/10x-pipeline/SKILL.md", "skills/openspec-pipeline/SKILL.md"]) {

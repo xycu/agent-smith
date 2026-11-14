@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { TYPES } from "../../../tools/commit-lint.mjs";
 import { cleanupAll, init, makeProject, next, planText, writeResult, writeReview } from "./helpers.mjs";
+import { pluginPolicy } from "../scripts/state.mjs";
 
 after(() => cleanupAll());
 
@@ -101,20 +102,41 @@ test("prose checker rejects stray keywords", () => {
   assert.deepEqual(proseProblems("The RESULT line says signals is optional."), []);
 });
 
-test("policy.json prompts follow the rule form", () => {
-  const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "utf8"));
+test("policy.json prompts of both skills follow the rule form", () => {
+  // The plugin policy: skills/10x-pipeline/policy.json merged with skills/openspec-pipeline/policy.json.
+  const policy = pluginPolicy();
   // A prompt is a string or an array of strings; a part may be a @prompts/<file>.md reference (the files are checked below).
   const lines = Object.values(policy.prompts).flatMap((s) => (Array.isArray(s) ? s : [s]).flatMap((part) => String(part).split("\n")));
   assert.deepEqual(lineProblems(lines, { strict: true }), []);
 });
 
-test("skills/10x-pipeline/prompts/*.md follow the rule form", () => {
-  const dir = path.join(SKILL_DIR, "prompts");
-  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "README.md");
-  assert.ok(files.length > 0, "no prompt files found");
-  for (const f of files) {
-    const lines = fs.readFileSync(path.join(dir, f), "utf8").split("\n");
-    assert.deepEqual(lineProblems(lines, { strict: true }), [], f);
+test("skills/10x-pipeline/prompts/*.md and skills/openspec-pipeline/prompts/*.md follow the rule form", () => {
+  for (const dir of [path.join(SKILL_DIR, "prompts"), path.join(SKILL_DIR, "../openspec-pipeline/prompts")]) {
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "README.md");
+    assert.ok(files.length > 0, `no prompt files found in ${dir}`);
+    for (const f of files) {
+      const lines = fs.readFileSync(path.join(dir, f), "utf8").split("\n");
+      assert.deepEqual(lineProblems(lines, { strict: true }), [], f);
+    }
+  }
+});
+
+test("skills/*/rules/*.md and skills/*/rules/steps/*.md follow the rule form (ADR-023)", () => {
+  const skills = path.join(REPO, "skills");
+  const found = [];
+  for (const skill of fs.readdirSync(skills)) {
+    for (const sub of ["rules", "rules/steps"]) {
+      const dir = path.join(skills, skill, sub);
+      if (!fs.existsSync(dir)) continue;
+      for (const f of fs.readdirSync(dir).filter((name) => name.endsWith(".md") && name !== "README.md")) {
+        found.push(`${skill}/${sub}/${f}`);
+        const lines = fs.readFileSync(path.join(dir, f), "utf8").split("\n");
+        assert.deepEqual(lineProblems(lines, { strict: true }), [], `${skill}/${sub}/${f}`);
+      }
+    }
+  }
+  for (const f of ["10x-pipeline/rules/top.md", "10x-pipeline/rules/steps/research.md", "openspec-pipeline/rules/chain.md"]) {
+    assert.ok(found.includes(f), `the scan reaches ${f}`);
   }
 });
 
@@ -178,7 +200,7 @@ test("the types of the commit rule are Conventional Commits types without chore"
 });
 
 test("os-apply.md commits the code by type, never chore, and no longer bans commits", () => {
-  const text = fs.readFileSync(path.join(SKILL_DIR, "prompts/os-apply.md"), "utf8");
+  const text = fs.readFileSync(path.join(SKILL_DIR, "../openspec-pipeline/prompts/os-apply.md"), "utf8");
   const rule = text.split("\n").filter((l) => l.includes("**GIVEN**") && l.includes("Conventional Commits subject"));
   assert.equal(rule.length, 1);
   assert.match(rule[0], /`feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`/);

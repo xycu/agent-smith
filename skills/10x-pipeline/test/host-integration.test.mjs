@@ -8,7 +8,7 @@ import {
 } from "./helpers.mjs";
 import { writePlan, writeReview, stampAhead } from "./ahead.mjs";
 import { buildPlan } from "./phase-helpers.mjs";
-import { promptText } from "../scripts/flow.mjs";
+import { promptText, ruleTail } from "../scripts/flow.mjs";
 
 after(cleanupAll);
 const PRESET = JSON.parse(fs.readFileSync(new URL("../codex-policy.json", import.meta.url), "utf8"));
@@ -106,7 +106,7 @@ test("shared wired prompts explain named skills and forbid every child delegatio
     const text = promptText(POLICY, template);
     assert.equal(typeof text, "string", template);
   }
-  const suffix = promptText(POLICY, "suffix");
+  const suffix = ruleTail(POLICY, { step: "plan" });
   assert.match(suffix, /load its SKILL\.md through the host's skill discovery/);
   assert.match(suffix, /treating the slash text as a skill name and arguments/);
   assert.match(suffix, /\*\*MUST NOT\*\* call the Agent tool, the Task tool, spawn_agent or any other delegation tool/);
@@ -119,7 +119,7 @@ test("the compatibility manifest declares the same shared skills and preserves v
   const manifest = JSON.parse(fs.readFileSync(new URL("../../../.release-please-manifest.json", import.meta.url), "utf8"));
   assert.equal(plugin.skills, "./skills/");
   assert.equal(plugin.version, marketplace.metadata.version);
-  assert.equal(plugin.version, marketplace.plugins[0].version);
+  assert.equal(Object.hasOwn(marketplace.plugins[0], "version"), false);
   assert.equal(plugin.version, manifest["."]);
 });
 

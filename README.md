@@ -76,11 +76,11 @@ Needs: the skills `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-i
 | `--archive` | Archive the change when the run is done; asks first when Manual checks are pending or unproved. |
 | `--rigor lean\|standard\|thorough` | Start at a rigor level. Default: picked from the goal. |
 | `--chrome false` | Keep the manual-check step off the Chrome browser tools. |
-| `--pr-comment` | Post the run report to the open pull request. Needs `gh`. |
+| `--pr-comment` | Post the run report to the open pull request. Stored with the run, so a resume keeps it; `--pr-comment false` turns it off. Needs `gh`. |
 
 ## ⚙️ Configure
 
-Override any policy key per project in `context/foundation/agent-smith-policy.json`. Defaults live in `skills/10x-pipeline/policy.json`.
+Override any policy key per project in `context/foundation/agent-smith-policy.json`. Defaults live in `skills/10x-pipeline/policy.json`; the OpenSpec chain's steps and prompts live in `skills/openspec-pipeline/policy.json`, which the router merges with it. The always-true step rules live in `skills/10x-pipeline/rules/` and `skills/openspec-pipeline/rules/`; no override reaches them (ADR-023, `skills/10x-pipeline/rules/README.md`).
 
 ```json
 { "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2 } } }

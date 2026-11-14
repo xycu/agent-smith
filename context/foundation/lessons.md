@@ -22,3 +22,10 @@
 - **Problem**: In this harness a nested subagent's hand-back report goes to the top session, not to its parent. The parent ends its turn without the result, and the step fails although the work finished. Seen 2026-11-09 in the implement steps of neutral-orchestrator-retry and worktree-pr-only.
 - **Rule**: Never spawn a subagent from inside a subagent; a subagent does its work itself, and only the top-level orchestrator spawns subagents.
 - **Applies to**: all
+
+## Grep every doc for the old behavior when a script's output changes
+
+- **Context**: Everywhere
+- **Problem**: Everything
+- **Rule**: Always grep every doc, including docs/REFERENCE.md, for the old behavior when a change alters a script's output, not only the files the plan lists.
+- **Applies to**: plan-review, implement, impl-review

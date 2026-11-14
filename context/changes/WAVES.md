@@ -1,6 +1,6 @@
 # Waves
 
-The order of work for the 31 open changes of waves 2 to 7 in this folder (status `new`, no run yet), as of 2026-11-12. Wave 1 is merged.
+Work order and status as of 2026-11-14. Waves 1–3 are merged into `main`. Wave 2 is archived. This folder holds 30 active changes: 22 new changes and eight merged changes awaiting acceptance or archival. Wave 4 is next. GitHub PR merge state and change frontmatter were checked against `main` at `4233d62` (release 1.9.0).
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -10,7 +10,7 @@ A wave is a set of changes that can run **at the same time**, each in its own ru
 - A change stays inside the files its row names under "Owns in this wave". If its plan needs a file that another change of the same wave owns, move the change to a later wave before it runs.
 - Shared text files are the one exception: `AGENTS.md`, `README.md`, `docs/REFERENCE.md` and the two skill content tests (`skill-loop.test.mjs`, `openspec-skill.test.mjs`). Several changes of a wave add lines to them, in different places. Merge the pull requests of a wave one by one. If a later one then conflicts in such a file, resolve it on its branch with a merge of `main` and a new commit. Never force-push.
 - "Owner" marks a change that needs a decision or an action from the owner before or during its run.
-- Edit this file on `main`, once per wave, after the wave is merged. Do not edit it from a run branch, or every run of a wave conflicts here.
+- Update this file in one maintenance PR after each wave merges. Individual parallel runs leave it alone. This refresh is included in PR #157 at the owner's request.
 
 ## How the waves were cut
 
@@ -27,7 +27,7 @@ Each change was mapped to the files and regions its fix names. Changes that shar
 | Version and manifest files (`version-check.mjs`, `marketplace.json`, `plugin.json`) | 3 | One per wave. |
 | All of `AGENTS.md` | 1 | `agents-md-slim` shares its wave only with changes that leave `AGENTS.md` alone. |
 
-The map comes from the text of each `change.md` and the current layout of the files, not from finished diffs. Check it again when a plan is written.
+The original map came from each `change.md` and the layout before implementation. Recheck file ownership before planning the next wave. PR #155 moved OpenSpec policy, prompts, scripts and tests to `skills/openspec-pipeline/`, and moved always-true prompt rules into chain-local `rules/` files. PR #157 integrates provider dispatch with that structure. Ownership rows below identify behavior regions and must be resolved against those current paths.
 
 ## Wave 1: release and correctness (6) — merged
 
@@ -37,16 +37,16 @@ The map comes from the text of each `change.md` and the current layout of the fi
 
 Eighteen folders were archived with `/10x-archive`: the thirteen runs that ended `done` before the waves (`agents-md-no-imports`, `archive-done-routercommit`, `array-prompt-override`, `at-or-above-helper`, `budget-halt-after-done`, `file-guard-dedup`, `init-goal-flag`, `init-needs-change-md`, `override-json-error-halt`, `pin-action-shas`, `pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`) and five of the six changes of wave 1 (`coauthor-test-coarse-mtime`, `step-commit-code-under-chore`, `policy-limits-fail-open`, `agents-md-duplicate-adr019`, `skill-rigor-flag`).
 
-Two folders stay in this directory and are not in a wave:
+Two older merged changes remain active outside the remaining waves:
 
-- `release-after-green-ci` (wave 1, merged): Progress rows 3.4 to 3.6 need a real CI failure on `main` and a rerun, and its run never reached the implementation review (steps 5 and 6 failed), so `reviews/impl-review.md` is missing. Run `/10x-impl-review`, settle the rows, then archive it.
-- `ci-self-hosted-truenas`: halted on an owner setting; stays until its Progress row 2.3 is settled (see `ci-runner-non-root`).
+- `release-after-green-ci` (wave 1, PRs #128 and #137 merged, `impl_reviewed`): implementation review exists. Manual rows 3.4–3.6 remain pending for failed CI, rerun and release-concurrency acceptance. Settle or explicitly defer those rows before archive.
+- `ci-self-hosted-truenas` (PR #123 merged, `impl_reviewed`): six Progress rows remain pending, covering runner prerequisites (2.3), fork approval policy and ADR evidence (3.5–3.6), same-repository PR/main CI (3.2–3.3), and optional fork CI (3.4). The non-root guard has since merged through wave 2.
 
-Two Manual rows of archived changes are still open: `skill-rigor-flag` 2.5 (a live `--rigor thorough` run) and `pin-action-shas` 1.5 (CI and release-please have resolved the pinned actions since, so it can be ticked with `gh run list`).
+Known pending Manual rows in the archived changes include: `skill-rigor-flag` 2.5 (a live `--rigor thorough` run) and `pin-action-shas` 1.5 (CI and release-please have resolved the pinned actions since, so it can be ticked with `gh run list`).
 
-## Wave 2: context cost (6)
+## Wave 2: context cost (6) — merged and archived
 
-`agents-md-slim` rewrites `AGENTS.md`, so every other change of this wave leaves that file alone. Each one edits existing functions and tests and adds no file that `AGENTS.md` lists.
+All six implementations merged in PRs #138–143. PR #154 archived their change folders on 2026-11-13. The ownership table below records the completed wave.
 
 | Change | Owns in this wave | Notes |
 | --- | --- | --- |
@@ -57,7 +57,20 @@ Two Manual rows of archived changes are still open: `skill-rigor-flag` 2.5 (a li
 | `attach-result-persist-first` | `attachResult` in `flow.mjs` | |
 | `plan-crlf-line-endings` | `readPlan` in `state.mjs`, `planPaths` and `phaseFiles` | |
 
-## Wave 3: flags, versions and suite speed (6)
+## Wave 3: flags, versions and suite speed (6) — merged
+
+All six implementations merged on 2026-11-13 in PRs #147–152. Their folders remain active with `status: impl_reviewed`.
+
+| Change | Merged PR | Remaining Progress |
+| --- | --- | --- |
+| `ci-job-and-spawn-timeouts` | #151 | Manual 2.7, green PR CI and both job limits |
+| `pr-comment-flag-in-meta` | #152 | None; ready for archive checks |
+| `router-bash-timeout` | #147 | None; ready for archive checks |
+| `marketplace-entry-version` | #149 | Manual 2.5, next release PR's version-file diff |
+| `budget-test-file-split` | #150 | Manual 2.7, CI suite duration under 90 s with comparison recorded |
+| `shared-churn-excludes` | #148 | None; ready for archive checks |
+
+These rows report the recorded checkboxes. Merged PRs and later releases may provide acceptance evidence, which must be verified before checking rows off.
 
 | Change | Owns in this wave | Notes |
 | --- | --- | --- |
@@ -106,3 +119,18 @@ Two Manual rows of archived changes are still open: `skill-rigor-flag` 2.5 (a li
 | `skill-md-context-diet` | Both `SKILL.md` files, whole | Alone on the skills, after every other skill change. Tests pin skill text. |
 | `commit-lint-merge-prefix` | `tools/commit-lint.mjs` | Independent; may join any earlier wave if it leaves `ci.yml` alone there. |
 | `workflow-pins-local-actions` | `tools/workflow-pins.mjs` | Independent; may join any earlier wave. Latent: no local action exists today. |
+
+## Follow-ups awaiting scheduling (3)
+
+These new changes are outside the original wave tables. Plan their ownership before running them in parallel with waves 4–7.
+
+| Change | Origin and ownership to reconcile |
+| --- | --- |
+| `quote-router-in-skill-loops` | Wave 2 skill-path follow-up. Both skills' router invocations overlap the setup and dispatch work in wave 4 and the whole-skill rewrite in wave 7. |
+| `stale-last-result-cleanup` | PR #138 follow-up. Result consumption in `flow.mjs` and both-chain tests overlap wave 4 run-state work. |
+| `step-subagent-git-guard` | Wave 2 review follow-up. Step Git/deletion/PR rules, planning rules and possible hooks overlap wave 5 guards, wave 6 nesting rules and wave 7 skill edits. Reconcile with PR #155's layered rule ownership. |
+
+## Changes outside the waves
+
+- `proper-structure-of-rules` merged and archived in PR #155. Its structural changes apply to all remaining ownership checks.
+- `openai-codex-support` is archived on the branch of open PR #157. Its implementation is awaiting merge. Manual acceptance rows 4.4–4.6 remain pending, and phase 4 lacks formal implementation-review coverage. The PR also carries project Codex permissions and this wave-status refresh.

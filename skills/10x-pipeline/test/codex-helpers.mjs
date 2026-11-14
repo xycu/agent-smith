@@ -5,7 +5,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { makeProject, run, gitEnv, writeOverride } from "./helpers.mjs";
-import { makeOpenspecProject } from "./openspec-helpers.mjs";
+import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
 export const RUNNER = fileURLToPath(new URL("../scripts/run-codex.mjs", import.meta.url));
 const PRESET = JSON.parse(fs.readFileSync(new URL("../codex-policy.json", import.meta.url), "utf8"));

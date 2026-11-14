@@ -21,11 +21,7 @@
     "domain-brief": { "skill": null,                "baseTier": 3, "minTier": 3, "maxTier": 6, "interactive": true },
     "frame":        { "skill": "10x-frame",         "baseTier": 5, "minTier": 5, "maxTier": 5, "interactive": true },
     "manual-verify": { "skill": null,               "baseTier": 2, "minTier": 2, "maxTier": 6 },
-    "score":         { "skill": null,               "baseTier": 0, "minTier": 0, "maxTier": 1 },
-    "os-propose":    { "skill": "openspec-propose",       "baseTier": 5, "minTier": 2, "maxTier": 7, "interactive": true },
-    "os-apply":      { "skill": "openspec-apply-change",  "baseTier": 3, "minTier": 2, "maxTier": 7 },
-    "os-verify":     { "skill": "openspec-verify-change", "baseTier": 3, "minTier": 2, "maxTier": 6, "interactive": true },
-    "os-archive":    { "skill": null,                     "baseTier": 3, "minTier": 3, "maxTier": 3, "interactive": true }
+    "score":         { "skill": null,               "baseTier": 0, "minTier": 0, "maxTier": 1 }
   },
   "complexity": {
     "phaseThresholds": [3, 6],
@@ -210,7 +206,7 @@
     }
   },
   "prompts": {
-    "suffix": "You run as an unattended subagent. No human answers questions in this step. Commit only where the skill or a rule of this prompt tells you to.\n- **GIVEN** this prompt names an installed skill using a slash command or its name **WHEN** you invoke it **THEN** you **MUST** load its SKILL.md through the host's skill discovery and follow it with the supplied arguments, treating the slash text as a skill name and arguments.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.\n- **GIVEN** the files and commits you wrote hold the work **WHEN** you write your reply **THEN** you **MUST** keep the text before the RESULT line to a short status, because the orchestrator reads only the RESULT line.\n- **GIVEN** you delete a directory and its contents **WHEN** you pick the command **THEN** you **MUST NOT** use `rm -rf`, `rm -r`, `rm -R`, `rm --recursive`, `rimraf`, `find ... -delete`, or `fs.rm`/`fs.rmSync` with `recursive: true`, because the harness may block them.\n- **GIVEN** you must remove a directory **WHEN** you delete it **THEN** you **MUST** list its files, check the list holds only what you meant to remove, delete the files one by one, and then `rmdir` the empty directories deepest first.\n- **GIVEN** a skill, a prompt or your own judgment would have you delegate work to a subagent, run work in parallel with subagents or use the Agent tool **WHEN** you decide how to do that work **THEN** you **MUST NOT** call the Agent tool, the Task tool, spawn_agent or any other delegation tool, or start any other subagent, and you do all of that work yourself in this subagent, because the report of a nested subagent goes to the top session and never reaches you.\nFinish your reply with exactly one line. The `signals` object is optional:\nRESULT: {\"status\":\"done|blocked|failed\",\"note\":\"<one sentence>\",\"assumptions\":[\"...\"],\"signals\":{\"needsHuman\":\"<reason, only when blocked>\",\"rigor\":\"standard|thorough\"}}",
+    "suffix": "Default rules for every step. A rule earlier in this prompt may change them.\nCommit only where the skill or a rule of this prompt tells you to.\n- **GIVEN** the skill would ask the user a question **WHEN** you have no human to answer **THEN** you **MUST** decide from researched best practice (codebase conventions, project docs, `lessons.md`, authoritative sources), cite the evidence, and list the decision as an assumption.\n- **GIVEN** no evidence-backed answer exists **WHEN** you would have to guess **THEN** you **MUST** report status `blocked` with `signals.needsHuman` and the reason.\n- **GIVEN** the change is riskier than the goal or plan suggested **WHEN** you write the RESULT line **THEN** you **MAY** add `signals.rigor` set to `standard` or `thorough`.",
     "plan": "Run /10x-plan {id} {goal}{artifacts}\nWrite the plan to context/changes/{id}/plan.md with a valid ## Progress section.",
     "plan-revise": "Run /10x-plan {id}{artifacts}\nRevise the existing context/changes/{id}/plan.md. Resolve every CRITICAL finding and every WARNING with a clear fix in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Keep the ## Progress contract, step indices and titles.{authority}",
     "plan-review": [
@@ -229,20 +225,17 @@
       "@prompts/impl-review-lessons.md"
     ],
     "fix": "Fix the findings in context/changes/{id}/reviews/impl-review.md (verdict: {verdict}). Fix every CRITICAL finding, then every WARNING with a clear fix. Stay inside the plan's scope. Run the plan's automated success criteria and the test suite. Commit with Conventional Commits (fix: ...). Do not edit ## Progress or the review file.",
-    "archive": "Run /10x-archive {id}\n- **GIVEN** `/10x-archive` would ask its warnings question and every warning is pending Manual Progress rows only, Progress rows without a SHA suffix, a status other than `implemented` or `impl_reviewed`, or a SHA history diagnostic **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Continue archiving` (the label may read `Continue archiving (Recommended)`; match the prefix).\n- **GIVEN** `/10x-archive` would ask its repoint question (`Update and archive`, `Archive without repointing`, `Cancel`) and no listed warning is a blocking warning **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Archive without repointing` (the Polish label `Archiwizuj bez podmiany` is the same answer).\n- **GIVEN** the SHA history check finds no remote, integration branch, implementation PR or integrating commit, or its `git fetch` fails, or it reports SHAs outside the target history **WHEN** the skill would ask you to identify, confirm or choose any of them **THEN** you **MUST** skip repointing, treat the diagnostics as warnings and answer the warnings question by the rules here, without asking.\n- **GIVEN** `/10x-archive` tells you to ask a question as plain text and wait because no question tool exists **WHEN** the question is the warnings question, the repoint question or a SHA history question **THEN** you **MUST NOT** ask it or end your turn to wait, and you continue in the same turn with the answer given here.\n- **GIVEN** the warnings include `Uncertain review coverage`, `Missing review coverage for phases`, `No impl-review found`, `No plan.md found`, a pending Automated row or pending Progress rows with no Automated and Manual breakdown (these are the blocking warnings), or `/10x-archive` stops on a hard block or asks a question not covered here **WHEN** you cannot continue **THEN** you **MUST** finish with status `blocked` and the printed reason in `note`.\n- **GIVEN** a blocking warning is listed **WHEN** the skill also shows its repoint question or its warnings question **THEN** the blocking rule above **MUST** win over the answers given here, and you answer neither question.\n- **GIVEN** these rules and the generic unattended rules disagree about an archive question **WHEN** you pick an answer **THEN** these rules **MUST** win.\n- **GIVEN** `/10x-archive` prints a warning, a SHA diagnostic or a roadmap notice **WHEN** you write the RESULT line **THEN** you **MUST** copy each one into `assumptions`.\n- **GIVEN** `/10x-archive` has finished or stopped **WHEN** you have more to do **THEN** you **MUST NOT** write any file under `context/changes/{id}/` or `context/archive/`.",
+    "archive": "Run /10x-archive {id}\n- **GIVEN** `/10x-archive` would ask its warnings question and every warning is pending Manual Progress rows only, Progress rows without a SHA suffix, a status other than `implemented` or `impl_reviewed`, or a SHA history diagnostic **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Continue archiving` (the label may read `Continue archiving (Recommended)`; match the prefix).\n- **GIVEN** `/10x-archive` would ask its repoint question (`Update and archive`, `Archive without repointing`, `Cancel`) and no listed warning is a blocking warning **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Archive without repointing` (the Polish label `Archiwizuj bez podmiany` is the same answer).\n- **GIVEN** the SHA history check finds no remote, integration branch, implementation PR or integrating commit, or its `git fetch` fails, or it reports SHAs outside the target history **WHEN** the skill would ask you to identify, confirm or choose any of them **THEN** you **MUST** skip repointing, treat the diagnostics as warnings and answer the warnings question by the rules here, without asking.\n- **GIVEN** `/10x-archive` tells you to ask a question as plain text and wait because no question tool exists **WHEN** the question is the warnings question, the repoint question or a SHA history question **THEN** you **MUST NOT** ask it or end your turn to wait, and you continue in the same turn with the answer given here.\n- **GIVEN** the warnings include `Uncertain review coverage`, `Missing review coverage for phases`, `No impl-review found`, `No plan.md found`, a pending Automated row or pending Progress rows with no Automated and Manual breakdown (these are the blocking warnings), or `/10x-archive` stops on a hard block or asks a question not covered here **WHEN** you cannot continue **THEN** you **MUST** finish with status `blocked` and the printed reason in `note`.\n- **GIVEN** a blocking warning is listed **WHEN** the skill also shows its repoint question or its warnings question **THEN** the blocking rule above **MUST** win over the answers given here, and you answer neither question.\n- **GIVEN** `/10x-archive` prints a warning, a SHA diagnostic or a roadmap notice **WHEN** you write the RESULT line **THEN** you **MUST** copy each one into `assumptions`.\n- **GIVEN** `/10x-archive` has finished or stopped **WHEN** you have more to do **THEN** you **MUST NOT** write any file under `context/changes/{id}/` or `context/archive/`.",
     "research": [
-      "Run /10x-research {id} {goal}\nWrite the findings to context/changes/{id}/research.md.",
-      "- **GIVEN** you save context/changes/{id}/research.md **WHEN** you write its first lines **THEN** you **MUST** start the file with YAML frontmatter that holds status: complete or status: partial."
+      "Run /10x-research {id} {goal}\nWrite the findings to context/changes/{id}/research.md."
     ],
     "research-with-map": [
-      "@prompts/research-with-map.md",
-      "- **GIVEN** you save context/changes/{id}/research.md **WHEN** you write its first lines **THEN** you **MUST** start the file with YAML frontmatter that holds status: complete or status: partial."
+      "@prompts/research-with-map.md"
     ],
     "research-revise": [
       "Run /10x-research {id}\nThis is a follow-up that closes the gaps named in context/changes/{id}/reviews/plan-review.md (verdict: {verdict}). Append the new findings to context/changes/{id}/research.md and update last_updated.",
       "- **GIVEN** context/changes/{id}/research.md already holds findings **WHEN** you add the follow-up **THEN** you **MUST NOT** rewrite the earlier findings.",
-      "- **GIVEN** the skill would ask the user a new question **WHEN** you run the follow-up **THEN** you **MUST NOT** ask it and you decide from the review findings.",
-      "- **GIVEN** you save context/changes/{id}/research.md **WHEN** you write its first lines **THEN** you **MUST** start the file with YAML frontmatter that holds status: complete or status: partial."
+      "- **GIVEN** the skill would ask the user a new question **WHEN** you run the follow-up **THEN** you **MUST NOT** ask it and you decide from the review findings."
     ],
     "score": [
       "Score the complexity of change {id} before it is planned. Goal: {goal}{artifacts}",
@@ -333,26 +326,6 @@
       "@prompts/manual-verify.md",
       "- **GIVEN** the Chrome tools are off for this run **WHEN** a row needs a browser **THEN** you **MUST NOT** use a browser tool.",
       "- **GIVEN** the Chrome tools are off for this run **WHEN** you prove a Browser row **THEN** you **MUST** use only a covering test, command or script, and begin its evidence file with the line `Chrome: off (--chrome false)`; otherwise leave the row at `[ ]` with the reason `Chrome off (--chrome false)` in `evidence/unproven.md`."
-    ],
-    "os-propose": [
-      "Run /openspec-propose for the existing OpenSpec change {id} (openspec/changes/{id}/). Goal: {goal}",
-      "@prompts/os-propose.md"
-    ],
-    "os-apply": [
-      "Run /openspec-apply-change for the OpenSpec change {id} (openspec/changes/{id}/). Implement every open task of tasks.md.",
-      "@prompts/os-apply.md"
-    ],
-    "os-apply-fix": [
-      "Run /openspec-apply-change for the OpenSpec change {id} (openspec/changes/{id}/) in fix mode. Critical findings from openspec/changes/{id}/agent-smith/verify.md:\n{findings}",
-      "@prompts/os-apply.md"
-    ],
-    "os-verify": [
-      "Run /openspec-verify-change for the OpenSpec change {id} (openspec/changes/{id}/) and write openspec/changes/{id}/agent-smith/verify.md.",
-      "@prompts/os-verify.md"
-    ],
-    "os-archive": [
-      "Archive the OpenSpec change {id} with the OpenSpec CLI.",
-      "@prompts/os-archive.md"
     ]
   },
   "executors": {

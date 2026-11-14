@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.9.0](https://github.com/xycu/agent-smith/compare/v1.8.0...v1.9.0) (2026-11-13)
+
+
+### Features
+
+* **proper-structure-of-rules:** Hierarchical rule levels for skills, with OpenSpec definitions outside the 10x folder ([#155](https://github.com/xycu/agent-smith/issues/155)) ([377f259](https://github.com/xycu/agent-smith/commit/377f2592ed34440769aacf59edc2bc5c69d84736))
+
+## [1.8.0](https://github.com/xycu/agent-smith/compare/v1.7.0...v1.8.0) (2026-11-13)
+
+
+### Features
+
+* **pr-comment-flag-in-meta:** Store the --pr-comment request in meta.json instead of a session task ([#152](https://github.com/xycu/agent-smith/issues/152)) ([d289387](https://github.com/xycu/agent-smith/commit/d289387c797fe787abb55733bdf7d4874cdb2bc5))
+* **squash-merge-pr-title-lint:** lint PR titles and type run PR titles ([#145](https://github.com/xycu/agent-smith/issues/145)) ([a506d63](https://github.com/xycu/agent-smith/commit/a506d638d72d1c47fd9e25fc8f004faa99953b07))
+
+
+### Bug Fixes
+
+* **marketplace-entry-version:** Drop the duplicate version from the marketplace plugin entry ([#149](https://github.com/xycu/agent-smith/issues/149)) ([84000b6](https://github.com/xycu/agent-smith/commit/84000b6e3d5db18d9b4384a4268693b077ada620))
+* **router-bash-timeout:** Run router and open-pr calls with a Bash timeout above the git timeouts ([#147](https://github.com/xycu/agent-smith/issues/147)) ([419a216](https://github.com/xycu/agent-smith/commit/419a21671d10a391ecd8567bdae72cebc893128d))
+
 ## [1.7.0](https://github.com/xycu/agent-smith/compare/v1.6.1...v1.7.0) (2026-11-12)
 
 

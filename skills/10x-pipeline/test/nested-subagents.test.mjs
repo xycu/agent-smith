@@ -1,5 +1,5 @@
 // No nested subagents (ADR-018): a step subagent never calls the Agent or Task tool, because a nested subagent's
-// report goes to the top session and never reaches its parent. Pins the suffix rule, the "same subagent" lines of the
+// report goes to the top session and never reaches its parent. Pins the always-true rule of rules/top.md (ADR-023), the "same subagent" lines of the
 // implement templates and the executor guides, the research prompt without subagents, and the router's delivery.
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -32,22 +32,24 @@ function ruleProblems(line) {
   return problems;
 }
 
-const SUFFIX = POLICY.prompts.suffix.split("\n");
-const suffixRules = () => SUFFIX.filter((l) => l.includes("**GIVEN**") && l.includes("Agent tool"));
+// The rule lives in the always-true rules/top.md (ADR-023), which no policy key or project override changes.
+const TOP = fs.readFileSync(path.join(SKILL_DIR, "rules/top.md"), "utf8").split("\n");
+const suffixRules = () => TOP.filter((l) => l.includes("**GIVEN**") && l.includes("Agent tool"));
 const IMPLEMENT_RULE = "- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.";
 
-test("the suffix has exactly one rule that bans the Agent tool, in rule form, before the RESULT line", () => {
+test("top.md has exactly one rule that bans the Agent tool, in rule form, before the RESULT line", () => {
   const rules = suffixRules();
-  assert.equal(rules.length, 1, "exactly one suffix line names the Agent tool");
+  assert.equal(rules.length, 1, "exactly one top.md line names the Agent tool");
+  assert.ok(!POLICY.prompts.suffix.includes("Agent tool"), "the overridable suffix no longer carries the rule");
   const [rule] = rules;
   assert.ok(rule.includes("**MUST NOT**"), rule);
   assert.match(rule, /Task tool/);
   assert.match(rule, /spawn_agent or any other delegation tool/);
   assert.match(rule, /top session/);
   assert.deepEqual(ruleProblems(rule), []);
-  const at = SUFFIX.indexOf(rule);
-  assert.ok(at < SUFFIX.findIndex((l) => l.startsWith("RESULT:")), "the rule comes before the RESULT line");
-  assert.ok(at > SUFFIX.findIndex((l) => l.includes("deepest first")), "the rule comes after the deletion rules");
+  const at = TOP.indexOf(rule);
+  assert.ok(at < TOP.findIndex((l) => l.startsWith("RESULT:")), "the rule comes before the RESULT line");
+  assert.ok(at > TOP.findIndex((l) => l.includes("deepest first")), "the rule comes after the deletion rules");
   assert.doesNotMatch(rule, /advisor|\bRead\b|\bGrep\b|\bGlob\b/, "the rule forbids subagents only");
 });
 
@@ -76,7 +78,7 @@ test("research-with-map.md asks for no subagent and keeps the three analyses", (
   assert.match(text, /\*\*MUST\*\* work through three analyses yourself, one after the other/);
 });
 
-test("the router returns an implement prompt with the suffix rule and the implement rule, once each", () => {
+test("the router returns an implement prompt with the top.md rule and the implement rule, once each", () => {
   const project = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
   assert.equal(init(project, "add a parser for config files with tests").json.step, "plan-review");
   writeReview(project, "plan-review");
@@ -86,9 +88,9 @@ test("the router returns an implement prompt with the suffix rule and the implem
   assert.equal(res.json.step, "implement");
   const lines = res.json.prompt.split("\n");
   const [suffixRule] = suffixRules();
-  assert.equal(lines.filter((l) => l === suffixRule).length, 1, "suffix rule once");
+  assert.equal(lines.filter((l) => l === suffixRule).length, 1, "top.md rule once");
   assert.equal(lines.filter((l) => l === IMPLEMENT_RULE).length, 1, "implement rule once");
-  assert.ok(lines.indexOf(suffixRule) < lines.findIndex((l) => l.startsWith("RESULT:")), "suffix rule before RESULT");
+  assert.ok(lines.indexOf(suffixRule) < lines.findIndex((l) => l.startsWith("RESULT:")), "top.md rule before RESULT");
 });
 
 test("the new lines name no model, effort or tier", () => {

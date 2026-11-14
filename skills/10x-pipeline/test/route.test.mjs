@@ -6,8 +6,9 @@ import path from "node:path";
 import {
   cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeLog, entry,
   readLogEntries, readMetaFile, writeMetaFile, skipEntry, writeResult, readReportFile, gitAvailable, gitEnv, gitInit, commitFiles,
+  ruleTail,
 } from "./helpers.mjs";
-import { makeOpenspecProject } from "./openspec-helpers.mjs";
+import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
 after(cleanupAll);
 
@@ -42,7 +43,7 @@ test("an array suffix override joins with newlines in a step prompt", () => {
   const project = makeProject({ policy: { prompts: { suffix: ["line one", "line two"] } } });
   const res = init(project, "fix typo");
   assert.equal(res.json.action, "run");
-  assert.ok(res.json.prompt.endsWith("line one\nline two"), res.json.prompt);
+  assert.ok(res.json.prompt.endsWith(ruleTail("line one\nline two")), res.json.prompt);
 });
 
 test("a string suffix override that starts with @prompts/ is a file reference in a step prompt", () => {
@@ -50,10 +51,10 @@ test("a string suffix override that starts with @prompts/ is a file reference in
   const res = init(project, "fix typo");
   assert.equal(res.json.action, "run");
   const text = fs.readFileSync(new URL("../prompts/advisor.md", import.meta.url), "utf8").trim();
-  assert.ok(res.json.prompt.endsWith("\n\n" + text), res.json.prompt);
+  assert.ok(res.json.prompt.endsWith("\n\n" + ruleTail(text)), res.json.prompt);
   // Text after any other first character stays literal.
   const literal = makeProject({ policy: { prompts: { suffix: "See @prompts/advisor.md" } } });
-  assert.ok(init(literal, "fix typo").json.prompt.endsWith("\n\nSee @prompts/advisor.md"));
+  assert.ok(init(literal, "fix typo").json.prompt.endsWith("\n\n" + ruleTail("See @prompts/advisor.md")));
 });
 
 test("--rigor with a bad or missing value halts with JSON and writes nothing", () => {
@@ -623,21 +624,25 @@ test("a RESULT without signals behaves as before", () => {
   assert.equal(readLogEntries(project)[0].needsHumanAck, undefined);
 });
 
-test("the plan prompt carries named-skill loading, seven safety rules and the RESULT line with signals", () => {
+test("the plan prompt carries named-skill loading, layered safety rules and the RESULT line with signals", () => {
   const project = makeProject();
   const res = init(project, "fix typo");
   const prompt = res.json.prompt;
   const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
-  assert.equal(rules.length, 8);
-  assert.match(rules[0], /\*\*MUST\*\* load its SKILL\.md through the host/);
-  assert.match(rules[1], /\*\*MUST\*\* decide from researched best practice/);
-  assert.match(rules[2], /`signals\.needsHuman`/);
-  assert.match(rules[3], /\*\*MAY\*\* add `signals\.rigor`/);
+  // Three defaults, then portable skill loading and the safety/precedence rules of top.md (ADR-023).
+  assert.equal(rules.length, 10);
+  assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
+  assert.match(rules[1], /`signals\.needsHuman`/);
+  assert.match(rules[2], /\*\*MAY\*\* add `signals\.rigor`/);
+  assert.match(rules[3], /\*\*MUST\*\* load its SKILL\.md through the host/);
   assert.match(rules[4], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
   assert.match(rules[5], /\*\*MUST NOT\*\* use `rm -rf`/);
   assert.match(rules[6], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
   assert.match(rules[7], /\*\*MUST NOT\*\* call the Agent tool/);
+  assert.match(rules[8], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
+  assert.match(rules[9], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
   const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
+  assert.equal(prompt.split("\n").at(-1), result, "the RESULT line of top.md ends the prompt");
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
   assert.match(prompt, /`signals` object is optional/);
   assert.doesNotMatch(prompt, /most conservative option/);

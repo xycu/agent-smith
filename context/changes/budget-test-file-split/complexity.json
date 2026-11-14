@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (split about four files, move walkers and fixtures to a helper, same test names, suite under 90 s); open details (exact file split, helper name, whether the optional :428 split is in scope) each have one obvious answer." },
+    "novelty": { "score": 1, "evidence": "The repo already splits suites next to shared helpers: helpers.mjs and phase-helpers.mjs are imported by executors.test.mjs, codereplan.test.mjs and others; a new helper module beside phase-helpers.mjs follows that pattern." },
+    "coupling": { "score": 2, "evidence": "skills/10x-pipeline/test/budget-executors.test.mjs: walkFixture, walkAware, longest, FIXTURES, answer and answerAware are module-level closures used by all eight tests, so moving them into a helper makes it an internal interface with several callers; ADR-011 and ADR-012 also name this file." },
+    "discovery": { "score": 1, "evidence": "The goal and change.md name the file, the walkers and phase-helpers.mjs; one grep found the references in skills/10x-pipeline/test/README.md, ADR-011, ADR-012 and context/changes/ladder-fable-rung/change.md." },
+    "volume": { "score": 2, "evidence": "About 470 lines of one file move into roughly 4 test files plus one helper module, with the test README and the ADR references touched: 4 to 10 files with moderate new code." },
+    "verification": { "score": 2, "evidence": "Same-name and same-count checks can be scripted, and the local suite run covers the rest; the under-90-second claim needs a CI run of the suite's wall time (duration_ms), which no local check can show, so a manual check is needed." }
+  },
+  "unknowns": [
+    "CI wall time after the split depends on the runner's test concurrency (node --test defaults to available parallelism minus one), which the repo does not show; the 90 s target is not verifiable locally.",
+    "Whether the plan gate rows that check test titles also expect the titles to stay in budget-executors.test.mjs; not checked, since plan.md must not be read.",
+    "Whether the ADR-011 and ADR-012 references to budget-executors.test.mjs should be edited or left as historical record; not decided by the inputs.",
+    "Whether the optional second step (splitting the :428 test by rigor level) is in scope; change.md lists it as optional, so this score assumes it is not."
+  ],
+  "confidence": "medium"
+}

@@ -22,6 +22,7 @@ You are the orchestrator. You do not plan, implement or review yourself. You do 
 Router: `ROUTER="${CLAUDE_SKILL_DIR}/scripts/route.mjs"`. Run it with `node` from the run root (see Start step 3). When you put the path in a command, quote it for the shell.
 PR comment script: `PR_COMMENT="${CLAUDE_SKILL_DIR}/scripts/pr-comment.mjs"`. Only the PR comment step runs it (see "PR comment (opt-in)").
 Pull request script: `OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"`. Only the pull request step runs it (see "Pull request (always)").
+Bash timeout: run every `route.mjs`, `open-pr.mjs` and `pr-comment.mjs` call with the Bash tool's `timeout: 600000`, its maximum. The default of 120000 ms equals the router's git timeouts, so the Bash tool would kill the router inside a slow `git commit`.
 
 Codex runner: `RUN_CODEX="${CLAUDE_SKILL_DIR}/scripts/run-codex.mjs"` under Claude. Under Codex, take the absolute SKILL.md path supplied when this skill was loaded, use its directory, and resolve the same `scripts/route.mjs`, `scripts/run-codex.mjs`, `scripts/pr-comment.mjs`, `scripts/open-pr.mjs` and `policy.json` paths from it. Keep every script path absolute and quoted.
 
@@ -131,6 +132,7 @@ Routing lives in data, not in this file:
 
 - `${CLAUDE_SKILL_DIR}/policy.json` holds the defaults: the model/effort ladder, the base tier per step, escalation and de-escalation rules, retry caps, and prompt templates.
 - A project can override any key in `context/foundation/agent-smith-policy.json`. The router deep-merges it over the defaults. Arrays such as `ladder` are replaced whole.
+- The always-true step rules live in `${CLAUDE_SKILL_DIR}/rules/` (`top.md` for every step of both chains, `steps/<step>.md` for one step; ADR-023); the router reads them by fixed path, and no override reaches them.
 
 How the tier moves (see `tierFor` in `scripts/steps.mjs` and `decide` in `scripts/flow.mjs`):
 

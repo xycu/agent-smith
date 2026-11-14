@@ -759,7 +759,7 @@ test("SKILL.md: lines about the PR comment name no model, effort or tier", () =>
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const banned = /\b(sonnet|opus|haiku|fable|effort|tier|model)\b/i;
   const lines = skill.split("\n").filter((l) => /PR_COMMENT|--pr-comment|PR comment/.test(l));
-  assert.ok(lines.length >= 8, "expected the PR comment lines");
+  assert.ok(lines.length >= 16, "expected the PR comment lines");
   for (const line of lines) assert.doesNotMatch(line, banned, line);
 });
 

@@ -8,7 +8,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 import { cleanupAll, makeProject, run, writeLog, writeMetaFile, entry } from "./helpers.mjs";
-import { makeOpenspecProject } from "./openspec-helpers.mjs";
+import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { runLockPath } from "../scripts/state.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 import { codexFixture, execute, startRunner, waitForFile, runnerLeftovers, calls, setMode } from "./codex-helpers.mjs";

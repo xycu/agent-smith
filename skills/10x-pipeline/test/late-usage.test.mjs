@@ -10,7 +10,7 @@ import {
   writeMetaFile, readLogEntries, readMetaFile, readReportFile, entry, planText
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
-import { makeOpenspecProject, moveToArchive } from "./openspec-helpers.mjs";
+import { makeOpenspecProject, moveToArchive } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
 after(cleanupAll);
 

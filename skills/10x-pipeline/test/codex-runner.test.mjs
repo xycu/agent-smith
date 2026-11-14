@@ -8,7 +8,7 @@ import {
   planText, gitInit, commitFiles, git,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
-import { writeArtifacts } from "./openspec-helpers.mjs";
+import { writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { codexFixture, execute, calls, setMode, startRunner, waitForFile, runnerLeftovers } from "./codex-helpers.mjs";
 
 after(cleanupAll);

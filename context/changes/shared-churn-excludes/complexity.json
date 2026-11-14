@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md 'Fix direction' fixes the outcome (one churnExcludes helper in state.mjs, evidenceExcludes uses it); helper name is given only as an example" },
+    "novelty": { "score": 1, "evidence": "state.mjs:663 and steps.mjs:37-42 already do the same shipped-list fallback; the change moves it to one function" },
+    "coupling": { "score": 1, "evidence": "state.mjs churnConfig (line 662-665) and steps.mjs evidenceExcludes (line 37-42) are the only two callers; steps.mjs imports from state.mjs, as AGENTS.md requires" },
+    "discovery": { "score": 0, "evidence": "change.md names the locations: state.mjs:615-626 and steps.mjs:37-42" },
+    "volume": { "score": 1, "evidence": "change.md 'Expected result': about 5 fewer lines; edits in state.mjs, steps.mjs and one test file" },
+    "verification": { "score": 1, "evidence": "churn.test.mjs and executors.test.mjs already cover churn and commit evidence; change.md asks for one new test (invalid since plus custom exclude)" }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
