@@ -62,7 +62,7 @@ Prompt cleanup must retain its own marker until its file is removed and marker r
 
 ### Overview
 
-Close the stale-file window in the shared owner, with regression tests that fail against the current implementation.
+Close the stale-file window in the shared owner. The inline crash cases on both chains must fail against the current implementation and pass after the fix. File-prompt crash cases preserve the recovery already supplied by `cleanupHandoff` and must pass before and after the ownership change.
 
 ### Changes Required:
 
@@ -80,15 +80,17 @@ Close the stale-file window in the shared owner, with regression tests that fail
 
 **Intent**: Extend the existing result-persistence suite using shared 10x/OpenSpec scratch helpers and filesystem-boundary fault injection. Keep handoff failure assertions valid after consolidating result ownership; index the expanded result suite in its README.
 
-**Contract**: Cover the matrix and edge cases in Testing Strategy. At minimum, execute the actual post-log-rename/pre-unlink crash on both chains with inline and file prompts, recover, then call `next` without a new result and require a missing-result halt. Inject non-ENOENT unlink failure on fresh intake and recovery; prove no later entry is logged and that a later retry succeeds. Verify missing files, skip rows and no-executed-entry behavior without manually editing real run state. Reuse `helpers.mjs` fixtures where synthetic state is required; avoid a new production test seam.
+**Contract**: Cover the matrix and edge cases in Testing Strategy. At minimum, execute the actual post-log-rename/pre-unlink crash on both chains with inline and file prompts, recover, then call `next` without a new result and require a missing-result halt. Record the baseline separately for each transport. Both inline cases must expose stale-result consumption before the fix. Both file-prompt cases must retain their existing successful recovery before and after the fix. Inject non-ENOENT unlink failure on fresh intake and recovery; prove no later entry is logged and that a later retry succeeds. Verify missing files, skip rows and no-executed-entry behavior without manually editing real run state. Reuse `helpers.mjs` fixtures where synthetic state is required; avoid a new production test seam.
 
 ### Success Criteria:
 
 #### Automated Verification:
 
-- The post-publication crash regression fails before the fix and passes afterward for both chains and both prompt transports; recovery preserves the completed entry and the next step requires its own result.
+- The post-publication inline crash regression fails before the fix and passes afterward on both chains. File-prompt crash recovery passes before and after the fix on both chains. All four cases preserve the completed entry and require the next step to supply its own result.
 - Unlink failure, missing-file, skipped-row, pending-owner and handoff-marker regressions pass without losing results or permitting premature routing.
 - Focused suites pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/result-persist.test.mjs skills/10x-pipeline/test/prompt-handoff.test.mjs skills/10x-pipeline/test/run-state.test.mjs`.
+
+Progress row 1.1 retains its original title. Interpret its red/green requirement as the inline regressions on both chains, with both prompt transports required to pass after the fix and the file-prompt baseline required to stay green.
 
 #### Manual Verification:
 
@@ -141,7 +143,7 @@ Use minimal fixture assertions for no executed owner, a completed owner followed
 
 | Scenario | Required proof |
 | --- | --- |
-| Crash after actual atomic log publication | Both chains × inline/file prompts; persisted result and leftover file exist, then recovery deletes the file before dispatch. A subsequent result-less call halts. |
+| Crash after actual atomic log publication | Both chains × inline/file prompts; persisted result and leftover file exist, then recovery deletes the file before dispatch. A subsequent result-less call halts. Before the fix, inline cases expose stale-result consumption and file-prompt cases already pass through handoff cleanup. After the fix, all four cases pass. |
 | Normal intake and fresh next result | First file consumed once; next entry's different note/signals/usage belongs only to that entry. |
 | Crash after unlink / missing leftover | Resume without duplicate intake, false failure or changed completion timestamp. |
 | Failed atomic log publication | Existing `run-state.test.mjs` coverage still retains original bytes and pending result on both chains. |

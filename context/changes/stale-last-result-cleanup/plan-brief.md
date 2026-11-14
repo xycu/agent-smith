@@ -55,7 +55,7 @@ Under the existing run lock and guards, neutral retry stays first. Shared intake
 
 ## Success Criteria (Summary)
 
-- Crash recovery removes stale input and the next step cannot proceed without its own result.
+- Inline crash regressions fail before the fix and pass afterward on both chains. File-prompt recovery stays green before and after the change. Every case removes stale input and requires the next step to supply its own result.
 - Normal intake, neutral replay, late usage and isolated recovery retain their current contracts.
 - Seven unchecked automated Progress rows cover both phases; required repository tests and documentation checks pass before completion.
 
