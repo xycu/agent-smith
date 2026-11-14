@@ -47,5 +47,15 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths .github/workflows/ci.yml, skills/10x-pipeline/test/helpers.mjs, tools/test/ci-runner.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.5 A normal same-repository PR CI run on the non-root TrueNAS runner records OpenSpec 1.16.1, execution of all five contract fixtures and both permission checks, and only the documented conditional skips."
+    ],
+    "manualNotProved": [
+      "2.5 A normal same-repository PR CI run on the non-root TrueNAS runner records OpenSpec 1.16.1, execution of all five contract fixtures and both permission checks, and only the documented conditional skips. — not proved: Fresh read-only GitHub checks found no PR or CI run for agent-smith/ci-fail-on-unexpected-skips and zero workflow runs for current commit 613d5368849239cc09eb4e76cfdeaf4e538974e3. The required live sa"
+    ]
   }
 }
