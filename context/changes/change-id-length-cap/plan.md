@@ -204,6 +204,6 @@ Existing state stays addressable through the legacy commands. Every subsequent `
 
 #### Automated
 
-- [x] 2.1 Both skill caveats, public init-limit guidance and their updated content assertions agree with the router contract.
-- [x] 2.2 The complete required suite passes on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [x] 2.3 `git diff --check` passes and the changed-file list matches this plan's ownership, including zero edits under context/archive or to WAVES.md.
+- [x] 2.1 Both skill caveats, public init-limit guidance and their updated content assertions agree with the router contract. — 6dd068d
+- [x] 2.2 The complete required suite passes on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 6dd068d
+- [x] 2.3 `git diff --check` passes and the changed-file list matches this plan's ownership, including zero edits under context/archive or to WAVES.md. — 6dd068d
