@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the shared isFailure rule and leaves only cheap first-attempt treatment to decide" },
+    "novelty": { "score": 1, "evidence": "route.mjs already imports shared helpers from state.mjs and compare.test.mjs already covers JSON and Markdown" },
+    "coupling": { "score": 2, "evidence": "change.md requires route.mjs, compare.test.mjs and shared compare documentation" },
+    "discovery": { "score": 1, "evidence": "change.md names compare in route.mjs, compare.test.mjs, REFERENCE.md and the baseline comparison documentation" },
+    "volume": { "score": 2, "evidence": "change.md calls for router, tests and documentation edits across several files" },
+    "verification": { "score": 0, "evidence": "change.md points to existing compare.test.mjs JSON and Markdown checks plus pinned baseline compatibility" }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

@@ -13,7 +13,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |
 | `rules.test.mjs` | rule form of every prompt and rule file (GIVEN/WHEN/THEN, one RFC 2119 keyword; ADR-004) |
 | `rule-levels.test.mjs` | rule levels (ADR-023): the order after the template (chain defaults, suffix, step file, chain file, `rules/top.md`), a suffix override keeps `top.md`, `ruleTail` on a scratch rule tree, the halts on a missing or unreadable rule file, the archive prompts of both chains, the placeholder limits, the `ruleFiles` provenance section and the precedence rules. A test that changes a rule file uses a scratch copy of the plugin tree |
-| `compare.test.mjs` | `compare`: totals, coverage, tokens by model and tier, verdict, `--unpinned` |
+| `compare.test.mjs` | `compare`: totals, coverage, tokens by model and tier, verdict, `--unpinned`, failure classification in JSON and Markdown |
 | `lessons.test.mjs` | lesson candidates: sanitizer, report section, prompt wiring |
 | `at-or-above.test.mjs` | `atOrAbove` rigor comparison; an unknown level fails closed |
 | `override-json.test.mjs` | a project override that does not parse, or is not an object, halts every command with the file name; a missing file is no override |
