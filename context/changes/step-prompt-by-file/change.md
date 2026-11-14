@@ -1,9 +1,9 @@
 ---
 change_id: step-prompt-by-file
 title: Hand the step prompt to the subagent by file instead of through the orchestrator
-status: new
+status: planned
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 archived_at: null
 ---
 
