@@ -175,8 +175,8 @@ Compare reads existing run logs using their recorded flags. Previously recorded 
 
 #### Automated
 
-- [x] 1.1 Advisory and fallback regressions pass with exact JSON counts and matching Markdown rows on both comparison arms.
-- [x] 1.2 Cheap failures, cheap fallbacks, legacy ordinary failures, and the pinned baseline compatibility case pass with explicit expected counts.
-- [x] 1.3 The complete compare test file passes, including corrected scorer token-split assertions, usage completeness, and read-only checks.
-- [x] 1.4 The required router, OpenSpec, and tools suite passes with any environment-dependent skips recorded.
-- [x] 1.5 `git diff --check` passes and the compare documentation checks agree on advisory neutrality, fallback neutrality, cheap-failure inclusion, and usage accounting.
+- [x] 1.1 Advisory and fallback regressions pass with exact JSON counts and matching Markdown rows on both comparison arms. — 5b409cd
+- [x] 1.2 Cheap failures, cheap fallbacks, legacy ordinary failures, and the pinned baseline compatibility case pass with explicit expected counts. — 5b409cd
+- [x] 1.3 The complete compare test file passes, including corrected scorer token-split assertions, usage completeness, and read-only checks. — 5b409cd
+- [x] 1.4 The required router, OpenSpec, and tools suite passes with any environment-dependent skips recorded. — 5b409cd
+- [x] 1.5 `git diff --check` passes and the compare documentation checks agree on advisory neutrality, fallback neutrality, cheap-failure inclusion, and usage accounting. — 5b409cd
