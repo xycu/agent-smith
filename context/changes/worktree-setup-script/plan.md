@@ -249,9 +249,9 @@ Existing branch/worktree names, project layout and router state formats do not c
 
 #### Automated
 
-- [ ] 1.1 The real-script suite proves all six setup cases for both chains and the ordered precedence cases: `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
-- [ ] 1.2 The same suite proves policy parity, prefix-aware paths, timestamp/copy fidelity, unchanged resumes, honest failure JSON and the no-config/no-destructive-command boundary.
-- [ ] 1.3 The mandatory repository suite passes after the new script is added: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 The real-script suite proves all six setup cases for both chains and the ordered precedence cases: `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
+- [x] 1.2 The same suite proves policy parity, prefix-aware paths, timestamp/copy fidelity, unchanged resumes, honest failure JSON and the no-config/no-destructive-command boundary.
+- [x] 1.3 The mandatory repository suite passes after the new script is added: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 ### Phase 2: Wire skills and document the contract
 
