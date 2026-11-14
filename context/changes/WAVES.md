@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-14. Waves 1–4 are merged into `main`. Waves 2–4 are archived. This folder holds 18 active changes, including 16 new changes and two older merged changes awaiting acceptance or archival. Wave 5 is next. GitHub PR merge state and change frontmatter were checked against `main` at `5926d58` (v1.10.1) after wave 4.
+Work order and status as of 2026-11-14. Waves 1–5 are merged into `main`. Waves 2–5 are archived. This folder holds 13 active changes, including 11 new changes and two older merged changes awaiting acceptance or archival. Wave 6 is next. GitHub PR merge state and change frontmatter were checked after wave 5 against `main` at `3971ce9` (v1.10.2, release PR #174).
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -96,17 +96,23 @@ The pending Manual rows below remain recorded in their archived plans. Any furth
 | `tests-strip-git-env` | [#162](https://github.com/xycu/agent-smith/pull/162) | `run` and `gitEnv` in `helpers.mjs`, four test files with their own environment | |
 | `compare-failed-attempts-neutral` | [#160](https://github.com/xycu/agent-smith/pull/160) | `compare` in `route.mjs` | |
 
-## Wave 5: owner decisions and guards (5)
+## Wave 5: owner decisions and guards (5) — merged and archived
 
-| Change | Owns in this wave | Notes |
-| --- | --- | --- |
-| `ci-fail-on-unexpected-skips` | `ci.yml` (new step), `gitAvailable` in `helpers.mjs`, `openspec-contract.test.mjs` | Owner: whether CI installs a pinned OpenSpec CLI. |
-| `stale-main-change-copy` | The `init` halt in `route.mjs`, the cleanup in `prepare-run.mjs`; skills: the stale-copy paragraph of the final message | Needs `worktree-setup-script` (wave 4). |
-| `skills-disable-model-invocation` | Skills: frontmatter `description` and the new key; the manifest descriptions | Owner decision. |
-| `ladder-fable-rung` | `ladder` and `maxTier` in `policy.json`, `ladder.test.mjs` | Owner decision: cost. |
-| `delete-guard-gaps` | `no-recursive-delete.test.mjs` | |
+All five implementations merged on 2026-11-14 in the order #169, #170, #171, #172 and #173. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. The 36 completed Progress rows retain their original SHA suffixes, referencing nine original branch commits. Branch refs preserve those commits after worktree cleanup.
 
-## Wave 6: prompts, ids and document drift (5)
+Four Manual rows remain unticked in the archived plans. Three require live Claude host acceptance. CI row 2.5 has passing TrueNAS evidence from PR #173. Any further acceptance work belongs in a new change referencing the archive.
+
+| Change | Merged PR | Owns in this wave | Remaining Progress and decisions |
+| --- | --- | --- | --- |
+| `ci-fail-on-unexpected-skips` | [#173](https://github.com/xycu/agent-smith/pull/173) | `ci.yml` (pinned CLI step), CI availability probes and OpenSpec contract tests | Owner approved OpenSpec 1.16.1 as a CI-only tool. Manual 2.5 stays unticked, with [passing TrueNAS evidence](https://github.com/xycu/agent-smith/actions/runs/43618967283) covering the CLI, five contract fixtures, permission checks and three expected skips. |
+| `stale-main-change-copy` | [#172](https://github.com/xycu/agent-smith/pull/172) | The `init` halt in `route.mjs`, cleanup in `prepare-run.mjs`, and skill lifecycle instructions | Manual 3.5 requires live post-init cleanup ordering and retained-path reporting for both chains. |
+| `skills-disable-model-invocation` | [#169](https://github.com/xycu/agent-smith/pull/169) | Skill frontmatter, descriptions, manifests and invocation tests | Owner chose explicit slash commands. Manual 1.6 requires fresh Claude Code invocation transcripts. |
+| `ladder-fable-rung` | [#171](https://github.com/xycu/agent-smith/pull/171) | Override documentation in `README.md` and `docs/REFERENCE.md`, plus `ladder.test.mjs` | Owner chose a documented opt-in fable override that appends high/xhigh rungs after the existing ladder. Manual 2.4 requires live fable Agent acceptance and older-host default behavior. |
+| `delete-guard-gaps` | [#170](https://github.com/xycu/agent-smith/pull/170) | `no-recursive-delete.test.mjs` | None. Both implementation-review warnings were fixed. |
+
+Combined main CI passed 1,476 tests with zero failures and three expected skips before release PR #174. [CI evidence](https://github.com/xycu/agent-smith/actions/runs/43619562032)
+
+## Wave 6: prompts, ids and document drift (5) — next
 
 | Change | Owns in this wave | Notes |
 | --- | --- | --- |
@@ -126,7 +132,7 @@ The pending Manual rows below remain recorded in their archived plans. Any furth
 
 ## Follow-ups awaiting scheduling (3)
 
-These new changes are outside the original wave tables. Plan their ownership before running them in parallel with waves 4–7.
+These new changes are outside the original wave tables. Plan their ownership before running them in parallel with waves 6–7.
 
 | Change | Origin and ownership to reconcile |
 | --- | --- |
