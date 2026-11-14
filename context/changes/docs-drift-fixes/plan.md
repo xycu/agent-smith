@@ -239,9 +239,9 @@ Concurrent Wave 6 merges may require context adjustments. Preserve sibling addit
 
 #### Automated
 
-- [ ] 1.1 Report and PR-comment guidance resolves from the run root, exactly one current Run lock bullet remains, and OpenSpec history links resolve to the recorded 2026-11-09 evidence.
-- [ ] 1.2 The prompt index agrees with all 17 names, narrow scopes, unknown-name validation and missing-variable fallback in steps.mjs and flow.mjs.
-- [ ] 1.3 Focused content and policy tests pass using the Phase 1 command in Testing Strategy.
+- [x] 1.1 Report and PR-comment guidance resolves from the run root, exactly one current Run lock bullet remains, and OpenSpec history links resolve to the recorded 2026-11-09 evidence.
+- [x] 1.2 The prompt index agrees with all 17 names, narrow scopes, unknown-name validation and missing-variable fallback in steps.mjs and flow.mjs.
+- [x] 1.3 Focused content and policy tests pass using the Phase 1 command in Testing Strategy.
 
 ### Phase 2: Amend historical ADRs and repair pointers
 
