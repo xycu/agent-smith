@@ -298,9 +298,9 @@ Removing a consumed `prompt.md` before router commits does not undo an earlier s
 
 #### Automated
 
-- [x] 3.1 Actual action-size evidence covers representative dispatch/retry paths near the 1 KB target, quantifies long-path overhead, and distinguishes emitted measurements from estimates and tokens.
-- [x] 3.2 The comparison record includes available compare outputs or an explicit zero-pair/unavailable explanation, usage coverage and failure limitations, and a justified decision retaining the false default.
-- [x] 3.3 The final required full Node suite passes after the last code/test change; evidence and the scoped diff are checked without modifying WAVES, archive or sibling-owned regions.
+- [x] 3.1 Actual action-size evidence covers representative dispatch/retry paths near the 1 KB target, quantifies long-path overhead, and distinguishes emitted measurements from estimates and tokens. — 08701e4
+- [x] 3.2 The comparison record includes available compare outputs or an explicit zero-pair/unavailable explanation, usage coverage and failure limitations, and a justified decision retaining the false default. — 08701e4
+- [x] 3.3 The final required full Node suite passes after the last code/test change; evidence and the scoped diff are checked without modifying WAVES, archive or sibling-owned regions. — 08701e4
 
 #### Manual
 
