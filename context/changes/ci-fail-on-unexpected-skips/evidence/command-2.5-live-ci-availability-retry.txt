@@ -1,0 +1,29 @@
+Read-only GitHub checks for Manual row 2.5.
+Recorded 2026-11-14T16:21:15.518103+00:00.
+Working directory: /Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-ci-fail-on-unexpected-skips
+Retried the prior branch queries and added a commit-specific Actions query.
+
+$ cd "/Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-ci-fail-on-unexpected-skips" && git branch --show-current
+exit 0
+agent-smith/ci-fail-on-unexpected-skips
+
+$ cd "/Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-ci-fail-on-unexpected-skips" && git rev-parse HEAD
+exit 0
+613d5368849239cc09eb4e76cfdeaf4e538974e3
+
+$ cd "/Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-ci-fail-on-unexpected-skips" && gh pr list --repo xycu/agent-smith --state all --head agent-smith/ci-fail-on-unexpected-skips --json number,url,headRefOid,isCrossRepository,state
+exit 0
+[]
+
+$ cd "/Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-ci-fail-on-unexpected-skips" && gh run list --repo xycu/agent-smith --workflow ci.yml --branch agent-smith/ci-fail-on-unexpected-skips --limit 100 --json databaseId,headBranch,headSha,event,status,conclusion,url
+exit 0
+[]
+
+$ cd "/Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-ci-fail-on-unexpected-skips" && gh api "repos/xycu/agent-smith/actions/runs?head_sha=613d5368849239cc09eb4e76cfdeaf4e538974e3&per_page=100" --jq '{total_count, workflow_runs: [.workflow_runs[] | {id, name, event, head_branch, head_sha, status, conclusion, html_url}]}'
+exit 0
+{"total_count":0,"workflow_runs":[]}
+
+Row 2.5 remains pending. GitHub returned no PR for this branch, no branch CI run, and zero workflow runs for the current commit.
+The required same-repository PR run on the non-root TrueNAS runner therefore cannot be inspected for OpenSpec 1.16.1, all five executed contract fixtures, both executed permission checks, or its skipped-test inventory.
+Creating the required run would require pushing or posting to an external service, which this manual-verification step prohibits.
+Local regression tests and source inspection cannot establish that this live TrueNAS PR run occurred.
