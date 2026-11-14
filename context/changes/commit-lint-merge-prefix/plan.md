@@ -114,6 +114,6 @@ The change adds regression proof and completion notes. Existing commit history a
 
 #### Automated
 
-- [ ] 1.1 Focused regressions pass, including ordinary Merge-prefixed range rejection with hash/subject diagnostics, genuine merge exclusion, and title rejection. Run `TMPDIR="$PWD/context/changes/commit-lint-merge-prefix" node --test tools/test/commit-lint.test.mjs tools/test/pr-title-workflow.test.mjs`.
-- [ ] 1.2 The repository-required full suite passes. Run `TMPDIR="$PWD/context/changes/commit-lint-merge-prefix" node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, recording any skips and their conditions.
-- [ ] 1.3 Change-local completion evidence records the inherited fix, baseline SHA, and actual verification outcomes. `git diff --check` passes and the final diff respects the scoped files and protected paths.
+- [x] 1.1 Focused regressions pass, including ordinary Merge-prefixed range rejection with hash/subject diagnostics, genuine merge exclusion, and title rejection. Run `TMPDIR="$PWD/context/changes/commit-lint-merge-prefix" node --test tools/test/commit-lint.test.mjs tools/test/pr-title-workflow.test.mjs`.
+- [x] 1.2 The repository-required full suite passes. Run `TMPDIR="$PWD/context/changes/commit-lint-merge-prefix" node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, recording any skips and their conditions.
+- [x] 1.3 Change-local completion evidence records the inherited fix, baseline SHA, and actual verification outcomes. `git diff --check` passes and the final diff respects the scoped files and protected paths.

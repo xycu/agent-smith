@@ -75,14 +75,16 @@ test("the CLI exits 0 for good commits", () => {
   assert.match(run.stdout, /commit-lint: OK/);
 });
 
-test("the CLI exits 1 and names the bad commit", () => {
-  const dir = makeRepo(["feat: one", "wip stuff"]);
-  const bad = git(dir, "rev-parse", "--short", "HEAD");
-  const run = cli(dir, "base..HEAD");
-  assert.equal(run.status, 1);
-  assert.ok(run.stderr.includes(bad), run.stderr);
-  assert.match(run.stderr, /wip stuff/);
-});
+for (const subject of ["wip stuff", "Merge the two parsers into one"]) {
+  test(`the CLI exits 1 and names the bad commit: ${subject}`, () => {
+    const dir = makeRepo(["feat: one", subject]);
+    const bad = git(dir, "rev-parse", "--short", "HEAD");
+    const run = cli(dir, "base..HEAD");
+    assert.equal(run.status, 1, run.stderr);
+    assert.ok(run.stderr.includes(bad), run.stderr);
+    assert.ok(run.stderr.includes(subject), run.stderr);
+  });
+}
 
 test("the CLI exits 2 on a missing argument, an empty range or a bad range", () => {
   const dir = makeRepo(["feat: one"]);
