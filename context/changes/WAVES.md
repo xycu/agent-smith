@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-14. Waves 1–3 are merged into `main`. Waves 2–3 are archived. This folder holds 24 active changes: 22 new changes and two merged changes awaiting acceptance or archival. Wave 4 is next. GitHub PR merge state and change frontmatter were checked against `main` at `a00da2c` (release 1.10.0).
+Work order and status as of 2026-11-14. Waves 1–4 are merged into `main`. Waves 2–3 are archived. This folder holds 24 active changes, including 16 new changes and eight merged changes awaiting acceptance or archival. Wave 5 is next. GitHub PR merge state and change frontmatter were checked against `main` at `4b19689` after wave 4.
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -10,7 +10,7 @@ A wave is a set of changes that can run **at the same time**, each in its own ru
 - A change stays inside the files its row names under "Owns in this wave". If its plan needs a file that another change of the same wave owns, move the change to a later wave before it runs.
 - Shared text files are the one exception: `AGENTS.md`, `README.md`, `docs/REFERENCE.md` and the two skill content tests (`skill-loop.test.mjs`, `openspec-skill.test.mjs`). Several changes of a wave add lines to them, in different places. Merge the pull requests of a wave one by one. If a later one then conflicts in such a file, resolve it on its branch with a merge of `main` and a new commit. Never force-push.
 - "Owner" marks a change that needs a decision or an action from the owner before or during its run.
-- Update this file in one maintenance PR after each wave merges. Individual parallel runs leave it alone. This refresh accompanies the wave 3 archive PR requested by the owner.
+- Update this file in one maintenance PR after each wave merges. Individual parallel runs leave it alone.
 
 ## How the waves were cut
 
@@ -81,16 +81,18 @@ These rows report the checkboxes at archive time. The three pending Manual rows 
 | `budget-test-file-split` | `budget-executors.test.mjs` and a new helper module | Cuts the suite wall time for every later run. |
 | `shared-churn-excludes` | Churn config in `state.mjs`, `evidenceExcludes` in `steps.mjs` | |
 
-## Wave 4: run state and isolation setup (6)
+## Wave 4: run state and isolation setup (6) — merged
 
-| Change | Owns in this wave | Notes |
-| --- | --- | --- |
-| `ci-scratch-in-runner-temp` | `ci.yml` (environment of the test step) | |
-| `worktree-setup-script` | New `scripts/prepare-run.mjs`; skills: Start step 3 | |
-| `agent-call-parameters` | Skills: Loop step 2, anti-stall rules 1 and 6, the late-usage paragraph | After `pr-comment-flag-in-meta` (wave 3), which rewrites the branches around that paragraph. |
-| `run-state-atomic-writes` | The write and `readLog` paths of `state.mjs` and their call sites in `init`, `next` and `usage` | |
-| `tests-strip-git-env` | `run` and `gitEnv` in `helpers.mjs`, four test files with their own environment | |
-| `compare-failed-attempts-neutral` | `compare` in `route.mjs` | |
+All six implementations merged on 2026-11-14 in the order #164, #162, #161, #160, #165 and #163. Their change folders have `status: impl_reviewed` and remain open in `context/changes/`.
+
+| Change | Merged PR | Owns in this wave | Notes |
+| --- | --- | --- | --- |
+| `ci-scratch-in-runner-temp` | [#164](https://github.com/xycu/agent-smith/pull/164) | `ci.yml` (environment of the test step) | Manual 1.5–1.6 still require live TrueNAS scratch-path and cancellation-cleanup observations. |
+| `worktree-setup-script` | [#163](https://github.com/xycu/agent-smith/pull/163) | New `scripts/prepare-run.mjs`; skills: Start step 3 | |
+| `agent-call-parameters` | [#161](https://github.com/xycu/agent-smith/pull/161) | Skills: Loop step 2, anti-stall rules 1 and 6, the late-usage paragraph | After `pr-comment-flag-in-meta` (wave 3), which rewrites the branches around that paragraph. Includes the deterministic shutdown-test repair. Manual 1.6 still requires live Claude Code acceptance. |
+| `run-state-atomic-writes` | [#165](https://github.com/xycu/agent-smith/pull/165) | The write and `readLog` paths of `state.mjs` and their call sites in `init`, `next` and `usage` | |
+| `tests-strip-git-env` | [#162](https://github.com/xycu/agent-smith/pull/162) | `run` and `gitEnv` in `helpers.mjs`, four test files with their own environment | |
+| `compare-failed-attempts-neutral` | [#160](https://github.com/xycu/agent-smith/pull/160) | `compare` in `route.mjs` | |
 
 ## Wave 5: owner decisions and guards (5)
 
