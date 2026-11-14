@@ -42,5 +42,14 @@
       "advisor.enabled": false,
       "host": "codex"
     }
+  },
+  "startCommit": "b9a5e86a6d76dd098b1a7766a24d1bdb1612aea6",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 1 (score) hit its limit of 3 neutral reruns after orchestrator faults (limits.maxNeutralRetries). Needs a human. Fix the harness, then either write a result file with the real status (the router verifies the step by its files), or raise limits.maxNeutralRetries in context/foundation/agent-smith-policy.json and write the orchestrator-error result file again, then run next."
   }
 }
