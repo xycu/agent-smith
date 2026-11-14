@@ -350,9 +350,9 @@ The implementation overlaps the open changes `pr-comment-flag-in-meta`, `router-
 
 #### Automated
 
-- [x] 4.1 Both-chain scratch integration tests prove OpenAI execution, mixed-provider escalation, neutral retry, isolation/rollback and guarded archive without live model calls.
-- [x] 4.2 Scratch CLI smoke returns a real run action and readable status for both chains under the GPT overlay, including the documented no-isolation override.
-- [x] 4.3 Final checks pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` and `node tools/version-check.mjs`.
+- [x] 4.1 Both-chain scratch integration tests prove OpenAI execution, mixed-provider escalation, neutral retry, isolation/rollback and guarded archive without live model calls. — 2fa3006
+- [x] 4.2 Scratch CLI smoke returns a real run action and readable status for both chains under the GPT overlay, including the documented no-isolation override. — 2fa3006
+- [x] 4.3 Final checks pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` and `node tools/version-check.mjs`. — 2fa3006
 
 #### Manual
 
