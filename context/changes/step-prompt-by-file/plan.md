@@ -278,21 +278,21 @@ Removing a consumed `prompt.md` before router commits does not undo an earlier s
 
 #### Automated
 
-- [x] 1.1 Default and legacy inline actions remain unchanged; the new boolean validates before writes and both chains accept the opt-in.
-- [x] 1.2 File contents equal the canonical rendered task byte for byte, the wrapper repeats the exact RESULT contract, and initial/next dispatch covers both providers and the restricted score agent.
-- [x] 1.3 Neutral replay restores the original file and descriptor across policy changes, preserving identity, usage ownership, attempts, budget, tier, timestamps and rollback baseline.
-- [x] 1.4 Consumed files and owned temporaries are absent from router step/final/pre-archive commits; next-step replacement, terminal cleanup and interruption recovery preserve results and unrelated files.
-- [x] 1.5 Codex accepts valid file dispatch and rejects altered stubs, file bytes, paths, stale actions, redirects and archive file fields before model launch, with existing runner behavior preserved.
-- [x] 1.6 Transport-only changes preserve provenance hashes while template/rule changes still produce drift; affected template-enumeration tests remain strict.
-- [x] 1.7 The required full Node suite passes after the phase's code changes, with any environment-dependent skips identified rather than counted as proof.
+- [x] 1.1 Default and legacy inline actions remain unchanged; the new boolean validates before writes and both chains accept the opt-in. — 0565210
+- [x] 1.2 File contents equal the canonical rendered task byte for byte, the wrapper repeats the exact RESULT contract, and initial/next dispatch covers both providers and the restricted score agent. — 0565210
+- [x] 1.3 Neutral replay restores the original file and descriptor across policy changes, preserving identity, usage ownership, attempts, budget, tier, timestamps and rollback baseline. — 0565210
+- [x] 1.4 Consumed files and owned temporaries are absent from router step/final/pre-archive commits; next-step replacement, terminal cleanup and interruption recovery preserve results and unrelated files. — 0565210
+- [x] 1.5 Codex accepts valid file dispatch and rejects altered stubs, file bytes, paths, stale actions, redirects and archive file fields before model launch, with existing runner behavior preserved. — 0565210
+- [x] 1.6 Transport-only changes preserve provenance hashes while template/rule changes still produce drift; affected template-enumeration tests remain strict. — 0565210
+- [x] 1.7 The required full Node suite passes after the phase's code changes, with any environment-dependent skips identified rather than counted as proof. — 0565210
 
 ### Phase 2: Integrate dispatch guidance and document the opt-in
 
 #### Automated
 
-- [ ] 2.1 Both Loop step 2 contracts forward compact prompts unchanged without loading files, preserve provider/usage/error rules, and keep both anti-stall sections identical.
-- [ ] 2.2 The reference describes the default, opt-in, replay, cleanup, archive and evidence limits consistently with tested behavior; a search for obsolete full-inline claims resolves only task-owned text.
-- [ ] 2.3 The required full Node suite and `git diff --check` pass after skill/content changes, with the final diff confined to the scope map.
+- [x] 2.1 Both Loop step 2 contracts forward compact prompts unchanged without loading files, preserve provider/usage/error rules, and keep both anti-stall sections identical.
+- [x] 2.2 The reference describes the default, opt-in, replay, cleanup, archive and evidence limits consistently with tested behavior; a search for obsolete full-inline claims resolves only task-owned text.
+- [x] 2.3 The required full Node suite and `git diff --check` pass after skill/content changes, with the final diff confined to the scope map.
 
 ### Phase 3: Record measurements and the default decision
 

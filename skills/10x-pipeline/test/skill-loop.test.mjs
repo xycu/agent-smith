@@ -359,3 +359,15 @@ for (const [chain, source, id, selector] of [
     }
   });
 }
+
+test("both numbered dispatch loops forward file handoffs without loading the task", () => {
+  for (const text of [skill, fs.readFileSync(path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8")]) {
+    const loop = text.split("## Loop")[1].split("## Anti-stall rules")[0];
+    const step = loop.split("\n  2. ")[1].split("\n  3. ")[0];
+    assert.match(step, /when `promptFile` exists, forward the router's short `prompt` verbatim/);
+    assert.match(step, /Do not read, expand, edit or delete the task file/);
+    assert.match(step, /child reads it and the router owns cleanup/);
+    assert.match(step, /entire router action JSON on stdin/);
+    assert.match(step, /Pass its exact prompt and dispatch unchanged/);
+  }
+});
