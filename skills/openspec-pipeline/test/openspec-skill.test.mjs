@@ -269,3 +269,26 @@ test("archive reuses dispatch with its archive description override", () => {
   assert.ok(branch("run").includes('description: "agent-smith <change-name> step <n> <step>"'));
   assert.ok(branch("run").includes("override the description with `agent-smith <change-name> archive`"));
 });
+
+// OpenSpec consumes the same setup owner with its chain selector.
+test("Start step 3 consumes shared OpenSpec setup and retains run safety", () => {
+  const start = skill.indexOf("\n3. Prepare run isolation");
+  assert.ok(start >= 0);
+  const setup = skill.slice(start, skill.indexOf("\n4. ", start));
+  assert.ok(setup.includes('PREPARE_RUN="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/prepare-run.mjs"'));
+  assert.ok(setup.includes("Under Codex, take the absolute SKILL.md path"));
+  assert.ok(setup.includes("Keep `PREPARE_RUN` absolute and quoted"));
+  assert.ok(setup.includes('cd "<root>" && node "$PREPARE_RUN" <change-name> --chain openspec'));
+  assert.ok(setup.includes("`timeout: 600000`"));
+  for (const text of ["exactly one JSON object", "reason: null", "absolute `root` and `runRoot`",
+    "nonzero exit", "missing or malformed JSON", "non-null `reason`", "STOP before `init`",
+    "returned `root`", "returned `runRoot`", "not in the run (uncommitted in the main checkout)",
+    "A resume never copies", 'cd "<run root>" && node $ROUTER ... --chain openspec',
+    "<run root>/<resultFile>", "Never commit, stash, reset or clean", "refs/agent-smith/",
+    "name their side refs", "List the files, check the list", "stale copy", "before removing the worktree",
+    "(isolation off)", "`os-apply` commits its code itself", "the files of the change folder stay uncommitted"]) {
+    assert.ok(setup.includes(text), text);
+  }
+  assert.doesNotMatch(skill, /git worktree|\bcp -|\bmkdir -p|check-ignore|info\/exclude/);
+  assert.ok(fs.existsSync(path.resolve(OS_SKILL_DIR, "../10x-pipeline/scripts/prepare-run.mjs")));
+});

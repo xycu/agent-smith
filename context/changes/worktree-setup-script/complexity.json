@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md fixes the behavior, output schema, safety constraints and done condition." },
+    "novelty": { "score": 1, "evidence": "change.md points to open-pr.mjs as the existing standalone script pattern." },
+    "coupling": { "score": 2, "evidence": "Goal spans prepare-run.mjs, both skills, tests, ADR and shared documentation." },
+    "discovery": { "score": 1, "evidence": "change.md names the duplicated setup and isolation.test.mjs pattern." },
+    "volume": { "score": 2, "evidence": "Goal requires a script, both skill edits, real-script case tests and documentation updates." },
+    "verification": { "score": 2, "evidence": "change.md requires a real linked-worktree harness and every setup case through the script." }
+  },
+  "unknowns": ["The extent of existing isolation.test.mjs helpers reusable for script-level cases is not established by the upstream artifacts."],
+  "confidence": "medium"
+}

@@ -27,8 +27,9 @@ Router: `node skills/10x-pipeline/scripts/route.mjs <command>`. Every command ta
 - `verify-archive <id> [--path <p>]` — read-only; prints whether the change is archived.
 - `compare <id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]` — read-only; routed run against a baseline run.
 
-Standalone scripts under `skills/10x-pipeline/scripts/`, run from the run root:
+Run standalone scripts under `skills/10x-pipeline/scripts/` from the run root, except `prepare-run.mjs`, which runs from the original project root.
 
+- `node <absolute-script-path>/prepare-run.mjs <id> [--chain 10x|openspec]` — prepare isolation before `init`. Runtime JSON has `reason: null` on success and `runRoot: null` on failure. Usage errors exit 2 (ADR-010 Amendment 2).
 - `node skills/10x-pipeline/scripts/open-pr.mjs <id> [--chain 10x|openspec] [--report <p>] [--remote <name>] [--base <branch>] [--draft] [--timeout-ms <n>]` — commit leftovers, push the run branch without force, open or keep its pull request (ADR-017).
 - `node skills/10x-pipeline/scripts/pr-comment.mjs <id> [--report <p>] [--pr <url>] [--timeout-ms <n>]` — post the run report as a comment on the pull request, or edit its earlier comment. `GH_LIVE=1` enables its read-only live tests, which a human runs.
 - `node tools/version-check.mjs` — exit 0 when every version field is equal and valid SemVer. `node tools/commit-lint.mjs <range>` (for example `main..HEAD`) — exit 0 when every subject is a Conventional Commit; `--title "<text>"` lints one pull request title.

@@ -52,6 +52,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `ladder.test.mjs` | the 8-rung ladder and the effort floor on the rung's effort (ADR-010) |
+| `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp/copy and resume preservation, concurrent setup exclusion, runtime failures and command restrictions |
 | `isolation.test.mjs` | the isolation gate of `init`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
 | `stepcommit.test.mjs` | the start and step commits (ADR-010) |
 | `rollback.test.mjs` | the failed-step rollback and its undo on halt (ADR-010) |
