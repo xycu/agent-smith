@@ -187,16 +187,16 @@ No state migration or tier renumbering. Users deliberately merge the full array 
 
 #### Automated
 
-- [x] 1.1 The canonical reference JSON parses and exactly preserves tiers 0–7, appends tiers 8–9 and changes only the four selected maxTier keys.
-- [x] 1.2 README and reference agree on compatibility, merge semantics, floor limitations and illustrative pricing; default policies, skill/manifest descriptions, WAVES.md and archive paths have no diff.
+- [x] 1.1 The canonical reference JSON parses and exactly preserves tiers 0–7, appends tiers 8–9 and changes only the four selected maxTier keys. — 4132c20
+- [x] 1.2 README and reference agree on compatibility, merge semantics, floor limitations and illustrative pricing; default policies, skill/manifest descriptions, WAVES.md and archive paths have no diff. — 4132c20
 
 ### Phase 2: Prove the published configuration through regression tests
 
 #### Automated
 
-- [ ] 2.1 The published-override, provider, clamp, effort-floor and missing-price regressions pass in ladder.test.mjs with unchanged default assertions.
-- [ ] 2.2 Focused ladder, providers, cost, budget-executors and loops-existing suites pass without changed tier literals or unexpected skips.
-- [ ] 2.3 The repository-required full test command passes, and git diff --check plus a final path/region audit confirm the approved scope.
+- [x] 2.1 The published-override, provider, clamp, effort-floor and missing-price regressions pass in ladder.test.mjs with unchanged default assertions.
+- [x] 2.2 Focused ladder, providers, cost, budget-executors and loops-existing suites pass without changed tier literals or unexpected skips.
+- [x] 2.3 The repository-required full test command passes, and git diff --check plus a final path/region audit confirm the approved scope.
 
 #### Manual
 
