@@ -1,10 +1,11 @@
-// Version-drift guard for the plugin package.
+// Version and description drift guard for the plugin package.
 // The plugin version sits in three fields that must stay equal and be valid SemVer 2.0.0:
 //   .claude-plugin/plugin.json       -> version
 //   .claude-plugin/marketplace.json  -> metadata.version (no plugin entry may set version)
 //   .release-please-manifest.json    -> "."
 // release-please updates them together (release-please-config.json `extra-files`); this check fails
 // if a manual edit, a bad updater config or a partial revert makes them differ.
+// Plugin descriptions must also be nonblank strings and match exactly.
 // Plain node: built-ins only. Exit 0 when the fields agree, 1 otherwise.
 import fs from "node:fs";
 import path from "node:path";
@@ -46,7 +47,7 @@ export function collect(root = ROOT) {
   return fields;
 }
 
-// Returns a list of error strings; empty when every field is valid SemVer and all are equal.
+// Returns error strings for invalid or unequal versions and descriptions.
 export function check(root = ROOT) {
   let fields;
   try {
@@ -68,13 +69,24 @@ export function check(root = ROOT) {
     if (!SEMVER.test(value)) errors.push(`${label} = ${JSON.stringify(value)} is not a SemVer 2.0.0 version`);
     else if (value !== reference) errors.push(`${label} = ${JSON.stringify(value)} (expected ${JSON.stringify(reference)})`);
   }
+  const descriptions = [
+    ["plugin.json:description", readJson(root, ".claude-plugin/plugin.json").description],
+    ["marketplace.json:plugins[0].description", Array.isArray(plugins) ? plugins[0]?.description : undefined],
+  ];
+  const invalidDescriptions = descriptions.filter(([, value]) => typeof value !== "string" || value.trim() === "");
+  for (const [label] of invalidDescriptions) {
+    errors.push(`${label} must be a nonblank string`);
+  }
+  if (invalidDescriptions.length === 0 && descriptions[0][1] !== descriptions[1][1]) {
+    errors.push("plugin.json:description and marketplace.json:plugins[0].description must match exactly");
+  }
   return errors;
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const errors = check();
   if (errors.length > 0) {
-    console.error("version-check: version fields drift or are invalid:");
+    console.error("version-check: version or description fields drift or are invalid:");
     for (const error of errors) console.error(`  - ${error}`);
     process.exit(1);
   }

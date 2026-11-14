@@ -247,14 +247,14 @@ Concurrent Wave 6 merges may require context adjustments. Preserve sibling addit
 
 #### Automated
 
-- [x] 2.1 Four superseded claims have adjacent evidence-backed amendments, all six ADRs retain historical decisions, and every identified obsolete README pointer has a valid current destination.
-- [x] 2.2 ADR and deletion-rule checks pass using the Phase 2 command in Testing Strategy.
+- [x] 2.1 Four superseded claims have adjacent evidence-backed amendments, all six ADRs retain historical decisions, and every identified obsolete README pointer has a valid current destination. — 6840d4c
+- [x] 2.2 ADR and deletion-rule checks pass using the Phase 2 command in Testing Strategy. — 6840d4c
 
 ### Phase 3: Enforce description equality
 
 #### Automated
 
-- [ ] 3.1 Version-check tests cover equality, drift, invalid and absent descriptions, CLI failure and read-only behavior while preserving prior version guarantees.
-- [ ] 3.2 The repository version-check CLI and focused version-check tests pass using the Phase 3 commands in Testing Strategy.
-- [ ] 3.3 The full suite passes using the repository command in Testing Strategy, with every environment-dependent skip identified.
-- [ ] 3.4 The seven-item reconciliation and diff pass ownership, historical-text, protected-path and release-version checks, and git diff --check succeeds.
+- [x] 3.1 Version-check tests cover equality, drift, invalid and absent descriptions, CLI failure and read-only behavior while preserving prior version guarantees.
+- [x] 3.2 The repository version-check CLI and focused version-check tests pass using the Phase 3 commands in Testing Strategy.
+- [x] 3.3 The full suite passes using the repository command in Testing Strategy, with every environment-dependent skip identified.
+- [x] 3.4 The seven-item reconciliation and diff pass ownership, historical-text, protected-path and release-version checks, and git diff --check succeeds.
