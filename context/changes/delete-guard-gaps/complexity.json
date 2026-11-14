@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "context/changes/delete-guard-gaps/change.md specifies the scanner gaps, allowed forms, and done condition." },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/test/no-recursive-delete.test.mjs already contains the scanner and regression cases to extend." },
+    "coupling": { "score": 1, "evidence": "context/changes/WAVES.md assigns delete-guard-gaps only no-recursive-delete.test.mjs." },
+    "discovery": { "score": 0, "evidence": "The goal names the scanner, shell forms, filesystem options, and .github files to cover." },
+    "volume": { "score": 1, "evidence": "context/changes/delete-guard-gaps/change.md calls for extending one scanner test and its cases." },
+    "verification": { "score": 1, "evidence": "context/changes/delete-guard-gaps/change.md requires regression cases and the existing repository scan to stay green." }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
