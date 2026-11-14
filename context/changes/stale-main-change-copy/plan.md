@@ -24,13 +24,14 @@ Planning verification on Node v24.19.0 reproduced both failures through the real
 ## Desired End State
 
 - `init` refuses a live folder accompanied by any matching archive folder in its resolved chain. The halt names the live path and every matching archive path, exits unsuccessfully and leaves repository files, index, refs and run-state temps unchanged.
-- A freshly created isolated run performs cleanup after `init` returns `action: run`, before launching its first step. Each deleted source file is untracked in the original checkout and byte-identical to a regular-file blob in the verified start commit retained on the run branch.
+- A freshly created isolated run performs cleanup after `init` returns `action: run`, `done` or `archive`, before dispatching that action. Each deleted source file is untracked in the original checkout and byte-identical to a regular-file blob in the verified start commit retained on the run branch.
 - Tracked files, changed files, files absent from that commit, symlinks and uncertain entries remain in place and appear in `left`. Resumed setup cases perform no cleanup.
 - Both skills describe the executable cleanup and report the paths retained. Existing branch, worktree, PR and terminal-state reporting continues to work.
+- A later invocation from the original checkout discovers and resumes the existing run even after cleanup removed the entire original change folder. Missing-input and archive diagnostics use the selected run root, with original-root fallback when setup cannot select a run.
 
 ## Scope Boundaries
 
-Wave 5 implementation owns the init halt in `skills/10x-pipeline/scripts/route.mjs`, cleanup in `skills/10x-pipeline/scripts/prepare-run.mjs`, and the stale-copy paragraph under Start step 3 in each skill. Extend the existing `archive.test.mjs`, `openspec-archive.test.mjs`, `prepare-run.test.mjs`, `skill-loop.test.mjs` and `openspec-skill.test.mjs`. Update only the corresponding setup and archive-init paragraphs in the shared `docs/REFERENCE.md`.
+Wave 5 implementation owns the init halt in `skills/10x-pipeline/scripts/route.mjs`, cleanup in `skills/10x-pipeline/scripts/prepare-run.mjs`, and the stale-copy paragraph under Start step 3 in each skill. Cleanup also requires moving each skill's Start step 2 change-folder existence check after setup selects the run root, and validating a missing fresh source before setup creates resources. These prerequisite changes use the same owned files and leave the parallel skill-frontmatter work independent. Extend the existing `archive.test.mjs`, `openspec-archive.test.mjs`, `prepare-run.test.mjs`, `skill-loop.test.mjs` and `openspec-skill.test.mjs`. Update only the corresponding setup and archive-init paragraphs in the shared `docs/REFERENCE.md`.
 
 Other Wave 5 owners retain CI, `helpers.mjs`, `openspec-contract.test.mjs`, skill frontmatter and manifest descriptions, the policy ladder, and `no-recursive-delete.test.mjs`. `state.mjs`, isolation commit code, setup case selection, routing policy, runtime state schemas and archive contents remain outside this implementation's edit surface. `WAVES.md` is the ownership source and stays read-only. Existing tests receive additions, keeping their README indexes sufficient.
 
@@ -45,6 +46,7 @@ Use an init-specific preflight in the router and an explicit post-init mode of t
 - Assess this as medium complexity across three phases. The unattended instruction replaces the skill interview and phase approval with evidence-backed decisions. The change brief specifies the desired behavior, and ADR-010 Amendment 2 reserves cleanup for Wave 5.
 - Scope the additional archive refusal to `init`. Existing `next`, `status`, `usage`, comparison and archive-verification contracts retain their existing behavior. Evidence comes from the brief's init requirement and Wave 5's assigned region.
 - Add `--cleanup` to the same executable, with the original setup JSON on stdin. Retain `<id>` and optional `--chain 10x|openspec`. This provides the required post-init timing while reusing setup ownership and avoiding another state file. Existing setup calls retain their CLI and output contract.
+- Resolve the run before applying the skills' change-folder existence checks. Preserve early project/tooling checks and the setup script's six-case ordering. When fresh creation finds no valid source directory, fail before adding an exclude or creating a branch/worktree. Existing resume branches can therefore be selected after source cleanup, while missing fresh inputs retain the existing archive/new-change guidance. Evidence comes from both skills' Start step 2 checks and setup's existing branch reuse/attachment paths. Wave 5's other skill owner edits frontmatter, so these prerequisite checks have independent ownership.
 - Gate cleanup on a validated setup result with `case: created`, `copied: true`, `reason: null`, matching original root, run root and expected branch. Other valid setup cases return successfully without deleting anything. Evidence comes from ADR-010's fresh-copy rule and the existing six-case tests.
 - Preserve symlinks and special entries and report them. The brief authorizes deletion based on retained file bytes, while existing setup explicitly preserves symlink targets and rejects symlink destination parents. Conservative retention keeps link-target semantics intact.
 - A cleanup failure reports a bounded diagnostic and retained paths, while the already initialized run continues from its original validated run root. Retention is sufficient for data safety. The start-commit requirement and the brief's instruction to name files left behind support this recovery behavior.
@@ -53,7 +55,7 @@ Use an init-specific preflight in the router and an explicit post-init mode of t
 
 ### Timing and retention
 
-Creating or copying a worktree proves insufficient retention. Run cleanup only after a fresh setup and a successful `init` response with `action: run`. Require `meta.isolated === true`, the expected branch and a valid non-null `meta.startCommit` resolving to a commit reachable from the run branch. Read each comparison blob from that immutable commit even if the worktree has changed since initialization.
+Creating or copying a worktree proves insufficient retention. Run cleanup only after a fresh setup and a successful `init` response with `action: run`, `done` or `archive`. Perform it before the first step launch, final reporting/PR handling or archive dispatch respectively. Halted initialization skips cleanup. A fresh 10x change with completed Progress and fresh reviews can immediately return `done` or `archive` while still creating a start commit. Require `meta.isolated === true`, the expected branch and a valid non-null `meta.startCommit` resolving to a commit reachable from the run branch. Read each comparison blob from that immutable commit even if the worktree has changed since initialization.
 
 ### Source and destination identity
 
@@ -115,6 +117,8 @@ Implement selective cleanup in the executable that owns copying and worktree set
 
 **Contract** Accept `<id> [--chain 10x|openspec] --cleanup` with the original setup JSON on stdin. Validate its shape, chain-derived change path, cwd and worktree identity. Honor fresh-case gating and the retention/eligibility rules above. Keep ordinary preparation behavior and its result fields stable. Cleanup returns the same setup-result shape, populating `left` with original-project-relative surviving paths. Runtime failures retain the established bounded `reason` and null `runRoot` convention. The caller keeps the earlier successful setup result for continued execution. Invalid arguments or input exit 2 before mutation.
 
+For ordinary preparation's fresh-creation branch, validate the source directory under the existing setup lock before `addExclude` or `git worktree add`. Reuse `copyChange`'s directory-type requirement at that earlier point. A missing fresh source returns the existing runtime-failure shape with all repository resources intact. Reuse and attachment continue selecting their run roots when the original change folder has been removed.
+
 #### Real Git cleanup acceptance
 
 **File** `skills/10x-pipeline/test/prepare-run.test.mjs`
@@ -127,6 +131,8 @@ Implement selective cleanup in the executable that owns copying and worktree set
 - Tracked files remain even when identical, modified or staged. A file removed from the index but retained in HEAD also remains. Source index, refs, branch, config and unrelated files retain their bytes.
 - Source edits after copying, source edits after init, files added after copying, files absent from the commit and symlinks remain and are named. A file changed after candidate enumeration is preserved by the final recheck.
 - Valid resumed cases, opt-out and in-flight-main setup results delete nothing. Repeated cleanup of the original fresh result is safe and preserves later changed files.
+- After complete source removal, a later setup from the original root reuses the existing registered run, and attachment to an existing branch also works with an absent source. A fresh missing-source invocation creates no exclude, branch or worktree and preserves original-root archive diagnostics.
+- A fresh 10x fixture with completed Progress and fresh reviews returns `done`, or `archive` with the flag, while retaining a valid start commit; cleanup still removes eligible source files before terminal handling. Ordinary `run` responses and halted initialization keep their specified ordering.
 - Missing/null/invalid/unreachable start commits, failed init, malformed input, wrong roots, wrong branch/common directory, invalid prefixes and symlinked ancestors cause no deletion.
 - Read/lookup/unlink/rmdir failures and lock contention produce honest diagnostics and surviving-path reports. A failure after one approved deletion preserves other inputs, and the deleted bytes remain in the start commit.
 - Prefixes with spaces, Unicode and Git pathspec metacharacters resolve exactly once. Extend the existing wrapper only with read-only Git operations needed for verification and byte comparison.
@@ -155,7 +161,9 @@ Make the cleanup run through the normal orchestrator entry points and report ret
 
 **Intent** Connect the new executable mode to fresh initialization and replace blanket removal advice with the actual retained-path outcome.
 
-**Contract** Edit the owned stale-copy paragraph under Start step 3. Specify that after step 4 returns `action: run`, and before the first step launch, a saved `created`/`copied: true` setup result is sent verbatim on stdin to `cd "<root>" && node "$PREPARE_RUN" <id> --cleanup`, adding `--chain openspec` for that chain. Use the existing absolute script path and 600000 ms host timeout. Perform this once for a fresh invocation. Preserve the initial setup result independently from the cleanup response. Validate cleanup JSON, report nonempty `left` or cleanup diagnostics, and retain the initialized run root. Resumes and halted initialization skip this operation. The final worktree message names branch/root and any retained original paths, while preserving existing final-state commit guidance.
+**Contract** Edit the owned stale-copy paragraph under Start step 3. Specify that after step 4 returns `action: run`, `done` or `archive`, and before dispatching the returned action, a saved `created`/`copied: true` setup result is sent verbatim on stdin to `cd "<root>" && node "$PREPARE_RUN" <id> --cleanup`, adding `--chain openspec` for that chain. Cleanup precedes the first step launch, final reporting/PR handling or archive dispatch respectively. Use the existing absolute script path and 600000 ms host timeout. Perform this once for a fresh invocation. Preserve the initial setup result independently from the cleanup response. Validate cleanup JSON, report nonempty `left` or cleanup diagnostics, and retain the initialized run root. Resumes and halted initialization skip this operation. The final worktree message names branch/root and any retained original paths, while preserving existing final-state commit guidance.
+
+Move only the change-folder existence requirement from each skill's Start step 2 to after successful setup, checking `change.md` for 10x or the OpenSpec change directory under `<run root>`. Keep project configuration and toolkit checks early. Apply the existing `verify-archive` and missing-change guidance from the selected root when its inputs are absent. If setup fails with an absent original source and cannot select a root, apply that guidance from `<root>` before stopping. The preparation preflight in Phase 2 prevents this fallback from leaving newly created resources. Preserve the exact missing-change, ambiguous-archive and archived-change outcomes. This lets a main-checkout invocation reach an existing run after full source cleanup.
 
 #### Skill contracts and reference text
 
@@ -163,7 +171,7 @@ Make the cleanup run through the normal orchestrator entry points and report ret
 
 **Intent** Pin post-init ordering and fresh-only behavior in both skills and reconcile public setup/archive documentation.
 
-**Contract** Replace the existing `stale copy` content expectations with cleanup timing, saved-input, chain, failure and retained-path assertions. Preserve anti-stall equality and dispatch/PR contracts. Update reference paragraphs that currently say `left` is empty, defer cleanup to Wave 5, or instruct blanket stale-copy removal. Describe init's additional duplicate guard in both archive sections, leaving shared `guardArchived` behavior accurately attributed.
+**Contract** Replace the existing `stale copy` content expectations with cleanup timing, saved-input, chain, failure and retained-path assertions. Assert that change-folder existence checks follow successful run-root selection, that missing fresh inputs keep archive/new-change guidance without creating resources, and that an invocation from the original root after full cleanup reaches the existing run. Assert cleanup ordering for `run`, `done` and `archive`, with resumes and halts skipping cleanup. Preserve anti-stall equality and dispatch/PR contracts. Update reference paragraphs that currently say `left` is empty, defer cleanup to Wave 5, or instruct blanket stale-copy removal. Describe source-absent resumes and immediate terminal initialization alongside the cleanup lifecycle. Describe init's additional duplicate guard in both archive sections, leaving shared `guardArchived` behavior accurately attributed.
 
 ### Success Criteria
 
@@ -199,6 +207,8 @@ Limit enumeration and blob lookup to the selected change folder. Batch read-only
 ## Migration Notes
 
 Existing runs and metadata require no migration. A valid resumed setup skips source cleanup, preserving its established behavior. New isolated runs use the start commit as recovery evidence for each removed file. Historical stale copies remain subject to the new init refusal and explicit owner maintenance. A cleanup interruption can leave a partially pruned source folder whose removed bytes remain in the run branch's start commit.
+
+After complete source cleanup, invoke the skill from the original checkout as before. Setup selects the existing run before the skill requires its change inputs, and a resume performs no source cleanup. Successful immediate `done` and `archive` initialization responses also perform fresh-only cleanup before terminal handling.
 
 ## References
 

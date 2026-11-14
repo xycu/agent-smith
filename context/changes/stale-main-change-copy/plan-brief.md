@@ -12,29 +12,30 @@ The shared setup script copies inputs before initialization. The router creates 
 
 ## Desired End State
 
-Both chains reject duplicate archived ids with a diagnostic naming the live and archive paths. Fresh isolated runs remove identical untracked regular files after successful initialization. Tracked, edited and uncertain files remain and are reported. Resumes preserve their current behavior.
+Both chains reject duplicate archived ids with a diagnostic naming the live and archive paths. Fresh isolated runs remove identical untracked regular files after successful initialization, including immediate `done` and `archive` responses. Tracked, edited and uncertain files remain and are reported. Invocations from the original checkout resume an existing run after its original change folder has been fully removed.
 
 ## Key Decisions Made
 
 | Decision | Choice | Reason | Source |
 | --- | --- | --- | --- |
 | Archive guard | Add an init-specific preflight using existing archive lookup | Wave 5 assigns this init region and leaves the shared state module under its current ownership | Brief, WAVES.md, code |
-| Cleanup timing | After `init` returns `run`, before the first launch | The start commit first exists during initialization | ADR-010, code |
+| Cleanup timing | After `init` returns `run`, `done` or `archive`, before dispatching that action | The start commit first exists during initialization, which can immediately finish a completed 10x change | ADR-010, router and review reproduction |
 | Cleanup interface | Existing setup script with `--cleanup` and saved setup JSON on stdin | Carries original roots and fresh/resume identity without a state sidecar | Plan assumption |
 | Resume behavior | Only a saved fresh-created/copy-success result permits cleanup | Existing setup copies inputs only during creation | Brief, ADR-010 |
+| Source-absent resume | Select the run root before checking its change inputs, and reject a missing fresh source before creating resources | Both skills currently stop before setup when original inputs are absent | Both skills' Start step 2, setup's existing reuse/attachment cases, Wave 5 ownership |
 | Deletion proof | Regular-file bytes equal an immutable retained start-commit blob, source path untracked in HEAD and index | Makes every removed file recoverable and preserves source work | Brief, code |
 | Uncertain entries | Retain symlinks, changed or unretained files and name them | Existing setup preserves link semantics and the brief requires safe retention | Plan assumption |
 | Failure recovery | Report surviving paths and continue the initialized run | Source retention safely contains cleanup failures | Plan assumption |
 
 ## Scope
 
-Implementation covers the router's init guard, cleanup in `prepare-run.mjs`, the stale-copy paragraph in both skills, existing affected tests and corresponding shared reference paragraphs.
+Implementation covers the router's init guard, cleanup and fresh-source validation in `prepare-run.mjs`, the stale-copy paragraph and change-folder existence-check ordering in both skills, existing affected tests and corresponding shared reference paragraphs. The additional ordering changes keep cleanup compatible with original-checkout resumes and stay independent of Wave 5's parallel frontmatter edits.
 
 Wave 5's other owners retain CI, shared helpers, frontmatter/descriptions, ladder policy and the deletion-guard implementation. WAVES.md and archive contents remain read-only. The historical one-off stale file is absent from this worktree, and any copy elsewhere requires owner maintenance under the working-directory restriction.
 
 ## Architecture / Approach
 
-The router checks the resolved chain's archive names before init writes. The orchestrator retains the initial setup JSON, then sends it to cleanup after successful initialization. Cleanup verifies the original/run roots, branch, Git common directory, project prefix and start-commit retention under the existing setup lock. It checks candidates before individual unlinks and prunes empty directories deepest first. Its existing `left` field reports surviving original-project-relative paths.
+The router checks the resolved chain's archive names before init writes. Skills check change inputs after setup selects the run root, preserving archive/new-change guidance when inputs are absent. Fresh setup checks its source before creating resources. The orchestrator retains the initial setup JSON, then sends it to cleanup after successful `run`, `done` or `archive` initialization, before dispatching the action. Cleanup verifies the original/run roots, branch, Git common directory, project prefix and start-commit retention under the existing setup lock. It checks candidates before individual unlinks and prunes empty directories deepest first. Its existing `left` field reports surviving original-project-relative paths.
 
 ## Phases at a Glance
 
