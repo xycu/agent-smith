@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.10.1](https://github.com/xycu/agent-smith/compare/v1.10.0...v1.10.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **agent-call-parameters:** align Agent calls and synchronize shutdown tests ([#161](https://github.com/xycu/agent-smith/issues/161)) ([650d3e3](https://github.com/xycu/agent-smith/commit/650d3e3a544300d47f3f10567f72dca960cfcaf9))
+* **ci-scratch-in-runner-temp:** Put the test scratch folders of CI into the runner temp directory ([#164](https://github.com/xycu/agent-smith/issues/164)) ([d825e4d](https://github.com/xycu/agent-smith/commit/d825e4d9850ee55f2ce83a4d6f01ee064beb973b))
+* **compare-failed-attempts-neutral:** Count failed attempts in compare with the router's isFailure rule ([#160](https://github.com/xycu/agent-smith/issues/160)) ([8b7f15d](https://github.com/xycu/agent-smith/commit/8b7f15df6035973391bada693e7b3e503542c964))
+* **run-state-atomic-writes:** Write run.jsonl and meta.json atomically and stop dropping unreadable log lines ([#165](https://github.com/xycu/agent-smith/issues/165)) ([1a6a58a](https://github.com/xycu/agent-smith/commit/1a6a58a64bd12c2f559be66ab4f238673bad5dd0))
+* **tests-strip-git-env:** Drop inherited GIT_ variables in the test helpers ([#162](https://github.com/xycu/agent-smith/issues/162)) ([ef5d406](https://github.com/xycu/agent-smith/commit/ef5d406a7b0744030712c685e8f279526a87d625))
+
 ## [1.10.0](https://github.com/xycu/agent-smith/compare/v1.9.0...v1.10.0) (2026-11-14)
 
 
