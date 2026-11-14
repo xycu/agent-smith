@@ -24,16 +24,16 @@ function section() {
 
 // A SKILL.md loop branch: from the line starting `- **`<name>`**` to the next line that starts with `- **` or `## `.
 // Local copy of the helper in pr-comment.test.mjs, which is not exported.
-function branch(name) {
-  const start = lines.findIndex((l) => l.startsWith(`- **\`${name}\`**`));
+function branch(name, sourceLines = lines) {
+  const start = sourceLines.findIndex((l) => l.startsWith(`- **\`${name}\`**`));
   assert.ok(start >= 0, `no ${name} branch`);
   let end = start + 1;
-  while (end < lines.length && !lines[end].startsWith("- **") && !lines[end].startsWith("## ")) end++;
-  return lines.slice(start, end).join("\n");
+  while (end < sourceLines.length && !sourceLines[end].startsWith("- **") && !sourceLines[end].startsWith("## ")) end++;
+  return sourceLines.slice(start, end).join("\n");
 }
 
 const NEEDLES = [
-  ["run_in_background", "launch notice", "end its turn"],
+  ["launch notice instead of a final report", "end its turn", "Loop at step 3"],
   ["without `usage`", "`next`", "same turn"],
   ["**MUST**", "`usage`", "result file", "drop"],
   ["done", "archive", "halt", "still running"],
@@ -180,3 +180,67 @@ test("the Bash timeout line names the three scripts and `timeout: 600000`, outsi
   assert.equal(lines.indexOf(hits[0]), lines.findIndex((l) => l.startsWith("Pull request script: ")) + 1);
   assert.ok(!section().includes(hits[0]), "not inside the anti-stall section");
 });
+
+// Written contracts only; live notification acceptance remains a Manual criterion.
+for (const [chain, text, id] of [
+  ["10x", skill, "change-id"],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.resolve(path.dirname(DEFAULT_PATH), "../openspec-pipeline/SKILL.md"), "utf8"), "change-name"],
+]) {
+  const dispatch = text.slice(text.indexOf("  2. For `provider:"), text.indexOf("     For `provider:"));
+  const rules = text.slice(text.indexOf(HEADING), text.indexOf("## PR comment")).split("\n").filter((l) => l.includes("**GIVEN**"));
+  test(`${chain}: numbered description and archive override record separate retry invocations`, () => {
+    assert.ok(dispatch.includes(`description: "agent-smith <${id}> step <n> <step>"`));
+    assert.ok(dispatch.includes(`override the description with \`agent-smith <${id}> archive\``));
+    for (const needle of ["Record each invocation separately", "exact description, router `change`, `n` and `step`", "associate any returned agent id", "actual `n` for retries, including neutral retries", "preserve prior launch records even when descriptions repeat"]) assert.ok(dispatch.includes(needle), needle);
+  });
+  test(`${chain}: background flag is selected from the exposed schema before calling`, () => {
+    assert.match(dispatch, /Inspect the exposed Agent schema before calling: when it declares `run_in_background`, set it to `false`; otherwise omit `run_in_background`/);
+    assert.ok(dispatch.indexOf("Inspect the exposed Agent schema") < dispatch.indexOf("Call the Agent tool"));
+    assert.doesNotMatch(dispatch, /`run_in_background: false`/);
+  });
+  test(`${chain}: rule 1 handles launch notices independently of the background flag`, () => {
+    assert.match(rules[0], /Agent tool returns a launch notice instead of a final report \*\*THEN\*\*/);
+    assert.match(rules[0], /end its turn and continue the Loop at step 3/);
+    assert.match(rules[0], /existing process handle until it closes, without relaunching it/);
+    assert.doesNotMatch(rules[0], /run_in_background/);
+    assert.match(text, /archive subagent.*step 4/);
+  });
+  test(`${chain}: rule 6 rejects foreign, conflicting and superseded completion identities`, () => {
+    for (const needle of [
+      "direct result of the awaited Agent invocation", "notification matched to that invocation's recorded identity",
+      "a known agent id selects its launch and any supplied description must agree",
+      "otherwise the exact description must identify one recorded launch uniquely, with no conflict against its known id",
+      "associate a newly supplied id when that unique launch has no recorded id",
+      "another change", "earlier numbered step", "archive agent",
+      "superseded invocation even when a neutral retry reuses its description",
+      "ambiguous description-only notification matches no invocation",
+      "writes no result file", "does not call `next`", "own report as the only result",
+    ]) assert.ok(rules[5].includes(needle), needle);
+  });
+  test(`${chain}: on-time usage excludes earlier and foreign notifications without delaying next`, () => {
+    for (const needle of [
+      "Usage ownership in Loop step 4 follows the identity check in rule 6",
+      "only from the current invocation's result or its matched notification",
+      "earlier numbered step follows the late-usage path, even if already present when the current report arrives",
+      "Leave unmatched or ambiguous figures unattached",
+      "current report has no matched figure, omit `usage` and run `next` in the same turn under rule 2",
+    ]) assert.ok(dispatch.includes(needle), needle);
+    assert.match(rules[1], /without `usage`.*`next`.*same turn/);
+  });
+  for (const name of ["done", "archive", "halt"]) {
+    test(`${chain}: ${name} late usage recovers the earlier numbered launch, not the latest repeated step`, () => {
+      const paragraph = branch(name, text.split("\n"));
+      for (const needle of [
+        "Recover `<n>` from the earlier launch matched by rule 6",
+        "a known agent id selects its launch and any supplied description must agree",
+        "otherwise the exact description must identify one recorded launch uniquely, with no conflict against its known id",
+        "associating a newly supplied id if that launch has none",
+        "full router `change`, `n` and `step` identity against the recorded description",
+        "printed `Step <n>` line is corroborating context",
+        "never a guess from the latest step or a repeated step name",
+        "Leave unmatched or ambiguous figures unattached", "Archive-agent usage belongs only in the final message",
+        "once, as a call of its own, omitting a flag whose figure is missing", "A refusal exits 1",
+      ]) assert.ok(paragraph.includes(needle), needle);
+    });
+  }
+}

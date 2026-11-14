@@ -22,7 +22,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
   ROOT, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
-  readMeta, writeLog, writeFileAtomic, cleanupStateTemps, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
+  readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
   providerOf, hostOf, hostProblem, dispatchTarget,
   prCommentField,
@@ -500,7 +500,7 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
     provenance: isObject(meta.provenance) ? meta.provenance : null,
     steps: steps.length,
     skipped,
-    failedAttempts: steps.filter((e) => e.ok === false && !e.fallback).length,
+    failedAttempts: steps.filter(isFailure).length,
     plan,
     inputFiles,
     tokens: { ...figure("totalTokens"), byModel, byTier, byProviderModel, byProviderTier },

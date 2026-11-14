@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md fixes the outcome: strip inherited GIT_ variables before fixture overrides." },
+    "novelty": { "score": 1, "evidence": "change.md adapts the existing environment construction in skills/10x-pipeline/test/helpers.mjs." },
+    "coupling": { "score": 2, "evidence": "context/changes/WAVES.md assigns helpers.mjs and four standalone test files across shared and tools test modules." },
+    "discovery": { "score": 2, "evidence": "The goal and context/changes/WAVES.md name the main locations, while spread-site search found additional test environment builders." },
+    "volume": { "score": 2, "evidence": "change.md and the Wave 4 ownership row identify helpers.mjs, four test files, and regression proof." },
+    "verification": { "score": 1, "evidence": "change.md requests a child node --test regression with hostile Git variables, alongside the existing suite." }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
 import {
-  cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile,
+  cleanEnv, cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile,
   writeMetaFile, writeLog, writeOverride, entry,
 } from "./helpers.mjs";
 
@@ -73,7 +73,7 @@ function pluginCopy() {
 
 // Runs the copy's route.mjs in the project root, as helpers.run does for the real one.
 function runCopy(copy, project, args) {
-  const res = spawnSync(process.execPath, [copy.route, ...args], { cwd: project.root, encoding: "utf8", env: process.env });
+  const res = spawnSync(process.execPath, [copy.route, ...args], { cwd: project.root, encoding: "utf8", env: cleanEnv() });
   let json = null;
   try { json = JSON.parse(res.stdout); } catch { /* leave null */ }
   return { status: res.status, json, stdout: res.stdout, stderr: res.stderr };

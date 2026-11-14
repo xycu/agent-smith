@@ -13,7 +13,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
 import {
-  cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile, readLogEntries,
+  cleanEnv, cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile, readLogEntries,
   writeLog, writeMetaFile, entry, gitAvailable, gitEnv, gitInit, commitFiles,
 } from "./helpers.mjs";
 
@@ -321,8 +321,8 @@ function record({ policy = null, copy = null } = {}) {
   const project = makeProject({ policy });
   const args = ["init", project.id, "--goal", "fix typo"];
   const res = copy
-    ? spawnSync(process.execPath, [copy.route, ...args], { cwd: project.root, encoding: "utf8", env: process.env })
-    : spawnSync(process.execPath, [path.join(SKILL_DIR, "scripts/route.mjs"), ...args], { cwd: project.root, encoding: "utf8", env: process.env });
+    ? spawnSync(process.execPath, [copy.route, ...args], { cwd: project.root, encoding: "utf8", env: cleanEnv() })
+    : spawnSync(process.execPath, [path.join(SKILL_DIR, "scripts/route.mjs"), ...args], { cwd: project.root, encoding: "utf8", env: cleanEnv() });
   assert.equal(res.status, 0, res.stdout + res.stderr);
   return readMetaFile(project).provenance;
 }
@@ -367,6 +367,9 @@ test("2.6 SKILL.md dispatches with the router's agent when present, else general
   const fallbackAt = line.indexOf("else `general-purpose`");
   assert.ok(agentAt >= 0 && fallbackAt > agentAt, line);
   assert.match(line, /do not call it again with another type/);
+  assert.ok(line.includes('description: "agent-smith <change-id> step <n> <step>"'));
+  assert.match(line, /`model: <model>`, `effort: <effort>`/);
+  assert.ok(line.includes("`prompt` set to the router's `prompt`, copied verbatim"));
   assert.equal(skill.includes("subagent_type: general-purpose"), false, "no hard-coded type is left");
   // The archive action reuses the run parameters, so it dispatches the same way.
   assert.match(skill, /Call the Agent tool with the same parameters as for `run`/);
