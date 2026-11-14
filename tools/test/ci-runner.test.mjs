@@ -39,6 +39,12 @@ const testJob = () => {
   return ci.slice(ci.indexOf("\n  test:"), ci.indexOf("\n  commits:"));
 };
 
+test("the suite step uses the runner temporary directory", () => {
+  const suite = testJob().split(/\n(?= {6}- )/).find((step) => step.startsWith("      - name: Test suite\n"));
+  assert.ok(suite, "the test job contains the suite step");
+  assert.match(suite, /^ {8}env:\n(?: {10}[^\n]*\n)*? {10}TMPDIR: \$\{\{ runner\.temp \}\}$/m);
+});
+
 test("the first step of job test is the uid guard, before the suite", () => {
   const job = testJob();
   const first = job.split("\n").find((l) => l.trimStart().startsWith("- "));

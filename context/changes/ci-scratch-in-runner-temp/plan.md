@@ -133,10 +133,10 @@ Rollback is a normal follow-up commit reverting this change's suite environment,
 
 #### Automated
 
-- [ ] 1.1 The suite-step configuration check fails before the environment edit and passes afterward with `node --test tools/test/ci-runner.test.mjs`.
-- [ ] 1.2 With an existing, writable, worktree-local outer `TMPDIR`, `node --test skills/10x-pipeline/test/run-lock.test.mjs` passes all 12 current cases, including exact child-lock paths and both-chain execution fixtures.
-- [ ] 1.3 With an existing, writable, worktree-local outer `TMPDIR`, the complete Node 24+ command `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes, with observed skips and their reasons recorded.
-- [ ] 1.4 `git diff --check` passes, and the reviewed diff is confined to the owned suite environment, its configuration test, its index description and this change's artifacts.
+- [x] 1.1 The suite-step configuration check fails before the environment edit and passes afterward with `node --test tools/test/ci-runner.test.mjs`.
+- [x] 1.2 With an existing, writable, worktree-local outer `TMPDIR`, `node --test skills/10x-pipeline/test/run-lock.test.mjs` passes all 12 current cases, including exact child-lock paths and both-chain execution fixtures.
+- [x] 1.3 With an existing, writable, worktree-local outer `TMPDIR`, the complete Node 24+ command `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` passes, with observed skips and their reasons recorded.
+- [x] 1.4 `git diff --check` passes, and the reviewed diff is confined to the owned suite environment, its configuration test, its index description and this change's artifacts.
 
 #### Manual
 
