@@ -246,10 +246,10 @@ After complete source cleanup, invoke the skill from the original checkout as be
 
 #### Automated
 
-- [x] 3.1 Both skill content suites require fresh-only cleanup after successful init and before first dispatch, with retained-path reporting and unchanged terminal commit guidance.
-- [x] 3.2 Real both-chain CLI lifecycles cover clean removal, mixed retained files, a halted duplicate init and a subsequent unchanged resume.
-- [x] 3.3 Focused setup, archive, skill and deletion-guard tests pass, and the required complete repository test suite passes.
-- [x] 3.4 The final diff stays within Wave 5 ownership and the relevant shared reference paragraphs.
+- [x] 3.1 Both skill content suites require fresh-only cleanup after successful init and before first dispatch, with retained-path reporting and unchanged terminal commit guidance. — f0846b4
+- [x] 3.2 Real both-chain CLI lifecycles cover clean removal, mixed retained files, a halted duplicate init and a subsequent unchanged resume. — f0846b4
+- [x] 3.3 Focused setup, archive, skill and deletion-guard tests pass, and the required complete repository test suite passes. — f0846b4
+- [x] 3.4 The final diff stays within Wave 5 ownership and the relevant shared reference paragraphs. — f0846b4
 
 #### Manual
 
