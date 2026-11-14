@@ -112,7 +112,7 @@ export function startRunner(w) {
   child.stdout.on("data", chunk => stdout += chunk);
   child.stderr.on("data", chunk => stderr += chunk);
   child.stdin.end(JSON.stringify(w.action));
-  const closed = new Promise(resolve => child.on("close", (code, signal) => resolve({ code, signal, json: JSON.parse(stdout), stdout, stderr })));
+  const closed = new Promise(resolve => child.on("close", (code, signal) => resolve({ code, signal, json: stdout.trim() ? JSON.parse(stdout) : null, stdout, stderr })));
   return { child, closed };
 }
 

@@ -145,7 +145,7 @@ function tokenTotal(usage) {
 
 export async function runCodex(id, chain, action) {
   const envelope = { action: "codex-result", launched: false, completed: false, result: null };
-  let release;
+  let lock;
   let temp;
   let child;
   let cancelled = null;
@@ -168,8 +168,20 @@ export async function runCodex(id, chain, action) {
   const launch = (args, input, onStdout, model = false) => new Promise((resolve) => {
     let error;
     let streamError;
-    child = spawn("codex", args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
-    child.on("spawn", () => { if (model) envelope.launched = true; if (cancelled) terminate(cancelled); });
+    lock.setChild(null);
+    try {
+      child = spawn("codex", args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
+    } catch (cause) {
+      lock.clearChild();
+      resolve({ error: cause.code ?? "spawn error" });
+      return;
+    }
+    child.on("spawn", () => {
+      if (model) envelope.launched = true;
+      try { lock.setChild(child.pid); }
+      catch { error = "child ownership could not be recorded"; terminate("SIGTERM"); }
+      if (cancelled) terminate(cancelled);
+    });
     child.on("error", (e) => { error = e.code ?? "spawn error"; });
     child.stdout.on("data", (chunk) => {
       try { onStdout(chunk); }
@@ -177,12 +189,19 @@ export async function runCodex(id, chain, action) {
     });
     child.stderr.resume();
     child.stdin.on("error", () => { /* close carries early exit and broken-pipe failures */ });
-    child.on("close", (code, signal) => { child = null; clearTimeout(killTimer); killTimer = null; resolve({ code, signal, error: error ?? streamError }); });
+    child.on("close", (code, signal) => {
+      child = null;
+      clearTimeout(killTimer);
+      killTimer = null;
+      try { lock.clearChild(); }
+      catch (cause) { error = failureReason(cause); }
+      resolve({ code, signal, error: error ?? streamError });
+    });
     child.stdin.end(input);
   });
   try {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(id ?? "") || !["10x", "openspec"].includes(chain)) refuse("Invalid change ID or chain.");
-    release = acquireRunLock(id, chain, refuse);
+    lock = acquireRunLock(id, chain, refuse);
     const policy = loadPolicy(refuse);
     const bad = policyProblems(policy);
     if (bad) refuse(bad);
@@ -274,7 +293,7 @@ export async function runCodex(id, chain, action) {
       try { removeTree(temp); }
       catch { envelope.completed = false; envelope.reason = "Codex temporary-file cleanup failed."; }
     }
-    release?.();
+    lock?.release();
     process.removeListener("SIGINT", onInt);
     process.removeListener("SIGTERM", onTerm);
   }

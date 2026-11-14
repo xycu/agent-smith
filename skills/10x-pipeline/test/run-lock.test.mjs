@@ -6,11 +6,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { setTimeout } from "node:timers/promises";
 import { cleanupAll, makeProject, run, writeLog, writeMetaFile, entry } from "./helpers.mjs";
 import { makeOpenspecProject } from "./openspec-helpers.mjs";
 import { runLockPath } from "../scripts/state.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
-import { codexFixture, execute, startRunner, waitForFile, runnerLeftovers } from "./codex-helpers.mjs";
+import { codexFixture, execute, startRunner, waitForFile, runnerLeftovers, calls, setMode } from "./codex-helpers.mjs";
 
 const lockDirs = [];
 after(() => {
@@ -74,6 +75,23 @@ test("1.1b an unparsable lock is stale", () => {
   assert.equal(usage(project, env).status, 0);
 });
 
+test("a dead execution owner with uncertain child termination retains its lock", () => {
+  const project = makeProject();
+  const { env, lock, tmp } = setup(project);
+  for (const owner of [
+    { pid: deadPid(), childPid: null, processGroup: true },
+    { pid: deadPid(), childPid: deadPid(), processGroup: false },
+  ]) {
+    const contents = JSON.stringify(owner);
+    fs.writeFileSync(lock, contents);
+    const result = usage(project, env);
+    assert.equal(result.status, 1, result.stdout);
+    assert.match(result.json.reason, /execution.*lock|lock.*execution/i);
+    assert.equal(fs.readFileSync(lock, "utf8"), contents);
+    assert.deepEqual(leftovers(tmp), [path.basename(lock)]);
+  }
+});
+
 test("1.1c no lock file remains after a normal run or a halting run", () => {
   const project = makeProject();
   const { env, tmp } = setup(project);
@@ -123,6 +141,50 @@ test("1.1f a lock made by temp-and-link carries its pid at once", () => {
 
 
 for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: runner crash retains exclusion until its child process group exits`, { skip: process.platform === "win32" }, async (t) => {
+    const w = codexFixture(chain, { mode: { hold: true } });
+    const p = w.project;
+    const statusArgs = ["status", p.id, "--chain", chain];
+    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
+    const before = fs.readFileSync(path.join(p.agentDir, "report.md"));
+    const running = startRunner(w);
+    let childPid;
+    const stopChild = async () => {
+      if (!childPid) return;
+      try { process.kill(-childPid, "SIGKILL"); } catch (error) { if (error.code !== "ESRCH") throw error; }
+      const deadline = Date.now() + 10000;
+      for (;;) {
+        try { process.kill(-childPid, 0); } catch (error) { if (error.code === "ESRCH") break; throw error; }
+        assert.ok(Date.now() < deadline, "orphaned process group must terminate");
+        await setTimeout(10);
+      }
+      childPid = null;
+    };
+    t.after(async () => { running.child.kill("SIGKILL"); await stopChild(); });
+    await waitForFile(path.join(w.fixture, "ready"));
+    childPid = Number(fs.readFileSync(path.join(w.fixture, "ready"), "utf8"));
+    running.child.kill("SIGKILL");
+    assert.equal((await running.closed).signal, "SIGKILL");
+    process.kill(childPid, 0);
+    setMode(w, {});
+    const duplicate = execute(w);
+    assert.equal(duplicate.json.launched, false, duplicate.stdout);
+    assert.match(duplicate.json.reason, /lock/);
+    assert.equal(calls(w.fixture).filter(call => call.args[0] === "exec").length, 1);
+    for (const args of [[...statusArgs, "--report"], ["next", p.id, "--chain", chain],
+      ["init", p.id, "--chain", chain], ["usage", p.id, "1", "--tokens", "10", "--chain", chain]]) {
+      const result = run(p, args, { env: w.env });
+      assert.equal(result.status, 1, result.stdout);
+      assert.match(result.json.reason, /lock/);
+    }
+    assert.equal(run(p, statusArgs, { env: w.env }).status, 0);
+    assert.deepEqual(fs.readFileSync(path.join(p.agentDir, "report.md")), before);
+    assert.deepEqual(fs.readdirSync(w.tmp).filter(name => name.endsWith(".tmp")), []);
+    await stopChild();
+    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
+    assert.equal(execute(w).json.completed, true, "execution can resume after the orphaned group exits");
+  });
+
   test(`${chain}: a runner holds the shared lock through close, plain status reads and report status refuses`, async (t) => {
     const w = codexFixture(chain, { mode: { hold: true, closeDelay: 350 } });
     const p = w.project;
