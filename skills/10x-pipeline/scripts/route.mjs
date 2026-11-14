@@ -22,7 +22,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
   ROOT, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
-  readMeta, writeLog, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
+  readMeta, writeLog, writeFileAtomic, cleanupStateTemps, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
   providerOf, hostOf, hostProblem, dispatchTarget,
   prCommentField,
@@ -90,6 +90,7 @@ function next(id, policy, chain = "10x") {
   const meta = readMeta(p.meta, { id, goal: "" });
   const log = readLog(p.log);
   checkPrompts(policy);
+  cleanupStateTemps(p.dir);
   // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
   // any other case returns here and goes on as before.
   neutralRetry(p, id, meta, log, policy);
@@ -115,7 +116,7 @@ function next(id, policy, chain = "10x") {
   const { level, changed } = resolveRigor(meta, log, policy, planNow, risk);
   // A policy, prompt or agent edit since the record adds its section to provenance.drift; meta.json is written only then.
   const drifted = recordDrift(meta, policy);
-  if (changed || drifted) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  if (changed || drifted) writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
 
   // A subagent that cannot decide from evidence stops the run once. The ack lives on the log entry.
   const ranNow = executed(log);
@@ -191,7 +192,7 @@ function next(id, policy, chain = "10x") {
   // A continued run must not keep the outcome of an earlier end.
   if (meta.outcome) {
     delete meta.outcome;
-    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
 
   const target = dispatchTarget(policy, tier);
@@ -733,6 +734,7 @@ function status(id, flags, chain = "10x", policy = null) {
       if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
     } else haltNoChangeMd(p, id);
     const meta = readMeta(p.meta, { id, goal: "" });
+    cleanupStateTemps(p.dir);
     res.report = writeReport(p, id, meta, log);
   }
   out(res);
@@ -788,6 +790,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
     if (why) refuse(why, n);
   }
   const oldBytes = archiveState ? [p.log, p.report].map((file) => [file, fs.existsSync(file) ? fs.readFileSync(file) : null]) : [];
+  cleanupStateTemps(p.dir);
   entry.usage = usage;
   entry.usageLate = true;
   writeLog(p.log, log);
@@ -803,7 +806,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   // the old bytes back, so the folder stays as committed (the router has already unstaged its own add).
   const restore = () => {
     for (const [file, bytes] of oldBytes) {
-      if (bytes === null) { try { fs.unlinkSync(file); } catch { /* already gone */ } } else fs.writeFileSync(file, bytes);
+      if (bytes === null) { try { fs.unlinkSync(file); } catch { /* already gone */ } } else writeFileAtomic(file, bytes);
     }
   };
   if (reportError) {
@@ -969,6 +972,7 @@ function main() {
     // set only at an init whose log has no executed entry, so a run is isolated from its first step or not at all.
     const fresh = executed(readLog(p.log)).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
+    cleanupStateTemps(p.dir);
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
     const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
@@ -998,7 +1002,7 @@ function main() {
       const record = provenanceRecord(policy, meta);
       if (record) meta.provenance = record;
     }
-    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
     // The start commit of an isolated run, after baseSha and the meta.json write and before the first entry exists.
     if (meta.isolated === true && !Object.hasOwn(meta, "startCommit") && executed(readLog(p.log)).length === 0) {
       startCommit(p, id, meta, policy);

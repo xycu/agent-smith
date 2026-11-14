@@ -304,10 +304,10 @@ This step produces the plan and brief. Implementation acceptance consists of the
 
 #### Automated
 
-- [ ] 1.1 Atomic writer cases prove complete old-or-new target bytes, Buffer identity, safe collision handling and observable publication/cleanup failures.
-- [ ] 1.2 Both-chain cleanup cases remove recognized regular state temps under the lock and preserve unrelated files, symlinks, directories and nested entries.
-- [ ] 1.3 Held-lock cases preserve all candidate temps, and an isolated successful step commit contains none of the recognized abandoned temps.
-- [ ] 1.4 The repository-mandated router, OpenSpec and tools test suite passes after the script changes.
+- [x] 1.1 Atomic writer cases prove complete old-or-new target bytes, Buffer identity, safe collision handling and observable publication/cleanup failures.
+- [x] 1.2 Both-chain cleanup cases remove recognized regular state temps under the lock and preserve unrelated files, symlinks, directories and nested entries.
+- [x] 1.3 Held-lock cases preserve all candidate temps, and an isolated successful step commit contains none of the recognized abandoned temps.
+- [x] 1.4 The repository-mandated router, OpenSpec and tools test suite passes after the script changes.
 
 ### Phase 2: Strict log guards and read-only diagnostics
 

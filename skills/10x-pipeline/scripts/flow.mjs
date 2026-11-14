@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, OPENSPEC_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
-  executed, writeLog, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
+  executed, writeLog, writeFileAtomic, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
   halt, providerOf, hostOf, prCommentField,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
@@ -307,7 +307,7 @@ function manualCheckLines(log, oneLine) {
 // Returns the report path relative to the project root.
 export function writeReport(p, id, meta, log) {
   fs.mkdirSync(p.dir, { recursive: true });
-  fs.writeFileSync(p.report, buildReport(id, meta, log));
+  writeFileAtomic(p.report, buildReport(id, meta, log));
   return path.relative(ROOT, p.report);
 }
 
@@ -320,7 +320,7 @@ export function finishRun(p, id, meta, log, result) {
     meta.outcome.manualPending = Array.isArray(result.manualPending) ? result.manualPending : [];
     Object.assign(meta.outcome, doneNotes(result));
   }
-  fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   let report = null;
   let reportError;
   try { report = writeReport(p, id, meta, log); } catch (e) { reportError = e.message; }
@@ -383,7 +383,7 @@ export function neutralRetry(p, id, meta, log, policy) {
   // A continued run must not keep the outcome of an earlier end (as next() does before a new step).
   if (meta.outcome) {
     delete meta.outcome;
-    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
   out({
     action: "run",

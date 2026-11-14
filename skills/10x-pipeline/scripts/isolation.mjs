@@ -2,8 +2,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, isFailure, isObject, SHA_RE, runGit,
-  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget,
+  SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, writeFileAtomic, isFailure, isObject, SHA_RE, runGit,
+  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget, stateTempFiles,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
@@ -430,9 +430,12 @@ export function lateUsagePrecheck(p, id, meta, policy) {
     const wrong = runBranchReason(g, meta);
     if (wrong) return wrong;
   }
-  const dirty = statusEntries(["--", `${rel}/`], { timeout });
+  const dirty = statusEntries(["--untracked-files=all", "--", `${rel}/`], { timeout });
   if (dirty === null) return "Cannot read the status of the change folder.";
-  if (dirty.length) {
+  const temps = new Set(stateTempFiles(p.dir));
+  const top = g(["rev-parse", "--show-toplevel"]);
+  if (top.status !== 0) return "Cannot read the git root of the change folder.";
+  if (dirty.some((e) => e.xy !== "??" || !temps.has(path.resolve(top.stdout.trim(), e.file)))) {
     return `The change folder ${rel} is not clean; the archive may have started, or the pre-archive commit failed.`;
   }
   return null;
@@ -470,7 +473,7 @@ export function startCommit(p, id, meta, policy) {
   const res = routerCommit(g, timeout, { rel, message, trailer: coAuthorTrailer(policy) });
   if (res.made || !res.error) {
     meta.startCommit = res.commit;
-    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
   if (res.error) stop(res.error);
 }
@@ -534,7 +537,7 @@ export function setTimes(p, times) {
 export function writeState(p, meta, log) {
   fs.mkdirSync(p.dir, { recursive: true });
   writeLog(p.log, log);
-  fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
 }
 
 // The run token of the side ref ({run} in policy.isolation.rollback.ref): the first RUN_TOKEN_LENGTH hex characters
