@@ -285,7 +285,7 @@ test("Start step 3 consumes shared OpenSpec setup and retains run safety", () =>
     "returned `root`", "returned `runRoot`", "not in the run (uncommitted in the main checkout)",
     "A resume never copies", 'cd "<run root>" && node $ROUTER ... --chain openspec',
     "<run root>/<resultFile>", "Never commit, stash, reset or clean", "refs/agent-smith/",
-    "name their side refs", "List the files, check the list", "stale copy", "before removing the worktree",
+    "name their side refs", "List the files, check the list", "retained original paths", "before removing the worktree",
     "(isolation off)", "`os-apply` commits its code itself", "the files of the change folder stay uncommitted"]) {
     assert.ok(setup.includes(text), text);
   }

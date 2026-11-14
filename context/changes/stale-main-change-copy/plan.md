@@ -236,20 +236,20 @@ After complete source cleanup, invoke the skill from the original checkout as be
 
 #### Automated
 
-- [x] 2.1 Both chains remove only identical untracked regular files after a real retained start commit and prune only empty source directories.
-- [x] 2.2 Tracked, edited, additional, unsupported and unretained paths survive with accurate `left` reporting across root and nested-project fixtures.
-- [x] 2.3 Resume cases and failed retention or identity checks delete nothing, including deterministic source-change and partial-failure regressions.
-- [x] 2.4 Existing setup policy, copy fidelity, concurrency, command restrictions and runtime error tests pass alongside the cleanup tests.
-- [x] 2.5 The required complete repository test suite passes after the setup-script change.
+- [x] 2.1 Both chains remove only identical untracked regular files after a real retained start commit and prune only empty source directories. — ceb49af
+- [x] 2.2 Tracked, edited, additional, unsupported and unretained paths survive with accurate `left` reporting across root and nested-project fixtures. — ceb49af
+- [x] 2.3 Resume cases and failed retention or identity checks delete nothing, including deterministic source-change and partial-failure regressions. — ceb49af
+- [x] 2.4 Existing setup policy, copy fidelity, concurrency, command restrictions and runtime error tests pass alongside the cleanup tests. — ceb49af
+- [x] 2.5 The required complete repository test suite passes after the setup-script change. — ceb49af
 
 ### Phase 3: Integrate both skills and document the lifecycle
 
 #### Automated
 
-- [ ] 3.1 Both skill content suites require fresh-only cleanup after successful init and before first dispatch, with retained-path reporting and unchanged terminal commit guidance.
-- [ ] 3.2 Real both-chain CLI lifecycles cover clean removal, mixed retained files, a halted duplicate init and a subsequent unchanged resume.
-- [ ] 3.3 Focused setup, archive, skill and deletion-guard tests pass, and the required complete repository test suite passes.
-- [ ] 3.4 The final diff stays within Wave 5 ownership and the relevant shared reference paragraphs.
+- [x] 3.1 Both skill content suites require fresh-only cleanup after successful init and before first dispatch, with retained-path reporting and unchanged terminal commit guidance.
+- [x] 3.2 Real both-chain CLI lifecycles cover clean removal, mixed retained files, a halted duplicate init and a subsequent unchanged resume.
+- [x] 3.3 Focused setup, archive, skill and deletion-guard tests pass, and the required complete repository test suite passes.
+- [x] 3.4 The final diff stays within Wave 5 ownership and the relevant shared reference paragraphs.
 
 #### Manual
 

@@ -260,9 +260,59 @@ test("Start step 3 consumes the shared setup result and retains run safety", () 
     "returned `root`", "returned `runRoot`", "not in the run (uncommitted in the main checkout)",
     "A resume never copies", 'cd "<run root>" && node $ROUTER', "<run root>/<resultFile>",
     "Never commit, stash, reset or clean", "refs/agent-smith/", "name their side refs",
-    "List the files, check the list", "stale copy", "before removing the worktree"]) {
+    "List the files, check the list", "retained original paths", "before removing the worktree"]) {
     assert.ok(setup.includes(text), text);
   }
   assert.doesNotMatch(skill, /git worktree|\bcp -|\bmkdir -p|check-ignore|info\/exclude/);
   assert.ok(fs.existsSync(path.resolve(path.dirname(DEFAULT_PATH), "scripts/prepare-run.mjs")));
 });
+
+for (const [chain, source, id, selector] of [
+  ["10x", skill, "change-id", ""],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.resolve(path.dirname(DEFAULT_PATH), "../openspec-pipeline/SKILL.md"), "utf8"), "change-name", " --chain openspec"],
+]) {
+  const start = source.slice(source.indexOf("## Start"), source.indexOf("## Loop"));
+  const setup = start.slice(start.indexOf("\n3. "), start.indexOf("\n4. "));
+  test(`${chain}: cleanup uses saved fresh setup after successful init and before each dispatch`, () => {
+    for (const text of [
+      "Preserve the original setup JSON verbatim, independently of the cleanup response",
+      "`case: created`, `copied: true`, `reason: null`",
+      "after step 4 returns `action: run`, `done` or `archive`",
+      "saved setup JSON verbatim on stdin", "Perform cleanup once for this fresh invocation",
+      "before dispatching the returned action", "first step launch for `run`",
+      "final reporting and PR handling for `done`", "archive dispatch for `archive`",
+      "Resumes and halted initialization skip cleanup", "Parse exactly one cleanup JSON object",
+      "array of path strings in `left`", "Report nonempty `left` as retained original paths",
+      "On cleanup diagnostics, nonzero exit, missing or malformed JSON or invalid fields",
+      "Keep the original initialized run root and continue", "cleanup reports `runRoot: null`",
+      "final message names the branch", "any retained original paths from `left`, and cleanup diagnostics",
+    ]) assert.ok(setup.includes(text), text);
+    assert.ok(setup.includes(`cd "<root>" && node "$PREPARE_RUN" <${id}> --cleanup${selector}`));
+    assert.match(setup, /--cleanup[^`]*` with the Bash tool and `timeout: 600000`/);
+    assert.doesNotMatch(setup, /stale copy|remove or stash the main-checkout copy/);
+  });
+  test(`${chain}: change inputs follow root selection with original-root diagnostic fallback`, () => {
+    const selection = setup.indexOf("Keep the returned `root`");
+    const check = setup.indexOf("After successful setup selects `<run root>`");
+    assert.ok(selection >= 0 && check > selection);
+    assert.ok(setup.slice(check).includes("under `<run root>` is missing"));
+    for (const text of ["When it reports `archived: true`", "When it lists `ambiguous` archive folders",
+      "STOP", "If setup cannot select a root", "under `<root>` is absent",
+      "Fresh-source validation precedes exclude, branch or worktree creation",
+      "after complete source cleanup reaches the existing run through setup before this check",
+    ]) assert.ok(setup.includes(text), text);
+    assert.ok(setup.includes(`cd "<root>" && node $ROUTER verify-archive <${id}>${selector}`));
+    assert.ok(setup.includes(`cd "<run root>" && node $ROUTER verify-archive <${id}>${selector}`));
+    const early = start.slice(0, start.indexOf("\n3. "));
+    assert.doesNotMatch(early, /verify-archive|changes\/.* is missing/);
+    if (chain === "10x") {
+      assert.ok(early.includes("10x toolkit"));
+      assert.ok(setup.includes("/10x-new <change-id>"));
+    } else {
+      assert.ok(early.includes("openspec/config.yaml"));
+      assert.ok(early.includes("command -v openspec"));
+      assert.ok(setup.includes("openspec new change <change-name>"));
+      assert.ok(setup.includes("`--store`"));
+    }
+  });
+}
