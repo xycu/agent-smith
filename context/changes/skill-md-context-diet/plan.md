@@ -253,9 +253,9 @@ The focused baseline command covering skill-loop.test.mjs, openspec-skill.test.m
 
 #### Automated
 
-- [ ] 1.1 Both skills pass literal-routing-value, Tuning-path and AGENTS.md ownership checks in the existing content tests.
-- [ ] 1.2 Both complete Anti-stall sections match the baseline digest and retain the six existing rules and their ordering.
-- [ ] 1.3 Focused phase-1 tests pass using the focused command in Testing Strategy.
+- [x] 1.1 Both skills pass literal-routing-value, Tuning-path and AGENTS.md ownership checks in the existing content tests.
+- [x] 1.2 Both complete Anti-stall sections match the baseline digest and retain the six existing rules and their ordering.
+- [x] 1.3 Focused phase-1 tests pass using the focused command in Testing Strategy.
 
 #### Manual
 

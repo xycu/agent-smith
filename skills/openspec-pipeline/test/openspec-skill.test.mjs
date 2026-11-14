@@ -14,7 +14,7 @@ const OS_SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const SKILL_DIR = path.resolve(OS_SKILL_DIR, "../10x-pipeline");
 const skill = fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(OS_SKILL_DIR, "SKILL.md"), "utf8");
 const lines = skill.split("\n");
-const tenx = fs.readFileSync(path.join(SKILL_DIR, "SKILL.md"), "utf8").split("\n");
+const tenx = fs.readFileSync(process.env.SKILL_PATH || path.join(SKILL_DIR, "SKILL.md"), "utf8").split("\n");
 const POLICY = pluginPolicy();
 
 const HEADING = "## Anti-stall rules";

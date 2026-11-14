@@ -2,6 +2,8 @@
 // It also pins the `## Pull request (always)` section and its place in the done, archive and halt branches (ADR-017).
 // SKILL_PATH overrides the file, for the deliberate-break check.
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { pluginPolicy } from "../scripts/state.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -370,4 +372,33 @@ test("both numbered dispatch loops forward file handoffs without loading the tas
     assert.match(step, /entire router action JSON on stdin/);
     assert.match(step, /Pass its exact prompt and dispatch unchanged/);
   }
+});
+
+for (const [chain, source] of [
+  ["10x", skill],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8")],
+]) {
+  test(`${chain}: full Anti-stall baseline is immutable`, () => {
+    const start = source.indexOf(HEADING);
+    const end = source.indexOf("\n## ", start + HEADING.length);
+    assert.ok(start >= 0 && end > start);
+    const digest = createHash("sha256").update(source.slice(start, end + 1)).digest("hex");
+    assert.equal(digest, "9d262e57b558c87ce54b3a258c9454b3eec2eb35b44cc3539a0d1047077b1d44");
+  });
+  test(`${chain}: routing literals stay in policy and reference`, () => {
+    const policy = pluginPolicy();
+    const words = new Set([...policy.ladder.flatMap((rung) => [rung.model, rung.effort]), "fable", "tier", "tiers"]);
+    for (const word of words) assert.doesNotMatch(source, new RegExp(`\\b${word}\\b`, "i"), word);
+    const tuning = source.slice(source.indexOf("## Tuning"));
+    for (const text of ["policy.json", "context/foundation/agent-smith-policy.json", "deep-merges", "replaced whole", "rules/", "no override reaches them", "docs/REFERENCE.md"]) {
+      assert.ok(tuning.includes(text), text);
+    }
+  });
+}
+
+test("AGENTS assigns routing documentation to the reference for both skills", () => {
+  const agents = fs.readFileSync(path.join(REPO_ROOT, "AGENTS.md"), "utf8");
+  assert.match(agents, /Both `skills\/10x-pipeline\/SKILL.md` and `skills\/openspec-pipeline\/SKILL.md` name no literal models, effort levels or tiers/);
+  assert.match(agents, /When you change tier logic[^\n]*update the routing bullets in `docs\/REFERENCE.md`/);
+  assert.doesNotMatch(agents, /update the "How the tier moves"/);
 });
