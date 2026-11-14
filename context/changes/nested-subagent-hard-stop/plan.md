@@ -223,8 +223,8 @@ Consumer adoption consists of merging the single environment entry into existing
 
 #### Automated
 
-- [ ] 1.1 Project settings parse and the committed depth value is exactly the string `"1"`.
-- [ ] 1.2 The focused nested-subagent suite passes, including the new setting assertion and existing prompt-delivery checks.
+- [x] 1.1 Project settings parse and the committed depth value is exactly the string `"1"`.
+- [x] 1.2 The focused nested-subagent suite passes, including the new setting assertion and existing prompt-delivery checks.
 
 ### Phase 2: Document optional setup and record acceptance
 

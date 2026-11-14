@@ -152,6 +152,12 @@ test("the intro of both anti-stall sections names the sixth rule", () => {
 
 const REPO = path.resolve(SKILL_DIR, "../..");
 
+
+test("project settings cap Claude Code subagent depth at the string 1", () => {
+  const settings = JSON.parse(fs.readFileSync(path.join(REPO, ".claude/settings.json"), "utf8"));
+  assert.equal(settings.env?.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, "1");
+});
+
 test("docs/REFERENCE.md drops the spawn-depth requirement and names ADR-018", () => {
   const text = fs.readFileSync(path.join(REPO, "docs/REFERENCE.md"), "utf8");
   assert.ok(!text.includes(["spawns", "its own", "subagents"].join(" ")), "the old Limits note is gone");
