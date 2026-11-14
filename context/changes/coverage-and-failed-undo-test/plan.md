@@ -232,10 +232,10 @@ Recovery test retries create fresh scratch runs, making injected failures indepe
 
 #### Automated
 
-- [ ] 1.1 The existing CI suite command enables native coverage and supplies the three test globs with observational coverage settings.
-- [ ] 1.2 A full coverage run passes and records line, branch, function and uncovered-range columns for the shared router modules and `openspec.mjs`.
-- [ ] 1.3 Coverage evidence identifies every uncovered halt/recovery intersection in the four requested modules and records comparable suite timings and skip identities.
-- [ ] 1.4 Existing CI workflow guards pass with `node --test tools/test/ci-runner.test.mjs tools/test/workflow-pins.test.mjs`.
+- [x] 1.1 The existing CI suite command enables native coverage and supplies the three test globs with observational coverage settings.
+- [x] 1.2 A full coverage run passes and records line, branch, function and uncovered-range columns for the shared router modules and `openspec.mjs`.
+- [x] 1.3 Coverage evidence identifies every uncovered halt/recovery intersection in the four requested modules and records comparable suite timings and skip identities.
+- [x] 1.4 Existing CI workflow guards pass with `node --test tools/test/ci-runner.test.mjs tools/test/workflow-pins.test.mjs`.
 
 ### Phase 2: Cover failed undo recovery and collect final evidence
 
