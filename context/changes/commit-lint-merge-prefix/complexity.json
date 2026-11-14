@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md and the goal specify verifying ordinary Merge subjects, real merge exclusion, and regression coverage." },
+    "novelty": { "score": 0, "evidence": "tools/commit-lint.mjs already uses git log --no-merges and tools/test/commit-lint.test.mjs already covers the relevant cases." },
+    "coupling": { "score": 1, "evidence": "tools/commit-lint.mjs and tools/test/commit-lint.test.mjs are confined to the commit-lint tool and its tests." },
+    "discovery": { "score": 0, "evidence": "The goal names the subject lint, git log --no-merges, regression tests, and change-local completion evidence." },
+    "volume": { "score": 0, "evidence": "Current implementation and regression cases appear present, so completion may require no code edits." },
+    "verification": { "score": 0, "evidence": "tools/test/commit-lint.test.mjs covers the subject rejection and real merge commit through CLI range entry." }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
