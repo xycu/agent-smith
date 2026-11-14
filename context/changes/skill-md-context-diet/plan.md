@@ -259,7 +259,7 @@ The focused baseline command covering skill-loop.test.mjs, openspec-skill.test.m
 
 #### Manual
 
-- [ ] 1.4 A written source-to-reference inventory accounts for every removed routing bullet and confirms its documented thresholds, exceptions and sequencing.
+- [x] 1.4 A written source-to-reference inventory accounts for every removed routing bullet and confirms its documented thresholds, exceptions and sequencing. — evidence: evidence/judgment-routing-inventory.md
 
 ### Phase 2: Consolidate Terminal Procedures and Preserve Contract Coverage
 
@@ -273,4 +273,4 @@ The focused baseline command covering skill-loop.test.mjs, openspec-skill.test.m
 
 #### Manual
 
-- [ ] 2.6 A written comparison of original and compressed skills accounts for each operational obligation across done, halt, archive success, archive verification failure and manual-gate refusal for both hosts and chains.
+- [x] 2.6 A written comparison of original and compressed skills accounts for each operational obligation across done, halt, archive success, archive verification failure and manual-gate refusal for both hosts and chains. — evidence: evidence/judgment-terminal-comparison.md
