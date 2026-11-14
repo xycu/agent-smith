@@ -47,5 +47,17 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/isolation.mjs +4"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.4 Live Claude and OpenAI sessions for both chains demonstrate a full file read, correct task/RESULT behavior, matched usage and inline archives; unavailable combinations remain pending with reasons.",
+      "3.5 At least five matched inline/file live change pairs are reviewed with compare, task quality and orchestrator telemetry before recommending any later default-on change."
+    ],
+    "manualNotProved": [
+      "3.4 Live Claude and OpenAI sessions for both chains demonstrate a full file read, correct task/RESULT behavior, matched usage and inline archives; unavailable combinations remain pending with reasons. — not proved: Claude/10x, Claude/OpenSpec, OpenAI/10x and OpenAI/OpenSpec live file-read, task/RESULT, matched-usage and inline-archive observations remain unavailable after rechecking 65 local router logs and cand",
+      "3.5 At least five matched inline/file live change pairs are reviewed with compare, task quality and orchestrator telemetry before recommending any later default-on change. — not proved: Existing evidence records zero attempted and completed matched inline/file live pairs and unavailable orchestrator telemetry. The expanded local inventory supplies no five-pair comparison and quality"
+    ]
   }
 }
