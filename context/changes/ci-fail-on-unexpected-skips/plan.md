@@ -201,10 +201,10 @@ The change affects test execution and job setup. The install prefix and npm stat
 
 #### Automated
 
-- [x] 2.1 Workflow tests prove exact OpenSpec 1.16.1 installation, temporary-prefix isolation, prerequisite ordering, selected-executable export, and failure propagation using `node --test tools/test/ci-runner.test.mjs`.
-- [x] 2.2 Under Node 24 with CI=1 and OPENSPEC_BIN selecting the installed 1.16.1 binary, all five real OpenSpec fixture comparisons pass with zero skips using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs`.
-- [x] 2.3 Under Node 24 with the pinned binary selected, the full repository suite passes and every skipped test matches the documented identity and condition using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [x] 2.4 Version and workflow-pin guards pass with `node tools/version-check.mjs` and `node --test tools/test/workflow-pins.test.mjs`, and `git diff --check` passes.
+- [x] 2.1 Workflow tests prove exact OpenSpec 1.16.1 installation, temporary-prefix isolation, prerequisite ordering, selected-executable export, and failure propagation using `node --test tools/test/ci-runner.test.mjs`. — 3dfa444
+- [x] 2.2 Under Node 24 with CI=1 and OPENSPEC_BIN selecting the installed 1.16.1 binary, all five real OpenSpec fixture comparisons pass with zero skips using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs`. — 3dfa444
+- [x] 2.3 Under Node 24 with the pinned binary selected, the full repository suite passes and every skipped test matches the documented identity and condition using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 3dfa444
+- [x] 2.4 Version and workflow-pin guards pass with `node tools/version-check.mjs` and `node --test tools/test/workflow-pins.test.mjs`, and `git diff --check` passes. — 3dfa444
 
 #### Manual
 
