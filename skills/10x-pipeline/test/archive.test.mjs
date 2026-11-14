@@ -54,7 +54,7 @@ function snapshot(root) {
     for (const name of fs.readdirSync(dir).sort()) {
       const abs = path.join(dir, name);
       const st = fs.lstatSync(abs);
-      rows.push(`${path.relative(root, abs)}|${st.isDirectory() ? "d" : st.size}|${st.mtimeMs}`);
+      rows.push(`${path.relative(root, abs)}|${st.isDirectory() ? "d" : st.size}|${st.mtimeMs}|${st.mode}|${st.isFile() ? fs.readFileSync(abs).toString("hex") : ""}`);
       if (st.isDirectory()) walk(abs);
     }
   };
@@ -1187,4 +1187,34 @@ test("git subcommands: init --archive and the full path run only allowed command
   } finally {
     removeTree(bin);
   }
+});
+
+for (const prior of [false, true]) {
+  for (const archiveFlag of [false, true]) {
+    test(`duplicate archived init preserves all state (10x, prior ${prior}, archive ${archiveFlag})`, () => {
+      const project = makeProject();
+      gitInit(project);
+      commitFiles(project, ["README.md"]);
+      if (prior) assert.equal(init(project, "first").json.action, "run");
+      fs.mkdirSync(project.agentDir, { recursive: true });
+      fs.writeFileSync(path.join(project.agentDir, "meta.json.123.tmp"), "retain temp bytes");
+      for (const name of [`${DAY}-demo`, "2026-11-01-demo"]) writeArchive(project, name);
+      const before = snapshot(project.root);
+      const res = run(project, ["init", project.id, "--goal", "again", ...(archiveFlag ? ["--archive"] : [])], { env: gitEnv(project) });
+      assert.equal(res.status, 1, res.stdout);
+      assert.equal(res.json.action, "halt");
+      for (const named of ["context/changes/demo", `context/archive/${DAY}-demo`, "context/archive/2026-11-01-demo"]) {
+        assert.ok(res.json.reason.includes(named), res.json.reason);
+      }
+      assert.deepEqual(snapshot(project.root), before);
+    });
+  }
+}
+
+test("init ignores suffix collisions and archives owned only by OpenSpec", () => {
+  const project = makeProject();
+  writeArchive(project, `${DAY}-x-demo`);
+  fs.mkdirSync(path.join(project.root, `openspec/changes/archive/${DAY}-demo`), { recursive: true });
+  assert.equal(init(project, "fresh").json.action, "run");
+  assert.match(init(project, "resume").json.reason, /Step 1 .* has no result/);
 });

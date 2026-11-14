@@ -228,9 +228,9 @@ After complete source cleanup, invoke the skill from the original checkout as be
 
 #### Automated
 
-- [ ] 1.1 Both-chain init regressions reject matching live/archive pairs without changing files, index, refs or existing router temps.
-- [ ] 1.2 Archived-only and half-archived guards, suffix/date matching, chain selection and ordinary fresh/resumed initialization retain their specified behavior.
-- [ ] 1.3 The required complete repository test suite passes after the router change.
+- [x] 1.1 Both-chain init regressions reject matching live/archive pairs without changing files, index, refs or existing router temps.
+- [x] 1.2 Archived-only and half-archived guards, suffix/date matching, chain selection and ordinary fresh/resumed initialization retain their specified behavior.
+- [x] 1.3 The required complete repository test suite passes after the router change.
 
 ### Phase 2: Add verified post-init source cleanup
 
