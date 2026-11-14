@@ -6,7 +6,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cleanupAll, run } from "../../10x-pipeline/test/helpers.mjs";
+import { cleanEnv, cleanupAll, run } from "../../10x-pipeline/test/helpers.mjs";
 import { makeOpenspecProject } from "./openspec-helpers.mjs";
 
 after(cleanupAll);
@@ -28,7 +28,7 @@ function cliApply(project) {
     cwd: project.root,
     encoding: "utf8",
     timeout: 30000,
-    env: { ...process.env, HOME: project.base, OPENSPEC_TELEMETRY: "0", DO_NOT_TRACK: "1" },
+    env: { ...cleanEnv(), HOME: project.base, OPENSPEC_TELEMETRY: "0", DO_NOT_TRACK: "1" },
   });
   assert.equal(res.error, undefined, String(res.error));
   const start = res.stdout.indexOf("{");
