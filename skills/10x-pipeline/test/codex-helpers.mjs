@@ -4,7 +4,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
-import { makeProject, run, gitEnv } from "./helpers.mjs";
+import { makeProject, run, gitEnv, writeOverride } from "./helpers.mjs";
 import { makeOpenspecProject } from "./openspec-helpers.mjs";
 
 export const RUNNER = fileURLToPath(new URL("../scripts/run-codex.mjs", import.meta.url));
@@ -28,6 +28,11 @@ process.stdin.on("end", async () => {
     return;
   }
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
+  if (mode.commitPaths) {
+    const { execFileSync } = require("node:child_process");
+    execFileSync("git", ["add", "--", ...mode.commitPaths], { cwd: process.cwd() });
+    execFileSync("git", ["commit", "-m", mode.commitMessage, "-m", "Co-Authored-By: Codex <noreply@openai.com>"], { cwd: process.cwd(), stdio: ["ignore", "ignore", "pipe"] });
+  }
   if (mode.hold) {
     fs.writeFileSync(path.join(fixture, "ready"), String(process.pid));
     await new Promise(resolve => {
@@ -60,9 +65,10 @@ process.stdin.on("end", async () => {
 });
 `;
 
-export function codexFixture(chain = "10x", { profile = null, mode = {} } = {}) {
-  const policy = { ...PRESET, codex: { profile } };
-  const project = chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
+export function codexFixture(chain = "10x", { profile = null, mode = {}, project: existingProject = null, host = "codex", policy: selectedPolicy = null } = {}) {
+  const policy = selectedPolicy ?? { ...PRESET, codex: { profile } };
+  const project = existingProject ?? (chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy }));
+  if (existingProject && selectedPolicy) writeOverride(project, policy);
   const fixture = path.join(project.base, "fake-codex");
   const bin = path.join(fixture, "bin");
   const tmp = path.join(makeProject({ id: "runner-temp" }).base, "tmp");
@@ -71,7 +77,7 @@ export function codexFixture(chain = "10x", { profile = null, mode = {} } = {}) 
   fs.writeFileSync(path.join(bin, "codex"), FAKE, { mode: 0o755 });
   fs.writeFileSync(path.join(fixture, "mode.json"), JSON.stringify(mode));
   const env = { ...gitEnv(project), TMPDIR: tmp, PATH: `${bin}${path.delimiter}${process.env.PATH}`, CODEX_FIXTURE: fixture };
-  const first = run(project, ["init", project.id, "--goal", "fix typo", "--host", "codex", "--chain", chain], { env });
+  const first = run(project, ["init", project.id, "--goal", "fix typo", "--host", host, "--chain", chain], { env });
   if (first.json?.action !== "run") throw new Error(first.stdout + first.stderr);
   return { project, action: first.json, env, fixture, tmp, chain };
 }

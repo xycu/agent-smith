@@ -326,7 +326,7 @@
       "@prompts/manual-verify.md",
       "- **GIVEN** this step runs through the OpenAI runner **WHEN** a row needs a browser **THEN** you **MUST NOT** call Claude-in-Chrome tools or invent browser calls, screenshots or browser evidence.",
       "- **GIVEN** a covering test, command or script proves a Browser row **WHEN** you save its evidence **THEN** you **MUST** use test-, command- or script-prefixed evidence and begin it with `Browser: unavailable (OpenAI runner has no Claude-in-Chrome integration)`.",
-      "- **GIVEN** no covering test, command or script proves a Browser row **WHEN** you update plan.md **THEN** you **MUST** leave it at `[ ]` and record `- <row id> — Browser unavailable (OpenAI runner has no Claude-in-Chrome integration); no covering proof` in `evidence/unproven.md`."
+      "- **GIVEN** no covering test, command or script proves a Browser row **WHEN** you update plan.md **THEN** you **MUST** leave it at `[ ]` and record `- <row id> — Browser unavailable (OpenAI runner has no Claude-in-Chrome integration), no covering proof` in `evidence/unproven.md`."
     ],
     "manual-verify-nochrome": [
       "Prove the pending #### Manual rows of context/changes/{id}/plan.md on your own, and tick only the rows you proved. Rows rejected by the router last time: {unproven}. Browser rows: {browserRows}",

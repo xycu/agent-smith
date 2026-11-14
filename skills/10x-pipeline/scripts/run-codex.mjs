@@ -17,6 +17,11 @@ const MAX_MESSAGE = 1024 * 1024;
 const MAX_EVENT = 8 * 1024 * 1024;
 const refuse = (message) => { throw new Error(message); };
 
+function failureReason(error) {
+  const message = error instanceof Error ? error.message : "Codex runner failed.";
+  return message.slice(0, 2048);
+}
+
 function validateAction(action, id, chain, policy) {
   if (!isObject(action) || !["run", "archive"].includes(action.action) || action.provider !== "openai") {
     refuse("Expected an OpenAI run or archive action from the router.");
@@ -261,7 +266,7 @@ export async function runCodex(id, chain, action) {
     envelope.completed = true;
     if (action.action === "archive") envelope.reply = reply;
   } catch (error) {
-    envelope.reason = error instanceof Error ? error.message : "Codex runner failed.";
+    envelope.reason = failureReason(error);
   } finally {
     // Cancellation leaves the lock held until close and cleanup. No file is ever written back into a moved change.
     clearTimeout(killTimer);
@@ -295,7 +300,7 @@ async function main() {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    process.stdout.write(JSON.stringify({ action: "codex-result", launched: false, completed: false, result: null, reason: error.message }) + "\n");
+    process.stdout.write(JSON.stringify({ action: "codex-result", launched: false, completed: false, result: null, reason: failureReason(error) }) + "\n");
     process.exitCode = 1;
   });
 }

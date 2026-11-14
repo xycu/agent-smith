@@ -20,6 +20,16 @@ function snapshot(dir) {
 }
 
 for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: filesystem failures keep diagnostics bounded before launch`, () => {
+    const w = codexFixture(chain);
+    const result = execute(w, { ...w.action, root: path.join(w.project.root, "x".repeat(8192)) });
+    assert.equal(result.json.launched, false);
+    assert.equal(result.json.completed, false);
+    assert.ok(result.json.reason.length > 0 && result.json.reason.length <= 2048);
+    assert.deepEqual(calls(w.fixture), []);
+    assert.deepEqual(runnerLeftovers(w), []);
+  });
+
   test(`${chain}: exact model/effort/stdin/cwd, optional profile, cumulative accounting and read-only state`, () => {
     for (const profile of [null, "existing-profile"]) {
       const w = codexFixture(chain, { profile });

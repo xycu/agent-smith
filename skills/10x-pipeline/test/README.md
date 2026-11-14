@@ -65,6 +65,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `policy-validate.test.mjs` | the policy check at load (ADR-022): `init`, `next` and `usage` halt with the key name and write nothing on a malformed limit, ladder, step tier or prompt placeholder; `status` reports `policyProblem`; the shipped `policy.json` and `baseline-policy.json` pass |
 | `providers.test.mjs` | per-rung provider and fixed run host: legacy Claude defaults, GPT overlay/profile validation, exact neutral retry, capability refusals, both archive actions, provenance and provider-aware report/comparison aggregates |
 | `host-integration.test.mjs` | Shared host instruction and packaging contracts, OpenAI manual template selection and truthful browser evidence kinds |
+| `codex-chain.test.mjs` | Both-chain runner/result/router matrix, completion/report/comparison, typed child commits, guarded archive and isolated mixed-provider rollback/neutral retry |
 | `pr-comment-intent.test.mjs` | Router-owned boolean opt-in/reset/resume intent and terminal done/halt/archive propagation on both chains |
 
 ## Orchestrator skills and pull-request scripts

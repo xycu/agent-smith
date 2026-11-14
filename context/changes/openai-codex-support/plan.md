@@ -341,18 +341,18 @@ The implementation overlaps the open changes `pr-comment-flag-in-meta`, `router-
 
 #### Automated
 
-- [x] 3.1 Skill/prompt tests prove shared host dispatch, equal Anti-stall rules, portable wired instructions, nesting prohibition and fail-closed archive approval on both chains.
-- [x] 3.2 Router tests prove durable PR-comment opt-in/reset/resume behavior and actionable capability refusals without unauthorized dispatch or posting.
-- [x] 3.3 Prompt/evidence tests prove OpenAI browser fallback records truthful reasons and never accepts invented browser proof; packaging checks retain shared skills and unchanged version fields.
-- [x] 3.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 3.1 Skill/prompt tests prove shared host dispatch, equal Anti-stall rules, portable wired instructions, nesting prohibition and fail-closed archive approval on both chains. — 938fd09
+- [x] 3.2 Router tests prove durable PR-comment opt-in/reset/resume behavior and actionable capability refusals without unauthorized dispatch or posting. — 938fd09
+- [x] 3.3 Prompt/evidence tests prove OpenAI browser fallback records truthful reasons and never accepts invented browser proof; packaging checks retain shared skills and unchanged version fields. — 938fd09
+- [x] 3.4 Required suite passes: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 938fd09
 
 ### Phase 4: Verification
 
 #### Automated
 
-- [ ] 4.1 Both-chain scratch integration tests prove OpenAI execution, mixed-provider escalation, neutral retry, isolation/rollback and guarded archive without live model calls.
-- [ ] 4.2 Scratch CLI smoke returns a real run action and readable status for both chains under the GPT overlay, including the documented no-isolation override.
-- [ ] 4.3 Final checks pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` and `node tools/version-check.mjs`.
+- [x] 4.1 Both-chain scratch integration tests prove OpenAI execution, mixed-provider escalation, neutral retry, isolation/rollback and guarded archive without live model calls.
+- [x] 4.2 Scratch CLI smoke returns a real run action and readable status for both chains under the GPT overlay, including the documented no-isolation override.
+- [x] 4.3 Final checks pass: `node --test skills/10x-pipeline/test/*.test.mjs tools/test/*.test.mjs` and `node tools/version-check.mjs`.
 
 #### Manual
 
