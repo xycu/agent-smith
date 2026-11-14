@@ -47,5 +47,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 Live Claude depth-1 acceptance records successful top-level delegation and a blocked nested Agent attempt, or explicitly records unavailable acceptance with this row pending."
+    ],
+    "manualNotProved": [
+      "2.4 Live Claude depth-1 acceptance records successful top-level delegation and a blocked nested Agent attempt, or explicitly records unavailable acceptance with this row pending. — not proved: Live Claude depth-1 acceptance requires successful top-level delegation and a harness-blocked nested Agent attempt. This unattended step’s always-true rule prohibits starting any subagent, including t"
+    ]
   }
 }
