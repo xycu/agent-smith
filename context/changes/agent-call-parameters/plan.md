@@ -246,11 +246,11 @@ Existing router state supplies the fields used by the descriptions, including ne
 - [x] 1.1 Paired skill content tests pass with required descriptions, schema-dependent background flags, identical six-rule sections and identity-based completion and late usage correlation.
 - [x] 1.2 Existing agent dispatch and OpenAI provider, runner, chain and host-integration regression tests pass.
 - [x] 1.3 Deliberate mutations of scratch skill copies fail the corresponding description, conditional-flag, rule-1, rule-6 and late-usage assertions through the existing skill-path overrides.
-- [ ] 1.4 After deterministic shutdown verification (1.7), the full repository test suite completes with zero failures on Node 24 or later using --test-concurrency=2, with its terminal summary saved.
+- [x] 1.4 After deterministic shutdown verification (1.7), the full repository test suite completes with zero failures on Node 24 or later using --test-concurrency=2, with its terminal summary saved.
 - [ ] 1.5 The implementation checkpoint and scoped recovery diff are reviewed, git diff --check passes, documentation agrees with both skills, and the authorized implementation workflow commits the recovery with evidence while Manual 1.6 remains pending.
 
-- [ ] 1.7 Both chains pass deterministic child-release checks for lock/report and raw-output retention through cancellation, with bounded cleanup and unchanged production shutdown behavior.
-- [ ] 1.8 The manual handoff records the missing Claude host capability, no-nesting restriction, implementation checkpoint and top-level acceptance checklist without claiming live verification.
+- [x] 1.7 Both chains pass deterministic child-release checks for lock/report and raw-output retention through cancellation, with bounded cleanup and unchanged production shutdown behavior.
+- [x] 1.8 The manual handoff records the missing Claude host capability, no-nesting restriction, implementation checkpoint and top-level acceptance checklist without claiming live verification.
 
 #### Manual
 

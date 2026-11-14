@@ -153,19 +153,28 @@ for (const chain of ["10x", "openspec"]) {
   });
 
   test(`${chain}: handled cancellation waits for child close and removes raw files`, async (t) => {
-    const w = codexFixture(chain, { mode: { hold: true, closeDelay: 250 } });
+    const w = codexFixture(chain, { mode: { hold: true, holdUntilRelease: true } });
     const running = startRunner(w);
-    t.after(() => running.child.kill("SIGTERM"));
+    const release = path.join(w.fixture, "release");
+    t.after(async () => {
+      fs.writeFileSync(release, "yes");
+      running.child.kill("SIGTERM");
+      const closed = await running.closed;
+      assert.notEqual(closed.json?.signal, "SIGKILL", closed.stdout);
+    });
     await waitForFile(path.join(w.fixture, "ready"));
     const output = calls(w.fixture).at(-1).args;
     const finalFile = output[output.indexOf("-o") + 1];
     running.child.kill("SIGTERM");
     await waitForFile(path.join(w.fixture, "terminating"));
     assert.ok(fs.existsSync(path.dirname(finalFile)), "runner retains raw files until child closes");
+    fs.writeFileSync(release, "yes");
     const result = await running.closed;
-    assert.equal(result.json.launched, true);
-    assert.equal(result.json.completed, false);
-    assert.match(result.json.reason, /cancelled/);
+    assert.equal(result.json.launched, true, result.stdout);
+    assert.equal(result.json.completed, false, result.stdout);
+    assert.match(result.json.reason, /cancelled/, result.stdout);
+    assert.equal(result.json.exitCode, 0, result.stdout);
+    assert.equal(result.json.signal, null, result.stdout);
     assert.equal(fs.existsSync(path.dirname(finalFile)), false);
     const pid = Number(fs.readFileSync(path.join(w.fixture, "ready"), "utf8"));
     assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });

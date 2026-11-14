@@ -63,3 +63,86 @@ Focused recheck: the same environment, `node --test --test-name-pattern="a runne
 The unchanged test creates the fixture with `closeDelay: 350` at line 189, sends SIGTERM, waits for a terminating marker, then launches a separate router process and expects it to observe the lock before that delay expires (lines 211–215). The observed success status is consistent with termination finishing before the router checks the lock. This content-only patch changes none of those runtime files or tests. Repairing that timing-sensitive test lies outside this plan's named test files and Wave 4 ownership; no assertion was weakened or skipped to claim a pass.
 
 Final scope verification passed: exactly six owned lines changed in each skill, all other skill lines unchanged. `git diff --check`, `git diff --cached --check`, version-check and the proposed phase-title lint passed. Row 1.5 remains pending behind the failed full-suite gate. Rows 1.1–1.3 are checked without a commit SHA; the phase is not committed because its gates are not all green. Manual row 1.6 remains pending, as detailed in `unproven.md`.
+
+## Automated recovery on 2026-11-14
+
+The tested base is `9c5bb9e2f41c0768bcafadfcd9002fe0fea59d53`, on `agent-smith/agent-call-parameters`. The implemented Agent-call correction remains at `43e28f3aaf5f37a7becd05f9933c67da60b9ff93`. Node is v24.19.0. The recovery diff changes the shared fake CLI and its two cancellation consumers. Its SHA-256 is `dface714d4c1e586ac18b34433e4d785e09566a5249f980d4f2d3f42bc648153` from `git diff HEAD -- skills/10x-pipeline/test/codex-helpers.mjs skills/10x-pipeline/test/run-lock.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs`.
+
+### Recovery behavior and review
+
+The opt-in `holdUntilRelease` mode acknowledges SIGTERM or SIGINT through `terminating` and waits for the existing `release` marker. Both chains check retention, explicitly release the child and await close. They require the cancellation envelope to contain `launched: true`, `completed: false`, a cancellation reason, `exitCode: 0` and `signal: null`, then check cleanup and lock availability. Cleanup hooks release and signal the child, await close and report any forced SIGKILL with the envelope even if an earlier assertion failed.
+
+The reviewed callers are `run-lock.test.mjs`, `codex-runner.test.mjs` and `codex-chain.test.mjs`. Their default fixture mode retains its timer behavior. `run-codex.mjs` owns the existing five-second cancellation fallback, child-close wait, output cleanup and lock release. Source tracing and the captured historical OpenSpec failure establish the timer race addressed by this recovery. Repository lessons supply the no-nesting rule. The roadmap lookup found no matching change.
+
+Reviewed `43e28f3` directly, including its skill, test, reference and ADR changes. Both current skills match that checkpoint. Each skill has the six owned line replacements, identical six-rule anti-stall sections, three terminal identity mappings and the Loop step 4 usage ownership guard. The reference and ADR-018/019 agree on schema-dependent flag selection, both description formats, known-id precedence, compatible unique-description fallback, separate retry invocations and on-time/late usage ownership. The existing live-verification statements remain accurate.
+
+### Commands and scratch isolation
+
+All test commands below start in this run worktree. They remove inherited Git redirection variables and set both scratch variables to the same absolute worktree-local directory. Individual fixture roots and runner temporary roots are siblings inside it.
+
+#### Content and Agent dispatch
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-recovery-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-recovery-tmp" node --test --test-reporter=tap skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs
+```
+
+#### Provider, runner, chain, host and lock regression
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-recovery-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-recovery-tmp" node --test --test-reporter=tap skills/10x-pipeline/test/providers.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/host-integration.test.mjs skills/10x-pipeline/test/run-lock.test.mjs
+```
+
+#### Targeted cancellation, two final runs
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-recovery-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-recovery-tmp" node --test --test-reporter=tap --test-name-pattern="a runner holds the shared lock|handled cancellation waits" skills/10x-pipeline/test/run-lock.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs
+```
+
+#### Full repository suite
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-recovery-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-recovery-tmp" node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+```
+
+### Deliberate-break result
+
+After staging the recovery, temporarily changed only the fake CLI’s release-marker predicate to ignore `release` when `holdUntilRelease` was selected. Ran the targeted cancellation command above. Exit 1 was expected and observed. All four cases failed, covering lock/report retention and raw-output retention for both 10x and OpenSpec. Each diagnostic contained `exitCode: null`, `signal: "SIGKILL"` and the cancellation reason after the unchanged five-second fallback. The mutation was restored unconditionally from an exact byte copy of the staged fixture, with byte equality checked. The two final targeted runs followed that restoration.
+
+The historical 18 content mutations supporting completed row 1.3 remain applicable because this recovery changes no skills or content assertions. Completed rows 1.1–1.3 retain their original text and checkbox state.
+
+### Additional gates and live handoff
+
+`git diff --check` and `git diff --cached --check` passed with exit 0. `node tools/version-check.mjs` passed with version 1.10.0. `node tools/commit-lint.mjs --title "test(agent-call-parameters): control child shutdown"` passed. Dependency-free review assertions verified paired rules, terminal mapping counts, checkpoint equality, matching documentation and the handoff’s required capability/restriction/checklist entries.
+
+Automated 1.8 verifies the expanded `unproven.md` handoff. Manual 1.6 remains pending for top-level Claude schema acceptance, completion delivery and usage attribution. The host exposes no Claude Agent tool, and the unattended no-nesting rule applies. The recovery commit SHA is recorded on newly completed Automated rows in `../plan.md` after the commit lands.
+
+### Focused gate summaries
+
+| Gate | Exit | Tests | Pass | Fail | Cancelled | Skipped |
+| --- | --- | --- | --- | --- | --- | --- |
+| Content and Agent dispatch | 0 | 60 | 60 | 0 | 0 | 0 |
+| Provider, runner, chain, host and lock, final diff | 0 | 91 | 91 | 0 | 0 | 0 |
+| Targeted cancellation, final run 1 | 0 | 4 | 4 | 0 | 0 | 0 |
+| Targeted cancellation, final run 2 | 0 | 4 | 4 | 0 | 0 | 0 |
+| Ignored-release deliberate mutation | 1, expected | 4 | 0 | 4 | 0 | 0 |
+
+Two earlier targeted runs also passed 4/4. The final pair followed the added failure-cleanup SIGKILL diagnostic and deliberate-break restoration. The provider/runner/lock group was rechecked against that final diff and passed 91/91. The targeted runs retained both chains and all four cancellation cases throughout.
+
+### Completed full-suite verdict
+
+Exit 0 on the recovery diff identified above. The terminal summary is saved verbatim below.
+
+```text
+ℹ tests 1301
+ℹ suites 13
+ℹ pass 1298
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 3
+ℹ todo 0
+ℹ duration_ms 477942.478875
+```
+
+The three existing skips are the two opt-in live GitHub checks requiring `GH_LIVE=1` and authenticated `gh`, and the optional `CLAUDE.md` import check because that file is absent. The suite retains both chains’ deterministic cancellation cases. There were zero test failures and zero cancellations. No production script, policy, environment helper or CI file is included in the recovery diff.
+
+Reviewed the complete staged recovery file list before commit. It contains the three fixture/test files, this evidence, `unproven.md` and `plan.md`. The pre-existing router-owned `agent-smith/run.jsonl` modification remains outside the staged set. The recovery commit uses the Conventional Commit subject `test(agent-call-parameters): control child shutdown` and the required Codex coauthor trailer. Progress receives its verified commit SHA in the documentation epilogue after this commit lands.
