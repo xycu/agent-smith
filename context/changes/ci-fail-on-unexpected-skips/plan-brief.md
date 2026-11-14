@@ -28,11 +28,13 @@ CI requires successful availability probes and runs all five contract fixtures a
 
 ## Scope
 
-Primary ownership covers the new CI prerequisite step, `gitAvailable()` in the shared helper, and `skills/openspec-pipeline/test/openspec-contract.test.mjs`. Supporting work covers existing CI regression tests, the contract-test README entry, and the shared OpenSpec reference paragraph. Wave 6 owns the existing suite command. WAVES and archived folders serve as read-only references.
+Primary ownership covers the new CI prerequisite step, `gitAvailable()` in the shared helper, and `skills/openspec-pipeline/test/openspec-contract.test.mjs`. Supporting work covers existing CI regression tests, the contract-test README entry, the shared OpenSpec reference paragraph, and a focused ADR-013 D2 amendment documenting the CI requirement. Wave 6 owns the existing suite command. WAVES and archived folders serve as read-only references.
 
 ## Architecture / Approach
 
 Enforce tool availability in the existing probes. Install the approved CLI after Node setup and before Test suite, validate its version, and publish its absolute path through GITHUB_ENV. Keep conditional skip accounting beside the workflow step and in contract documentation. Verify failure handling with isolated subprocesses and workflow command stubs, then run the real pinned contracts and full suite under Node 24.
+
+Nested test subprocesses clear their copied `NODE_TEST_CONTEXT`, select TAP explicitly, and assert all five fixture identities and states, following the existing `helpers-env.test.mjs` convention. Node 24.19.0 review probes confirmed that an inherited worker context exits 0 with zero tests executed.
 
 ## Phases at a Glance
 

@@ -28,7 +28,7 @@ The brief's historical total of ten skips predates the non-root CI guard. Its tw
 
 ## Scope and ownership
 
-Wave 5 assigns this change the new-step region of `.github/workflows/ci.yml`, the `gitAvailable()` region of `skills/10x-pipeline/test/helpers.mjs`, and the moved OpenSpec contract file. Supporting CI checks use the existing `tools/test/ci-runner.test.mjs`, consistent with the lane description in WAVES. Update the existing contract-test entry in `skills/openspec-pipeline/test/README.md` and the OpenSpec contract paragraph in `docs/REFERENCE.md`, whose shared-text exception permits a focused correction.
+Wave 5 assigns this change the new-step region of `.github/workflows/ci.yml`, the `gitAvailable()` region of `skills/10x-pipeline/test/helpers.mjs`, and the moved OpenSpec contract file. Supporting CI checks use the existing `tools/test/ci-runner.test.mjs`, consistent with the lane description in WAVES. Update the existing contract-test entry in `skills/openspec-pipeline/test/README.md` and the OpenSpec contract paragraph in `docs/REFERENCE.md`, whose shared-text exception permits a focused correction. Add a focused amendment to the optional-contract rule in `docs/ADR/ADR-013-openspec-pipeline.md` D2 for the approved CI requirement. This ADR has no competing Wave 5 owner.
 
 The workflow addition sits between Node setup and the existing Test suite step. The existing suite command belongs to Wave 6. Current runner selection, UID guard, TMPDIR wiring, timeouts, release routing, router logic, policies, skill text, manifests, and version fields form the compatibility boundary. WAVES and archived change folders remain reference material throughout this change.
 
@@ -43,11 +43,13 @@ Use the existing probes as the authoritative enforcement points. Preserve their 
 - **A3** Use nonempty `process.env.CI` as the CI switch, matching the brief's proposed guard and GitHub Actions' populated `CI` variable. A literal value of `false` is still nonempty. Record this in regression coverage.
 - **A4** MEDIUM complexity and two phases fit the shared helper's broad caller surface, the CI installation boundary, and the focused test changes. The unattended task's decision rules replace the skill's interview and phase-approval questions with these documented decisions. `context/foundation/lessons.md` also requires doing the research within this worker.
 - **A5** Keep the real-`gh` authentication check optional when `gh` is unavailable. Its existing gate and ADR-020's prerequisite list establish that condition. Required tooling for this change is Git and the pinned OpenSpec CLI.
-- **A6** Supporting regression edits belong in `tools/test/ci-runner.test.mjs`, which WAVES explicitly associates with the workflow lane. The contract README entry and reference paragraph document the changed behavior in their existing sections.
+- **A6** Supporting regression edits belong in `tools/test/ci-runner.test.mjs`, which WAVES explicitly associates with the workflow lane. The contract README entry, reference paragraph, and focused ADR-013 D2 amendment document the changed behavior. The accepted lesson about searching every document for changed behavior supports the ADR correction.
 
 ## Critical Implementation Details
 
 Availability is evaluated during test discovery. Regression subprocesses must set CI, PATH, and OPENSPEC_BIN before importing the tested module, and isolate those environment changes from the parent test process. Use bounded subprocess calls and the existing hermetic-environment and scratch-cleanup conventions.
+
+For each subprocess launched with `node --test`, delete `NODE_TEST_CONTEXT` from the copied child environment and select `--test-reporter=tap`, following `skills/10x-pipeline/test/helpers-env.test.mjs:159-172`. Under Node 24, an inherited worker context makes a nested runner exit 0 after a recursive-runner warning with zero tests executed. Assert the five exact contract fixture identities and their expected executed or skipped state in successful child runs. For CI discovery failures, assert the selected-command diagnostic and nonzero exit. Preserve the parent environment.
 
 The CI install must select its own executable even when a self-hosted runner already has another OpenSpec version. Publish the absolute installed executable through `GITHUB_ENV` as `OPENSPEC_BIN`, and validate that executable before the suite. The installation's failure status must reach the job before any environment-file append can replace it.
 
@@ -82,6 +84,8 @@ Enforce CI tool availability through the two existing probes and prove the local
 **Intent** Verify the actual imported Git helper and actual OpenSpec test-file entry point under isolated environments.
 
 **Contract** Cover successful version probes in both modes, missing executables, nonzero version exits, and signal/timeout failure classification with bounded subprocesses. Check local Git false versus CI failure, local OpenSpec five skipped fixtures versus CI failure, and preservation of an explicit OPENSPEC_BIN. Include CI absent, empty, and nonempty values. Use stub executables or isolated child-process instrumentation as the existing tests permit. Parent PATH and CI must survive unchanged, and fixtures use repository cleanup conventions.
+
+Child test runners use the isolated context and TAP output specified in Critical Implementation Details. Successful contract-file subprocesses must report all five fixture identities with the expected state. Keep this proof within the existing regression criteria, including Progress rows 1.1, 1.3, and 1.4.
 
 ### Success Criteria
 
@@ -119,11 +123,13 @@ Make the real CLI available in CI, validate selection and failure propagation, a
 
 #### 3. Expected skips and contract documentation
 
-**Files** `.github/workflows/ci.yml`, `skills/openspec-pipeline/test/README.md`, `docs/REFERENCE.md`
+**Files** `.github/workflows/ci.yml`, `skills/openspec-pipeline/test/README.md`, `docs/REFERENCE.md`, `docs/ADR/ADR-013-openspec-pipeline.md`
 
 **Intent** Explain the enforced CI contract, the approved tool exception and deliberate pin, and the reason for each remaining skip.
 
 **Contract** Put the conditional inventory below beside the added CI step, and update the existing contract-test README entry and reference paragraph to distinguish local and CI probe behavior. State that pin upgrades require a deliberate commit and successful contract execution. Describe the single CLI installation as the approved CI-tool exception. Keep the wording scoped to the existing test contract.
+
+Amend ADR-013 D2's optional-contract rule at line 43 with the same nonempty-CI boundary, pinned CI tool requirement, and preserved local skip behavior. Scope the amendment to this contract change and keep it within the documentation verification of Progress row 2.3.
 
 ### Expected Linux CI skips
 
@@ -153,6 +159,8 @@ The default inventory therefore has three skips with gh available and four with 
 
 Probe regression cases are subprocess-based so module-level availability checks observe the intended environment. Negative cases are deterministic and cover both tool launch failures and version-command failures. Use command stubs to test the workflow step's failure handling, then use the real pinned executable for contract acceptance. Both same-repository and fork runner selections share the same prerequisite step and are covered by the existing workflow-selection assertions.
 
+Nested `node --test` regressions clear the child's `NODE_TEST_CONTEXT`, select TAP explicitly, and verify fixture identities and states alongside exit status, using the existing child-test convention in `helpers-env.test.mjs`. Review-time reproductions on Node 24.19.0 confirmed that the inherited context executes zero tests, while a fresh child context discovers all five missing-binary skips.
+
 Run focused checks before the full repository gate after each phase. For acceptance evidence, capture the skipped test names and reasons from the full suite output together with the Node and CLI versions. The new CI setup step can be exercised locally on non-root Linux with temporary GITHUB_ENV and runner-temp fixtures. A successful hosted workflow observation remains useful supplementary evidence when an authorized fork PR exists.
 
 ## Performance Considerations
@@ -173,6 +181,8 @@ The change affects test execution and job setup. The install prefix and npm stat
 - Runner prerequisites and non-root behavior in `docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md`.
 - Existing contract documentation in `skills/openspec-pipeline/test/README.md` and `docs/REFERENCE.md:542`.
 - Unattended research constraints in `context/foundation/lessons.md`.
+- Child test-runner isolation and execution assertions in `skills/10x-pipeline/test/helpers-env.test.mjs:159-172`.
+- Optional contract-test decision requiring a CI amendment in `docs/ADR/ADR-013-openspec-pipeline.md:43`.
 - Published package metadata, read on 2026-11-14. [npm registry](https://registry.npmjs.org/@fission-ai%2fopenspec/1.16.1)
 
 ## Progress
