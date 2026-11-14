@@ -45,7 +45,7 @@
   },
   "startCommit": "afeeccb77b7afe7dd5d552337668fceba58c8a21",
   "rigor": {
-    "level": "standard",
-    "by": "goal hard"
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/test/pr-comment.test.mjs, skills/10x-pipeline/test/skill-loop.test.mjs, skills/openspec-pipeline/test/openspec-skill.test.mjs"
   }
 }
