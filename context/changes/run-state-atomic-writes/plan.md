@@ -323,7 +323,7 @@ This step produces the plan and brief. Implementation acceptance consists of the
 
 #### Automated
 
-- [x] 3.1 Late-usage failure restores exact original Buffers or absence, repeated equal usage performs zero publications, and restoration failure is observable.
-- [x] 3.2 Existing result-persistence, rollback, undo-on-halt, archive, late-usage and both-chain execution suites pass alongside the new state tests.
-- [x] 3.3 Reference documentation and the test index describe the implemented state contract, and a writer/caller audit accounts for every router state publication and log read.
-- [x] 3.4 Both-chain CLI smoke checks return action run with a step, followed by readable status, and the full repository-mandated test suite passes.
+- [x] 3.1 Late-usage failure restores exact original Buffers or absence, repeated equal usage performs zero publications, and restoration failure is observable. — f6ad515
+- [x] 3.2 Existing result-persistence, rollback, undo-on-halt, archive, late-usage and both-chain execution suites pass alongside the new state tests. — f6ad515
+- [x] 3.3 Reference documentation and the test index describe the implemented state contract, and a writer/caller audit accounts for every router state publication and log read. — f6ad515
+- [x] 3.4 Both-chain CLI smoke checks return action run with a step, followed by readable status, and the full repository-mandated test suite passes. — f6ad515
