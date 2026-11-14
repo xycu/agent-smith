@@ -232,20 +232,20 @@ Recovery test retries create fresh scratch runs, making injected failures indepe
 
 #### Automated
 
-- [x] 1.1 The existing CI suite command enables native coverage and supplies the three test globs with observational coverage settings.
-- [x] 1.2 A full coverage run passes and records line, branch, function and uncovered-range columns for the shared router modules and `openspec.mjs`.
-- [x] 1.3 Coverage evidence identifies every uncovered halt/recovery intersection in the four requested modules and records comparable suite timings and skip identities.
-- [x] 1.4 Existing CI workflow guards pass with `node --test tools/test/ci-runner.test.mjs tools/test/workflow-pins.test.mjs`.
+- [x] 1.1 The existing CI suite command enables native coverage and supplies the three test globs with observational coverage settings. — c24a166
+- [x] 1.2 A full coverage run passes and records line, branch, function and uncovered-range columns for the shared router modules and `openspec.mjs`. — c24a166
+- [x] 1.3 Coverage evidence identifies every uncovered halt/recovery intersection in the four requested modules and records comparable suite timings and skip identities. — c24a166
+- [x] 1.4 Existing CI workflow guards pass with `node --test tools/test/ci-runner.test.mjs tools/test/workflow-pins.test.mjs`. — c24a166
 
 ### Phase 2: Cover failed undo recovery and collect final evidence
 
 #### Automated
 
-- [ ] 2.1 All four failed-undo cases pass through the real CLI and assert their caller-specific exit status, original halt context, undo diagnostic and full recovery ref.
-- [ ] 2.2 All four cases prove that the snapshot holds tracked and untracked partial work and that HEAD matches the hard-reset or mixed-reset failure state.
-- [ ] 2.3 The focused coverage run passes and its source-backed evidence demonstrates both callers and both undo failure exits are exercised.
-- [ ] 2.4 The full repository suite passes with coverage enabled, and the final module table and recovery-range disposition are recorded alongside the baseline.
-- [ ] 2.5 The final diff respects Wave 6 ownership and contains the planned implementation files and change-local artifacts.
+- [x] 2.1 All four failed-undo cases pass through the real CLI and assert their caller-specific exit status, original halt context, undo diagnostic and full recovery ref.
+- [x] 2.2 All four cases prove that the snapshot holds tracked and untracked partial work and that HEAD matches the hard-reset or mixed-reset failure state.
+- [x] 2.3 The focused coverage run passes and its source-backed evidence demonstrates both callers and both undo failure exits are exercised.
+- [x] 2.4 The full repository suite passes with coverage enabled, and the final module table and recovery-range disposition are recorded alongside the baseline.
+- [x] 2.5 The final diff respects Wave 6 ownership and contains the planned implementation files and change-local artifacts.
 
 #### Manual
 

@@ -40,10 +40,10 @@ The raw native module rows preserve the line, branch, function and uncovered-lin
 ```text
 ℹ    flow.mjs          |  99.79 |    90.39 |  100.00 | 629-630
 ℹ    isolation.mjs     |  98.54 |    66.67 |  100.00 | 224 279-280 318-319 662-663 694-695 698-699
-ℹ    preplan.mjs       | 100.00 |    89.04 |  100.00 | 
+ℹ    preplan.mjs       | 100.00 |    89.04 |  100.00 |
 ℹ    route.mjs         |  98.50 |    87.40 |  100.00 | 56-58 78-79 146-147 834-836 896-897 907-908 1051-1052
 ℹ    state.mjs         |  99.42 |    93.07 |   99.18 | 84-87 1027-1028
-ℹ    steps.mjs         | 100.00 |    88.89 |   99.23 | 
+ℹ    steps.mjs         | 100.00 |    88.89 |   99.23 |
 ℹ    openspec.mjs      |  99.52 |    83.10 |  100.00 | 152
 ```
 
@@ -88,3 +88,76 @@ The ordinary baseline exited 0 with the same 1,479 tests, 1,476 passes, zero fai
 Retain the single blocking inline-coverage step. The fallback would add a second complete suite, while these local runs already total 39.48 minutes at concurrency 2. CI uses its existing default concurrency on a different Linux runner. Local measurements do not establish the TrueNAS duration or its 15-minute acceptance. Manual row 2.6 retains the same-runner check and potential job-budget decision. The inline configuration keeps test failures blocking and avoids doubling the suite workload.
 
 Workflow guards passed all 20 tests with zero skips in `9079.13975 ms`. The exact three-glob inline coverage command and observational settings passed an assert-based configuration check. `node tools/version-check.mjs` passed. Phase 1 adds no tests, so its deliberate-break gate is inapplicable.
+
+## Phase 2 failed undo regressions
+
+Measured from Phase 1 commit `c24a166`, with the 93-line additive regression block in `rollback.test.mjs` and change-local evidence/Progress edits. The router modules match the baseline revision byte-for-byte.
+
+```sh
+node --test --test-concurrency=2 --experimental-test-coverage skills/10x-pipeline/test/rollback.test.mjs skills/10x-pipeline/test/override-json.test.mjs
+```
+
+The focused covered run exited 0 with 23 passes, zero failures and zero skips in `53709.914625 ms`. All 19 pre-existing cases passed alongside the four new cases.
+
+| Caller | Undo reset | Result | Focused duration |
+| --- | --- | --- | --- |
+| Attempt-cap `end` | Hard | PASS, exit 0, original attempt-cap note, undo diagnostic and kept-under sentence | 3505.854917 ms |
+| Attempt-cap `end` | Mixed | PASS, exit 0, same context and snapshot-branch/reset guidance | 3751.507208 ms |
+| Outer catch | Hard | PASS, exit 1, parseable router-error halt with undo diagnostic | 4172.793167 ms |
+| Outer catch | Mixed | PASS, exit 1, same context and snapshot-branch/reset guidance | 4578.218875 ms |
+
+The shared assertions in `skills/10x-pipeline/test/rollback.test.mjs` cover the full reset diagnostic with the exact ref, the injected stderr text, tracked `change.md` contents, untracked `partial.txt` contents, the failed step commit and snapshot parent. A deliberately created failed-step commit distinguishes the step start from the HEAD left by the failure. The hard failure leaves HEAD at `startSha`, while the mixed failure leaves it at the snapshot.
+
+The local injector at lines 360–390 forwards real Git and records a successful initial rollback with its actual HEAD. Before returning the injected error it resolves the expected snapshot ref. Its marker must contain exactly one rollback event followed by one undo event with their expected hashes. The injector and marker live under the main scratch fixture, outside the linked worktree. `cleanupAll` owns that fixture, including the injector.
+
+The matrix at lines 392–450 exercises `route.mjs` 53, 56–58, 109 and 1066 through both real CLI callers. Focused route coverage rises from the planning probe 45.37% lines / 16.13% branches to 45.65% lines / 16.67% branches, with 36.36% functions. Lines 56–58 disappear from the uncovered ranges. Caller-specific assertions establish the covered-line failure alternatives on 53, 109 and 1066.
+
+### Deliberate-break gate
+
+With the test staged, both occurrences of the production undo-failure prefix were temporarily changed from `The rollback was not undone:` to `Undo failed:`. Running the four cases by name produced four assertion failures, zero passes and zero skips in `19168.828458 ms`. A `finally` block restored the original router bytes, and `git diff --exit-code -- skills/10x-pipeline/scripts/route.mjs` confirmed restoration before the final suite started. The temporary mutation stayed outside commits.
+
+```sh
+node --test --test-name-pattern='failed undo:' skills/10x-pipeline/test/rollback.test.mjs
+```
+
+## Phase 2 final full-suite coverage
+
+The final covered suite exited 0 with 1,483 tests, 1,480 passes, zero failures/cancellations and three expected skips in `1184208.734042 ms` (19.74 minutes). It used the same Node, Git, pinned OpenSpec CLI, environment, concurrency and three-glob command as the baseline. The measured test source is Git blob `bbde028f39965075cd8cdf45a5daacc18fed5406`, based on commit `c24a166`. Router-module sources still match `f6a635ed03a3e273127b61b123c3e93ba3d8cdda`.
+
+```text
+ℹ    flow.mjs          |  99.79 |    90.39 |  100.00 | 629-630
+ℹ    isolation.mjs     |  98.54 |    66.67 |  100.00 | 224 279-280 318-319 662-663 694-695 698-699
+ℹ    preplan.mjs       | 100.00 |    89.04 |  100.00 |
+ℹ    route.mjs         |  98.78 |    88.80 |  100.00 | 78-79 146-147 834-836 896-897 907-908 1051-1052
+ℹ    state.mjs         |  99.42 |    93.07 |   99.18 | 84-87 1027-1028
+ℹ    steps.mjs         | 100.00 |    88.89 |   99.23 |
+ℹ    openspec.mjs      |  99.52 |    83.10 |  100.00 | 152
+```
+
+All four real-CLI cases executed in the final full run.
+
+```text
+✔ 4.1 failed undo: attempt-cap, hard reset retains recovery text and snapshot (4822.602125ms)
+✔ 4.1 failed undo: attempt-cap, mixed reset retains recovery text and snapshot (4695.760375ms)
+✔ 4.1 failed undo: router-error, hard reset retains recovery text and snapshot (5063.178084ms)
+✔ 4.1 failed undo: router-error, mixed reset retains recovery text and snapshot (5019.401333ms)
+```
+
+### Final recovery disposition
+
+The baseline inventory remains applicable to every remaining uncovered range. The sole removed range is `route.mjs` 56–58, now exercised by both mixed-reset failures. Router line coverage moves from 98.50% to 98.78%, branch coverage from 87.40% to 88.80% and function coverage stays 100%. The other six module rows and uncovered ranges match the baseline exactly.
+
+The hard-reset failure and both caller failure-text alternatives are explicitly asserted despite having shared executed lines before this change. All other recovery-gap rows retain their owning follow-up and Wave 6 rationale in the baseline inventory. Additional cases beyond the agreed four remain future changes under those ownership boundaries.
+
+The final covered duration is 47,624.301249 ms below the covered baseline. These sequential local timings provide the recorded performance observations. The controlled ordinary/covered comparison remains the Phase 1 pair at identical test sources. Live TrueNAS timing, coverage output, skip identities and Linux execution remain the pending Manual acceptance.
+
+### Implementation gate summary
+
+- Phase 1 passed command configuration, full coverage, recovery inventory/timings, all 20 workflow guards and the ordinary full suite. Commit `c24a166` records the phase.
+- Phase 2 passed the four caller/reset cases, tracked/untracked snapshot and HEAD assertions, focused coverage, deliberate-break check and the final covered full suite.
+- The ownership check permits only `.github/workflows/ci.yml`, `skills/10x-pipeline/test/rollback.test.mjs` and this change folder. `git diff --check` passed. The pre-existing orchestrator-owned `agent-smith/run.jsonl` edit remains outside the implementation staging set.
+- Pending Manual row 2.6 remains unchecked as required by the implementation skill.
+
+Pending manual verification
+
+- 2.6 A green CI run for this change shows the native router-module coverage table, execution of the four Linux regression cases, expected skip identities and recorded runner timing, with its run URL in the coverage evidence.
