@@ -1,0 +1,1 @@
+- 2.5 — Read-only GitHub checks found no pull request or CI run for agent-smith/ci-fail-on-unexpected-skips. Live same-repository PR CI on the non-root TrueNAS runner is required. Pushing or posting to create that run is prohibited in this step. See command-2.5-live-ci-availability.txt.

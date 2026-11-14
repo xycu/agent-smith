@@ -45,7 +45,7 @@
   },
   "startCommit": "c5fde9f83379161f20be9919777280cd50f41e91",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "hot paths .github/workflows/ci.yml, skills/10x-pipeline/test/helpers.mjs, tools/test/ci-runner.test.mjs"
   }
 }
