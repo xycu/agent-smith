@@ -45,7 +45,7 @@
   },
   "startCommit": "e780481f7ac413a67265e1ee7b897175884518f4",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "signals"
   }
 }

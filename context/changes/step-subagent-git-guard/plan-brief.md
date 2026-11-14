@@ -44,13 +44,14 @@ The router's existing rule tail carries semantic safety instructions. Provider-a
 | 2. Scoped Claude guard and dispatch compatibility | Dedicated agent, native hook, provenance and provider/retry tests | Overblocking safe commands or overstating runtime coverage |
 | 3. Documentation and integration acceptance | Reference/index/ADR amendments and concurrent-change verification | Drift against the Wave 7 skill rewrite |
 
-Prerequisites are Node 24+, a loaded plugin, existing test helpers and a supported Claude host for live acceptance. The plan needs no external service for Automated criteria.
+Prerequisites are Node 24+, a loaded plugin and existing test helpers. The overall Claude Code baseline stays 2.1.292+, while fail-closed hook handling requires 2.1.295+ and a supported identity schema. Older hosts retain prompt rules and existing permission controls, with runtime guard enforcement unverified. The plan needs no external service for Automated criteria.
 
 Estimated effort is three implementation phases and a separate live acceptance pass. Complexity is HIGH because dispatch, safety and compatibility intersect.
 
 ## Open Risks & Assumptions
 
 - Unattended evidence-backed choices replace the skill's interview and phase approvals. The full plan records assumptions A1–A7.
+- Stage-only restore can discard a unique index version. The stateless hook denies it because it cannot establish preservation. Phase 2 explains this correction to the retained wording of Progress row 2.2.
 - The hook covers a documented direct-command subset. Script internals, dynamic shell construction, alternative executables, filesystem/MCP actions, OpenAI children and custom agent types retain semantic rules and host controls.
 - Historical pending dispatches retain their exact stored prompt and agent, so an upgrade gains full new coverage at the next newly assembled action.
 - Disabled hooks and unsupported identity schemas provide no runtime guarantee. A hook startup failure can block matching orchestrator calls under fail-closed handling.
