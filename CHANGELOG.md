@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.11.0](https://github.com/xycu/agent-smith/compare/v1.10.2...v1.11.0) (2026-11-14)
+
+
+### Features
+
+* **step-prompt-by-file:** Hand the step prompt to the subagent by file instead of through the orchestrator ([328842c](https://github.com/xycu/agent-smith/commit/328842c3f50eb7976051efe6615cc019e8599406))
+
+
+### Bug Fixes
+
+* **change-id-length-cap:** Refuse a change id longer than 100 characters at init ([294d8d5](https://github.com/xycu/agent-smith/commit/294d8d5bbac5b1c51cd2b9aa551c8e3dd360a0db))
+* **docs-drift-fixes:** Fix the places where README, REFERENCE, the ADRs and the manifests disagree with the code ([62cc0dd](https://github.com/xycu/agent-smith/commit/62cc0dd64d0328557628dd98c27b560b84ae4f3b))
+* **nested-subagent-hard-stop:** Enforce the nested-subagent ban outside the prompt ([60c2702](https://github.com/xycu/agent-smith/commit/60c2702c09ae05364e844eb97a0906488359fb47))
+
 ## [1.10.2](https://github.com/xycu/agent-smith/compare/v1.10.1...v1.10.2) (2026-11-14)
 
 
