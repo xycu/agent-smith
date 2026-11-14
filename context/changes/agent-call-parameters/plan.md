@@ -181,9 +181,9 @@ Existing router state supplies the fields used by the descriptions, including ne
 
 #### Automated
 
-- [ ] 1.1 Paired skill content tests pass with required descriptions, schema-dependent background flags, identical six-rule sections and identity-based completion and late usage correlation.
-- [ ] 1.2 Existing agent dispatch and OpenAI provider, runner, chain and host-integration regression tests pass.
-- [ ] 1.3 Deliberate mutations of scratch skill copies fail the corresponding description, conditional-flag, rule-1, rule-6 and late-usage assertions through the existing skill-path overrides.
+- [x] 1.1 Paired skill content tests pass with required descriptions, schema-dependent background flags, identical six-rule sections and identity-based completion and late usage correlation.
+- [x] 1.2 Existing agent dispatch and OpenAI provider, runner, chain and host-integration regression tests pass.
+- [x] 1.3 Deliberate mutations of scratch skill copies fail the corresponding description, conditional-flag, rule-1, rule-6 and late-usage assertions through the existing skill-path overrides.
 - [ ] 1.4 The full repository test suite passes on Node 24 or later.
 - [ ] 1.5 The scoped diff passes `git diff --check`, the reference and ADR guidance agrees with both skills, and edits stay within the assigned ownership regions.
 

@@ -33,7 +33,13 @@ Amendment (change `proper-structure-of-rules`): the rule now lives in the always
 
 ### Orchestrator side
 
-**GIVEN** a hand-back arrives that is neither the result of the Agent call the orchestrator made for the current step nor a task notification that names that call's subagent **WHEN** the current step or the archive subagent still waits for its own report **THEN** the orchestrator **MUST NOT** treat it as a step result: it writes no result file from it and does not call `next` on it (A2).
+Before a Claude call, inspect the exposed Agent schema: set `run_in_background` to `false` only when declared, otherwise omit it. Always supply `description` as `agent-smith <change-id> step <n> <step>` for a numbered step, or `agent-smith <change-id> archive` for archive (OpenSpec uses `<change-name>`). Record the exact description, router change, number and step for each invocation, with any returned agent id.
+
+A known agent id selects its recorded launch and any supplied description must agree. Otherwise the exact description must identify one recorded launch uniquely, with no conflict against its known id; associate a newly supplied id when that unique launch has no recorded id. Keep separate invocation records even when a neutral retry repeats the description. Only the awaited invocation can supply its completion: superseded invocations and ambiguous description-only notifications cannot advance it.
+
+The same identity check governs on-time and late usage. Loop step 4 takes figures only from the current invocation's result or its matched notification. An earlier numbered step's figure follows the late-usage path, even when already present as the current report arrives; unmatched or ambiguous figures remain unattached. Without a matched current figure, omit `usage` and run `next` in the same turn.
+
+**GIVEN** a hand-back arrives that is neither the result of the Agent call the orchestrator made for the current step nor a task notification matched to the awaited invocation's recorded identity **WHEN** the current step or the archive subagent still waits for its own report **THEN** the orchestrator **MUST NOT** treat it as a step result: it writes no result file from it and does not call `next` on it (A2).
 
 **GIVEN** the two orchestrator skills **WHEN** the rule above is added **THEN** it **MUST** be the sixth rule of the `## Anti-stall rules` section, in the same words in both skills, so the sections stay equal.
 

@@ -50,5 +50,9 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 5 (implement) needs a human: Repair or authorize repair of the unrelated runner-lock timing test before completing the full-suite gate."
   }
 }

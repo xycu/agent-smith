@@ -1,7 +1,7 @@
 ---
 change_id: agent-call-parameters
 title: Make the step Agent call match the Agent tool and give it a fixed description
-status: planned
+status: implementing
 created: 2026-11-12
 updated: 2026-11-14
 archived_at: null
