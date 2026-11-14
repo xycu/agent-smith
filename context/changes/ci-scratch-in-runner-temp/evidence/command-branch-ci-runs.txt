@@ -1,0 +1,3 @@
+Command: gh run list --repo xycu/agent-smith --workflow CI --branch agent-smith/ci-scratch-in-runner-temp --limit 100 --json databaseId,headSha,headBranch,conclusion,status,url
+[]
+Exit status: 0
