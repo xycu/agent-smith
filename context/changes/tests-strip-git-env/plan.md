@@ -212,13 +212,13 @@ This change affects test process environments and adds a test-only export. Exist
 
 #### Automated
 
-- [x] 1.1 Existing environment consumers and timeout contracts pass with `node --test skills/10x-pipeline/test/helpers-timeout.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/openspec-pipeline/test/openspec-contract.test.mjs tools/test/commit-lint.test.mjs`.
-- [x] 1.2 The environment-site audit confirms every inventoried Git-capable inherited base uses prefix stripping before explicit fixture values, with sibling-owned behavior regions excluded from the diff.
+- [x] 1.1 Existing environment consumers and timeout contracts pass with `node --test skills/10x-pipeline/test/helpers-timeout.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/openspec-pipeline/test/openspec-contract.test.mjs tools/test/commit-lint.test.mjs`. — d1e53d9
+- [x] 1.2 The environment-site audit confirms every inventoried Git-capable inherited base uses prefix stripping before explicit fixture values, with sibling-owned behavior regions excluded from the diff. — d1e53d9
 
 ### Phase 2: Prove child-test isolation and victim integrity
 
 #### Automated
 
-- [ ] 2.1 Prefix stripping, fresh-copy behavior, parent preservation, override precedence and all four hostile-environment child scenarios pass with `node --test skills/10x-pipeline/test/helpers-env.test.mjs`, with executed Git cases and unchanged victim snapshots.
-- [ ] 2.2 The complete ordinary suite passes with `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, with tool-dependent skips recorded.
-- [ ] 2.3 An isolated acceptance driver runs the complete suite with all three hostile variables selecting a disposable victim, requires successful child execution and unchanged victim HEAD, refs, commit count, index and complete file snapshot, and records the command and outcome.
+- [x] 2.1 Prefix stripping, fresh-copy behavior, parent preservation, override precedence and all four hostile-environment child scenarios pass with `node --test skills/10x-pipeline/test/helpers-env.test.mjs`, with executed Git cases and unchanged victim snapshots.
+- [x] 2.2 The complete ordinary suite passes with `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, with tool-dependent skips recorded.
+- [x] 2.3 An isolated acceptance driver runs the complete suite with all three hostile variables selecting a disposable victim, requires successful child execution and unchanged victim HEAD, refs, commit count, index and complete file snapshot, and records the command and outcome.
