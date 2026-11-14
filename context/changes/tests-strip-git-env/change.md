@@ -1,7 +1,7 @@
 ---
 change_id: tests-strip-git-env
 title: Drop inherited GIT_ variables in the test helpers
-status: implementing
+status: implemented
 created: 2026-11-12
 updated: 2026-11-14
 archived_at: null

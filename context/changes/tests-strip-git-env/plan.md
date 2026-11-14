@@ -219,6 +219,6 @@ This change affects test process environments and adds a test-only export. Exist
 
 #### Automated
 
-- [x] 2.1 Prefix stripping, fresh-copy behavior, parent preservation, override precedence and all four hostile-environment child scenarios pass with `node --test skills/10x-pipeline/test/helpers-env.test.mjs`, with executed Git cases and unchanged victim snapshots.
-- [x] 2.2 The complete ordinary suite passes with `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, with tool-dependent skips recorded.
-- [x] 2.3 An isolated acceptance driver runs the complete suite with all three hostile variables selecting a disposable victim, requires successful child execution and unchanged victim HEAD, refs, commit count, index and complete file snapshot, and records the command and outcome.
+- [x] 2.1 Prefix stripping, fresh-copy behavior, parent preservation, override precedence and all four hostile-environment child scenarios pass with `node --test skills/10x-pipeline/test/helpers-env.test.mjs`, with executed Git cases and unchanged victim snapshots. — d1b866b
+- [x] 2.2 The complete ordinary suite passes with `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, with tool-dependent skips recorded. — d1b866b
+- [x] 2.3 An isolated acceptance driver runs the complete suite with all three hostile variables selecting a disposable victim, requires successful child execution and unchanged victim HEAD, refs, commit count, index and complete file snapshot, and records the command and outcome. — d1b866b
