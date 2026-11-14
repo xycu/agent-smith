@@ -1,7 +1,7 @@
 ---
 change_id: ladder-fable-rung
 title: Let the ladder reach the fable model without renumbering tiers
-status: implementing
+status: implemented
 created: 2026-11-12
 updated: 2026-11-14
 archived_at: null

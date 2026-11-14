@@ -194,9 +194,9 @@ No state migration or tier renumbering. Users deliberately merge the full array 
 
 #### Automated
 
-- [x] 2.1 The published-override, provider, clamp, effort-floor and missing-price regressions pass in ladder.test.mjs with unchanged default assertions.
-- [x] 2.2 Focused ladder, providers, cost, budget-executors and loops-existing suites pass without changed tier literals or unexpected skips.
-- [x] 2.3 The repository-required full test command passes, and git diff --check plus a final path/region audit confirm the approved scope.
+- [x] 2.1 The published-override, provider, clamp, effort-floor and missing-price regressions pass in ladder.test.mjs with unchanged default assertions. — 14cbdc3
+- [x] 2.2 Focused ladder, providers, cost, budget-executors and loops-existing suites pass without changed tier literals or unexpected skips. — 14cbdc3
+- [x] 2.3 The repository-required full test command passes, and git diff --check plus a final path/region audit confirm the approved scope. — 14cbdc3
 
 #### Manual
 
