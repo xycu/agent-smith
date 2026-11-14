@@ -1,0 +1,19 @@
+✖ fake child readiness guarantees immediate cancellation can be handled (11576.430917ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11892.240167
+
+✖ failing tests:
+
+test at skills/10x-pipeline/test/codex-runner.test.mjs:275:1
+✖ fake child readiness guarantees immediate cancellation can be handled (11576.430917ms)
+  Error: Timed out waiting for /Users/blazej/.codex/worktrees/8584/agent-smith/.claude/worktrees/agent-smith-step-prompt-by-file/.agent-smith-test-tmp/as-kD4wiY/fake-codex/terminating
+      at waitForFile (file:///Users/blazej/.codex/worktrees/8584/agent-smith/.claude/worktrees/agent-smith-step-prompt-by-file/skills/10x-pipeline/test/codex-helpers.mjs:126:38)
+      at async TestContext.<anonymous> (file:///Users/blazej/.codex/worktrees/8584/agent-smith/.claude/worktrees/agent-smith-step-prompt-by-file/skills/10x-pipeline/test/codex-runner.test.mjs:291:3)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)

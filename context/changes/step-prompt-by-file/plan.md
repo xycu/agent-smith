@@ -290,17 +290,17 @@ Removing a consumed `prompt.md` before router commits does not undo an earlier s
 
 #### Automated
 
-- [x] 2.1 Both Loop step 2 contracts forward compact prompts unchanged without loading files, preserve provider/usage/error rules, and keep both anti-stall sections identical.
-- [x] 2.2 The reference describes the default, opt-in, replay, cleanup, archive and evidence limits consistently with tested behavior; a search for obsolete full-inline claims resolves only task-owned text.
-- [x] 2.3 The required full Node suite and `git diff --check` pass after skill/content changes, with the final diff confined to the scope map.
+- [x] 2.1 Both Loop step 2 contracts forward compact prompts unchanged without loading files, preserve provider/usage/error rules, and keep both anti-stall sections identical. — 513a88f
+- [x] 2.2 The reference describes the default, opt-in, replay, cleanup, archive and evidence limits consistently with tested behavior; a search for obsolete full-inline claims resolves only task-owned text. — 513a88f
+- [x] 2.3 The required full Node suite and `git diff --check` pass after skill/content changes, with the final diff confined to the scope map. — 513a88f
 
 ### Phase 3: Record measurements and the default decision
 
 #### Automated
 
-- [ ] 3.1 Actual action-size evidence covers representative dispatch/retry paths near the 1 KB target, quantifies long-path overhead, and distinguishes emitted measurements from estimates and tokens.
-- [ ] 3.2 The comparison record includes available compare outputs or an explicit zero-pair/unavailable explanation, usage coverage and failure limitations, and a justified decision retaining the false default.
-- [ ] 3.3 The final required full Node suite passes after the last code/test change; evidence and the scoped diff are checked without modifying WAVES, archive or sibling-owned regions.
+- [x] 3.1 Actual action-size evidence covers representative dispatch/retry paths near the 1 KB target, quantifies long-path overhead, and distinguishes emitted measurements from estimates and tokens.
+- [x] 3.2 The comparison record includes available compare outputs or an explicit zero-pair/unavailable explanation, usage coverage and failure limitations, and a justified decision retaining the false default.
+- [x] 3.3 The final required full Node suite passes after the last code/test change; evidence and the scoped diff are checked without modifying WAVES, archive or sibling-owned regions.
 
 #### Manual
 

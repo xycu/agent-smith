@@ -1,0 +1,27 @@
+✔ strict opt-in defaults off and malformed values halt before writes (1952.575834ms)
+✔ 10x: exact task, replay across policy changes, replacement and provenance (1316.693625ms)
+✔ openspec: exact task, replay across policy changes, replacement and provenance (1274.99225ms)
+✔ legacy pending dispatch stays inline when enabling byFile (613.01425ms)
+✔ restricted score and advisor tasks retain full rendered instructions (687.507292ms)
+✔ collision, file and parent redirects preserve unrelated content (1278.844917ms)
+✔ neutral cap removes task and raised cap restores original handoff (1671.956916ms)
+✔ publication and log failures never return unusable dispatch; neutral retry recovers (1390.496083ms)
+✔ durable result and cleanup marker survive delete and post-delete log failures (3066.428458ms)
+✔ 10x: Codex accepts exact compact prompt and rejects forged dispatch/files (3895.969375ms)
+✔ openspec: Codex accepts exact compact prompt and rejects forged dispatch/files (3759.022625ms)
+✔ isolated success and rollback commits exclude consumed prompt and exact owned temps (5410.152625ms)
+✔ terminal completion and pre-archive commit clean task; archive remains inline (2720.755125ms)
+✔ both providers keep manual variants byte-identical to inline rendering (4036.897125ms)
+✔ Codex rechecks task after permission probe and inline actions reject promptFile (1818.565041ms)
+✔ unreadable task and owned-temp cleanup errors halt without consuming pending result (1345.008292ms)
+✔ ended OpenAI archive rejects file fields without a model launch (2470.400209ms)
+✔ failed neutral-result deletion does not spend a retry (896.903041ms)
+✔ actual emitted sizes fit normal roots and quantify long path/reason overhead (8419.917292ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48540.688708

@@ -3,6 +3,9 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, init, next, run, writeOverride, writeResult, readLogEntries,
   readMetaFile, planText, gitInit, git, gitEnv, writeLog, entry,
@@ -20,6 +23,14 @@ const FAULT = { status: "orchestrator-error", note: "dispatch unavailable" };
 const taskPath = p => path.join(p.agentDir, "prompt.md");
 const pending = p => readLogEntries(p).filter(e => !e.skipped).at(-1);
 const preset = JSON.parse(fs.readFileSync(new URL("../codex-policy.json", import.meta.url)));
+const bytes = value => Buffer.byteLength(value);
+const measure = (p, action, label) => ({
+  label, chain: action.chain, provider: action.provider, step: action.step,
+  rootBytes: bytes(action.root), idBytes: bytes(action.change),
+  actionBytes: bytes(JSON.stringify(action, null, 2) + "\n"),
+  wrapperBytes: bytes(action.prompt), taskBytes: bytes(pending(p).pendingPrompt),
+  neutralRetry: action.neutralRetry ?? null,
+});
 
 function canonical(p, action) {
   assert.equal(action.action, "run");
@@ -382,4 +393,81 @@ fs.rmSync = file => {
   const retry = next(p).json;
   assert.equal(retry.prompt, first.prompt);
   assert.equal(retry.neutralRetry.count, 1);
+});
+
+test("actual emitted sizes fit normal roots and quantify long path/reason overhead", () => {
+  const repo = fileURLToPath(new URL("../../../", import.meta.url));
+  const shortRoot = path.join(repo, "p");
+  const cases = [
+    { label: "10x-claude", chain: "10x" },
+    { label: "10x-openai", chain: "10x", openai: true },
+    { label: "openspec-claude", chain: "openspec" },
+    { label: "openspec-openai", chain: "openspec", openai: true },
+    { label: "advisor", chain: "10x", advisor: { enabled: true } },
+    { label: "manual-claude", chain: "10x", manual: true },
+    { label: "manual-openai", chain: "10x", manual: true, openai: true },
+  ];
+  const rows = [];
+  function record(p, result, label, policy) {
+    const action = result.json;
+    canonical(p, action);
+    const row = { ...measure(p, action, label), policy };
+    assert.equal(row.actionBytes, bytes(result.stdout), "measure actual pretty-printed CLI bytes");
+    if (row.rootBytes <= 100) assert.ok(row.actionBytes <= 1280, JSON.stringify(row));
+    rows.push(row);
+  }
+  for (const c of cases) {
+    const policy = { ...(c.openai ? preset : {}), ...ON,
+      ...(c.advisor ? { advisor: c.advisor } : {}),
+      ...(c.manual ? { manualVerify: { minRigor: "lean" } } : {}),
+    };
+    const p = c.chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
+    // A short real root permits the normal-fixture budget even when TMPDIR is inside a long checkout.
+    fs.mkdirSync(shortRoot);
+    try {
+      fs.cpSync(p.root, shortRoot, { recursive: true });
+      const remap = value => path.join(shortRoot, path.relative(p.root, value));
+      const q = { ...p, base: shortRoot, root: shortRoot, changeDir: remap(p.changeDir), agentDir: remap(p.agentDir),
+        planFile: p.planFile ? remap(p.planFile) : null };
+      if (c.manual) {
+        writePlan(q, buildPlan([{ auto: [{ text: "implemented", done: true }], manual: ["Browser displays saved result"] }]));
+        writeReview(q, "plan-review", { verdict: "SOUND" });
+        writeLog(q, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+      }
+      const first = run(q, ["init", q.id, "--chain", c.chain, "--goal", "fix typo"]);
+      record(q, first, c.label + "-initial", policy);
+      writeResult(q, FAULT);
+      record(q, next(q), c.label + "-retry", policy);
+      if (!c.manual) {
+        if (c.chain === "10x") writePlan(q, planText());
+        else writeArtifacts(q, { proposal: true, specs: 1, tasks: { open: 1 } });
+        writeResult(q, { status: "done" });
+        record(q, next(q), c.label + "-next", policy);
+      }
+    } finally { removeTree(shortRoot); }
+  }
+  const long = makeProject({ policy: ON, nest: "long-root-".repeat(12) });
+  record(long, init(long, "fix typo"), "long-path", ON);
+  const entries = readLogEntries(long);
+  entries.at(-1).reason += "; " + "long explanation ".repeat(40);
+  writeLog(long, entries);
+  writeResult(long, FAULT);
+  record(long, next(long), "long-path-and-reason", ON);
+  assert.ok(rows.at(-1).actionBytes > rows.at(-2).actionBytes + 600);
+  const evidence = {
+    kind: "synthetic real CLI fixtures; bytes are UTF-8, not tokens",
+    revision: execFileSync("git", ["rev-parse", "HEAD"], { cwd: repo, encoding: "utf8" }).trim(),
+    sourceState: "working tree; final phase commit records the test source",
+    node: process.version,
+    command: 'TMPDIR="$PWD/.agent-smith-test-tmp" HANDOFF_MEASUREMENTS=context/changes/step-prompt-by-file/evidence/size-measurements.json node --test --test-name-pattern="actual emitted sizes" skills/10x-pipeline/test/prompt-handoff.test.mjs',
+    goal: "fix typo", id: "demo", normalCeilingBytes: 1280, normalRootLimitBytes: 100,
+    archive: "excluded; inline by contract", livePairs: 0,
+    fixtureDefaults: { score: { minRigor: null }, isolation: { require: false }, manualVerify: { minRigor: null } },
+    rows,
+  };
+  if (process.env.HANDOFF_MEASUREMENTS) {
+    const output = path.resolve(process.env.HANDOFF_MEASUREMENTS);
+    assert.ok(output.startsWith(path.join(repo, "context/changes/step-prompt-by-file/evidence") + path.sep));
+    fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + "\n");
+  }
 });

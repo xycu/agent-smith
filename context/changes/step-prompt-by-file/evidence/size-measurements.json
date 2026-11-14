@@ -1,0 +1,764 @@
+{
+  "kind": "synthetic real CLI fixtures; bytes are UTF-8, not tokens",
+  "revision": "0565210de5c54ac65008ac3cd39f08aba306b95f",
+  "sourceState": "working tree; final phase commit records the test source",
+  "node": "v26.13.1",
+  "command": "TMPDIR=\"$PWD/.agent-smith-test-tmp\" HANDOFF_MEASUREMENTS=context/changes/step-prompt-by-file/evidence/size-measurements.json node --test --test-name-pattern=\"actual emitted sizes\" skills/10x-pipeline/test/prompt-handoff.test.mjs",
+  "goal": "fix typo",
+  "id": "demo",
+  "normalCeilingBytes": 1280,
+  "normalRootLimitBytes": 100,
+  "archive": "excluded; inline by contract",
+  "livePairs": 0,
+  "fixtureDefaults": {
+    "score": {
+      "minRigor": null
+    },
+    "isolation": {
+      "require": false
+    },
+    "manualVerify": {
+      "minRigor": null
+    }
+  },
+  "rows": [
+    {
+      "label": "10x-claude-initial",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1104,
+      "wrapperBytes": 504,
+      "taskBytes": 3414,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "10x-claude-retry",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1158,
+      "wrapperBytes": 504,
+      "taskBytes": 3414,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "10x-claude-next",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan-review",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1137,
+      "wrapperBytes": 504,
+      "taskBytes": 5625,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "10x-openai-initial",
+      "chain": "10x",
+      "provider": "openai",
+      "step": "plan",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1128,
+      "wrapperBytes": 504,
+      "taskBytes": 3414,
+      "neutralRetry": null,
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "10x-openai-retry",
+      "chain": "10x",
+      "provider": "openai",
+      "step": "plan",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1182,
+      "wrapperBytes": 504,
+      "taskBytes": 3414,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "10x-openai-next",
+      "chain": "10x",
+      "provider": "openai",
+      "step": "plan-review",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1161,
+      "wrapperBytes": 504,
+      "taskBytes": 5625,
+      "neutralRetry": null,
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "openspec-claude-initial",
+      "chain": "openspec",
+      "provider": "claude",
+      "step": "os-propose",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1107,
+      "wrapperBytes": 505,
+      "taskBytes": 10055,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "openspec-claude-retry",
+      "chain": "openspec",
+      "provider": "claude",
+      "step": "os-propose",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1161,
+      "wrapperBytes": 505,
+      "taskBytes": 10055,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "openspec-claude-next",
+      "chain": "openspec",
+      "provider": "claude",
+      "step": "os-apply",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1026,
+      "wrapperBytes": 505,
+      "taskBytes": 9476,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "openspec-openai-initial",
+      "chain": "openspec",
+      "provider": "openai",
+      "step": "os-propose",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1133,
+      "wrapperBytes": 505,
+      "taskBytes": 10055,
+      "neutralRetry": null,
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "openspec-openai-retry",
+      "chain": "openspec",
+      "provider": "openai",
+      "step": "os-propose",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1187,
+      "wrapperBytes": 505,
+      "taskBytes": 10055,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "openspec-openai-next",
+      "chain": "openspec",
+      "provider": "openai",
+      "step": "os-apply",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1050,
+      "wrapperBytes": 505,
+      "taskBytes": 9476,
+      "neutralRetry": null,
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "advisor-initial",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1104,
+      "wrapperBytes": 504,
+      "taskBytes": 4821,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        },
+        "advisor": {
+          "enabled": true
+        }
+      }
+    },
+    {
+      "label": "advisor-retry",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1158,
+      "wrapperBytes": 504,
+      "taskBytes": 4821,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "prompts": {
+          "byFile": true
+        },
+        "advisor": {
+          "enabled": true
+        }
+      }
+    },
+    {
+      "label": "advisor-next",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan-review",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1137,
+      "wrapperBytes": 504,
+      "taskBytes": 5625,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        },
+        "advisor": {
+          "enabled": true
+        }
+      }
+    },
+    {
+      "label": "manual-claude-initial",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "manual-verify",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1060,
+      "wrapperBytes": 504,
+      "taskBytes": 11663,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        },
+        "manualVerify": {
+          "minRigor": "lean"
+        }
+      }
+    },
+    {
+      "label": "manual-claude-retry",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "manual-verify",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1114,
+      "wrapperBytes": 504,
+      "taskBytes": 11663,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "prompts": {
+          "byFile": true
+        },
+        "manualVerify": {
+          "minRigor": "lean"
+        }
+      }
+    },
+    {
+      "label": "manual-openai-initial",
+      "chain": "10x",
+      "provider": "openai",
+      "step": "manual-verify",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1084,
+      "wrapperBytes": 504,
+      "taskBytes": 10656,
+      "neutralRetry": null,
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        },
+        "manualVerify": {
+          "minRigor": "lean"
+        }
+      }
+    },
+    {
+      "label": "manual-openai-retry",
+      "chain": "10x",
+      "provider": "openai",
+      "step": "manual-verify",
+      "rootBytes": 99,
+      "idBytes": 4,
+      "actionBytes": 1138,
+      "wrapperBytes": 504,
+      "taskBytes": 10656,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "ladder": [
+          {
+            "provider": "openai",
+            "model": "gpt-6-luna",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "low"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6.1-sol",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "medium"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "high"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "xhigh"
+          },
+          {
+            "provider": "openai",
+            "model": "gpt-6-astra",
+            "effort": "max"
+          }
+        ],
+        "prompts": {
+          "byFile": true
+        },
+        "manualVerify": {
+          "minRigor": "lean"
+        }
+      }
+    },
+    {
+      "label": "long-path",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan",
+      "rootBytes": 250,
+      "idBytes": 4,
+      "actionBytes": 1406,
+      "wrapperBytes": 655,
+      "taskBytes": 3414,
+      "neutralRetry": null,
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    },
+    {
+      "label": "long-path-and-reason",
+      "chain": "10x",
+      "provider": "claude",
+      "step": "plan",
+      "rootBytes": 250,
+      "idBytes": 4,
+      "actionBytes": 2142,
+      "wrapperBytes": 655,
+      "taskBytes": 3414,
+      "neutralRetry": {
+        "count": 1,
+        "cap": 2
+      },
+      "policy": {
+        "prompts": {
+          "byFile": true
+        }
+      }
+    }
+  ]
+}
