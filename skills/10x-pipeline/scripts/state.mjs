@@ -9,6 +9,7 @@ export const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url
 // The OpenSpec chain's skill folder: its policy fragment, prompts, rules and module (ADR-013 Amendment 1).
 export const OPENSPEC_DIR = path.resolve(SKILL_DIR, "../openspec-pipeline");
 export const ROOT = process.cwd();
+export const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
 
 export function out(obj, code = 0) {
   process.stdout.write(JSON.stringify(obj, null, 2) + "\n");

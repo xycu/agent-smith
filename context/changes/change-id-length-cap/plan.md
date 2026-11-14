@@ -194,11 +194,11 @@ Existing state stays addressable through the legacy commands. Every subsequent `
 
 #### Automated
 
-- [ ] 1.1 Router and PR id patterns agree across grammar and boundary cases.
-- [ ] 1.2 Both chains start runs for valid ids through 100 characters with the expected first step.
-- [ ] 1.3 Over-limit init exits 1 with the 100-character reason, performs zero project reads and leaves the full fixture tree byte-identical.
-- [ ] 1.4 Legacy longer-id fixtures retain normal outcomes for next, status, status --report, risk, usage, verify-archive and compare on both chains.
-- [ ] 1.5 Focused validation and existing entry-point tests pass on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/change-id.test.mjs skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/openspec-pipeline/test/openspec-chain.test.mjs`.
+- [x] 1.1 Router and PR id patterns agree across grammar and boundary cases.
+- [x] 1.2 Both chains start runs for valid ids through 100 characters with the expected first step.
+- [x] 1.3 Over-limit init exits 1 with the 100-character reason, performs zero project reads and leaves the full fixture tree byte-identical.
+- [x] 1.4 Legacy longer-id fixtures retain normal outcomes for next, status, status --report, risk, usage, verify-archive and compare on both chains.
+- [x] 1.5 Focused validation and existing entry-point tests pass on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/change-id.test.mjs skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/openspec-pipeline/test/openspec-chain.test.mjs`.
 
 ### Phase 2: Align User Guidance and Run Regression Verification
 
