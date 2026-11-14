@@ -1,0 +1,24 @@
+{
+  "revision": "3e3f7962863443ac3be1c619cc02fb4cfe824ec0",
+  "command": "node context/changes/step-prompt-by-file/evidence/script-local-live-inventory.mjs",
+  "logsInspected": 65,
+  "entriesInspected": 427,
+  "retainedHandoffRecords": [],
+  "candidateArtifacts": [
+    "context/changes/step-prompt-by-file/evidence/judgment-manual-live-acceptance.md",
+    "context/changes/step-prompt-by-file/evidence/comparison.md",
+    "context/archive/2026-11-12-ci-fail-on-unexpected-skips/evidence/command-2.5-live-ci-availability-retry.txt",
+    "context/archive/2026-11-12-ci-fail-on-unexpected-skips/evidence/command-2.5-live-ci-availability.txt",
+    "context/archive/2026-11-12-ci-scratch-in-runner-temp/evidence/command-live-ci-recheck.txt",
+    "context/archive/2026-11-12-ci-scratch-in-runner-temp/evidence/judgment-live-acceptance-recheck.md",
+    "context/archive/2026-11-12-ci-scratch-in-runner-temp/evidence/judgment-live-acceptance.md",
+    "context/archive/2026-11-09-openspec-pipeline/evidence/judgment-1.8-check3-live.md",
+    "context/archive/2026-11-09-openspec-pipeline/evidence/check-3-live.md"
+  ],
+  "measurements": {
+    "file": "context/changes/step-prompt-by-file/evidence/size-measurements.json",
+    "kind": "synthetic real CLI fixtures; bytes are UTF-8, not tokens",
+    "livePairs": 0
+  },
+  "limit": "Consumed entries drop pendingHandoff. Log inventory alone cannot establish whether a live file-mode session occurred or prove live acceptance."
+}
