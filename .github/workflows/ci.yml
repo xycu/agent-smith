@@ -35,6 +35,31 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: 24
+      # Required contract tool, approved CI-only npm exception. Upgrade the pin in a deliberate
+      # commit after all five real contract fixtures pass. Git and OpenSpec failures fail CI.
+      # Expected Linux skips by identity and condition (counts alone cannot identify a regression).
+      # - live: a branch with no pull request is skipped — GH_LIVE != 1.
+      # - live: the real comment projection is one parseable object per line across pages — GH_LIVE != 1.
+      # - CLAUDE.md has no @ imports — CLAUDE.md is absent.
+      # - real gh without a login is not authenticated — gh is absent from PATH.
+      # Three default skips with gh available, four with gh absent; a present CLAUDE.md reduces either by one.
+      # Both permission checks in no-recursive-delete.test.mjs run on the non-root Linux runner.
+      - name: Install OpenSpec contract CLI
+        shell: bash
+        env:
+          OPENSPEC_TELEMETRY: "0"
+          DO_NOT_TRACK: "1"
+        run: |
+          git --version
+          prefix="$(mktemp -d "$RUNNER_TEMP/openspec.XXXXXX")"
+          export npm_config_cache="$prefix/npm-cache"
+          export npm_config_userconfig="$prefix/npmrc"
+          npm install --prefix "$prefix" --no-save --package-lock=false @fission-ai/openspec@1.16.1
+          openspec="$prefix/node_modules/.bin/openspec"
+          version="$("$openspec" --version)"
+          test "$version" = "1.16.1" || { echo "::error::expected OpenSpec 1.16.1, got $version"; exit 1; }
+          echo "OpenSpec $version"
+          echo "OPENSPEC_BIN=$openspec" >> "$GITHUB_ENV"
       - name: Test suite
         env:
           TMPDIR: ${{ runner.temp }}

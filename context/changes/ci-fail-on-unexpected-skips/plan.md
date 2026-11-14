@@ -191,20 +191,20 @@ The change affects test execution and job setup. The install prefix and npm stat
 
 #### Automated
 
-- [x] 1.1 Focused CI regression tests pass with `node --test tools/test/ci-runner.test.mjs`.
-- [x] 1.2 Missing and nonzero-exit Git probes return false locally and fail in CI with Git-specific diagnostics, while successful probes return true in both modes.
-- [x] 1.3 Missing and nonzero-exit OpenSpec probes yield five local fixture skips and a nonzero CI test-file exit naming the selected binary.
-- [x] 1.4 Probe coverage proves bounded failure handling and independent CI, PATH, and OPENSPEC_BIN environments, including an empty CI value.
-- [x] 1.5 The repository suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Focused CI regression tests pass with `node --test tools/test/ci-runner.test.mjs`. — b0b3e98
+- [x] 1.2 Missing and nonzero-exit Git probes return false locally and fail in CI with Git-specific diagnostics, while successful probes return true in both modes. — b0b3e98
+- [x] 1.3 Missing and nonzero-exit OpenSpec probes yield five local fixture skips and a nonzero CI test-file exit naming the selected binary. — b0b3e98
+- [x] 1.4 Probe coverage proves bounded failure handling and independent CI, PATH, and OPENSPEC_BIN environments, including an empty CI value. — b0b3e98
+- [x] 1.5 The repository suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — b0b3e98
 
 ### Phase 2: Install the pinned CI tool and account for skips
 
 #### Automated
 
-- [ ] 2.1 Workflow tests prove exact OpenSpec 1.16.1 installation, temporary-prefix isolation, prerequisite ordering, selected-executable export, and failure propagation using `node --test tools/test/ci-runner.test.mjs`.
-- [ ] 2.2 Under Node 24 with CI=1 and OPENSPEC_BIN selecting the installed 1.16.1 binary, all five real OpenSpec fixture comparisons pass with zero skips using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs`.
-- [ ] 2.3 Under Node 24 with the pinned binary selected, the full repository suite passes and every skipped test matches the documented identity and condition using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [ ] 2.4 Version and workflow-pin guards pass with `node tools/version-check.mjs` and `node --test tools/test/workflow-pins.test.mjs`, and `git diff --check` passes.
+- [x] 2.1 Workflow tests prove exact OpenSpec 1.16.1 installation, temporary-prefix isolation, prerequisite ordering, selected-executable export, and failure propagation using `node --test tools/test/ci-runner.test.mjs`.
+- [x] 2.2 Under Node 24 with CI=1 and OPENSPEC_BIN selecting the installed 1.16.1 binary, all five real OpenSpec fixture comparisons pass with zero skips using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs`.
+- [x] 2.3 Under Node 24 with the pinned binary selected, the full repository suite passes and every skipped test matches the documented identity and condition using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.4 Version and workflow-pin guards pass with `node tools/version-check.mjs` and `node --test tools/test/workflow-pins.test.mjs`, and `git diff --check` passes.
 
 #### Manual
 

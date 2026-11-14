@@ -40,7 +40,17 @@ The second skill is `skills/openspec-pipeline/SKILL.md`. It calls the router at 
 
 **GIVEN** the `openspec` chain **WHEN** the router needs OpenSpec state **THEN** it **MUST NOT** run the `openspec` CLI.
 
-**GIVEN** the `openspec` binary is on `PATH` **WHEN** the optional contract test runs **THEN** it **SHOULD** compare the router's reading of a fixture change with `openspec status` and `openspec instructions apply` output, and skip when the binary is missing, as `GH_LIVE` does.
+**GIVEN** the selected binary (`OPENSPEC_BIN`, default `openspec`) passes its version probe **WHEN** the contract test runs **THEN** it **MUST** compare the router's fixture reading with `openspec instructions apply` output.
+
+Amendment of 2026-11-14 for `ci-fail-on-unexpected-skips`.
+
+**GIVEN** `CI` is nonempty **WHEN** the selected binary fails its version probe **THEN** the contract test **MUST** fail.
+
+**GIVEN** CI runs the suite **WHEN** it prepares the contract tool **THEN** it **MUST** install and select `@fission-ai/openspec@1.16.1` as the approved single CI-tool exception to the npm dependency rule.
+
+A pin upgrade requires a deliberate commit and successful execution of all five real contract fixtures.
+
+**GIVEN** `CI` is absent or empty **WHEN** the selected binary fails its version probe **THEN** the fixtures **MUST** keep their local skip behavior.
 
 The reason: the router makes no network or model call and adds no dependency (ADR-006, ADR-009). A subprocess to a binary the project may not have would add one. A drift from OpenSpec's parser is the price; the contract test bounds it.
 
