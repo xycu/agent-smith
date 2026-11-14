@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 2,
+      "evidence": "context/changes/step-prompt-by-file/change.md fixes opt-in handoff but leaves the policy representation and evidence-dependent default decision open; context/changes/WAVES.md names flow.mjs while current dispatch also belongs to route.mjs and run-codex.mjs."
+    },
+    "novelty": {
+      "score": 2,
+      "evidence": "skills/10x-pipeline/scripts/route.mjs already stores exact pendingPrompt and flow.mjs resolves template files, but runtime prompt-file dispatch needs a new handoff pattern beside those mechanisms."
+    },
+    "coupling": {
+      "score": 3,
+      "evidence": "The shared run action reaches both SKILL.md Loop step 2 consumers and skills/10x-pipeline/scripts/run-codex.mjs, whose validateAction requires action.prompt to equal entry.pendingPrompt."
+    },
+    "discovery": {
+      "score": 2,
+      "evidence": "context/changes/WAVES.md ownership must be reconciled with route.mjs dispatch, flow.mjs neutralRetry/attachResult, run-codex.mjs validation, isolation commits and provenance checks."
+    },
+    "volume": {
+      "score": 3,
+      "evidence": "The goal spans route.mjs, flow.mjs, policy.json, run-codex.mjs, both SKILL.md files, policy validation, documentation and indexed tests for handoff, retries, isolated commits, runner parity and provenance, making more than ten files likely."
+    },
+    "verification": {
+      "score": 3,
+      "evidence": "skills/10x-pipeline/test/{neutral,codex-runner,stepcommit,provenance}.test.mjs provide deterministic checks, but change.md also requires real run comparisons of tokens/failures and whether subagents skim file-delivered tasks."
+    }
+  },
+  "unknowns": [
+    "No paired live inline/file-handoff comparison evidence is supplied, so token savings, failure rates and a justified default change remain unestablished.",
+    "Wave 6 ownership names flow.mjs prompt output but does not explicitly allocate current route.mjs dispatch and run-codex.mjs exact-prompt validation changes; planning must reconcile these current paths.",
+    "The 2026-11-12 repo review named as the source in change.md has no supplied artifact path, so its full findings cannot be checked."
+  ],
+  "confidence": "medium"
+}
