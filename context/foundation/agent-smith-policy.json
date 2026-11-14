@@ -1,5 +1,47 @@
 {
   "compare": {
     "targetDropPercent": 30
-  }
+  },
+  "ladder": [
+    {
+      "provider": "openai",
+      "model": "gpt-6-luna",
+      "effort": "low"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6.1-sol",
+      "effort": "low"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6.1-sol",
+      "effort": "medium"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6.1-sol",
+      "effort": "high"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "medium"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "high"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "xhigh"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "max"
+    }
+  ]
 }
