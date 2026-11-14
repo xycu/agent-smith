@@ -313,17 +313,17 @@ This step produces the plan and brief. Implementation acceptance consists of the
 
 #### Automated
 
-- [x] 2.1 Both chains halt init, next, usage and status --report on damaged final or middle lines with exact file/line recovery guidance and byte-identical run-folder state.
-- [x] 2.2 Strict-reader cases cover non-object JSON, whitespace, physical line numbering and file errors, while valid legacy entries, empty files and CRLF retain their supported behavior.
-- [x] 2.3 Plain status, risk, both comparison formats and verify-archive expose correctly attributed logProblems while preserving files, temps and existing command exit semantics.
-- [x] 2.4 Codex validation refuses a corrupt pending log before preflight or launch on both chains and retains its failure-envelope contract.
-- [x] 2.5 The repository-mandated router, OpenSpec and tools test suite passes after the reader and caller changes.
+- [x] 2.1 Both chains halt init, next, usage and status --report on damaged final or middle lines with exact file/line recovery guidance and byte-identical run-folder state. — 10e9f17
+- [x] 2.2 Strict-reader cases cover non-object JSON, whitespace, physical line numbering and file errors, while valid legacy entries, empty files and CRLF retain their supported behavior. — 10e9f17
+- [x] 2.3 Plain status, risk, both comparison formats and verify-archive expose correctly attributed logProblems while preserving files, temps and existing command exit semantics. — 10e9f17
+- [x] 2.4 Codex validation refuses a corrupt pending log before preflight or launch on both chains and retains its failure-envelope contract. — 10e9f17
+- [x] 2.5 The repository-mandated router, OpenSpec and tools test suite passes after the reader and caller changes. — 10e9f17
 
 ### Phase 3: Recovery documentation and compatibility verification
 
 #### Automated
 
-- [ ] 3.1 Late-usage failure restores exact original Buffers or absence, repeated equal usage performs zero publications, and restoration failure is observable.
-- [ ] 3.2 Existing result-persistence, rollback, undo-on-halt, archive, late-usage and both-chain execution suites pass alongside the new state tests.
-- [ ] 3.3 Reference documentation and the test index describe the implemented state contract, and a writer/caller audit accounts for every router state publication and log read.
-- [ ] 3.4 Both-chain CLI smoke checks return action run with a step, followed by readable status, and the full repository-mandated test suite passes.
+- [x] 3.1 Late-usage failure restores exact original Buffers or absence, repeated equal usage performs zero publications, and restoration failure is observable.
+- [x] 3.2 Existing result-persistence, rollback, undo-on-halt, archive, late-usage and both-chain execution suites pass alongside the new state tests.
+- [x] 3.3 Reference documentation and the test index describe the implemented state contract, and a writer/caller audit accounts for every router state publication and log read.
+- [x] 3.4 Both-chain CLI smoke checks return action run with a step, followed by readable status, and the full repository-mandated test suite passes.

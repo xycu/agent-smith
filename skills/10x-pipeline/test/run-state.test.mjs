@@ -508,3 +508,172 @@ test("nested project recovery uses a project-relative Git revision path", () => 
   assert.ok(res.json.reason.includes(`git show <sha>:./${rel}`), res.stdout);
   assert.deepEqual(gitSnapshot(p), before);
 });
+
+// Fault injection stays in a disposable CLI wrapper, with the real router as the normal entry point.
+function faultScript(p, body) {
+  const file = path.join(p.base, "state-fault.mjs");
+  fs.writeFileSync(file, `import fs from "node:fs";\n${body}\nawait import(${JSON.stringify(new URL("../scripts/route.mjs", import.meta.url).href)});\n`);
+  return file;
+}
+
+function rejectCommit(p) {
+  const hooks = path.resolve(p.base, git(p, ["rev-parse", "--git-path", "hooks"]));
+  fs.mkdirSync(hooks, { recursive: true });
+  fs.writeFileSync(path.join(hooks, "pre-commit"), "#!/bin/sh\necho rejected >&2\nexit 1\n", { mode: 0o755 });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const reportPresent of [false, true]) {
+    test(`${chain}: rejected archive usage restores exact log/report Buffers or original absence, report=${reportPresent}`, () => {
+      const p = archivedState(chain);
+      const log = path.join(p.agentDir, "run.jsonl");
+      const report = path.join(p.agentDir, "report.md");
+      fs.writeFileSync(log, ` \t${JSON.stringify(entry(1, "fix", { unknown: "legacy" }))} \r\n\r\n`);
+      if (reportPresent) fs.writeFileSync(report, Buffer.from([0xff, 0, 13, 10, 0x80, 0x41]));
+      else fs.unlinkSync(report);
+      commitAll(p);
+      rejectCommit(p);
+      const before = gitSnapshot(p);
+      const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain]);
+      assert.equal(res.status, 1, res.stdout);
+      assert.equal(res.json.attached, false);
+      assert.match(res.json.reason, /figure was not kept; the change folder is as committed/);
+      const after = gitSnapshot(p);
+      assert.deepEqual(after.files, before.files);
+      assert.equal(after.refs, before.refs);
+      assert.equal(after.head, before.head);
+      git(p, ["diff", "--cached", "--quiet"]);
+    });
+  }
+
+  test(`${chain}: repeated identical usage makes zero publications and retains stale temps`, () => {
+    const p = archivedState(chain);
+    const args = ["usage", p.id, "1", "--tokens", "7", "--chain", chain];
+    assert.equal(runIn(p, args).status, 0);
+    addTemps(p);
+    const before = gitSnapshot(p);
+    const script = faultScript(p, 'fs.renameSync = () => { throw new Error("unexpected publication"); };');
+    const res = runIn(p, args, { script });
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(res.json.unchanged, true);
+    assert.deepEqual(gitSnapshot(p), before);
+  });
+
+  test(`${chain}: failed atomic result persistence retains pending result and original bytes`, () => {
+    const p = projectFor(chain);
+    const started = runIn(p, ["init", p.id, "--goal", GOAL, "--chain", chain]);
+    assert.equal(started.json.action, "run", started.stdout);
+    writeResult(p, { status: "failed", note: "retain this result", usage: { totalTokens: 42 } });
+    const before = snapshot(p.changeDir);
+    const script = faultScript(p, 'fs.renameSync = () => { throw new Error("result publication failed"); };');
+    const res = runIn(p, ["next", p.id, "--chain", chain], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /result publication failed/);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    assert.equal(runIn(p, ["next", p.id, "--chain", chain]).json.action, "run");
+    assert.equal(readLogEntries(p)[0].usage.totalTokens, 42);
+  });
+
+  test(`${chain}: incomplete restoration names the log and attempts remaining restoration`, () => {
+    const p = archivedState(chain);
+    rejectCommit(p);
+    const log = path.join(p.agentDir, "run.jsonl");
+    const report = path.join(p.agentDir, "report.md");
+    const before = fs.readFileSync(report);
+    const script = faultScript(p, `
+      const rename = fs.renameSync;
+      let writes = 0;
+      fs.renameSync = (from, to) => {
+        if (to === ${JSON.stringify(log)} && ++writes === 2) throw new Error("restore denied");
+        return rename(from, to);
+      };
+    `);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /recovery incomplete/i);
+    assert.ok(res.json.reason.includes(log), res.stdout);
+    assert.match(res.json.reason, /restore denied/);
+    assert.deepEqual(fs.readFileSync(report), before);
+    assert.equal(readLogEntries(p)[0].usage.totalTokens, 7);
+  });
+
+  test(`${chain}: report-absence restoration exposes an unlink failure`, () => {
+    const p = archivedState(chain);
+    const report = path.join(p.agentDir, "report.md");
+    const log = path.join(p.agentDir, "run.jsonl");
+    fs.unlinkSync(report);
+    commitAll(p);
+    rejectCommit(p);
+    const before = fs.readFileSync(log);
+    const script = faultScript(p, `
+      const unlink = fs.unlinkSync;
+      fs.unlinkSync = (file) => {
+        if (file === ${JSON.stringify(report)}) throw new Error("report removal denied");
+        return unlink(file);
+      };
+    `);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /recovery incomplete/i);
+    assert.ok(res.json.reason.includes(report), res.stdout);
+    assert.match(res.json.reason, /report removal denied/);
+    assert.deepEqual(fs.readFileSync(log), before);
+  });
+
+  test(`${chain}: eligible archive usage removes stale temps before first publication and staging`, () => {
+    const p = archivedState(chain);
+    const temps = addTemps(p);
+    const log = path.join(p.agentDir, "run.jsonl");
+    const script = faultScript(p, `
+      const rename = fs.renameSync;
+      fs.renameSync = (from, to) => {
+        if (to === ${JSON.stringify(log)} && ${JSON.stringify(temps)}.some(file => fs.existsSync(file))) {
+          throw new Error("publication preceded cleanup");
+        }
+        return rename(from, to);
+      };
+    `);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain], { script });
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(typeof res.json.commit, "string");
+    assert.doesNotMatch(git(p, ["ls-tree", "-r", "--name-only", "HEAD"]), /\.tmp$/m);
+  });
+
+  test(`${chain}: successful init/status smoke and damaged-log refusal through the CLI`, () => {
+    const p = projectFor(chain);
+    const init = runIn(p, ["init", p.id, "--goal", "fix typo", "--chain", chain]);
+    assert.equal(init.status, 0, init.stdout);
+    assert.equal(init.json.action, "run");
+    assert.equal(init.json.step, chain === "openspec" ? "os-propose" : "plan");
+    const status = runIn(p, ["status", p.id, "--chain", chain]);
+    assert.equal(status.status, 0, status.stdout);
+    assert.equal(status.json.steps.length, 1);
+    const report = runIn(p, ["status", p.id, "--report", "--chain", chain]);
+    assert.equal(report.status, 0, report.stdout);
+    assert.match(fs.readFileSync(path.join(p.agentDir, "report.md"), "utf8"), /^# Run report: demo/);
+    fs.appendFileSync(path.join(p.agentDir, "run.jsonl"), "{damaged\n");
+    const before = snapshot(p.changeDir);
+    const refused = runIn(p, ["next", p.id, "--chain", chain]);
+    assert.equal(refused.status, 1, refused.stdout);
+    assert.match(refused.json.reason, /line 2/);
+    const observed = runIn(p, ["status", p.id, "--chain", chain]);
+    assert.equal(observed.status, 0, observed.stdout);
+    assert.equal(observed.json.logProblems[0].line, 2);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: wrong run branch refuses archive usage before temp cleanup`, () => {
+    const p = isolatedProject(chain);
+    seed(p, chain, { isolated: true, branch: "agent-smith/other", archive: true, outcome: { action: "done" } });
+    git(p, ["-C", p.root, "add", "-A"]);
+    git(p, ["-C", p.root, "commit", "-q", "-m", "test: ended isolated fixture"]);
+    addTemps(p);
+    const before = gitSnapshot(p);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain]);
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /not on the run branch agent-smith\/other/);
+    assert.deepEqual(gitSnapshot(p), before);
+  });
+}

@@ -820,9 +820,15 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   // The archive state: commit the folder before the archive subagent starts. A failure before the commit exists puts
   // the old bytes back, so the folder stays as committed (the router has already unstaged its own add).
   const restore = () => {
+    const failures = [];
     for (const [file, bytes] of oldBytes) {
-      if (bytes === null) { try { fs.unlinkSync(file); } catch { /* already gone */ } } else writeFileAtomic(file, bytes);
+      try {
+        if (bytes === null) {
+          try { fs.unlinkSync(file); } catch (error) { if (error.code !== "ENOENT") throw error; }
+        } else writeFileAtomic(file, bytes);
+      } catch (error) { failures.push(`${file}: ${error.message}`); }
     }
+    if (failures.length) throw new Error(`Late-usage recovery incomplete: ${failures.join("; ")}. Inspect the run files before retrying.`);
   };
   if (reportError) {
     restore();
