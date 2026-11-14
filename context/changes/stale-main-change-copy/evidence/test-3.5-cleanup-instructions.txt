@@ -1,0 +1,12 @@
+Test file: skills/10x-pipeline/test/skill-loop.test.mjs; test names: 10x: cleanup uses saved fresh setup after successful init and before each dispatch; openspec: cleanup uses saved fresh setup after successful init and before each dispatch
+Supporting instruction-content checks for row 3.5. Live host execution remains unverified.
+✔ 10x: cleanup uses saved fresh setup after successful init and before each dispatch (1.028833ms)
+✔ openspec: cleanup uses saved fresh setup after successful init and before each dispatch (0.130916ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 87.415375
