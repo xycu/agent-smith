@@ -67,7 +67,7 @@ Needs: the skills `openspec-propose`, `openspec-apply-change` and `openspec-veri
 /agent-smith:10x-pipeline <change-id> "what you want built"
 ```
 
-🔁 Plan, plan review, implement, implementation review, fix. The report lands in `context/changes/<change-id>/agent-smith/report.md`.
+🔁 Plan, plan review, implement, implementation review, fix. The report lands in `context/changes/<change-id>/agent-smith/report.md` relative to the run root. Default isolation puts that root in `.claude/worktrees/agent-smith-<change-id>/` on branch `agent-smith/<change-id>`, whose pull request carries the report. A successful 10x archive moves it to `context/archive/<created-date>-<change-id>/agent-smith/report.md` in that worktree.
 
 Needs: the skills `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-impl-review`, Node.js 24+ and `git`.
 
@@ -96,7 +96,7 @@ These compatibility statements follow Anthropic documentation reviewed on 2026-1
 | `--archive` | Archive the change when the run is done; asks first when Manual checks are pending or unproved. |
 | `--rigor lean\|standard\|thorough` | Start at a rigor level. Default: picked from the goal. |
 | `--chrome false` | Keep the manual-check step off the Chrome browser tools. |
-| `--pr-comment` | Post the run report to the open pull request. Stored with the run, so a resume keeps it; `--pr-comment false` turns it off. Needs `gh`. |
+| `--pr-comment` | Post the run report to the open pull request. Stored with the run, so a resume keeps it; `--pr-comment false` turns it off. Needs `gh`. See “PR comment (opt-in)” in [the reference](docs/REFERENCE.md) for manual posting and recovery. |
 
 ## ⚙️ Configure
 

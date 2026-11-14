@@ -62,6 +62,8 @@ Rules, written as scenarios (the form of ADR-004):
 ### What each feature covers
 
 - Provenance: `meta.provenance` holds `schemaVersion` 1, `plugin`, `sections` and `flags` (`archive`, `chrome`, `score.minRigor`, `agents.restricted`, `advisor.enabled`). `provenance.ignore` (default `compare` and `provenance`) names the sections that are not hashed, so the compare target in the project override changes no hash. `provenance.expected` names the sections a pinned pair (`ladder`, `rigor`, `score`) and an `--unpinned` pair (`score`) are expected to differ in.
+
+> Updated 2026-11-09 by run-cost-estimate for `prices`, and amended by ADR-021 for `coAuthor`. The current `provenance.ignore` list is `compare`, `provenance`, `prices`, `coAuthor`. [Pricing commit 6a906fb](https://github.com/xycu/agent-smith/commit/6a906fb) · [ADR-005 cost consequence](ADR-005-baseline-usage-comparison.md#consequences) · [ADR-021](ADR-021-agent-smith-co-author.md)
 - Restricted agents: the shipped map names only `score` (`agent-smith:score`, `agents/score.md`, tools `Read`, `Grep`, `Glob` and `Write`). `Write` cannot be scoped to one path and plugin agents ignore `hooks`, so the prompt rule and the router's check of `complexity.json` are what keep the scorer to that file.
 - Advisor: `advisor.templates` ships as `plan`, `implement` and `implement-segment`. Re-plans, `implement-retry`, the tdd and e2e executors, reviews, `fix`, `score` and the pre-plan steps get no advisor text. The flag asks for a consult; the user's `advisorModel` decides whether an advisor exists and which model it is.
 

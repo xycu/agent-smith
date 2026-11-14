@@ -128,6 +128,8 @@ The guides cover the points found in the skills: missing input and "material amb
 
 The new skill folder, its prompts and tests go into the `AGENTS.md` Project Structure list and the README layout block. `plugin.json`, `marketplace.json` and the README one-liner stay aligned (`tools/version-check.mjs`). `version` is set only by the release PR. Whether `skills/` is auto-discovered without a manifest list is checked in the precondition below.
 
+> Current layout guidance lives in AGENTS.md’s Layout section and the reference’s `/agent-smith:openspec-pipeline` section. Amendment 1 below gives the chain-local paths. [AGENTS.md Layout](../../AGENTS.md#layout) · [Reference](../REFERENCE.md) · [Amendment 1](#amendment-1-the-chains-definitions-live-in-its-skill-folder-change-proper-structure-of-rules)
+
 ## Preconditions
 
 The status moves to Accepted only after these checks. All four passed on 2026-11-09; the results and their evidence are under "Results" below.

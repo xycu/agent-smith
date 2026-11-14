@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 1,
+      "evidence": "context/changes/docs-drift-fixes/change.md fixes seven outcomes and amendment style; current manifest descriptions already match and prompts/README.md already lists the three placeholders, so reconciliation must retain merged fixes."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "tools/version-check.mjs check() and tools/test/version-check.test.mjs provide the existing equality-guard and fixture patterns to extend for descriptions; ADR-008 already uses historical amendment notes."
+    },
+    "coupling": {
+      "score": 2,
+      "evidence": "README.md, docs/REFERENCE.md, six docs/ADR records, prompts/README.md and the manifest guard span documentation and packaging; context/changes/WAVES.md assigns separate shared-text regions to sibling changes."
+    },
+    "discovery": {
+      "score": 1,
+      "evidence": "context/changes/docs-drift-fixes/change.md names the seven drift locations and source files; context/changes/WAVES.md supplies merged-change history and Wave 6 ownership, with current paths resolved by targeted searches."
+    },
+    "volume": {
+      "score": 3,
+      "evidence": "Wave 6 in context/changes/WAVES.md names README.md, docs/REFERENCE.md, six ADRs, prompts/README.md and tools/version-check.mjs; the required tools/test/version-check.test.mjs extension brings the expected edits above ten files even with matching descriptions retained."
+    },
+    "verification": {
+      "score": 2,
+      "evidence": "tools/test/version-check.test.mjs and the full suite provide automated coverage, while historical amendments, section pointers and the live-run claim require manual source comparison against context/archive/2026-11-09-openspec-pipeline/plan.md row 5.6."
+    }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

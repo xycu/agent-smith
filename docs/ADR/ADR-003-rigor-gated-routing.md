@@ -131,6 +131,8 @@ The `pr-comment-report` change (roadmap S-05, PRD FR-005) lets a finished run po
 
 Decision. A separate script, `skills/10x-pipeline/scripts/pr-comment.mjs`, does the work. The orchestrator runs it with Bash at the end of a run (`done`, `archive` before the move, `halt` with a `report`). The router stays free of network calls, and `policy.json` has no new key. The flag is not stored in `meta.json`: the orchestrator keeps it as a task named `PR comment: <change-id>` and reads it at each end of the run, so it cannot leak to another run or change, and a missing task tool means no post.
 
+> Amended by ADR-017. The orchestrator posts after the archive move and pull-request creation. Amendment 1 below stores the request in router state. Its archive output is emitted before the move, and posting follows the move. [ADR-017](ADR-017-run-branch-always-pushed-for-review.md) · [Amendment 1](#amendment-1---pr-comment-stored-in-metajson-2026-11-13)
+
 - The only `gh` calls are `pr view --json number,url,state,isDraft`, `api user --jq .login`, `api --paginate repos/<o>/<r>/issues/<n>/comments` with a filter that only projects `id`, `login` and the first 200 characters of the body, and one `api --method POST` or `--method PATCH` on an issue comment. The body goes in a temporary file as `-F body=@<file>`, never in argv.
 - The comment starts with the hidden marker `<!-- agent-smith:pr-report change=<id> -->`. The script matches the marker and the author in JavaScript, edits the comment in place, and creates one only when none matches. State lives on GitHub because nothing may be written under the change folder after the pre-archive commit.
 - Only an open pull request on `github.com` is posted to. Any other outcome (no `gh`, no login, no pull request, a closed one, a timeout, a failed request) is a skip with a reason, and the script exits 0.
@@ -374,7 +376,7 @@ Superseded by ADR-012: the Chrome tools are on by default, `init <id> --chrome f
 | `thorough` | the same 10, implement, `manual-verify`, impl-review (`REJECTED`), `plan-rejected`, plan-review, implement, impl-review, fix, impl-review | 19 | 21 |
 | `lean` | keeps its path and budget until a failure raises the rigor to `standard`: while the level is `lean` the pool is empty, so no pool step exists (ADR-012 adds `manual-verify` at `lean`, outside the pool); after the rise the `standard` rows apply | as before | 10 |
 
-The table is the change 3 history. ADR-012 sets the current figures: budgets of 12, 19 and 24, and longest failure-free paths of 10, 17 and 22 steps (README, "Budget").
+The table is the change 3 history. ADR-012 sets the current figures: budgets of 12, 19 and 24, and longest failure-free paths of 10, 17 and 22 steps (see “Budget” in [the reference](../REFERENCE.md)).
 
 Failure paths are not part of the reference set. A path with a failed plan loop, two failed implement steps and a re-plan still ends in `Step budget spent` by design, as it did before. One failure path is proved to fit at `standard`: plan, plan-review, implement failed twice, `plan-replan`, plan-review, implement, `manual-verify`, impl-review, fix, impl-review (11 steps of 16 at change 3; with ADR-012 it is 12 steps of 19).
 
@@ -382,7 +384,7 @@ A project that overrides `rigor.budgetDelta` keeps its values. With a pool allow
 
 ### Baseline comparison gap
 
-`baseline-policy.json` is not changed, because `compare.test.mjs` pins its keys. The baseline arm therefore runs the same defaults, including segments, `manual-verify` and the re-plans, unless the user adds an override by hand (the README has the text). At the time of change 3 `compare` did not warn when the two arms differed in these features; with a provenance record (ADR-009) it warns `provenance-differs:<sections>`.
+`baseline-policy.json` is not changed, because `compare.test.mjs` pins its keys. The baseline arm therefore runs the same defaults, including segments, `manual-verify` and the re-plans, unless the user adds an override by hand (see “Baseline comparison” in [the reference](../REFERENCE.md)). At the time of change 3 `compare` did not warn when the two arms differed in these features; with a provenance record (ADR-009) it warns `provenance-differs:<sections>`.
 
 ### Assumptions that carry a cost (change 3)
 
