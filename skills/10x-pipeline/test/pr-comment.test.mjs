@@ -9,7 +9,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { makeProject, cleanupAll } from "./helpers.mjs";
+import { cleanEnv, makeProject, cleanupAll } from "./helpers.mjs";
 import { COMMENT_JQ } from "../scripts/pr-comment.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
@@ -106,7 +106,7 @@ function runScript(w, args, { env = {}, cwd = w.project.root, onlyBin = false } 
     cwd,
     encoding: "utf8",
     env: {
-      ...process.env,
+      ...cleanEnv(),
       PATH: onlyBin ? w.bin : `${w.bin}${path.delimiter}${process.env.PATH}`,
       FAKE_GH_DIR: w.fake,
       ...env,
@@ -679,7 +679,7 @@ const realGh = spawnSync("sh", ["-c", "command -v gh"], { encoding: "utf8" }).st
 test("real gh without a login is not authenticated", { skip: win || !realGh }, () => {
   const w = world({ report: "# Run report: demo\n\nGoal: x\n" });
   const repo = w.project.root;
-  const git = (...args) => spawnSync("git", args, { cwd: repo, encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } });
+  const git = (...args) => spawnSync("git", args, { cwd: repo, encoding: "utf8", env: { ...cleanEnv(), GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } });
   git("init", "-q");
   git("remote", "add", "origin", "https://github.com/acme/widgets.git");
   const res = runScript(w, ["demo"], {
@@ -823,13 +823,13 @@ test("live: a branch with no pull request is skipped", { skip: !live && "set GH_
   fs.mkdirSync(project.agentDir, { recursive: true });
   fs.writeFileSync(path.join(project.agentDir, "report.md"), "# Run report: demo\n\nGoal: x\n");
   const git = (...args) => {
-    const r = spawnSync("git", args, { cwd: project.root, encoding: "utf8", env: { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } });
+    const r = spawnSync("git", args, { cwd: project.root, encoding: "utf8", env: { ...cleanEnv(), GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_SYSTEM: "/dev/null" } });
     assert.equal(r.status, 0, r.stderr);
   };
   git("init", "-q");
   git("remote", "add", "origin", "https://github.com/cli/cli.git");
   git("checkout", "-q", "-b", `agent-smith-live-${Math.random().toString(36).slice(2, 10)}`);
-  const res = spawnSync(process.execPath, [SCRIPT, "demo"], { cwd: project.root, encoding: "utf8", env: process.env });
+  const res = spawnSync(process.execPath, [SCRIPT, "demo"], { cwd: project.root, encoding: "utf8", env: cleanEnv() });
   assert.equal(res.status, 0, res.stderr);
   const json = JSON.parse(res.stdout);
   assert.equal(json.action, "skipped");

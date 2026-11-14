@@ -212,8 +212,8 @@ This change affects test process environments and adds a test-only export. Exist
 
 #### Automated
 
-- [ ] 1.1 Existing environment consumers and timeout contracts pass with `node --test skills/10x-pipeline/test/helpers-timeout.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/openspec-pipeline/test/openspec-contract.test.mjs tools/test/commit-lint.test.mjs`.
-- [ ] 1.2 The environment-site audit confirms every inventoried Git-capable inherited base uses prefix stripping before explicit fixture values, with sibling-owned behavior regions excluded from the diff.
+- [x] 1.1 Existing environment consumers and timeout contracts pass with `node --test skills/10x-pipeline/test/helpers-timeout.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/openspec-pipeline/test/openspec-contract.test.mjs tools/test/commit-lint.test.mjs`.
+- [x] 1.2 The environment-site audit confirms every inventoried Git-capable inherited base uses prefix stripping before explicit fixture values, with sibling-owned behavior regions excluded from the diff.
 
 ### Phase 2: Prove child-test isolation and victim integrity
 

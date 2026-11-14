@@ -125,12 +125,17 @@ export function writeReview(project, name, { verdict = "SOUND", findings = "0 cr
   fs.writeFileSync(path.join(dir, `${name}.md`), `# Review\n\n- **Verdict**: ${verdict}\n- **Findings**: ${findings}\n`);
 }
 
+// Strip inherited Git controls before callers add their fixture-owned overrides.
+export function cleanEnv() {
+  return Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")));
+}
+
 // Runs route.mjs in the project root. Returns { status, json, stdout, stderr }.
 export function run(project, args, { env = {}, timeout = SPAWN_TIMEOUT_MS, script = ROUTE } = {}) {
   const res = spawnSync(process.execPath, [script, ...args], {
     cwd: project.root,
     encoding: "utf8",
-    env: { ...process.env, ...env },
+    env: { ...cleanEnv(), ...env },
     timeout,
   });
   throwOnSpawnError(res, `route.mjs ${args.join(" ")}`, timeout);
@@ -216,7 +221,7 @@ export function gitAvailable() {
 // discovery stops at the scratch parent. HOME points to the scratch dir for git older than 2.32.
 export function gitEnv(project) {
   return {
-    ...process.env,
+    ...cleanEnv(),
     HOME: project.base,
     GIT_CONFIG_GLOBAL: os.devNull,
     GIT_CONFIG_SYSTEM: os.devNull,
