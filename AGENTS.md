@@ -13,7 +13,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs and OpenSpec skill chains.
 
 ## Commands
 
-Run the tests after any change to `route.mjs`, a module under `scripts/`, `policy.json`, a prompt or `tools/`: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects.
+Run the tests after any change to `route.mjs`, a module under `scripts/`, `policy.json`, a prompt or `tools/`: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects.
 
 Smoke check: in a scratch project that has `context/changes/<id>/change.md` (or, for the OpenSpec chain, `openspec/config.yaml` and `openspec/changes/<id>/`), put `{ "isolation": { "require": false } }` in `context/foundation/agent-smith-policy.json`, then run `init <id> --goal "<text>"` (`--chain openspec` for that chain) and `status <id>`. It works when `init` returns `action: "run"` with a step; a halt is valid JSON too and proves nothing.
 
