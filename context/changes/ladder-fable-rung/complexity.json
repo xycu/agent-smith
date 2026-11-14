@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md and the goal fix an opt-in appended override; supported rung choices and ownership follow the approved direction." },
+    "novelty": { "score": 1, "evidence": "policy.json, ladder.test.mjs and providers.test.mjs already cover ladder configuration, clamps and provider dispatch." },
+    "coupling": { "score": 2, "evidence": "The goal spans policy and routing in skills/10x-pipeline plus tests and user documentation in README.md and docs/REFERENCE.md." },
+    "discovery": { "score": 2, "evidence": "The goal names core policy areas, while provider-dispatch ownership, Claude compatibility and cost reporting require searches across scripts, tests and docs." },
+    "volume": { "score": 2, "evidence": "The goal calls for focused regression coverage and cost documentation across several policy, test and documentation files." },
+    "verification": { "score": 1, "evidence": "Existing ladder.test.mjs, providers.test.mjs and cost.test.mjs cover most behavior; focused regression cases are needed." }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
