@@ -41,7 +41,10 @@
       "agents.restricted": false,
       "advisor.enabled": false,
       "host": "codex"
-    }
+    },
+    "drift": [
+      "limits"
+    ]
   },
   "startCommit": "5f131747ea9125150136dbad32d92415dfa30c80",
   "rigor": {
