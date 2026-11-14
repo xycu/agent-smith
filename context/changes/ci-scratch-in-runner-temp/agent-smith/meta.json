@@ -1,0 +1,66 @@
+{
+  "id": "ci-scratch-in-runner-temp",
+  "goal": "Put CI test scratch projects and locks under runner.temp by setting TMPDIR on the test step, add the covering CI configuration check, and preserve test-specific TMPDIR overrides. Follow context/changes/ci-scratch-in-runner-temp/change.md. Own the CI test-step environment and its tests in Wave 4. Record live runner cleanup acceptance honestly. Respect the Wave 4 ownership table in context/changes/WAVES.md, resolve historical paths against current layout, leave WAVES.md to the post-wave maintenance change, and avoid changes owned by sibling runs. Shared documentation and skill-content tests may be updated only for this change's behavior.",
+  "host": "codex",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/ci-scratch-in-runner-temp",
+  "baseSha": "eda37295e9c2846a8d378b5ce8bc47b0756f2cb3",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.10.0",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "abc849dc039be5b6",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "86b963500aa6f8f6",
+      "complexity": "997fa59224abe417",
+      "escalation": "1222803c4bfef379",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "isolation": "cda0720f290e645e",
+      "ladder": "7ad73e3c44e374dd",
+      "lessons": "92d849fccafd0527",
+      "limits": "a39ce9aad2987e71",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "a9ebc3013e63a082",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "f3ec1362e9f95778",
+      "score": "dc16b78fdf08a0df",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false,
+      "host": "codex"
+    },
+    "drift": [
+      "limits"
+    ]
+  },
+  "startCommit": "18c783efce75192fe7198c674ce99399c66b9344",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.5 A green CI test job on a TrueNAS runner records its run URL, runner identity, effective suite `TMPDIR` and observed scratch or lock paths beneath the resolved runner-temp directory.",
+      "1.6 After cancelling a CI test job with observed scratch state, the next test job on the same runner starts with those earlier scratch projects and lock files absent, with both run URLs, runner identity, paths and job-start observations recorded."
+    ],
+    "manualNotProved": [
+      "1.5 A green CI test job on a TrueNAS runner records its run URL, runner identity, effective suite `TMPDIR` and observed scratch or lock paths beneath the resolved runner-temp directory. — not proved: Renewed read-only CI and pull-request lookups returned no entries for agent-smith/ci-scratch-in-runner-temp. A green TrueNAS test job with runner identity, effective suite TMPDIR and observed scratch",
+      "1.6 After cancelling a CI test job with observed scratch state, the next test job on the same runner starts with those earlier scratch projects and lock files absent, with both run URLs, runner identity, paths and job-start observations recorded. — not proved: The required cancelled-job scratch inventory and subsequent same-runner job-start inventory remain unavailable. Live CI creation is forbidden in this step. Existing local tests cannot establish actual"
+    ]
+  }
+}

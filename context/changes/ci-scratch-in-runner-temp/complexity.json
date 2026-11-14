@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 0,
+      "evidence": "context/changes/ci-scratch-in-runner-temp/change.md specifies test-step TMPDIR=${{ runner.temp }}, the configuration check, and cancelled-job acceptance."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": ".github/workflows/ci.yml already uses step-level env and tools/test/ci-runner.test.mjs already checks workflow configuration."
+    },
+    "coupling": {
+      "score": 1,
+      "evidence": ".github/workflows/ci.yml and tools/test/ci-runner.test.mjs own the edit; helpers.mjs inherits process.env with explicit env overrides, preserving run-lock.test.mjs TMPDIR."
+    },
+    "discovery": {
+      "score": 0,
+      "evidence": "change.md names ci.yml, ci-runner.test.mjs, helpers.mjs, run-lock.test.mjs and ADR-020; context/changes/WAVES.md identifies the Wave 4 test-step region."
+    },
+    "volume": {
+      "score": 1,
+      "evidence": "change.md requires a small test-step environment edit in .github/workflows/ci.yml and a covering assertion in tools/test/ci-runner.test.mjs."
+    },
+    "verification": {
+      "score": 2,
+      "evidence": "tools/test/ci-runner.test.mjs and run-lock.test.mjs cover configuration and overrides; change.md requires a cancelled job followed by a job on the same live runner."
+    }
+  },
+  "unknowns": [
+    "The supplied repository evidence does not establish that the next job on the same live runner removes scratch projects and locks left by a cancelled job.",
+    "Runner permissions and cleanup behavior on the deployed hosts require live acceptance; ADR-020 records persistent temp state and unconfirmed host prerequisites."
+  ],
+  "confidence": "medium"
+}
