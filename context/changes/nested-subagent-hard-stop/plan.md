@@ -223,16 +223,16 @@ Consumer adoption consists of merging the single environment entry into existing
 
 #### Automated
 
-- [x] 1.1 Project settings parse and the committed depth value is exactly the string `"1"`.
-- [x] 1.2 The focused nested-subagent suite passes, including the new setting assertion and existing prompt-delivery checks.
+- [x] 1.1 Project settings parse and the committed depth value is exactly the string `"1"`. — fadb202
+- [x] 1.2 The focused nested-subagent suite passes, including the new setting assertion and existing prompt-delivery checks. — fadb202
 
 ### Phase 2: Document optional setup and record acceptance
 
 #### Automated
 
-- [ ] 2.1 Documentation checks pass for optional setup, the exact depth setting and the ADR amendment.
-- [ ] 2.2 The complete repository test command passes, with any environment-dependent skips identified in the acceptance record.
-- [ ] 2.3 Diff review confirms that shared-document edits occupy the named regions and the implementation file set matches this plan.
+- [x] 2.1 Documentation checks pass for optional setup, the exact depth setting and the ADR amendment.
+- [x] 2.2 The complete repository test command passes, with any environment-dependent skips identified in the acceptance record.
+- [x] 2.3 Diff review confirms that shared-document edits occupy the named regions and the implementation file set matches this plan.
 
 #### Manual
 

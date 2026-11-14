@@ -112,6 +112,20 @@ With a price table missing fable, status gives its step cost as `null`, the repo
 
 Opt-in extras: restricted step agents, advisor prompts, confirmation review rounds. All in the [reference](docs/REFERENCE.md).
 
+### Claude Code subagent depth
+
+This repository caps Claude Code subagent depth at one layer. Plugin users can optionally merge this entry into their project’s `.claude/settings.json`.
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+  }
+}
+```
+
+The cap affects every Claude session in that project, including workflows outside the pipeline. Commit the setting before creating run worktrees, then start a fresh Claude session from the intended project root. The reference covers version support, overrides and verification. [Subagent depth](docs/REFERENCE.md)
+
 ## 📚 More
 
 - [`docs/REFERENCE.md`](docs/REFERENCE.md): every rule, threshold and edge case.
