@@ -1,10 +1,10 @@
 ---
 change_id: stale-main-change-copy
 title: Remove the main-checkout copy of a change folder once the run branch holds it
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-14
-archived_at: null
+archived_at: 2026-11-14T17:36:46.222Z
 ---
 
 ## Notes

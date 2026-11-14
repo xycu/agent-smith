@@ -1,10 +1,10 @@
 ---
 change_id: ci-fail-on-unexpected-skips
 title: Fail CI when the OpenSpec contract tests or the git tests skip
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-14
-archived_at: null
+archived_at: 2026-11-14T17:36:46.050Z
 ---
 
 ## Notes
