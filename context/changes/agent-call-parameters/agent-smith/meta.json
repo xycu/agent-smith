@@ -1,6 +1,6 @@
 {
   "id": "agent-call-parameters",
-  "goal": "Make both pipeline skills describe valid Agent calls with and without run_in_background, give each step and archive agent a deterministic description, and use that identity for completion and late usage correlation. Follow context/changes/agent-call-parameters/change.md. Preserve OpenAI runner dispatch. Own Loop step 2, anti-stall rules 1 and 6, and late-usage prose in Wave 4. Record unavailable live Claude acceptance honestly. Respect the Wave 4 ownership table in context/changes/WAVES.md, resolve historical paths against current layout, leave WAVES.md to the post-wave maintenance change, and avoid changes owned by sibling runs. Shared documentation and skill-content tests may be updated only for this change's behavior.",
+  "goal": "Make both pipeline skills describe valid Agent calls with and without run_in_background, give each step and archive agent a deterministic description, and use that identity for completion and late usage correlation. Follow context/changes/agent-call-parameters/change.md. Preserve OpenAI runner dispatch. Own Loop step 2, anti-stall rules 1 and 6, and late-usage prose in Wave 4. Record unavailable live Claude acceptance honestly. Respect the Wave 4 ownership table in context/changes/WAVES.md, resolve historical paths against current layout, leave WAVES.md to the post-wave maintenance change, and avoid changes owned by sibling runs. Shared documentation and skill-content tests may be updated only for this change's behavior. The user has now explicitly authorized the runner-lock test repair that halted step 5. Extend this change's ownership to the shutdown-lock test in skills/10x-pipeline/test/run-lock.test.mjs and its fake CLI synchronization in codex-helpers.mjs. Replace the fixed 350 ms shutdown assumption with deterministic synchronization, reusing the fixture's existing release mechanism where suitable. Preserve production lock behavior, all lock ownership assertions, and existing cancellation behavior for other fixture callers. The old race was reproduced by waiting 600 ms after the terminating marker: status --report correctly returned 0 after child close, while the test expected 1. Preserve the existing Agent call implementation and the authorized Codex configuration, bundled policy preset, and AGENTS.md concurrency guidance. Verify the focused regression and full suite with --test-concurrency=2 on Node 24.19.0 at /Users/blazej/.local/share/fnm/node-versions/v24.19.0/installation/bin/node, using the existing proven Git discovery isolation for worktree-local scratch fixtures. Complete implementation review and update existing PR #161 and its report comment. Record unavailable live Claude acceptance honestly. Leave WAVES.md and sibling run worktrees alone.",
   "host": "codex",
   "prComment": true,
   "isolated": true,
@@ -50,9 +50,5 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
-  },
-  "outcome": {
-    "action": "halt",
-    "reason": "Step 5 (implement) needs a human: Repair or authorize repair of the unrelated runner-lock timing test before completing the full-suite gate."
   }
 }
