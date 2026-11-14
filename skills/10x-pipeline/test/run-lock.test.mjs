@@ -186,14 +186,20 @@ for (const chain of ["10x", "openspec"]) {
   });
 
   test(`${chain}: a runner holds the shared lock through close, plain status reads and report status refuses`, async (t) => {
-    const w = codexFixture(chain, { mode: { hold: true, closeDelay: 350 } });
+    const w = codexFixture(chain, { mode: { hold: true, holdUntilRelease: true } });
     const p = w.project;
     const statusArgs = ["status", p.id, "--chain", chain];
     const reportFile = path.join(p.agentDir, "report.md");
     assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
     const before = fs.readFileSync(reportFile);
     const running = startRunner(w);
-    t.after(() => running.child.kill("SIGTERM"));
+    const release = path.join(w.fixture, "release");
+    t.after(async () => {
+      fs.writeFileSync(release, "yes");
+      running.child.kill("SIGTERM");
+      const closed = await running.closed;
+      assert.notEqual(closed.json?.signal, "SIGKILL", closed.stdout);
+    });
     await waitForFile(path.join(w.fixture, "ready"));
     const verifyHeld = () => {
       const duplicate = execute(w);
@@ -214,9 +220,13 @@ for (const chain of ["10x", "openspec"]) {
     const blocked = run(p, [...statusArgs, "--report"], { env: w.env });
     assert.equal(blocked.status, 1, "lock is retained while the child is terminating");
     assert.deepEqual(fs.readFileSync(reportFile), before);
+    fs.writeFileSync(release, "yes");
     const closed = await running.closed;
-    assert.equal(closed.json.launched, true);
-    assert.equal(closed.json.completed, false);
+    assert.equal(closed.json.launched, true, closed.stdout);
+    assert.equal(closed.json.completed, false, closed.stdout);
+    assert.match(closed.json.reason, /cancelled/, closed.stdout);
+    assert.equal(closed.json.exitCode, 0, closed.stdout);
+    assert.equal(closed.json.signal, null, closed.stdout);
     assert.deepEqual(runnerLeftovers(w), []);
     assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
   });

@@ -367,6 +367,9 @@ test("2.6 SKILL.md dispatches with the router's agent when present, else general
   const fallbackAt = line.indexOf("else `general-purpose`");
   assert.ok(agentAt >= 0 && fallbackAt > agentAt, line);
   assert.match(line, /do not call it again with another type/);
+  assert.ok(line.includes('description: "agent-smith <change-id> step <n> <step>"'));
+  assert.match(line, /`model: <model>`, `effort: <effort>`/);
+  assert.ok(line.includes("`prompt` set to the router's `prompt`, copied verbatim"));
   assert.equal(skill.includes("subagent_type: general-purpose"), false, "no hard-coded type is left");
   // The archive action reuses the run parameters, so it dispatches the same way.
   assert.match(skill, /Call the Agent tool with the same parameters as for `run`/);
