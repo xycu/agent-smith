@@ -223,7 +223,8 @@ function readGroup(text, open) {
       if (token.value === "++" || token.value === "--") throw new Error("ambiguous increment");
       expression = ![".", "?."].includes(token.value);
     } else {
-      expression = token.kind === "word" && /^(?:return|throw|typeof|void|delete|new|yield|await|in|instanceof)$/.test(token.value);
+      expression = token.kind === "word" && ![".", "?."].includes(tokens.at(-2)?.value) &&
+        /^(?:return|throw|typeof|void|delete|new|yield|await|in|instanceof)$/.test(token.value);
     }
   }
   throw new Error("unterminated group");
@@ -296,6 +297,7 @@ export function scanCode(text) {
   for (const m of text.matchAll(DELETE_CALL)) {
     try {
       const args = splitTokens(readGroup(text, m.index + m[0].length - 1).tokens);
+      if (args[0]?.[0]?.kind === "punctuation" && args[0][0].value === "...") throw new Error("spread arguments");
       if (args.length > 1 && !safeOptions(args[1])) hits.push(`${m[1]}: unsafe options`);
     } catch {
       hits.push(`${m[1]}: unclassifiable arguments`);
@@ -373,6 +375,7 @@ test("guard: the scanner catches every banned form and lets creation through", (
     '{ ["recursi\\u0076e"]: true }', "{ [key]: true }",
     "{ get recursive() { return false; } }", "{ __proto__: opts }",
     '{ "recursi\\x76e": false }', "{ recursi\\u{76}e: false }",
+    "/regex/.test(name) ? opts : opts",
   ];
   const safe = ["{}", "{ force: true }", '{ "force": true }', "{ fo\\u0072ce: true }",
     "{ ['force']: true }", "{ force: check(a, b), maxRetries: 2, }",
@@ -381,10 +384,15 @@ test("guard: the scanner catches every banned form and lets creation through", (
     "dir", 'path.join(a, "b,)")', '"a\\\"b,)"',
     "/[,)]/.test(name) ? a : b", "/a\\/[,)]/.test(name) ? a : b",
     "size / divisor", "a / b / c",
+    "paths.in / divisor ? a : b", "paths?.return / divisor ? a : b",
     '`a${join(`b${name}`, ",)")}`',
     "/* ,) */ path.join(a, b) // ,)\n",
   ];
   for (const api of ["rm", "rmSync", "rmdir", "rmdirSync", "fs.rmSync", "fs.promises.rm", "fsp.rmdir"]) {
+    for (const args of ["...args", "...[dir, opts]", "...args, { force: true }"]) {
+      const source = `${api}(${args})`;
+      assert.ok(scanCode(source).length, source);
+    }
     for (const target of paths) {
       for (const options of unsafe) {
         const source = `${api}(${target}, ${options})`;
