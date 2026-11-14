@@ -43,6 +43,8 @@ Existing Codex configuration is the default. Optional `codex.profile` selects an
 
 ## 🏁 Quick start
 
+For both chains, choose a change id or name of 1–100 characters using lowercase letters, digits and hyphens, starting with a letter or digit.
+
 ### 📐 OpenSpec
 
 1. Create the change: `openspec new change <change-name>` (in a project with `openspec/` committed).

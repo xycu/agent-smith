@@ -98,7 +98,7 @@ The PR comment step runs only when this run's terminal router action has `prComm
 
 - In `archive` the step runs in step 5, after the pull request step, so after the move.
 - A `halt` without a `report` posts nothing: print `PR comment: skipped, no report`.
-- If the script exits non-zero or prints no JSON object (for example a change id longer than 100 characters, which the script refuses and the router does not), print `PR comment: skipped, script error`.
+- If the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error`.
 - A skip is not a failure of the run and is never retried. Do not write the result into the change folder. It goes into your final message only.
 
 ## Pull request (always)

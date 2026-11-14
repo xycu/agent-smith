@@ -194,16 +194,16 @@ Existing state stays addressable through the legacy commands. Every subsequent `
 
 #### Automated
 
-- [x] 1.1 Router and PR id patterns agree across grammar and boundary cases.
-- [x] 1.2 Both chains start runs for valid ids through 100 characters with the expected first step.
-- [x] 1.3 Over-limit init exits 1 with the 100-character reason, performs zero project reads and leaves the full fixture tree byte-identical.
-- [x] 1.4 Legacy longer-id fixtures retain normal outcomes for next, status, status --report, risk, usage, verify-archive and compare on both chains.
-- [x] 1.5 Focused validation and existing entry-point tests pass on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/change-id.test.mjs skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/openspec-pipeline/test/openspec-chain.test.mjs`.
+- [x] 1.1 Router and PR id patterns agree across grammar and boundary cases. — 373d3d5
+- [x] 1.2 Both chains start runs for valid ids through 100 characters with the expected first step. — 373d3d5
+- [x] 1.3 Over-limit init exits 1 with the 100-character reason, performs zero project reads and leaves the full fixture tree byte-identical. — 373d3d5
+- [x] 1.4 Legacy longer-id fixtures retain normal outcomes for next, status, status --report, risk, usage, verify-archive and compare on both chains. — 373d3d5
+- [x] 1.5 Focused validation and existing entry-point tests pass on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/change-id.test.mjs skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/openspec-pipeline/test/openspec-chain.test.mjs`. — 373d3d5
 
 ### Phase 2: Align User Guidance and Run Regression Verification
 
 #### Automated
 
-- [ ] 2.1 Both skill caveats, public init-limit guidance and their updated content assertions agree with the router contract.
-- [ ] 2.2 The complete required suite passes on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [ ] 2.3 `git diff --check` passes and the changed-file list matches this plan's ownership, including zero edits under context/archive or to WAVES.md.
+- [x] 2.1 Both skill caveats, public init-limit guidance and their updated content assertions agree with the router contract.
+- [x] 2.2 The complete required suite passes on Node 24+ using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.3 `git diff --check` passes and the changed-file list matches this plan's ownership, including zero edits under context/archive or to WAVES.md.
