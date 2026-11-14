@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md fixes archived-id guards and safe byte-identical cleanup behavior" },
+    "novelty": { "score": 1, "evidence": "change.md extends existing prepare-run and init patterns" },
+    "coupling": { "score": 2, "evidence": "Wave 5 in context/changes/WAVES.md assigns router, prepare-run, both skills and tests" },
+    "discovery": { "score": 0, "evidence": "The goal names prepare-run.mjs, init guards, both skills and tests" },
+    "volume": { "score": 2, "evidence": "The goal requires changes across router, setup, both skills and regression tests" },
+    "verification": { "score": 1, "evidence": "The change brief specifies init and cleanup regressions covered by existing chain test suites" }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
