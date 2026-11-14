@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-14. Waves 1–3 are merged into `main`. Wave 2 is archived. This folder holds 30 active changes: 22 new changes and eight merged changes awaiting acceptance or archival. Wave 4 is next. GitHub PR merge state and change frontmatter were checked against `main` at `4233d62` (release 1.9.0).
+Work order and status as of 2026-11-14. Waves 1–3 are merged into `main`. Waves 2–3 are archived. This folder holds 24 active changes: 22 new changes and two merged changes awaiting acceptance or archival. Wave 4 is next. GitHub PR merge state and change frontmatter were checked against `main` at `a00da2c` (release 1.10.0).
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -10,7 +10,7 @@ A wave is a set of changes that can run **at the same time**, each in its own ru
 - A change stays inside the files its row names under "Owns in this wave". If its plan needs a file that another change of the same wave owns, move the change to a later wave before it runs.
 - Shared text files are the one exception: `AGENTS.md`, `README.md`, `docs/REFERENCE.md` and the two skill content tests (`skill-loop.test.mjs`, `openspec-skill.test.mjs`). Several changes of a wave add lines to them, in different places. Merge the pull requests of a wave one by one. If a later one then conflicts in such a file, resolve it on its branch with a merge of `main` and a new commit. Never force-push.
 - "Owner" marks a change that needs a decision or an action from the owner before or during its run.
-- Update this file in one maintenance PR after each wave merges. Individual parallel runs leave it alone. This refresh is included in PR #157 at the owner's request.
+- Update this file in one maintenance PR after each wave merges. Individual parallel runs leave it alone. This refresh accompanies the wave 3 archive PR requested by the owner.
 
 ## How the waves were cut
 
@@ -57,20 +57,20 @@ All six implementations merged in PRs #138–143. PR #154 archived their change 
 | `attach-result-persist-first` | `attachResult` in `flow.mjs` | |
 | `plan-crlf-line-endings` | `readPlan` in `state.mjs`, `planPaths` and `phaseFiles` | |
 
-## Wave 3: flags, versions and suite speed (6) — merged
+## Wave 3: flags, versions and suite speed (6) — merged and archived
 
-All six implementations merged on 2026-11-13 in PRs #147–152. Their folders remain active with `status: impl_reviewed`.
+All six implementations merged on 2026-11-13 in PRs #147–152. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. Original Progress checkboxes and SHA suffixes were preserved.
 
 | Change | Merged PR | Remaining Progress |
 | --- | --- | --- |
 | `ci-job-and-spawn-timeouts` | #151 | Manual 2.7, green PR CI and both job limits |
-| `pr-comment-flag-in-meta` | #152 | None; ready for archive checks |
-| `router-bash-timeout` | #147 | None; ready for archive checks |
+| `pr-comment-flag-in-meta` | #152 | None |
+| `router-bash-timeout` | #147 | None |
 | `marketplace-entry-version` | #149 | Manual 2.5, next release PR's version-file diff |
 | `budget-test-file-split` | #150 | Manual 2.7, CI suite duration under 90 s with comparison recorded |
-| `shared-churn-excludes` | #148 | None; ready for archive checks |
+| `shared-churn-excludes` | #148 | None |
 
-These rows report the recorded checkboxes. Merged PRs and later releases may provide acceptance evidence, which must be verified before checking rows off.
+These rows report the checkboxes at archive time. The three pending Manual rows remain recorded in their archived plans. Any further acceptance work belongs in a new change referencing the archive.
 
 | Change | Owns in this wave | Notes |
 | --- | --- | --- |
@@ -133,4 +133,4 @@ These new changes are outside the original wave tables. Plan their ownership bef
 ## Changes outside the waves
 
 - `proper-structure-of-rules` merged and archived in PR #155. Its structural changes apply to all remaining ownership checks.
-- `openai-codex-support` is archived on the branch of open PR #157. Its implementation is awaiting merge. Manual acceptance rows 4.4–4.6 remain pending, and phase 4 lacks formal implementation-review coverage. The PR also carries project Codex permissions and this wave-status refresh.
+- `openai-codex-support` merged and archived in PR #157. Manual acceptance rows 4.4–4.6 remain pending, and phase 4 lacks formal implementation-review coverage. PR #157 also added project Codex permissions.

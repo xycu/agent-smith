@@ -1,10 +1,10 @@
 ---
 change_id: marketplace-entry-version
 title: Drop the duplicate version from the marketplace plugin entry
-status: impl_reviewed
+status: archived
 created: 2026-11-12
-updated: 2026-11-13
-archived_at: null
+updated: 2026-11-14
+archived_at: 2026-11-14T02:10:50Z
 ---
 
 ## Notes

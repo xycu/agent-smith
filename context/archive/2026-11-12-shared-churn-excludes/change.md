@@ -1,10 +1,10 @@
 ---
 change_id: shared-churn-excludes
 title: Share one fallback for the churn exclude globs
-status: impl_reviewed
+status: archived
 created: 2026-11-12
-updated: 2026-11-13
-archived_at: null
+updated: 2026-11-14
+archived_at: 2026-11-14T02:10:51Z
 ---
 
 ## Notes
