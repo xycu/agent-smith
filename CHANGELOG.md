@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/xycu/agent-smith/compare/v1.9.0...v1.10.0) (2026-11-14)
+
+
+### Features
+
+* add OpenAI Codex pipeline support ([#157](https://github.com/xycu/agent-smith/issues/157)) ([da0725c](https://github.com/xycu/agent-smith/commit/da0725c41cf4e3e2ddd1f30024186a8cafa74b3f))
+
 ## [1.9.0](https://github.com/xycu/agent-smith/compare/v1.8.0...v1.9.0) (2026-11-13)
 
 

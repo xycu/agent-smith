@@ -5,7 +5,7 @@
   },
   "metadata": {
     "description": "Marketplace hosting the agent-smith plugin.",
-    "version": "1.9.0"
+    "version": "1.10.0"
   },
   "plugins": [
     {
