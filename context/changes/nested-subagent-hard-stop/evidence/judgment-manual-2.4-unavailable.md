@@ -26,8 +26,14 @@ The plan explicitly requires a supported live session, successful top-level disp
 
 > If host access, precedence, model access or this run's delegation rules prevent observation, record **unavailable**, its concrete reason and the version observed. Leave Manual row 2.4 pending.
 
-## Outcome and reasoning
+## Retry and outcome
 
-Live acceptance is unavailable in this attempt. Starting the agents needed for the procedure, including through a child Claude process, violates this step's always-true delegation prohibition. The allowed version commands completed and returned Node v24.19.0 and Claude Code 2.1.311. Their fresh output is saved in `command-manual-2.4-versions.txt`.
+Re-read the previous unavailable record, the change folder, the project setting, the shared delegation rule, the focused tests and ADR-018 Amendment 2 on 2026-11-14. Searched the existing evidence for successful top-level dispatch, a depth-limit refusal, a withheld Agent tool and a transcript. The evidence contains the acceptance procedure and unavailable reports. An observed live dispatch or refusal transcript is absent.
 
-Effective session settings, successful top-level delegation, nested-call refusal, fork-path behavior and a child's ordinary read and returned report remain unobserved. Existing automated checks cannot establish these runtime observations, so no test rerun was used as acceptance evidence. Row 2.4 stays unchecked. This attempt changes only evidence files.
+Fresh version commands returned Node v24.19.0 and Claude Code 2.1.311, both with exit 0. Their output is saved in `command-manual-2.4-versions.txt`.
+
+Ran the existing tests `project settings cap Claude Code subagent depth at the string 1` and `ADR-018 amends the historical enforcement gap and records pending live acceptance`. Both passed with exit 0, two passes, zero failures and zero skips. The file `test-manual-2.4-static-contracts.txt` contains their names, command and complete output. The first test asserts the committed configuration value. The second asserts the amendment wording, including its pending live acceptance statement.
+
+Live acceptance remains unavailable. The quoted always-true instruction prohibits starting the agents required by the plan, including through a child Claude process. The tests establish the configuration and recorded acceptance status. Effective session settings, successful top-level delegation, a harness-blocked nested attempt, fork-path behavior and a child’s ordinary read and returned report remain unobserved.
+
+Row 2.4 stays unchecked under the plan’s quoted unavailable-acceptance procedure. This attempt records the blocker and fresh supporting checks in evidence.

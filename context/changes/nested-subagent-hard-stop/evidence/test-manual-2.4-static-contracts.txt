@@ -1,0 +1,14 @@
+skills/10x-pipeline/test/nested-subagents.test.mjs — project settings cap Claude Code subagent depth at the string 1 | ADR-018 amends the historical enforcement gap and records pending live acceptance
+Command node --test --test-name-pattern ^(project settings cap Claude Code subagent depth at the string 1|ADR-018 amends the historical enforcement gap and records pending live acceptance)$ skills/10x-pipeline/test/nested-subagents.test.mjs
+✔ project settings cap Claude Code subagent depth at the string 1 (2.200834ms)
+✔ ADR-018 amends the historical enforcement gap and records pending live acceptance (0.550208ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 100.025417
+
+Exit 0
