@@ -1,9 +1,9 @@
 ---
 change_id: run-state-atomic-writes
 title: Write run.jsonl and meta.json atomically and stop dropping unreadable log lines
-status: new
+status: impl_reviewed
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 archived_at: null
 ---
 

@@ -1,0 +1,679 @@
+// Atomic state publication, locked temp cleanup and log integrity through both chains.
+import test, { after } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import {
+  cleanupAll, makeProject, run, git, gitEnv, gitInit, entry, writeLog, writeMetaFile,
+  writeResult, readLogEntries, readMetaFile, planText,
+} from "./helpers.mjs";
+import { writePlan } from "./ahead.mjs";
+import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
+import { writeFileAtomic, stateTempFiles, cleanupStateTemps, runLockPath, readLog } from "../scripts/state.mjs";
+
+import { codexFixture, execute, calls } from "./codex-helpers.mjs";
+
+const STATE_URL = new URL("../scripts/state.mjs", import.meta.url).href;
+const TARGETS = ["run.jsonl", "meta.json", "report.md"];
+const GOAL = "Add a retry counter to the status output so each step records its retries";
+after(cleanupAll);
+
+function projectFor(chain, options = {}) {
+  return chain === "openspec" ? makeOpenspecProject(options) : makeProject(options);
+}
+
+function runIn(project, args, options = {}) {
+  return run(project, args, { env: gitEnv(project), ...options });
+}
+
+function seed(project, chain, meta = {}) {
+  writeLog(project, [entry(1, chain === "openspec" ? "os-propose" : "plan")]);
+  writeMetaFile(project, { id: project.id, goal: GOAL, ...(chain === "openspec" ? { chain } : {}), ...meta });
+  return project;
+}
+
+function addTemps(project) {
+  return TARGETS.map((name, i) => {
+    const file = path.join(project.agentDir, `${name}.${800001 + i}.tmp`);
+    fs.writeFileSync(file, `abandoned ${name}\n`);
+    return file;
+  });
+}
+
+// Preserve physical bytes and entry types without following symlinks.
+function snapshot(dir) {
+  const entries = {};
+  if (!fs.existsSync(dir)) return entries;
+  for (const name of fs.readdirSync(dir).sort()) {
+    const file = path.join(dir, name);
+    const stat = fs.lstatSync(file);
+    entries[name] = stat.isSymbolicLink() ? { link: fs.readlinkSync(file) }
+      : stat.isDirectory() ? { entries: snapshot(file) } : fs.readFileSync(file);
+  }
+  return entries;
+}
+
+function commitAll(project) {
+  git(project, ["add", "-A"]);
+  git(project, ["commit", "-q", "-m", "test: fixture state"]);
+}
+
+function gitSnapshot(project) {
+  const index = git(project, ["-C", project.root, "rev-parse", "--path-format=absolute", "--git-path", "index"]);
+  return {
+    files: snapshot(project.changeDir),
+    index: fs.readFileSync(path.resolve(project.base, index)),
+    refs: git(project, ["show-ref"]),
+    head: git(project, ["-C", project.root, "rev-parse", "HEAD"]),
+  };
+}
+
+function archivedState(chain, policy = {}) {
+  const p = seed(projectFor(chain, { policy }), chain, { archive: true, outcome: { action: "done", reason: "fixture", manualPending: [] } });
+  fs.writeFileSync(path.join(p.agentDir, "report.md"), "original report\n");
+  gitInit(p);
+  commitAll(p);
+  return p;
+}
+
+function isolatedProject(chain) {
+  const main = projectFor(chain, { policy: { isolation: { require: true } } });
+  gitInit(main);
+  commitAll(main);
+  const root = path.join(main.base, "linked");
+  git(main, ["worktree", "add", "-q", "-b", "agent-smith/demo", root]);
+  const changeDir = path.join(root, path.relative(main.root, main.changeDir));
+  return { ...main, root, changeDir, agentDir: path.join(changeDir, "agent-smith"),
+    planFile: chain === "openspec" ? null : path.join(changeDir, "plan.md") };
+}
+
+for (const name of TARGETS) {
+  test(`atomic ${name}: strings, Buffers, absence and existing permissions`, () => {
+    const p = makeProject();
+    const file = path.join(p.changeDir, name);
+    const mask = process.umask(0o022);
+    try {
+      writeFileAtomic(file, "fresh π\n");
+      assert.deepEqual(fs.readFileSync(file), Buffer.from("fresh π\n"));
+      if (process.platform !== "win32") assert.equal(fs.statSync(file).mode & 0o777, 0o644);
+      fs.chmodSync(file, 0o600);
+      for (const value of ["replacement\n", Buffer.from([0, 255, 13, 10, 128])]) {
+        writeFileAtomic(file, value);
+        assert.deepEqual(fs.readFileSync(file), Buffer.from(value));
+        if (process.platform !== "win32") assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+      }
+      assert.equal(fs.existsSync(`${file}.${process.pid}.tmp`), false);
+    } finally { process.umask(mask); }
+  });
+}
+
+for (const existing of [false, true]) {
+  for (const failure of ["inspect", "create", "permission", "write", "close", "rename"]) {
+    test(`atomic failure ${failure}, existing=${existing}: target survives and owned temp is removed`, (t) => {
+      const p = makeProject();
+      const file = path.join(p.changeDir, "run.jsonl");
+      const old = Buffer.from("old complete bytes\n");
+      if (existing) fs.writeFileSync(file, old);
+      const originalWrite = fs.writeFileSync;
+      const originalClose = fs.closeSync;
+      const fail = () => { throw new Error(`injected ${failure}`); };
+      if (failure === "inspect") t.mock.method(fs, "lstatSync", fail);
+      if (failure === "create") t.mock.method(fs, "openSync", fail);
+      if (failure === "permission") {
+        // Permission setup only runs when an existing regular target supplies its mode.
+        if (!existing) return;
+        t.mock.method(fs, "fchmodSync", fail);
+      }
+      if (failure === "write") t.mock.method(fs, "writeFileSync", (fd) => { originalWrite(fd, "partial"); fail(); });
+      if (failure === "close") {
+        let called = false;
+        t.mock.method(fs, "closeSync", (fd) => { if (!called) { called = true; fail(); } originalClose(fd); });
+      }
+      if (failure === "rename") t.mock.method(fs, "renameSync", fail);
+      assert.throws(() => writeFileAtomic(file, Buffer.from("new complete bytes\n")), new RegExp(`injected ${failure}`));
+      t.mock.restoreAll();
+      assert.equal(fs.existsSync(file), existing);
+      if (existing) assert.deepEqual(fs.readFileSync(file), old);
+      assert.equal(fs.existsSync(`${file}.${process.pid}.tmp`), false);
+    });
+  }
+}
+
+test("atomic collisions preserve existing regular files, symlinks and their targets", () => {
+  const p = makeProject();
+  const file = path.join(p.changeDir, "meta.json");
+  const temp = `${file}.${process.pid}.tmp`;
+  const other = path.join(p.changeDir, "other");
+  fs.writeFileSync(file, "old");
+  fs.writeFileSync(other, "other");
+  for (const symlink of [false, true]) {
+    if (symlink) fs.symlinkSync(other, temp);
+    else fs.writeFileSync(temp, "foreign temp");
+    const before = snapshot(p.changeDir);
+    assert.throws(() => writeFileAtomic(file, "new"), { code: "EEXIST" });
+    assert.deepEqual(snapshot(p.changeDir), before);
+    fs.unlinkSync(temp);
+  }
+});
+
+test("atomic cleanup failure exposes original failure and the cleanup error", (t) => {
+  const p = makeProject();
+  const file = path.join(p.changeDir, "report.md");
+  fs.writeFileSync(file, "old");
+  t.mock.method(fs, "renameSync", () => { throw new Error("publication failed"); });
+  t.mock.method(fs, "unlinkSync", () => { throw new Error("unlink failed"); });
+  assert.throws(() => writeFileAtomic(file, "new"), (e) => {
+    assert.ok(e instanceof AggregateError);
+    assert.match(e.message, /publication failed.*cleanup.*unlink failed/);
+    assert.equal(e.cause.message, "publication failed");
+    return true;
+  });
+  t.mock.restoreAll();
+  assert.equal(fs.readFileSync(file, "utf8"), "old");
+  assert.equal(fs.readFileSync(`${file}.${process.pid}.tmp`, "utf8"), "new");
+});
+
+for (const existing of [false, true]) {
+  for (const boundary of ["before", "after"]) {
+    test(`termination ${boundary} rename, existing=${existing}: complete old-or-new bytes`, async (t) => {
+      const p = makeProject();
+      const file = path.join(p.changeDir, "report.md");
+      if (existing) fs.writeFileSync(file, "old complete bytes");
+      const child = spawn(process.execPath, ["--input-type=module", "-e", `
+        import fs from "node:fs";
+        import { writeFileAtomic } from ${JSON.stringify(STATE_URL)};
+        const rename = fs.renameSync;
+        fs.renameSync = (...args) => {
+          if (${JSON.stringify(boundary)} === "after") rename(...args);
+          fs.writeSync(1, "barrier\\n");
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);
+        };
+        writeFileAtomic(process.argv[1], Buffer.from("new complete bytes"));
+      `, file], { cwd: p.root, stdio: ["ignore", "pipe", "pipe"] });
+      t.after(() => child.kill("SIGKILL"));
+      const closed = once(child, "close");
+      let output = "";
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("rename barrier timed out")), 10000);
+        child.once("error", reject);
+        child.once("exit", () => { clearTimeout(timer); reject(new Error(`child exited before barrier: ${output}`)); });
+        child.stdout.on("data", (chunk) => { output += chunk; if (output.includes("barrier")) { clearTimeout(timer); resolve(); } });
+      });
+      child.kill("SIGKILL");
+      assert.equal((await closed)[1], "SIGKILL");
+      assert.equal(fs.existsSync(file), boundary === "after" || existing);
+      if (fs.existsSync(file)) assert.equal(fs.readFileSync(file, "utf8"), boundary === "after" ? "new complete bytes" : "old complete bytes");
+      const temp = `${file}.${child.pid}.tmp`;
+      assert.equal(fs.existsSync(temp), boundary === "before");
+      if (boundary === "before") assert.equal(fs.readFileSync(temp, "utf8"), "new complete bytes");
+    });
+  }
+}
+
+test("temp inspection and deletion failures are observable before publication", (t) => {
+  const p = seed(makeProject(), "10x");
+  const temps = addTemps(p);
+  const before = snapshot(p.agentDir);
+  t.mock.method(fs, "lstatSync", () => { throw new Error("inspection denied"); });
+  assert.throws(() => stateTempFiles(p.agentDir), /inspection denied/);
+  t.mock.restoreAll();
+  t.mock.method(fs, "unlinkSync", () => { throw new Error("deletion denied"); });
+  assert.throws(() => cleanupStateTemps(p.agentDir), /deletion denied/);
+  t.mock.restoreAll();
+  assert.deepEqual(snapshot(p.agentDir), before);
+  assert.deepEqual(stateTempFiles(path.join(p.agentDir, "missing")), []);
+  assert.deepEqual(stateTempFiles(p.agentDir).sort(), temps.sort());
+});
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: eligible writer cleans exact immediate regular temps and preserves other entries`, () => {
+    const p = seed(projectFor(chain), chain);
+    const temps = addTemps(p);
+    const keep = ["run.jsonl.0.tmp", "run.jsonl.01.tmp", "run.jsonl.x.tmp", "last-result.json.22.tmp", "extra.tmp", "meta.json.22.tmp.bak"];
+    for (const name of keep) fs.writeFileSync(path.join(p.agentDir, name), "keep");
+    const nested = path.join(p.agentDir, "nested");
+    fs.mkdirSync(nested);
+    fs.writeFileSync(path.join(nested, "run.jsonl.2.tmp"), "nested");
+    fs.mkdirSync(path.join(p.agentDir, "run.jsonl.22.tmp"));
+    fs.symlinkSync(path.join(p.agentDir, keep[0]), path.join(p.agentDir, "meta.json.22.tmp"));
+    const before = snapshot(p.agentDir);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "4", "--chain", chain]);
+    assert.equal(res.status, 0, res.stdout);
+    for (const file of temps) assert.equal(fs.existsSync(file), false);
+    const after = snapshot(p.agentDir);
+    for (const name of [...keep, "nested", "run.jsonl.22.tmp", "meta.json.22.tmp"]) assert.deepEqual(after[name], before[name], name);
+  });
+
+  test(`${chain}: held lock preserves candidate temps for every writer`, () => {
+    const p = seed(projectFor(chain), chain);
+    addTemps(p);
+    const lock = runLockPath(p.agentDir);
+    fs.writeFileSync(lock, String(process.pid));
+    try {
+      const before = snapshot(p.changeDir);
+      for (const args of [["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens", "4"], ["status", p.id, "--report"]]) {
+        const res = runIn(p, [...args, "--chain", chain]);
+        assert.equal(res.status, 1, res.stdout);
+        assert.match(res.json.reason, /lock/);
+        assert.deepEqual(snapshot(p.changeDir), before);
+      }
+    } finally { fs.unlinkSync(lock); }
+  });
+
+  test(`${chain}: unknown, pending, conflicting and identical usage preserve temps and git state`, () => {
+    const p = seed(projectFor(chain), chain);
+    writeLog(p, [entry(1, "plan", { usage: { totalTokens: 4 } }), entry(2, "plan", { result: undefined })]);
+    gitInit(p);
+    commitAll(p);
+    addTemps(p);
+    const before = gitSnapshot(p);
+    for (const [n, tokens, status] of [[3, "4", 1], [2, "4", 1], [1, "5", 1], [1, "4", 0]]) {
+      const res = runIn(p, ["usage", p.id, String(n), "--tokens", tokens, "--chain", chain]);
+      assert.equal(res.status, status, res.stdout);
+      if (status === 0) assert.equal(res.json.unchanged, true);
+      assert.deepEqual(gitSnapshot(p), before);
+    }
+  });
+
+  for (const guard of ["staged", "message", "branch", "dirty", "tracked-temp"]) {
+    test(`${chain}: archive usage ${guard} refusal retains temps, files, index and refs`, () => {
+      const p = archivedState(chain, guard === "message" ? { archive: { usageMessage: "" } } : {});
+      const temps = addTemps(p);
+      if (guard === "staged") {
+        fs.writeFileSync(path.join(p.root, "staged"), "staged");
+        git(p, ["add", "staged"]);
+      }
+      if (guard === "branch") {
+        writeMetaFile(p, { ...readMetaFile(p), isolated: true, branch: "agent-smith/other" });
+        commitAll(p);
+        addTemps(p);
+      }
+      if (guard === "dirty") fs.writeFileSync(path.join(p.changeDir, "unrelated"), "unrelated");
+      if (guard === "tracked-temp") {
+        commitAll(p);
+        fs.appendFileSync(temps[0], "dirty tracked temp");
+      }
+      const before = gitSnapshot(p);
+      const res = runIn(p, ["usage", p.id, "1", "--tokens", "4", "--chain", chain]);
+      assert.equal(res.status, 1, res.stdout);
+      assert.equal(res.json.attached, false);
+      assert.deepEqual(gitSnapshot(p), before);
+    });
+  }
+
+  test(`${chain}: archive usage accepts only untracked regular state temps, cleans and commits`, () => {
+    const p = archivedState(chain);
+    const temps = addTemps(p);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "4", "--chain", chain]);
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(typeof res.json.commit, "string");
+    for (const file of temps) assert.equal(fs.existsSync(file), false);
+    assert.doesNotMatch(git(p, ["ls-tree", "-r", "--name-only", "HEAD"]), /\.tmp$/m);
+    assert.equal(git(p, ["status", "--porcelain", "--", path.relative(p.root, p.changeDir)]), "");
+  });
+}
+
+test("isolated step commit excludes abandoned state temps", () => {
+  const p = isolatedProject("10x");
+  const start = runIn(p, ["init", p.id, "--goal", GOAL]);
+  assert.equal(start.json.action, "run", start.stdout);
+  writePlan(p, planText());
+  writeResult(p, { status: "done", note: "planned" });
+  const temps = addTemps(p);
+  const res = runIn(p, ["next", p.id]);
+  assert.equal(res.json.action, "run", res.stdout);
+  assert.ok(readLogEntries(p)[0].commit);
+  for (const file of temps) assert.equal(fs.existsSync(file), false);
+  assert.doesNotMatch(git(p, ["-C", p.root, "ls-tree", "-r", "--name-only", "HEAD"]), /\.tmp$/m);
+});
+
+for (const [label, contents, values, lines] of [
+  ["missing", null, [], []], ["empty", "", [], []], ["blank", "\n\r\n", [], []],
+  ["legacy CRLF", "\r\n{\"old\":true,\"custom\":{\"value\":4}}\r\n{}\r\n", [{ old: true, custom: { value: 4 } }, {}], []],
+  ["multiple physical lines", "{}\n{broken\n\n[]\r\n \r\nnull\n42\ntrue\n\"text\"\n{}", [{}, {}], [2, 4, 5, 6, 7, 8, 9]],
+]) {
+  test(`log reader ${label}: explicit inspection and strict default`, () => {
+    const p = makeProject();
+    const file = path.join(p.changeDir, "run.jsonl");
+    if (contents !== null) fs.writeFileSync(file, contents);
+    const result = readLog(file, { tolerant: true });
+    assert.deepEqual(result.entries, values);
+    assert.deepEqual(result.logProblems.map((problem) => problem.line), lines);
+    for (const problem of result.logProblems) {
+      assert.equal(problem.file, file);
+      assert.equal(typeof problem.reason, "string");
+      assert.doesNotMatch(problem.reason, /broken|custom|text/);
+    }
+    if (lines.length) assert.throws(() => readLog(file), /line 2.*Preserve the damaged copy.*git show <sha>:\.\//);
+    else assert.deepEqual(readLog(file), result);
+  });
+}
+
+test("log read failures identify the file with a null line and strict reads refuse", (t) => {
+  const p = makeProject();
+  const file = path.join(p.changeDir, "run.jsonl");
+  t.mock.method(fs, "readFileSync", () => { throw Object.assign(new Error("private content"), { code: "EACCES" }); });
+  assert.deepEqual(readLog(file, { tolerant: true }), {
+    entries: [], logProblems: [{ file, line: null, reason: "Cannot read log (EACCES)" }],
+  });
+  assert.throws(() => readLog(file), /EACCES/);
+  t.mock.restoreAll();
+});
+
+for (const chain of ["10x", "openspec"]) {
+  for (const damaged of ["middle", "final"]) {
+    test(`${chain}: damaged ${damaged} log halts every writer before cleanup, result intake or git writes`, () => {
+      const p = isolatedProject(chain);
+      const started = runIn(p, ["init", p.id, "--goal", GOAL, "--chain", chain]);
+      assert.equal(started.json.action, "run", started.stdout);
+      const good = JSON.stringify(entry(1, "fix", { usage: { totalTokens: 4 } }));
+      const pending = JSON.stringify(entry(3, "fix", { result: undefined, pendingPrompt: "pending" }));
+      const lines = damaged === "middle" ? [good, "{private truncated", pending] : [good, pending, "{private truncated"];
+      const file = path.join(p.agentDir, "run.jsonl");
+      fs.writeFileSync(file, lines.join("\n") + "\n");
+      writeResult(p, { status: "orchestrator-error", note: "must be retained" });
+      addTemps(p);
+      const before = gitSnapshot(p);
+      for (const args of [
+        ["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens", "4"],
+        ["usage", p.id, "1", "--tokens", "5"], ["status", p.id, "--report"],
+      ]) {
+        const res = runIn(p, [...args, "--chain", chain]);
+        assert.equal(res.status, 1, res.stdout);
+        assert.equal(res.json.action, "halt");
+        assert.ok(res.json.reason.includes(`${file} line ${damaged === "middle" ? 2 : 3}`), res.stdout);
+        assert.ok(res.json.reason.includes(`git show <sha>:./${path.relative(p.root, file)}`), res.stdout);
+        assert.match(res.json.reason, /Preserve the damaged copy.*last usable step commit on the run branch.*before restoring/);
+        assert.doesNotMatch(res.json.reason, /private truncated/);
+        assert.deepEqual(gitSnapshot(p), before);
+      }
+    });
+  }
+
+  test(`${chain}: status, risk and comparison expose attributed partial-log diagnostics through reads`, () => {
+    const p = seed(projectFor(chain), chain);
+    const b = seed(projectFor(chain), chain);
+    const file = path.join(p.agentDir, "run.jsonl");
+    const baselineFile = path.join(b.agentDir, "run.jsonl");
+    fs.appendFileSync(file, "{private broken\n\n[]\n");
+    fs.appendFileSync(baselineFile, "null\n");
+    addTemps(p);
+    addTemps(b);
+    const before = [snapshot(p.changeDir), snapshot(b.changeDir)];
+    for (const command of ["status", "risk"]) {
+      const res = runIn(p, [command, p.id, "--chain", chain]);
+      assert.equal(res.status, 0, res.stdout);
+      assert.deepEqual(res.json.logProblems.map(({ file: f, line }) => [f, line]), [[file, 2], [file, 4]]);
+      if (command === "status") assert.equal(res.json.steps.length, 1);
+    }
+    const args = ["compare", p.id, "--chain", chain, "--baseline", b.root];
+    const cmp = runIn(p, args);
+    assert.equal(cmp.status, 0, cmp.stdout);
+    assert.deepEqual(cmp.json.routed.logProblems.map((problem) => problem.line), [2, 4]);
+    assert.deepEqual(cmp.json.baseline.logProblems, [{ file: baselineFile, line: 2, reason: "Expected a JSON object" }]);
+    const md = runIn(p, [...args, "--format", "md"]);
+    assert.equal(md.status, 0, md.stdout);
+    for (const [side, f, line] of [["baseline", baselineFile, 2], ["routed", file, 2], ["routed", file, 4]]) {
+      assert.ok(md.stdout.includes(`Partial-log warning for ${side} at ${f} line ${line}`), md.stdout);
+    }
+    assert.deepEqual([snapshot(p.changeDir), snapshot(b.changeDir)], before);
+  });
+
+  test(`${chain}: archive verification keeps its truth and attribution for live, selected and ambiguous logs`, () => {
+    const p = seed(projectFor(chain), chain);
+    const liveFile = path.join(p.agentDir, "run.jsonl");
+    fs.appendFileSync(liveFile, "{bad\n");
+    addTemps(p);
+    const args = ["verify-archive", p.id, "--chain", chain];
+    const live = runIn(p, args);
+    assert.equal(live.status, 1, live.stdout);
+    assert.equal(live.json.archived, false);
+    assert.equal(live.json.logProblems[0].file, liveFile);
+    const root = chain === "openspec" ? "openspec/changes/archive" : "context/archive";
+    const first = `${root}/2026-01-01-${p.id}`;
+    const firstDir = path.join(p.root, first);
+    fs.mkdirSync(path.dirname(firstDir), { recursive: true });
+    fs.renameSync(p.changeDir, firstDir);
+    if (chain === "10x") fs.writeFileSync(path.join(firstDir, "change.md"), "---\nstatus: archived\narchived_at: 2026-01-01\n---\n");
+    const archivedFile = path.join(firstDir, "agent-smith/run.jsonl");
+    const archivedBefore = snapshot(firstDir);
+    const moved = runIn(p, args);
+    assert.equal(moved.status, 0, moved.stdout);
+    assert.equal(moved.json.archived, true);
+    assert.equal(moved.json.logProblems[0].file, archivedFile);
+    const second = `${root}/2026-01-02-${p.id}`;
+    const secondDir = path.join(p.root, second);
+    fs.cpSync(firstDir, secondDir, { recursive: true });
+    const secondFile = path.join(secondDir, "agent-smith/run.jsonl");
+    const ambiguous = runIn(p, args);
+    assert.equal(ambiguous.status, 1, ambiguous.stdout);
+    assert.deepEqual(ambiguous.json.ambiguous, [first, second]);
+    assert.deepEqual(ambiguous.json.logProblems.map((problem) => problem.file), [archivedFile, secondFile]);
+    const selected = runIn(p, [...args, "--path", `./${second}/`]);
+    assert.equal(selected.status, 0, selected.stdout);
+    assert.equal(selected.json.path, second);
+    assert.deepEqual(selected.json.logProblems.map((problem) => problem.file), [secondFile]);
+    // An identified archive whose truth check fails still carries its log diagnostics.
+    fs.mkdirSync(p.changeDir, { recursive: true });
+    const failed = runIn(p, [...args, "--path", second]);
+    assert.equal(failed.status, 1, failed.stdout);
+    assert.equal(failed.json.logProblems[0].file, secondFile);
+    assert.deepEqual(snapshot(firstDir), archivedBefore);
+    assert.deepEqual(snapshot(secondDir), archivedBefore);
+  });
+
+  test(`${chain}: clean observational output omits logProblems`, () => {
+    const p = seed(projectFor(chain), chain);
+    for (const args of [["status", p.id], ["risk", p.id], ["verify-archive", p.id]]) {
+      const res = runIn(p, [...args, "--chain", chain]);
+      assert.equal(Object.hasOwn(res.json, "logProblems"), false, res.stdout);
+    }
+    const cmp = runIn(p, ["compare", p.id, "--baseline", p.root, "--chain", chain]);
+    assert.equal(cmp.status, 0, cmp.stdout);
+    assert.equal(Object.hasOwn(cmp.json.baseline, "logProblems"), false);
+    assert.equal(Object.hasOwn(cmp.json.routed, "logProblems"), false);
+  });
+
+  test(`${chain}: Codex validation refuses damage before any permission probe or child launch`, () => {
+    const fixture = codexFixture(chain);
+    const p = fixture.project;
+    const file = path.join(p.agentDir, "run.jsonl");
+    fs.appendFileSync(file, "{private damage\n");
+    addTemps(p);
+    const before = snapshot(p.changeDir);
+    const res = execute(fixture);
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "codex-result");
+    assert.equal(res.json.launched, false);
+    assert.equal(res.json.completed, false);
+    assert.equal(res.json.result, null);
+    assert.ok(res.json.reason.includes(`${file} line 2`), res.stdout);
+    assert.deepEqual(calls(fixture.fixture), []);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+}
+
+test("nested project recovery uses a project-relative Git revision path", () => {
+  const p = seed(makeProject({ nest: "packages/app" }), "10x");
+  gitInit(p);
+  commitAll(p);
+  const rel = "context/changes/demo/agent-smith/run.jsonl";
+  assert.equal(JSON.parse(git(p, ["-C", p.root, "show", `HEAD:./${rel}`])).n, 1);
+  fs.appendFileSync(path.join(p.agentDir, "run.jsonl"), "{damaged\n");
+  const before = gitSnapshot(p);
+  const res = runIn(p, ["init", p.id]);
+  assert.equal(res.status, 1, res.stdout);
+  assert.ok(res.json.reason.includes(`git show <sha>:./${rel}`), res.stdout);
+  assert.deepEqual(gitSnapshot(p), before);
+});
+
+// Fault injection stays in a disposable CLI wrapper, with the real router as the normal entry point.
+function faultScript(p, body) {
+  const file = path.join(p.base, "state-fault.mjs");
+  fs.writeFileSync(file, `import fs from "node:fs";\n${body}\nawait import(${JSON.stringify(new URL("../scripts/route.mjs", import.meta.url).href)});\n`);
+  return file;
+}
+
+function rejectCommit(p) {
+  const hooks = path.resolve(p.base, git(p, ["rev-parse", "--git-path", "hooks"]));
+  fs.mkdirSync(hooks, { recursive: true });
+  fs.writeFileSync(path.join(hooks, "pre-commit"), "#!/bin/sh\necho rejected >&2\nexit 1\n", { mode: 0o755 });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const reportPresent of [false, true]) {
+    test(`${chain}: rejected archive usage restores exact log/report Buffers or original absence, report=${reportPresent}`, () => {
+      const p = archivedState(chain);
+      const log = path.join(p.agentDir, "run.jsonl");
+      const report = path.join(p.agentDir, "report.md");
+      fs.writeFileSync(log, ` \t${JSON.stringify(entry(1, "fix", { unknown: "legacy" }))} \r\n\r\n`);
+      if (reportPresent) fs.writeFileSync(report, Buffer.from([0xff, 0, 13, 10, 0x80, 0x41]));
+      else fs.unlinkSync(report);
+      commitAll(p);
+      rejectCommit(p);
+      const before = gitSnapshot(p);
+      const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain]);
+      assert.equal(res.status, 1, res.stdout);
+      assert.equal(res.json.attached, false);
+      assert.match(res.json.reason, /figure was not kept; the change folder is as committed/);
+      const after = gitSnapshot(p);
+      assert.deepEqual(after.files, before.files);
+      assert.equal(after.refs, before.refs);
+      assert.equal(after.head, before.head);
+      git(p, ["diff", "--cached", "--quiet"]);
+    });
+  }
+
+  test(`${chain}: repeated identical usage makes zero publications and retains stale temps`, () => {
+    const p = archivedState(chain);
+    const args = ["usage", p.id, "1", "--tokens", "7", "--chain", chain];
+    assert.equal(runIn(p, args).status, 0);
+    addTemps(p);
+    const before = gitSnapshot(p);
+    const script = faultScript(p, 'fs.renameSync = () => { throw new Error("unexpected publication"); };');
+    const res = runIn(p, args, { script });
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(res.json.unchanged, true);
+    assert.deepEqual(gitSnapshot(p), before);
+  });
+
+  test(`${chain}: failed atomic result persistence retains pending result and original bytes`, () => {
+    const p = projectFor(chain);
+    const started = runIn(p, ["init", p.id, "--goal", GOAL, "--chain", chain]);
+    assert.equal(started.json.action, "run", started.stdout);
+    writeResult(p, { status: "failed", note: "retain this result", usage: { totalTokens: 42 } });
+    const before = snapshot(p.changeDir);
+    const script = faultScript(p, 'fs.renameSync = () => { throw new Error("result publication failed"); };');
+    const res = runIn(p, ["next", p.id, "--chain", chain], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /result publication failed/);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    assert.equal(runIn(p, ["next", p.id, "--chain", chain]).json.action, "run");
+    assert.equal(readLogEntries(p)[0].usage.totalTokens, 42);
+  });
+
+  test(`${chain}: incomplete restoration names the log and attempts remaining restoration`, () => {
+    const p = archivedState(chain);
+    rejectCommit(p);
+    const log = path.join(p.agentDir, "run.jsonl");
+    const report = path.join(p.agentDir, "report.md");
+    const before = fs.readFileSync(report);
+    const script = faultScript(p, `
+      const rename = fs.renameSync;
+      let writes = 0;
+      fs.renameSync = (from, to) => {
+        if (to === ${JSON.stringify(log)} && ++writes === 2) throw new Error("restore denied");
+        return rename(from, to);
+      };
+    `);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /recovery incomplete/i);
+    assert.ok(res.json.reason.includes(log), res.stdout);
+    assert.match(res.json.reason, /restore denied/);
+    assert.deepEqual(fs.readFileSync(report), before);
+    assert.equal(readLogEntries(p)[0].usage.totalTokens, 7);
+  });
+
+  test(`${chain}: report-absence restoration exposes an unlink failure`, () => {
+    const p = archivedState(chain);
+    const report = path.join(p.agentDir, "report.md");
+    const log = path.join(p.agentDir, "run.jsonl");
+    fs.unlinkSync(report);
+    commitAll(p);
+    rejectCommit(p);
+    const before = fs.readFileSync(log);
+    const script = faultScript(p, `
+      const unlink = fs.unlinkSync;
+      fs.unlinkSync = (file) => {
+        if (file === ${JSON.stringify(report)}) throw new Error("report removal denied");
+        return unlink(file);
+      };
+    `);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /recovery incomplete/i);
+    assert.ok(res.json.reason.includes(report), res.stdout);
+    assert.match(res.json.reason, /report removal denied/);
+    assert.deepEqual(fs.readFileSync(log), before);
+  });
+
+  test(`${chain}: eligible archive usage removes stale temps before first publication and staging`, () => {
+    const p = archivedState(chain);
+    const temps = addTemps(p);
+    const log = path.join(p.agentDir, "run.jsonl");
+    const script = faultScript(p, `
+      const rename = fs.renameSync;
+      fs.renameSync = (from, to) => {
+        if (to === ${JSON.stringify(log)} && ${JSON.stringify(temps)}.some(file => fs.existsSync(file))) {
+          throw new Error("publication preceded cleanup");
+        }
+        return rename(from, to);
+      };
+    `);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain], { script });
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(typeof res.json.commit, "string");
+    assert.doesNotMatch(git(p, ["ls-tree", "-r", "--name-only", "HEAD"]), /\.tmp$/m);
+  });
+
+  test(`${chain}: successful init/status smoke and damaged-log refusal through the CLI`, () => {
+    const p = projectFor(chain);
+    const init = runIn(p, ["init", p.id, "--goal", "fix typo", "--chain", chain]);
+    assert.equal(init.status, 0, init.stdout);
+    assert.equal(init.json.action, "run");
+    assert.equal(init.json.step, chain === "openspec" ? "os-propose" : "plan");
+    const status = runIn(p, ["status", p.id, "--chain", chain]);
+    assert.equal(status.status, 0, status.stdout);
+    assert.equal(status.json.steps.length, 1);
+    const report = runIn(p, ["status", p.id, "--report", "--chain", chain]);
+    assert.equal(report.status, 0, report.stdout);
+    assert.match(fs.readFileSync(path.join(p.agentDir, "report.md"), "utf8"), /^# Run report: demo/);
+    fs.appendFileSync(path.join(p.agentDir, "run.jsonl"), "{damaged\n");
+    const before = snapshot(p.changeDir);
+    const refused = runIn(p, ["next", p.id, "--chain", chain]);
+    assert.equal(refused.status, 1, refused.stdout);
+    assert.match(refused.json.reason, /line 2/);
+    const observed = runIn(p, ["status", p.id, "--chain", chain]);
+    assert.equal(observed.status, 0, observed.stdout);
+    assert.equal(observed.json.logProblems[0].line, 2);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: wrong run branch refuses archive usage before temp cleanup`, () => {
+    const p = isolatedProject(chain);
+    seed(p, chain, { isolated: true, branch: "agent-smith/other", archive: true, outcome: { action: "done" } });
+    git(p, ["-C", p.root, "add", "-A"]);
+    git(p, ["-C", p.root, "commit", "-q", "-m", "test: ended isolated fixture"]);
+    addTemps(p);
+    const before = gitSnapshot(p);
+    const res = runIn(p, ["usage", p.id, "1", "--tokens", "7", "--chain", chain]);
+    assert.equal(res.status, 1, res.stdout);
+    assert.match(res.json.reason, /not on the run branch agent-smith\/other/);
+    assert.deepEqual(gitSnapshot(p), before);
+  });
+}

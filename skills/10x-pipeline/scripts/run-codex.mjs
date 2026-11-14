@@ -49,7 +49,7 @@ function validateAction(action, id, chain, policy) {
   if (action.profile !== null && (typeof action.profile !== "string" || !action.profile.trim() || /[\0\r\n]/.test(action.profile))) {
     refuse("Action profile must be null or an existing configuration profile name.");
   }
-  const log = readLog(p.log);
+  const { entries: log } = readLog(p.log);
   if (action.action === "run") {
     const entry = executed(log).at(-1);
     if (meta.outcome || !entry || entry.result !== undefined || fs.existsSync(p.result)

@@ -486,14 +486,34 @@ function openspecPaths(id) {
   };
 }
 
-export function readLog(file) {
-  if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).flatMap((l) => {
-    try {
-      const e = JSON.parse(l);
-      return e && typeof e === "object" ? [e] : [];
-    } catch { return []; }
-  });
+export function readLog(file, { tolerant = false } = {}) {
+  const entries = [];
+  const logProblems = [];
+  const absolute = path.resolve(file);
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch (error) {
+    if (error.code !== "ENOENT") {
+      logProblems.push({ file: absolute, line: null, reason: `Cannot read log (${error.code ?? "filesystem error"})` });
+    }
+  }
+  for (const [index, line] of (text ?? "").split(/\r?\n/).entries()) {
+    if (line === "") continue;
+    let value;
+    try { value = JSON.parse(line); } catch {
+      logProblems.push({ file: absolute, line: index + 1, reason: "Invalid JSON" });
+      continue;
+    }
+    if (isObject(value)) entries.push(value);
+    else logProblems.push({ file: absolute, line: index + 1, reason: "Expected a JSON object" });
+  }
+  if (!tolerant && logProblems.length) {
+    const first = logProblems[0];
+    const location = first.line === null ? first.file : `${first.file} line ${first.line}`;
+    const rel = path.relative(ROOT, absolute).split(path.sep).join("/");
+    throw new Error(`${location}: ${first.reason}. Preserve the damaged copy and inspect the last usable step commit on the run branch ` +
+      `with git show <sha>:./${rel} before restoring the affected content, then retry. Nothing was written.`);
+  }
+  return { entries, logProblems };
 }
 
 // A skip entry records a step the router decided not to run. It has no n, template, ok or result.
@@ -513,8 +533,59 @@ export function prCommentField(meta) {
   return meta?.prComment === true ? { prComment: true } : {};
 }
 
+const STATE_BASENAMES = ["run.jsonl", "meta.json", "report.md"];
+const STATE_TEMP_RE = new RegExp(`^(?:${STATE_BASENAMES.map((name) => name.replaceAll(".", "\\.")).join("|")})\\.[1-9][0-9]*\\.tmp$`);
+const stateTempPath = (file) => `${file}.${process.pid}.tmp`;
+
+// Call under the run lock. Inspection is separate so refusal paths can keep every byte.
+export function stateTempFiles(dir) {
+  let names;
+  try { names = fs.readdirSync(dir); } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  return names.filter((name) => STATE_TEMP_RE.test(name))
+    .map((name) => path.join(dir, name)).filter((file) => fs.lstatSync(file).isFile());
+}
+
+export function cleanupStateTemps(dir) {
+  for (const file of stateTempFiles(dir)) fs.unlinkSync(file);
+}
+
+// The rename publishes one complete file. Exclusive creation gives this call ownership of its temp.
+export function writeFileAtomic(file, data) {
+  const temp = stateTempPath(file);
+  let fd;
+  let created = false;
+  try {
+    let target;
+    try { target = fs.lstatSync(file); } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    fd = fs.openSync(temp, "wx");
+    created = true;
+    if (target?.isFile()) fs.fchmodSync(fd, target.mode & 0o7777);
+    fs.writeFileSync(fd, data);
+    fs.closeSync(fd);
+    fd = undefined;
+    fs.renameSync(temp, file);
+  } catch (error) {
+    const failures = [error];
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch (closeError) { failures.push(closeError); }
+    }
+    if (created) {
+      try { fs.unlinkSync(temp); } catch (cleanupError) { failures.push(cleanupError); }
+    }
+    if (failures.length > 1) {
+      throw new AggregateError(failures, `${error.message}; atomic-write cleanup of ${temp} failed: ${failures.slice(1).map((e) => e.message).join("; ")}`, { cause: error });
+    }
+    throw error;
+  }
+}
+
 export function writeLog(file, entries) {
-  fs.writeFileSync(file, entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
+  writeFileAtomic(file, entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
 }
 
 // ---- decision -------------------------------------------------------------

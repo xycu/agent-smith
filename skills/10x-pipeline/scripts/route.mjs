@@ -22,7 +22,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
   ROOT, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
-  readMeta, writeLog, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
+  readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
   providerOf, hostOf, hostProblem, dispatchTarget,
   prCommentField,
@@ -79,17 +79,18 @@ function ruleProblem(policy) {
   }
 }
 
-function next(id, policy, chain = "10x") {
+function next(id, policy, chain = "10x", validatedLog = null) {
   const p = paths(id, policy, chain);
   const openspec = chain === "openspec";
   guardArchived(p, id);
   // The router never creates an OpenSpec change (D3), so a missing folder halts before agent-smith/ is made.
   if (openspec && !fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
   if (!openspec) haltNoChangeMd(p, id);
-  fs.mkdirSync(p.dir, { recursive: true });
   const meta = readMeta(p.meta, { id, goal: "" });
-  const log = readLog(p.log);
+  const log = validatedLog ?? readLog(p.log).entries;
   checkPrompts(policy);
+  cleanupStateTemps(p.dir);
+  fs.mkdirSync(p.dir, { recursive: true });
   // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
   // any other case returns here and goes on as before.
   neutralRetry(p, id, meta, log, policy);
@@ -115,7 +116,7 @@ function next(id, policy, chain = "10x") {
   const { level, changed } = resolveRigor(meta, log, policy, planNow, risk);
   // A policy, prompt or agent edit since the record adds its section to provenance.drift; meta.json is written only then.
   const drifted = recordDrift(meta, policy);
-  if (changed || drifted) fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  if (changed || drifted) writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
 
   // A subagent that cannot decide from evidence stops the run once. The ack lives on the log entry.
   const ranNow = executed(log);
@@ -191,7 +192,7 @@ function next(id, policy, chain = "10x") {
   // A continued run must not keep the outcome of an earlier end.
   if (meta.outcome) {
     delete meta.outcome;
-    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
 
   const target = dispatchTarget(policy, tier);
@@ -280,8 +281,16 @@ function next(id, policy, chain = "10x") {
 
 // Read-only, files only, no git: did /10x-archive move this change and stamp it archived.
 function verifyArchive(id, flags, chain = "10x") {
-  const no = (reason, extra = {}) => out({ archived: false, reason, ...extra }, 1);
-  if (chain === "openspec") verifyOpenspecArchive(id, flags, no);
+  const root = archiveRoot(chain);
+  const found = archiveDirs(id, chain);
+  const clean = typeof flags.path === "string" ? flags.path.replace(/^\.\//, "").replace(/\/$/, "") : null;
+  const selected = found.find((name) => clean === `${root}/${name}`);
+  const candidates = selected ? [selected] : found;
+  const dirs = [paths(id, null, chain).dir, ...candidates.map((name) => path.join(ROOT, root, name, "agent-smith"))];
+  const logProblems = dirs.flatMap((dir) => readLog(path.join(dir, "run.jsonl"), { tolerant: true }).logProblems);
+  const diagnostics = logProblems.length ? { logProblems } : {};
+  const no = (reason, extra = {}) => out({ archived: false, reason, ...extra, ...diagnostics }, 1);
+  if (chain === "openspec") verifyOpenspecArchive(id, flags, no, diagnostics);
   let name;
   if (flags.path !== undefined) {
     if (typeof flags.path !== "string") no("--path needs a folder");
@@ -313,6 +322,7 @@ function verifyArchive(id, flags, chain = "10x") {
   const archivedAt = frontmatterField(changeFile, "archived_at");
   out({
     archived: true,
+    ...diagnostics,
     path: rel,
     archivedAt: archivedAt === "null" ? null : archivedAt,
     report: fs.existsSync(path.join(ROOT, rel, "agent-smith/report.md")) ? `${rel}/agent-smith/report.md` : null,
@@ -322,7 +332,7 @@ function verifyArchive(id, flags, chain = "10x") {
 // verify-archive for an OpenSpec run (ADR-013 D5): archived when an archive folder of the id exists under
 // openspec/changes/archive/ and openspec/changes/<id>/ is gone. OpenSpec stamps no status, so none is read. A --path
 // that misses lists the archive folders of the id that do exist (a run that crossed midnight gets another date).
-function verifyOpenspecArchive(id, flags, no) {
+function verifyOpenspecArchive(id, flags, no, diagnostics) {
   const root = archiveRoot("openspec");
   const found = archiveDirs(id, "openspec");
   const others = (skip) => {
@@ -352,6 +362,7 @@ function verifyOpenspecArchive(id, flags, no) {
   if (live) no(`openspec/changes/${id} still exists next to ${rel}.`);
   out({
     archived: true,
+    ...diagnostics,
     path: rel,
     report: fs.existsSync(path.join(ROOT, rel, "agent-smith/report.md")) ? `${rel}/agent-smith/report.md` : null,
   });
@@ -361,8 +372,9 @@ function verifyOpenspecArchive(id, flags, no) {
 function riskCommand(id, policy, chain = "10x") {
   const p = paths(id, null, chain);
   const meta = readMeta(p.meta, { id, goal: "" });
-  const r = measureRisk(p, meta, readLog(p.log), policy);
-  out({ source: r.source, hot: r.hot, planPaths: r.planPaths, unclassified: r.unclassified, planHits: r.planHits, diffHits: r.diffHits, level: r.level });
+  const { entries: log, logProblems } = readLog(p.log, { tolerant: true });
+  const r = measureRisk(p, meta, log, policy);
+  out({ source: r.source, hot: r.hot, planPaths: r.planPaths, unclassified: r.unclassified, planHits: r.planHits, diffHits: r.diffHits, level: r.level, ...(logProblems.length ? { logProblems } : {}) });
 }
 
 // ---- compare --------------------------------------------------------------
@@ -411,7 +423,7 @@ function locateSide(dirArg, id, side, chain = "10x") {
 // `prices` is the price table of that policy, so both sides are priced alike; null gives `cost: null`.
 function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) {
   const found = locateSide(dirArg, id, side, chain);
-  const log = readLog(path.join(found.dir, "run.jsonl")).filter(isObject); // readLog lets a JSON array through
+  const { entries: log, logProblems } = readLog(path.join(found.dir, "run.jsonl"), { tolerant: true });
   const meta = readMeta(path.join(found.dir, "meta.json"), {});
   const steps = executed(log);
   const skipped = log.filter((e) => e.skipped).map((e) => (typeof e.step === "string" ? e.step : "unknown"));
@@ -479,6 +491,7 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
   }
   return {
     source: found.source,
+    ...(logProblems.length ? { logProblems } : {}),
     dir: found.dir,
     goal: typeof meta.goal === "string" ? meta.goal : null,
     baseSha: typeof meta.baseSha === "string" ? meta.baseSha : null,
@@ -652,6 +665,8 @@ function compareMarkdown(pair) {
     ...(pair.warnings.includes("cross-provider-raw-tokens") ? ["Cross-provider token counts are raw; they are not normalized for tokenizer work or billing."] : []),
     `Reasons: ${list(pair.reasons)}`,
     `Warnings: ${list(pair.warnings)}`,
+    ...[["baseline", b], ["routed", r]].flatMap(([side, run]) => (run.logProblems ?? []).map((problem) =>
+      `Partial-log warning for ${side} at ${problem.file}${problem.line === null ? "" : ` line ${problem.line}`} — ${problem.reason}`)),
     "",
   ].join("\n");
 }
@@ -669,13 +684,14 @@ function status(id, flags, chain = "10x", policy = null) {
   const p = paths(id, null, chain);
   // A moved OpenSpec run halts as archived instead of printing an empty log.
   if (chain === "openspec") guardArchived(p, id);
-  const log = readLog(p.log);
+  const { entries: log, logProblems } = readLog(p.log, { tolerant: !flags.report });
   // The cost estimate, only when the merged policy prices a model; without prices status has no cost key.
   const prices = loadPrices();
   const cost = prices ? estimateCost(executed(log), prices) : null;
   const stored = readMeta(p.meta, {});
   const res = {
     change: id,
+    ...(logProblems.length ? { logProblems } : {}),
     host: hostOf(stored),
     rigor: stored.rigor?.level ?? null,
     ...prCommentField(stored),
@@ -733,6 +749,7 @@ function status(id, flags, chain = "10x", policy = null) {
       if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
     } else haltNoChangeMd(p, id);
     const meta = readMeta(p.meta, { id, goal: "" });
+    cleanupStateTemps(p.dir);
     res.report = writeReport(p, id, meta, log);
   }
   out(res);
@@ -769,7 +786,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   guardArchived(p, id, chain);
   if (chain === "openspec" && !fs.existsSync(p.change)) refuse(missingChangeReason(id), n);
   if (!fs.existsSync(p.log)) refuse(`No run log for ${id}.`, n);
-  const log = readLog(p.log);
+  const { entries: log } = readLog(p.log);
   const entry = executed(log).find((e) => e.n === n);
   if (!entry) refuse(`Step ${n} is not logged.`, n);
   if (!isObject(entry.result)) refuse(`Step ${n} (${entry.step}) has no result yet; put the figure in its result file.`, n);
@@ -788,6 +805,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
     if (why) refuse(why, n);
   }
   const oldBytes = archiveState ? [p.log, p.report].map((file) => [file, fs.existsSync(file) ? fs.readFileSync(file) : null]) : [];
+  cleanupStateTemps(p.dir);
   entry.usage = usage;
   entry.usageLate = true;
   writeLog(p.log, log);
@@ -802,9 +820,15 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   // The archive state: commit the folder before the archive subagent starts. A failure before the commit exists puts
   // the old bytes back, so the folder stays as committed (the router has already unstaged its own add).
   const restore = () => {
+    const failures = [];
     for (const [file, bytes] of oldBytes) {
-      if (bytes === null) { try { fs.unlinkSync(file); } catch { /* already gone */ } } else fs.writeFileSync(file, bytes);
+      try {
+        if (bytes === null) {
+          try { fs.unlinkSync(file); } catch (error) { if (error.code !== "ENOENT") throw error; }
+        } else writeFileAtomic(file, bytes);
+      } catch (error) { failures.push(`${file}: ${error.message}`); }
     }
+    if (failures.length) throw new Error(`Late-usage recovery incomplete: ${failures.join("; ")}. Inspect the run files before retrying.`);
   };
   if (reportError) {
     restore();
@@ -952,6 +976,7 @@ function main() {
       }
     }
     if (chain !== "openspec") haltNoChangeMd(p, id);
+    const { entries: log } = readLog(p.log);
     const prev = readMeta(p.meta, {});
     // No flag keeps the stored value, so a resume of an archive run is checked again.
     if ((archive ?? prev.archive) === true) {
@@ -967,8 +992,9 @@ function main() {
     }
     // Run isolation (isolation.require true) is checked before anything is written. meta.isolated and meta.branch are
     // set only at an init whose log has no executed entry, so a run is isolated from its first step or not at all.
-    const fresh = executed(readLog(p.log)).length === 0;
+    const fresh = executed(log).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
+    cleanupStateTemps(p.dir);
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
     const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
@@ -994,16 +1020,16 @@ function main() {
     }
     // What the run runs with: recorded at the first init of a run with no executed step, kept on resume, never
     // rewritten. A run with executed steps and no record (started before provenance existed) gets none.
-    if (meta.provenance === undefined && executed(readLog(p.log)).length === 0) {
+    if (meta.provenance === undefined && executed(log).length === 0) {
       const record = provenanceRecord(policy, meta);
       if (record) meta.provenance = record;
     }
-    fs.writeFileSync(p.meta, JSON.stringify(meta, null, 2) + "\n");
+    writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
     // The start commit of an isolated run, after baseSha and the meta.json write and before the first entry exists.
-    if (meta.isolated === true && !Object.hasOwn(meta, "startCommit") && executed(readLog(p.log)).length === 0) {
+    if (meta.isolated === true && !Object.hasOwn(meta, "startCommit") && executed(log).length === 0) {
       startCommit(p, id, meta, policy);
     }
-    next(id, policy, chain);
+    next(id, policy, chain, log);
   } else if (cmd === "next") {
     next(id, policy, chain);
   } else if (cmd === "status") {
