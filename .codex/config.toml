@@ -2,8 +2,11 @@
 # AGENTS.md governs which Git/GitHub actions a task authorizes.
 approval_policy = "on-request"
 approvals_reviewer = "auto_review"
-sandbox_mode = "workspace-write"
+default_permissions = "agent-smith"
 
-[sandbox_workspace_write]
+[permissions.agent-smith]
+extends = ":workspace"
+
+[permissions.agent-smith.network]
 # GitHub API, Git remotes, and documentation access.
-network_access = true
+enabled = true
