@@ -1,0 +1,1 @@
+- 3.5 — Live host execution through both final messages requires child agents, run-state writes and external PR handling prohibited by this verification step. Five current contract tests passed, but live post-init ordering and final retained-path reporting remain unobserved. See judgment-3.5-host-verification.md and test-3.5-cleanup-instructions.txt.

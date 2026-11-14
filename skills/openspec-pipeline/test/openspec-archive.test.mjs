@@ -306,3 +306,52 @@ test("compare --chain openspec does not read a 10x side", () => {
   assert.equal(res.status, 1, res.stdout);
   assert.match(res.json.reason, /^routed: no run\.jsonl found for demo\. Looked in: .*openspec\/changes\/demo\/agent-smith\/run\.jsonl/);
 });
+
+function initSnapshot(root) {
+  const rows = [];
+  function walk(dir) {
+    for (const name of fs.readdirSync(dir).sort()) {
+      const abs = path.join(dir, name);
+      const st = fs.lstatSync(abs);
+      rows.push([path.relative(root, abs), st.mode, st.mtimeMs, st.isFile() ? fs.readFileSync(abs) : null]);
+      if (st.isDirectory()) walk(abs);
+    }
+  }
+  walk(root);
+  return rows;
+}
+
+for (const id of ["demo", "2026-01-02-dated"]) {
+  for (const prior of [false, true]) {
+    for (const archiveFlag of [false, true]) {
+      test(`duplicate archived init preserves all state (openspec, ${id}, prior ${prior}, archive ${archiveFlag})`, () => {
+        const project = makeOpenspecProject({ id });
+        gitInit(project);
+        commitFiles(project, ["README.md"]);
+        const args = ["init", id, "--chain", "openspec", "--goal", "again"];
+        if (prior) assert.equal(run(project, args, { env: gitEnv(project) }).json.action, "run");
+        fs.mkdirSync(project.agentDir, { recursive: true });
+        fs.writeFileSync(path.join(project.agentDir, "meta.json.123.tmp"), "retain temp bytes");
+        const names = id.startsWith("2026-") ? [id] : ["2026-01-02-demo", "2026-02-03-demo"];
+        for (const name of names) fs.mkdirSync(path.join(project.root, "openspec/changes/archive", name), { recursive: true });
+        const before = initSnapshot(project.root);
+        const res = run(project, [...args, ...(archiveFlag ? ["--archive"] : [])], { env: gitEnv(project) });
+        assert.equal(res.status, 1, res.stdout);
+        assert.equal(res.json.action, "halt");
+        for (const named of [`openspec/changes/${id}`, ...names.map((name) => `openspec/changes/archive/${name}`)]) {
+          assert.ok(res.json.reason.includes(named), res.json.reason);
+        }
+        assert.deepEqual(initSnapshot(project.root), before);
+      });
+    }
+  }
+}
+
+test("OpenSpec init ignores suffix collisions and archives owned only by 10x", () => {
+  const project = makeOpenspecProject();
+  fs.mkdirSync(path.join(project.root, "openspec/changes/archive/2026-01-02-x-demo"), { recursive: true });
+  fs.mkdirSync(path.join(project.root, "context/archive/2026-01-02-demo"), { recursive: true });
+  const args = ["init", "demo", "--chain", "openspec", "--goal", "fresh"];
+  assert.equal(run(project, args).json.action, "run");
+  assert.match(run(project, args).json.reason, /Step 1 .* has no result/);
+});

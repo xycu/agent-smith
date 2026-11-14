@@ -927,7 +927,7 @@ function main() {
     const incompatible = hostProblem(policy, host);
     if (incompatible) halt(incompatible);
   }
-  if (["init", "next", "usage"].includes(cmd) || (cmd === "status" && flags.report)) acquireRunLock(id, chain);
+  if (["next", "usage"].includes(cmd) || (cmd === "status" && flags.report)) acquireRunLock(id, chain);
 
   if (cmd === "init") {
     const levels = rigorLevels(policy);
@@ -967,6 +967,11 @@ function main() {
       halt(`Unexpected argument(s) after the flags: ${flags._.join(" ")}. Quote the goal: --goal "<text>". Nothing was written.`);
     }
     const p = paths(id, null, chain);
+    const archived = archiveDirs(id, chain).map((name) => `${archiveRoot(chain)}/${name}`);
+    if (fs.existsSync(p.change) && archived.length) {
+      halt(`Change ${id} has a live folder ${path.relative(ROOT, p.change)} next to archive folder(s) ${archived.join(", ")}. Nothing was written.`);
+    }
+    acquireRunLock(id, chain);
     guardArchived(p, id);
     if (chain === "openspec") {
       // The router never creates the change (D3), and a 10x change of the same name would collide (D8).
