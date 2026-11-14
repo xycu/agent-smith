@@ -50,5 +50,10 @@
   "rigor": {
     "level": "standard",
     "by": "goal hard"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": []
   }
 }
