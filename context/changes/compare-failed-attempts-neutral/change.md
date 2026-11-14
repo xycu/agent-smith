@@ -1,9 +1,9 @@
 ---
 change_id: compare-failed-attempts-neutral
 title: Count failed attempts in compare with the router's isFailure rule
-status: new
+status: planned
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 archived_at: null
 ---
 
