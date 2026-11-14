@@ -694,7 +694,11 @@ test("real gh without a login is not authenticated", { skip: win || !realGh }, (
 // ---- Phase 3: docs consistency -----------------------------------------------------
 
 const REPO = path.resolve(path.dirname(SCRIPT), "../../..");
-const readRepo = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8");
+const readRepo = (rel) => {
+  const override = rel === "skills/10x-pipeline/SKILL.md" ? process.env.SKILL_PATH
+    : rel === "skills/openspec-pipeline/SKILL.md" ? process.env.OPENSPEC_SKILL_PATH : null;
+  return fs.readFileSync(override || path.join(REPO, rel), "utf8");
+};
 
 // A SKILL.md loop branch: from the line starting `- **`<name>`**` to the next line that starts with `- **` or `## `.
 function branch(skill, name) {
@@ -729,19 +733,25 @@ test("SKILL.md: explicit invocation forwards durable opt-in or reset to the rout
   assert.doesNotMatch(start, /TaskList|TaskCreate|task list unavailable/);
 });
 
-test("SKILL.md: every terminal branch requires strict durable PR-comment intent", () => {
-  const skill = readRepo("skills/10x-pipeline/SKILL.md");
-  for (const name of ["done", "archive", "halt"]) {
-    const text = branch(skill, name);
-    assert.equal(countOf(text, "PR comment step"), 1, name);
-    assert.match(text, /terminal action has `prComment: true`/, name);
-    assert.match(text, /missing field or any other value authorizes no comment/, name);
-    assert.doesNotMatch(text, /TaskList|TaskCreate/, name);
+test("SKILL.md: every terminal branch reaches the strict durable PR-comment owner through publication", () => {
+  for (const chain of ["10x", "openspec"]) {
+    const skill = readRepo(`skills/${chain}-pipeline/SKILL.md`);
+    for (const name of ["done", "archive", "halt"]) {
+      const text = branch(skill, name);
+      assert.equal(countOf(text, "do the pull request step"), 1, name);
+      assert.doesNotMatch(text, /TaskList|TaskCreate/, name);
+      assert.equal(countOf(text, "prComment: true"), 0, name);
+    }
+    const owner = skill.split("## PR comment (opt-in)")[1].split("\n## ")[0];
+    assert.equal(countOf(skill, "`prComment: true`"), 1);
+    assert.match(owner, /terminal router action has `prComment: true`/);
+    assert.match(owner, /missing field or any other value authorizes no comment/);
+    assert.match(owner, /Keep that action's intent across status and archive verification calls/);
+    const publication = skill.split("## Pull request (always)")[1].split("\n## ")[0];
+    assert.ok(publication.indexOf("node $OPEN_PR") < publication.indexOf("do the PR comment step"));
+    assert.match(publication, /saved terminal intent applies even when publication skips or fails/);
+    assert.match(branch(skill, "halt"), /Before you STOP/);
   }
-  const archive = branch(skill, "archive");
-  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("verify-archive"));
-  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("do the pull request step"));
-  assert.match(branch(skill, "halt"), /Before you STOP/);
 });
 
 test("SKILL.md: PR comment section retains strict authorization and script-error fallbacks", () => {
@@ -752,7 +762,8 @@ test("SKILL.md: PR comment section retains strict authorization and script-error
     assert.match(section, /Legacy or missing intent reads false/);
     assert.match(section, /If the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error`/);
     assert.doesNotMatch(section, /100 characters|router does not/);
-    assert.match(section, /Quote the script path and the change (?:id|name) for the shell/);
+    const comment = section.split("\n## ")[0];
+    assert.match(comment, /Quote the script path(?: and the change id for the shell, and the url and the report path too|, the change name, the url and the report path for the shell)/);
     assert.ok(section.includes("PR comment: skipped, no report"));
   }
 });
@@ -781,7 +792,8 @@ test("SKILL.md: lines about the PR comment name no model, effort or tier", () =>
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const banned = /\b(sonnet|opus|haiku|fable|effort|tier|model)\b/i;
   const lines = skill.split("\n").filter((l) => /PR_COMMENT|--pr-comment|PR comment/.test(l));
-  assert.ok(lines.length >= 16, "expected the PR comment lines");
+  assert.ok(lines.length >= 12, "expected the PR comment procedure and call sites");
+  assert.ok(skill.includes('do the PR comment step under "PR comment (opt-in)"'));
   for (const line of lines) assert.doesNotMatch(line, banned, line);
 });
 

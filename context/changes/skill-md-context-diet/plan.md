@@ -253,9 +253,9 @@ The focused baseline command covering skill-loop.test.mjs, openspec-skill.test.m
 
 #### Automated
 
-- [x] 1.1 Both skills pass literal-routing-value, Tuning-path and AGENTS.md ownership checks in the existing content tests.
-- [x] 1.2 Both complete Anti-stall sections match the baseline digest and retain the six existing rules and their ordering.
-- [x] 1.3 Focused phase-1 tests pass using the focused command in Testing Strategy.
+- [x] 1.1 Both skills pass literal-routing-value, Tuning-path and AGENTS.md ownership checks in the existing content tests. — c9eb670
+- [x] 1.2 Both complete Anti-stall sections match the baseline digest and retain the six existing rules and their ordering. — c9eb670
+- [x] 1.3 Focused phase-1 tests pass using the focused command in Testing Strategy. — c9eb670
 
 #### Manual
 
@@ -265,11 +265,11 @@ The focused baseline command covering skill-loop.test.mjs, openspec-skill.test.m
 
 #### Automated
 
-- [ ] 2.1 Size and duplication guards pass with 10x at most 26,000 bytes, OpenSpec below 36,450 bytes, one late-usage command per skill and one PR-comment authorization owner per skill.
-- [ ] 2.2 All focused contract tests pass with complete Anti-stall baseline identity, dispatch/setup obligations and branch-to-procedure ordering covered.
-- [ ] 2.3 Deliberately broken scratch skill copies fail the intended guards for a missing late-usage call site, reordered archive cutoff/publication, lost opt-in protection, altered Anti-stall text, forbidden routing value and oversized 10x skill.
-- [ ] 2.4 The full required repository suite passes on Node 24+, with prerequisite-dependent skips identified and the version check passing.
-- [ ] 2.5 Implementation edits stay within owned files and preserve WAVES.md, context/archive, router-owned run state and Wave 7 sibling implementations relative to the step's recorded starting state.
+- [x] 2.1 Size and duplication guards pass with 10x at most 26,000 bytes, OpenSpec below 36,450 bytes, one late-usage command per skill and one PR-comment authorization owner per skill.
+- [x] 2.2 All focused contract tests pass with complete Anti-stall baseline identity, dispatch/setup obligations and branch-to-procedure ordering covered.
+- [x] 2.3 Deliberately broken scratch skill copies fail the intended guards for a missing late-usage call site, reordered archive cutoff/publication, lost opt-in protection, altered Anti-stall text, forbidden routing value and oversized 10x skill.
+- [x] 2.4 The full required repository suite passes on Node 24+, with prerequisite-dependent skips identified and the version check passing.
+- [x] 2.5 Implementation edits stay within owned files and preserve WAVES.md, context/archive, router-owned run state and Wave 7 sibling implementations relative to the step's recorded starting state.
 
 #### Manual
 

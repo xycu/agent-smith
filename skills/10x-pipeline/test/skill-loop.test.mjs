@@ -162,58 +162,59 @@ test("the pull request section follows ## PR comment (opt-in) and runs the scrip
   assert.ok(!text.includes("**GIVEN**"));
 });
 
-test("done, archive and halt run the pull request step before the PR comment step and before any STOP", () => {
+test("done, archive and halt reach publication before STOP, with comments owned by publication", () => {
   for (const name of ["done", "archive", "halt"]) {
     const text = branch(name);
-    const pr = text.indexOf("do the pull request step");
-    const comment = text.indexOf("do the PR comment step");
-    assert.ok(pr >= 0, `${name} has no pull request step`);
-    assert.ok(comment > pr, `${name}: the PR comment step is not after the pull request step`);
+    assert.ok(text.includes("do the pull request step"), `${name}: publication reachable`);
+    assert.ok(!text.includes("do the PR comment step"), `${name}: comment selection has one owner`);
+    assert.ok(!text.includes("prComment: true"));
   }
   const archive = branch("archive");
   assert.match(archive, /\n {2}4\. Write no result file and do not call `next`/);
   assert.match(archive, /\n {2}5\. Run `cd "<run root>" && node \$ROUTER verify-archive/);
   const step5 = archive.slice(archive.indexOf("\n  5. "));
-  assert.ok(step5.indexOf("do the pull request step") >= 0, "the pull request step is not in step 5");
-  assert.ok(step5.indexOf("do the pull request step") < step5.indexOf("On `archived: false`"), "pull request step after the STOP of archived: false");
-  assert.ok(!archive.slice(0, archive.indexOf("\n  5. ")).includes("PR comment step"), "the PR comment step is still before the move");
-  const halt = branch("halt");
-  assert.match(halt, /Before you STOP, do the pull request step\. When the terminal action has `prComment: true`/);
+  assert.ok(step5.includes("do the pull request step"));
+  assert.ok(step5.indexOf("do the pull request step") < step5.indexOf("On `archived: false`"));
+  assert.match(branch("halt"), /Before you STOP, do the pull request step/);
+  const publication = sectionOf(PR_HEADING);
+  assert.ok(publication.indexOf("node $OPEN_PR") < publication.indexOf("do the PR comment step"));
+  assert.match(publication, /saved terminal intent applies even when publication skips or fails/);
 });
 
 // ---- Late usage figure (ADR-019) -------------------------------------------------------------
 
-test("done and halt call usage before the pull request step, and archive step 1 calls it before the subagent launch", () => {
-  for (const name of ["done", "halt"]) {
+test("late usage has one owner and precedes terminal status, publication and archive launch", () => {
+  const owner = sectionOf("## Late usage (before every end)");
+  const call = "node $ROUTER usage <change-id> <n> --tokens N --tool-uses N --duration-ms N";
+  assert.equal(skill.split(call).length - 1, 1);
+  assert.ok(owner.includes(call));
+  assert.match(owner, /Usage: step <n> <attached\|not attached>/);
+  assert.match(owner, /no `orchestrator-error` result/);
+  for (const name of ["done", "halt", "archive"]) {
     const text = branch(name);
-    const call = text.indexOf("node $ROUTER usage <change-id> <n> --tokens N --tool-uses N --duration-ms N");
-    assert.ok(call >= 0, `${name} has no usage call`);
-    assert.ok(call < text.indexOf("do the pull request step"), `${name}: the usage call is not before the pull request step`);
-    assert.match(text, /Usage: step <n> <attached\|not attached>/);
-    assert.match(text, /no `orchestrator-error` result/);
+    const late = text.indexOf('follow "Late usage (before every end)"');
+    assert.ok(late >= 0, `${name}: missing late-usage call site`);
+    assert.equal(text.split('follow "Late usage (before every end)"').length - 1, 1);
+    assert.ok(late < text.indexOf("node $ROUTER status"), `${name}: late usage before status`);
+    assert.ok(late < text.indexOf("do the pull request step"), `${name}: late usage before publication`);
   }
-  const done = branch("done");
-  assert.ok(done.indexOf("node $ROUTER usage <change-id> <n>") < done.indexOf("node $ROUTER status"), "done: the usage call is not before status");
   const archive = branch("archive");
-  const call = archive.indexOf("node $ROUTER usage <change-id> <n> --tokens N");
-  assert.ok(call >= 0, "archive has no usage call");
-  assert.ok(call < archive.indexOf("node $ROUTER status"), "the usage call is not before status");
-  assert.ok(call < archive.indexOf("\n  3. Call the Agent tool"), "the usage call is not before the archive subagent launch");
-  assert.match(archive, /A figure that arrives after step 3 has launched the archive subagent is dropped\./);
+  const cutoff = archive.indexOf("A figure that arrives after step 3 has launched the archive subagent is dropped.");
+  const launch = archive.indexOf("\n  3. Call the Agent tool");
+  assert.ok(cutoff >= 0 && cutoff < launch, "archive cutoff is visible before launch");
+  assert.ok(archive.indexOf('follow "Late usage') < launch);
 });
 
 test("the run branch points at rule 3 for a figure that arrives after next, and the Rules name usage as the one way in", () => {
-  assert.match(branch("run"), /rule 3 of the anti-stall rules covers one that arrives after `next`/);
+  assert.match(branch("run"), /Rule 3 of the anti-stall rules covers one that arrives after `next`/);
   assert.match(sectionOf("## Rules"), /`usage` command is the only way to add a usage figure to a logged step/);
 });
 
 test("the argument hint and Start step 1 name --rigor with its value and the goal text", () => {
   assert.ok(lines.some((l) => l.startsWith("argument-hint:") && l.includes("[--rigor <level>]")));
-  const step = lines.find((l) => l.startsWith("1. Parse the arguments"));
-  assert.ok(step, "no Start step 1");
-  const sentence = step.split(". ").find((s) => s.includes("--rigor"));
-  assert.ok(sentence, "no --rigor sentence in step 1");
-  for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough"]) assert.ok(sentence.includes(w), w);
+  const step = skill.slice(skill.indexOf("1. Parse the arguments"), skill.indexOf("\n2. "));
+  assert.ok(step.includes("--rigor"));
+  for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough", "forward only when supplied"]) assert.ok(step.includes(w), w);
 });
 
 test("the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section", () => {
@@ -274,7 +275,9 @@ for (const [chain, text, id] of [
   });
   for (const name of ["done", "archive", "halt"]) {
     test(`${chain}: ${name} late usage recovers the earlier numbered launch, not the latest repeated step`, () => {
-      const paragraph = branch(name, text.split("\n"));
+      const callSite = branch(name, text.split("\n"));
+      assert.ok(callSite.includes('follow "Late usage (before every end)"'), `${name}: missing late-usage call site`);
+      const paragraph = text.split("## Late usage (before every end)")[1].split("\n## ")[0];
       for (const needle of [
         "Recover `<n>` from the earlier launch matched by rule 6",
         "a known agent id selects its launch and any supplied description must agree",
@@ -296,13 +299,13 @@ test("Start step 3 consumes the shared setup result and retains run safety", () 
   assert.ok(start >= 0);
   const setup = skill.slice(start, skill.indexOf("\n4. ", start));
   assert.ok(setup.includes('PREPARE_RUN="${CLAUDE_SKILL_DIR}/scripts/prepare-run.mjs"'));
-  assert.ok(setup.includes("Under Codex, take the absolute SKILL.md path"));
+  assert.ok(setup.includes("Under Codex, resolve"));
   assert.ok(setup.includes("Keep `PREPARE_RUN` absolute and quoted"));
   assert.ok(setup.includes('cd "<root>" && node "$PREPARE_RUN" <change-id>'));
   assert.ok(setup.includes("`timeout: 600000`"));
   for (const text of ["exactly one JSON object", "reason: null", "absolute `root` and `runRoot`",
-    "nonzero exit", "missing or malformed JSON", "non-null `reason`", "STOP before `init`",
-    "returned `root`", "returned `runRoot`", "not in the run (uncommitted in the main checkout)",
+    "nonzero exit", "missing/malformed JSON", "non-null `reason`", "STOP before `init`",
+    "returned `root`", "`runRoot` as `<root>` and `<run root>`", "not in the run (uncommitted in the main checkout)",
     "A resume never copies", 'cd "<run root>" && node $ROUTER', "<run root>/<resultFile>",
     "Never commit, stash, reset or clean", "refs/agent-smith/", "name their side refs",
     "List the files, check the list", "retained original paths", "before removing the worktree"]) {
@@ -320,31 +323,31 @@ for (const [chain, source, id, selector] of [
   const setup = start.slice(start.indexOf("\n3. "), start.indexOf("\n4. "));
   test(`${chain}: cleanup uses saved fresh setup after successful init and before each dispatch`, () => {
     for (const text of [
-      "Preserve the original setup JSON verbatim, independently of the cleanup response",
+      "Save original setup JSON verbatim, independently of cleanup",
       "`case: created`, `copied: true`, `reason: null`",
       "after step 4 returns `action: run`, `done` or `archive`",
-      "saved setup JSON verbatim on stdin", "Perform cleanup once for this fresh invocation",
-      "before dispatching the returned action", "first step launch for `run`",
-      "final reporting and PR handling for `done`", "archive dispatch for `archive`",
+      "saved setup JSON verbatim on stdin", "Cleanup runs once",
+      "before run launch", "run launch",
+      "done reporting/PR handling", "archive dispatch",
       "Resumes and halted initialization skip cleanup", "Parse exactly one cleanup JSON object",
       "array of path strings in `left`", "Report nonempty `left` as retained original paths",
-      "On cleanup diagnostics, nonzero exit, missing or malformed JSON or invalid fields",
-      "Keep the original initialized run root and continue", "cleanup reports `runRoot: null`",
-      "final message names the branch", "any retained original paths from `left`, and cleanup diagnostics",
+      "On diagnostics, nonzero exit, missing/malformed JSON or invalid fields",
+      "Keep the initialized run root and continue", "`runRoot: null`",
+      "name the branch", "retained original paths from `left` and cleanup diagnostics",
     ]) assert.ok(setup.includes(text), text);
     assert.ok(setup.includes(`cd "<root>" && node "$PREPARE_RUN" <${id}> --cleanup${selector}`));
     assert.match(setup, /--cleanup[^`]*` with the Bash tool and `timeout: 600000`/);
     assert.doesNotMatch(setup, /stale copy|remove or stash the main-checkout copy/);
   });
   test(`${chain}: change inputs follow root selection with original-root diagnostic fallback`, () => {
-    const selection = setup.indexOf("Keep the returned `root`");
-    const check = setup.indexOf("After successful setup selects `<run root>`");
+    const selection = setup.indexOf("Use returned `root` and `runRoot`");
+    const check = setup.indexOf("After successful setup");
     assert.ok(selection >= 0 && check > selection);
-    assert.ok(setup.slice(check).includes("under `<run root>` is missing"));
-    for (const text of ["When it reports `archived: true`", "When it lists `ambiguous` archive folders",
-      "STOP", "If setup cannot select a root", "under `<root>` is absent",
-      "Fresh-source validation precedes exclude, branch or worktree creation",
-      "after complete source cleanup reaches the existing run through setup before this check",
+    assert.match(setup.slice(check), /(?:`<run root>\/context\/changes\/.*?`|`openspec\/changes\/.*?` under `<run root>`) is missing/);
+    for (const text of ["For `archived: true`, show its path and STOP", "For `ambiguous`, list folders for user selection and STOP",
+      "STOP", "setup", "is absent",
+      "Validate fresh sources before exclude/branch/worktree creation",
+      "Setup resolves resumes before this check, even after complete source cleanup",
     ]) assert.ok(setup.includes(text), text);
     assert.ok(setup.includes(`cd "<root>" && node $ROUTER verify-archive <${id}>${selector}`));
     assert.ok(setup.includes(`cd "<run root>" && node $ROUTER verify-archive <${id}>${selector}`));
@@ -402,3 +405,77 @@ test("AGENTS assigns routing documentation to the reference for both skills", ()
   assert.match(agents, /When you change tier logic[^\n]*update the routing bullets in `docs\/REFERENCE.md`/);
   assert.doesNotMatch(agents, /update the "How the tier moves"/);
 });
+
+for (const [chain, source, ceiling] of [
+  ["10x", skill, 26000],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36449],
+]) {
+  test(`${chain}: skill byte budget and single procedure owners`, () => {
+    assert.ok(Buffer.byteLength(source, "utf8") <= ceiling, `${chain}: skill exceeds ${ceiling} bytes`);
+    assert.equal(source.split("## Late usage (before every end)").length - 1, 1);
+    assert.equal(source.split("node $ROUTER usage ").length - 1, 1);
+    assert.equal(source.split("`prComment: true`").length - 1, 1);
+    assert.equal(source.split("## PR comment (opt-in)").length - 1, 1);
+  });
+  test(`${chain}: split dispatch preserves fault, result and usage boundaries`, () => {
+    const run = branch("run", source.split("\n"));
+    for (const text of [
+      "prelaunch refusal/error unrelated to the router's `agent`", "incomplete prompt handoff",
+      "neither reply nor error", "no step subagent running", "Launch notices follow the anti-stall rules",
+      "same step/prompt without a failed attempt", "Cut-off replies are also `unknown`",
+      "Replace a child-authored `orchestrator-error` with `unknown`", "preserving other keys",
+      "Preserve all keys, including `signals`", "<subagent_tokens>N</subagent_tokens>",
+      "<tool_uses>N</tool_uses>", "<duration_ms>N</duration_ms>", "with exact figures",
+      "Omit missing usage without waiting", "foreground timeout never permits relaunch",
+      "For absent/uncertain envelopes, inspect and wait", "before result/router mutation",
+      "Runner and child must close before `next`, rollback or another launch",
+    ]) assert.ok(run.includes(text), text);
+  });
+}
+
+for (const [chain, source] of [
+  ["10x", skill],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8")],
+]) {
+  test(`${chain}: setup retains field validation and isolated final-state diagnostics`, () => {
+    const start = source.split("## Start")[1].split("## Loop")[0];
+    const setup = start.split("\n3. ")[1].split("\n4. ")[0];
+    for (const field of ["root", "runRoot", "worktree", "branch", "case", "copied", "excludeAdded", "notInRun", "left", "reason"]) {
+      assert.ok(setup.includes(`\`${field}\``), field);
+    }
+    for (const text of ["invalid fields", "array of path strings in `notInRun`", "array of path strings in `left`",
+      "committed: false", "pushed: false", "without `committed: true`", "or no JSON object",
+      "report.md", "run.jsonl", "meta.json", "before the merge and before removing the worktree",
+      "Before OpenAI launch", "fresh-child toolkit SKILL.md discovery", "Parent-session listing alone proves no child discovery",
+      "authentication, trust and Git permissions", "without creating profiles or granting trust"]) {
+      assert.ok(start.includes(text), text);
+    }
+  });
+  test(`${chain}: terminal reporting retains verdict, proof and worktree obligations`, () => {
+    const done = branch("done", source.split("\n"));
+    const archive = branch("archive", source.split("\n"));
+    const halt = branch("halt", source.split("\n"));
+    assert.ok(halt.includes("halt action's `reason`"));
+    for (const text of ["committed: false", "committed: true", "git show --stat HEAD", "Without `archive`", "Do not recover autonomously"]) assert.ok(halt.includes(text), text);
+    assert.ok(archive.includes('"not committed (ignored by git)"'));
+    assert.ok(archive.includes("assumptions"));
+    assert.ok(archive.includes("usage"));
+    assert.match(archive, /On `archived: false`.*subagent's note/);
+    if (chain === "10x") {
+      const report = source.split("## Final report")[1].split("\n## ")[0];
+      for (const text of ["reason", "steps", "saved terminal action", "status", "manualPending", "manualUnproven",
+        "uncommittedTicks", "manualUnprovenWhy", "manualNotProved", "/10x-lesson", "Start step 3", "retained-path", "uncommitted-state", "side refs"]) assert.ok(report.includes(text), text);
+      assert.ok(done.includes('follow "Final report" using the done action and status output'));
+      assert.ok(archive.includes('Follow "Final report" using the archive action\'s `summary` and status output'));
+      assert.ok(archive.includes('Repeat the "Final report" checklist from the archive action\'s `summary`'));
+    } else {
+      const report = source.split("## Final report")[1].split("\n## ")[0];
+      for (const text of ["reason", "steps", "task counts", "report", "verify.md", "saved terminal action", "status", "Start step 3"]) assert.ok(report.includes(text), text);
+      assert.ok(done.includes('follow "Final report" using the done action and status output'));
+      assert.ok(archive.includes('Follow "Final report" using the archive action\'s `summary` and status output'));
+      assert.ok(archive.includes("summary.reason"));
+      assert.ok(archive.includes("archivedAs"));
+      assert.ok(archive.includes("archive_target_exists"));
+    }
+  });
+}
