@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the Agent call fields and descriptions; router output inclusion is explicitly optional." },
+    "novelty": { "score": 1, "evidence": "Both SKILL.md files and their anti-stall rules already share the dispatch and hand-back pattern." },
+    "coupling": { "score": 2, "evidence": "The goal spans both skills, the router output option, shared docs, ADR-018 and skill-content tests." },
+    "discovery": { "score": 1, "evidence": "The goal and Wave 4 row name the skill regions, while change.md names the docs and tests to inspect." },
+    "volume": { "score": 2, "evidence": "change.md identifies two skills, two documentation sources and three test files, plus optional router output." },
+    "verification": { "score": 2, "evidence": "change.md requires a live Claude run for usage correlation, which is external to the automated skill-content checks." }
+  },
+  "unknowns": ["Current live Claude Code acceptance is unavailable in this unattended scoring context."],
+  "confidence": "medium"
+}
