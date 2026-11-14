@@ -1,0 +1,27 @@
+Test files: skills/10x-pipeline/test/skill-loop.test.mjs and skills/openspec-pipeline/test/openspec-skill.test.mjs
+Test name: frontmatter requires explicit invocation and preserves user invocation (both files)
+Scope: supporting static contract proof only. Manual row 1.6 requires fresh Claude Code sessions and observed transcripts.
+Command: node --test --test-reporter=tap --test-name-pattern="frontmatter requires explicit invocation and preserves user invocation" skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs
+
+TAP version 13
+# Subtest: frontmatter requires explicit invocation and preserves user invocation
+ok 1 - frontmatter requires explicit invocation and preserves user invocation
+  ---
+  duration_ms: 3.712209
+  type: 'test'
+  ...
+# Subtest: frontmatter requires explicit invocation and preserves user invocation
+ok 2 - frontmatter requires explicit invocation and preserves user invocation
+  ---
+  duration_ms: 1.241833
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 92.257208

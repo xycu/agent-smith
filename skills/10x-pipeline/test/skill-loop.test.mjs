@@ -11,6 +11,49 @@ const DEFAULT_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const skill = fs.readFileSync(process.env.SKILL_PATH || DEFAULT_PATH, "utf8");
 const lines = skill.split("\n");
 
+test("frontmatter requires explicit invocation and preserves user invocation", () => {
+  assert.equal(lines[0], "---", "frontmatter opens on line 1");
+  const end = lines.indexOf("---", 1);
+  assert.ok(end > 0, "frontmatter closes");
+  const block = lines.slice(1, end).join("\n");
+  assert.equal([...block.matchAll(/^disable-model-invocation:/gm)].length, 1);
+  assert.match(block, /^disable-model-invocation: true$/m);
+  assert.doesNotMatch(block, /^user-invocable:/m);
+  assert.match(block, /^name: 10x-pipeline$/m);
+  const description = block.match(/^description: >\n((?:[ \t]+[^\n]*\n?)+)/m)?.[1];
+  assert.ok(description, "folded description exists");
+  assert.match(description, /10xDevs/);
+  assert.match(description, /explicit.*\/agent-smith:10x-pipeline/s);
+});
+
+const REPO_ROOT = path.resolve(path.dirname(DEFAULT_PATH), "../..");
+const readme = fs.readFileSync(path.join(REPO_ROOT, "README.md"), "utf8");
+
+test("plugin descriptions agree on the explicit pipeline entry point", () => {
+  const plugin = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, ".claude-plugin/plugin.json"), "utf8"));
+  const marketplace = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, ".claude-plugin/marketplace.json"), "utf8"));
+  assert.equal(plugin.description, marketplace.plugins[0].description);
+  for (const pattern of [/10xDevs/, /OpenSpec/, /explicit slash commands/, /model and effort/]) {
+    assert.match(plugin.description, pattern);
+  }
+});
+
+test("README records Claude Code invocation compatibility and acceptance limits", () => {
+  const start = readme.indexOf("### Claude Code invocation");
+  assert.ok(start >= 0, "invocation guidance exists");
+  const guidance = readme.slice(start, readme.indexOf("\n## ", start));
+  for (const text of [
+    "/agent-smith:10x-pipeline", "/agent-smith:openspec-pipeline",
+    "disable-model-invocation: true", "pipeline this change", "claude -p", "/loop",
+    "plain text", "Skill tool", "current user message", "after prose",
+    "background work", "idle ceiling", "historical", "unverified", "pending",
+    "https://code.claude.com/docs/en/skills#control-who-invokes-a-skill",
+    "https://code.claude.com/docs/en/skills#where-you-write-the-skills-name",
+    "https://code.claude.com/docs/en/headless#background-tasks-at-exit",
+    "https://code.claude.com/docs/en/scheduled-tasks#run-a-prompt-repeatedly-with-loop",
+  ]) assert.ok(guidance.includes(text), text);
+});
+
 const HEADING = "## Anti-stall rules";
 
 // The section: from its heading to the next `## ` heading.

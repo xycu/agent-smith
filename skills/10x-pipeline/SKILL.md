@@ -1,11 +1,10 @@
 ---
 name: 10x-pipeline
 description: >
-  Run a change end to end (plan, plan review, implement, implementation review, fix)
-  with each step in its own subagent. A bundled router picks the next step and its
-  model and effort from the previous results: review verdicts, finding counts,
-  plan size, failed attempts. Use when the user wants an orchestrated or adaptive
-  10x run, "run the whole chain", "pipeline this change", or dynamic model routing.
+  Run a 10xDevs change end to end by explicit /agent-smith:10x-pipeline command.
+  Plan, review, implement and fix in separate subagents, with a bundled router
+  selecting each step, model and effort from earlier results.
+disable-model-invocation: true
 argument-hint: <change-id> [goal text] [--archive] [--chrome false] [--rigor <level>] [--pr-comment]
 allowed-tools:
   - Agent

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "The goal and context/changes/skills-disable-model-invocation/change.md specify the explicit slash-command choice and target files." },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/test/skill-loop.test.mjs and skills/openspec-pipeline/test/openspec-skill.test.mjs already test skill structure and frontmatter." },
+    "coupling": { "score": 2, "evidence": "The behavior spans both public skill definitions, aligned plugin and README descriptions, tests, and invocation documentation." },
+    "discovery": { "score": 2, "evidence": "The change brief names skill and test files; checking invocation relies on other skills and headless usage requires repository searches." },
+    "volume": { "score": 2, "evidence": "The brief calls for edits across two skills, manifests and README, two test files, and invocation evidence documentation." },
+    "verification": { "score": 2, "evidence": "Existing frontmatter tests cover config while slash-command behavior needs a manual Claude Code check documented in the change brief." }
+  },
+  "unknowns": [
+    "Whether slash invocation, /loop, or other Skill-tool callers behave identically with disable-model-invocation in supported Claude Code versions; the repository cannot prove host behavior."
+  ],
+  "confidence": "medium"
+}

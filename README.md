@@ -4,7 +4,7 @@
 
 🚀 **Ship whole changes with AI, not one prompt at a time.**
 
-A Claude Code plugin that runs your [10xDevs](https://10xdevs.pl) or [OpenSpec](https://github.com/Fission-AI/OpenSpec) workflow end to end: plan, review, implement, verify, fix. One command, every step in its own subagent, on the right model.
+A Claude Code plugin that runs 10xDevs and OpenSpec workflows end to end through explicit slash commands. Each step runs in its own subagent, with model and effort routing based on earlier results. [10xDevs](https://10xdevs.pl) · [OpenSpec](https://github.com/Fission-AI/OpenSpec)
 
 ## ✨ Why you'll love it
 
@@ -68,6 +68,22 @@ Needs: the skills `openspec-propose`, `openspec-apply-change` and `openspec-veri
 Needs: the skills `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-impl-review`, Node.js 24+ and `git`.
 
 💡 Each run works in its own worktree on the branch `agent-smith/<change-id>`, and ends with that branch pushed and a pull request open for human review. agent-smith never merges it. Needs a `github.com` remote and `gh` for the pull request. Running without a worktree (no push, no pull request): see [Run isolation](docs/REFERENCE.md).
+
+### Claude Code invocation
+
+Start deliberately with `/agent-smith:10x-pipeline <change-id>` or `/agent-smith:openspec-pipeline <change-name>`. Both skills set `disable-model-invocation: true` so you control when the side-effecting run starts. Claude Code keeps their descriptions out of model context and disables automatic loading from plain-language requests such as `pipeline this change`. Direct user commands remain available. These invocation controls are Claude Code-specific. [Invocation control](https://code.claude.com/docs/en/skills#control-who-invokes-a-skill)
+
+| Entry point for either pipeline | Documented behavior |
+| --- | --- |
+| Direct slash command | Loads the selected skill. |
+| Plain-language request | Automatic loading is disabled. |
+| `claude -p "/agent-smith:10x-pipeline <change-id>"` or the OpenSpec equivalent | Expands the user-invoked skill command in print mode. |
+| `/loop 5m /agent-smith:10x-pipeline <change-id>` or the OpenSpec equivalent | A scheduled fire delivers the prompt as plain text with automatic skill expansion disabled. |
+| Another skill using the Skill tool | Requires the matching slash command as a separate word in the current user message. |
+
+A matching command at the start of the message invokes the skill directly. A separate command word after prose authorizes Claude to call it through the Skill tool for that message. Integrations need that current-message authorization. [Command placement](https://code.claude.com/docs/en/skills#where-you-write-the-skills-name)
+
+These compatibility statements follow Anthropic documentation reviewed on 2026-11-14. Print mode supports user-invoked skill commands and waits for background work subject to an idle ceiling. The reference's immediate-exit prediction is historical and explicitly unverified. Version-specific live invocation acceptance and full headless pipeline completion remain pending. [Headless commands](https://code.claude.com/docs/en/headless) · [Background tasks at exit](https://code.claude.com/docs/en/headless#background-tasks-at-exit) · [Scheduled prompts](https://code.claude.com/docs/en/scheduled-tasks#run-a-prompt-repeatedly-with-loop) · [Historical hypothesis](docs/REFERENCE.md)
 
 ## 🎛️ Options
 

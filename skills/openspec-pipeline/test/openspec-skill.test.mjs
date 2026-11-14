@@ -73,6 +73,16 @@ test("frontmatter names the skill openspec-pipeline with its argument hint", () 
   assert.equal(fields.name, "openspec-pipeline");
   assert.equal(fields["argument-hint"], "<change-name> [goal text] [--archive] [--rigor <level>] [--pr-comment]");
   assert.match(fields.description, /OpenSpec/);
+  assert.match(fields.description, /explicit.*\/agent-smith:openspec-pipeline/);
+});
+
+test("frontmatter requires explicit invocation and preserves user invocation", () => {
+  const fields = frontmatter();
+  const block = lines.slice(1, lines.indexOf("---", 1)).join("\n");
+  assert.equal([...block.matchAll(/^disable-model-invocation:/gm)].length, 1);
+  assert.match(block, /^disable-model-invocation: true$/m);
+  assert.equal(fields["disable-model-invocation"], "true");
+  assert.equal(Object.hasOwn(fields, "user-invocable"), false);
 });
 
 test("the router is the shared 10x-pipeline route.mjs, and it exists next to the skill folder", () => {

@@ -11,7 +11,7 @@
     {
       "name": "agent-smith",
       "source": "./",
-      "description": "Orchestrates AI SDLC skill chains (10xDevs and OpenSpec) with dynamic model and effort routing"
+      "description": "Run 10xDevs and OpenSpec workflows through explicit slash commands, with each step in its own subagent and model and effort routing based on earlier results."
     }
   ]
 }
