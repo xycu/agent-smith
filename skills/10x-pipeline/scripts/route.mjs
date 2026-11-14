@@ -21,7 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import {
-  ROOT, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
+  ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
   providerOf, hostOf, hostProblem, dispatchTarget,
@@ -899,6 +899,9 @@ function main() {
   // --chain is checked before anything is read.
   if (flags.chain !== undefined && !CHAINS.includes(flags.chain)) {
     halt(`Invalid --chain ${flags.chain === true ? "(no value)" : flags.chain}. Use one of: ${CHAINS.join(", ")}.`);
+  }
+  if (cmd === "init" && !ID_RE.test(id)) {
+    halt(`Change id ${id} exceeds the maximum of 100 characters for init. Nothing was written.`);
   }
   if (flags.host !== undefined && (cmd !== "init" || !["claude", "codex"].includes(flags.host))) {
     halt("--host is an init option and needs claude or codex. Nothing was written.");

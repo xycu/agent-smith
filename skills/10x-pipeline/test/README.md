@@ -8,6 +8,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 
 | File | Scope |
 | --- | --- |
+| `change-id.test.mjs` | Both-chain init boundaries, pre-read refusal, PR-pattern parity and legacy longer-id command compatibility |
 | `route.test.mjs` | `init`, `next`, `status` and the main routing paths |
 | `churn.test.mjs` | `risk` command: churn hot paths, plan hits and diff hits |
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |

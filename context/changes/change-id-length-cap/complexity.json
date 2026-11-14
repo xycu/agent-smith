@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 0,
+      "evidence": "context/changes/change-id-length-cap/change.md fixes the 100-character init limit, pre-read rejection, both-chain boundaries, parity, documentation and continued inspection of longer ids."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "skills/10x-pipeline/scripts/pr-common.mjs already defines the capped ID_RE, and skills/10x-pipeline/test/coauthor.test.mjs supplies the independent-rule parity pattern."
+    },
+    "coupling": {
+      "score": 3,
+      "evidence": "skills/10x-pipeline/scripts/route.mjs exposes a shared public CLI for both chains, so init validation must preserve existing longer-id access through other commands and match both PR scripts."
+    },
+    "discovery": {
+      "score": 1,
+      "evidence": "change.md names route.mjs, state.mjs, pr-common.mjs, both skills and documentation; context/changes/WAVES.md identifies Wave 6 regions and shared-text exceptions."
+    },
+    "volume": {
+      "score": 2,
+      "evidence": "change.md requires edits across state.mjs, route.mjs, two SKILL.md files, README.md, docs/REFERENCE.md and boundary/parity tests, fitting 4 to 10 files with existing test files."
+    },
+    "verification": {
+      "score": 1,
+      "evidence": "skills/10x-pipeline/test/route.test.mjs and skills/openspec-pipeline/test/openspec-chain.test.mjs already drive the real CLI; add 100/101 boundaries, unchanged-project rejection, legacy inspection and ID_RE parity checks."
+    }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

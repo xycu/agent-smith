@@ -745,14 +745,36 @@ test("SKILL.md: every terminal branch requires strict durable PR-comment intent"
 });
 
 test("SKILL.md: PR comment section retains strict authorization and script-error fallbacks", () => {
-  const skill = readRepo("skills/10x-pipeline/SKILL.md");
-  const section = skill.slice(skill.indexOf("## PR comment (opt-in)"), skill.indexOf("## Rules"));
-  assert.match(section, /terminal router action has `prComment: true`/);
-  assert.match(section, /Legacy or missing intent reads false/);
-  assert.ok(section.includes("PR comment: skipped, script error"));
-  assert.ok(section.includes("100 characters"));
-  assert.match(section, /Quote the script path and the change id for the shell/);
-  assert.ok(section.includes("PR comment: skipped, no report"));
+  for (const chain of ["10x", "openspec"]) {
+    const skill = readRepo(`skills/${chain}-pipeline/SKILL.md`);
+    const section = skill.slice(skill.indexOf("## PR comment (opt-in)"), skill.indexOf("## Rules"));
+    assert.match(section, /terminal router action has `prComment: true`/);
+    assert.match(section, /Legacy or missing intent reads false/);
+    assert.match(section, /If the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error`/);
+    assert.doesNotMatch(section, /100 characters|router does not/);
+    assert.match(section, /Quote the script path and the change (?:id|name) for the shell/);
+    assert.ok(section.includes("PR comment: skipped, no report"));
+  }
+});
+
+test("public guidance documents both-chain init limits and legacy command access", () => {
+  for (const file of ["README.md", "docs/REFERENCE.md"]) {
+    const text = readRepo(file);
+    assert.match(text, /For both (?:chains|the 10x and OpenSpec chains)/);
+    assert.ok(text.includes("1–100 characters"), file);
+    assert.ok(text.includes("lowercase letters, digits and hyphens, starting with a letter or digit"), file);
+  }
+  const reference = readRepo("docs/REFERENCE.md");
+  assert.match(reference, /`init` accepts change ids or names of 1–100 characters/);
+  assert.match(reference, /halts with exit 1 before project filesystem reads or writes/);
+  assert.match(reference, /including when resuming an existing run with `init`/);
+  const legacy = reference.split("\n").find((line) => line.includes("Existing longer-id runs remain accessible"));
+  for (const command of ["next", "status", "status --report", "risk", "usage", "verify-archive", "compare"]) {
+    assert.ok(legacy?.includes(`\`${command}\``), command);
+  }
+  assert.match(reference, /PR scripts accept change ids of at most 100 characters/);
+  assert.match(reference, /legacy longer-id run still exceeds the PR scripts’ limit/);
+  assert.doesNotMatch(reference, /router has no such limit/i);
 });
 
 test("SKILL.md: lines about the PR comment name no model, effort or tier", () => {

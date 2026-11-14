@@ -1,9 +1,9 @@
 ---
 change_id: change-id-length-cap
 title: Refuse a change id longer than 100 characters at init
-status: new
+status: impl_reviewed
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 archived_at: null
 ---
 

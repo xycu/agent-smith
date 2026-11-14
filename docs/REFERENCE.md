@@ -2,6 +2,8 @@
 
 Full behavior of `/agent-smith:10x-pipeline`: routing, run isolation, review routing, rigor, archive, pre-plan steps, budget, executors, manual verification, scoring, reports, comparison, provenance, opt-in features and limits. The OpenSpec chain, `/agent-smith:openspec-pipeline`, has its own section at the end; everything it does not name works as in the 10x chain. For install and a first run, see the [README](../README.md). Decisions and their reasons are in [`docs/ADR/`](ADR/).
 
+For both the 10x and OpenSpec chains, `init` accepts change ids or names of 1–100 characters using lowercase letters, digits and hyphens, starting with a letter or digit. An otherwise valid id longer than 100 characters halts with exit 1 before project filesystem reads or writes, including when resuming an existing run with `init`. Existing longer-id runs remain accessible through `next`, `status`, `status --report`, `risk`, `usage`, `verify-archive` and `compare`, subject to each command’s state requirements.
+
 ## Codex and provider dispatch
 
 Both chain skills share the router and a standalone `scripts/run-codex.mjs` execution boundary (ADR-024). Claude Code hosts Claude or mixed ladders. Codex hosts OpenAI-only ladders. `init --host claude|codex` stores the host permanently for a run. Omitted host/provider fields in old state read as Claude. A conflicting resume or incompatible mutable policy halts before dispatch.
@@ -492,7 +494,7 @@ PR comment (opt-in):
 - Mentions such as `@name` in the report get a zero-width space after the `@`, so nobody is notified. A body over 60000 UTF-16 code units is cut and says how many characters were omitted.
 - Nothing is written to the change folder, so `report.md` cannot say whether it was posted. The result is in the final message only.
 - A report with a `Cost (estimate)` line (see "Cost estimate") posts the dollar estimate to the pull request like any other report text.
-- A change id is at most 100 characters for the script (the marker must fit in the comment head). The router has no such limit, so a longer id ends in `PR comment: skipped, script error`.
+- The PR scripts accept change ids of at most 100 characters (the marker must fit in the comment head). Both chains enforce this limit at `init`. A legacy longer-id run still exceeds the PR scripts’ limit and ends in `PR comment: skipped, script error` when the comment script is called.
 - A run that ended before the pull request existed: open the pull request, check out its branch and run `node <plugin>/skills/10x-pipeline/scripts/pr-comment.mjs <change-id> [--report context/archive/<date>-<change-id>/agent-smith/report.md]` from the project root. The comment goes to the pull request of the branch checked out now, so run it from the branch of that pull request. The result prints the pull request url. `--report` accepts only a file named `report.md` inside a directory named `agent-smith`, whose first line is `# Run report: <change-id>`.
 
 ## `/agent-smith:openspec-pipeline <change-name> [goal] [--archive] [--rigor <level>] [--pr-comment]`
