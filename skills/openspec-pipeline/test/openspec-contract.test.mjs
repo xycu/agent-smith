@@ -2,7 +2,7 @@
 // OpenSpec CLI reports for it. For each fixture, `status --chain openspec` is compared with
 // `openspec instructions apply --change <id> --json`: planningComplete equals `state !== "blocked"`, and the task
 // counts equal progress.total and progress.complete. Only this test runs the CLI; the router never does.
-// The binary is OPENSPEC_BIN or `openspec`; every test skips when it does not start.
+// The binary is OPENSPEC_BIN or `openspec`; a failed probe throws in nonempty CI and skips fixtures locally.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -15,9 +15,12 @@ const BIN = process.env.OPENSPEC_BIN ?? "openspec";
 
 function probe() {
   const res = spawnSync(BIN, ["--version"], { encoding: "utf8", timeout: 20000 });
-  if (res.error) return `${BIN} does not start (${res.error.code ?? res.error.message})`;
-  if (res.status !== 0) return `${BIN} --version exited ${res.status}`;
-  return false;
+  let reason = false;
+  if (res.error) reason = `${BIN} does not start (${res.error.code ?? res.error.message})`;
+  else if (res.signal) reason = `${BIN} --version was killed by ${res.signal}`;
+  else if (res.status !== 0) reason = `${BIN} --version exited ${res.status}`;
+  if (reason && process.env.CI) throw new Error(reason);
+  return reason;
 }
 const skip = probe();
 

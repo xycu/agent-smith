@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "The goal and change.md fix the outcome and owner-approved OpenSpec CLI path; the remaining expected CI skips are enumerated in change.md under Evidence." },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/test/helpers.mjs already owns the Git availability probe, and skills/openspec-pipeline/test/openspec-contract.test.mjs already probes the CLI and skips locally." },
+    "coupling": { "score": 2, "evidence": "Wave 5 assigns .github/workflows/ci.yml and both probes; gitAvailable in skills/10x-pipeline/test/helpers.mjs has many test-file callers." },
+    "discovery": { "score": 1, "evidence": "context/changes/WAVES.md identifies the ownership, and the moved OpenSpec contract test is located by one search under skills/openspec-pipeline/test/." },
+    "volume": { "score": 2, "evidence": "The change spans the CI workflow, shared test helper, moved OpenSpec contract test, and focused probe coverage or skip accounting: several files and moderate edits." },
+    "verification": { "score": 2, "evidence": "Existing Node tests cover the probes, but acceptance also requires CI to install the pinned CLI and demonstrate the expected remaining skipped tests." }
+  },
+  "unknowns": [],
+  "confidence": "medium"
+}

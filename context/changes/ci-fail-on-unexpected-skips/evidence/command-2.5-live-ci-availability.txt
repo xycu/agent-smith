@@ -1,0 +1,23 @@
+Read-only GitHub checks for Manual row 2.5, performed 2026-11-14.
+
+$ git branch --show-current
+exit 0
+agent-smith/ci-fail-on-unexpected-skips
+
+
+$ git rev-parse HEAD
+exit 0
+9ec41fc76eaddb490e4ddb2b2681f0920c29b92e
+
+
+$ gh pr list --repo xycu/agent-smith --state all --head agent-smith/ci-fail-on-unexpected-skips --json number,url,headRefOid,isCrossRepository,state
+exit 0
+[]
+
+
+$ gh run list --repo xycu/agent-smith --workflow ci.yml --branch agent-smith/ci-fail-on-unexpected-skips --limit 100 --json databaseId,headBranch,headSha,event,status,conclusion,url
+exit 0
+[]
+
+
+Row 2.5 remains pending. No pull request or CI run exists for this branch. A live same-repository PR run on the non-root TrueNAS runner is required to verify the pinned CLI version, all five contract fixtures, both permission checks and the conditional skip inventory. Creating that run requires external writes prohibited in this manual-verification step.
