@@ -36,6 +36,8 @@ jobs:
         with:
           node-version: 24
       - name: Test suite
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
       - name: Check version fields are in lockstep
         run: node tools/version-check.mjs

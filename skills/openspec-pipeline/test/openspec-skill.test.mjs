@@ -264,6 +264,12 @@ test("the Bash timeout line names the three scripts and `timeout: 600000`, outsi
   assert.equal(hits[0], tenx.find((l) => l.startsWith("Bash timeout: ")));
 });
 
+test("archive reuses dispatch with its archive description override", () => {
+  assert.match(branch("archive"), /Call the Agent tool with the same parameters as for `run`/);
+  assert.ok(branch("run").includes('description: "agent-smith <change-name> step <n> <step>"'));
+  assert.ok(branch("run").includes("override the description with `agent-smith <change-name> archive`"));
+});
+
 // OpenSpec consumes the same setup owner with its chain selector.
 test("Start step 3 consumes shared OpenSpec setup and retains run safety", () => {
   const start = skill.indexOf("\n3. Prepare run isolation");

@@ -11,7 +11,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, writeReview, writeLog, writeMetaFile, readMetaFile, entry, init, run,
+  cleanEnv, cleanupAll, makeProject, planText, writeReview, writeLog, writeMetaFile, readMetaFile, entry, init, run,
   gitAvailable, gitEnv, gitInit, commitFiles, ruleTail as expectedTail,
 } from "./helpers.mjs";
 import { makeOpenspecProject, initOpenspec } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -84,7 +84,7 @@ function pluginCopy() {
 }
 
 function runCopy(copy, project, args) {
-  const res = spawnSync(process.execPath, [copy.route, ...args], { cwd: project.root, encoding: "utf8", env: process.env });
+  const res = spawnSync(process.execPath, [copy.route, ...args], { cwd: project.root, encoding: "utf8", env: cleanEnv() });
   let json = null;
   try { json = JSON.parse(res.stdout); } catch { /* leave null */ }
   return { status: res.status, json, stdout: res.stdout };

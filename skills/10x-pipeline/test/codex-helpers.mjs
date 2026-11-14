@@ -36,8 +36,12 @@ process.stdin.on("end", async () => {
   if (mode.hold) {
     fs.writeFileSync(path.join(fixture, "ready"), String(process.pid));
     await new Promise(resolve => {
-      process.on("SIGTERM", () => { fs.writeFileSync(path.join(fixture, "terminating"), "yes"); setTimeout(resolve, mode.closeDelay ?? 200); });
-      process.on("SIGINT", () => { fs.writeFileSync(path.join(fixture, "terminating"), "yes"); setTimeout(resolve, mode.closeDelay ?? 200); });
+      const terminate = () => {
+        fs.writeFileSync(path.join(fixture, "terminating"), "yes");
+        if (!mode.holdUntilRelease) setTimeout(resolve, mode.closeDelay ?? 200);
+      };
+      process.on("SIGTERM", terminate);
+      process.on("SIGINT", terminate);
       const timer = setInterval(() => {
         if (fs.existsSync(path.join(fixture, "release"))) { clearInterval(timer); resolve(); }
       }, 10);

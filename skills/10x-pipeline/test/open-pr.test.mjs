@@ -16,6 +16,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { buildBody, markerFor, parseRepo, pathsToStage, prTitleFor, titleFor } from "../scripts/open-pr.mjs";
 import { TYPES, lintSubject } from "../../../tools/commit-lint.mjs";
+import { cleanEnv } from "./helpers.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/open-pr.mjs");
@@ -68,7 +69,7 @@ const CHANGE_MD = "---\nchange_id: demo\ntitle: Demo title\nstatus: implementing
 
 function envFor(w) {
   return {
-    ...process.env,
+    ...cleanEnv(),
     HOME: w.base,
     GIT_CONFIG_GLOBAL: os.devNull,
     GIT_CONFIG_SYSTEM: os.devNull,

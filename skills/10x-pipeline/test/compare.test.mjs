@@ -563,6 +563,101 @@ test("2.1 failed attempts and the plan size are reported per side, in JSON and M
   assert.ok(md.includes("| Source | changes | changes |"), md);
 });
 
+test("2.1 advisory score and fallback failures are neutral on either compare arm", () => {
+  const scored = side();
+  writeLog(scored, [
+    entry(1, "score", { advisory: true, ok: false, model: "haiku", effort: "low", usage: { totalTokens: 5 } }),
+    entry(2, "implement", { ok: false, usage: { totalTokens: 40 } }),
+    entry(3, "implement", { fallback: true, ok: false, usage: { totalTokens: 20 } }),
+  ]);
+  const ordinary = side({ totals: [100], over: { ok: false } });
+  for (const [routed, baseline] of [[scored, ordinary], [ordinary, scored]]) {
+    const res = compare(routed, baseline, ["--unpinned"]);
+    assert.equal(res.status, 0, res.stderr);
+    assert.equal(res.json.comparable, true);
+    assert.equal(res.json.routed.failedAttempts, 1);
+    assert.equal(res.json.baseline.failedAttempts, 1);
+    const name = routed === scored ? "routed" : "baseline";
+    assert.equal(res.json[name].tokens.total, 65);
+    assert.equal(res.json[name].tokens.stepsWithFigures, 3);
+    const md = compare(routed, baseline, ["--unpinned", "--format", "md"]);
+    assert.equal(md.status, 0, md.stderr);
+    assert.ok(md.stdout.includes("| Failed attempts | 1 | 1 |"), md.stdout);
+  }
+});
+
+test("2.1 compare classifies cheap, legacy, successful, pending and skipped entries", () => {
+  const baseline = side({ totals: [100] });
+  const cases = [
+    ["cheap failure", { ok: false, cheap: true }, 1],
+    ["cheap fallback", { ok: false, cheap: true, fallback: true }, 0],
+    ["legacy failure", { ok: false }, 1],
+    ["success", { ok: true }, 0],
+    ["pending", { ok: undefined, result: undefined, finishedAt: undefined }, 0],
+    ["skipped", { skipped: true, ok: false }, 0],
+  ];
+  for (const [label, over, expected] of cases) {
+    const routed = side();
+    writeLog(routed, [
+      entry(1, "plan", { usage: { totalTokens: 10 } }),
+      entry(2, "implement", { usage: { totalTokens: 20 }, ...over }),
+    ]);
+    const res = compare(routed, baseline);
+    assert.equal(res.status, 0, res.stderr);
+    assert.equal(res.json.routed.failedAttempts, expected, label);
+    assert.equal(res.json.routed.steps, label === "skipped" ? 1 : 2, label);
+    const md = compare(routed, baseline, ["--format", "md"]);
+    assert.equal(md.status, 0, md.stderr);
+    assert.ok(md.stdout.includes(`| Failed attempts | 0 | ${expected} |`), label);
+  }
+});
+
+test("2.1 pinned baseline keeps ordinary failures, token totals and verdict", () => {
+  const baseline = side();
+  writeLog(baseline, [
+    entry(1, "plan", { usage: { totalTokens: 400 } }),
+    entry(2, "implement", { ok: false, usage: { totalTokens: 100 } }),
+    entry(3, "implement", { usage: { totalTokens: 500 } }),
+  ]);
+  const routed = side({ totals: [600], policy: targetPolicy(30) });
+  const res = compare(routed, baseline);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.baseline.failedAttempts, 1);
+  assert.equal(res.json.routed.failedAttempts, 0);
+  assert.equal(res.json.pinned, true);
+  assert.equal(res.json.comparable, true);
+  assert.deepEqual(res.json.reasons, []);
+  assert.equal(res.json.baseline.tokens.total, 1000);
+  assert.equal(res.json.routed.tokens.total, 600);
+  assert.equal(res.json.dropPercent, 40);
+  assert.equal(res.json.verdict, "met");
+  const md = compare(routed, baseline, ["--format", "md"]);
+  assert.equal(md.status, 0, md.stderr);
+  for (const text of ["| Failed attempts | 1 | 0 |", "| Tokens | 1000 (3 of 3) | 600 (1 of 1) |", "Verdict: met"]) {
+    assert.ok(md.stdout.includes(text), md.stdout);
+  }
+});
+
+test("2.3 neutral advisory failure still requires usage on either compare arm", () => {
+  const scored = side();
+  writeLog(scored, [entry(1, "score", { advisory: true, ok: false })]);
+  const complete = side({ totals: [100] });
+  for (const [routed, baseline] of [[scored, complete], [complete, scored]]) {
+    const name = routed === scored ? "routed" : "baseline";
+    const res = compare(routed, baseline, ["--unpinned"]);
+    assert.equal(res.status, 0, res.stderr);
+    assert.equal(res.json[name].failedAttempts, 0);
+    assert.equal(res.json[name].steps, 1);
+    assert.equal(res.json[name].tokens.stepsWithFigures, 0);
+    assert.equal(res.json.comparable, false);
+    assert.deepEqual(res.json.reasons, [`usage-incomplete:${name}`]);
+    const md = compare(routed, baseline, ["--unpinned", "--format", "md"]);
+    assert.equal(md.status, 0, md.stderr);
+    assert.ok(md.stdout.includes("| Failed attempts | 0 | 0 |"), md.stdout);
+    assert.ok(md.stdout.includes(`usage-incomplete:${name}`), md.stdout);
+  }
+});
+
 test("2.3 a token sum past the safe-integer range is a missing figure, not an inexact total", () => {
   const huge = side({ totals: [100] });
   writeLog(huge, [
@@ -730,13 +825,14 @@ test("4.3 tokens.byTier sums per model and effort, beside byModel, in JSON and M
   assert.deepEqual(t.byTier, { "haiku/low": 12, "opus/high": 100, "sonnet/medium": 40, "sonnet/high": 50, "sonnet/unknown": 1 });
   assert.deepEqual(t.byModel, { haiku: 12, opus: 100, sonnet: 91 });
   assert.deepEqual(res.json.baseline.tokens.byTier, { "sonnet/high": 1000 });
-  // Failed score attempts still count as failed attempts.
-  assert.equal(res.json.routed.failedAttempts, 1);
+  // Failed advisory scores are neutral and their tokens remain in both splits.
+  assert.equal(res.json.routed.failedAttempts, 0);
 
   const md = compare(routed, baseline, ["--unpinned", "--format", "md"]).stdout;
   for (const text of [
     "Tokens by model, baseline: sonnet 1000",
     "Tokens by model, routed: haiku 12, opus 100, sonnet 91",
+    "| Failed attempts | 0 | 0 |",
     "Tokens by tier, baseline: sonnet/high 1000",
     "Tokens by tier, routed: haiku/low 12, opus/high 100, sonnet/high 50, sonnet/medium 40, sonnet/unknown 1",
   ]) assert.ok(md.includes(text), `${text}\n${md}`);

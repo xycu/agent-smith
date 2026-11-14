@@ -13,12 +13,13 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |
 | `rules.test.mjs` | rule form of every prompt and rule file (GIVEN/WHEN/THEN, one RFC 2119 keyword; ADR-004) |
 | `rule-levels.test.mjs` | rule levels (ADR-023): the order after the template (chain defaults, suffix, step file, chain file, `rules/top.md`), a suffix override keeps `top.md`, `ruleTail` on a scratch rule tree, the halts on a missing or unreadable rule file, the archive prompts of both chains, the placeholder limits, the `ruleFiles` provenance section and the precedence rules. A test that changes a rule file uses a scratch copy of the plugin tree |
-| `compare.test.mjs` | `compare`: totals, coverage, tokens by model and tier, verdict, `--unpinned` |
+| `compare.test.mjs` | `compare`: totals, coverage, tokens by model and tier, verdict, `--unpinned`, failure classification in JSON and Markdown |
 | `lessons.test.mjs` | lesson candidates: sanitizer, report section, prompt wiring |
 | `at-or-above.test.mjs` | `atOrAbove` rigor comparison; an unknown level fails closed |
 | `override-json.test.mjs` | a project override that does not parse, or is not an object, halts every command with the file name; a missing file is no override |
 | `file-guard.test.mjs` | `guardedStat`, `readGuarded` and `planFileTokens` of `state.mjs`, and two symlink cases of their callers (a symlinked score file, a symlinked evidence file); calls the modules directly |
 | `provenance.test.mjs` | run provenance: the record in `meta.json`, hash stability, drift, legacy runs, `compare` warnings. A test that changes a plugin file copies the plugin tree to a scratch directory and spawns the copy's `route.mjs`; it never edits a repository file |
+| `helpers-env.test.mjs` | inherited Git prefix stripping, fixture override precedence and hostile child suites with byte-identical victim repositories |
 | `helpers-timeout.test.mjs` | the `run` and `git` helpers of `helpers.mjs` time out or die on a signal and throw a clear error naming the command; the fast path keeps its return shape |
 
 ## Pre-plan steps and loops
@@ -94,7 +95,7 @@ The OpenSpec tests and `openspec-helpers.mjs` live in `skills/openspec-pipeline/
 
 ## Helpers
 
-- `helpers.mjs`: scratch projects, `run.jsonl` fixtures, hermetic git. `run` and `git` time out after `SPAWN_TIMEOUT_MS` (120000 ms) and throw when the spawn fails. It stays as it was except `writeOverride(project, policy)`, which `makeProject` always calls and which adds `score: { minRigor: null }`, `isolation: { require: false }` and `manualVerify: { minRigor: null }` unless the test gives its own key (so existing tests keep `plan` as the first step and run in a plain scratch project), and `cleanupAll`, which calls `removeTree` for every scratch folder, goes on past one it cannot remove and then throws one `AggregateError` naming each folder left behind.
+- `helpers.mjs`: scratch projects, `run.jsonl` fixtures, hermetic git. `cleanEnv()` copies the current environment without inherited `GIT_` keys. `run` and `gitEnv` apply explicit fixture overrides after sanitization. `run` and `git` time out after `SPAWN_TIMEOUT_MS` (120000 ms) and throw when the spawn fails. It stays as it was except `writeOverride(project, policy)`, which `makeProject` always calls and which adds `score: { minRigor: null }`, `isolation: { require: false }` and `manualVerify: { minRigor: null }` unless the test gives its own key (so existing tests keep `plan` as the first step and run in a plain scratch project), and `cleanupAll`, which calls `removeTree` for every scratch folder, goes on past one it cannot remove and then throws one `AggregateError` naming each folder left behind.
 - `ahead.mjs`: wraps `writePlan` and `writeReview` and exports `stampAhead`. A file a test writes as a step's output gets an mtime a minute ahead, because the router needs an mtime later than the step's `startedAt` and Linux stamps files from a coarse clock. A test that writes such a file right after `next` uses it.
 - `phase-helpers.mjs` and `budget-helpers.mjs`: see their groups above. `openspec-helpers.mjs` is in `skills/openspec-pipeline/test/`.
 
@@ -104,7 +105,7 @@ The OpenSpec tests and `openspec-helpers.mjs` live in `skills/openspec-pipeline/
 | --- | --- |
 | `agents-md-no-imports.test.mjs` | `AGENTS.md`, and `CLAUDE.md` when present, has no `@path` import outside a code span |
 | `agents-md-size.test.mjs` | `AGENTS.md` stays at or under 12288 bytes; new detail goes into the index files |
-| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, and that `release.yml` stays hosted |
+| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, that the suite step sets `TMPDIR` to `${{ runner.temp }}`, and that `release.yml` stays hosted |
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects (no `Merge ` exemption), range mode with a real merge commit, title mode, CLI exit codes |
 | `pr-title-workflow.test.mjs` | `.github/workflows/pr-title.yml` as text: the four `types`, no `pull_request_target`, concurrency group by PR number, title passed through `env:`, name not `CI`; `ci.yml` has no `edited` (ADR-008, Amendment 2) |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |
