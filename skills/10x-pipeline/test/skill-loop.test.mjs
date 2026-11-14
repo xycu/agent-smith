@@ -24,12 +24,12 @@ function section() {
 
 // A SKILL.md loop branch: from the line starting `- **`<name>`**` to the next line that starts with `- **` or `## `.
 // Local copy of the helper in pr-comment.test.mjs, which is not exported.
-function branch(name) {
-  const start = lines.findIndex((l) => l.startsWith(`- **\`${name}\`**`));
+function branch(name, sourceLines = lines) {
+  const start = sourceLines.findIndex((l) => l.startsWith(`- **\`${name}\`**`));
   assert.ok(start >= 0, `no ${name} branch`);
   let end = start + 1;
-  while (end < lines.length && !lines[end].startsWith("- **") && !lines[end].startsWith("## ")) end++;
-  return lines.slice(start, end).join("\n");
+  while (end < sourceLines.length && !sourceLines[end].startsWith("- **") && !sourceLines[end].startsWith("## ")) end++;
+  return sourceLines.slice(start, end).join("\n");
 }
 
 const NEEDLES = [
@@ -229,8 +229,7 @@ for (const [chain, text, id] of [
   });
   for (const name of ["done", "archive", "halt"]) {
     test(`${chain}: ${name} late usage recovers the earlier numbered launch, not the latest repeated step`, () => {
-      const start = text.indexOf(`- **\`${name}\`**`);
-      const paragraph = text.slice(start, text.indexOf("\n", text.indexOf("Recover `<n>`", start)));
+      const paragraph = branch(name, text.split("\n"));
       for (const needle of [
         "Recover `<n>` from the earlier launch matched by rule 6",
         "a known agent id selects its launch and any supplied description must agree",

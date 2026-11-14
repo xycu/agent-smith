@@ -146,3 +146,69 @@ Exit 0 on the recovery diff identified above. The terminal summary is saved verb
 The three existing skips are the two opt-in live GitHub checks requiring `GH_LIVE=1` and authenticated `gh`, and the optional `CLAUDE.md` import check because that file is absent. The suite retains both chains’ deterministic cancellation cases. There were zero test failures and zero cancellations. No production script, policy, environment helper or CI file is included in the recovery diff.
 
 Reviewed the complete staged recovery file list before commit. It contains the three fixture/test files, this evidence, `unproven.md` and `plan.md`. The pre-existing router-owned `agent-smith/run.jsonl` modification remains outside the staged set. The recovery commit uses the Conventional Commit subject `test(agent-call-parameters): control child shutdown` and the required Codex coauthor trailer. Progress receives its verified commit SHA in the documentation epilogue after this commit lands.
+
+## Implementation-review correction on 2026-11-14
+
+Reviewed base: `7d65a2e`. Node v24.19.0. F1 fixes only the content test: reuse its existing bounded branch helper so a following branch cannot satisfy a missing late-usage identity paragraph. The tested code diff SHA-256 is `3deca9651705f18ca759f0d50141dee966b4bd81274a5eea332b0dd5e97c359c`, from `git diff -- skills/10x-pipeline/test/skill-loop.test.mjs`.
+
+### Reproduction and regression proof
+
+For each chain and each of done/archive/halt, made an independent scratch skill copy. Starting at the selected branch heading, removed only the substring from its first `Recover` clause up to, but not including, `A wrong`, leaving later branches intact. Passed the copy through SKILL_PATH (10x) or OPENSPEC_SKILL_PATH (OpenSpec), using `node --test --test-reporter=tap --test-name-pattern="^<chain>: <branch> late usage" skills/10x-pipeline/test/skill-loop.test.mjs` with the environment below.
+
+| Chain | Branch | Exit before fix | Exit after fix |
+|-------|--------|-----------------|----------------|
+| 10x | done | 0 | 1 |
+| 10x | archive | 0 | 1 |
+| 10x | halt | 1 | 1 |
+| openspec | done | 0 | 1 |
+| openspec | archive | 0 | 1 |
+| openspec | halt | 1 | 1 |
+
+All six post-fix runs failed at their corresponding named late-usage assertion. The four pre-fix exit-0 results reproduce the gap; the halt cases are controls. No production skill was mutated. The other historical content mutations are unaffected by this test-only correction.
+
+### Post-fix commands and results
+
+All commands below exited 0. The targeted cancellation command ran twice, passing all four cases each time. Scratch paths are inside this worktree and outside individual fixture projects.
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-review-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-review-tmp" node --test --test-reporter=tap skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/agents.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs
+```
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-review-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-review-tmp" node --test --test-reporter=tap skills/10x-pipeline/test/providers.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/host-integration.test.mjs skills/10x-pipeline/test/run-lock.test.mjs
+```
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-review-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-review-tmp" node --test --test-reporter=tap --test-name-pattern="a runner holds the shared lock|handled cancellation waits" skills/10x-pipeline/test/run-lock.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs
+```
+
+```sh
+cd "/Users/blazej/.codex/worktrees/15c9/agent-smith/.claude/worktrees/agent-smith-agent-call-parameters" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES TMPDIR="$PWD/.agent-call-review-tmp" GIT_CEILING_DIRECTORIES="$PWD/.agent-call-review-tmp" node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+```
+
+| Gate | Tests | Pass | Fail | Cancelled | Skipped |
+|------|-------|------|------|-----------|---------|
+| Content and Agent dispatch | 60 | 60 | 0 | 0 | 0 |
+| Provider, runner, chain, host and lock | 91 | 91 | 0 | 0 | 0 |
+| Targeted cancellation, run 1 | 4 | 4 | 0 | 0 | 0 |
+| Targeted cancellation, run 2 | 4 | 4 | 0 | 0 | 0 |
+| Full suite started after the fix | 1301 | 1298 | 0 | 0 | 3 |
+
+Full-suite terminal summary:
+
+```text
+ℹ tests 1301
+ℹ suites 13
+ℹ pass 1298
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 3
+ℹ todo 0
+ℹ duration_ms 499746.836583
+```
+
+The skips remain the two opt-in live GitHub checks and the absent CLAUDE.md import check. The exploratory full-suite run started before the edit also exited 0; the post-fix command above is the acceptance run.
+
+Additional checks passed: `git diff --check`; version-check (1.10.0); commit-lint for the fix title; equality of the paired six-rule sections; all six terminal mappings; the linked manual handoff's checkpoints, capability restriction and checklist; and an unchanged plan.md diff. The router's `readReview` parser recognizes the saved report as APPROVED with one measured warning and F1 APPLIED.
+
+Manual 1.6 remains pending. No live Claude Agent launch or notification was observed, and no nested agent was launched. No router-owned state, production script, policy or skill instruction was edited. The review records the fix commit after creation; its pre-fix verdict and counts stay unchanged.
