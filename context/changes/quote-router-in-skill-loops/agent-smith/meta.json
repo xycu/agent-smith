@@ -47,5 +47,9 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/test/pr-comment.test.mjs, skills/10x-pipeline/test/skill-loop.test.mjs, skills/openspec-pipeline/test/openspec-skill.test.mjs"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 4 (implement) needs a human: Provide both live substitution transcripts and the completed rewrite on main before resuming."
   }
 }

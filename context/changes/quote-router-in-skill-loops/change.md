@@ -1,7 +1,7 @@
 ---
 change_id: quote-router-in-skill-loops
 title: Quote the script path in every node call of both SKILL.md loops
-status: planned
+status: implementing
 created: 2026-11-13
 updated: 2026-11-15
 archived_at: null
