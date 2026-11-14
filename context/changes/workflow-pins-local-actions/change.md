@@ -1,7 +1,7 @@
 ---
 change_id: workflow-pins-local-actions
 title: Check local actions outside .github in the pin guard
-status: implementing
+status: implemented
 created: 2026-11-12
 updated: 2026-11-15
 archived_at: null

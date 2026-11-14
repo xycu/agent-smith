@@ -166,8 +166,8 @@ No data migration or configuration change. The intended compatibility change is 
 
 #### Automated
 
-- [x] 1.1 Focused regressions pass: `node --test tools/test/workflow-pins.test.mjs`, including exact nested-unpinned diagnostics, pinned recursion, and missing-target source locations.
-- [x] 1.2 Traversal compatibility tests pass for repeated targets, cycles, both metadata spellings, local reusable workflows, malformed values, root containment, and the existing no-remote and Docker rules.
-- [x] 1.3 Module guidance describes recursive local traversal and missing-target failure; the only AGENTS edit is the workflow-pins Layout description.
-- [x] 1.4 Required repository suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`; record actual skips and environment prerequisites rather than claiming skipped cases passed.
-- [x] 1.5 `git diff --check` passes and the implementation diff stays within the three owned files and this change's artifacts, leaving WAVES, archives, skills, CI, unrelated work, and router-owned run state untouched.
+- [x] 1.1 Focused regressions pass: `node --test tools/test/workflow-pins.test.mjs`, including exact nested-unpinned diagnostics, pinned recursion, and missing-target source locations. — c314218
+- [x] 1.2 Traversal compatibility tests pass for repeated targets, cycles, both metadata spellings, local reusable workflows, malformed values, root containment, and the existing no-remote and Docker rules. — c314218
+- [x] 1.3 Module guidance describes recursive local traversal and missing-target failure; the only AGENTS edit is the workflow-pins Layout description. — c314218
+- [x] 1.4 Required repository suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`; record actual skips and environment prerequisites rather than claiming skipped cases passed. — c314218
+- [x] 1.5 `git diff --check` passes and the implementation diff stays within the three owned files and this change's artifacts, leaving WAVES, archives, skills, CI, unrelated work, and router-owned run state untouched. — c314218
