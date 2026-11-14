@@ -1,7 +1,7 @@
 ---
 change_id: commit-lint-merge-prefix
 title: Stop commit-lint from accepting any subject that starts with Merge
-status: implementing
+status: implemented
 created: 2026-11-12
 updated: 2026-11-15
 archived_at: null
