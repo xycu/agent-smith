@@ -44,6 +44,7 @@ test("top.md has exactly one rule that bans the Agent tool, in rule form, before
   const [rule] = rules;
   assert.ok(rule.includes("**MUST NOT**"), rule);
   assert.match(rule, /Task tool/);
+  assert.match(rule, /spawn_agent or any other delegation tool/);
   assert.match(rule, /top session/);
   assert.deepEqual(ruleProblems(rule), []);
   const at = TOP.indexOf(rule);

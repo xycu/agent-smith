@@ -8,6 +8,8 @@ A string or an array part that starts with `@prompts/`, or with `@<skill>/prompt
 
 After the template the router appends the chain defaults (`prompts.chain-10x` or `prompts.chain-openspec`, none shipped), the generic defaults of `prompts.suffix` (commit only where told, decide from evidence, `blocked` when no evidence exists, `signals.rigor` **MAY**) and then the always-true rule files of `skills/*/rules/` (ADR-023), `rules/top.md` last: the unattended, short-status, delete (ADR-016), nesting (ADR-018) and precedence rules and the `RESULT:` format live there, not in the suffix, so a suffix override no longer removes them. `skills/10x-pipeline/rules/README.md` lists the rule files.
 
+The shared suffix loads named installed skills through the active host and treats slash spellings as skill names with arguments. It forbids Agent, Task, `spawn_agent` and other nested delegation mechanisms. OpenAI manual verification uses the dedicated `manual-verify-openai` policy template, with the shared manual guide and test/command/script browser fallback. An explicit `--chrome false` keeps the existing no-Chrome template.
+
 ## Wired
 
 | File | Source | Step | Wired as |

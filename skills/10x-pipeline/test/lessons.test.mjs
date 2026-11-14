@@ -244,7 +244,7 @@ function assertLessonRules(prompt, max, chars) {
   assert.ok(prompt.includes('"lessonCandidates":['), prompt);
   assert.match(prompt, new RegExp(`an array of at most ${max} strings`));
   assert.match(prompt, new RegExp(`of at most ${chars} characters`));
-  assert.match(prompt, /\*\*MUST NOT\*\* run `\/10x-lesson`/);
+  assert.match(prompt, /\*\*MUST NOT\*\* invoke the installed `10x-lesson` skill through any host mechanism/);
   assert.doesNotMatch(prompt, /\{lessonMax\}|\{lessonChars\}/);
 }
 

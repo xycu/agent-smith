@@ -1,5 +1,7 @@
 Unattended rules for /openspec-apply-change. No human answers, so every pause point of the skill has a fixed answer here. The change is `{id}` at `openspec/changes/{id}/`; fix mode is a prompt whose first lines list critical findings from `openspec/changes/{id}/agent-smith/verify.md`.
 
+Load the named installed `openspec-apply-change` skill through the host's native skill mechanism in both normal and fix mode. Its work stays in this child.
+
 ## Rules
 
 - **GIVEN** the project check reports no root, a store declaration error or any other CLI failure **WHEN** the skill would stop and ask how to proceed **THEN** you **MUST** finish with status `blocked` and `signals.needsHuman` quoting the CLI `message`.

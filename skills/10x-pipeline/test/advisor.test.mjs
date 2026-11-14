@@ -271,6 +271,11 @@ const CASES = [
     const project = staged({ ...policy, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
     return { project, res: standard(project, "Parse blank lines", ["--chrome", "false"]) };
   } },
+  { template: "manual-verify-openai", make: (policy) => {
+    const ladder = DEFAULT.ladder.map((rung) => ({ ...rung, provider: "openai" }));
+    const project = staged({ ...policy, ladder, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
+    return { project, res: standard(project) };
+  } },
 ];
 const CASE = Object.fromEntries(CASES.map((c) => [c.template, c]));
 const runnable = CASES.filter((c) => !(c.git && noGit));
@@ -285,6 +290,9 @@ function runCase(c, variant = "default", policy = VARIANTS[variant]) {
     const { project, res } = c.make(policy);
     assert.equal(res.status, 0, `${c.template} (${variant}): ${res.stdout}${res.stderr}`);
     assert.equal(res.json.action, "run", `${c.template} (${variant}): ${res.stdout}`);
+    assert.equal(res.json.root, project.root);
+    res.json.root = "<run-root>";
+    res.stdout = res.stdout.replaceAll(project.root, "<run-root>");
     const logged = ranOf(project).at(-1);
     assert.equal(logged.template, c.template, `${c.template} (${variant}): the fixture reached ${logged.template}`);
     cache.set(key, { project, res, json: res.json, entry: logged });

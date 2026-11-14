@@ -694,10 +694,14 @@ test("lean keeps plain implement", () => {
   // A lean walk is the same with and without the feature: same step, model, effort, reason and prompt.
   const without = e2eProject({ specs, setup: false });
   const base = start(without, "lean", "fix typo");
-  assert.deepEqual(lean.json, base.json);
+  assert.equal(lean.json.root, withSetup.root);
+  assert.equal(base.json.root, without.root);
+  assert.deepEqual({ ...lean.json, root: "<run-root>" }, { ...base.json, root: "<run-root>" });
   const walked = advance(withSetup, specs, [1]);
   const baseWalk = advance(without, specs, [1]);
-  assert.deepEqual(walked.json, baseWalk.json);
+  assert.equal(walked.json.root, withSetup.root);
+  assert.equal(baseWalk.json.root, without.root);
+  assert.deepEqual({ ...walked.json, root: "<run-root>" }, { ...baseWalk.json, root: "<run-root>" });
   // The lean budget is 12: eleven executed steps still run, twelve halt.
   for (const [count, action] of [[11, "run"], [12, "halt"]]) {
     const project = e2eProject({ specs });
@@ -1091,7 +1095,7 @@ test("report shows fallback", () => {
   assert.equal(run(project, ["status", project.id, "--report"]).status, 0);
   const rows = Object.fromEntries(readReportFile(project).split("\n").filter((l) => /^\| \d+ \|/.test(l)).map((l) => {
     const cells = l.split("|").map((c) => c.trim());
-    return [cells[1], { step: cells[2], result: cells[7] }];
+    return [cells[1], { step: cells[2], result: cells[8] }];
   }));
   assert.deepEqual(rows[1], { step: "plan", result: "ok" });
   assert.deepEqual(rows[2], { step: "implement (implement-e2e)", result: "fallback" });

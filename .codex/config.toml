@@ -1,0 +1,9 @@
+# Project permissions. Loaded when this repository is trusted.
+# AGENTS.md governs which Git/GitHub actions a task authorizes.
+approval_policy = "on-request"
+approvals_reviewer = "auto_review"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+# GitHub API, Git remotes, and documentation access.
+network_access = true

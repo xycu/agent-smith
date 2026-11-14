@@ -1,5 +1,7 @@
 Unattended rules for /10x-e2e. No human answers, so every ask point of the skill has a fixed answer here. You drive phase {phase} to phase {lastPhase} of context/changes/{id}/plan.md and stop there. A redirect, a stop or a refusal of the skill is a normal ending: report it as status `blocked`, never as `failed`, and never set `signals.needsHuman` for it.
 
+Load the installed `10x-e2e` skill through the host's native skill mechanism. The suffix forbids every delegation tool, including `spawn_agent`.
+
 ## Rules
 
 - **GIVEN** the next-phase question asks how to proceed after phase {lastPhase} **WHEN** you pick an option **THEN** you **MUST** take the option that stops here (for example "Start a fresh session first") and not continue to phase {lastPhase} plus one.

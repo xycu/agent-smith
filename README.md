@@ -29,6 +29,16 @@ A Claude Code plugin that runs your [10xDevs](https://10xdevs.pl) or [OpenSpec](
 
 Needs Claude Code 2.1.292 or later: `${CLAUDE_SKILL_DIR}` in skill content needs 2.1.69 and the `effort` parameter of the Agent tool needs 2.1.292.
 
+### Codex and OpenAI steps
+
+The shared `10x-pipeline` and `openspec-pipeline` skills also support Codex hosting OpenAI steps, and Claude Code hosting a mixed Claude/OpenAI ladder. Codex CLI 0.169.0 is the verified runner contract. Node.js 24+, authenticated model access, project trust and separately installed upstream toolkit skills are required. Confirm that a fresh CLI child can discover those skills from the run worktree.
+
+Use the existing compatibility package for a Claude-plugin archive import into OpenAI, then select the installed pipeline skill through Codex's skill picker. Clean installation and live execution on both hosts remain acceptance checks. [Compatibility import guide](https://developers.openai.com/plugins/guides/submit-claude-plugin.md)
+
+Merge `skills/10x-pipeline/codex-policy.json` into `context/foundation/agent-smith-policy.json` for the opt-in GPT ladder. Existing overrides need a deliberate merge because arrays replace whole. The preset preserves tier positions and supplies an initial capability ordering. A Claude-hosted mixed ladder tags each OpenAI rung with `"provider": "openai"`. A Codex host needs an OpenAI-only ladder.
+
+Existing Codex configuration is the default. Optional `codex.profile` selects an existing named configuration. The runner checks Git filesystem capability before launching a model and respects managed requirements and outer host restrictions. Native sandbox can force legacy `sandbox_mode` settings read-only and prevent verification. Execpolicy and hook behavior still need live acceptance. See the reference for the execution protocol and limits. [Codex execution](docs/REFERENCE.md#codex-and-provider-dispatch)
+
 ## 🏁 Quick start
 
 ### 📐 OpenSpec

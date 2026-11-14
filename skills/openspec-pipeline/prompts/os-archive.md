@@ -1,5 +1,7 @@
 Unattended rules for archiving the OpenSpec change `{id}` with the OpenSpec CLI. The router already made the pre-archive commit; this step runs one CLI command and commits its result.
 
+Use the CLI from either host. Native skill shortcuts do not replace this archive command.
+
 ## Rules
 
 - **GIVEN** the change `{id}` is ready to archive **WHEN** you archive it **THEN** you **MUST** run `openspec archive {id} --yes --json` exactly once, with no other flag.

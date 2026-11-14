@@ -226,7 +226,7 @@ test("done, archive and halt run the pull request step before the PR comment ste
   assert.ok(step5.indexOf("do the pull request step") >= 0, "the pull request step is not in step 5");
   assert.ok(step5.indexOf("do the pull request step") < step5.indexOf("On `archived: false`"), "pull request step after the STOP of archived: false");
   assert.ok(!archive.slice(0, archive.indexOf("\n  5. ")).includes("PR comment step"), "the PR comment step is still before the move");
-  assert.match(branch("halt"), /Before you STOP, do the pull request step\. Then, when the output has `prComment: true`, do the PR comment step\./);
+  assert.match(branch("halt"), /Before you STOP, do the pull request step\. When the terminal action has `prComment: true`/);
 });
 
 test("done, halt and archive call usage with --chain openspec before the pull request step or the archive subagent launch", () => {

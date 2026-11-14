@@ -129,18 +129,18 @@ test("2.1 with the shipped policy report.md and status carry no cost text or key
   for (const row of st.steps) assert.equal(Object.hasOwn(row, "cost"), false);
   const report = readReportFile(project);
   assert.ok(!/cost/i.test(report), report);
-  assert.ok(report.includes("| # | Step | Model | Effort | Tier | Simple | Result | Tokens |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n"), report);
-  assert.ok(report.includes("| 1 | plan | sonnet | high | 3 | no | ok | 1000000 |\n"), report);
+  assert.ok(report.includes("| # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"), report);
+  assert.ok(report.includes("| 1 | plan | claude | sonnet | high | 3 | no | ok | 1000000 |\n"), report);
 });
 
 test("2.2 with prices set the report has the Cost (est.) column and the Cost (estimate) line with the exact total", () => {
   const project = fixtureRun({ prices: { usdPerMillionTokens: { sonnet: 6, haiku: 2 } } });
   statusOf(project, ["--report"]);
   const report = readReportFile(project);
-  assert.ok(report.includes("| # | Step | Model | Effort | Tier | Simple | Result | Tokens | Cost (est.) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"), report);
-  assert.ok(report.includes("| 1 | plan | sonnet | high | 3 | no | ok | 1000000 | $6.0000 |\n"), report);
-  assert.ok(report.includes("| 2 | plan-review | haiku | high | 3 | no | ok | 500000 | $1.0000 |\n"), report);
-  assert.ok(report.includes("| 4 | impl-review | opus | high | 3 | no | ok | 250000 | - |\n"), report);
+  assert.ok(report.includes("| # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens | Cost (est.) |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n"), report);
+  assert.ok(report.includes("| 1 | plan | claude | sonnet | high | 3 | no | ok | 1000000 | $6.0000 |\n"), report);
+  assert.ok(report.includes("| 2 | plan-review | claude | haiku | high | 3 | no | ok | 500000 | $1.0000 |\n"), report);
+  assert.ok(report.includes("| 4 | impl-review | claude | opus | high | 3 | no | ok | 250000 | - |\n"), report);
   assert.ok(report.includes(`Steps: 4 · Tokens: 1750000 (figures for 3 of 4 steps)\nCost (estimate): $7.00 ${BLENDED} · priced 2 of 3 steps with a token figure · no price for: opus\n`), report);
 
   const all = fixtureRun(PRICES);
@@ -156,7 +156,7 @@ test("2.3 a step with no token figure shows - in the cost column and is not coun
   const project = fixtureRun(PRICES);
   statusOf(project, ["--report"]);
   const report = readReportFile(project);
-  assert.ok(report.includes("| 3 | implement | sonnet | high | 3 | no | ok | - | - |\n"), report);
+  assert.ok(report.includes("| 3 | implement | claude | sonnet | high | 3 | no | ok | - | - |\n"), report);
   assert.ok(report.includes("priced 3 of 3 steps with a token figure"), report);
 });
 
@@ -241,8 +241,8 @@ test("3.2 with prices set both sides carry cost with the exact USD, coverage and
   const baseline = side([["sonnet", 2_000_000]]);
   const routed = side([["sonnet", 1_000_000], ["opus", 500_000]], { policy: SONNET_OPUS });
   const json = compare(routed, baseline).json;
-  assert.deepEqual(json.baseline.cost, { usd: 12, priced: 1, withFigures: 1, unpriced: [], byModel: { sonnet: 12 } });
-  assert.deepEqual(json.routed.cost, { usd: 21, priced: 2, withFigures: 2, unpriced: [], byModel: { sonnet: 6, opus: 15 } });
+  assert.deepEqual(json.baseline.cost, { usd: 12, priced: 1, withFigures: 1, unpriced: [], byModel: { sonnet: 12 }, byProviderModel: { "claude/sonnet": 12 } });
+  assert.deepEqual(json.routed.cost, { usd: 21, priced: 2, withFigures: 2, unpriced: [], byModel: { sonnet: 6, opus: 15 }, byProviderModel: { "claude/sonnet": 6, "claude/opus": 15 } });
   assert.deepEqual(json.warnings, []);
   const md = compare(routed, baseline, ["--format", "md"]).stdout;
   assert.ok(md.includes("| Tokens | 2000000 (1 of 1) | 1500000 (2 of 2) |\n| Cost (estimate) | $12.00 (1 of 1 priced) | $21.00 (2 of 2 priced) |\n"), md);
@@ -274,7 +274,7 @@ test("3.4 an unpriced alias on a side gives cost-incomplete:<side> and does not 
   const plain = compare(side(routedSteps), baseline).json;
   const res = compare(side(routedSteps, { policy: SONNET_OPUS }), baseline).json;
   assert.deepEqual(res.warnings, ["cost-incomplete:routed"]);
-  assert.deepEqual(res.routed.cost, { usd: 6, priced: 1, withFigures: 2, unpriced: ["haiku"], byModel: { sonnet: 6 } });
+  assert.deepEqual(res.routed.cost, { usd: 6, priced: 1, withFigures: 2, unpriced: ["haiku"], byModel: { sonnet: 6 }, byProviderModel: { "claude/sonnet": 6 } });
   assert.deepEqual(verdictOf(res), verdictOf(plain));
   assert.equal(res.comparable, true);
   const both = compare(side([["sonnet", 1_000_000]], { policy: { prices: { usdPerMillionTokens: { opus: 30 } } } }), baseline).json;

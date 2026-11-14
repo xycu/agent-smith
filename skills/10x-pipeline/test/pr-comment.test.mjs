@@ -721,41 +721,36 @@ test("SKILL.md: flag, script variable and the single node $PR_COMMENT call", () 
   assert.ok(call > section && call < rules, "node $PR_COMMENT must lie inside the section");
 });
 
-test("SKILL.md: Start step 4 passes --pr-comment to init and Start has no task step", () => {
+test("SKILL.md: explicit invocation forwards durable opt-in or reset to the router", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const start = skill.slice(skill.indexOf("## Start"), skill.indexOf("## Loop"));
-  const step4 = start.split("\n").find((l) => l.startsWith("4. "));
-  assert.ok(step4.includes("Add `--pr-comment` only when the user gave it"), step4);
-  assert.ok(step4.includes("`--pr-comment false` turns it off"));
-  assert.ok(!/^5\. /m.test(start), "Start has a step 5");
-  assert.ok(!/\btask\b/i.test(start.replace(/task notification/g, "")), "Start still names a task");
+  assert.match(start, /--pr-comment true.*--pr-comment false/);
+  assert.match(start, /--pr-comment <true\|false>/);
+  assert.doesNotMatch(start, /TaskList|TaskCreate|task list unavailable/);
 });
 
-test("SKILL.md: done, archive and halt each carry the prComment: true condition and the PR comment step once", () => {
+test("SKILL.md: every terminal branch requires strict durable PR-comment intent", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
-  const list = ["Task", "List"].join("");
   for (const name of ["done", "archive", "halt"]) {
     const text = branch(skill, name);
-    assert.equal(countOf(text, "PR comment step"), 1, `${name}: PR comment step`);
-    assert.equal(countOf(text, "`prComment: true`"), 1, `${name}: prComment: true`);
-    assert.equal(countOf(text, list), 0, `${name}: ${list}`);
+    assert.equal(countOf(text, "PR comment step"), 1, name);
+    assert.match(text, /terminal action has `prComment: true`/, name);
+    assert.match(text, /missing field or any other value authorizes no comment/, name);
+    assert.doesNotMatch(text, /TaskList|TaskCreate/, name);
   }
   const archive = branch(skill, "archive");
-  // ADR-017: the comment goes to the run branch's pull request after the move, behind the pull request step in step 5.
-  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("verify-archive"), "the archive pointer must come after verify-archive");
-  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("do the pull request step"), "the archive pointer must come after the pull request step");
+  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("verify-archive"));
+  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("do the pull request step"));
   assert.match(branch(skill, "halt"), /Before you STOP/);
 });
 
-test("SKILL.md: the PR comment section is gated on prComment: true and keeps the script-error fallback", () => {
+test("SKILL.md: PR comment section retains strict authorization and script-error fallbacks", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const section = skill.slice(skill.indexOf("## PR comment (opt-in)"), skill.indexOf("## Rules"));
-  assert.ok(section.includes("`prComment: true`"));
-  assert.ok(!/\btask\b/i.test(section), "the section still names a task");
-  // F20: no JSON or a non-zero exit is a skip, and the id length difference is named.
+  assert.match(section, /terminal router action has `prComment: true`/);
+  assert.match(section, /Legacy or missing intent reads false/);
   assert.ok(section.includes("PR comment: skipped, script error"));
   assert.ok(section.includes("100 characters"));
-  // The id and the script path reach a shell line before the script can validate them.
   assert.match(section, /Quote the script path and the change id for the shell/);
   assert.ok(section.includes("PR comment: skipped, no report"));
 });
@@ -775,7 +770,7 @@ test("README documents the flag, and the reference PR comment group lies after L
   const group = readme.indexOf("\nPR comment (opt-in):");
   assert.ok(limits >= 0 && group > limits);
   const text = readme.slice(group);
-  for (const needle of ["unsupported host", "gh timed out", "100 characters", "script error", "report.md", "agent-smith"]) {
+  for (const needle of ["router-owned `meta.json`", "unsupported host", "gh timed out", "100 characters", "script error", "report.md", "agent-smith"]) {
     assert.ok(text.includes(needle), `README group lacks ${needle}`);
   }
 });

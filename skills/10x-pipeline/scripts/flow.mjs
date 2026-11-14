@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   SKILL_DIR, OPENSPEC_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
   executed, writeLog, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
-  halt, prCommentField,
+  halt, providerOf, hostOf, prCommentField,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
@@ -122,7 +122,7 @@ function buildReport(id, meta, fullLog) {
     const t = tokens(e);
     const usd = cost ? cost.perEntry[e.n] : undefined;
     const costCell = cost ? ` ${typeof usd === "number" ? `$${usd.toFixed(4)}` : "-"} |` : "";
-    return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |${costCell}`;
+    return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${providerOf(e)} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |${costCell}`;
   });
   const withTokens = log.filter((e) => tokens(e) !== null);
   const total = withTokens.reduce((sum, e) => sum + tokens(e), 0);
@@ -135,8 +135,8 @@ function buildReport(id, meta, fullLog) {
     ...archiveLines(id, meta, oneLine),
     ...sweptHeader(log),
     "",
-    `| # | Step | Model | Effort | Tier | Simple | Result | Tokens |${cost ? " Cost (est.) |" : ""}`,
-    `| --- | --- | --- | --- | --- | --- | --- | --- |${cost ? " --- |" : ""}`,
+    `| # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |${cost ? " Cost (est.) |" : ""}`,
+    `| --- | --- | --- | --- | --- | --- | --- | --- | --- |${cost ? " --- |" : ""}`,
     ...rows,
     "",
     `Steps: ${log.length} · Tokens: ${withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
@@ -387,9 +387,13 @@ export function neutralRetry(p, id, meta, log, policy) {
   }
   out({
     action: "run",
+    change: id, root: ROOT, chain: p.chain ?? "10x",
     n: last.n,
     step: last.step,
     ...(typeof last.agent === "string" ? { agent: last.agent } : {}),
+    host: hostOf(meta),
+    provider: providerOf(last),
+    ...(providerOf(last) === "openai" ? { profile: last.profile } : {}),
     model: last.model,
     effort: last.effort,
     reason: `${last.reason}; tier ${last.tier} (${last.tierWhy})`,
@@ -943,4 +947,14 @@ export function advisorOn(policy, template) {
   const list = c.templates;
   if (!Array.isArray(list) || !list.every((t) => typeof t === "string")) return false;
   return list.includes(template);
+}
+
+// Native Claude capabilities cannot be honored by an OpenAI child; never silently drop the opt-in.
+export function dispatchProblem(policy, target, step, template) {
+  if (providerOf(target) !== "openai") return null;
+  if (stepAgent(policy, step)) return `OpenAI step ${step} cannot use the configured restricted agent. Disable agents.restricted or route this step to Claude.`;
+  if (advisorOn(policy, template) || (template === "manual-verify-openai" && advisorOn(policy, "manual-verify"))) {
+    return `OpenAI step ${step} cannot use the native Claude advisor. Disable advisor.enabled or route this step to Claude.`;
+  }
+  return null;
 }

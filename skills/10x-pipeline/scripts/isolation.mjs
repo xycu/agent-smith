@@ -3,12 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, isFailure, isObject, SHA_RE, runGit,
-  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField,
+  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
 import { readOpenspec, openspecArchivePath } from "../../openspec-pipeline/scripts/openspec.mjs";
-import { finishRun, endRun, promptText, ruleTail } from "./flow.mjs";
+import { finishRun, endRun, promptText, ruleTail, dispatchProblem } from "./flow.mjs";
 
 // ---- run provenance -------------------------------------------------------------
 
@@ -107,6 +107,7 @@ function provenanceFlags(policy, meta) {
     "agents.restricted": isObject(policy.agents) && policy.agents.restricted === true,
     "advisor.enabled": isObject(policy.advisor) && policy.advisor.enabled === true,
     ...(typeof meta.chain === "string" ? { chain: meta.chain } : {}),
+    ...(hostOf(meta) === "codex" ? { host: "codex" } : {}),
   };
 }
 
@@ -605,6 +606,18 @@ const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone
   "so the check that the commit touched only the change folder (post-commit check 2) is not repeated; clearing the index " +
   "does not remove a path the commit already holds (amend the commit, or accept it). `next` repeats safely after the cause is fixed.";
 
+// Shared read-only validation of the archive dispatch. The runner only compares this descriptor with its action.
+export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.level) {
+  const openspec = p.chain === "openspec";
+  const step = openspec ? "os-archive" : "archive";
+  const settled = tierFor({ step }, executed(log), policy, readPlan(p.plan), meta, level);
+  const target = dispatchTarget(policy, settled.tier);
+  const created = openspec ? null : createdValue(path.join(p.change, "change.md"));
+  if (!openspec && (created === null || !CREATED_RE.test(created))) throw new Error("change.md has no valid archive creation date.");
+  const archivePath = openspec ? openspecArchivePath(id) : `context/archive/${created}-${id}`;
+  return { ...target, archivePath, tier: settled.tier, tierWhy: settled.tierWhy };
+}
+
 // The done branch of a run with --archive. Pre-checks, final report, commit, post-commit checks, then the archive action.
 // While the folder is not committed a halt may write the end state (endRun). Once the commit exists, or the run is
 // written as done, a halt only prints (out): rewriting meta.json or report.md would dirty the committed folder.
@@ -673,7 +686,7 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   if (badCoAuthor) precheck(badCoAuthor);
   let settled;
   try {
-    settled = tierFor({ step: openspec ? "os-archive" : "archive" }, ran, policy, readPlan(p.plan), meta, level);
+    settled = archiveDescriptor(p, id, meta, log, policy, level);
   } catch (e) {
     precheck(`Cannot pick the archive tier: ${e instanceof Error ? e.message : String(e)}`);
   }
@@ -681,6 +694,10 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   if (!isObject(target) || typeof target.model !== "string" || typeof target.effort !== "string") {
     precheck(`policy.ladder has no entry for tier ${settled.tier}, which the archive step is pinned to.`);
   }
+  const dispatch = dispatchTarget(policy, settled.tier);
+  const archiveStep = openspec ? "os-archive" : "archive";
+  const unsupported = dispatchProblem(policy, dispatch, archiveStep, archiveStep);
+  if (unsupported) precheck(unsupported);
 
   // 3. Ignored files are reported, never a halt.
   const prefix = (g(["rev-parse", "--show-prefix"]).stdout ?? "").replace(/\r?\n$/, "");
@@ -717,8 +734,9 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + tail;
   return out({
     action: "archive",
-    model: target.model,
-    effort: target.effort,
+    change: id, root: ROOT, chain: p.chain ?? "10x",
+    host: hostOf(meta),
+    ...dispatch,
     reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${settled.tier} (${settled.tierWhy})`,
     prompt,
     summary: { reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length },

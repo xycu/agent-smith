@@ -429,7 +429,9 @@ export function verifyManual(last, ran, plan, result, p, policy) {
   const ticked = [];
   const unproven = [];
   const proved = [];
-  const { evidenceKinds: kinds, browserProofKinds } = manualVerifyOptions(policy);
+  const { evidenceKinds: kinds, browserProofKinds: configuredBrowserKinds } = manualVerifyOptions(policy);
+  const browserProofKinds = last.provider === "openai"
+    ? configuredBrowserKinds.filter((kind) => ["test", "command", "script"].includes(kind)) : configuredBrowserKinds;
   const browserRows = browserRowIds(baseManual, policy);
   const unprovenWhy = {};
   for (const b of baseManual) {

@@ -61,31 +61,50 @@ export function pluginPolicy() {
 
 // The plugin policy deep-merged with the project override. null when a plugin policy file is unreadable; each caller
 // decides.
-function mergedPolicy() {
+function mergedPolicy(onError = halt) {
   const base = pluginPolicy();
   if (!base) return null;
   const file = path.join(ROOT, "context/foundation/agent-smith-policy.json");
   if (!fs.existsSync(file)) return base;
   let override;
   try { override = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) {
-    halt(`Cannot parse ${file}: ${e.message}. Fix the JSON or remove the file.`);
+    onError(`Cannot parse ${file}: ${e.message}. Fix the JSON or remove the file.`);
   }
   // Any other JSON value would replace the whole policy (an array, a number) or be dropped silently (null, false).
   if (!isObject(override)) {
     const kind = override === null ? "null" : Array.isArray(override) ? "an array" : `a ${typeof override}`;
-    halt(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
+    onError(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
   }
   return deepMerge(base, override);
 }
 
-export function loadPolicy() {
-  const policy = mergedPolicy();
+export function loadPolicy(onError = halt) {
+  const policy = mergedPolicy(onError);
   if (!policy) {
     const files = [path.join(SKILL_DIR, "policy.json"), path.join(OPENSPEC_DIR, "policy.json")];
     const bad = files.filter((file) => !isObject(readJson(file, null)));
-    out({ action: "halt", reason: `Cannot read ${(bad.length ? bad : files).join(" or ")}` }, 1);
+    onError(`Cannot read ${(bad.length ? bad : files).join(" or ")}`);
   }
   return policy;
+}
+
+// Missing provider/host fields belong to runs and overrides made before OpenAI support.
+export const providerOf = (target) => target?.provider === undefined ? "claude" : target.provider;
+export const hostOf = (meta) => meta?.host === undefined ? "claude" : meta.host;
+
+export function dispatchTarget(policy, tier) {
+  const rung = policy.ladder[tier];
+  const provider = providerOf(rung);
+  return { provider, model: rung.model, effort: rung.effort,
+    ...(provider === "openai" ? { profile: policy.codex?.profile ?? null } : {}) };
+}
+
+export function hostProblem(policy, host) {
+  if (host !== "claude" && host !== "codex") return `Invalid host ${JSON.stringify(host)}. Use claude or codex. Nothing was written.`;
+  if (host === "codex" && policy.ladder.some((rung) => providerOf(rung) !== "openai")) {
+    return "A Codex host requires an OpenAI-only ladder. Configure the codex-policy.json overlay in context/foundation/agent-smith-policy.json. Nothing was written.";
+  }
+  return null;
 }
 
 // ---- cost estimate ----------------------------------------------------------
@@ -157,6 +176,14 @@ export function policyProblems(policy) {
       if (typeof v !== "string" || !v.trim()) return bad(`ladder[${i}].${field}`, "a non-empty string", v);
     }
     if (efforts.length && !efforts.includes(rung.effort)) return bad(`ladder[${i}].effort`, `one of ${efforts.join(", ")} (rigor.effortOrder)`, rung.effort);
+    if (rung.provider !== undefined && rung.provider !== "claude" && rung.provider !== "openai") {
+      return bad(`ladder[${i}].provider`, "claude or openai", rung.provider);
+    }
+  }
+  if (p.codex !== undefined && !isObject(p.codex)) return bad("codex", "an object", p.codex);
+  const profile = p.codex?.profile;
+  if (profile !== undefined && profile !== null && (typeof profile !== "string" || !profile.trim() || /[\r\n\0]/.test(profile))) {
+    return bad("codex.profile", "null or a non-blank profile name without control characters", profile);
   }
   const top = p.ladder.length - 1;
   for (const [name, step] of Object.entries(p.steps)) {
@@ -855,21 +882,24 @@ export function runLockPath(dir) {
 }
 
 function pidAlive(pid) {
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; }
+  try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; }
 }
 
 // Takes the lock of the run or halts. The pid is in the file from the moment it exists: written to a private temp file,
 // then linked to the lock name, so a second caller never reads an empty lock as stale.
-export function acquireRunLock(id, chain) {
+export function acquireRunLock(id, chain, onBusy = halt) {
   const lock = runLockPath(paths(id, null, chain).dir);
   const tmp = `${lock}.${process.pid}.tmp`;
-  const own = String(process.pid);
+  let own = String(process.pid);
+  let execution = null;
   fs.writeFileSync(tmp, own);
   const unlinkQuiet = (file) => { try { fs.unlinkSync(file); } catch { /* already gone */ } };
   // The temp file is always this process's. The lock is removed only while it still holds this pid, so a lock
   // another process holds, or took over, is never touched.
   const release = () => {
     unlinkQuiet(tmp);
+    // An abrupt exit must leave child ownership available to the next caller.
+    if (execution) return;
     let holder = null;
     try { holder = fs.readFileSync(lock, "utf8"); } catch { /* already gone */ }
     if (holder === own) unlinkQuiet(lock);
@@ -881,11 +911,23 @@ export function acquireRunLock(id, chain) {
         break;
       } catch (e) {
         if (e.code !== "EEXIST") throw e;
-        let pid = NaN;
-        try { pid = Number(fs.readFileSync(lock, "utf8").trim()); } catch { /* vanished: retry */ }
+        let contents = "";
+        try { contents = fs.readFileSync(lock, "utf8").trim(); } catch { /* vanished: retry */ }
+        let owner;
+        try { owner = JSON.parse(contents); } catch { /* legacy malformed locks are stale */ }
+        const pid = isObject(owner) ? owner.pid : Number(contents);
         if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
           release();
-          halt(`Another init, next or usage of change ${id} is running (lock file ${lock}, pid ${pid}). Run router calls one at a time. A lock left by a dead process is removed automatically. Nothing was written.`);
+          onBusy(`Another init, next or usage of change ${id} is running, or execution/status --report holds its lock (lock file ${lock}, pid ${pid}). Run calls one at a time. Nothing was written.`);
+        }
+        if (isObject(owner) || contents.startsWith("{")) {
+          const groupGone = Number.isSafeInteger(pid) && pid > 0
+            && owner?.processGroup === true && Number.isSafeInteger(owner.childPid)
+            && owner.childPid > 0 && !pidAlive(-owner.childPid);
+          if (!groupGone) {
+            release();
+            onBusy(`Codex execution lock remains for change ${id} (lock file ${lock}, runner ${pid}, child ${owner?.childPid ?? "unknown"}). The child process group is alive or its termination is uncertain. Inspect the execution and confirm its process tree has stopped before removing this lock. Nothing was written.`);
+          }
         }
         if (attempt > 0) throw e;
         unlinkQuiet(lock); // stale: remove it and try once more; another caller may have removed it already
@@ -897,4 +939,24 @@ export function acquireRunLock(id, chain) {
   }
   unlinkQuiet(tmp);
   process.on("exit", release);
+  const replace = (contents) => {
+    fs.writeFileSync(tmp, contents);
+    fs.renameSync(tmp, lock);
+    own = contents;
+  };
+  return {
+    release,
+    setChild(pid) {
+      // null protects the spawn-to-PID-recording window after a supervisor crash.
+      execution = { pid: process.pid, childPid: pid, processGroup: process.platform !== "win32" };
+      replace(JSON.stringify(execution));
+    },
+    clearChild() {
+      if (execution?.processGroup && execution.childPid && pidAlive(-execution.childPid)) {
+        throw new Error(`Codex child process group ${execution.childPid} is still alive. Execution lock retained at ${lock}.`);
+      }
+      replace(String(process.pid));
+      execution = null;
+    },
+  };
 }

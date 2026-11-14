@@ -1,5 +1,7 @@
 Unattended rules for the retry of rows that were ticked without a commit. The rows {retry} of context/changes/{id}/plan.md are marked done, but no code commit stands behind them. This is the last attempt: you cover phase {phase} to phase {lastPhase}.
 
+The named `10x-goal-implement` skill runs through the host's installed skill mechanism. Its phase work stays in this child.
+
 ## Rules
 
 - **GIVEN** the rows {retry} are ticked in `plan.md` with no commit behind them **WHEN** you start **THEN** you **MUST** set each of those rows back to `[ ]` before any other work.

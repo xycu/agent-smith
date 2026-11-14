@@ -1,0 +1,30 @@
+{
+  "node": "v24.19.0",
+  "codex": "codex-cli 0.169.0",
+  "revision": "938fd09",
+  "paidModelCalls": 0,
+  "records": [
+    {
+      "chain": "10x",
+      "action": "run",
+      "step": "plan",
+      "provider": "openai",
+      "model": "gpt-6.1-sol",
+      "effort": "medium",
+      "profile": null,
+      "readableStatus": true,
+      "isolationRequired": false
+    },
+    {
+      "chain": "openspec",
+      "action": "run",
+      "step": "os-propose",
+      "provider": "openai",
+      "model": "gpt-6-astra",
+      "effort": "high",
+      "profile": null,
+      "readableStatus": true,
+      "isolationRequired": false
+    }
+  ]
+}
