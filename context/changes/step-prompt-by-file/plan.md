@@ -81,7 +81,7 @@ Keep transport in the shared prompt owner, `flow.mjs`, with minimal wiring in `n
 | Provider boundary and provenance | `run-codex.mjs` pending prompt/file validation; `isolation.mjs` template hash enumeration only |
 | Orchestrator guidance | Both `SKILL.md` Loop step 2 only; preserve archive branches, anti-stall section, invocation identity and PR-comment text |
 | Tests and indexing | New handoff tests plus affected prompt-enumeration and dispatch tests; shared test index; do not edit sibling-owned `rollback.test.mjs` |
-| User-facing reference | A new “Step prompt handoff by file” subsection and narrowly relevant provider paragraph in `docs/REFERENCE.md`, a shared-file exception; leave docs-drift's listed fixes and six ADRs alone |
+| User-facing reference | A new “Step prompt handoff by file” subsection, the reserved-option exception in the existing Prompt overrides paragraph, and narrowly relevant provider paragraph in `docs/REFERENCE.md`, a shared-file exception; leave docs-drift's listed fixes and six ADRs alone |
 | Evidence | This change's `evidence/` only; roadmap has no exact matching Change ID and remains untouched |
 
 ## Critical Implementation Details
@@ -178,6 +178,8 @@ Teach each orchestrator to preserve the compact handoff and document its lifecyc
 
 **Contract**: Document `{ "prompts": { "byFile": true } }` as a project override, default false, both providers/chains, relative `promptFile` and absolute wrapper path, unchanged RESULT/task text, pending-state replay, cleanup failures and inline archive exception. Describe the Codex validator's two prompt forms and link this change's evidence. Keep docs-drift's corrections and existing ADRs out of this edit.
 
+Update the existing Prompt overrides paragraph, which currently assigns the string/array contract to every key of `prompts`. State that template keys retain that contract and that the reserved `byFile` key accepts a boolean, with omitted values retaining inline behavior. Its exception must agree with the new subsection and Phase 1 validation. This paragraph is part of this change's bounded reference edit.
+
 ### Success Criteria:
 
 #### Automated Verification:
@@ -233,12 +235,13 @@ Check the reserved option's type and template classification, wrapper/RESULT ide
 
 ### Integration Tests:
 
-Drive real CLI `init`/`next` calls using existing helpers in owned scratch projects, with `TMPDIR` placed inside this worktree for router-only test runs under these working-directory rules. Use fake Codex through `codex-helpers` for execution/validation tests; its existing nested temporary layout must remain outside the fixture's run root. Run isolated success, failed-step rollback, undo-on-halt and pre-archive scenarios in fixtures, leaving the repository's own archive untouched. Assert the hook/index/commit view is clean of task files, not merely that the final worktree path is absent. Include crash boundaries for publication, durable result intake and cleanup; an injected failure must preserve enough state to resume.
+Drive real CLI `init`/`next` calls using existing helpers in owned scratch projects. Set `TMPDIR` to a dedicated directory inside this worktree for every focused and full-suite invocation under these working-directory rules. The shared `makeProject` helper creates scratch projects through `os.tmpdir()`, and `codexFixture` inherits that location for its separate runner temporary project. Use fake Codex through `codex-helpers` for execution/validation tests; its existing nested temporary layout must remain outside the fixture's run root and inside this worktree. Run isolated success, failed-step rollback, undo-on-halt and pre-archive scenarios in fixtures, leaving the repository's own archive untouched. Assert the hook/index/commit view is clean of task files, not merely that the final worktree path is absent. Include crash boundaries for publication, durable result intake and cleanup; an injected failure must preserve enough state to resume. [Scratch creation](../../../skills/10x-pipeline/test/helpers.mjs#L63) [Runner temporary project](../../../skills/10x-pipeline/test/codex-helpers.mjs#L78)
 
 Focused commands may select the new handoff tests and `codex-runner`, `neutral`, `providers`, `policy-validate`, `provenance`, `rule-levels`, `skill-loop`, `host-integration`, `advisor` and `openspec-skill` tests. Repository rules require the full command after script, policy or prompt changes:
 
 ```sh
-node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+cd "/Users/blazej/.codex/worktrees/8584/agent-smith/.claude/worktrees/agent-smith-step-prompt-by-file" && mkdir -p "$PWD/.agent-smith-test-tmp"
+cd "/Users/blazej/.codex/worktrees/8584/agent-smith/.claude/worktrees/agent-smith-step-prompt-by-file" && TMPDIR="$PWD/.agent-smith-test-tmp" node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
 ```
 
 In this run, prefix shell commands with the exact worktree `cd` required by the task. Never run `init`, `next` or a provider child against this active planning run as a test, and never edit its router-owned state manually. If cleanup is needed, use the existing `removeTree` helper on verified fixture paths only.
