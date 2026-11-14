@@ -1,0 +1,32 @@
+Read-only live CI retry for pending Manual row 2.6
+Checked at 2026-11-14T20:30:41.130011+00:00
+Scope includes the current branch, current HEAD and Phase 2 implementation commit.
+
+$ git rev-parse HEAD
+exit 0
+9649d95abe027990ecf8dfdcd82e3c18a82a59dd
+
+$ git branch --show-current
+exit 0
+agent-smith/coverage-and-failed-undo-test
+
+$ gh run list --repo xycu/agent-smith --branch agent-smith/coverage-and-failed-undo-test --limit 100 --json databaseId,headSha,conclusion,status,url,workflowName,createdAt
+exit 0
+[]
+
+$ gh run list --repo xycu/agent-smith --commit 9649d95abe027990ecf8dfdcd82e3c18a82a59dd --limit 100 --json databaseId,headSha,conclusion,status,url,workflowName,createdAt
+exit 0
+[]
+
+$ gh run list --repo xycu/agent-smith --commit d1b84260e43121439b6943e6245ce6e60e80be94 --limit 100 --json databaseId,headSha,conclusion,status,url,workflowName,createdAt
+exit 0
+[]
+
+$ gh pr list --repo xycu/agent-smith --head agent-smith/coverage-and-failed-undo-test --state all --json number,url,state,headRefOid
+exit 0
+[]
+
+$ git ls-remote --heads origin refs/heads/agent-smith/coverage-and-failed-undo-test
+exit 0
+(empty stdout)
+
