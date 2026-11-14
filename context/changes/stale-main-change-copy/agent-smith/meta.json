@@ -47,5 +47,15 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/test/archive.test.mjs, skills/10x-pipeline/test/skill-loop.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.5 A live host invocation for each chain performs the post-init call before its first step and reports retained original paths in its final message."
+    ],
+    "manualNotProved": [
+      "3.5 A live host invocation for each chain performs the post-init call before its first step and reports retained original paths in its final message. — not proved: Live host execution through both final messages requires child agents, run-state writes and external PR handling prohibited by this verification step. Five current contract tests passed, but live post"
+    ]
   }
 }
