@@ -230,9 +230,9 @@ Consumer adoption consists of merging the single environment entry into existing
 
 #### Automated
 
-- [x] 2.1 Documentation checks pass for optional setup, the exact depth setting and the ADR amendment.
-- [x] 2.2 The complete repository test command passes, with any environment-dependent skips identified in the acceptance record.
-- [x] 2.3 Diff review confirms that shared-document edits occupy the named regions and the implementation file set matches this plan.
+- [x] 2.1 Documentation checks pass for optional setup, the exact depth setting and the ADR amendment. — fdc4573
+- [x] 2.2 The complete repository test command passes, with any environment-dependent skips identified in the acceptance record. — fdc4573
+- [x] 2.3 Diff review confirms that shared-document edits occupy the named regions and the implementation file set matches this plan. — fdc4573
 
 #### Manual
 
