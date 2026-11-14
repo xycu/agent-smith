@@ -1,6 +1,6 @@
 # ADR-010: Run every change in its own worktree, commit each step, roll back a failed step, and make the first implement attempt cheaper
 
-- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending); amended (Amendment 1)
+- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending); amended (Amendments 1 and 2)
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `worktree-step-commits`; the repository owner confirms or changes the readings below
 - **Origin:** change `worktree-step-commits` (`context/changes/worktree-step-commits/change.md`, `plan.md`, `research.md` and `reviews/plan-review.md`). It widens the router's git-write rule in `AGENTS.md` (Hard Rules), which before this change allowed only the pre-archive commit of ADR-003 ("Archive adapter"). That commit is unchanged.
@@ -177,3 +177,15 @@ Pending. A human runs the pairs and records here, per pair, `dropPercent`, `toke
 - The subject, the commit and the halt behavior are unchanged. A failed name read goes through the failure path of a failed add: the router unstages its add, nothing is committed, the entry gets no `commit` key and a resume retries, so the router never makes a step commit whose paths it could not record.
 - Known limit: a pre-commit hook that stages extra files after the read is not seen.
 - The implement-class prompts (`implement`, `implement-segment`, `implement-retry`, `os-apply`) ask the subagent to commit its code under a typed Conventional Commits subject before the `RESULT:` line, so the record is empty in the normal case. `open-pr.mjs` reports `swept` for its leftover commit too (ADR-017).
+
+## Amendment 2 — Shared executable run setup (2026-11-14)
+
+Both pipeline skills call `skills/10x-pipeline/scripts/prepare-run.mjs <id> [--chain 10x|openspec]` from the original project root before router initialization. The standalone executable uses existing standalone helpers and Node built-ins. It owns setup sequencing and filesystem copying. The router owns isolation enforcement, run state, commits and rollback.
+
+Setup preserves the ordered `opt-out`, `in-run-worktree`, `in-flight-main`, `created`, `reused` and `attached` cases. A fresh branch starts from invoking HEAD with automatic upstream tracking suppressed. Fresh creation alone adds a needed local exclude, reports uncommitted paths outside the selected change folder and copies that folder with regular-file timestamps, modes and symlink targets preserved. Project prefixes are appended once to the selected worktree. Resume paths preserve destination bytes and timestamps. Git discovery preserves the source index.
+
+Runtime outcomes print one JSON object and exit 0. Successful setup carries `reason: null` and an absolute `runRoot`. A setup failure carries a bounded `reason` and `runRoot: null`, retaining partial resources for inspection. Usage errors print a diagnostic on stderr and exit 2. Skills validate the result and stop before `init` on a failure signal or invalid output.
+
+An exclusive filesystem lock in the absolute Git common directory serializes setup for each full branch name across chains and project prefixes. It covers discovery, worktree registration, complete copying and usable-root validation. Contention returns failure JSON. An interrupted process can leave a lock requiring inspection before manual removal.
+
+Real CLI acceptance tests cover both chains, policy parity with the router loader, prefixes, copy fidelity, unchanged resumes, injected failures, the Git deadline, concurrent setup and command restrictions. The source change folder stays in place and `left` stays empty in Wave 4. Stale-copy cleanup is deferred to Wave 5. The existing live host-permission question above remains open.

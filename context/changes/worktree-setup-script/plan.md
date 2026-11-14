@@ -249,15 +249,15 @@ Existing branch/worktree names, project layout and router state formats do not c
 
 #### Automated
 
-- [x] 1.1 The real-script suite proves all six setup cases for both chains and the ordered precedence cases: `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
-- [x] 1.2 The same suite proves policy parity, prefix-aware paths, timestamp/copy fidelity, unchanged resumes, honest failure JSON and the no-config/no-destructive-command boundary.
-- [x] 1.3 The mandatory repository suite passes after the new script is added: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 The real-script suite proves all six setup cases for both chains and the ordered precedence cases: `node --test skills/10x-pipeline/test/prepare-run.test.mjs`. — 18bb4ab
+- [x] 1.2 The same suite proves policy parity, prefix-aware paths, timestamp/copy fidelity, unchanged resumes, honest failure JSON and the no-config/no-destructive-command boundary. — 18bb4ab
+- [x] 1.3 The mandatory repository suite passes after the new script is added: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 18bb4ab
 
 ### Phase 2: Wire skills and document the contract
 
 #### Automated
 
-- [ ] 2.1 Setup and both skill contracts pass together: `node --test skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
-- [ ] 2.2 Both-chain prepare-then-init integration tests return `action: "run"` from the reported run root, and setup no-op cases retain the router's existing opt-out/in-flight behavior.
-- [ ] 2.3 The mandatory repository suite passes after integration: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [ ] 2.4 `git diff --check` passes and the scoped diff confirms only the owned setup regions/supporting files changed, with no WAVES, sibling implementation or run-state edits by this change.
+- [x] 2.1 Setup and both skill contracts pass together: `node --test skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
+- [x] 2.2 Both-chain prepare-then-init integration tests return `action: "run"` from the reported run root, and setup no-op cases retain the router's existing opt-out/in-flight behavior.
+- [x] 2.3 The mandatory repository suite passes after integration: `node --test skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.4 `git diff --check` passes and the scoped diff confirms only the owned setup regions/supporting files changed, with no WAVES, sibling implementation or run-state edits by this change.

@@ -180,3 +180,25 @@ test("the Bash timeout line names the three scripts and `timeout: 600000`, outsi
   assert.equal(lines.indexOf(hits[0]), lines.findIndex((l) => l.startsWith("Pull request script: ")) + 1);
   assert.ok(!section().includes(hits[0]), "not inside the anti-stall section");
 });
+
+// Shared setup stays inside Start step 3, with explicit failure handling and the existing run safety rules.
+test("Start step 3 consumes the shared setup result and retains run safety", () => {
+  const start = skill.indexOf("\n3. Prepare run isolation");
+  assert.ok(start >= 0);
+  const setup = skill.slice(start, skill.indexOf("\n4. ", start));
+  assert.ok(setup.includes('PREPARE_RUN="${CLAUDE_SKILL_DIR}/scripts/prepare-run.mjs"'));
+  assert.ok(setup.includes("Under Codex, take the absolute SKILL.md path"));
+  assert.ok(setup.includes("Keep `PREPARE_RUN` absolute and quoted"));
+  assert.ok(setup.includes('cd "<root>" && node "$PREPARE_RUN" <change-id>'));
+  assert.ok(setup.includes("`timeout: 600000`"));
+  for (const text of ["exactly one JSON object", "reason: null", "absolute `root` and `runRoot`",
+    "nonzero exit", "missing or malformed JSON", "non-null `reason`", "STOP before `init`",
+    "returned `root`", "returned `runRoot`", "not in the run (uncommitted in the main checkout)",
+    "A resume never copies", 'cd "<run root>" && node $ROUTER', "<run root>/<resultFile>",
+    "Never commit, stash, reset or clean", "refs/agent-smith/", "name their side refs",
+    "List the files, check the list", "stale copy", "before removing the worktree"]) {
+    assert.ok(setup.includes(text), text);
+  }
+  assert.doesNotMatch(skill, /git worktree|\bcp -|\bmkdir -p|check-ignore|info\/exclude/);
+  assert.ok(fs.existsSync(path.resolve(path.dirname(DEFAULT_PATH), "scripts/prepare-run.mjs")));
+});
