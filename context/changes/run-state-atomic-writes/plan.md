@@ -304,20 +304,20 @@ This step produces the plan and brief. Implementation acceptance consists of the
 
 #### Automated
 
-- [x] 1.1 Atomic writer cases prove complete old-or-new target bytes, Buffer identity, safe collision handling and observable publication/cleanup failures.
-- [x] 1.2 Both-chain cleanup cases remove recognized regular state temps under the lock and preserve unrelated files, symlinks, directories and nested entries.
-- [x] 1.3 Held-lock cases preserve all candidate temps, and an isolated successful step commit contains none of the recognized abandoned temps.
-- [x] 1.4 The repository-mandated router, OpenSpec and tools test suite passes after the script changes.
+- [x] 1.1 Atomic writer cases prove complete old-or-new target bytes, Buffer identity, safe collision handling and observable publication/cleanup failures. — 8fc758a
+- [x] 1.2 Both-chain cleanup cases remove recognized regular state temps under the lock and preserve unrelated files, symlinks, directories and nested entries. — 8fc758a
+- [x] 1.3 Held-lock cases preserve all candidate temps, and an isolated successful step commit contains none of the recognized abandoned temps. — 8fc758a
+- [x] 1.4 The repository-mandated router, OpenSpec and tools test suite passes after the script changes. — 8fc758a
 
 ### Phase 2: Strict log guards and read-only diagnostics
 
 #### Automated
 
-- [ ] 2.1 Both chains halt init, next, usage and status --report on damaged final or middle lines with exact file/line recovery guidance and byte-identical run-folder state.
-- [ ] 2.2 Strict-reader cases cover non-object JSON, whitespace, physical line numbering and file errors, while valid legacy entries, empty files and CRLF retain their supported behavior.
-- [ ] 2.3 Plain status, risk, both comparison formats and verify-archive expose correctly attributed logProblems while preserving files, temps and existing command exit semantics.
-- [ ] 2.4 Codex validation refuses a corrupt pending log before preflight or launch on both chains and retains its failure-envelope contract.
-- [ ] 2.5 The repository-mandated router, OpenSpec and tools test suite passes after the reader and caller changes.
+- [x] 2.1 Both chains halt init, next, usage and status --report on damaged final or middle lines with exact file/line recovery guidance and byte-identical run-folder state.
+- [x] 2.2 Strict-reader cases cover non-object JSON, whitespace, physical line numbering and file errors, while valid legacy entries, empty files and CRLF retain their supported behavior.
+- [x] 2.3 Plain status, risk, both comparison formats and verify-archive expose correctly attributed logProblems while preserving files, temps and existing command exit semantics.
+- [x] 2.4 Codex validation refuses a corrupt pending log before preflight or launch on both chains and retains its failure-envelope contract.
+- [x] 2.5 The repository-mandated router, OpenSpec and tools test suite passes after the reader and caller changes.
 
 ### Phase 3: Recovery documentation and compatibility verification
 

@@ -7,11 +7,13 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import {
   cleanupAll, makeProject, run, git, gitEnv, gitInit, entry, writeLog, writeMetaFile,
-  writeResult, readLogEntries, readMetaFile, writeOverride, planText,
+  writeResult, readLogEntries, readMetaFile, planText,
 } from "./helpers.mjs";
 import { writePlan } from "./ahead.mjs";
 import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
-import { writeFileAtomic, stateTempFiles, cleanupStateTemps, runLockPath } from "../scripts/state.mjs";
+import { writeFileAtomic, stateTempFiles, cleanupStateTemps, runLockPath, readLog } from "../scripts/state.mjs";
+
+import { codexFixture, execute, calls } from "./codex-helpers.mjs";
 
 const STATE_URL = new URL("../scripts/state.mjs", import.meta.url).href;
 const TARGETS = ["run.jsonl", "meta.json", "report.md"];
@@ -59,12 +61,12 @@ function commitAll(project) {
 }
 
 function gitSnapshot(project) {
-  const index = git(project, ["rev-parse", "--git-path", "index"]);
+  const index = git(project, ["-C", project.root, "rev-parse", "--path-format=absolute", "--git-path", "index"]);
   return {
     files: snapshot(project.changeDir),
     index: fs.readFileSync(path.resolve(project.base, index)),
     refs: git(project, ["show-ref"]),
-    head: git(project, ["rev-parse", "HEAD"]),
+    head: git(project, ["-C", project.root, "rev-parse", "HEAD"]),
   };
 }
 
@@ -325,4 +327,184 @@ test("isolated step commit excludes abandoned state temps", () => {
   assert.ok(readLogEntries(p)[0].commit);
   for (const file of temps) assert.equal(fs.existsSync(file), false);
   assert.doesNotMatch(git(p, ["-C", p.root, "ls-tree", "-r", "--name-only", "HEAD"]), /\.tmp$/m);
+});
+
+for (const [label, contents, values, lines] of [
+  ["missing", null, [], []], ["empty", "", [], []], ["blank", "\n\r\n", [], []],
+  ["legacy CRLF", "\r\n{\"old\":true,\"custom\":{\"value\":4}}\r\n{}\r\n", [{ old: true, custom: { value: 4 } }, {}], []],
+  ["multiple physical lines", "{}\n{broken\n\n[]\r\n \r\nnull\n42\ntrue\n\"text\"\n{}", [{}, {}], [2, 4, 5, 6, 7, 8, 9]],
+]) {
+  test(`log reader ${label}: explicit inspection and strict default`, () => {
+    const p = makeProject();
+    const file = path.join(p.changeDir, "run.jsonl");
+    if (contents !== null) fs.writeFileSync(file, contents);
+    const result = readLog(file, { tolerant: true });
+    assert.deepEqual(result.entries, values);
+    assert.deepEqual(result.logProblems.map((problem) => problem.line), lines);
+    for (const problem of result.logProblems) {
+      assert.equal(problem.file, file);
+      assert.equal(typeof problem.reason, "string");
+      assert.doesNotMatch(problem.reason, /broken|custom|text/);
+    }
+    if (lines.length) assert.throws(() => readLog(file), /line 2.*Preserve the damaged copy.*git show <sha>:\.\//);
+    else assert.deepEqual(readLog(file), result);
+  });
+}
+
+test("log read failures identify the file with a null line and strict reads refuse", (t) => {
+  const p = makeProject();
+  const file = path.join(p.changeDir, "run.jsonl");
+  t.mock.method(fs, "readFileSync", () => { throw Object.assign(new Error("private content"), { code: "EACCES" }); });
+  assert.deepEqual(readLog(file, { tolerant: true }), {
+    entries: [], logProblems: [{ file, line: null, reason: "Cannot read log (EACCES)" }],
+  });
+  assert.throws(() => readLog(file), /EACCES/);
+  t.mock.restoreAll();
+});
+
+for (const chain of ["10x", "openspec"]) {
+  for (const damaged of ["middle", "final"]) {
+    test(`${chain}: damaged ${damaged} log halts every writer before cleanup, result intake or git writes`, () => {
+      const p = isolatedProject(chain);
+      const started = runIn(p, ["init", p.id, "--goal", GOAL, "--chain", chain]);
+      assert.equal(started.json.action, "run", started.stdout);
+      const good = JSON.stringify(entry(1, "fix", { usage: { totalTokens: 4 } }));
+      const pending = JSON.stringify(entry(3, "fix", { result: undefined, pendingPrompt: "pending" }));
+      const lines = damaged === "middle" ? [good, "{private truncated", pending] : [good, pending, "{private truncated"];
+      const file = path.join(p.agentDir, "run.jsonl");
+      fs.writeFileSync(file, lines.join("\n") + "\n");
+      writeResult(p, { status: "orchestrator-error", note: "must be retained" });
+      addTemps(p);
+      const before = gitSnapshot(p);
+      for (const args of [
+        ["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens", "4"],
+        ["usage", p.id, "1", "--tokens", "5"], ["status", p.id, "--report"],
+      ]) {
+        const res = runIn(p, [...args, "--chain", chain]);
+        assert.equal(res.status, 1, res.stdout);
+        assert.equal(res.json.action, "halt");
+        assert.ok(res.json.reason.includes(`${file} line ${damaged === "middle" ? 2 : 3}`), res.stdout);
+        assert.ok(res.json.reason.includes(`git show <sha>:./${path.relative(p.root, file)}`), res.stdout);
+        assert.match(res.json.reason, /Preserve the damaged copy.*last usable step commit on the run branch.*before restoring/);
+        assert.doesNotMatch(res.json.reason, /private truncated/);
+        assert.deepEqual(gitSnapshot(p), before);
+      }
+    });
+  }
+
+  test(`${chain}: status, risk and comparison expose attributed partial-log diagnostics through reads`, () => {
+    const p = seed(projectFor(chain), chain);
+    const b = seed(projectFor(chain), chain);
+    const file = path.join(p.agentDir, "run.jsonl");
+    const baselineFile = path.join(b.agentDir, "run.jsonl");
+    fs.appendFileSync(file, "{private broken\n\n[]\n");
+    fs.appendFileSync(baselineFile, "null\n");
+    addTemps(p);
+    addTemps(b);
+    const before = [snapshot(p.changeDir), snapshot(b.changeDir)];
+    for (const command of ["status", "risk"]) {
+      const res = runIn(p, [command, p.id, "--chain", chain]);
+      assert.equal(res.status, 0, res.stdout);
+      assert.deepEqual(res.json.logProblems.map(({ file: f, line }) => [f, line]), [[file, 2], [file, 4]]);
+      if (command === "status") assert.equal(res.json.steps.length, 1);
+    }
+    const args = ["compare", p.id, "--chain", chain, "--baseline", b.root];
+    const cmp = runIn(p, args);
+    assert.equal(cmp.status, 0, cmp.stdout);
+    assert.deepEqual(cmp.json.routed.logProblems.map((problem) => problem.line), [2, 4]);
+    assert.deepEqual(cmp.json.baseline.logProblems, [{ file: baselineFile, line: 2, reason: "Expected a JSON object" }]);
+    const md = runIn(p, [...args, "--format", "md"]);
+    assert.equal(md.status, 0, md.stdout);
+    for (const [side, f, line] of [["baseline", baselineFile, 2], ["routed", file, 2], ["routed", file, 4]]) {
+      assert.ok(md.stdout.includes(`Partial-log warning for ${side} at ${f} line ${line}`), md.stdout);
+    }
+    assert.deepEqual([snapshot(p.changeDir), snapshot(b.changeDir)], before);
+  });
+
+  test(`${chain}: archive verification keeps its truth and attribution for live, selected and ambiguous logs`, () => {
+    const p = seed(projectFor(chain), chain);
+    const liveFile = path.join(p.agentDir, "run.jsonl");
+    fs.appendFileSync(liveFile, "{bad\n");
+    addTemps(p);
+    const args = ["verify-archive", p.id, "--chain", chain];
+    const live = runIn(p, args);
+    assert.equal(live.status, 1, live.stdout);
+    assert.equal(live.json.archived, false);
+    assert.equal(live.json.logProblems[0].file, liveFile);
+    const root = chain === "openspec" ? "openspec/changes/archive" : "context/archive";
+    const first = `${root}/2026-01-01-${p.id}`;
+    const firstDir = path.join(p.root, first);
+    fs.mkdirSync(path.dirname(firstDir), { recursive: true });
+    fs.renameSync(p.changeDir, firstDir);
+    if (chain === "10x") fs.writeFileSync(path.join(firstDir, "change.md"), "---\nstatus: archived\narchived_at: 2026-01-01\n---\n");
+    const archivedFile = path.join(firstDir, "agent-smith/run.jsonl");
+    const archivedBefore = snapshot(firstDir);
+    const moved = runIn(p, args);
+    assert.equal(moved.status, 0, moved.stdout);
+    assert.equal(moved.json.archived, true);
+    assert.equal(moved.json.logProblems[0].file, archivedFile);
+    const second = `${root}/2026-01-02-${p.id}`;
+    const secondDir = path.join(p.root, second);
+    fs.cpSync(firstDir, secondDir, { recursive: true });
+    const secondFile = path.join(secondDir, "agent-smith/run.jsonl");
+    const ambiguous = runIn(p, args);
+    assert.equal(ambiguous.status, 1, ambiguous.stdout);
+    assert.deepEqual(ambiguous.json.ambiguous, [first, second]);
+    assert.deepEqual(ambiguous.json.logProblems.map((problem) => problem.file), [archivedFile, secondFile]);
+    const selected = runIn(p, [...args, "--path", `./${second}/`]);
+    assert.equal(selected.status, 0, selected.stdout);
+    assert.equal(selected.json.path, second);
+    assert.deepEqual(selected.json.logProblems.map((problem) => problem.file), [secondFile]);
+    // An identified archive whose truth check fails still carries its log diagnostics.
+    fs.mkdirSync(p.changeDir, { recursive: true });
+    const failed = runIn(p, [...args, "--path", second]);
+    assert.equal(failed.status, 1, failed.stdout);
+    assert.equal(failed.json.logProblems[0].file, secondFile);
+    assert.deepEqual(snapshot(firstDir), archivedBefore);
+    assert.deepEqual(snapshot(secondDir), archivedBefore);
+  });
+
+  test(`${chain}: clean observational output omits logProblems`, () => {
+    const p = seed(projectFor(chain), chain);
+    for (const args of [["status", p.id], ["risk", p.id], ["verify-archive", p.id]]) {
+      const res = runIn(p, [...args, "--chain", chain]);
+      assert.equal(Object.hasOwn(res.json, "logProblems"), false, res.stdout);
+    }
+    const cmp = runIn(p, ["compare", p.id, "--baseline", p.root, "--chain", chain]);
+    assert.equal(cmp.status, 0, cmp.stdout);
+    assert.equal(Object.hasOwn(cmp.json.baseline, "logProblems"), false);
+    assert.equal(Object.hasOwn(cmp.json.routed, "logProblems"), false);
+  });
+
+  test(`${chain}: Codex validation refuses damage before any permission probe or child launch`, () => {
+    const fixture = codexFixture(chain);
+    const p = fixture.project;
+    const file = path.join(p.agentDir, "run.jsonl");
+    fs.appendFileSync(file, "{private damage\n");
+    addTemps(p);
+    const before = snapshot(p.changeDir);
+    const res = execute(fixture);
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "codex-result");
+    assert.equal(res.json.launched, false);
+    assert.equal(res.json.completed, false);
+    assert.equal(res.json.result, null);
+    assert.ok(res.json.reason.includes(`${file} line 2`), res.stdout);
+    assert.deepEqual(calls(fixture.fixture), []);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+}
+
+test("nested project recovery uses a project-relative Git revision path", () => {
+  const p = seed(makeProject({ nest: "packages/app" }), "10x");
+  gitInit(p);
+  commitAll(p);
+  const rel = "context/changes/demo/agent-smith/run.jsonl";
+  assert.equal(JSON.parse(git(p, ["-C", p.root, "show", `HEAD:./${rel}`])).n, 1);
+  fs.appendFileSync(path.join(p.agentDir, "run.jsonl"), "{damaged\n");
+  const before = gitSnapshot(p);
+  const res = runIn(p, ["init", p.id]);
+  assert.equal(res.status, 1, res.stdout);
+  assert.ok(res.json.reason.includes(`git show <sha>:./${rel}`), res.stdout);
+  assert.deepEqual(gitSnapshot(p), before);
 });

@@ -486,14 +486,34 @@ function openspecPaths(id) {
   };
 }
 
-export function readLog(file) {
-  if (!fs.existsSync(file)) return [];
-  return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).flatMap((l) => {
-    try {
-      const e = JSON.parse(l);
-      return e && typeof e === "object" ? [e] : [];
-    } catch { return []; }
-  });
+export function readLog(file, { tolerant = false } = {}) {
+  const entries = [];
+  const logProblems = [];
+  const absolute = path.resolve(file);
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch (error) {
+    if (error.code !== "ENOENT") {
+      logProblems.push({ file: absolute, line: null, reason: `Cannot read log (${error.code ?? "filesystem error"})` });
+    }
+  }
+  for (const [index, line] of (text ?? "").split(/\r?\n/).entries()) {
+    if (line === "") continue;
+    let value;
+    try { value = JSON.parse(line); } catch {
+      logProblems.push({ file: absolute, line: index + 1, reason: "Invalid JSON" });
+      continue;
+    }
+    if (isObject(value)) entries.push(value);
+    else logProblems.push({ file: absolute, line: index + 1, reason: "Expected a JSON object" });
+  }
+  if (!tolerant && logProblems.length) {
+    const first = logProblems[0];
+    const location = first.line === null ? first.file : `${first.file} line ${first.line}`;
+    const rel = path.relative(ROOT, absolute).split(path.sep).join("/");
+    throw new Error(`${location}: ${first.reason}. Preserve the damaged copy and inspect the last usable step commit on the run branch ` +
+      `with git show <sha>:./${rel} before restoring the affected content, then retry. Nothing was written.`);
+  }
+  return { entries, logProblems };
 }
 
 // A skip entry records a step the router decided not to run. It has no n, template, ok or result.
