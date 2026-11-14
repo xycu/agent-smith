@@ -1,9 +1,9 @@
 ---
 change_id: nested-subagent-hard-stop
 title: Enforce the nested-subagent ban outside the prompt
-status: new
+status: impl_reviewed
 created: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-14
 archived_at: null
 ---
 

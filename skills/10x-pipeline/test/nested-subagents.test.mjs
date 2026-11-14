@@ -152,11 +152,59 @@ test("the intro of both anti-stall sections names the sixth rule", () => {
 
 const REPO = path.resolve(SKILL_DIR, "../..");
 
-test("docs/REFERENCE.md drops the spawn-depth requirement and names ADR-018", () => {
+test("project settings cap Claude Code subagent depth at the string 1", () => {
+  const settings = JSON.parse(fs.readFileSync(path.join(REPO, ".claude/settings.json"), "utf8"));
+  assert.equal(settings.env?.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, "1");
+});
+
+test("the reference documents the depth cap and optional plugin-user setup", () => {
   const text = fs.readFileSync(path.join(REPO, "docs/REFERENCE.md"), "utf8");
-  assert.ok(!text.includes(["spawns", "its own", "subagents"].join(" ")), "the old Limits note is gone");
+  const block = text.split("- A step subagent starts no subagent of its own.")[1]?.split("\n- ")[0];
+  assert.ok(block, "the nesting Limits bullet exists");
+  assert.match(block, /Plugin users can optionally merge/);
+  assert.match(block, /"CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH":"1"/);
+  assert.match(block, /CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 claude/);
+  assert.match(block, /2\.1\.217/);
+  assert.match(block, /top-level orchestrator can launch step agents/);
+  assert.match(block, /Higher-precedence settings can override/);
+  for (const url of [
+    "https://code.claude.com/docs/en/env-vars",
+    "https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents",
+    "https://code.claude.com/docs/en/settings#settings-precedence",
+    "ADR/ADR-018-no-nested-subagents.md#amendment-2--harness-depth-cap",
+  ]) assert.ok(block.includes(url), url);
   assert.doesNotMatch(text, /CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` of \d+ or more/);
-  assert.ok(text.includes("ADR-018"));
+});
+
+test("the README offers optional string-valued project setup and a fresh session", () => {
+  const text = fs.readFileSync(path.join(REPO, "README.md"), "utf8");
+  const block = text.split("### Claude Code subagent depth\n")[1]?.split("\n## ")[0];
+  assert.ok(block, "the Configure subsection exists");
+  assert.ok(text.indexOf("### Claude Code subagent depth") > text.indexOf("## ⚙️ Configure"));
+  assert.ok(text.indexOf("### Claude Code subagent depth") < text.indexOf("## 📚 More"));
+  const example = block.match(/```json\n([\s\S]*?)\n```/);
+  assert.ok(example, "a mergeable JSON example exists");
+  assert.equal(JSON.parse(example[1]).env.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, "1");
+  assert.match(block, /Plugin users can optionally merge/);
+  assert.match(block, /every Claude session/);
+  assert.match(block, /Commit the setting before creating run worktrees/);
+  assert.match(block, /fresh Claude session/);
+  assert.ok(block.includes("(docs/REFERENCE.md)"));
+});
+
+test("ADR-018 amends the historical enforcement gap and records pending live acceptance", () => {
+  const text = fs.readFileSync(path.join(REPO, "docs/ADR/ADR-018-no-nested-subagents.md"), "utf8");
+  const block = text.split("## Amendment 2 — Harness depth cap\n")[1]?.split("\n## ")[0];
+  assert.ok(block, "the amendment exists");
+  for (const needle of [
+    "2026-11-14", "supersedes the Context", "Consequences", "Not covered",
+    "`env.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to the string `\"1\"`",
+    "disallowedTools: Agent", "PreToolUse", "invocation identity checks",
+    "Live acceptance is **unavailable**", "Manual row 2.4 stays pending",
+    "https://code.claude.com/docs/en/env-vars",
+    "https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents",
+    "https://code.claude.com/docs/en/settings#settings-precedence",
+  ]) assert.ok(block.includes(needle), needle);
 });
 
 test("ADR-018 exists and its rule lines follow the rule form", () => {

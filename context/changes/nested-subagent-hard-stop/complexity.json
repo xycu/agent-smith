@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 2,
+      "evidence": "change.md fixes the enforcement outcome but leaves project-wide spawn depth versus a scoped agent open pending upstream capability verification."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": ".claude/settings.json already configures the harness and agents/score.md already restricts tools; candidate mechanisms adapt these patterns."
+    },
+    "coupling": {
+      "score": 2,
+      "evidence": "change.md spans harness settings, optional agents.steps routing, README.md, docs/REFERENCE.md and ADR-018 while retaining prompt rules."
+    },
+    "discovery": {
+      "score": 2,
+      "evidence": "change.md names local entry points, but upstream env-vars and plugin-agent tool inheritance require external investigation alongside context/changes/WAVES.md ownership."
+    },
+    "volume": {
+      "score": 2,
+      "evidence": "The smallest candidate touches .claude/settings.json, README.md, docs/REFERENCE.md, ADR-018 and focused enforcement tests, within the 4-to-10-file band."
+    },
+    "verification": {
+      "score": 3,
+      "evidence": "change.md requires a live subagent Agent call refusal; nested-subagents.test.mjs and agents.test.mjs check text and routing, leaving enforcement dependent on an external Claude harness."
+    }
+  },
+  "unknowns": [
+    "Current upstream support and exact semantics of CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 have not been independently verified during scoring.",
+    "Plugin-agent disallowedTools support and inheritance of skills, MCP and Chrome tools remain unverified.",
+    "Availability of a live Claude session for adversarial nesting acceptance is unverified.",
+    "The 2026-11-12 repository review cited by change.md has no identified standalone artifact in the inspected inputs; its findings are available through change.md."
+  ],
+  "confidence": "medium"
+}

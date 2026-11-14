@@ -1,0 +1,7 @@
+Command node --version
+v24.19.0
+Exit 0
+
+Command claude --version
+2.1.311 (Claude Code)
+Exit 0
