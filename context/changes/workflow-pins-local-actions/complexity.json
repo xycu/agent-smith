@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md fixes recursive traversal, missing-target errors, diagnostics, tests, and documentation scope" },
+    "novelty": { "score": 1, "evidence": "tools/workflow-pins.mjs already scans YAML files and parses references with findUses" },
+    "coupling": { "score": 1, "evidence": "change.md scopes the change to tools/workflow-pins.mjs, its test file, and one AGENTS.md layout entry" },
+    "discovery": { "score": 0, "evidence": "change.md names tools/workflow-pins.mjs and tools/test/workflow-pins.test.mjs; WAVES.md confirms ownership" },
+    "volume": { "score": 1, "evidence": "change.md requires edits in the guard, its tests, and the AGENTS.md layout entry" },
+    "verification": { "score": 1, "evidence": "tools/test/workflow-pins.test.mjs already exercises check with scratch roots and exact diagnostics" }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
