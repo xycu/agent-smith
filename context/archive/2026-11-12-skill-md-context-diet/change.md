@@ -1,10 +1,10 @@
 ---
 change_id: skill-md-context-diet
 title: Cut the orchestrator skill text that the orchestrator never acts on
-status: impl_reviewed
+status: archived
 created: 2026-11-12
 updated: 2026-11-15
-archived_at: null
+archived_at: 2026-11-15T00:35:38Z
 ---
 
 ## Notes
