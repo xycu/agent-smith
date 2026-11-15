@@ -1,7 +1,7 @@
 ---
 change_id: step-subagent-git-guard
 title: Stop step subagents from running banned git, delete and push commands
-status: impl_reviewed
+status: implemented
 created: 2026-11-13
 updated: 2026-11-15
 archived_at: null
@@ -80,3 +80,7 @@ Deliberate-break checks detected a removed shared Git prohibition, removed push 
   Requires post-publication PR CI acceptance and human review of any pending host checks.
 
 The runtime hook covers the documented direct Bash-command subset. Semantic safety rules and host controls govern helper/interpreter internals, dynamic shell construction, MCP/API actions, custom agents and OpenAI children.
+
+## Phase 4 follow-up
+
+Completed in cf49dd1 on 2026-11-15. All three Phase 4 Automated rows passed. The 11 guard tests pass, the retained local metadata digest is unchanged, and strict validation of the clean index-tree export passes with only the existing ICON_MISSING warning. Complete-suite evidence is reused under the Phase 4 contract for unchanged runtime code. Evidence is in evidence/review-follow-up-verification.txt. Manual rows 2.6, 2.7 and 3.4 remain pending with the requirements recorded above.

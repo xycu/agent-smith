@@ -396,6 +396,6 @@ Phase 4 removes only Git tracking for local metadata. The existing local file re
 
 #### Automated
 
-- [x] 4.1 F1's existing option-value regression and the complete guard test file pass, covering real dry-run precedence, flag-looking values, hook bypass and safe attached commit messages with inert payloads only.
-- [x] 4.2 F2's root .DS_Store is untracked, the root and nested metadata paths match the repository ignore rule, and the retained local file has the same digest as before cleanup.
-- [x] 4.3 A clean export of the candidate tracked tree contains no .DS_Store, strict plugin validation reports no ARCHIVE_OS_METADATA_FILE, and follow-up evidence records the export identity, diagnostics, focused results and applicable complete-suite evidence.
+- [x] 4.1 F1's existing option-value regression and the complete guard test file pass, covering real dry-run precedence, flag-looking values, hook bypass and safe attached commit messages with inert payloads only. — cf49dd1
+- [x] 4.2 F2's root .DS_Store is untracked, the root and nested metadata paths match the repository ignore rule, and the retained local file has the same digest as before cleanup. — cf49dd1
+- [x] 4.3 A clean export of the candidate tracked tree contains no .DS_Store, strict plugin validation reports no ARCHIVE_OS_METADATA_FILE, and follow-up evidence records the export identity, diagnostics, focused results and applicable complete-suite evidence. — cf49dd1
