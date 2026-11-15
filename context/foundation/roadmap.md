@@ -16,7 +16,7 @@ milestone_status: open
 
 > Derived from PRD v2, the owner's child-delegation requirement and the confirmed codebase baseline, with the stack assessment and health check as supporting evidence.
 > This successor milestone continues the existing roadmap in place.
-> Current slices are listed in dependency order. The At a glance table is the index.
+> Slice identifiers remain stable. The At a glance table records dependencies; [WAVES.md v2](../changes/WAVES.md) records the current execution batches and file-ownership constraints.
 
 ## Milestone
 
@@ -27,6 +27,7 @@ milestone_status: open
 - **Done when:** every current slice S-12 through S-20 is done and the final candidate meets the full acceptance contract below.
 - **Scope anchors:** US-03 through US-06, FR-012 through FR-016 and FR-020. FR-001 through FR-011 remain preservation obligations, with FR-006 included as delivered workflow support. FR-017 through FR-019 are deferred follow-ups. MS-01 adds the owner's child-delegation requirement.
   - MS-01 — Owner request on 2026-11-15. “Also in the roadmap include a change that will allow subagents to spawn child subagents. I think that this is one thing that severely decreases the performance of the pipeline.” S-14 delivers the capability and records comparative performance evidence.
+  - MS-02 — Owner sequencing decision on 2026-11-15. “Make the change that addresses child subagents run a single change in Wave 0.” S-14 now runs first and alone. Its focused baseline and host proof belong inside that change; S-12 follows it. This supersedes the former S-12 prerequisite of S-14 without reducing the acceptance scope.
 - **Acceptance:** all six host/provider/chain combinations complete three out of three normal live runs on the final candidate without manual steering, for 18 normal runs total. Interactive-session and headless top-level launches are both represented within each combination's three runs.
 - **Feature coverage:** default execution, archive and requested PR report comments across applicable configurations. Recovery and owner-decision checks accompany each configuration. Covering tests, commands or scripts qualify when browser tools are unavailable. Archive with pending checks requires explicit owner approval.
 - **Delegation coverage:** child work returns to the spawning step before completion, effective safety controls remain enforced, and recovery/result attribution cover the added delegation. Performance improvement requires measured evidence. S-14 establishes exact host/mode support before final qualification.
@@ -41,16 +42,16 @@ The owner wants to start an authorized workflow and let it finish without repeat
 
 The north star is the first complete user flow that provides direct evidence the milestone's intended behavior works.
 
-**S-12: First unattended plan-based delivery** — the owner selected a Claude-only run reaching a reviewable pull request as the first end-to-end outcome. It exposes fresh-host readiness and new default-step guard delivery early.
+**S-12: First unattended plan-based delivery** remains the first full end-to-end outcome: a Claude-only run reaching a reviewable pull request. Under MS-02, **S-14: Pipeline steps can delegate to child subagents** is delivered first as the only change in Wave 0. S-14 establishes focused delegation proof; S-12 then exercises the complete delivery flow and fresh-host guard delivery.
 
 ## At a glance
 
 | ID | Change ID | Outcome (user can …) | Prerequisites | PRD refs | Status |
 | --- | --- | --- | --- | --- | --- |
-| S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | — | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | ready |
+| S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | ready |
+| S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | ready |
 | S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | ready |
-| S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | S-12 | MS-01, US-03, US-05, FR-007, FR-014 | proposed |
-| S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-13, S-14 | US-04, FR-013 | proposed |
+| S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-12, S-13, S-14 | US-04, FR-013 | proposed |
 | S-16 | resumable-unattended-runs | user can resume an interrupted run with preserved work, consistent progress and results matched to the correct invocation. | S-15 | US-05, FR-008, FR-014 | proposed |
 | S-17 | reviewable-run-handoff | user can locate completed work, its optional archive and its requested pull-request report with an accurate shared outcome. | S-16 | US-06, FR-004, FR-005, FR-008, FR-009, FR-015 | proposed |
 | S-18 | verified-step-protection | user can run steps with observed host-mediated safety checks and understand the effective protection of the selected configuration. | S-15 | US-04, FR-007, FR-013 | proposed |
@@ -59,12 +60,12 @@ The north star is the first complete user flow that provides direct evidence the
 
 ## Streams
 
-These chains show the parallel reading order. The prerequisites in the item records govern sequencing.
+These chains show logical dependencies. The prerequisites in the item records and the execution batches in [WAVES.md v2](../changes/WAVES.md) govern sequencing. Potential parallel work still needs disjoint ownership in the approved plans; Wave 0 always runs alone.
 
 | Stream | Theme | Chain | Note |
 | --- | --- | --- | --- |
-| A | First delivery, recovery and handoff | S-12 → S-14 → S-15 → S-16 → S-17 → S-20 | S-15 joins the upgrade stream, and S-20 joins the protection/decision stream. |
-| B | Specification workflow upgrade | S-13 | Can be planned alongside the first delivery, then alongside child delegation. Joins Stream A at S-15. |
+| A | Child delegation, first delivery, recovery and handoff | S-14 → S-12 → S-15 → S-16 → S-17 → S-20 | S-14 runs alone first. S-15 joins the upgrade stream, and S-20 joins the protection/decision stream. |
+| B | Specification workflow upgrade | S-13 | Scheduled after Wave 0 and the audit fixes, before the first full delivery. Joins Stream A at S-15. |
 | C | Effective protection and owner decisions | S-18 → S-19 | Starts after S-15 and can proceed alongside recovery/handoff, then joins Stream A at S-20. |
 
 ## Baseline
@@ -84,7 +85,7 @@ The delivered contract forbids nested subagents and applies a project-level dept
 
 ## Foundations
 
-None. Existing execution, state, tests and reporting support the first user-visible flow. S-12 introduces the minimum reusable evidence convention inside that flow, and later slices extend it as required by their own outcomes.
+None. Existing execution, state, tests and reporting support the first change. S-14 records the minimum evidence convention and a bounded flat/delegated comparison within Wave 0; S-12 extends that evidence to the complete delivery flow. No separate foundation change precedes child delegation.
 
 ## Slices
 
@@ -95,8 +96,8 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 - **Outcome:** user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request.
 - **Change ID:** first-unattended-delivery
 - **PRD refs:** US-03, FR-001, FR-003, FR-007, FR-011, FR-012
-- **Prerequisites:** —
-- **Parallel with:** S-13
+- **Prerequisites:** S-14
+- **Parallel with:** — in WAVES v2; scheduled alone in Wave 3.
 - **Blockers:** Authenticated host/model access, project trust and review-remote credentials are needed for live execution. Owner readiness is checked early in this slice.
 - **Unknowns:**
   - Which eligible change and exact host configuration provide the first representative run? — Owner: maintainer with the user. Block: no, select during planning.
@@ -110,7 +111,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 - **Change ID:** openspec-2-upgrade
 - **PRD refs:** US-03, FR-006, FR-008, FR-020
 - **Prerequisites:** —
-- **Parallel with:** S-12, S-14
+- **Parallel with:** — in WAVES v2; scheduled alone in Wave 2.
 - **Blockers:** Live execution needs the selected host/model access and trusted acceptance project.
 - **Unknowns:**
   - Which upstream changes and project-specific integration adaptations affect compatibility? — Owner: maintainer. Block: no, investigate before upgrade edits.
@@ -122,28 +123,29 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 
 - **Outcome:** user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes.
 - **Change ID:** nested-step-delegation
-- **PRD refs:** MS-01, US-03, US-05, FR-007, FR-014
-- **Prerequisites:** S-12
-- **Parallel with:** S-13
+- **PRD refs:** MS-01, MS-02, US-03, US-05, FR-007, FR-014
+- **Prerequisites:** —; owner-selected first change under MS-02.
+- **Parallel with:** —; the only change in Wave 0.
+- **Baseline:** Record a bounded representative run with current flat delegation inside this change, then repeat it with child delegation. S-12 is not a prerequisite; the first complete delivery follows Wave 0.
 - **Blockers:** Live proof needs host capabilities, effective permissions and account access that permit child delegation.
 - **Unknowns:**
   - Which supported host and launch modes can reliably await children and return their results to the spawning step? — Owner: maintainer. Block: no for planning, establish capability evidence before selecting the implementation. A capability gap affecting the agreed configurations requires an owner scope decision.
   - Which effective delegation controls and inherited step restrictions must change together to permit safe child work? — Owner: maintainer. Block: no, investigate the delivered restriction and preserve its recovery and attribution protections.
-  - Does child delegation improve representative pipeline performance after accounting for child usage, coordination and retries? — Owner: maintainer. Block: no for enabling the capability, measure against the first completed flow before making a performance claim.
+  - Does child delegation improve representative pipeline performance after accounting for child usage, coordination and retries? — Owner: maintainer. Block: no for enabling the capability, measure against this change's recorded flat-delegation baseline before making a performance claim.
 - **Acceptance:**
   - Demonstrate a step spawning children, collecting their results and completing through the normal entry points of both chains. Record exact host versions and interactive/headless behavior for each applicable host/provider configuration.
   - Demonstrate that child, late and foreign notifications cannot complete the enclosing step or advance the router prematurely. Keep child work and available usage attributable to the enclosing invocation.
   - Exercise child failure, interruption/resume and late completion with recoverable work and consistent progress. Verify effective child permissions and applicable step safety controls.
   - Record representative elapsed time, completion quality, interventions and available usage before and after enabling delegation, retaining overhead and failures. Performance improvement is an outcome to evaluate.
 - **Risk:** A host can deliver a child's completion to the top session while its spawning step finishes early, recreating the historical result-loss and rollback failure.
-- **Status:** proposed
+- **Status:** ready
 
 ### S-15: Actionable prerequisite and permission failures
 
 - **Outcome:** user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration.
 - **Change ID:** actionable-run-prerequisites
 - **PRD refs:** US-04, FR-013
-- **Prerequisites:** S-13, S-14
+- **Prerequisites:** S-12, S-13, S-14
 - **Parallel with:** —
 - **Blockers:** Owner-controlled account access, project trust or environment policy may need correction when a probe identifies an unavailable prerequisite.
 - **Unknowns:**
@@ -223,9 +225,9 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 
 | Roadmap ID | Change ID | Suggested issue title | Ready for `/10x-plan` | Notes |
 | --- | --- | --- | --- | --- |
-| S-12 | first-unattended-delivery | First unattended plan-based delivery | yes | Selected first outcome. Establish reusable run/evidence conventions inside this flow. |
-| S-13 | openspec-2-upgrade | Complete the specification-based workflow on OpenSpec 2.0.0 | yes | Separate upgrade change agreed by the owner. Can be planned alongside S-12. |
-| S-14 | nested-step-delegation | Pipeline steps can delegate to child subagents | no | Explicit owner addition MS-01. Uses S-12 as the first live baseline, then feeds recovery and protection acceptance. |
+| S-14 | nested-step-delegation | Pipeline steps can delegate to child subagents | yes | MS-01/MS-02: the only Wave 0 change. Establish its focused flat/delegated baseline and host proof inside the change. |
+| S-12 | first-unattended-delivery | First unattended plan-based delivery | yes | First full delivery after S-14. Extend Wave 0's evidence convention to the complete flow. |
+| S-13 | openspec-2-upgrade | Complete the specification-based workflow on OpenSpec 2.0.0 | yes | Separate agreed upgrade, scheduled after Wave 0 and the audit fixes, before S-12. |
 | S-15 | actionable-run-prerequisites | Actionable prerequisite and permission failures | no | Uses the upgraded specification workflow and child-delegation capability as concrete setup cases. |
 | S-16 | resumable-unattended-runs | Resume an interrupted unattended run | no | Reuses the delivered recovery implementation and existing regression evidence. |
 | S-17 | reviewable-run-handoff | Reviewable completion, archive and report handoff | no | Covers the owner's default-workflow, archive and requested-comment acceptance scope. |
@@ -233,7 +235,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 | S-19 | truthful-owner-decision-halts | Truthful verification and owner-decision halts | no | Includes accepted alternative proof when browser tools are unavailable and clear headless halt guidance. |
 | S-20 | supported-host-acceptance | Recorded support across all agreed configurations | no | Three normal completions per combination. Include child-delegation capability evidence and retain attempts, failures, interventions and coverage. |
 
-Readiness here means per-change planning can proceed. The owner-controlled access listed under Blockers must be available for the corresponding live execution. S-12 probes that readiness early. Existing implementations and contract evidence are reused while each slice resolves its observed live gaps.
+Readiness here means per-change planning can proceed. The owner-controlled access listed under Blockers must be available for the corresponding live execution. S-14 probes access needed for its focused delegation proof first; S-12 later exercises complete-flow readiness. Existing implementations and contract evidence are reused while each slice resolves its observed live gaps.
 
 ## Open Roadmap Questions
 
