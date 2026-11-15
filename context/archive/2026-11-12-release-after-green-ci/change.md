@@ -1,10 +1,10 @@
 ---
 change_id: release-after-green-ci
 title: Release only from a main commit whose CI run passed
-status: impl_reviewed
+status: archived
 created: 2026-11-12
-updated: 2026-11-12
-archived_at: null
+updated: 2026-11-15
+archived_at: 2026-11-15T11:25:04Z
 ---
 
 ## Notes
