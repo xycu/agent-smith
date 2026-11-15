@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-15. Waves 1–7 and the stale-result and step-guard follow-ups are merged into `main`. Waves 2–7 and both completed follow-ups are archived. This folder holds three active changes, including one parked draft follow-up and two older merged changes awaiting acceptance or archival. The original seven-wave sequence is complete. GitHub PR merge state and change frontmatter were checked after release v1.11.2 against `main` at `8dcb067` (release PR #191).
+Work order and status as of 2026-11-15. Waves 1–7, the stale-result and step-guard follow-ups, and both older CI changes are merged and archived. This folder holds one active change, the parked quoting draft. The original seven-wave sequence is complete. Release v1.11.2 was published from `main` at `8dcb067` (release PR #191). The older CI acceptance checks were closed with live API evidence, controlled workflow reruns, automated checks and the owner's TrueNAS confirmation.
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -37,10 +37,7 @@ The original map came from each `change.md` and the layout before implementation
 
 Eighteen folders were archived with `/10x-archive`: the thirteen runs that ended `done` before the waves (`agents-md-no-imports`, `archive-done-routercommit`, `array-prompt-override`, `at-or-above-helper`, `budget-halt-after-done`, `file-guard-dedup`, `init-goal-flag`, `init-needs-change-md`, `override-json-error-halt`, `pin-action-shas`, `pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`) and five of the six changes of wave 1 (`coauthor-test-coarse-mtime`, `step-commit-code-under-chore`, `policy-limits-fail-open`, `agents-md-duplicate-adr019`, `skill-rigor-flag`).
 
-Two older merged changes remain active outside the remaining waves:
-
-- `release-after-green-ci` (wave 1, PRs #128 and #137 merged, `impl_reviewed`): implementation review exists. Manual rows 3.4–3.6 remain pending for failed CI, rerun and release-concurrency acceptance. Settle or explicitly defer those rows before archive.
-- `ci-self-hosted-truenas` (PR #123 merged, `impl_reviewed`): six Progress rows remain pending, covering runner prerequisites (2.3), fork approval policy and ADR evidence (3.5–3.6), same-repository PR/main CI (3.2–3.3), and optional fork CI (3.4). The non-root guard has since merged through wave 2.
+The two older merged CI changes were subsequently verified and archived on 2026-11-15. Their current acceptance results appear under "Older CI changes" below.
 
 Known pending Manual rows in the archived changes include: `skill-rigor-flag` 2.5 (a live `--rigor thorough` run) and `pin-action-shas` 1.5 (CI and release-please have resolved the pinned actions since, so it can be ticked with `gh run list`).
 
@@ -152,6 +149,17 @@ Both implementations merged on 2026-11-15 in the order #184 and #185. Release PR
 Three guard Manual rows remain unticked in the archived plan. No checkbox or SHA suffix was changed during archive. Any further acceptance work belongs in a new change referencing the archive. [Guard PR CI](https://github.com/xycu/agent-smith/actions/runs/43668603868)
 
 The combined Node 24 integration suite passed 1,621 tests out of 1,624, with zero failures and three expected skips. Combined main CI and release-commit CI both passed before publication. [Combined main CI](https://github.com/xycu/agent-smith/actions/runs/43702180293) · [Release-commit CI](https://github.com/xycu/agent-smith/actions/runs/43702743803)
+
+## Older CI changes — verified and archived
+
+Both changes were archived on 2026-11-15 after all nine previously pending rows received acceptance evidence. Existing Progress titles and historical SHA suffixes are preserved. Newly completed rows reference evidence commit `ff75956`. The original implementation reviews remain available alongside current acceptance addenda.
+
+| Change | Archive | Verified acceptance |
+| --- | --- | --- |
+| `release-after-green-ci` | `context/archive/2026-11-12-release-after-green-ci/` | CI run 43657049140 failed on attempt 1 and passed on attempt 2. The corresponding Release run skipped after failure and ran after success. Controlled reruns proved a valid queued release survived an intervening skipped release and completed successfully. All three remaining Manual rows are complete. |
+| `ci-self-hosted-truenas` | `context/archive/2026-11-11-ci-self-hosted-truenas/` | Six TrueNAS runners are online, same-repository PR and main jobs passed on them, and the owner confirmed the host setup. Fork approval reads `all_external_contributors`, recorded in ADR-020. All six remaining rows are resolved. The conditional fork-live check is not applicable to the available PRs, with all eight runner-selection cases passing. |
+
+The focused release-gate, CI-runner and pin suites passed 39 tests. Actionlint and version check passed. Available fork PR count is zero across 177 PR records, so live fork execution remains unobserved. [Release acceptance](../archive/2026-11-12-release-after-green-ci/evidence/acceptance-2026-11-15.md) · [TrueNAS acceptance](../archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md)
 
 ## Parked follow-up (1)
 
