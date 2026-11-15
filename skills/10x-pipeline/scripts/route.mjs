@@ -31,7 +31,7 @@ import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
 import { readOpenspec, decideOpenspec, missingChangeReason } from "../../openspec-pipeline/scripts/openspec.mjs";
 import {
-  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
+  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, dispatchAgent,
   advisorOn, neutralRetry, cleanUsage, dispatchProblem, ruleTail, checkRules, prepareHandoff, publishHandoff, cleanupHandoff,
 } from "./flow.mjs";
 import {
@@ -216,7 +216,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   const prompt = worktreeLine(policy, meta) + render(promptText(policy, template), vars).trim()
     + (advisor ? "\n\n" + render(promptText(policy, "advisor"), vars).trim() : "")
     + "\n\n" + ruleTail(policy, { chain, step: d.step, vars });
-  const agent = stepAgent(policy, d.step);
+  const agent = dispatchAgent(policy, target, d.step);
   const entry = {
     n: ran.length + 1,
     step: d.step,
@@ -250,7 +250,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   }
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
-  if (agent) entry.agent = agent; // the restricted agent type the step was dispatched with (agents.restricted)
+  if (agent) entry.agent = agent; // the selected Claude agent type, retained for exact neutral replay
   if (advisor) entry.advisor = true; // the prompt carried the advisor rules (advisor.enabled); no consult is verified
   if (shifted) entry.scoreShift = shifted;
   if (cheap) entry.cheap = true; // the first-attempt drop survived the score shift, the clamp and the floor

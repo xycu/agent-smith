@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.1](https://github.com/xycu/agent-smith/compare/v1.11.0...v1.11.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **workflow-pins-local-actions:** Check local actions outside .github in the pin guard ([9fb1344](https://github.com/xycu/agent-smith/commit/9fb13444f96ae1c739a51b06902eabd60ef19afa))
+
 ## [1.11.0](https://github.com/xycu/agent-smith/compare/v1.10.2...v1.11.0) (2026-11-14)
 
 

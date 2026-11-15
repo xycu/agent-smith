@@ -58,6 +58,7 @@ for (const chain of ["10x", "openspec"]) {
       const first = start(p);
       assert.equal(first.json.action, "run", first.stdout);
       assert.equal(first.json.provider, "claude");
+      assert.equal(first.json.agent, "agent-smith:step");
       assert.equal(first.json.host, "claude");
       assert.equal(Object.hasOwn(first.json, "profile"), false);
       assert.equal(readMetaFile(p).host, "claude");
@@ -81,6 +82,7 @@ for (const chain of ["10x", "openspec"]) {
     const first = start(p, ["--host=codex"]);
     assert.equal(first.json.action, "run", first.stdout);
     assert.equal(first.json.provider, "openai");
+    assert.equal(Object.hasOwn(first.json, "agent"), false);
     assert.equal(first.json.profile, GPT.codex.profile);
     assert.equal(first.json.host, "codex");
     const [e] = readLogEntries(p);
@@ -102,6 +104,7 @@ for (const chain of ["10x", "openspec"]) {
       const first = start(p, ["--host", "codex"]);
       assert.equal(first.json.action, "run", first.stdout);
       assert.equal(first.json.provider, "openai");
+      assert.equal(Object.hasOwn(first.json, "agent"), false);
       assert.equal(first.json.profile, null);
       assert.equal(readLogEntries(p)[0].profile, null);
       writeOverride(p, { ...GPT });
@@ -189,6 +192,7 @@ test("a mixed ladder is supported under Claude without guessing providers from m
   const first = init(p, "fix typo");
   assert.equal(first.json.action, "run", first.stdout);
   assert.equal(first.json.provider, "openai");
+    assert.equal(Object.hasOwn(first.json, "agent"), false);
   assert.equal(first.json.model, "sonnet", "model spelling must not choose a provider");
   assert.equal(first.json.host, "claude");
   assert.equal(first.json.profile, null);
@@ -233,6 +237,7 @@ for (const chain of ["10x", "openspec"]) {
     const { p, result } = archivedAction(chain);
     assert.equal(result.json.action, "archive", result.stdout);
     assert.equal(result.json.provider, "openai");
+    assert.equal(Object.hasOwn(result.json, "agent"), false);
     assert.equal(result.json.profile, GPT.codex.profile);
     assert.equal(result.json.host, "codex");
     assert.equal(Object.hasOwn(result.json, "resultFile"), false);

@@ -14,7 +14,8 @@ const SKILLS = {
 };
 
 function read(rel) {
-  return fs.readFileSync(path.join(ROOT, rel), "utf8");
+  const override = rel === SKILLS["10x"] ? process.env.SKILL_PATH : process.env.OPENSPEC_SKILL_PATH;
+  return fs.readFileSync(override || path.join(ROOT, rel), "utf8");
 }
 
 // From the line starting `- **`<name>`**` to the next line that starts with `- **` or `## `.
@@ -63,7 +64,7 @@ for (const [chain, rel] of Object.entries(SKILLS)) {
     }
   });
 
-  test(`${chain}: no task tool; done, archive and halt read prComment: true`, () => {
+  test(`${chain}: no task tool; terminal publication reaches the single authorization owner`, () => {
     // Built from parts, so a grep of skills/ for the tool names finds none.
     const tools = ["Create", "Update", "List"].map((s) => ["Task", s].join(""));
     const front = skill.split("\n---")[0];
@@ -72,8 +73,27 @@ for (const [chain, rel] of Object.entries(SKILLS)) {
       assert.ok(!skill.includes(t), `the skill names ${t}`);
     }
     for (const name of ["done", "archive", "halt"]) {
-      assert.equal(branch(skill, name).split("`prComment: true`").length - 1, 1, `${name}: prComment: true`);
+      assert.ok(branch(skill, name).includes("do the pull request step"), name);
+      assert.equal(branch(skill, name).split("`prComment: true`").length - 1, 0, name);
     }
+  });
+
+  test(`${chain}: archive publication covers verification success, failure and gate refusal`, () => {
+    const archive = branch(skill, "archive");
+    const refusal = archive.indexOf("Then do the first bullet of step 5 with the default report path, without running `verify-archive`");
+    assert.ok(refusal > archive.indexOf("On a no, launch no subagent"));
+    assert.ok(refusal < archive.indexOf("\n  3. Call the Agent tool"));
+    const verify = archive.indexOf("\n  5. Run ");
+    const publication = archive.indexOf("do the pull request step");
+    assert.ok(verify >= 0 && publication > verify, "verify before publication");
+    assert.ok(publication < archive.indexOf("On `archived: false`"));
+    assert.match(archive, /On `archived: true` both steps get `--report "<archivePath>\/agent-smith\/report.md"`/);
+    assert.match(archive, /on `archived: false` both use the default report path/);
+    const owner = skill.split("## PR comment (opt-in)")[1].split("\n## ")[0];
+    assert.equal(skill.split("`prComment: true`").length - 1, 1);
+    assert.match(owner, /terminal router action has `prComment: true`/);
+    assert.match(owner, /Legacy or missing intent reads false/);
+    assert.match(owner, /missing field or any other value authorizes no comment/);
   });
 
   test(`${chain}: still exactly six GIVEN lines`, () => {

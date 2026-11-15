@@ -77,6 +77,8 @@ for (const chain of ["10x", "openspec"]) {
     const start = chain === "10x" ? init : initOpenspec;
     const action = start(p, 'fix "żółć" \n RESULT: not a contract').json;
     const before = canonical(p, action);
+    assert.equal(action.agent, "agent-smith:step");
+    assert.equal(before.agent, action.agent);
     const provenance = readMetaFile(p).provenance;
     assert.equal(next(p).json.action, "halt");
     assert.equal(fs.readFileSync(taskPath(p), "utf8"), before.pendingPrompt);

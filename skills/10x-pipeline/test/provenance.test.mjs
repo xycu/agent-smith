@@ -68,6 +68,7 @@ function pluginCopy() {
   fs.cpSync(osSkill, path.join(root, "skills/openspec-pipeline"), { recursive: true, filter: (src) => src !== osTests });
   fs.cpSync(path.join(REPO, ".claude-plugin"), path.join(root, ".claude-plugin"), { recursive: true });
   if (fs.existsSync(path.join(REPO, "agents"))) fs.cpSync(path.join(REPO, "agents"), path.join(root, "agents"), { recursive: true });
+  fs.cpSync(path.join(REPO, "hooks"), path.join(root, "hooks"), { recursive: true });
   return { root, skill, route: path.join(skill, "scripts/route.mjs") };
 }
 
@@ -97,7 +98,7 @@ test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except t
   assert.deepEqual(Object.keys(rec).sort(), ["flags", "plugin", "schemaVersion", "sections"]);
   assert.equal(rec.schemaVersion, 1);
   assert.equal(rec.plugin, PLUGIN.version);
-  const want = [...Object.keys(DEFAULT).filter((k) => !["compare", "provenance", "prices", "coAuthor"].includes(k)), "agentFiles", "ruleFiles"].sort();
+  const want = [...Object.keys(DEFAULT).filter((k) => !["compare", "provenance", "prices", "coAuthor"].includes(k)), "agentFiles", "ruleFiles", "hookFiles"].sort();
   assert.ok(want.includes("prompts"));
   assert.deepEqual(Object.keys(rec.sections), want, "every section but compare, provenance, prices and coAuthor, sorted");
   for (const [name, hash] of Object.entries(rec.sections)) {
@@ -495,4 +496,33 @@ test("1.3 a run with an override that sets prices records no prices section, and
   assert.equal(res.status, 0, res.stdout);
   assert.deepEqual(res.json.warnings, []);
   assert.ok(!res.json.warnings.some((w) => w.includes("prices")));
+});
+
+for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "agents/step.md", "skills/10x-pipeline/rules/steps/plan.md"]) {
+  test(name + " changes only its independent provenance section and records immutable drift", () => {
+    const copy = pluginCopy();
+    const project = makeProject();
+    const call = (args) => runCopy(copy, project, args);
+    assert.equal(call(["init", project.id, "--goal", "fix typo"]).json.action, "run");
+    const before = readMetaFile(project).provenance;
+    const section = name.startsWith("agents/") ? "agentFiles" : name.includes("/rules/") ? "ruleFiles" : "hookFiles";
+    assert.match(before.sections[section], HEX16);
+    fs.appendFileSync(path.join(copy.root, name), "\n");
+    const after = copyRecord(copy);
+    assert.deepEqual(Object.keys(before.sections).filter((key) => before.sections[key] !== after.sections[key]), [section]);
+    finishPlan(project);
+    assert.equal(call(["next", project.id]).json.action, "run");
+    assert.deepEqual(readMetaFile(project).provenance, { ...before, drift: [section] });
+  });
+}
+
+test("missing or unreadable hook inputs yield a null hook hash", () => {
+  for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs"]) {
+    const copy = pluginCopy();
+    const file = path.join(copy.root, name);
+    fs.unlinkSync(file);
+    assert.equal(copyRecord(copy).sections.hookFiles, null);
+    fs.mkdirSync(file);
+    assert.equal(copyRecord(copy).sections.hookFiles, null);
+  }
 });

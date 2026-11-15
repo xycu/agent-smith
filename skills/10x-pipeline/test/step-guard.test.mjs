@@ -1,0 +1,200 @@
+import test, { after } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { cleanupAll, makeProject, gitInit, git, gitEnv } from "./helpers.mjs";
+
+after(cleanupAll);
+const root = fileURLToPath(new URL("../../../", import.meta.url));
+const script = path.join(root, "skills/10x-pipeline/scripts/step-guard.mjs");
+const hooks = JSON.parse(fs.readFileSync(path.join(root, "hooks/hooks.json"), "utf8"));
+const pluginPlaceholder = "$" + "{CLAUDE_PLUGIN_ROOT}";
+const payload = (command, extra = {}) => ({
+  hook_event_name: "PreToolUse", tool_name: "Bash", agent_id: "test-step", agent_type: "agent-smith:step",
+  tool_input: { command }, ...extra,
+});
+function invoke(input, executable = script, options = {}) {
+  const result = spawnSync(process.execPath, [executable], {
+    input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8", timeout: 5000, ...options,
+  });
+  assert.equal(result.error, undefined, result.error?.message);
+  return { ...result, decision: result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : null };
+}
+function denied(command) {
+  const result = invoke(payload(command));
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(Object.keys(result.decision).sort(), ["hookEventName", "permissionDecision", "permissionDecisionReason"]);
+  assert.equal(result.decision.hookEventName, "PreToolUse");
+  assert.equal(result.decision.permissionDecision, "deny", command);
+  assert.match(result.decision.permissionDecisionReason, /orchestrator|preserv|forbidden/i);
+}
+function neutral(input) {
+  const result = invoke(input);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, "", "pass-through never grants permission");
+}
+
+test("shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling", () => {
+  assert.deepEqual(hooks, { hooks: { PreToolUse: [{
+    matcher: "Bash", hooks: [{
+      type: "command", command: "node",
+      args: [pluginPlaceholder + "/skills/10x-pipeline/scripts/step-guard.mjs"],
+      timeout: 5, async: false, onFailure: "block",
+    }],
+  }] } });
+});
+
+test("direct Git discard, hook bypass, unique-ref deletion and publication forms are denied", () => {
+  for (const command of [
+    "git push", "git push origin HEAD", "git push --force-with-lease", "git push -f",
+    'git -C "project with spaces" -c color.ui=false push origin HEAD',
+    "git --git-dir=.git push", "git --work-tree . push",
+    "git reset --hard", "git reset --hard=HEAD~1", "git reset -q --hard HEAD",
+    "git checkout -- change.md", "git checkout HEAD change.md", "git checkout change.md",
+    "git restore change.md", "git restore --worktree change.md", "git restore --staged change.md",
+    "git restore -S change.md", "git restore --staged --worktree change.md",
+    "git clean -fd", "git clean -xdf", "git stash drop", "git stash clear",
+    "git commit --no-verify -m fix", "git commit -n -m fix", "git commit -an -m fix",
+    "git merge --no-verify branch",
+    "git branch -D unique", "git branch --delete unique", "git tag -d unique",
+    "git update-ref -d refs/heads/unique", "git worktree remove scratch", "git worktree prune",
+    "git update-ref refs/agent-smith/run/failed-1 HEAD",
+    "gh pr create", "gh pr comment 1 --body hello", "gh pr merge 1", "gh repo delete",
+    "node skills/10x-pipeline/scripts/open-pr.mjs demo",
+    "node -- skills/10x-pipeline/scripts/pr-comment.mjs demo",
+    'node "/plugin with spaces/skills/10x-pipeline/scripts/open-pr.mjs" demo',
+    "/plugin/skills/10x-pipeline/scripts/open-pr.mjs demo",
+  ]) denied(command);
+});
+
+test("Git option values cannot masquerade as safety flags or hide hook bypass", () => {
+  for (const command of [
+    "git clean -e --dry-run -fd", "git clean --exclude -n -fd",
+    "git clean -en -fd", "git clean -e-n -fd", "git clean --exclude=-n -fd",
+    "git clean -n --no-dry-run -fd", "git clean --dry-run --no-dry-run -fd",
+    "git commit -m -- --no-verify", "git commit --message -- --no-verify",
+    "git commit --trailer -- --no-verify", "git commit --pathspec-from-file -- --no-verify",
+    'git commit -nm"fix: retained"', 'git commit -m"fix: retained" --no-verify',
+  ]) denied(command);
+  for (const command of [
+    'git commit -m"fix: retain work"', 'git commit -am"fix: retain work"',
+    'git commit -m"--no-verify"', "git commit -Fnotes.txt", "git commit -Ssigning-key -m fix",
+    "git commit --trailer --no-verify -m fix", "git commit -m -- -- tracked-file",
+    "git clean -ne pattern -fd", "git clean -e pattern -nfd", "git clean --exclude -n --dry-run -fd",
+    "git clean --no-dry-run -nfd", "git clean -n --exclude --no-dry-run -fd",
+  ]) neutral(payload(command));
+});
+
+test("recursive shell deletion variants are denied using inert payloads only", () => {
+  for (const command of [
+    "rm -rf scratch", "rm -r scratch", "rm -R scratch", "rm --recursive scratch", // Never execute.
+    "rm -f -r scratch", "rm -fr scratch", "rm scratch -R", // Never execute.
+    'find "scratch directory" -depth -type f -delete', // Never execute.
+  ]) denied(command);
+});
+
+test("literal quotes, escapes and supported shell separators retain command positions", () => {
+  for (const command of [
+    '"git" "push" origin HEAD', "'git' 'restore' '--staged' 'file with spaces'",
+    'cd "run root" && git push origin HEAD', "git status; git clean -fd", "git diff || git stash clear",
+    "git log | gh pr create", "git status\nnode '/plugin with spaces/pr-comment.mjs' demo",
+    "g'i't pu\\sh", "git \\\npush", "echo safe & git push", "echo safe # harmless comment\n git push",
+  ]) denied(command);
+  for (const command of [
+    "git status", "git log --oneline", "git diff", "git add -- change.md",
+    'git commit -m "fix(demo): preserve data"', 'git commit -am "fix(demo): safe"',
+    'git commit -m "--no-verify"', "git clean -nfd", "git clean --dry-run -fd",
+    "git stash list", "git stash show", "git branch --list",
+    "rm -- -rf", "rm -f inspected-file", "rm inspected-file", "unlink inspected-file", "rmdir empty-directory",
+    'printf "%s\\n" "git push; gh pr create"', "echo 'git restore --staged file'",
+    'echo "node /plugin/open-pr.mjs demo"', "cat open-pr.mjs", "git diff -- --no-verify",
+    'cd "run root" && git status && git commit -m "fix: safe"', "echo safe # git push",
+  ]) neutral(payload(command));
+});
+
+test("orchestrator and unrelated agents pass through, including publication script calls", () => {
+  for (const extra of [
+    { agent_id: undefined, agent_type: undefined }, { agent_id: undefined },
+    { agent_type: "general-purpose" }, { agent_type: "agent-smith:score" }, { agent_type: "custom:step" },
+  ]) neutral(payload("node /plugin/open-pr.mjs demo && gh pr create", extra));
+});
+
+test("dynamic programs and wrappers are outside the documented direct-command subset", () => {
+  for (const command of ["bash -c 'git push'", 'echo "$(git push)"', "custom-helper"]) neutral(payload(command));
+});
+
+test("malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed", () => {
+  for (const extra of [
+    { tool_input: undefined }, { tool_input: { command: 4 } }, { tool_input: { command: "" } },
+    { tool_name: "Other" }, { hook_event_name: "PostToolUse" }, { agent_id: "" }, { agent_id: 4 },
+  ]) assert.equal(invoke(payload("git status", extra)).decision?.permissionDecision, "deny");
+  for (const input of [
+    "{", "null", "[]", JSON.stringify(payload("x".repeat(65536))),
+    JSON.stringify(payload("git 'unterminated")), JSON.stringify(payload("git \\")),
+  ]) {
+    const result = invoke(input);
+    assert.equal(result.status, 2, result.stdout);
+    assert.match(result.stderr, /failed closed/);
+    assert.equal(result.stdout, "");
+  }
+});
+
+test("hook argument vector preserves plugin paths containing spaces and shell metacharacters", () => {
+  const p = makeProject();
+  const plugin = path.join(p.root, "plugin with spaces ' $ literal");
+  const target = path.join(plugin, "skills/10x-pipeline/scripts/step-guard.mjs");
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(script, target);
+  const hook = hooks.hooks.PreToolUse[0].hooks[0];
+  const args = hook.args.map((value) => value.replace(pluginPlaceholder, plugin));
+  const result = spawnSync(hook.command, args, { input: JSON.stringify(payload("git push")), encoding: "utf8", timeout: 5000 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+});
+
+test("distinct HEAD, index and working-copy versions survive denied staged restore before a recording executable", () => {
+  const p = makeProject();
+  gitInit(p);
+  const file = path.join(p.root, "unique.txt");
+  fs.writeFileSync(file, "HEAD version\n");
+  git(p, ["add", "--", "unique.txt"]);
+  git(p, ["commit", "-qm", "test: HEAD version"]);
+  fs.writeFileSync(file, "staged-only version\n");
+  git(p, ["add", "--", "unique.txt"]);
+  fs.writeFileSync(file, "working-copy version\n");
+  const bin = path.join(p.root, "bin");
+  const calls = path.join(p.root, "calls");
+  fs.mkdirSync(bin);
+  for (const name of ["git", "node"]) {
+    fs.writeFileSync(path.join(bin, name), '#!/bin/sh\nprintf "%s\\n" "$*" >> "$STEP_GUARD_CALLS"\n', { mode: 0o755 });
+  }
+  const options = { cwd: p.root, env: { ...gitEnv(p), PATH: bin + path.delimiter + process.env.PATH, STEP_GUARD_CALLS: calls } };
+  function guarded(command, extra = {}) {
+    const result = invoke(payload(command, extra), script, options);
+    if (result.status === 0 && result.decision?.permissionDecision !== "deny") {
+      const executed = spawnSync("/bin/sh", ["-c", command], { ...options, encoding: "utf8", timeout: 5000 });
+      assert.equal(executed.status, 0, executed.stderr);
+    }
+  }
+  guarded("git restore --staged unique.txt");
+  guarded("node /plugin/open-pr.mjs demo");
+  assert.equal(fs.existsSync(calls), false, "denied calls reach no recording executable");
+  assert.equal(git(p, ["show", "HEAD:unique.txt"]), "HEAD version");
+  assert.equal(git(p, ["show", ":unique.txt"]), "staged-only version");
+  assert.equal(fs.readFileSync(file, "utf8"), "working-copy version\n");
+  guarded('git commit -m "fix(demo): safe"');
+  guarded('git commit -m "chore(archive): close demo"');
+  guarded("node /plugin/open-pr.mjs demo", { agent_id: undefined, agent_type: undefined });
+  guarded("node /plugin/pr-comment.mjs demo", { agent_id: undefined, agent_type: undefined });
+  assert.equal(fs.readFileSync(calls, "utf8").trim().split("\n").length, 4);
+});
+
+test("the standalone guard has no execution, filesystem, network or routing dependency", () => {
+  const source = fs.readFileSync(script, "utf8");
+  assert.doesNotMatch(source, /\b(?:import|require|eval|Function)\b/);
+  assert.doesNotMatch(source, /\b(?:fetch|WebSocket|spawn|spawnSync|exec|execSync|execFile|fork)\s*\(/);
+  assert.doesNotMatch(source, /getBuiltinModule|process\.(?:binding|dlopen|mainModule)/);
+  assert.match(source, /for await \(const chunk of process\.stdin\)/);
+});

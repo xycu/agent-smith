@@ -14,7 +14,7 @@ const OS_SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 
 const SKILL_DIR = path.resolve(OS_SKILL_DIR, "../10x-pipeline");
 const skill = fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(OS_SKILL_DIR, "SKILL.md"), "utf8");
 const lines = skill.split("\n");
-const tenx = fs.readFileSync(path.join(SKILL_DIR, "SKILL.md"), "utf8").split("\n");
+const tenx = fs.readFileSync(process.env.SKILL_PATH || path.join(SKILL_DIR, "SKILL.md"), "utf8").split("\n");
 const POLICY = pluginPolicy();
 
 const HEADING = "## Anti-stall rules";
@@ -223,44 +223,42 @@ test("the pull request section follows ## PR comment (opt-in) and calls the scri
   assert.ok(!text.includes("**GIVEN**"));
 });
 
-test("done, archive and halt run the pull request step before the PR comment step and before any STOP", () => {
+test("terminal branches reach publication and archive verifies before publishing", () => {
   for (const name of ["done", "archive", "halt"]) {
     const text = branch(name);
-    const pr = text.indexOf("do the pull request step");
-    const comment = text.indexOf("do the PR comment step");
-    assert.ok(pr >= 0, `${name} has no pull request step`);
-    assert.ok(comment > pr, `${name}: the PR comment step is not after the pull request step`);
+    assert.ok(text.includes("do the pull request step"), `${name}: publication reachable`);
+    assert.ok(!text.includes("do the PR comment step"));
   }
   const archive = branch("archive");
-  const step5 = archive.slice(archive.indexOf("\n  5. "));
-  assert.ok(step5.indexOf("do the pull request step") >= 0, "the pull request step is not in step 5");
-  assert.ok(step5.indexOf("do the pull request step") < step5.indexOf("On `archived: false`"), "pull request step after the STOP of archived: false");
-  assert.ok(!archive.slice(0, archive.indexOf("\n  5. ")).includes("PR comment step"), "the PR comment step is still before the move");
-  assert.match(branch("halt"), /Before you STOP, do the pull request step\. When the terminal action has `prComment: true`/);
+  const verify = archive.indexOf("\n  5. Run ");
+  const publish = archive.indexOf("do the pull request step");
+  assert.ok(verify >= 0 && verify < publish);
+  assert.ok(publish < archive.indexOf("On `archived: false`"));
+  assert.match(branch("halt"), /Before you STOP, do the pull request step/);
+  const owner = section(lines, PR_HEADING).join("\n");
+  assert.ok(owner.indexOf("node $OPEN_PR") < owner.indexOf("do the PR comment step"));
 });
 
-test("done, halt and archive call usage with --chain openspec before the pull request step or the archive subagent launch", () => {
+test("one chain-selected usage procedure is called before status and publication on every terminal path", () => {
   const call = "node $ROUTER usage <change-name> <n> --tokens N --tool-uses N --duration-ms N --chain openspec";
-  for (const name of ["done", "halt"]) {
+  assert.equal(skill.split(call).length - 1, 1);
+  assert.ok(section(lines, "## Late usage (before every end)").join("\n").includes(call));
+  for (const name of ["done", "halt", "archive"]) {
     const text = branch(name);
-    assert.ok(text.includes(call), `${name} has no usage call`);
-    assert.ok(text.indexOf(call) < text.indexOf("do the pull request step"), `${name}: usage call after the pull request step`);
+    const late = text.indexOf('follow "Late usage (before every end)"');
+    assert.ok(late >= 0, `${name}: missing late-usage call site`);
+    assert.ok(late < text.indexOf("node $ROUTER status"), `${name}: before status`);
+    assert.ok(late < text.indexOf("do the pull request step"), `${name}: before publication`);
   }
-  const done = branch("done");
-  assert.ok(done.indexOf(call) < done.indexOf("node $ROUTER status"), "done: usage call after status");
   const archive = branch("archive");
-  assert.ok(archive.includes(call), "archive has no usage call");
-  assert.ok(archive.indexOf(call) < archive.indexOf("\n  3. Call the Agent tool"), "usage call after the archive subagent launch");
-  assert.match(archive, /A figure that arrives after step 3 has launched the archive subagent is dropped\./);
+  const cutoff = archive.indexOf("A figure that arrives after step 3 has launched the archive subagent is dropped.");
+  assert.ok(cutoff >= 0 && cutoff < archive.indexOf("\n  3. Call the Agent tool"));
 });
 
 test("the argument hint and Start step 1 name --rigor with its value and the goal text", () => {
   assert.ok(lines.some((l) => l.startsWith("argument-hint:") && l.includes("[--rigor <level>]")));
-  const step = lines.find((l) => l.startsWith("1. Parse the arguments"));
-  assert.ok(step, "no Start step 1");
-  const sentence = step.split(". ").find((s) => s.includes("--rigor"));
-  assert.ok(sentence, "no --rigor sentence in step 1");
-  for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough"]) assert.ok(sentence.includes(w), w);
+  const step = skill.slice(skill.indexOf("1. Parse the arguments"), skill.indexOf("\n2. "));
+  for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough", "forward only when supplied"]) assert.ok(step.includes(w), w);
 });
 
 test("the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section, equal to the 10x copy", () => {
@@ -286,13 +284,13 @@ test("Start step 3 consumes shared OpenSpec setup and retains run safety", () =>
   assert.ok(start >= 0);
   const setup = skill.slice(start, skill.indexOf("\n4. ", start));
   assert.ok(setup.includes('PREPARE_RUN="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/prepare-run.mjs"'));
-  assert.ok(setup.includes("Under Codex, take the absolute SKILL.md path"));
+  assert.ok(setup.includes("Under Codex, resolve"));
   assert.ok(setup.includes("Keep `PREPARE_RUN` absolute and quoted"));
   assert.ok(setup.includes('cd "<root>" && node "$PREPARE_RUN" <change-name> --chain openspec'));
   assert.ok(setup.includes("`timeout: 600000`"));
   for (const text of ["exactly one JSON object", "reason: null", "absolute `root` and `runRoot`",
-    "nonzero exit", "missing or malformed JSON", "non-null `reason`", "STOP before `init`",
-    "returned `root`", "returned `runRoot`", "not in the run (uncommitted in the main checkout)",
+    "nonzero exit", "missing/malformed JSON", "non-null `reason`", "STOP before `init`",
+    "returned `root`", "`runRoot` as `<root>` and `<run root>`", "not in the run (uncommitted in the main checkout)",
     "A resume never copies", 'cd "<run root>" && node $ROUTER ... --chain openspec',
     "<run root>/<resultFile>", "Never commit, stash, reset or clean", "refs/agent-smith/",
     "name their side refs", "List the files, check the list", "retained original paths", "before removing the worktree",

@@ -985,14 +985,21 @@ export function artifactsLine(p, policy) {
 
 // ---- restricted step agents -------------------------------------------------------
 
-// The agent type the orchestrator dispatches a step with: the value of agents.steps.<step> when agents.restricted is
+// The opt-in restricted agent type for a step: the value of agents.steps.<step> when agents.restricted is
 // the boolean true and that value is a non-blank string, else null. A malformed block reads as off and never throws.
-// There is no fallback to another type: a step without an agent gets no `agent` field at all.
+// Keep this lookup separate from the Claude default so OpenAI capability rejection sees only explicit restrictions.
 export function stepAgent(policy, step) {
   const c = policy.agents;
   if (!isObject(c) || c.restricted !== true || !isObject(c.steps) || !Object.hasOwn(c.steps, step)) return null;
   const name = c.steps[step];
   return typeof name === "string" && name.trim() ? name : null;
+}
+
+// Archive dispatch historically ignores restricted mappings. Both Claude assembly sites share the guarded default.
+export function dispatchAgent(policy, target, step) {
+  if (providerOf(target) !== "claude") return null;
+  const restricted = ["archive", "os-archive"].includes(step) ? null : stepAgent(policy, step);
+  return restricted ?? "agent-smith:step";
 }
 
 // ---- opt-in advisor ---------------------------------------------------------------

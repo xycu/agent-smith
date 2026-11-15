@@ -137,7 +137,7 @@ const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const REPO = path.resolve(SKILL_DIR, "../..");
 const SELF = fileURLToPath(import.meta.url);
 const ADR = path.join(REPO, "docs/ADR/ADR-016-no-recursive-force-delete.md");
-const SCAN_DIRS = ["skills", "agents", "docs", "tools", ".github"];
+const SCAN_DIRS = ["skills", "agents", "docs", "tools", ".github", "hooks"];
 const SCAN_FILES = ["README.md", "AGENTS.md"];
 const SKIP = new Set([SELF, ADR]);
 
@@ -452,6 +452,7 @@ function scanFiles(root = REPO) {
 test("guard: no scanned file uses a recursive or forced directory delete", () => {
   const root = scratch();
   const fixtures = {
+    "hooks/hooks.json": '{"command": "rm -r scratch"}',
     ".github/workflows/example.yml": "run: rm -f -r build",
     ".github/workflows/example.yaml": "run: rm --recursive build",
     ".github/cleanup.sh": "rm -R build",
@@ -479,8 +480,8 @@ test("guard: no scanned file uses a recursive or forced directory delete", () =>
     file !== "docs/ADR/ADR-016-no-recursive-force-delete.md" &&
     file !== "skills/10x-pipeline/test/no-recursive-delete.test.mjs").sort());
   const problems = scanFiles(root);
-  assert.equal(problems.length, 3, problems.join("\n"));
-  for (const file of Object.keys(fixtures).slice(0, 3)) {
+  assert.equal(problems.length, 4, problems.join("\n"));
+  for (const file of Object.keys(fixtures).slice(0, 4)) {
     assert.ok(problems.some((problem) => problem.startsWith(file + ": ")), file);
   }
   assert.ok(scannedFiles().some((file) => file.endsWith(path.join("scripts", "route.mjs"))), "the walk reaches the router");
@@ -494,6 +495,9 @@ test("guard: the rule stays where agents read it", () => {
   const top = fs.readFileSync(path.join(SKILL_DIR, "rules/top.md"), "utf8").split("\n");
   assert.ok(top.some((l) => l.includes("**GIVEN**") && l.includes("**MUST NOT**") && l.includes("`rm -rf`") && l.includes("recursive: true")), "top.md ban");
   assert.ok(top.some((l) => l.includes("**GIVEN**") && l.includes("**MUST**") && l.includes("one by one") && l.includes("`rmdir`") && l.includes("deepest first")), "top.md procedure");
+  for (const name of ["fs.rm", "fs.rmSync", "fs.rmdir", "fs.rmdirSync"]) {
+    assert.ok(top.some((l) => l.includes("**MUST NOT**") && l.includes("`" + name + "`") && l.includes("recursive: true")), name);
+  }
   const ban = top.findIndex((l) => l.includes("`rm -rf`"));
   assert.ok(ban < top.findIndex((l) => l.startsWith("RESULT:")), "rules come before the RESULT instructions");
   const mv = fs.readFileSync(path.join(SKILL_DIR, "prompts/manual-verify.md"), "utf8").split("\n");

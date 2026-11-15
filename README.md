@@ -29,6 +29,8 @@ A Claude Code plugin that runs 10xDevs and OpenSpec workflows end to end through
 
 Needs Claude Code 2.1.292 or later: `${CLAUDE_SKILL_DIR}` in skill content needs 2.1.69 and the `effort` parameter of the Agent tool needs 2.1.292.
 
+The scoped Bash guard requires Claude Code 2.1.295+ for fail-closed hook handling, enabled plugin hooks and subagent identity fields. New Claude tasks use `agent-smith:step`, which inherits tools. The guard covers common direct unsafe commands. Older supported hosts retain prompt rules and host permission controls, with runtime guard enforcement unverified. Fresh-host acceptance is pending. [Step safety and coverage](docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
+
 Fable compatibility checked 2026-11-14. Fable 5.2 requires Claude Code 2.1.321+. With `ANTHROPIC_DEFAULT_FABLE_MODEL` unset, `fable` resolves to Fable 5 in Claude apps gateway sessions and Fable 5.2 elsewhere. Before opting in, check the version requirement for the resolved model, environment/provider mapping, exposed Agent model alias and effort parameters, and account access. The router performs no version or capability detection. [Model configuration](https://code.claude.com/docs/en/model-config) · [Subagents](https://code.claude.com/docs/en/sub-agents)
 
 ### Codex and OpenAI steps

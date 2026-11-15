@@ -25,10 +25,11 @@ const STATUS_RULE = "- **GIVEN** you save context/changes/{id}/research.md **WHE
 const parts = (value) => (Array.isArray(value) ? value : [value]);
 
 // The prompt text without the shared suffix and the always-true rules after it (top.md holds a JSON example with braces).
-const TAIL = `\n\n${ruleTail(SUFFIX)}`;
-const withoutSuffix = (prompt) => {
-  assert.ok(prompt.endsWith(TAIL), "prompt ends with the shared suffix and the always-true rules");
-  return prompt.slice(0, -TAIL.length);
+const TAIL = `\n\n${ruleTail(SUFFIX, { step: "plan" })}`;
+const withoutSuffix = (prompt, step = "plan") => {
+  const tail = "\n\n" + ruleTail(SUFFIX, { step });
+  assert.ok(prompt.endsWith(tail), "prompt ends with the shared suffix and the always-true rules");
+  return prompt.slice(0, -tail.length);
 };
 
 const touch = (project, file, text = "x\n") => {
@@ -935,7 +936,7 @@ test("both domain prompt templates name their artifact file and type refactor-pl
 
   for (const [out, template] of [[a, "domain-aggregate"], [b, "domain-acl"]]) {
     const file = policy.preplan.artifacts[template];
-    const prompt = withoutSuffix(out.res.json.prompt);
+    const prompt = withoutSuffix(out.res.json.prompt, template);
     assert.ok(prompt.includes(`context/changes/demo/${file}`), `${template}: the prompt names ${file}`);
     assert.ok(prompt.includes("type: refactor-plan"), `${template}: the prompt asks for type: refactor-plan`);
     assert.ok(!prompt.includes("{id}"), `${template}: the id is filled`);

@@ -1,0 +1,24 @@
+skills/10x-pipeline/test/step-guard.test.mjs — all ten tests listed in the output below
+Supporting payload proof for row 2.6. Fresh-host identity delivery and executable call logs remain unproven.
+Command: ['node', '--test', '--test-name-pattern=^(?!hook argument vector|distinct HEAD).*', 'skills/10x-pipeline/test/step-guard.test.mjs']
+Exit code: 0
+✔ shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling (1.04475ms)
+✔ direct Git discard, hook bypass, unique-ref deletion and publication forms are denied (1841.638791ms)
+✔ recursive shell deletion variants are denied using inert payloads only (345.500708ms)
+✔ literal quotes, escapes and supported shell separators retain command positions (1558.591625ms)
+✔ orchestrator and unrelated agents pass through, including publication script calls (230.408041ms)
+✔ dynamic programs and wrappers are outside the documented direct-command subset (146.606792ms)
+✔ malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed (628.345041ms)
+✔ hook argument vector preserves plugin paths containing spaces and shell metacharacters (48.158208ms)
+✔ distinct HEAD, index and working-copy versions survive denied staged restore before a recording executable (768.728417ms)
+✔ the standalone guard has no execution, filesystem, network or routing dependency (0.512291ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5643.170584
+
+Verification limitation: the name filter did not exclude the two fixture tests. They created temporary scratch projects through makeProject outside the requested worktree boundary, and the test cleanup hook completed successfully. No source or plan changes were made. This run proves payload and fixture behavior only, not fresh-host event delivery or live model adherence.
