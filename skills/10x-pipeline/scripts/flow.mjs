@@ -373,7 +373,6 @@ export function cleanupHandoff(p, log) {
   const last = executed(log).at(-1);
   if (!last?.result || !last.pendingHandoff) return;
   removeHandoffFile(p, last);
-  try { fs.unlinkSync(p.result); } catch (error) { if (error.code !== "ENOENT") throw error; }
   delete last.pendingHandoff;
   writeLog(p.log, log);
 }
@@ -541,10 +540,18 @@ function reviewRecord(read, policy) {
   return rec;
 }
 
+function removeResult(p) {
+  try { fs.unlinkSync(p.result); } catch (error) { if (error.code !== "ENOENT") throw error; }
+}
+
 export function attachResult(p, log, policy) {
   const ran = executed(log);
   const last = ran[ran.length - 1];
-  if (!last || last.result) return;
+  if (!last) return;
+  if (last.result) {
+    removeResult(p);
+    return;
+  }
   if (!fs.existsSync(p.result)) {
     out({
       action: "halt",
@@ -614,7 +621,7 @@ export function attachResult(p, log, policy) {
   last.finishedAt = Date.now();
   // Persist before deleting: a router error later in `next` must not lose the result.
   writeLog(p.log, log);
-  fs.rmSync(p.result);
+  removeResult(p);
 }
 
 // The open findings of an aware review are over the line when one is critical or the open warnings exceed the shared

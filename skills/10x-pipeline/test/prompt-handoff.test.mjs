@@ -209,7 +209,10 @@ fs.renameSync = (from, to) => {
     const result = injected(p, script);
     assert.equal(result.json.action, "halt");
     assert.ok(pending(p).pendingHandoff);
-    if (failure !== "intake") assert.equal(pending(p).result.status, "done");
+    if (failure !== "intake") {
+      assert.equal(pending(p).result.status, "done");
+      assert.equal(fs.existsSync(path.join(p.agentDir, "last-result.json")), false);
+    }
     else assert.equal(fs.existsSync(path.join(p.agentDir, "last-result.json")), true);
     const recovered = next(p).json;
     canonical(p, recovered);
