@@ -117,7 +117,7 @@ test("(a) an OpenSpec run prompt: template, chain defaults, suffix, chain file, 
 test("(b) a prompts.suffix override replaces the defaults and keeps every line of top.md", () => {
   const project = makeProject({ policy: { prompts: { suffix: "My own defaults." } } });
   const prompt = init(project, "fix typo").json.prompt;
-  assert.ok(prompt.endsWith("\n\nMy own defaults.\n\n" + TOP), prompt.slice(-400));
+  assert.ok(prompt.endsWith("\n\n" + expectedTail("My own defaults.", { step: "plan" })), prompt.slice(-400));
   for (const line of TOP_LINES) assert.ok(prompt.includes(line), line);
   for (const line of SUFFIX.split("\n").filter((l) => l.includes("**GIVEN**"))) assert.equal(prompt.includes(line), false, line);
 });

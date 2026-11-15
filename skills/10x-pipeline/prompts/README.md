@@ -46,3 +46,5 @@ Changes from the source, so the prompts run unattended inside one change:
 - The domain briefs write to the change folder (`context/changes/{id}/refactor-*.md`), not to `context/domain/0N-*.md`, so a later change does not overwrite them and the router can verify them per change.
 - The domain briefs prefer the invariant or leak that the change goal touches when two score close.
 - Both ast-grep prompts stop with status `blocked` when `ast-grep` is not installed, instead of installing it.
+
+Shared Git preservation, deletion and orchestrator publication rules live in `skills/10x-pipeline/rules/top.md` and survive template and suffix overrides. The planning step rules indexed in `skills/10x-pipeline/rules/README.md` keep publication-dependent checks in Manual acceptance. Planning and review permit local fake Git/GitHub client checks that run before publication.

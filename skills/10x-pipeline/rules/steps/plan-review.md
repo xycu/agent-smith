@@ -1,0 +1,4 @@
+Always-true rules of the step `plan-review`:
+- **GIVEN** implementation finishes before orchestrator publication **WHEN** you review phase Success Criteria and canonical Progress **THEN** you **MUST** flag any Automated criterion requiring a pushed branch, an open PR, PR CI or an external PR comment, while retaining valid local fake Git/GitHub client checks.
+- **GIVEN** an actionable pending Automated row depends on publication **WHEN** you apply the finding **THEN** you **MUST** move the row intact to Manual, preserve its id, title and tick state, synchronize phase Success Criteria and the plan brief, and add a separate local row only when it proves a distinct claim.
+- **GIVEN** a ticked row or another immutable contradiction prevents that correction **WHEN** you record the finding **THEN** you **MUST** preserve the immutable row, use the existing PENDING finding handling and report blocked with signals.needsHuman explaining the owner decision.

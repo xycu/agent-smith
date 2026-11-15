@@ -494,6 +494,9 @@ test("guard: the rule stays where agents read it", () => {
   const top = fs.readFileSync(path.join(SKILL_DIR, "rules/top.md"), "utf8").split("\n");
   assert.ok(top.some((l) => l.includes("**GIVEN**") && l.includes("**MUST NOT**") && l.includes("`rm -rf`") && l.includes("recursive: true")), "top.md ban");
   assert.ok(top.some((l) => l.includes("**GIVEN**") && l.includes("**MUST**") && l.includes("one by one") && l.includes("`rmdir`") && l.includes("deepest first")), "top.md procedure");
+  for (const name of ["fs.rm", "fs.rmSync", "fs.rmdir", "fs.rmdirSync"]) {
+    assert.ok(top.some((l) => l.includes("**MUST NOT**") && l.includes("`" + name + "`") && l.includes("recursive: true")), name);
+  }
   const ban = top.findIndex((l) => l.includes("`rm -rf`"));
   assert.ok(ban < top.findIndex((l) => l.startsWith("RESULT:")), "rules come before the RESULT instructions");
   const mv = fs.readFileSync(path.join(SKILL_DIR, "prompts/manual-verify.md"), "utf8").split("\n");
