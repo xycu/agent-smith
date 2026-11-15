@@ -247,7 +247,7 @@ test("an entry without a stored prompt halts plainly and leaves the file", () =>
   assert.equal(Object.hasOwn(after[0], "result"), false);
 });
 
-test("a stray orchestrator-error file with no pending entry is not consumed and changes nothing", () => {
+test("a completed owner cleans a stray orchestrator-error file without recording a retry", () => {
   const control = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
   writeLog(control, [entry(1, "plan")]);
   const want = init(control, "fix typo");
@@ -259,7 +259,7 @@ test("a stray orchestrator-error file with no pending entry is not consumed and 
   assert.equal(got.json.action, "run");
   for (const key of ["n", "step", "model", "effort", "reason", "prompt"]) assert.deepEqual(got.json[key], want.json[key], key);
   assert.equal(Object.hasOwn(got.json, "neutralRetry"), false);
-  assert.equal(fs.existsSync(resultPath(project)), true);
+  assert.equal(fs.existsSync(resultPath(project)), false);
   const log = readLogEntries(project);
   assert.equal(log.length, 2);
   assert.equal(log.some((e) => Object.hasOwn(e, "neutralRetries")), false);

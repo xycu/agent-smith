@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 1,
+      "evidence": "change.md fixes stale-result cleanup, with ownership details delegated to planning."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "flow.mjs already persists results before unlinking, and result-persist.test.mjs covers recovery."
+    },
+    "coupling": {
+      "score": 3,
+      "evidence": "Goal spans both chains, isolated runs, usage, neutral retries and shared result state."
+    },
+    "discovery": {
+      "score": 2,
+      "evidence": "change.md names flow.mjs; goal also requires tracing OpenSpec, usage and isolation callers."
+    },
+    "volume": {
+      "score": 2,
+      "evidence": "Goal requires router changes, regression cases across chains and isolated mode, plus docs/REFERENCE.md."
+    },
+    "verification": {
+      "score": 1,
+      "evidence": "Existing CLI test harness covers result persistence and isolated behavior; targeted regression cases are needed."
+    }
+  },
+  "unknowns": [],
+  "confidence": "medium"
+}
