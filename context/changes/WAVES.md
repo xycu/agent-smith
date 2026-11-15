@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-14. Waves 1–6 are merged into `main`. Waves 2–6 are archived. This folder holds eight active changes, including six new changes and two older merged changes awaiting acceptance or archival. Wave 7 is next. GitHub PR merge state and change frontmatter were checked after wave 6 against `main` at `3d6b7e6` (v1.11.0, release PR #181).
+Work order and status as of 2026-11-15. Waves 1–7 are merged into `main`. Waves 2–7 are archived. This folder holds five active changes, including three follow-ups with open pull requests and two older merged changes awaiting acceptance or archival. The original seven-wave sequence is complete. GitHub PR merge state and change frontmatter were checked after the wave 7 release against `main` at `7408a66` (v1.11.1, release PR #189).
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -128,23 +128,27 @@ Four Manual rows remain unticked in the archived plans. Coverage row 2.6 now has
 
 Combined main CI passed 1,520 tests with zero failures and three expected skips before release PR #181. The native coverage table reports the router modules, and all four failed-undo regressions passed. [CI evidence](https://github.com/xycu/agent-smith/actions/runs/43643146352)
 
-## Wave 7: skill rewrite (3) — next
+## Wave 7: skill rewrite (3) — merged and archived
 
-| Change | Owns in this wave | Notes |
+All three implementations merged on 2026-11-15 in the order #187, #183 and #188. Release PR #189 published v1.11.1 after green combined main CI and green release-commit CI. Their folders were archived on 2026-11-15 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. All 18 Progress rows remain complete. Sixteen SHA suffixes retain references to four original implementation commits, preserved by retained Git refs after worktree cleanup. The other two rows retain their judgment-evidence suffixes. [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.1)
+
+| Change | Merged PR | Owns in this wave | Result and acceptance |
+| --- | --- | --- | --- |
+| `commit-lint-merge-prefix` | [#187](https://github.com/xycu/agent-smith/pull/187) | Range-CLI regression coverage in `tools/test/commit-lint.test.mjs` | The implementation was already folded into `squash-merge-pr-title-lint`. This change proves ordinary Merge-prefixed subjects fail through the CLI and records completion of the rescoped change. |
+| `workflow-pins-local-actions` | [#183](https://github.com/xycu/agent-smith/pull/183) | `tools/workflow-pins.mjs`, its tests and the scoped `AGENTS.md` layout entry | Referenced local actions outside `.github/` are checked transitively. Canonical-file tracking handles cycles and aliases. Missing metadata, root escapes and unpinned remotes fail with source diagnostics. |
+| `skill-md-context-diet` | [#188](https://github.com/xycu/agent-smith/pull/188) | Both `SKILL.md` files, routing-documentation ownership, reference guidance and content tests | The 10x skill is 25,867 bytes and the OpenSpec skill is 29,230 bytes. Shared late-usage and publication procedures retain the fixed Anti-stall contracts. Manual rows 1.4 and 2.6 were proved through written inventories and covering tests. Live paid-provider execution remains outside that proof. |
+
+Combined main CI passed 1,548 tests out of 1,551 with zero failures and three expected skips. Its first attempt hit the existing fake-child cancellation timing test, and the second attempt passed. Release-commit CI then passed before publication. [Combined CI](https://github.com/xycu/agent-smith/actions/runs/43657049140) · [Release-commit CI](https://github.com/xycu/agent-smith/actions/runs/43658209686)
+
+## Follow-ups with open pull requests (3)
+
+These changes are outside the original wave tables. Their pull requests remain open after the wave 7 release.
+
+| Change | Open PR | Origin and ownership |
 | --- | --- | --- |
-| `skill-md-context-diet` | Both `SKILL.md` files, whole | Alone on the skills, after every other skill change. Tests pin skill text. |
-| `commit-lint-merge-prefix` | `tools/commit-lint.mjs` | Independent; may join any earlier wave if it leaves `ci.yml` alone there. |
-| `workflow-pins-local-actions` | `tools/workflow-pins.mjs` | Independent; may join any earlier wave. Latent: no local action exists today. |
-
-## Follow-ups awaiting scheduling (3)
-
-These new changes are outside the original wave tables. Plan their ownership before running them in parallel with wave 7.
-
-| Change | Origin and ownership to reconcile |
-| --- | --- |
-| `quote-router-in-skill-loops` | Wave 2 skill-path follow-up. Both skills' router invocations overlap the setup and dispatch work in wave 4 and the whole-skill rewrite in wave 7. |
-| `stale-last-result-cleanup` | PR #138 follow-up. Result consumption in `flow.mjs` and both-chain tests overlap wave 4 run-state work. |
-| `step-subagent-git-guard` | Wave 2 review follow-up. Step Git/deletion/PR rules, planning rules and possible hooks overlap wave 5 guards, wave 6 nesting rules and wave 7 skill edits. Reconcile with PR #155's layered rule ownership. |
+| `quote-router-in-skill-loops` | [#186](https://github.com/xycu/agent-smith/pull/186) | Wave 2 skill-path follow-up. Both skills' router invocations share ownership with the setup and dispatch work in wave 4 and the whole-skill rewrite merged in PR #188. |
+| `stale-last-result-cleanup` | [#185](https://github.com/xycu/agent-smith/pull/185) | PR #138 follow-up. Result consumption in `flow.mjs` and both-chain tests overlap wave 4 run-state work. |
+| `step-subagent-git-guard` | [#184](https://github.com/xycu/agent-smith/pull/184) | Wave 2 review follow-up. Step Git/deletion/PR rules, planning rules and possible hooks overlap wave 5 guards, wave 6 nesting rules and wave 7 skill edits. PR #155 defines the layered rule ownership. |
 
 ## Changes outside the waves
 
