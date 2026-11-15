@@ -1,0 +1,8 @@
+{
+  "observedAt": "2026-11-15T11:21:09.608172+00:00",
+  "checkedPullRequests": 177,
+  "availableForkPullRequests": [],
+  "unavailableHeadRepositories": [],
+  "conditionalRow": "3.4",
+  "disposition": "No available fork PR. Both current job expressions passed all eight automated cases."
+}

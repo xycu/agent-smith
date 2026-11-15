@@ -1,0 +1,34 @@
+{
+  "checks": 8,
+  "passed": true,
+  "cases": [
+    {
+      "event": "push",
+      "repository": "xycu/agent-smith",
+      "expected": [
+        "self-hosted",
+        "linux",
+        "truenas"
+      ]
+    },
+    {
+      "event": "pull_request",
+      "repository": "xycu/agent-smith",
+      "expected": [
+        "self-hosted",
+        "linux",
+        "truenas"
+      ]
+    },
+    {
+      "event": "pull_request",
+      "repository": "external/fork",
+      "expected": "ubuntu-latest"
+    },
+    {
+      "event": "pull_request",
+      "repository": null,
+      "expected": "ubuntu-latest"
+    }
+  ]
+}

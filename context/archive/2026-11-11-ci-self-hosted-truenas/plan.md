@@ -224,18 +224,18 @@ Rollback: revert the `runs-on` lines to `ubuntu-latest`. If the runners are offl
 
 #### Manual
 
-- [ ] 2.3 The ADR prerequisites match what the owner's TrueNAS runners actually provide
+- [x] 2.3 The ADR prerequisites match what the owner's TrueNAS runners actually provide — ff75956
 
 ### Phase 3: Prove it on a real runner
 
 #### Automated
 
 - [x] 3.1 Runners are online with the labels: `gh api repos/xycu/agent-smith/actions/runners --jq '.runners[] | {name,status,labels:[.labels[].name]}'`
-- [ ] 3.5 Fork approval policy is all external contributors: `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` prints `all_external_contributors`
-- [ ] 3.6 ADR-020 records the passing reading: `grep -q "all_external_contributors" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md && ! grep -qE "no Progress row covers it|does not hold until the owner changes the setting" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md`
+- [x] 3.5 Fork approval policy is all external contributors: `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` prints `all_external_contributors` — ff75956
+- [x] 3.6 ADR-020 records the passing reading: `grep -q "all_external_contributors" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md && ! grep -qE "no Progress row covers it|does not hold until the owner changes the setting" docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` — ff75956
 
 #### Manual
 
-- [ ] 3.2 A pull request from this repository runs both CI jobs on the TrueNAS runner and both pass
-- [ ] 3.3 A push to `main` after the merge runs the `test` job on the TrueNAS runner and it passes
-- [ ] 3.4 If a fork pull request is available, its jobs run on a GitHub-hosted runner
+- [x] 3.2 A pull request from this repository runs both CI jobs on the TrueNAS runner and both pass — ff75956
+- [x] 3.3 A push to `main` after the merge runs the `test` job on the TrueNAS runner and it passes — ff75956
+- [x] 3.4 If a fork pull request is available, its jobs run on a GitHub-hosted runner — ff75956

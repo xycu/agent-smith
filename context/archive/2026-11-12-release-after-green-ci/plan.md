@@ -231,7 +231,7 @@ Until the merge, the old `push` trigger is in force. After the merge, the releas
 
 - [x] 3.2 The merge to `main` gets a CI run that is not cancelled, and the Release run starts after it completes — CI run 43183448157 of the merge (5f033ba) ended success, not cancelled; Release run 43184000512 started 3 s after CI run 43183485936 completed (08:33:59 to 08:34:02Z)
 - [x] 3.3 Merge two pull requests close together: each gets its own CI result; no CI run on `main` is cancelled — pushes 15 s apart (5f033ba 08:30:06Z, 9b0aebe 08:30:21Z) each got their own CI run and both ended success; the one cancelled `main` run (43183347615, c5bffb2) ran under the old workflow file and is older than the merge
-- [ ] 3.4 A CI run of `main` that fails produces a Release run whose job is skipped, with no release PR update and no tag
-- [ ] 3.5 Rerunning that failed run until it passes starts the release job again
-- [ ] 3.6 A Release run whose job is skipped does not cancel a pending valid run
+- [x] 3.4 A CI run of `main` that fails produces a Release run whose job is skipped, with no release PR update and no tag — ff75956
+- [x] 3.5 Rerunning that failed run until it passes starts the release job again — ff75956
+- [x] 3.6 A Release run whose job is skipped does not cancel a pending valid run — ff75956
 - [x] 3.7 The "Allow GitHub Actions to create and approve pull requests" setting still lets the `workflow_run` job open the release PR — release PR #133 was opened by `app/github-actions` at 08:34:40Z, 38 s after the `workflow_run` Release run 43184000512 started
