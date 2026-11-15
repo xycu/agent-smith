@@ -47,5 +47,19 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.6 A fresh supported Claude host reports the dedicated agent identity in PreToolUse for both chains, blocks inert attempted breach commands before fake executables run, permits typed/archive commits, and allows the orchestrator's recording publication-script calls.",
+      "2.7 A live planning/review probe moves a PR-CI-dependent Automated criterion to Manual while retaining a valid local fake-client test criterion and the original Progress identities.",
+      "3.4 On the resulting run PR after orchestrator publication, a human records PR CI acceptance and reviews any live host checks still pending."
+    ],
+    "manualNotProved": [
+      "2.6 A fresh supported Claude host reports the dedicated agent identity in PreToolUse for both chains, blocks inert attempted breach commands before fake executables run, permits typed/archive commits, and allows the orchestrator's recording publication-script calls. — not proved: Eight fresh guard payload/registration tests passed, but no supported Claude-host transcripts or host-mediated fake-executable logs for both chains are available. Launching a live agent probe violates",
+      "2.7 A live planning/review probe moves a PR-CI-dependent Automated criterion to Manual while retaining a valid local fake-client test criterion and the original Progress identities. — not proved: Seven fresh planning-carrier tests passed, but no live planning/review criterion-movement probe is available. Launching it violates the flat-delegation rule. See test-planning-carriers-recheck.txt and",
+      "3.4 On the resulting run PR after orchestrator publication, a human records PR CI acceptance and reviews any live host checks still pending. — not proved: PR #184 checks pass for dd4fa8b0f07babb88b1f8e58ce7e82cd6b37bbc5, which predates the implementation at local HEAD 56fc79d67cb3c7b96cf059837becce3a286987d6. Current implementation PR CI acceptance requ"
+    ]
   }
 }
