@@ -308,9 +308,9 @@ New rule files change `ruleFiles`, the new agent changes `agentFiles`, and hook 
 
 #### Automated
 
-- [x] 3.1 Rule/prompt/test/ADR indexes and current reference sections document the selected ownership, planning boundary, upgrade behavior and runtime coverage limits consistently.
-- [x] 3.2 Shared skill contracts preserve router-agent forwarding, provider dispatch, anti-stall equality and terminal publication ownership after available concurrent changes are reconciled.
-- [x] 3.3 The complete repository test command passes and the final diff contains no edits to WAVES.md, context/archive, release fields or unrelated concurrent-change implementations.
+- [x] 3.1 Rule/prompt/test/ADR indexes and current reference sections document the selected ownership, planning boundary, upgrade behavior and runtime coverage limits consistently. — f59e3cd
+- [x] 3.2 Shared skill contracts preserve router-agent forwarding, provider dispatch, anti-stall equality and terminal publication ownership after available concurrent changes are reconciled. — f59e3cd
+- [x] 3.3 The complete repository test command passes and the final diff contains no edits to WAVES.md, context/archive, release fields or unrelated concurrent-change implementations. — f59e3cd
 
 #### Manual
 
