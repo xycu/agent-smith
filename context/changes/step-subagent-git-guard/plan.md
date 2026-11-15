@@ -6,7 +6,11 @@ Carry repository Git, deletion and publication rules into every routed task thro
 
 This plan addresses the three incidents recorded in `change.md`. Complexity is HIGH because prompt ownership, native dispatch identity, archive dispatch, historical retries and provenance intersect. The unattended instruction delegates decisions to researched evidence, including the interview and phase approvals normally requested by `/10x-plan`.
 
+Revision after the 2026-11-15 REJECTED implementation review adds Phase 4 for F1 regression acceptance and F2 packaging cleanup. Phases 1–3 retain their completed Automated rows and pending Manual acceptance. This revision changes planning artifacts only; Phase 4 remains pending.
+
 ## Current State Analysis
+
+The following baseline describes the original planning state. Phases 1–3 have since implemented these changes; the review follow-up below describes the remaining work.
 
 The reported incidents involved an implementation step publishing its own PR to satisfy an Automated criterion, a reviewer discarding an edit through checkout, and manual verification using a prohibited scratch cleanup command. The ticket's description of the shared suffix predates ADR-023. Current deletion rules live in `rules/top.md`, outside project overrides. That file carries neither the Git discard rules nor publication ownership. There are no shipped `plan` or `plan-review` step rule files.
 
@@ -31,6 +35,17 @@ Six focused files passed with 86 tests, zero failures and zero skips. They were 
 
 Scratch tests ran within this worktree to obey the task's filesystem boundary. An initial attempt inherited the containing repository and changed fixture routing. The successful rerun used a scratch-root `.git` file pointing to an absent directory inside that scratch root, which stopped parent Git discovery. Test-created repositories supplied their own metadata. The existing `removeTree` helper removed the scratch contents afterward.
 
+### Implementation-review follow-up
+
+The [implementation review](reviews/impl-review.md) records one critical finding and one warning. Its REJECTED verdict describes the implementation before its own fixes; it must not be rewritten as acceptance of the follow-up.
+
+| Finding | Verified current state | Planned disposition |
+| --- | --- | --- |
+| F1: Git option values mistaken for flags | Commit `19affb2e3c16a2de2508e5c06be09e2d02be28ab` already fixes `gitProblem` and adds the inert-payload regression. `step-guard.mjs:71–99` consumes option values before classifying flags and chooses the last real dry-run setting; `step-guard.test.mjs:72` covers the reported failures. | Reuse the correction and regression. Phase 4 verifies that they remain effective; it does not require another parser implementation. |
+| F2: tracked operating-system metadata | `git ls-files --stage -- .DS_Store "**/.DS_Store"` reports only the root `.DS_Store`; `.gitignore:1` currently contains only `.claude/worktrees/`. The review records `ARCHIVE_OS_METADATA_FILE` even though strict validation exits zero. | Add the narrowly scoped tracking cleanup to this plan: retain local bytes, remove the root file from the index and ignore `.DS_Store` at every depth. Validate a clean export of the candidate tracked tree. |
+
+The review's [verification record](evidence/impl-review-verification.txt) reports 11 passing guard tests and 1,570 passing tests out of 1,573, with three expected skips. Its [inert-payload evidence](evidence/impl-review-guard-regression.txt) records the F1 before/after decisions. Those are prior implementation results, not tests run by this plan revision. Manual rows 2.6, 2.7 and 3.4 still need their original evidence.
+
 ## Desired End State
 
 Every newly assembled task carries always-true Git/deletion/publication rules, including both archive tasks, overridden templates and file-handoff task bodies. Allowed typed implementation commits and archive commits remain usable. The router retains ownership of snapshots, rollback and run state, and orchestrator scripts retain publication ownership.
@@ -39,11 +54,17 @@ Every planning variant produces Automated criteria that can run locally before p
 
 New Claude dispatches use a dedicated inherited-tool agent unless an existing restricted mapping selects another agent. A plugin-level hook recognizes that dedicated agent and denies the documented direct-command subset. Its supported-host evidence and bypass limits are explicit. OpenAI task prompts receive the same safety rules and keep their existing execution/permission controls.
 
+The F1 option-value correction remains covered by the existing regression. The tracked plugin and its clean export contain no `.DS_Store`; local metadata remains intact and ignored, and package validation no longer reports `ARCHIVE_OS_METADATA_FILE` for that export.
+
 ## Scope boundaries
 
 Scope covers rule files, a small native hook and its routed identity, focused regression tests, provenance, rule/prompt/test indexes, reference documentation and amendments to the existing decisions. The complete rule semantics apply to actions through any tool or API. The shell hook provides the narrower runtime coverage specified below.
 
+The review revision additionally covers F1 verification, the F2 root `.DS_Store` tracking removal and `.gitignore` entry, and follow-up evidence within this change folder. These are Phase 4 implementation targets; this planning step edits only `plan.md` and `plan-brief.md`.
+
 Excluded work includes remote-ref polling, remote mutation during verification, a general shell parser, an OpenAI permission-profile redesign, dependency additions, version changes, tier/model changes, and edits to `WAVES.md` or `context/archive/`.
+
+F2 does not authorize deleting local metadata, rewriting history, broader packaging tooling, unrelated metadata patterns or fixing the existing missing-icon warning. The original review and its evidence remain historical records.
 
 ## Implementation Approach
 
@@ -58,6 +79,9 @@ Excluded work includes remote-ref polling, remote mutation during verification, 
 | A5 | Put PR CI and post-publication checks in Manual criteria | `open-pr.mjs` runs at the end. ADR-012's manual verifier can leave these rows pending with a reason under its existing external-write prohibition. |
 | A6 | Preserve exact historical pending dispatches | ADR-015 and file-handoff tests require byte-identical neutral retries. New rules and agent identity apply when a new dispatch is assembled. Existing pending prompts have a documented upgrade limit. |
 | A7 | Preserve Wave 7 ownership through the existing dispatch interface | `skill-md-context-diet` owns both skills wholesale, and `quote-router-in-skill-loops` owns path quoting. This design needs neither skill edited. Shared text and test integration receive a final compatibility check. |
+| A8 | Reuse the applied F1 fix and add pending verification rather than duplicate it | Review F1, commit `19affb2` and the current classifier/regression establish that the correction already exists. New Phase 4 acceptance does not change completed rows. |
+| A9 | Include the minimal F2 cleanup in the follow-up and preserve the local file | The user requests that review findings become planned work and delegates unattended decisions. Review F2 recommends tracking removal and an ignore rule; the Git inventory shows one root file. Index-only removal is reversible and keeps all local bytes. This resolves the review's deferred scope choice for planning, without performing cleanup here. |
+| A10 | Judge package cleanliness on a clean export and inspect validation diagnostics | The review verification records exit 0 alongside `ARCHIVE_OS_METADATA_FILE`. Preserving the ignored local file can leave that warning in the working directory; the candidate tracked export is the acceptance target. No package submission or publication is needed. |
 
 ### Options from change.md
 
@@ -168,6 +192,8 @@ Add runtime denial for the direct-command subset using a supported identity boun
 
 **Contract** One synchronous `PreToolUse` Bash hook launches Node using an argument vector and `${CLAUDE_PLUGIN_ROOT}`, with bounded execution and `onFailure: block`. The script reads bounded JSON from stdin, validates the event and scope, and returns the documented deny decision or neutral pass-through. It performs no shell execution, Git/network calls, filesystem mutation or routing. Scope and runtime coverage follow the limits above. A denial explains the applicable rule and the safe route through preservation, inspected per-file cleanup, or orchestrator-owned publication. State-dependent discard/delete behavior retains the repository's recoverability semantics, and unprovable safety gets a deny within the guarded command subset. This includes stage-only restore because an index-only version may be unique and the hook performs no repository-state proof. The retained Progress row 2.2 includes stage-only restore in its original permit list. For that case, implement and verify conservative denial, preserving the immutable row title and its other positive cases.
 
+Review F1 clarifies the existing literal-command contract: consume separate and attached option values before flag classification or interpreting `--` as a terminator. Exclusion patterns and commit messages are data, and the last actual dry-run setting controls the clean exception. The applied fix owns this behavior; Phase 4 supplies its explicit follow-up acceptance without altering row 2.2.
+
 #### 3. Provenance and regressions
 
 **Files** `skills/10x-pipeline/scripts/isolation.mjs`, new `skills/10x-pipeline/test/step-guard.test.mjs`, `skills/10x-pipeline/test/agents.test.mjs`, `skills/10x-pipeline/test/provenance.test.mjs`, `skills/10x-pipeline/test/neutral.test.mjs`, `skills/10x-pipeline/test/codex-chain.test.mjs`, `skills/10x-pipeline/test/prompt-handoff.test.mjs`, `skills/10x-pipeline/test/archive.test.mjs`, `skills/10x-pipeline/test/archive-gate.test.mjs`, `skills/openspec-pipeline/test/openspec-archive.test.mjs`, `skills/10x-pipeline/test/no-recursive-delete.test.mjs`, `skills/10x-pipeline/test/README.md`
@@ -227,6 +253,46 @@ Record ownership, compatibility, supported guard coverage and remaining host acc
 
 - On the resulting run PR after orchestrator publication, a human records PR CI acceptance and reviews any live host checks still pending.
 
+## Phase 4: Implementation-review follow-up
+
+### Overview
+
+Close the review's remaining scope gap through a reversible packaging cleanup and verify the already-applied parser correction. Preserve all previous Progress rows and keep live-host and PR acceptance in their existing Manual rows.
+
+### Changes Required
+
+#### 1. Applied F1 correction and regression
+
+**Files** `skills/10x-pipeline/scripts/step-guard.mjs`, `skills/10x-pipeline/test/step-guard.test.mjs` (verification targets; no new edits required if the applied correction passes)
+
+**Intent** Retain the reviewed fix at the owning classifier and prove the original destructive false negatives and safe-commit false positives remain corrected.
+
+**Contract** Reuse the existing inert-payload test for option values. Deny clean commands whose apparent dry-run token is an exclusion value, or whose last real setting is `--no-dry-run`; allow a genuine final dry-run setting. Consume commit messages, trailers and other recognized option values before interpreting `--` or hook-bypass flags. Preserve safe attached messages and deny actual `--no-verify`/`-n`. Run the whole guard test file; never execute prohibited commands as a reproduction. Keep the existing bounded parser, identity, neutral-output and dependency limits. Only a failing acceptance check justifies a further focused correction.
+
+#### 2. F2 tracking cleanup
+
+**Files** `.gitignore`, tracked root `.DS_Store`
+
+**Intent** Remove accidental operating-system metadata from the distributable plugin and prevent ordinary bookkeeping staging from adding it again.
+
+**Contract** Record the local file's digest, add the basename pattern `.DS_Store` to the existing root ignore file, and remove only the root file from tracking with `git rm --cached -- .DS_Store`. Keep the working-copy file byte-identical; do not use forced removal or discard other staged work. Verify that no `.DS_Store` remains tracked and that root and representative nested paths match the repository ignore rule. Preserve `.claude/worktrees/` and every unrelated ignore entry. No recursive cleanup or history rewrite is involved.
+
+#### 3. Package validation and evidence
+
+**File** new `context/changes/step-subagent-git-guard/evidence/review-follow-up-verification.txt`
+
+**Intent** Prove the candidate package is clean without deleting local preferences or treating a zero validator exit as sufficient acceptance.
+
+**Contract** Export the candidate tracked tree after cleanup (the staged index tree or cleanup commit) into worktree-local scratch, using Git's existing export facilities. Record the exact tree/commit and verify the export contains no `.DS_Store`. Run `claude plugin validate . --strict` from that export and inspect both its exit status and diagnostics: `ARCHIVE_OS_METADATA_FILE` must be absent, while the pre-existing `ICON_MISSING` warning is recorded separately. Do not claim that the working directory containing the retained ignored file is clean. Record guard results, tracking/ignore checks and before/after local-file digests in the new evidence file; leave the review and previous evidence unchanged. Use the existing scratch isolation and `removeTree` conventions. No new package script, dependency or permanent test is needed for the ignore-only change. Reuse the review's complete-suite result for unchanged runtime code; rerun the required complete command if scripts, prompts, policy or tools change, or a new failure warrants it.
+
+### Success Criteria
+
+#### Automated Verification
+
+- F1's existing option-value regression and the complete guard test file pass, covering real dry-run precedence, flag-looking values, hook bypass and safe attached commit messages with inert payloads only.
+- F2's root .DS_Store is untracked, the root and nested metadata paths match the repository ignore rule, and the retained local file has the same digest as before cleanup.
+- A clean export of the candidate tracked tree contains no .DS_Store, strict plugin validation reports no ARCHIVE_OS_METADATA_FILE, and follow-up evidence records the export identity, diagnostics, focused results and applicable complete-suite evidence.
+
 ## Testing Strategy
 
 ### Prompt and planning matrix
@@ -237,6 +303,12 @@ Exercise every shipped step tail, every planning variant, initial/confirmation r
 
 Use JSON payloads, never live dangerous commands. Direct denied cases include push with ordinary/force flags, `gh` PR operations, hook bypass, unsnapshotted hard reset, path checkout, destructive restore, clean, stash drop/clear, recursive `rm` flag variants, `find` deletion, and direct publication-script execution. Stage-only restore is denied, including the case where HEAD, index and working-copy contents all differ. Use inert payload assertions for that denial and verify that a denied call reaches no recording executable. Positive cases include status/log/diff, add and typed commit, clean with `--dry-run`, stash listing, a file named like a flag after `--`, single-file cleanup, empty-directory removal, harmless quoted examples, and the same publication-script command in an orchestrator event. Include simple leading `cd` and chained commands used by the skills. A restore combining staged and worktree flags follows the same denial. Confirm neutral output never grants permission, and assert the fail-closed registration fields alongside payload decisions. Explicitly test and document the bounded syntax limits instead of presenting unknown forms as verified coverage.
 
+Review F1 adds explicit boundary cases already present in `step-guard.test.mjs:72`: clean exclusion values resembling `-n`/`--dry-run`, attached short-option values, later `--no-dry-run` and later real dry-run overrides, `--` consumed as a commit option value, and safe attached messages containing `n`. Preserve both denial and neutral expectations. Run `node --test skills/10x-pipeline/test/step-guard.test.mjs` for Phase 4; change neither parser nor fixtures merely to create new work.
+
+### Packaging follow-up
+
+Use `git ls-files -- .DS_Store "**/.DS_Store"` to check tracked contents and `git check-ignore -v --no-index -- .DS_Store nested/.DS_Store` to confirm the root `.gitignore` owns both matches. Verify the original local digest after index removal. Validate the clean tracked export described in Phase 4, capturing diagnostics as well as the process exit. These are local Automated checks with no PR or external-write dependency.
+
 ### Commands
 
 Run from the selected run root, with Node 24+. The focused set grows with each phase. Once scripts, prompts or policy-related runtime behavior change, run the repository-required gate after that phase.
@@ -245,7 +317,7 @@ Run from the selected run root, with Node 24+. The focused set grows with each p
 node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
 ```
 
-Plugin validation is model-free.
+Plugin validation is model-free. For Phase 4, run it from the clean candidate export and inspect the diagnostics as specified above.
 
 ```sh
 claude plugin validate . --strict
@@ -267,6 +339,8 @@ No run-state schema rewrite is required. New normal Claude actions intentionally
 
 New rule files change `ruleFiles`, the new agent changes `agentFiles`, and hook bytes change `hookFiles`. Document expected provenance/compare warnings for in-flight upgrades. Reverting the implementation restores earlier prompt/default-agent behavior through ordinary version control while preserving stored dispatches. No cleanup deletes run evidence, refs or worktrees.
 
+Phase 4 removes only Git tracking for local metadata. The existing local file remains ignored and byte-identical; fresh checkouts and exports omit it. Reverting that cleanup is an ordinary version-control change, without rewriting pushed history. The applied F1 guard bytes already participate in `hookFiles`; verification adds no new provenance schema.
+
 ## References
 
 - Task incidents, options and acceptance requirements in `context/changes/step-subagent-git-guard/change.md`.
@@ -278,6 +352,8 @@ New rule files change `ruleFiles`, the new agent changes `agentFiles`, and hook 
 - Architecture decisions ADR-009, ADR-010, ADR-012, ADR-015, ADR-016, ADR-017, ADR-023 and ADR-024 in `docs/ADR/`.
 - Concurrent boundaries in `context/changes/WAVES.md` and the active change definitions listed above. `context/foundation/lessons.md` supplies the no-nested-subagent and documentation-drift priors. The roadmap has no matching Change ID.
 - Authoritative Claude Code hook, subagent and plugin-manifest documentation linked above, inspected 2026-11-15. CLI versions establish local availability, with live behavior reserved for Manual acceptance.
+- Implementation-review findings F1/F2 in `context/changes/step-subagent-git-guard/reviews/impl-review.md`, with existing evidence in `evidence/impl-review-verification.txt` and `evidence/impl-review-guard-regression.txt`.
+- Applied F1 correction in commit `19affb2e3c16a2de2508e5c06be09e2d02be28ab`, `skills/10x-pipeline/scripts/step-guard.mjs:61` and `skills/10x-pipeline/test/step-guard.test.mjs:72`; F2 inventory from Git's index and current `.gitignore:1`.
 
 ## Progress
 
@@ -315,3 +391,11 @@ New rule files change `ruleFiles`, the new agent changes `agentFiles`, and hook 
 #### Manual
 
 - [ ] 3.4 On the resulting run PR after orchestrator publication, a human records PR CI acceptance and reviews any live host checks still pending.
+
+### Phase 4: Implementation-review follow-up
+
+#### Automated
+
+- [ ] 4.1 F1's existing option-value regression and the complete guard test file pass, covering real dry-run precedence, flag-looking values, hook bypass and safe attached commit messages with inert payloads only.
+- [ ] 4.2 F2's root .DS_Store is untracked, the root and nested metadata paths match the repository ignore rule, and the retained local file has the same digest as before cleanup.
+- [ ] 4.3 A clean export of the candidate tracked tree contains no .DS_Store, strict plugin validation reports no ARCHIVE_OS_METADATA_FILE, and follow-up evidence records the export identity, diagnostics, focused results and applicable complete-suite evidence.
