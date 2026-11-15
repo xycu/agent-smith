@@ -80,8 +80,9 @@ for (const chain of ["10x", "openspec"]) {
     });
   }
   test(`${chain} real archive action retains safety under overrides`, () => {
-    const p = chain === "10x" ? makeProject({ plan: planText({ done: 1 }) })
-      : makeOpenspecProject({ proposal: true, specs: 1, tasks: { done: 2, open: 0 }, verify: "Verdict: PASS\nCritical: 0\nWarnings: 0\n" });
+    const policy = { agents: { restricted: true, steps: { archive: "custom:archive", "os-archive": "custom:archive" } } };
+    const p = chain === "10x" ? makeProject({ policy, plan: planText({ done: 1 }) })
+      : makeOpenspecProject({ policy, proposal: true, specs: 1, tasks: { done: 2, open: 0 }, verify: "Verdict: PASS\nCritical: 0\nWarnings: 0\n" });
     if (chain === "10x") {
       fs.writeFileSync(path.join(p.changeDir, "change.md"), "---\nchange_id: demo\nstatus: implemented\ncreated: 2026-10-30\n---\n");
       writeReview(p, "plan-review", { verdict: "SOUND" });
@@ -95,6 +96,7 @@ for (const chain of ["10x", "openspec"]) {
     commitFiles(p, ["README.md"]);
     const action = run(p, ["next", p.id, "--chain", chain], { env: gitEnv(p) }).json;
     assert.equal(action.action, "archive", action.reason);
+    assert.equal(action.agent, "agent-smith:step");
     safety(action.prompt);
   });
 }

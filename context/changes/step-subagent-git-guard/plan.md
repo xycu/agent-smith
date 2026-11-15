@@ -285,19 +285,19 @@ New rule files change `ruleFiles`, the new agent changes `agentFiles`, and hook 
 
 #### Automated
 
-- [x] 1.1 All routed rule tails and representative real run/archive actions carry the Git, deletion and publication invariants, including overrides and file-handoff bodies.
-- [x] 1.2 Every planning and plan-review variant carries the pre-publication criterion rule, including the OpenSpec planning equivalent and safe local fake-client examples.
-- [x] 1.3 Rule-form, layered-rule, deletion, nested-subagent and prompt-handoff regression files pass with their safety assertions intact.
+- [x] 1.1 All routed rule tails and representative real run/archive actions carry the Git, deletion and publication invariants, including overrides and file-handoff bodies. — e513e93
+- [x] 1.2 Every planning and plan-review variant carries the pre-publication criterion rule, including the OpenSpec planning equivalent and safe local fake-client examples. — e513e93
+- [x] 1.3 Rule-form, layered-rule, deletion, nested-subagent and prompt-handoff regression files pass with their safety assertions intact. — e513e93
 
 ### Phase 2: Scoped Claude guard and dispatch compatibility
 
 #### Automated
 
-- [ ] 2.1 New Claude run and archive actions on both chains select the guarded identity, retain explicit restricted selections where already supported, and preserve exact legacy neutral retries.
-- [ ] 2.2 Hook payload tests deny the documented direct Git/publication/delete forms and permit safe commits, read-only Git, stage-only restore, inspected file unlink/empty rmdir, orchestrator calls and unrelated agents.
-- [ ] 2.3 Hook tests cover scoped malformed input, invalid JSON, oversized input, quoted arguments, supported compound commands, harmless quoted command text and plugin paths containing spaces.
-- [ ] 2.4 OpenAI dispatch and runner fixtures pass with their original configuration, capability-rejection, usage and lifecycle contracts, and hook/agent/rule byte changes produce the expected independent provenance drift.
-- [ ] 2.5 Plugin validation accepts the hook layout and both complete chain/tool suites pass on Node 24 or later.
+- [x] 2.1 New Claude run and archive actions on both chains select the guarded identity, retain explicit restricted selections where already supported, and preserve exact legacy neutral retries.
+- [x] 2.2 Hook payload tests deny the documented direct Git/publication/delete forms and permit safe commits, read-only Git, stage-only restore, inspected file unlink/empty rmdir, orchestrator calls and unrelated agents.
+- [x] 2.3 Hook tests cover scoped malformed input, invalid JSON, oversized input, quoted arguments, supported compound commands, harmless quoted command text and plugin paths containing spaces.
+- [x] 2.4 OpenAI dispatch and runner fixtures pass with their original configuration, capability-rejection, usage and lifecycle contracts, and hook/agent/rule byte changes produce the expected independent provenance drift.
+- [x] 2.5 Plugin validation accepts the hook layout and both complete chain/tool suites pass on Node 24 or later.
 
 #### Manual
 

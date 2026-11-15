@@ -80,6 +80,7 @@ function pluginCopy() {
     fs.cpSync(dir, path.join(root, "skills", name), { recursive: true, filter: (src) => src !== tests });
   }
   fs.cpSync(path.join(REPO, ".claude-plugin"), path.join(root, ".claude-plugin"), { recursive: true });
+  for (const dir of ["agents", "hooks"]) fs.cpSync(path.join(REPO, dir), path.join(root, dir), { recursive: true });
   return { root, route: path.join(root, "skills/10x-pipeline/scripts/route.mjs") };
 }
 
@@ -185,6 +186,7 @@ test("(e) the archive prompt of the 10x chain ends with top.md", { skip: noGit }
   commitFiles(project, ["README.md"]);
   const res = run(project, ["next", project.id], { env: gitEnv(project) });
   assert.equal(res.json.action, "archive", res.stdout);
+  assert.equal(res.json.agent, "agent-smith:step");
   assert.ok(res.json.prompt.endsWith("\n\n" + SUFFIX + "\n\n" + TOP), res.json.prompt.slice(-300));
 });
 
@@ -196,6 +198,7 @@ test("(e) the os-archive prompt of the OpenSpec chain ends with the chain file a
   commitFiles(project, ["README.md"]);
   const res = run(project, ["next", project.id], { env: gitEnv(project) });
   assert.equal(res.json.action, "archive", res.stdout);
+  assert.equal(res.json.agent, "agent-smith:step");
   assert.ok(res.json.prompt.endsWith("\n\n" + SUFFIX + "\n\n" + OS_CHAIN.replaceAll("{id}", "demo") + "\n\n" + TOP), res.json.prompt.slice(-600));
 });
 

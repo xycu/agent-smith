@@ -657,7 +657,8 @@ test("mutation: without the author comparison a foreign marker comment would be 
 
 test("guard: router scripts never call gh and policy.json has no prComment key", () => {
   const skill = path.resolve(path.dirname(SCRIPT), "..");
-  const scripts = fs.readdirSync(path.join(skill, "scripts")).filter((f) => f.endsWith(".mjs") && f !== "pr-comment.mjs" && f !== "open-pr.mjs" && f !== "pr-common.mjs");
+  // The standalone hook classifies literal gh commands. step-guard.test.mjs pins its side-effect boundary.
+  const scripts = fs.readdirSync(path.join(skill, "scripts")).filter((f) => f.endsWith(".mjs") && f !== "pr-comment.mjs" && f !== "open-pr.mjs" && f !== "pr-common.mjs" && f !== "step-guard.mjs");
   assert.ok(scripts.includes("route.mjs"));
   for (const file of scripts) {
     const source = fs.readFileSync(path.join(skill, "scripts", file), "utf8");
