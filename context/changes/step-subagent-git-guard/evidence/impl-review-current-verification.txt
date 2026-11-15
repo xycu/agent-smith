@@ -1,0 +1,92 @@
+Full-plan implementation review verification, 2026-11-15
+Reviewed HEAD: dbdd43aa3a37e50a30d7c6f40671f301e9ee22c2
+Reviewed tree: d9e6fbf3123d566d70f3e2ebd34f9b38d0e415fb
+Implementation range: e9d1547..dbdd43a (phases 1, 2, 3, 4).
+Node v24.19.0; Claude Code 2.1.311.
+
+All scratch files use worktree-local .impl-review-current-tmp.
+The scratch root has a .git file pointing to an absent local Git directory to prevent parent repository discovery.
+Tests use TMPDIR pointing at that scratch root.
+No real publication or destructive Git reproduction was performed.
+
+Focused acceptance
+Command: node --test skills/10x-pipeline/test/step-guard.test.mjs
+✔ shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling (1.2235ms)
+✔ direct Git discard, hook bypass, unique-ref deletion and publication forms are denied (1843.843416ms)
+✔ Git option values cannot masquerade as safety flags or hide hook bypass (1107.838709ms)
+✔ recursive shell deletion variants are denied using inert payloads only (354.518125ms)
+✔ literal quotes, escapes and supported shell separators retain command positions (1514.023875ms)
+✔ orchestrator and unrelated agents pass through, including publication script calls (216.707916ms)
+✔ dynamic programs and wrappers are outside the documented direct-command subset (128.287334ms)
+✔ malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed (570.069625ms)
+✔ hook argument vector preserves plugin paths containing spaces and shell metacharacters (44.928708ms)
+✔ distinct HEAD, index and working-copy versions survive denied staged restore before a recording executable (544.845959ms)
+✔ the standalone guard has no execution, filesystem, network or routing dependency (0.389167ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6403.565584
+
+Packaging acceptance
+Command: git ls-files -- .DS_Store "**/.DS_Store"
+Result: no tracked paths.
+Command: git check-ignore -v --no-index -- .DS_Store nested/.DS_Store
+Both paths match .gitignore:2:.DS_Store.
+Command: shasum -a 256 .DS_Store
+Result: c4758bd840da2b4de207b551cf870e645460579059ed95b39e6ebfe2a0a6cbb7
+Matches both the original pre-cleanup and post-cleanup digests in review-follow-up-verification.txt.
+The local file remains present and ignored.
+
+Export: git archive HEAD extracted into worktree-local scratch/export.
+All exported entries checked recursively: no .DS_Store basename.
+Command: claude plugin validate . --strict, cwd set to that clean export.
+Exit: 0. ARCHIVE_OS_METADATA_FILE absent. Existing ICON_MISSING warning retained.
+Validating marketplace manifest: /Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-step-subagent-git-guard/.impl-review-current-tmp/export/.claude-plugin/marketplace.json
+
+Plugin directory checks for /Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-step-subagent-git-guard/.impl-review-current-tmp/export. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ This folder also holds a marketplace manifest. The plugin directory treats such a folder as a plugin, so these checks cover only the plugin in this folder. To check another plugin that the marketplace lists, run validate on that plugin's folder.
+
+These plugin directory checks do not change the result below.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+✔ Validation passed
+
+Static acceptance
+Progress: 14 completed Automated rows and 3 pending Manual rows (2.6, 2.7, 3.4).
+Both skills retain agent forwarding and terminal publication; anti-stall sections match exactly.
+No reviewed diff touches WAVES.md, context/archive/ or release version fields.
+node tools/version-check.mjs: OK (1.11.0).
+git diff --check: passed before report writing.
+
+Complete repository gate
+Command: node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+Exit: 0
+﹣ live: a branch with no pull request is skipped (0.027167ms) # set GH_LIVE=1 to run (needs network and an authenticated gh)
+﹣ live: the real comment projection is one parseable object per line across pages (0.022958ms) # set GH_LIVE=1 to run (needs network and an authenticated gh)
+﹣ CLAUDE.md has no @ imports (0.078417ms) # SKIP
+ℹ tests 1573
+ℹ suites 13
+ℹ pass 1570
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 3
+ℹ todo 0
+ℹ duration_ms 639120.578875
+
+The three skips are the two opt-in live GitHub checks and the import check for absent CLAUDE.md.
+All 14 Automated rows are covered; Manual 2.6, 2.7 and 3.4 remain pending.
+Historical review copy is byte-identical to HEAD. plan.md, including Progress, is byte-identical to HEAD.
+No implementation fixes or fix commit were needed.

@@ -3,88 +3,67 @@
 
 - **Plan**: context/changes/step-subagent-git-guard/plan.md
 - **Scope**: Full plan
-- **Reviewed phases**: 1, 2, 3
+- **Reviewed phases**: 1, 2, 3, 4
 - **Date**: 2026-11-15
-- **Verdict**: REJECTED
-- **Findings**: 1 critical, 1 warning, 0 observations
+- **Verdict**: APPROVED
+- **Findings**: 0 critical, 0 warnings, 0 observations
 
-The verdict and counts describe the implementation before review fixes. F1 was corrected in 19affb2e3c16a2de2508e5c06be09e2d02be28ab and verified. F2 remains outside the plan scope and needs an owner decision. Manual acceptance remains pending as already recorded in Progress.
+This is a fresh review of HEAD dbdd43aa3a37e50a30d7c6f40671f301e9ee22c2, including the Phase 4 follow-up. No new findings or code fixes were required. Approval covers the implementation and automated acceptance; Manual rows 2.6, 2.7 and 3.4 remain pending.
+
+The earlier REJECTED review, including its original counts and decisions, is preserved byte-for-byte in [the historical review](../evidence/impl-review-before-follow-up.md) and in commit 7155a99. Its original findings have since been addressed: F1 by 19affb2e3c16a2de2508e5c06be09e2d02be28ab and F2 by cf49dd1. Those are prior fixes, not new findings or edits in this review.
 
 ## Verdicts
 
 | Dimension | Verdict |
 | --- | --- |
-| Plan Adherence | WARNING |
-| Scope Discipline | WARNING |
-| Safety & Quality | FAIL |
+| Plan Adherence | PASS |
+| Scope Discipline | PASS |
+| Safety & Quality | PASS |
 | Architecture | PASS |
 | Pattern Consistency | PASS |
 | Success Criteria | PASS |
 
+## Findings
+
+None in the reviewed implementation.
+
 ## Scope and evidence
 
-Reviewed all three phases as explicitly requested, including the implemented work in phases whose Manual rows remain open. Progress contains 11 completed Automated rows and three pending Manual rows (2.6, 2.7, 3.4). The Phase 2 contract explicitly corrects the preserved stage-only-restore wording in row 2.2; conservative denial is intentional, not drift.
+Reviewed every phase as explicitly requested, including phases with pending Manual rows. Progress has 14 completed Automated rows and three pending Manual rows. The Phase 2 contract explicitly supersedes the stage-only-restore permit wording in immutable row 2.2: conservative denial is intentional, and the original row remains unchanged.
 
-The implementation commits are e513e93, afdd5cb and f59e3cd. The review also inspected subsequent bookkeeping and verification changes through e195aa7. The only original dirty file was router-owned agent-smith/run.jsonl; it is excluded from edits and staging.
+The implementation range is e9d1547..dbdd43a: the original three phase commits, the option-value correction, the packaging follow-up and their bookkeeping/evidence. The pre-existing dirty router-owned run.jsonl was excluded from edits. The review does not change plan.md or its Progress section.
 
 | Plan area | Evidence and assessment |
 | --- | --- |
-| Shared safety and planning | Fixed top and step rule files cover both chains, all planning variants, prompt overrides, file handoff and both archive assembly paths. The instruction-form and content tests retain their safety assertions. |
-| Scoped Claude identity | dispatchAgent is shared by route.mjs and isolation.mjs. Explicit restricted mappings, the archive mapping contract and OpenAI capability rejection remain distinct. The new agent inherits tools and supplies no routing settings. |
-| Historical replay | neutralRetry returns the stored optional agent and prompt; legacy absent fields and custom mappings have regression coverage on both chains. |
-| Hook boundary | Registration pins Bash, exec-form arguments, synchronous execution, timeout and fail-closed handling. Event identity is checked before classification. The script has no filesystem, network, execution or router dependency. F1 concerns literal Git option parsing within the documented subset. |
-| Provenance | Hook JSON and implementation have a deterministic independent hookFiles hash; ruleFiles and agentFiles retain their owners. Tests cover drift, immutable stored provenance and unreadable hook inputs. |
-| Documentation and integration | README, reference, ADR amendments and rule/prompt/test indexes agree about ownership, supported hosts and limits. Both skills retain forwarding and publication ownership without edits. No release fields, WAVES.md, archived context or concurrent-change implementations changed in the reviewed range. |
+| Phase 1: shared safety | Fixed-path top.md contains each Git, staged-only preservation, deletion, protected GitHub data and publication invariant. Existing ruleTail ownership delivers these after overrides to both chains, normal and archive dispatches, and file-handoff bodies. RESULT remains last. step-safety, rule-levels, rules, nested-subagents, no-recursive-delete and prompt-handoff regressions cover the carriers. |
+| Phase 1: planning | plan, plan-review and os-propose step files cover all relevant variants. Rules preserve locally executable fake-client checks, assign publication-dependent acceptance to Manual, and require identity-preserving correction with synchronized criteria and brief. Immutable contradictions retain pending-owner handling. Content tests establish delivery; live model adherence remains Manual 2.7. |
+| Phase 2: dispatch | dispatchAgent is shared by route.mjs and isolation.mjs. Ordinary Claude actions receive agent-smith:step; supported restricted mappings retain precedence. Archive keeps its historical mapping treatment. OpenAI gets no Claude agent and retains capability rejection through the separate stepAgent lookup. The new agent inherits tools and contains no routing parameters. |
+| Phase 2: replay | neutralRetry returns the stored prompt and optional agent instead of recomputing a default. Both-chain tests cover exact old prompts, absent historical agent fields, custom historical types and file handoff. |
+| Phase 2: hook | Plugin registration pins synchronous Bash matching, an argument vector, timeout and fail-closed behavior. The standalone classifier bounds input, checks identity before command analysis, emits deny or neutral output, and has no filesystem, subprocess, network or routing dependency. Its documented direct-command matrix covers both rejection and allowed local commits; it is not represented as a general shell parser. |
+| Phase 2: option values | The prior F1 fix consumes separate and attached values before classifying flags or a terminator, and uses the last actual dry-run flag. The complete guard file covers exclusion patterns, flag-looking messages/trailers, actual hook bypass and safe attached messages. Tests use inert payloads; recording clients prove denied staged restore preserves distinct HEAD, index and working-copy contents. |
+| Phase 2: provenance | hookFiles hashes the fixed shipped hook JSON and implementation using the existing deterministic hash/null conventions. Independent agentFiles and ruleFiles ownership remains intact. Regressions cover drift, immutable stored provenance and missing/unreadable hook inputs. |
+| Phase 3: documentation and integration | README, reference, ADR amendments and rule/prompt/test indexes agree on ownership, the guarded default, host/version requirements, provider/custom-agent limits and pending live acceptance. Both skills retain agent forwarding, provider dispatch, equal anti-stall sections and terminal publication ownership. |
+| Phase 4: packaging | No .DS_Store is tracked. Both root and nested paths match the root ignore rule; the original worktree ignore entry remains. The retained local file matches its recorded pre-cleanup SHA-256. A fresh export of the reviewed HEAD contains no metadata and passes strict validation without ARCHIVE_OS_METADATA_FILE. |
 
-Existing route/preplan/score fixture changes are required adaptations to the new planning tail. The no-gh source check excludes the standalone classifier while its dedicated test independently forbids execution and external dependencies. Coverage in existing archive/provider suites and the new safety tests satisfies planned scenarios without requiring edits to every listed test file.
-
-## Findings
-
-### F1 — Git option parsing permits destructive commands and rejects safe commits
-
-- **Severity**: CRITICAL
-- **Impact**: MEDIUM — real tradeoff; pause to reason through it
-- **Dimension**: Safety & Quality / Plan Adherence
-- **Location**: skills/10x-pipeline/scripts/step-guard.mjs:69 (before review fixes)
-- **Detail**: The guard treated any dry-run-looking token as a real safety flag, even when Git consumes it as an exclusion pattern. Inert payloads for git clean -e --dry-run -fd, git clean --exclude -n -fd and git clean -en -fd all returned neutral. A later --no-dry-run also failed to cancel the exception. The early split at -- hid --no-verify in git commit -m -- --no-verify, where -- is the message. Conversely, attached messages such as git commit -m"fix: retain work" were denied because the parser interpreted the n inside the message as hook bypass. These are ordinary literal commands inside the documented runtime subset, violating both discard denial and safe-commit acceptance.
-- **Fix**: Parse option values before flag classification, consume attached short-option values and separate values before interpreting --, and honor the last real dry-run setting. Extend the existing inert-payload regression to prove denial and safe pass-through.
-- **Strength**: Fixes the owning classifier without expanding into a general shell parser or adding repository reads or dependencies.
-- **Tradeoff**: The bounded parser explicitly recognizes value-taking Git options; dynamic programs and other documented syntax limits remain outside its scope.
-- **Confidence**: HIGH — original payload failures were reproduced, the new regression failed before the correction, and the complete guard suite passes afterward.
-- **Blind spot**: Fresh-host hook delivery remains Manual acceptance, separate from payload classification.
-- **Decision**: APPLIED — commit 19affb2e3c16a2de2508e5c06be09e2d02be28ab (fix: distinguish Git option values in step guard) changes the owning classifier and its inert-payload regression.
-
-### F2 — Bookkeeping committed operating-system metadata into the plugin
-
-- **Severity**: WARNING
-- **Impact**: LOW — quick decision; fix is obvious and narrowly scoped
-- **Dimension**: Scope Discipline
-- **Location**: .DS_Store, added by d2b7534
-- **Detail**: The implementation excluded this unrelated file, but the subsequent step bookkeeping commit added it to the tracked plugin. Fresh claude plugin validate . --strict reports ARCHIVE_OS_METADATA_FILE and states that the plugin directory cannot scan or list a package containing it. Validation still exits zero because these directory checks are separate. The existing missing-icon warning is unrelated to this change.
-- **Fix**: In a separately authorized packaging cleanup, remove .DS_Store from tracked package contents and ignore generated operating-system metadata; preserve any local file the owner wants to keep.
-- **Decision**: PENDING — this unrelated packaging file is outside the plan scope and was added by bookkeeping; the owner must decide whether to remove it from the package and add an ignore rule before directory submission.
+Existing route/preplan/score fixture changes are required adaptations to the planning tail. Provider tests and shared safety tests supply planned cross-chain scenarios without requiring a change to every test file listed as a possible target. The no-gh source scan excludes the standalone literal classifier, whose own regression separately prohibits execution and external dependencies. No dependency, model/tier change, release field, archived context, WAVES.md or unrelated concurrent implementation changed in the reviewed range.
 
 ## Verification
 
-- Node 24.19.0 meets the Node 24+ floor; Claude Code 2.1.311 is available.
-- The new Git-option regression failed against the original classifier. The complete guard file now passes 11 tests with zero failures or skips.
-- Before/after inert payload evidence: evidence/impl-review-guard-regression.txt. No prohibited Git command was executed to reproduce F1.
-- The complete repository command passed: node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs. Result: 1,573 tests, 1,570 passed, zero failed, three expected skips (two opt-in live GitHub checks and the absent CLAUDE.md import check). All scratch files used a worktree-local TMPDIR with the planned parent-Git-discovery barrier. This covers the automated checks for all reviewed phases.
-- claude plugin validate . --strict: exit 0, with the F2 directory warning and existing missing-icon warning.
-- node tools/version-check.mjs: OK (1.11.0). git diff --check and the fix commit subject lint: passed.
-- Final verification record: evidence/impl-review-verification.txt. The final complete run also passed 1,570 of 1,573 tests with zero failures and the same three expected skips.
-- plan.md, including its entire Progress section, is unchanged.
+The current [verification record](../evidence/impl-review-current-verification.txt) contains commands, focused results, export identity, metadata digest and validator diagnostics. The previous follow-up record remains unchanged.
+
+- Node v24.19.0 meets the Node 24+ requirement; Claude Code is 2.1.311.
+- The full guard test file passed: 11 tests, zero failures, zero skips.
+- The full repository command passed: node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs. Result: 1,573 tests, 1,570 passed, zero failures, three expected skips (two opt-in live GitHub checks and the absent CLAUDE.md import check). All scratch fixtures used the worktree-local TMPDIR and parent-discovery barrier.
+- Strict validation of clean HEAD tree d9e6fbf3123d566d70f3e2ebd34f9b38d0e415fb passed. ARCHIVE_OS_METADATA_FILE is absent; the pre-existing, explicitly out-of-scope ICON_MISSING warning remains.
+- Tracking/ignore checks and local-file digest comparison passed. SHA-256: c4758bd840da2b4de207b551cf870e645460579059ed95b39e6ebfe2a0a6cbb7.
+- Shared skill forwarding, anti-stall equality, publication ownership and protected-diff checks passed. Version consistency passed at 1.11.0; git diff --check passed.
 
 ## Assumptions and remaining acceptance
 
-- The explicit full-plan request includes all implemented phases despite pending Manual rows. Review and triage were performed in this subagent, following the flat-delegation rule.
-- The Phase 2 contract and applied plan-review F1 govern staged-only restore; its immutable row title remains unchanged.
-- Manual 2.6 needs fresh supported-host identity and deny transcripts plus fake-executable logs for both chains. Manual 2.7 needs live planning/review adherence evidence. Those probes would require prohibited nested delegation here and remain unclaimed.
-- Manual 3.4 requires the orchestrator to publish the current implementation and an owner to accept its PR CI and pending host checks. Prior PR checks recorded in evidence predate this implementation and are not acceptance of it.
-- Runtime protection remains limited to the documented direct-command subset. Custom agents, OpenAI children, wrappers, dynamic programs and suppressed hooks retain the documented host-control boundaries.
-
-## Lesson candidate
-
-Always distinguish command option values from safety flags and honor flag overrides before allowing a destructive command.
-
-The same classification mistake affected clean and commit. This candidate is not already in context/foundation/lessons.md; that file was read and left unchanged.
+- The explicit full-plan instruction takes precedence over limiting coverage to phases with every Manual row complete. All four implemented phases were reviewed in this subagent, without nested delegation.
+- The Phase 2 contract governs conservative staged-only restore denial; the preserved Progress wording is not a new defect.
+- Manual 2.6 still needs fresh supported-host identity/deny transcripts and recording-client logs for both chains. Payload tests and plugin validation do not establish live hook delivery.
+- Manual 2.7 still needs a live planning/review adherence probe. Its content regressions establish instruction delivery only. These live probes were not launched because this step forbids nested delegation.
+- Manual 3.4 still requires orchestrator publication followed by owner acceptance of current PR CI and outstanding host checks. No publication or remote mutation was attempted.
+- Runtime enforcement remains bounded to documented direct commands. Dynamic programs, wrappers, custom agents, OpenAI children and disabled/suppressed hooks rely on semantic rules and existing host controls.
+- No new recurring finding warrants a lesson candidate. lessons.md was read and left unchanged.
