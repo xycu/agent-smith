@@ -46,12 +46,12 @@ Amendment (change `proper-structure-of-rules`): both rules now live in the alway
 - Every prompt changes through the suffix, so a run in flight at upgrade time records `provenance.drift` for `prompts` at its next `next` call. Routing is unchanged.
 - `helpers.mjs` changes beyond `writeOverride` in `cleanupAll` only: it calls `removeTree` for every scratch folder, goes on past a folder it cannot remove and then throws one `AggregateError` that names each folder left behind.
 - `removeTree` walks and unlinks entry by entry. The scratch trees of the suite are small, so its cost is noise next to the suite's own time.
-- Enforcement is a prompt rule plus a guard test. The router cannot see what a subagent runs, so nothing stops a subagent that ignores the rule.
+- Original enforcement used prompt rules and a source guard test. The amendment below adds scoped direct-shell enforcement in supported Claude hosts.
 
 ## Alternatives
 
 - Exempt the tests and keep `fs.rmSync` with `recursive: true` there. Rejected: the owner named tests and code, and a ban with 30 exemptions cannot be checked by a test.
-- A harness hook that blocks recursive deletes. Rejected for this repository: hooks belong to the user's own settings, and a plugin agent ignores `hooks` (see "Restricted step agents" in `docs/REFERENCE.md`).
+- A harness hook was rejected under the original agent-frontmatter interpretation. Plugin-level hooks are supported inside subagents, as the amendment below records.
 - Leave it as a convention in `AGENTS.md`. Rejected: a convention with no prompt rule never reaches a subagent, and one with no test drifts back.
 
 ## Assumptions (unattended readings, for the owner to confirm)
@@ -62,9 +62,19 @@ Amendment (change `proper-structure-of-rules`): both rules now live in the alway
 - A4: the helper unlinks a symlink and leaves its target, ignores a path that does not exist and refuses the paths named above. It is the Node form of the procedure, not a way around it.
 - A5: the guard scans `skills/`, `agents/`, `docs/`, `tools/`, `README.md` and `AGENTS.md`. `context/` and `openspec/` hold run state and archives, and `.claude/worktrees/` holds other checkouts.
 
-## Not covered
+## Original coverage limits
+
+The following list records the original source guard. The amendment below records current scoped runtime enforcement and the added hook scan.
 
 - What a subagent actually runs: the router cannot read it.
 - Shell scripts and tools outside this repository.
 - Options passed to a delete call through a variable, such as `fs.rmSync(dir, opts)`: the guard reads the call's own argument text.
 - Files outside the guard's scope or extensions, such as `.github/` workflows.
+
+## Amendment 1 — Scoped direct-shell enforcement (2026-11-15)
+
+The shared `rules/top.md` prohibition includes recursive `fs.rmdir` and `fs.rmdirSync` forms alongside recursive shell and other Node deletion forms. Code and tests use `removeTree` for inspected file-by-file cleanup. Source scanning now reaches root `hooks/` JSON.
+
+The plugin-level Bash hook scopes enforcement to identity-bearing `agent-smith:step` calls and forbids recognized direct recursive rm and find deletion forms. Literal quotes and common shell separators receive payload regression coverage. Single-file unlink and empty-directory removal follow the inspected cleanup procedure. The hook performs only input parsing and decision output.
+
+Interpreter internals, helpers, dynamic shell construction, filesystem tools and MCP/API actions rely on semantic rules and host controls. OpenAI children and custom Claude agent mappings use their existing host controls. Disabled hooks and unsupported identity schemas have no runtime guarantee. The plugin supports 2.1.292+, and fail-closed hook handling requires 2.1.295+. Older-host runtime enforcement is unverified. Live identity and blocking acceptance remains pending. [Hooks](https://code.claude.com/docs/en/hooks)

@@ -19,6 +19,9 @@ The step file, the chain file and `prompts.chain-<chain>` are rendered with the 
 
 | File | Level | Holds |
 | --- | --- | --- |
-| `skills/10x-pipeline/rules/top.md` | 1, always-true | unattended subagent, host-native named-skill loading (ADR-024), short status, the delete rules of ADR-016, the nesting rule of ADR-018, the two precedence rules, the `RESULT:` format |
+| `skills/10x-pipeline/rules/top.md` | 1, always-true | unattended subagent, host-native named-skill loading (ADR-024), short status, Git preservation and orchestrator publication ownership, the delete rules of ADR-016, the nesting rule of ADR-018, the two precedence rules, the `RESULT:` format |
 | `skills/10x-pipeline/rules/steps/research.md` | 3, always-true | the `research.md` frontmatter status rule of the step `research` (templates `research`, `research-with-map`, `research-revise`) |
 | `skills/openspec-pipeline/rules/chain.md` | 2, always-true | the change name passed as `--change "{id}"`, no `--store` |
+| `skills/10x-pipeline/rules/steps/plan.md` | 3, always-true | locally executable Automated acceptance for `plan`, `plan-revise`, `plan-replan` and `plan-rejected`, with post-publication checks in Manual |
+| `skills/10x-pipeline/rules/steps/plan-review.md` | 3, always-true | initial and confirmation review of pre-publication criteria, identity-preserving pending-row correction |
+| `skills/openspec-pipeline/rules/steps/os-propose.md` | 3, always-true | locally executable apply tasks and Manual post-publication follow-up in planning artifacts |

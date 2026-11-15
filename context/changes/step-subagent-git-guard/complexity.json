@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md offers four options and explicitly leaves the guard choice undecided." },
+    "novelty": { "score": 1, "evidence": "ADR-016 and ADR-023 already establish layered always-true rules and content guard tests." },
+    "coupling": { "score": 2, "evidence": "change.md spans shared rule files, planning prompts, tests, indexes, docs and ADR-016/017." },
+    "discovery": { "score": 2, "evidence": "change.md names prompt and test locations, while harness support and Wave 7 overlap require further search." },
+    "volume": { "score": 3, "evidence": "Done when and constraints enumerate more than ten likely files across two skill chains and docs." },
+    "verification": { "score": 1, "evidence": "change.md names the existing Node test suite and requires focused regression content tests." }
+  },
+  "unknowns": [
+    "Whether a supported harness guard can distinguish routed step subagents from orchestrator scripts.",
+    "Which files overlap with concurrent Wave 7 skill edits."
+  ],
+  "confidence": "medium"
+}

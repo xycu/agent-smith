@@ -22,7 +22,7 @@ A rule applies at one of three levels: level 1 (top) to every step of both chain
 | 1 top | `skills/10x-pipeline/rules/top.md` (both chains; it lives with the shared router) | `prompts.suffix` in `skills/10x-pipeline/policy.json` |
 | 2 chain 10x | `skills/10x-pipeline/rules/chain.md` (none shipped) | `prompts.chain-10x` (none shipped) |
 | 2 chain OpenSpec | `skills/openspec-pipeline/rules/chain.md` | `prompts.chain-openspec` (none shipped) |
-| 3 step | `<chain skill>/rules/steps/<step>.md` (`skills/10x-pipeline/rules/steps/research.md` shipped) | the step's templates, `prompts.<template>` |
+| 3 step | `<chain skill>/rules/steps/<step>.md` (`research`, `plan`, `plan-review` and OpenSpec `os-propose` shipped) | the step's templates, `prompts.<template>` |
 
 `skills/10x-pipeline/rules/README.md` states the table and lists every rule file of both skills.
 
@@ -74,7 +74,7 @@ The orchestrator rules of both `SKILL.md` files map onto the levels without movi
 
 ## Consequences
 
-- Empty cells exist on purpose: level-2 10x always-true, the level-2 defaults of both chains and level-3 OpenSpec always-true have carriers and tests, and a later change fills them.
+- Empty cells exist on purpose: level-2 10x always-true and the level-2 defaults of both chains have carriers and tests for future use.
 - A project override of `prompts.suffix` replaces only the defaults; it can no longer drop the rules of ADR-016 and ADR-018 or the `RESULT:` format.
 - A suffix override that copies the old full suffix text carries the `RESULT:` block twice. That is harmless; `docs/REFERENCE.md` says so.
 - A run recorded before this change records `prompts` and `ruleFiles` drift at its next call.
@@ -85,3 +85,15 @@ The orchestrator rules of both `SKILL.md` files map onto the levels without movi
 - `context/changes/proper-structure-of-rules/research.md` (Architecture Insights: "a place the merge cannot reach") and `plan.md` (Decisions settled 1 to 3).
 - `docs/ADR/ADR-004-prompt-rules-as-scenarios.md`, `ADR-013-openspec-pipeline.md`, `ADR-016-no-recursive-force-delete.md`, `ADR-018-no-nested-subagents.md`, `ADR-022-policy-validation-at-load.md`.
 - `skills/10x-pipeline/scripts/flow.mjs` (`ruleTail`, `checkRules`), `route.mjs` and `isolation.mjs` (the two assembly sites), `skills/10x-pipeline/test/rule-levels.test.mjs`.
+
+## Amendment 1 — Safety and planning step owners (2026-11-15)
+
+Shared Git preservation, deletion, protected GitHub data and orchestrator publication ownership belong in level-1 `rules/top.md`. They reach all newly assembled tasks through the existing fixed-path carrier, including archive and file handoff.
+
+| Step file | Templates or scope |
+| --- | --- |
+| `10x-pipeline/rules/steps/plan.md` | `plan`, `plan-revise`, `plan-replan`, `plan-rejected` acceptance before publication |
+| `10x-pipeline/rules/steps/plan-review.md` | initial and confirmation reviews, identity-preserving correction of pending PR-dependent criteria |
+| `openspec-pipeline/rules/steps/os-propose.md` | local apply tasks and Manual post-publication follow-up in planning artifacts |
+
+The rule index lists these owners. Rule bytes affect `ruleFiles`, the guarded agent affects `agentFiles`, and shipped hook JSON/script bytes affect independent `hookFiles`. Historical pending dispatches and stored provenance preserve their exact recorded contents through neutral retries. Fresh assembly adopts new rules and dispatch identity.

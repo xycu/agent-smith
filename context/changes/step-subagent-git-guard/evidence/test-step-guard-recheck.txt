@@ -1,0 +1,62 @@
+skills/10x-pipeline/test/step-guard.test.mjs — shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling; direct Git discard, hook bypass, unique-ref deletion and publication forms are denied; recursive shell deletion variants are denied using inert payloads only; literal quotes, escapes and supported shell separators retain command positions; orchestrator and unrelated agents pass through, including publication script calls; dynamic programs and wrappers are outside the documented direct-command subset; malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed; the standalone guard has no execution, filesystem, network or routing dependency
+Supporting proof only. Live host event delivery and live model adherence remain pending.
+Command argv ['node', '--test', '--test-reporter=tap', '--test-name-pattern=^(shipped hook uses|direct Git discard|recursive shell deletion variants|literal quotes, escapes|orchestrator and unrelated agents|dynamic programs and wrappers|malformed guarded events|the standalone guard has)', 'skills/10x-pipeline/test/step-guard.test.mjs']
+Exit code 0
+TAP version 13
+# Subtest: shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling
+ok 1 - shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling
+  ---
+  duration_ms: 1.47
+  type: 'test'
+  ...
+# Subtest: direct Git discard, hook bypass, unique-ref deletion and publication forms are denied
+ok 2 - direct Git discard, hook bypass, unique-ref deletion and publication forms are denied
+  ---
+  duration_ms: 1859.160125
+  type: 'test'
+  ...
+# Subtest: recursive shell deletion variants are denied using inert payloads only
+ok 3 - recursive shell deletion variants are denied using inert payloads only
+  ---
+  duration_ms: 358.084792
+  type: 'test'
+  ...
+# Subtest: literal quotes, escapes and supported shell separators retain command positions
+ok 4 - literal quotes, escapes and supported shell separators retain command positions
+  ---
+  duration_ms: 1553.705584
+  type: 'test'
+  ...
+# Subtest: orchestrator and unrelated agents pass through, including publication script calls
+ok 5 - orchestrator and unrelated agents pass through, including publication script calls
+  ---
+  duration_ms: 225.14075
+  type: 'test'
+  ...
+# Subtest: dynamic programs and wrappers are outside the documented direct-command subset
+ok 6 - dynamic programs and wrappers are outside the documented direct-command subset
+  ---
+  duration_ms: 130.429333
+  type: 'test'
+  ...
+# Subtest: malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed
+ok 7 - malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed
+  ---
+  duration_ms: 593.999125
+  type: 'test'
+  ...
+# Subtest: the standalone guard has no execution, filesystem, network or routing dependency
+ok 8 - the standalone guard has no execution, filesystem, network or routing dependency
+  ---
+  duration_ms: 0.445792
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4791.106

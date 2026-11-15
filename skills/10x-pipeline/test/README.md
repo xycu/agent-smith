@@ -12,6 +12,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `route.test.mjs` | `init`, `next`, `status` and the main routing paths |
 | `churn.test.mjs` | `risk` command: churn hot paths, plan hits and diff hits |
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |
+| `step-safety.test.mjs` | shared Git/deletion/publication safety in all step tails, planning variants, overrides, file handoff, isolated runs and both archive paths |
 | `rules.test.mjs` | rule form of every prompt and rule file (GIVEN/WHEN/THEN, one RFC 2119 keyword; ADR-004) |
 | `rule-levels.test.mjs` | rule levels (ADR-023): the order after the template (chain defaults, suffix, step file, chain file, `rules/top.md`), a suffix override keeps `top.md`, `ruleTail` on a scratch rule tree, the halts on a missing or unreadable rule file, the archive prompts of both chains, the placeholder limits, the `ruleFiles` provenance section and the precedence rules. A test that changes a rule file uses a scratch copy of the plugin tree |
 | `compare.test.mjs` | `compare`: totals, coverage, tokens by model and tier, verdict, `--unpinned`, failure classification in JSON and Markdown |
@@ -19,7 +20,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `at-or-above.test.mjs` | `atOrAbove` rigor comparison; an unknown level fails closed |
 | `override-json.test.mjs` | a project override that does not parse, or is not an object, halts every command with the file name; a missing file is no override |
 | `file-guard.test.mjs` | `guardedStat`, `readGuarded` and `planFileTokens` of `state.mjs`, and two symlink cases of their callers (a symlinked score file, a symlinked evidence file); calls the modules directly |
-| `provenance.test.mjs` | run provenance: the record in `meta.json`, hash stability, drift, legacy runs, `compare` warnings. A test that changes a plugin file copies the plugin tree to a scratch directory and spawns the copy's `route.mjs`; it never edits a repository file |
+| `provenance.test.mjs` | run provenance: the record in `meta.json`, hash stability, independent hook/agent/rule drift, legacy runs, `compare` warnings. A test that changes a plugin file copies the plugin tree to a scratch directory and spawns the copy's `route.mjs`; it never edits a repository file |
 | `helpers-env.test.mjs` | inherited Git prefix stripping, fixture override precedence and hostile child suites with byte-identical victim repositories |
 | `helpers-timeout.test.mjs` | the `run` and `git` helpers of `helpers.mjs` time out or die on a signal and throw a clear error naming the command; the fast path keeps its return shape |
 
@@ -32,7 +33,8 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `loops.test.mjs` | the new loops and the budget reference paths |
 | `score.test.mjs` | complexity score step (ADR-007): policy data, gate, file validation, failure skip, tier shift, report and status. Turn on with `score: { minRigor: "standard" }` |
 | `advisor.test.mjs` | opt-in advisor (ADR-009): no advisor text by default, its place in the listed prompts, the `advisor` log flag, malformed `advisor` blocks, the prompt file, the provenance link, and the pin that the indexes describe the advisor flag. Turn on with `advisor: { enabled: true }` |
-| `agents.test.mjs` | restricted step agents (ADR-009): the `agent` field of the run output, log entry and `status`, malformed `agents` blocks, the agent definition file, the provenance link, the `SKILL.md` dispatch line. Turn on with `score: { minRigor: "standard" }, agents: { restricted: true }`; a test that edits `agents/score.md` uses a scratch copy of the plugin tree |
+| `step-guard.test.mjs` | scoped plugin Bash hook, registration, fail-closed input, direct-command denial, safe commands, recording clients, side-effect boundaries and paths with spaces |
+| `agents.test.mjs` | guarded Claude default and restricted step agents (ADR-009): the `agent` field of the run output, log entry and `status`, malformed `agents` blocks, inherited-tool/restricted definitions, the provenance link, the `SKILL.md` dispatch line. Turn on with `score: { minRigor: "standard" }, agents: { restricted: true }`; a test that edits `agents/score.md` uses a scratch copy of the plugin tree |
 
 ## Phase executors
 
@@ -86,7 +88,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `skill-loop.test.mjs` | fixed Anti-stall digest, cross-chain equality, literal routing exclusions and reference ownership;  the `## Anti-stall rules` section of `SKILL.md`: six rules in order, placement outside the Loop branches, no model, effort or tier word; pins rule 3 and the single late-usage owner and ordered `done`, `halt`, `archive` references; pins the `Bash timeout:` line (presence, content, placement after the `Pull request script:` line)  byte ceilings, single authorization owner, archive exit ordering and split dispatch/setup contracts |
 | `archive-gate.test.mjs` | the Manual gate in the `archive` branch of both `SKILL.md` files (ADR-014): `AskUserQuestion` in `allowed-tools`, placement, labels, fail-closed text, six `**GIVEN**` lines, no `AskUserQuestion` in the router scripts |
 | `nested-subagents.test.mjs` | no nested subagents (ADR-018): the project settings depth cap, the `rules/top.md` rule and its place before the `RESULT:` line, the same-subagent lines of the executor prompts, the sixth anti-stall rule of both skills, the `docs/REFERENCE.md` and ADR-018 checks |
-| `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `README.md` and `AGENTS.md`; checks the rule stays in `rules/top.md` and out of `prompts.suffix`, in `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
+| `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `.github/`, `hooks/`, `README.md` and `AGENTS.md`; checks the rule stays in `rules/top.md` and out of `prompts.suffix`, in `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
 | `open-pr.test.mjs` | `open-pr.mjs` (ADR-017): a real bare remote, a real linked worktree, a logging `git` shim and a fake `gh`; also checks that no router module pushes or calls `gh` |
 | `pr-comment.test.mjs` | `pr-comment.mjs`; `GH_LIVE=1` enables the read-only live tests, which a human runs. Also pins that `AGENTS.md` names the script in Hard Rules and Commands |
 | `pr-comment-flag.test.mjs` | `init --pr-comment` stores, keeps and clears `prComment` in `meta.json` on both chains; the `done`, `archive` and `halt` outputs and `status` carry `prComment: true` only when it is set |

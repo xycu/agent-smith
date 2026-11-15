@@ -1,0 +1,56 @@
+skills/10x-pipeline/test/step-safety.test.mjs — plan, plan-revise, plan-replan, plan-rejected, plan-review, plan-review-confirm and os-propose carries pre-publication planning acceptance
+Supporting proof only. Live host event delivery and live model adherence remain pending.
+Command argv ['node', '--test', '--test-reporter=tap', '--test-name-pattern=carries pre-publication planning acceptance$', 'skills/10x-pipeline/test/step-safety.test.mjs']
+Exit code 0
+TAP version 13
+# Subtest: plan carries pre-publication planning acceptance
+ok 1 - plan carries pre-publication planning acceptance
+  ---
+  duration_ms: 1.687416
+  type: 'test'
+  ...
+# Subtest: plan-revise carries pre-publication planning acceptance
+ok 2 - plan-revise carries pre-publication planning acceptance
+  ---
+  duration_ms: 0.308208
+  type: 'test'
+  ...
+# Subtest: plan-replan carries pre-publication planning acceptance
+ok 3 - plan-replan carries pre-publication planning acceptance
+  ---
+  duration_ms: 0.22075
+  type: 'test'
+  ...
+# Subtest: plan-rejected carries pre-publication planning acceptance
+ok 4 - plan-rejected carries pre-publication planning acceptance
+  ---
+  duration_ms: 0.181833
+  type: 'test'
+  ...
+# Subtest: plan-review carries pre-publication planning acceptance
+ok 5 - plan-review carries pre-publication planning acceptance
+  ---
+  duration_ms: 0.747333
+  type: 'test'
+  ...
+# Subtest: plan-review-confirm carries pre-publication planning acceptance
+ok 6 - plan-review-confirm carries pre-publication planning acceptance
+  ---
+  duration_ms: 0.541667
+  type: 'test'
+  ...
+# Subtest: os-propose carries pre-publication planning acceptance
+ok 7 - os-propose carries pre-publication planning acceptance
+  ---
+  duration_ms: 0.862333
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 82.4895

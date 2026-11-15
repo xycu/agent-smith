@@ -97,3 +97,15 @@ The PR comment step now runs from the run root and names the pull request with `
 - The normal run PR squash-merges with a title release-please can read, with no owner edit.
 - The type list is a copy of `TYPES` in `tools/commit-lint.mjs` (the script imports no `tools/` file); `open-pr.test.mjs` pins the parity.
 - The scope is the change id, which `ID_RE` already restricts to the characters the lint accepts.
+
+## Amendment 2 — Step publication and acceptance ownership (2026-11-15)
+
+The shared always-true `rules/top.md` rules carry publication ownership into both chains, archive tasks, prompt overrides and file-handoff bodies.
+
+**GIVEN** a step subagent **WHEN** a criterion or skill requests publication **THEN** it **MUST NOT** push, call `gh`, create or edit a PR, post PR/report comments, use equivalent APIs, or invoke `open-pr.mjs` or `pr-comment.mjs` indirectly.
+
+**GIVEN** acceptance requires a pushed branch, open PR, PR CI or an external PR comment **WHEN** a planner classifies acceptance **THEN** it **MUST** put it in Manual acceptance, keeping implementation Automated criteria executable locally before publication.
+
+Local fake-client tests remain valid Automated criteria. Plan review checks phase Success Criteria and canonical Progress, moving an actionable pending row intact to Manual with its id, title and tick state, and synchronizing the brief. OpenSpec proposal/design artifacts hold equivalent follow-up outside apply tasks. Immutable contradictions use existing pending-finding handling.
+
+The orchestrator runs publication scripts at their terminal points, with report comments governed by existing strict authorization. A supported Claude guard denies the documented direct publication commands inside the dedicated step identity. Semantic rules cover actions through other tools and APIs. Human PR CI acceptance, review and merge follow publication.

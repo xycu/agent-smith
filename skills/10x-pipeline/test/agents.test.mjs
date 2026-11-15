@@ -26,11 +26,11 @@ const PLUGIN = readJson(path.join(REPO, ".claude-plugin/plugin.json"));
 const MARKETPLACE = readJson(path.join(REPO, ".claude-plugin/marketplace.json"));
 const HEX16 = /^[0-9a-f]{16}$/;
 const SCORE_AGENT = "agent-smith:score";
+const STEP_AGENT = "agent-smith:step";
 const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
 const SCORER = { score: { minRigor: "standard" } };
 const RESTRICTED = { ...SCORER, agents: { restricted: true } };
-const RUN_KEYS = ["action", "change", "root", "chain", "n", "step", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
-const RUN_KEYS_AGENT = ["action", "change", "root", "chain", "n", "step", "agent", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
+const RUN_KEYS = ["action", "change", "root", "chain", "n", "step", "agent", "host", "provider", "model", "effort", "reason", "prompt", "resultFile"];
 const FACTORS = [...DEFAULT.score.factors.cognitive, ...DEFAULT.score.factors.execution];
 
 const copies = [];
@@ -95,15 +95,16 @@ test("2.1 policy.json ships the agents block off, mapping only the score step", 
   assert.deepEqual(DEFAULT.agents, { restricted: false, steps: { score: SCORE_AGENT } });
 });
 
-test("2.1 with the default policy no run output, no log entry and no status row has an agent field", () => {
+test("2.1 with the default policy every Claude run output, log entry and status row has the guarded agent", () => {
   const { project, answers, runs } = walk(SCORER);
   assert.deepEqual(runs.map((res) => res.json.step), ["score", "plan", "plan-review", "implement", "impl-review"]);
   for (const res of runs) assert.deepEqual(Object.keys(res.json), RUN_KEYS, res.json.step);
-  for (const res of answers) assert.equal(res.stdout.includes("\"agent\""), false, res.json.step ?? res.json.action);
+  for (const res of runs) assert.equal(res.json.agent, STEP_AGENT);
+  assert.equal(has(answers.at(-1).json, "agent"), false, "terminal done has no dispatch");
   const log = readLogEntries(project);
   assert.equal(log.filter((e) => !e.skipped).length, 5);
-  for (const e of log) assert.equal(has(e, "agent"), false, e.step);
-  for (const row of statusOf(project).steps) assert.equal(has(row, "agent"), false, row.step);
+  for (const e of log.filter((e) => !e.skipped)) assert.equal(e.agent, STEP_AGENT, e.step);
+  for (const row of statusOf(project).steps) assert.equal(row.agent, STEP_AGENT, row.step);
 });
 
 test("2.1 the default agents block prints byte for byte what a policy without the block prints", () => {
@@ -118,35 +119,37 @@ test("2.1 the default agents block prints byte for byte what a policy without th
 
 // ---- 2.2 restricted ------------------------------------------------------------------------
 
-test("2.2 with agents.restricted true the score output and log entry carry agent-smith:score, no other step does, and status shows it", () => {
+test("2.2 with agents.restricted true the score selects its restricted agent and all other steps keep the guarded default", () => {
   const shipped = walk(SCORER);
   const { project, answers, runs } = walk(RESTRICTED);
   assert.deepEqual(runs.map((res) => res.json.step), ["score", "plan", "plan-review", "implement", "impl-review"]);
 
   const [score, ...rest] = runs;
-  assert.deepEqual(Object.keys(score.json), RUN_KEYS_AGENT);
+  assert.deepEqual(Object.keys(score.json), RUN_KEYS);
   assert.equal(score.json.agent, SCORE_AGENT);
-  // The score output is the default output plus the agent field; nothing else moves.
+  // The restricted score changes only the selected agent.
   const { agent, ...plain } = score.json;
   assert.equal(agent, SCORE_AGENT);
-  assert.deepEqual(plain, shipped.runs[0].json);
+  const { agent: defaultAgent, ...defaultPlain } = shipped.runs[0].json;
+  assert.equal(defaultAgent, STEP_AGENT);
+  assert.deepEqual(plain, defaultPlain);
   for (const res of rest) assert.deepEqual(Object.keys(res.json), RUN_KEYS, res.json.step);
   // Every other answer, the done output included, is byte for byte the default one.
   assert.deepEqual(answers.slice(1).map((res) => res.stdout), shipped.answers.slice(1).map((res) => res.stdout));
 
   const ran = readLogEntries(project).filter((e) => !e.skipped);
   assert.deepEqual(ran.map((e) => [e.step, e.agent]), [
-    ["score", SCORE_AGENT], ["plan", undefined], ["plan-review", undefined], ["implement", undefined], ["impl-review", undefined],
+    ["score", SCORE_AGENT], ["plan", STEP_AGENT], ["plan-review", STEP_AGENT], ["implement", STEP_AGENT], ["impl-review", STEP_AGENT],
   ]);
-  assert.equal(ran.filter((e) => has(e, "agent")).length, 1);
+  assert.equal(ran.filter((e) => has(e, "agent")).length, 5);
 
   const rows = statusOf(project).steps;
   assert.equal(rows[0].step, "score");
   assert.equal(rows[0].agent, SCORE_AGENT);
-  for (const row of rows.slice(1)) assert.equal(has(row, "agent"), false, row.step);
+  for (const row of rows.slice(1)) assert.equal(row.agent, STEP_AGENT, row.step);
   const { agent: shown, ...rowPlain } = rows[0];
   assert.equal(shown, SCORE_AGENT);
-  assert.deepEqual([rowPlain, ...rows.slice(1)], statusOf(shipped.project).steps);
+  assert.deepEqual([{ ...rowPlain, agent: STEP_AGENT }, ...rows.slice(1)], statusOf(shipped.project).steps);
 });
 
 test("2.2 a failed score attempt is retried with the agent, and after 3 the step skips and the run goes on without a halt", () => {
@@ -165,24 +168,24 @@ test("2.2 a failed score attempt is retried with the agent, and after 3 the step
   assert.equal(after3.status, 0, after3.stdout);
   assert.equal(after3.json.action, "run");
   assert.equal(after3.json.step, "plan");
-  assert.equal(has(after3.json, "agent"), false);
+  assert.equal(after3.json.agent, STEP_AGENT);
   const log = readLogEntries(project);
   assert.deepEqual(log.filter((e) => !e.skipped).map((e) => [e.step, e.agent, e.ok ?? null]), [
-    ["score", SCORE_AGENT, false], ["score", SCORE_AGENT, false], ["score", SCORE_AGENT, false], ["plan", undefined, null],
+    ["score", SCORE_AGENT, false], ["score", SCORE_AGENT, false], ["score", SCORE_AGENT, false], ["plan", STEP_AGENT, null],
   ]);
   assert.equal(log.filter((e) => e.skipped && e.step === "score").length, 1);
   assert.equal(readMetaFile(project).rigor.level, "standard", "a failed score attempt raises no rigor");
 });
 
-test("2.2 a step the map names gets its own agent, and a step with no usable value gets none", () => {
+test("2.2 a step the map names gets its own agent, and a step with no usable mapping gets the guarded default", () => {
   const project = makeProject({ policy: { ...SCORER, agents: { restricted: true, steps: { score: "", plan: "agent-smith:plan" } } } });
   const score = init(project, GOAL, ["--rigor", "standard"]);
   assert.equal(score.json.step, "score");
-  assert.equal(has(score.json, "agent"), false);
+  assert.equal(score.json.agent, STEP_AGENT);
   const plan = respond(project, "score");
   assert.equal(plan.json.step, "plan");
   assert.equal(plan.json.agent, "agent-smith:plan");
-  assert.deepEqual(readLogEntries(project).map((e) => [e.step, e.agent]), [["score", undefined], ["plan", "agent-smith:plan"]]);
+  assert.deepEqual(readLogEntries(project).map((e) => [e.step, e.agent]), [["score", STEP_AGENT], ["plan", "agent-smith:plan"]]);
 });
 
 // A finished run in a git repository with --archive, as in archive.test.mjs.
@@ -198,13 +201,13 @@ function archiveProject(policy) {
   return run(project, ["next", project.id], { env: gitEnv(project) });
 }
 
-test("2.2 the archive action carries no agent, also when the map names the archive step", { skip: !gitAvailable() }, () => {
+test("2.2 the archive action carries the guarded agent, also when the restricted map names archive", { skip: !gitAvailable() }, () => {
   const plain = archiveProject({});
   const restricted = archiveProject({ agents: { restricted: true, steps: { archive: "agent-smith:archive" } } });
   for (const res of [plain, restricted]) {
     assert.equal(res.status, 0, res.stdout + res.stderr);
     assert.equal(res.json.action, "archive");
-    assert.equal(has(res.json, "agent"), false);
+    assert.equal(res.json.agent, STEP_AGENT);
   }
   assert.deepEqual(Object.keys(restricted.json), Object.keys(plain.json));
   assert.equal(restricted.json.prompt, plain.json.prompt);
@@ -242,11 +245,11 @@ test("2.3 a malformed agents block reads as off and never halts", () => {
     const plan = respond(project, "score");
     assert.equal(plan.status, 0, `${label}: ${plan.stdout}`);
     assert.equal(plan.json.step, "plan", label);
-    assert.equal(has(plan.json, "agent"), false, label);
-    for (const e of readLogEntries(project)) assert.equal(has(e, "agent"), false, label);
+    assert.equal(plan.json.agent, STEP_AGENT, label);
+    for (const e of readLogEntries(project).filter((e) => !e.skipped)) assert.equal(e.agent, STEP_AGENT, label);
     const status = run(project, ["status", project.id]);
     assert.equal(status.status, 0, label);
-    for (const row of status.json.steps) assert.equal(has(row, "agent"), false, label);
+    for (const row of status.json.steps) assert.equal(row.agent, STEP_AGENT, label);
   }
 });
 
@@ -313,6 +316,7 @@ function pluginCopy() {
   fs.cpSync(osSkill, path.join(root, "skills/openspec-pipeline"), { recursive: true, filter: (src) => src !== osTests });
   fs.cpSync(path.join(REPO, ".claude-plugin"), path.join(root, ".claude-plugin"), { recursive: true });
   fs.cpSync(path.join(REPO, "agents"), path.join(root, "agents"), { recursive: true });
+  fs.cpSync(path.join(REPO, "hooks"), path.join(root, "hooks"), { recursive: true });
   return { root, route: path.join(skill, "scripts/route.mjs") };
 }
 
@@ -377,4 +381,12 @@ test("2.6 SKILL.md dispatches with the router's agent when present, else general
   const models = [...new Set(DEFAULT.ladder.map((rung) => rung.model))];
   assert.ok(models.length >= 3);
   for (const model of models) assert.doesNotMatch(skill, new RegExp(`\\b${model}\\b`, "i"), model);
+});
+
+test("agents/step.md inherits tools and routing parameters with no additional isolation", () => {
+  const { fields, body } = frontmatter(readRepo("agents/step.md"));
+  assert.deepEqual(Object.keys(fields).sort(), ["description", "name"]);
+  assert.equal(fields.name, "step");
+  assert.match(body, /router prompt/);
+  assert.match(body, /task file/);
 });

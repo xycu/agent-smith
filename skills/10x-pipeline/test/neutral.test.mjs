@@ -43,7 +43,7 @@ test("a rerun returns the identical step and keeps one entry without a result", 
   const res = fault(project);
   assert.equal(res.status, 0);
   assert.equal(res.json.action, "run");
-  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+  for (const key of ["n", "step", "agent", "model", "effort", "reason", "prompt", "resultFile"]) {
     assert.deepEqual(res.json[key], first.json[key], key);
   }
   assert.deepEqual(res.json.neutralRetry, { count: 1, cap: 2 });
@@ -356,7 +356,7 @@ test("OpenSpec chain: an os-apply rerun keeps the prompt, the tier and the pre-f
   writeResult(project, FAULT);
   const res = run(project, ["next", project.id, "--chain", "openspec"]);
   assert.equal(res.json.action, "run", res.stdout);
-  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+  for (const key of ["n", "step", "agent", "model", "effort", "reason", "prompt", "resultFile"]) {
     assert.deepEqual(res.json[key], first.json[key], key);
   }
   assert.deepEqual(res.json.neutralRetry, { count: 1, cap: 2 });
@@ -424,7 +424,7 @@ test("isolated run: a rerun makes no ref, no commit and no reset; a later failur
   writeResult(wt, FAULT);
   const res = run(wt, ["next", wt.id], { env: gitEnv(wt) });
   assert.equal(res.json.action, "run", res.stdout);
-  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+  for (const key of ["n", "step", "agent", "model", "effort", "reason", "prompt", "resultFile"]) {
     assert.deepEqual(res.json[key], first.json[key], key);
   }
   assert.equal(gw(["for-each-ref", "refs/agent-smith/"]), "");
@@ -447,3 +447,25 @@ test("isolated run: a rerun makes no ref, no commit and no reset; a later failur
   assert.equal(gw(["show", `${later[0].rolledBack}:partial.txt`]), "half");
   assert.match(retry.json.reason, /\+1 for 1 failed attempt\(s\)/);
 });
+
+for (const chain of ["10x", "openspec"]) {
+  for (const agent of [undefined, "custom:historical"]) {
+    test(chain + ": neutral replay preserves the exact historical agent field " + String(agent), () => {
+      const project = chain === "10x" ? makeProject() : makeOpenspecProject();
+      assert.equal(init(project, "fix typo", ["--chain", chain]).json.action, "run");
+      const [logged] = readLogEntries(project).filter((e) => !e.skipped);
+      if (agent === undefined) delete logged.agent;
+      else logged.agent = agent;
+      logged.pendingPrompt = "Historical task before safety upgrade.\nRESULT: historical";
+      writeLog(project, [logged]);
+      const prompt = logged.pendingPrompt;
+      writeResult(project, FAULT);
+      const replay = run(project, ["next", project.id, "--chain", chain]).json;
+      assert.equal(replay.action, "run");
+      assert.equal(replay.prompt, prompt);
+      assert.equal(Object.hasOwn(replay, "agent"), agent !== undefined);
+      assert.equal(replay.agent, agent);
+      assert.equal(readLogEntries(project)[0].agent, agent);
+    });
+  }
+}

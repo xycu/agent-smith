@@ -1,0 +1,8 @@
+Inert JSON payloads only; no Git command below was executed.
+{"command":"git clean -e --dry-run -fd","before":"neutral","after":"deny"}
+{"command":"git clean --exclude -n -fd","before":"neutral","after":"deny"}
+{"command":"git clean -en -fd","before":"neutral","after":"deny"}
+{"command":"git commit -m -- --no-verify","before":"neutral","after":"deny"}
+{"command":"git commit -m\"fix: retain work\"","before":"deny","after":"neutral"}
+{"command":"git clean -e pattern -nfd","before":"neutral","after":"neutral"}
+{"command":"git clean -n --no-dry-run -fd","before":"neutral","after":"deny"}

@@ -8,7 +8,7 @@ import {
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
 import { readOpenspec, openspecArchivePath } from "../../openspec-pipeline/scripts/openspec.mjs";
-import { finishRun, endRun, promptText, ruleTail, dispatchProblem } from "./flow.mjs";
+import { finishRun, endRun, promptText, ruleTail, dispatchProblem, dispatchAgent } from "./flow.mjs";
 
 // ---- run provenance -------------------------------------------------------------
 
@@ -77,13 +77,24 @@ function ruleFilesHash() {
   } catch { return null; }
 }
 
+// Fixed shipped hook inputs, keyed by plugin-relative path. An unreadable input follows the null-hash convention.
+function hookFilesHash() {
+  try {
+    const files = {};
+    for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs"]) {
+      files[name] = fs.readFileSync(path.join(PLUGIN_ROOT, name), "utf8");
+    }
+    return hash16(canonicalJson(files));
+  } catch { return null; }
+}
+
 // The version of the plugin manifest, only read (release-please owns it). null when the file is unreadable.
 function pluginVersion() {
   const manifest = readJson(path.join(PLUGIN_ROOT, ".claude-plugin/plugin.json"), null);
   return isObject(manifest) && typeof manifest.version === "string" ? manifest.version : null;
 }
 
-// One hash per section of the merged policy except the ignored ones, plus agentFiles and ruleFiles, sorted by name.
+// One hash per section of the merged policy except the ignored ones, plus agentFiles, ruleFiles and hookFiles, sorted by name.
 function provenanceSections(policy) {
   const ignore = new Set(provenanceConfig(policy).ignore);
   const sections = {};
@@ -92,6 +103,7 @@ function provenanceSections(policy) {
   }
   sections.agentFiles = agentFilesHash();
   sections.ruleFiles = ruleFilesHash();
+  sections.hookFiles = hookFilesHash();
   return Object.fromEntries(Object.entries(sections).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)));
 }
 
@@ -735,8 +747,10 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   // The rule tail of ADR-023, as at the run site; the archive site fills only {id}.
   const tail = ruleTail(policy, { chain: openspec ? "openspec" : "10x", step: openspec ? "os-archive" : "archive", vars: { id } });
   const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + tail;
+  const agent = dispatchAgent(policy, dispatch, archiveStep);
   return out({
     action: "archive",
+    ...(agent ? { agent } : {}),
     change: id, root: ROOT, chain: p.chain ?? "10x",
     host: hostOf(meta),
     ...dispatch,
