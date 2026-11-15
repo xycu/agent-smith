@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.11.2](https://github.com/xycu/agent-smith/compare/v1.11.1...v1.11.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **stale-last-result-cleanup:** recover persisted step results safely ([367ed06](https://github.com/xycu/agent-smith/commit/367ed06c52d1b6fa208c9239369f31a2869f9f7c))
+* **step-subagent-git-guard:** enforce routed step safety ([bc4d5ab](https://github.com/xycu/agent-smith/commit/bc4d5abce7be0b5434362059d0286f1c5b357597))
+
 ## [1.11.1](https://github.com/xycu/agent-smith/compare/v1.11.0...v1.11.1) (2026-11-15)
 
 
