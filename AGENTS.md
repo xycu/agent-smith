@@ -64,7 +64,7 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 - `skills/10x-pipeline/prompts/` — prompt files, indexed in `skills/10x-pipeline/prompts/README.md`.
 - `skills/10x-pipeline/rules/` — the always-true rule files that no override reaches (`top.md`, `steps/<step>.md`; ADR-023), indexed with the OpenSpec one in `skills/10x-pipeline/rules/README.md`.
 - `skills/10x-pipeline/test/` — the suite and its helpers, indexed in `skills/10x-pipeline/test/README.md`.
-- `tools/` and `tools/test/` — `version-check.mjs`, `commit-lint.mjs` and `workflow-pins.mjs` (every remote action in `.github/` is pinned to a 40-hex SHA with a version comment); tests are in the test index.
+- `tools/` and `tools/test/` — `version-check.mjs`, `commit-lint.mjs` and `workflow-pins.mjs` (checks `.github/`, root metadata and recursively referenced local actions for remote 40-hex SHA pins with version comments and fails on missing local targets); tests are in the test index.
 - `agents/` — `score.md`, the restricted agent of the `score` step.
 - `docs/REFERENCE.md` — routing behavior; read it only when the task needs it.
 - `docs/ADR/` — architecture decisions, indexed in `docs/ADR/README.md`.
