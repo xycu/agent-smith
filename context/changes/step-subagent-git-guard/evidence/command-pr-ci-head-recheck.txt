@@ -1,0 +1,29 @@
+Read-only PR CI and tested-commit comparison for pending Manual row 3.4.
+Command argv ['gh', 'pr', 'view', 'agent-smith/step-subagent-git-guard', '--json', 'number,state,url,headRefOid,statusCheckRollup']
+Exit code 0
+{"headRefOid":"dd4fa8b0f07babb88b1f8e58ce7e82cd6b37bbc5","number":184,"state":"OPEN","statusCheckRollup":[{"__typename":"CheckRun","completedAt":"2026-11-14T23:34:03Z","conclusion":"SUCCESS","detailsUrl":"https://github.com/xycu/agent-smith/actions/runs/43653310554/job/132626309919","name":"Tests and version check","startedAt":"2026-11-14T23:27:15Z","status":"COMPLETED","workflowName":"CI"},{"__typename":"CheckRun","completedAt":"2026-11-14T23:27:24Z","conclusion":"SUCCESS","detailsUrl":"https://github.com/xycu/agent-smith/actions/runs/43653310585/job/132626309977","name":"Conventional PR title","startedAt":"2026-11-14T23:27:15Z","status":"COMPLETED","workflowName":"PR title"},{"__typename":"CheckRun","completedAt":"2026-11-14T23:27:24Z","conclusion":"SUCCESS","detailsUrl":"https://github.com/xycu/agent-smith/actions/runs/43653310554/job/132626310348","name":"Conventional Commits","startedAt":"2026-11-14T23:27:15Z","status":"COMPLETED","workflowName":"CI"},{"__typename":"CheckRun","completedAt":"2026-11-14T23:28:56Z","conclusion":"SUCCESS","detailsUrl":"https://semgrep.dev/orgs/blazej_ksycki/projects/6967102/scans/269043146","name":"semgrep-cloud-platform/scan","startedAt":"2026-11-14T23:27:12Z","status":"COMPLETED","workflowName":""}],"url":"https://github.com/xycu/agent-smith/pull/184"}
+
+Command argv ['git', 'rev-parse', 'HEAD']
+Exit code 0
+56fc79d67cb3c7b96cf059837becce3a286987d6
+
+Command argv ['git', 'log', '--oneline', 'dd4fa8b0f07babb88b1f8e58ce7e82cd6b37bbc5..HEAD']
+Exit code 0
+56fc79d chore(step-subagent-git-guard): step 5 manual-verify
+d2b7534 chore(step-subagent-git-guard): step 4 implement
+afea3bc chore(step-subagent-git-guard): close out plan (epilogue)
+f59e3cd docs(step-subagent-git-guard): record safety and host limits (p3)
+afdd5cb fix(step-subagent-git-guard): guard routed Claude commands (p2)
+e513e93 fix(step-subagent-git-guard): carry safety into every task (p1)
+e9d1547 chore(step-subagent-git-guard): step 3 plan-review
+2019dab chore(step-subagent-git-guard): step 2 plan
+573bc05 chore(step-subagent-git-guard): step 1 score
+
+Command argv ['git', 'diff', '--stat', 'dd4fa8b0f07babb88b1f8e58ce7e82cd6b37bbc5', 'HEAD', '--', 'hooks', 'agents', 'skills/10x-pipeline/scripts/step-guard.mjs', 'skills/10x-pipeline/rules/steps/plan-review.md']
+Exit code 0
+ agents/step.md                                 |   6 ++
+ hooks/hooks.json                               |  21 ++++
+ skills/10x-pipeline/rules/steps/plan-review.md |   4 +
+ skills/10x-pipeline/scripts/step-guard.mjs     | 137 +++++++++++++++++++++++++
+ 4 files changed, 168 insertions(+)
+
