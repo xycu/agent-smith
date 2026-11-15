@@ -1,0 +1,527 @@
+Tests: skills/10x-pipeline/test/skill-loop.test.mjs — routing literals stay in policy and reference; terminal reporting retains verdict, proof and worktree obligations. skills/openspec-pipeline/test/openspec-skill.test.mjs — terminal branches reach publication and archive verifies before publishing. skills/10x-pipeline/test/archive-gate.test.mjs — archive publication covers verification success, failure and gate refusal. Full test names and results follow.
+TAP version 13
+# Subtest: 10x: allowed-tools lists AskUserQuestion
+ok 1 - 10x: allowed-tools lists AskUserQuestion
+  ---
+  duration_ms: 0.762166
+  type: 'test'
+  ...
+# Subtest: 10x: the archive branch asks before it launches the subagent
+ok 2 - 10x: the archive branch asks before it launches the subagent
+  ---
+  duration_ms: 0.224708
+  type: 'test'
+  ...
+# Subtest: 10x: labels, fail-closed reading and STOP
+ok 3 - 10x: labels, fail-closed reading and STOP
+  ---
+  duration_ms: 0.154833
+  type: 'test'
+  ...
+# Subtest: 10x: step numbers stay and the other branches do not ask
+ok 4 - 10x: step numbers stay and the other branches do not ask
+  ---
+  duration_ms: 0.424333
+  type: 'test'
+  ...
+# Subtest: 10x: no task tool; terminal publication reaches the single authorization owner
+ok 5 - 10x: no task tool; terminal publication reaches the single authorization owner
+  ---
+  duration_ms: 0.977458
+  type: 'test'
+  ...
+# Subtest: 10x: archive publication covers verification success, failure and gate refusal
+ok 6 - 10x: archive publication covers verification success, failure and gate refusal
+  ---
+  duration_ms: 0.20075
+  type: 'test'
+  ...
+# Subtest: 10x: still exactly six GIVEN lines
+ok 7 - 10x: still exactly six GIVEN lines
+  ---
+  duration_ms: 0.12025
+  type: 'test'
+  ...
+# Subtest: openspec: allowed-tools lists AskUserQuestion
+ok 8 - openspec: allowed-tools lists AskUserQuestion
+  ---
+  duration_ms: 0.115458
+  type: 'test'
+  ...
+# Subtest: openspec: the archive branch asks before it launches the subagent
+ok 9 - openspec: the archive branch asks before it launches the subagent
+  ---
+  duration_ms: 0.11575
+  type: 'test'
+  ...
+# Subtest: openspec: labels, fail-closed reading and STOP
+ok 10 - openspec: labels, fail-closed reading and STOP
+  ---
+  duration_ms: 0.151875
+  type: 'test'
+  ...
+# Subtest: openspec: step numbers stay and the other branches do not ask
+ok 11 - openspec: step numbers stay and the other branches do not ask
+  ---
+  duration_ms: 0.21625
+  type: 'test'
+  ...
+# Subtest: openspec: no task tool; terminal publication reaches the single authorization owner
+ok 12 - openspec: no task tool; terminal publication reaches the single authorization owner
+  ---
+  duration_ms: 0.323542
+  type: 'test'
+  ...
+# Subtest: openspec: archive publication covers verification success, failure and gate refusal
+ok 13 - openspec: archive publication covers verification success, failure and gate refusal
+  ---
+  duration_ms: 0.124125
+  type: 'test'
+  ...
+# Subtest: openspec: still exactly six GIVEN lines
+ok 14 - openspec: still exactly six GIVEN lines
+  ---
+  duration_ms: 0.07825
+  type: 'test'
+  ...
+# Subtest: the router scripts never mention AskUserQuestion
+ok 15 - the router scripts never mention AskUserQuestion
+  ---
+  duration_ms: 4.43625
+  type: 'test'
+  ...
+# Subtest: frontmatter requires explicit invocation and preserves user invocation
+ok 16 - frontmatter requires explicit invocation and preserves user invocation
+  ---
+  duration_ms: 1.324916
+  type: 'test'
+  ...
+# Subtest: plugin descriptions agree on the explicit pipeline entry point
+ok 17 - plugin descriptions agree on the explicit pipeline entry point
+  ---
+  duration_ms: 0.744084
+  type: 'test'
+  ...
+# Subtest: README records Claude Code invocation compatibility and acceptance limits
+ok 18 - README records Claude Code invocation compatibility and acceptance limits
+  ---
+  duration_ms: 0.203417
+  type: 'test'
+  ...
+# Subtest: the section holds exactly six rule lines, and SKILL.md has no other **GIVEN** line
+ok 19 - the section holds exactly six rule lines, and SKILL.md has no other **GIVEN** line
+  ---
+  duration_ms: 0.169959
+  type: 'test'
+  ...
+# Subtest: rule line k holds the needles of behavior k
+ok 20 - rule line k holds the needles of behavior k
+  ---
+  duration_ms: 0.166958
+  type: 'test'
+  ...
+# Subtest: the section lies between \#\# Loop and \#\# PR comment (opt-in), outside every Loop branch
+ok 21 - the section lies between \#\# Loop and \#\# PR comment (opt-in), outside every Loop branch
+  ---
+  duration_ms: 0.216708
+  type: 'test'
+  ...
+# Subtest: the run branch points at the anti-stall rules
+ok 22 - the run branch points at the anti-stall rules
+  ---
+  duration_ms: 0.089916
+  type: 'test'
+  ...
+# Subtest: the section names no model, effort or tier
+ok 23 - the section names no model, effort or tier
+  ---
+  duration_ms: 0.34925
+  type: 'test'
+  ...
+# Subtest: the OPEN_PR line points at the open-pr script, which exists
+ok 24 - the OPEN_PR line points at the open-pr script, which exists
+  ---
+  duration_ms: 0.204333
+  type: 'test'
+  ...
+# Subtest: every script path names ${CLAUDE_SKILL_DIR}, and the old placeholder is gone
+ok 25 - every script path names ${CLAUDE_SKILL_DIR}, and the old placeholder is gone
+  ---
+  duration_ms: 0.218916
+  type: 'test'
+  ...
+# Subtest: the pull request section follows \#\# PR comment (opt-in) and runs the script from the run root
+ok 26 - the pull request section follows \#\# PR comment (opt-in) and runs the script from the run root
+  ---
+  duration_ms: 0.2575
+  type: 'test'
+  ...
+# Subtest: done, archive and halt reach publication before STOP, with comments owned by publication
+ok 27 - done, archive and halt reach publication before STOP, with comments owned by publication
+  ---
+  duration_ms: 0.249583
+  type: 'test'
+  ...
+# Subtest: late usage has one owner and precedes terminal status, publication and archive launch
+ok 28 - late usage has one owner and precedes terminal status, publication and archive launch
+  ---
+  duration_ms: 0.170625
+  type: 'test'
+  ...
+# Subtest: the run branch points at rule 3 for a figure that arrives after next, and the Rules name usage as the one way in
+ok 29 - the run branch points at rule 3 for a figure that arrives after next, and the Rules name usage as the one way in
+  ---
+  duration_ms: 0.070625
+  type: 'test'
+  ...
+# Subtest: the argument hint and Start step 1 name --rigor with its value and the goal text
+ok 30 - the argument hint and Start step 1 name --rigor with its value and the goal text
+  ---
+  duration_ms: 0.073541
+  type: 'test'
+  ...
+# Subtest: the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section
+ok 31 - the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section
+  ---
+  duration_ms: 0.098042
+  type: 'test'
+  ...
+# Subtest: 10x: numbered description and archive override record separate retry invocations
+ok 32 - 10x: numbered description and archive override record separate retry invocations
+  ---
+  duration_ms: 0.067166
+  type: 'test'
+  ...
+# Subtest: 10x: background flag is selected from the exposed schema before calling
+ok 33 - 10x: background flag is selected from the exposed schema before calling
+  ---
+  duration_ms: 0.051375
+  type: 'test'
+  ...
+# Subtest: 10x: rule 1 handles launch notices independently of the background flag
+ok 34 - 10x: rule 1 handles launch notices independently of the background flag
+  ---
+  duration_ms: 0.095458
+  type: 'test'
+  ...
+# Subtest: 10x: rule 6 rejects foreign, conflicting and superseded completion identities
+ok 35 - 10x: rule 6 rejects foreign, conflicting and superseded completion identities
+  ---
+  duration_ms: 0.057958
+  type: 'test'
+  ...
+# Subtest: 10x: on-time usage excludes earlier and foreign notifications without delaying next
+ok 36 - 10x: on-time usage excludes earlier and foreign notifications without delaying next
+  ---
+  duration_ms: 0.078667
+  type: 'test'
+  ...
+# Subtest: 10x: done late usage recovers the earlier numbered launch, not the latest repeated step
+ok 37 - 10x: done late usage recovers the earlier numbered launch, not the latest repeated step
+  ---
+  duration_ms: 0.110833
+  type: 'test'
+  ...
+# Subtest: 10x: archive late usage recovers the earlier numbered launch, not the latest repeated step
+ok 38 - 10x: archive late usage recovers the earlier numbered launch, not the latest repeated step
+  ---
+  duration_ms: 0.072875
+  type: 'test'
+  ...
+# Subtest: 10x: halt late usage recovers the earlier numbered launch, not the latest repeated step
+ok 39 - 10x: halt late usage recovers the earlier numbered launch, not the latest repeated step
+  ---
+  duration_ms: 0.070917
+  type: 'test'
+  ...
+# Subtest: openspec: numbered description and archive override record separate retry invocations
+ok 40 - openspec: numbered description and archive override record separate retry invocations
+  ---
+  duration_ms: 0.048459
+  type: 'test'
+  ...
+# Subtest: openspec: background flag is selected from the exposed schema before calling
+ok 41 - openspec: background flag is selected from the exposed schema before calling
+  ---
+  duration_ms: 0.031583
+  type: 'test'
+  ...
+# Subtest: openspec: rule 1 handles launch notices independently of the background flag
+ok 42 - openspec: rule 1 handles launch notices independently of the background flag
+  ---
+  duration_ms: 0.044917
+  type: 'test'
+  ...
+# Subtest: openspec: rule 6 rejects foreign, conflicting and superseded completion identities
+ok 43 - openspec: rule 6 rejects foreign, conflicting and superseded completion identities
+  ---
+  duration_ms: 0.0405
+  type: 'test'
+  ...
+# Subtest: openspec: on-time usage excludes earlier and foreign notifications without delaying next
+ok 44 - openspec: on-time usage excludes earlier and foreign notifications without delaying next
+  ---
+  duration_ms: 0.062042
+  type: 'test'
+  ...
+# Subtest: openspec: done late usage recovers the earlier numbered launch, not the latest repeated step
+ok 45 - openspec: done late usage recovers the earlier numbered launch, not the latest repeated step
+  ---
+  duration_ms: 0.913333
+  type: 'test'
+  ...
+# Subtest: openspec: archive late usage recovers the earlier numbered launch, not the latest repeated step
+ok 46 - openspec: archive late usage recovers the earlier numbered launch, not the latest repeated step
+  ---
+  duration_ms: 0.090958
+  type: 'test'
+  ...
+# Subtest: openspec: halt late usage recovers the earlier numbered launch, not the latest repeated step
+ok 47 - openspec: halt late usage recovers the earlier numbered launch, not the latest repeated step
+  ---
+  duration_ms: 0.077042
+  type: 'test'
+  ...
+# Subtest: Start step 3 consumes the shared setup result and retains run safety
+ok 48 - Start step 3 consumes the shared setup result and retains run safety
+  ---
+  duration_ms: 0.276708
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup uses saved fresh setup after successful init and before each dispatch
+ok 49 - 10x: cleanup uses saved fresh setup after successful init and before each dispatch
+  ---
+  duration_ms: 0.172667
+  type: 'test'
+  ...
+# Subtest: 10x: change inputs follow root selection with original-root diagnostic fallback
+ok 50 - 10x: change inputs follow root selection with original-root diagnostic fallback
+  ---
+  duration_ms: 0.174792
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup uses saved fresh setup after successful init and before each dispatch
+ok 51 - openspec: cleanup uses saved fresh setup after successful init and before each dispatch
+  ---
+  duration_ms: 0.076666
+  type: 'test'
+  ...
+# Subtest: openspec: change inputs follow root selection with original-root diagnostic fallback
+ok 52 - openspec: change inputs follow root selection with original-root diagnostic fallback
+  ---
+  duration_ms: 0.067792
+  type: 'test'
+  ...
+# Subtest: both numbered dispatch loops forward file handoffs without loading the task
+ok 53 - both numbered dispatch loops forward file handoffs without loading the task
+  ---
+  duration_ms: 0.25325
+  type: 'test'
+  ...
+# Subtest: 10x: full Anti-stall baseline is immutable
+ok 54 - 10x: full Anti-stall baseline is immutable
+  ---
+  duration_ms: 0.367875
+  type: 'test'
+  ...
+# Subtest: 10x: routing literals stay in policy and reference
+ok 55 - 10x: routing literals stay in policy and reference
+  ---
+  duration_ms: 1.722625
+  type: 'test'
+  ...
+# Subtest: openspec: full Anti-stall baseline is immutable
+ok 56 - openspec: full Anti-stall baseline is immutable
+  ---
+  duration_ms: 0.085334
+  type: 'test'
+  ...
+# Subtest: openspec: routing literals stay in policy and reference
+ok 57 - openspec: routing literals stay in policy and reference
+  ---
+  duration_ms: 0.562208
+  type: 'test'
+  ...
+# Subtest: AGENTS assigns routing documentation to the reference for both skills
+ok 58 - AGENTS assigns routing documentation to the reference for both skills
+  ---
+  duration_ms: 0.451208
+  type: 'test'
+  ...
+# Subtest: 10x: skill byte budget and single procedure owners
+ok 59 - 10x: skill byte budget and single procedure owners
+  ---
+  duration_ms: 0.161584
+  type: 'test'
+  ...
+# Subtest: 10x: split dispatch preserves fault, result and usage boundaries
+ok 60 - 10x: split dispatch preserves fault, result and usage boundaries
+  ---
+  duration_ms: 0.154875
+  type: 'test'
+  ...
+# Subtest: openspec: skill byte budget and single procedure owners
+ok 61 - openspec: skill byte budget and single procedure owners
+  ---
+  duration_ms: 0.114667
+  type: 'test'
+  ...
+# Subtest: openspec: split dispatch preserves fault, result and usage boundaries
+ok 62 - openspec: split dispatch preserves fault, result and usage boundaries
+  ---
+  duration_ms: 0.098458
+  type: 'test'
+  ...
+# Subtest: 10x: setup retains field validation and isolated final-state diagnostics
+ok 63 - 10x: setup retains field validation and isolated final-state diagnostics
+  ---
+  duration_ms: 0.131042
+  type: 'test'
+  ...
+# Subtest: 10x: terminal reporting retains verdict, proof and worktree obligations
+ok 64 - 10x: terminal reporting retains verdict, proof and worktree obligations
+  ---
+  duration_ms: 0.257667
+  type: 'test'
+  ...
+# Subtest: openspec: setup retains field validation and isolated final-state diagnostics
+ok 65 - openspec: setup retains field validation and isolated final-state diagnostics
+  ---
+  duration_ms: 0.125416
+  type: 'test'
+  ...
+# Subtest: openspec: terminal reporting retains verdict, proof and worktree obligations
+ok 66 - openspec: terminal reporting retains verdict, proof and worktree obligations
+  ---
+  duration_ms: 0.163459
+  type: 'test'
+  ...
+# Subtest: frontmatter names the skill openspec-pipeline with its argument hint
+ok 67 - frontmatter names the skill openspec-pipeline with its argument hint
+  ---
+  duration_ms: 1.052958
+  type: 'test'
+  ...
+# Subtest: frontmatter requires explicit invocation and preserves user invocation
+ok 68 - frontmatter requires explicit invocation and preserves user invocation
+  ---
+  duration_ms: 0.195334
+  type: 'test'
+  ...
+# Subtest: the router is the shared 10x-pipeline route.mjs, and it exists next to the skill folder
+ok 69 - the router is the shared 10x-pipeline route.mjs, and it exists next to the skill folder
+  ---
+  duration_ms: 0.746084
+  type: 'test'
+  ...
+# Subtest: the old base-directory placeholder is gone and Tuning names policy.json through ${CLAUDE_SKILL_DIR}
+ok 70 - the old base-directory placeholder is gone and Tuning names policy.json through ${CLAUDE_SKILL_DIR}
+  ---
+  duration_ms: 0.128458
+  type: 'test'
+  ...
+# Subtest: every router command line carries --chain openspec
+ok 71 - every router command line carries --chain openspec
+  ---
+  duration_ms: 0.266834
+  type: 'test'
+  ...
+# Subtest: the anti-stall section equals the one of the 10x skill and follows the rule form
+ok 72 - the anti-stall section equals the one of the 10x skill and follows the rule form
+  ---
+  duration_ms: 0.440041
+  type: 'test'
+  ...
+# Subtest: the anti-stall section lies between \#\# Loop and \#\# PR comment (opt-in), and the steps it names exist
+ok 73 - the anti-stall section lies between \#\# Loop and \#\# PR comment (opt-in), and the steps it names exist
+  ---
+  duration_ms: 0.285833
+  type: 'test'
+  ...
+# Subtest: the skill names no model alias, effort level or tier word
+ok 74 - the skill names no model alias, effort level or tier word
+  ---
+  duration_ms: 0.49725
+  type: 'test'
+  ...
+# Subtest: every os- step has a template, and every os- template resolves to existing prompt files
+ok 75 - every os- step has a template, and every os- template resolves to existing prompt files
+  ---
+  duration_ms: 0.421958
+  type: 'test'
+  ...
+# Subtest: the OpenSpec policy fragment holds only os- steps and prompts, and shares no key with the 10x policy
+ok 76 - the OpenSpec policy fragment holds only os- steps and prompts, and shares no key with the 10x policy
+  ---
+  duration_ms: 0.6865
+  type: 'test'
+  ...
+# Subtest: every prompt of the plugin policy resolves, the @<skill>/prompts/ references included
+ok 77 - every prompt of the plugin policy resolves, the @<skill>/prompts/ references included
+  ---
+  duration_ms: 9.413
+  type: 'test'
+  ...
+# Subtest: the resolver accepts @<skill>/prompts/<file>.md and rejects paths that leave the skills folder
+ok 78 - the resolver accepts @<skill>/prompts/<file>.md and rejects paths that leave the skills folder
+  ---
+  duration_ms: 0.641083
+  type: 'test'
+  ...
+# Subtest: the OPEN_PR line points at the shared open-pr script, which exists
+ok 79 - the OPEN_PR line points at the shared open-pr script, which exists
+  ---
+  duration_ms: 0.11525
+  type: 'test'
+  ...
+# Subtest: the pull request section follows \#\# PR comment (opt-in) and calls the script with --chain openspec
+ok 80 - the pull request section follows \#\# PR comment (opt-in) and calls the script with --chain openspec
+  ---
+  duration_ms: 0.171583
+  type: 'test'
+  ...
+# Subtest: terminal branches reach publication and archive verifies before publishing
+ok 81 - terminal branches reach publication and archive verifies before publishing
+  ---
+  duration_ms: 0.140625
+  type: 'test'
+  ...
+# Subtest: one chain-selected usage procedure is called before status and publication on every terminal path
+ok 82 - one chain-selected usage procedure is called before status and publication on every terminal path
+  ---
+  duration_ms: 0.128958
+  type: 'test'
+  ...
+# Subtest: the argument hint and Start step 1 name --rigor with its value and the goal text
+ok 83 - the argument hint and Start step 1 name --rigor with its value and the goal text
+  ---
+  duration_ms: 0.072917
+  type: 'test'
+  ...
+# Subtest: the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section, equal to the 10x copy
+ok 84 - the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section, equal to the 10x copy
+  ---
+  duration_ms: 0.114
+  type: 'test'
+  ...
+# Subtest: archive reuses dispatch with its archive description override
+ok 85 - archive reuses dispatch with its archive description override
+  ---
+  duration_ms: 0.174833
+  type: 'test'
+  ...
+# Subtest: Start step 3 consumes shared OpenSpec setup and retains run safety
+ok 86 - Start step 3 consumes shared OpenSpec setup and retains run safety
+  ---
+  duration_ms: 0.274417
+  type: 'test'
+  ...
+1..86
+# tests 86
+# suites 0
+# pass 86
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 166.853625
