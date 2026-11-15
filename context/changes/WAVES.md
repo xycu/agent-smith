@@ -1,173 +1,100 @@
-# Waves
+# Waves v2
 
-Work order and status as of 2026-11-15. Waves 1–7, the stale-result and step-guard follow-ups, and both older CI changes are merged and archived. This folder holds one active change, the parked quoting draft. The original seven-wave sequence is complete. Release v1.11.2 was published from `main` at `8dcb067` (release PR #191). The older CI acceptance checks were closed with live API evidence, controlled workflow reruns, automated checks and the owner's TrueNAS confirmation.
+Updated 2026-11-15. Snapshot: `main` at `dee383af2ecd1080bb5f0f254cb6bcf01ca1b8e6`, after [PR #197](https://github.com/xycu/agent-smith/pull/197). This is the execution order for the current reliability milestone and the two new audit fixes.
 
-A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
+**Wave 0 contains exactly one change: `nested-step-delegation` (S-14).** The owner selected child-subagent support as the first delivery on 2026-11-15. No other change runs alongside it. The former prerequisite S-12 → S-14 is reversed: S-14 establishes its own focused baseline and proof; the first complete unattended delivery follows it.
 
-## Rules
+This version replaces the completed seven-wave schedule. Its full history, merged PRs and outstanding archived acceptance rows remain in the [version 1 ledger](https://github.com/xycu/agent-smith/blob/dee383af2ecd1080bb5f0f254cb6bcf01ca1b8e6/context/changes/WAVES.md). No archived artifact is changed or implicitly marked complete.
 
-- Start every run of a wave from the same `main`, after the previous wave is merged.
-- A change stays inside the files its row names under "Owns in this wave". If its plan needs a file that another change of the same wave owns, move the change to a later wave before it runs.
-- Shared text files are the one exception: `AGENTS.md`, `README.md`, `docs/REFERENCE.md` and the two skill content tests (`skill-loop.test.mjs`, `openspec-skill.test.mjs`). Several changes of a wave add lines to them, in different places. Merge the pull requests of a wave one by one. If a later one then conflicts in such a file, resolve it on its branch with a merge of `main` and a new commit. Never force-push.
-- "Owner" marks a change that needs a decision or an action from the owner before or during its run.
-- Update this file in one maintenance PR after each wave merges. Individual parallel runs leave it alone.
+## Current state
 
-## How the waves were cut
-
-Each change was mapped to the files and regions its fix names. Changes that share a region went into different waves, in dependency order:
-
-| Lane | Changes | Rule |
+| Area | State at this snapshot | Source |
 | --- | --- | --- |
-| `.github/workflows/ci.yml` and `tools/test/ci-runner.test.mjs` | 6 | One per wave (waves 1 to 6). |
-| `skills/10x-pipeline/test/helpers.mjs` | 3 | One per wave. |
-| Both `SKILL.md` files | 12 | At most two per wave, in regions that do not touch: frontmatter, Start steps, script path lines, Loop step 2, anti-stall rules, the `done`/`archive`/`halt` branches, PR comment section. The rewrite of the whole file is alone in the last wave. |
-| `state.mjs` and `steps.mjs` | 5 | One per wave. |
-| `route.mjs` and `flow.mjs` | 10 | Different functions inside one wave; `init` is edited by one change per wave. |
-| `policy.json` | 4 | Different blocks inside one wave. |
-| Version and manifest files (`version-check.mjs`, `marketplace.json`, `plugin.json`) | 3 | One per wave. |
-| All of `AGENTS.md` | 1 | `agents-md-slim` shares its wave only with changes that leave `AGENTS.md` alone. |
+| Released product | Latest release is v1.11.2. Both workflow chains, provider dispatch, isolation, recovery, reports and terminal PR publication are implemented. | [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.2), [PRD](../foundation/prd.md) |
+| Reliability milestone | M-2 is open. All nine slices S-12–S-20 remain undelivered. Child delegation and OpenSpec 2.0.0 are committed additions; installed-host qualification is still pending. | [Roadmap](../foundation/roadmap.md) |
+| Audit fixes | Two descriptive change records merged in PR #197. Both have `status: new`; neither has a plan or implementation. | [Comparison integrity](compare-damaged-logs-not-comparable/change.md), [branch prefix](run-branch-prefix-consistency/change.md) |
+| Child delegation | Current rules forbid nested agents and the project applies a depth cap. S-14 is now first and ready for planning; its change folder and plan do not exist yet. | [Roadmap S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents), [ADR-018](../../docs/ADR/ADR-018-no-nested-subagents.md) |
+| Parked implementation | `quote-router-in-skill-loops` is the only open implementation PR, draft #186. It stays parked until the owner resumes it. | [Change](quote-router-in-skill-loops/change.md), [PR #186](https://github.com/xycu/agent-smith/pull/186) |
+| Readiness assessment | Research is complete and merged. Its identity file remains `preparing`; it is evidence for this schedule, not an implementation to run. Its original first-run ordering predates the Wave 0 decision. | [Assessment](production-readiness-assessment/research.md) |
+| Existing verification | The recorded full suite has 1,621 passes, zero failures and three expected skips. Runner/release acceptance exists; this does not establish the complete live product matrix. No runtime suite was rerun for this scheduling document. | [Health evidence](../foundation/health-check.md), [assessment](production-readiness-assessment/research.md) |
 
-The original map came from each `change.md` and the layout before implementation. Recheck file ownership before planning the next wave. PR #155 moved OpenSpec policy, prompts, scripts and tests to `skills/openspec-pipeline/`, and moved always-true prompt rules into chain-local `rules/` files. PR #157 integrates provider dispatch with that structure. Ownership rows below identify behavior regions and must be resolved against those current paths.
+There are **11 scheduled changes**: nine roadmap slices and two audit fixes. Of these, only the two audit fixes currently have change folders on `main`; the roadmap-only IDs below are proposed work identities, not evidence of an initialized or running pipeline.
 
-## Wave 1: release and correctness (6) — merged
+## Execution rules
 
-`coauthor-test-coarse-mtime`, `release-after-green-ci`, `step-commit-code-under-chore`, `policy-limits-fail-open`, `agents-md-duplicate-adr019` and `skill-rigor-flag` are in `main` (2026-11-12), and their open findings were closed in a follow-up pull request. `agents-md-duplicate-adr019` landed before `agents-md-slim`, as wave 2 needs.
+- Waves run in order. Start a wave from the combined `main` after every scheduled implementation PR in the preceding wave is merged and that wave's acceptance is recorded. Opening a PR or merging a change description does not complete its implementation.
+- Wave 0 is a single-change wave even if another task has no technical dependency on it. Do not start another implementation beside S-14.
+- Initialize a roadmap-only change with `/10x-new <change-id>` before planning it. Existing audit records go through planning in their current folders. This schedule does not create plans or launch runs.
+- Each implementation uses its own run worktree. A multi-change wave is eligible for parallel execution only after its plans confirm disjoint production-code, policy, prompt and workflow regions. If ownership overlaps, move the conflicting change to a later wave before launch.
+- The ownership entries below are planning boundaries, not pre-approved file lists. Shared documentation and test indexes may be merged sequentially when their sections are independent. Shared runtime logic, runner settings or the same skill section requires serialization.
+- Preserve the shared rules and result-ownership protections while changing delegation. Merely removing the nesting ban or increasing the depth cap does not complete Wave 0.
+- Keep live host/account prerequisites explicit. Missing credentials, unsupported execution modes or a required owner decision remain actionable blockers; passing local fixtures cannot substitute for the promised live proof.
+- Update this ledger after each wave in one maintenance PR. Individual parallel changes leave it alone. Resolve branch conflicts with a merge of current `main` and a new commit; never force-push or rewrite pushed history.
 
-## Archived after wave 1
+## Wave map
 
-Eighteen folders were archived with `/10x-archive`: the thirteen runs that ended `done` before the waves (`agents-md-no-imports`, `archive-done-routercommit`, `array-prompt-override`, `at-or-above-helper`, `budget-halt-after-done`, `file-guard-dedup`, `init-goal-flag`, `init-needs-change-md`, `override-json-error-halt`, `pin-action-shas`, `pr-scripts-shared`, `review-verdict-labels`, `run-state-lock`) and five of the six changes of wave 1 (`coauthor-test-coarse-mtime`, `step-commit-code-under-chore`, `policy-limits-fail-open`, `agents-md-duplicate-adr019`, `skill-rigor-flag`).
+All waves below are pending. “Ready” in the roadmap means ready for planning, not implemented or live-accepted.
 
-The two older merged CI changes were subsequently verified and archived on 2026-11-15. Their current acceptance results appear under "Older CI changes" below.
-
-Known pending Manual rows in the archived changes include: `skill-rigor-flag` 2.5 (a live `--rigor thorough` run) and `pin-action-shas` 1.5 (CI and release-please have resolved the pinned actions since, so it can be ticked with `gh run list`).
-
-## Wave 2: context cost (6) — merged and archived
-
-All six implementations merged in PRs #138–143. PR #154 archived their change folders on 2026-11-13. The ownership table below records the completed wave.
-
-| Change | Owns in this wave | Notes |
-| --- | --- | --- |
-| `agents-md-slim` | All of `AGENTS.md`, new `skills/10x-pipeline/test/README.md` and `docs/ADR/README.md` | Several tests pin `AGENTS.md` text. |
-| `ci-runner-non-root` | `ci.yml` (first step of the `test` job) | Owner: runner setup on the NAS hosts. |
-| `skill-dir-variable` | Skills: the three script path lines and Tuning | Before `worktree-setup-script` (wave 4), which adds a script path. |
-| `finished-changes-left-open` | The `done` output of the router; skills: the `done` branch | The housekeeping part is "Before wave 1". |
-| `attach-result-persist-first` | `attachResult` in `flow.mjs` | |
-| `plan-crlf-line-endings` | `readPlan` in `state.mjs`, `planPaths` and `phaseFiles` | |
-
-## Wave 3: flags, versions and suite speed (6) — merged and archived
-
-All six implementations merged on 2026-11-13 in PRs #147–152. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. Original Progress checkboxes and SHA suffixes were preserved.
-
-| Change | Merged PR | Remaining Progress |
-| --- | --- | --- |
-| `ci-job-and-spawn-timeouts` | #151 | Manual 2.7, green PR CI and both job limits |
-| `pr-comment-flag-in-meta` | #152 | None |
-| `router-bash-timeout` | #147 | None |
-| `marketplace-entry-version` | #149 | Manual 2.5, next release PR's version-file diff |
-| `budget-test-file-split` | #150 | Manual 2.7, CI suite duration under 90 s with comparison recorded |
-| `shared-churn-excludes` | #148 | None |
-
-These rows report the checkboxes at archive time. The three pending Manual rows remain recorded in their archived plans. Any further acceptance work belongs in a new change referencing the archive.
-
-| Change | Owns in this wave | Notes |
-| --- | --- | --- |
-| `ci-job-and-spawn-timeouts` | `ci.yml` (job keys), `run` and `git` in `helpers.mjs` | |
-| `pr-comment-flag-in-meta` | `init` flags and the `done`, `archive` and `halt` outputs in `route.mjs`; skills: `allowed-tools`, Start steps 4 and 5, the TaskList paragraphs, the PR comment section; `.claude/settings.json` | The largest skill edit of the wave. |
-| `router-bash-timeout` | Skills: one new line next to the script path lines | Keep it out of the paragraphs the row above rewrites. |
-| `marketplace-entry-version` | `marketplace.json`, `release-please-config.json`, `tools/version-check.mjs` | |
-| `budget-test-file-split` | `budget-executors.test.mjs` and a new helper module | Cuts the suite wall time for every later run. |
-| `shared-churn-excludes` | Churn config in `state.mjs`, `evidenceExcludes` in `steps.mjs` | |
-
-## Wave 4: run state and isolation setup (6) — merged and archived
-
-All six implementations merged on 2026-11-14 in the order #164, #162, #161, #160, #165 and #163. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. Original Progress checkboxes and SHA suffixes were preserved, including 38 suffixes referencing original branch commits and three completed `agent-call-parameters` rows (1.1–1.3) without suffixes.
-
-The pending Manual rows below remain recorded in their archived plans. Any further acceptance work belongs in a new change referencing the archive.
-
-| Change | Merged PR | Owns in this wave | Notes |
+| Wave | Changes | Entry condition | Exit outcome |
 | --- | --- | --- | --- |
-| `ci-scratch-in-runner-temp` | [#164](https://github.com/xycu/agent-smith/pull/164) | `ci.yml` (environment of the test step) | Manual 1.5–1.6 still require live TrueNAS scratch-path and cancellation-cleanup observations. |
-| `worktree-setup-script` | [#163](https://github.com/xycu/agent-smith/pull/163) | New `scripts/prepare-run.mjs`; skills: Start step 3 | |
-| `agent-call-parameters` | [#161](https://github.com/xycu/agent-smith/pull/161) | Skills: Loop step 2, anti-stall rules 1 and 6, the late-usage paragraph | After `pr-comment-flag-in-meta` (wave 3), which rewrites the branches around that paragraph. Includes the deterministic shutdown-test repair. Manual 1.6 still requires live Claude Code acceptance. |
-| `run-state-atomic-writes` | [#165](https://github.com/xycu/agent-smith/pull/165) | The write and `readLog` paths of `state.mjs` and their call sites in `init`, `next` and `usage` | |
-| `tests-strip-git-env` | [#162](https://github.com/xycu/agent-smith/pull/162) | `run` and `gitEnv` in `helpers.mjs`, four test files with their own environment | |
-| `compare-failed-attempts-neutral` | [#160](https://github.com/xycu/agent-smith/pull/160) | `compare` in `route.mjs` | |
+| **0 — child delegation (1)** | **S-14 `nested-step-delegation`** | Owner-selected first change; establish focused host prerequisites and baseline within this change. | A step awaits its children, owns their results and preserves recovery/safety in the supported modes. |
+| **1 — audit correctness (2)** | `compare-damaged-logs-not-comparable`; `run-branch-prefix-consistency` | Wave 0 merged; plans confirm the ownership split below. | Damaged logs cannot prove savings; configured run branches work through setup and publication. |
+| **2 — specification compatibility (1)** | S-13 `openspec-2-upgrade` | Wave 1 merged. | Both integration instructions and the specification workflow work with OpenSpec 2.0.0. |
+| **3 — first complete delivery (1)** | S-12 `first-unattended-delivery` | Wave 2 merged; authenticated Claude and review-remote access available. | One normal Claude-only plan-based run reaches a reviewable PR without steering. |
+| **4 — actionable setup (1)** | S-15 `actionable-run-prerequisites` | S-12, S-13 and S-14 delivered; first-run evidence available. | Missing tools, discovery, trust and permissions identify the required action before affected execution. |
+| **5 — recovery and protection (2)** | S-16 `resumable-unattended-runs`; S-18 `verified-step-protection` | Wave 4 merged; plans prove recovery and guard changes do not edit the same runner/settings/skill regions. | Interrupted work is recoverable and supported-host protection is observed. |
+| **6 — truthful decisions (1)** | S-19 `truthful-owner-decision-halts` | Wave 5 merged, including S-18. | Review/verification truth, pending proof and explicit archive decisions survive terminal handling. |
+| **7 — final handoff (1)** | S-17 `reviewable-run-handoff` | Wave 6 merged, with S-16 recovery and S-19 decision behavior available. | Completion, archive, usage and requested PR reports identify the same actual outcome and location. |
+| **8 — supported-host qualification (1)** | S-20 `supported-host-acceptance` | Waves 0–7 merged into the candidate; required environments available. | The agreed 18 normal runs and accompanying recovery/decision evidence qualify the final candidate. |
 
-## Wave 5: owner decisions and guards (5) — merged and archived
+S-13 and S-12 are deliberately sequential here: the first delivery can expose fixes in shared entry points. S-19 precedes S-17 because both can change archive and terminal skill sections. These are execution choices, not additional product features.
 
-All five implementations merged on 2026-11-14 in the order #169, #170, #171, #172 and #173. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. The 36 completed Progress rows retain their original SHA suffixes, referencing nine original branch commits. Branch refs preserve those commits after worktree cleanup.
+## Wave 0: child subagents, alone
 
-Four Manual rows remain unticked in the archived plans. Three require live Claude host acceptance. CI row 2.5 has passing TrueNAS evidence from PR #173. Any further acceptance work belongs in a new change referencing the archive.
+**Only change:** `nested-step-delegation` / [S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents). There is no sibling change in this wave, and later waves do not start while it is in flight.
 
-| Change | Merged PR | Owns in this wave | Remaining Progress and decisions |
-| --- | --- | --- | --- |
-| `ci-fail-on-unexpected-skips` | [#173](https://github.com/xycu/agent-smith/pull/173) | `ci.yml` (pinned CLI step), CI availability probes and OpenSpec contract tests | Owner approved OpenSpec 1.16.1 as a CI-only tool. Manual 2.5 stays unticked, with [passing TrueNAS evidence](https://github.com/xycu/agent-smith/actions/runs/43618967283) covering the CLI, five contract fixtures, permission checks and three expected skips. |
-| `stale-main-change-copy` | [#172](https://github.com/xycu/agent-smith/pull/172) | The `init` halt in `route.mjs`, cleanup in `prepare-run.mjs`, and skill lifecycle instructions | Manual 3.5 requires live post-init cleanup ordering and retained-path reporting for both chains. |
-| `skills-disable-model-invocation` | [#169](https://github.com/xycu/agent-smith/pull/169) | Skill frontmatter, descriptions, manifests and invocation tests | Owner chose explicit slash commands. Manual 1.6 requires fresh Claude Code invocation transcripts. |
-| `ladder-fable-rung` | [#171](https://github.com/xycu/agent-smith/pull/171) | Override documentation in `README.md` and `docs/REFERENCE.md`, plus `ladder.test.mjs` | Owner chose a documented opt-in fable override that appends high/xhigh rungs after the existing ladder. Manual 2.4 requires live fable Agent acceptance and older-host default behavior. |
-| `delete-guard-gaps` | [#170](https://github.com/xycu/agent-smith/pull/170) | `no-recursive-delete.test.mjs` | None. Both implementation-review warnings were fixed. |
+The change must reconcile the current restrictions as one coherent delivery: shared step rules, executor instructions, both orchestrator skills, host depth/delegation settings, effective step protection, result/usage attribution and interruption recovery. Likely ownership includes `skills/10x-pipeline/rules/top.md`, affected prompts, both `SKILL.md` files, `.claude/settings.json`, relevant Codex/agent/hook configuration, and the existing runner/state paths where evidence shows a change is needed. The plan must identify the exact callers and tests; this list does not require rewriting every listed area.
 
-Combined main CI passed 1,476 tests with zero failures and three expected skips before release PR #174. [CI evidence](https://github.com/xycu/agent-smith/actions/runs/43619562032)
+Before enabling delegation, record a bounded representative run with today's flat behavior. Repeat the same work with child delegation after the change, recording exact host versions and launch modes, elapsed time, available usage, failures and interventions. This local-to-the-change baseline replaces the old dependency on a completed S-12; S-12 remains the later full delivery outcome.
 
-## Wave 6: prompts, ids and document drift (5) — merged and archived
+Wave 0 is complete only when its reviewed implementation and evidence establish that:
 
-All five implementations merged on 2026-11-14 in the order #176, #177, #178, #180 and #179. Release PR #181 published v1.11.0 after green combined main CI and green release-commit CI. Their folders were archived on 2026-11-14 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. The 44 completed Progress rows retain their original SHA suffixes, referencing 12 original implementation commits. Retained Git refs preserve those commits after worktree cleanup. [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.0)
+1. A step can spawn children, receive their completed results and finish through the normal entry points of both chains in the declared supported host/mode combinations.
+2. Child, foreign, late and superseded notifications cannot complete the parent step or advance the router prematurely. Available child usage remains attributable to the correct enclosing invocation.
+3. Child failure, interruption/resume and late completion preserve recoverable work and consistent progress. Effective child permissions retain the applicable step restrictions.
+4. Interactive and headless behavior is recorded. Any capability gap affecting the six agreed configurations is resolved explicitly before making that support claim; a fixture alone does not prove host behavior.
+5. The existing delegation decision and tests are updated with the new supported contract. Performance is reported from measurements, including coordination and retries, without assuming an improvement.
 
-Four Manual rows remain unticked in the archived plans. Coverage row 2.6 now has passing TrueNAS CI evidence. The other three rows require live host acceptance or matched comparison runs. Any further acceptance work belongs in a new change referencing the archive.
+The first planning action is `/10x-new nested-step-delegation` with S-14 and this Wave 0 record as its intent. Host access needed for this bounded proof is handled inside the same change; it does not turn S-12 or S-15 into a prerequisite wave.
 
-| Change | Merged PR | Owns in this wave | Remaining Progress and decisions |
-| --- | --- | --- | --- |
-| `coverage-and-failed-undo-test` | [#178](https://github.com/xycu/agent-smith/pull/178) | `ci.yml` test command and `rollback.test.mjs` | Manual 2.6 stays unticked, with passing combined CI evidence covering the module coverage table, all four Linux failed-undo cases, expected skips and runner timing. Inline coverage was retained after 8.33% measured local overhead. |
-| `step-prompt-by-file` | [#180](https://github.com/xycu/agent-smith/pull/180) | Prompt rendering and lifecycle in `flow.mjs`, `isolation.mjs`, `route.mjs`, `run-codex.mjs` and `state.mjs`, the `prompts.byFile` policy key and both skills' dispatch instructions | Manual 3.4 requires live Claude/OpenAI acceptance for both chains. Manual 3.5 requires five matched inline/file pairs with quality review and orchestrator telemetry. The opt-in ships with its default false. |
-| `change-id-length-cap` | [#177](https://github.com/xycu/agent-smith/pull/177) | Init ID validation in `route.mjs` and `state.mjs`, both skills' PR-comment caveats and shared guidance | All Progress rows complete. Init accepts up to 100 characters, with both-chain boundaries and legacy-command compatibility tested. |
-| `docs-drift-fixes` | [#179](https://github.com/xycu/agent-smith/pull/179) | `README.md`, `docs/REFERENCE.md`, six ADRs, `prompts/README.md` and the manifest description contract in `tools/version-check.mjs` | All Progress rows complete. Current documentation and historical amendments were reconciled, and description equality is enforced. |
-| `nested-subagent-hard-stop` | [#176](https://github.com/xycu/agent-smith/pull/176) | `.claude/settings.json`, ADR-018, nesting documentation and contract tests | Manual 2.4 requires live Claude depth-1 acceptance. This repository sets `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1`, with optional adoption documented for plugin users. |
+## Ownership and acceptance anchors for later waves
 
-Combined main CI passed 1,520 tests with zero failures and three expected skips before release PR #181. The native coverage table reports the router modules, and all four failed-undo regressions passed. [CI evidence](https://github.com/xycu/agent-smith/actions/runs/43643146352)
-
-## Wave 7: skill rewrite (3) — merged and archived
-
-All three implementations merged on 2026-11-15 in the order #187, #183 and #188. Release PR #189 published v1.11.1 after green combined main CI and green release-commit CI. Their folders were archived on 2026-11-15 under `context/archive/2026-11-12-<change-id>/`, with `status: archived`. All 18 Progress rows remain complete. Sixteen SHA suffixes retain references to four original implementation commits, preserved by retained Git refs after worktree cleanup. The other two rows retain their judgment-evidence suffixes. [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.1)
-
-| Change | Merged PR | Owns in this wave | Result and acceptance |
-| --- | --- | --- | --- |
-| `commit-lint-merge-prefix` | [#187](https://github.com/xycu/agent-smith/pull/187) | Range-CLI regression coverage in `tools/test/commit-lint.test.mjs` | The implementation was already folded into `squash-merge-pr-title-lint`. This change proves ordinary Merge-prefixed subjects fail through the CLI and records completion of the rescoped change. |
-| `workflow-pins-local-actions` | [#183](https://github.com/xycu/agent-smith/pull/183) | `tools/workflow-pins.mjs`, its tests and the scoped `AGENTS.md` layout entry | Referenced local actions outside `.github/` are checked transitively. Canonical-file tracking handles cycles and aliases. Missing metadata, root escapes and unpinned remotes fail with source diagnostics. |
-| `skill-md-context-diet` | [#188](https://github.com/xycu/agent-smith/pull/188) | Both `SKILL.md` files, routing-documentation ownership, reference guidance and content tests | The 10x skill is 25,867 bytes and the OpenSpec skill is 29,230 bytes. Shared late-usage and publication procedures retain the fixed Anti-stall contracts. Manual rows 1.4 and 2.6 were proved through written inventories and covering tests. Live paid-provider execution remains outside that proof. |
-
-Combined main CI passed 1,548 tests out of 1,551 with zero failures and three expected skips. Its first attempt hit the existing fake-child cancellation timing test, and the second attempt passed. Release-commit CI then passed before publication. [Combined CI](https://github.com/xycu/agent-smith/actions/runs/43657049140) · [Release-commit CI](https://github.com/xycu/agent-smith/actions/runs/43658209686)
-
-## Completed follow-ups (2) — merged and archived
-
-Both implementations merged on 2026-11-15 in the order #184 and #185. Release PR #191 published v1.11.2 after green combined main CI and green release-commit CI. Both folders were archived on 2026-11-15 under `context/archive/2026-11-13-<change-id>/`, with `status: archived`. All 21 completed Progress rows retain their original SHA suffixes, referencing six original implementation commits. The retained refs `refs/archive/followups/stale-last-result-cleanup` and `refs/archive/followups/step-subagent-git-guard` preserve those commits after worktree and branch cleanup. [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.2)
-
-| Change | Merged PR | Result and remaining acceptance |
+| Wave / change | Initial ownership to confirm in its plan | Evidence that matters |
 | --- | --- | --- |
-| `stale-last-result-cleanup` | [#185](https://github.com/xycu/agent-smith/pull/185) | APPROVED. Persisted result cleanup recovers before routing and Git effects, preserves pending result ownership, and covers both chains and prompt transports. All seven Progress rows are complete. Integration with current main retained both recovery guidance and current verification rules. |
-| `step-subagent-git-guard` | [#184](https://github.com/xycu/agent-smith/pull/184) | APPROVED after the option-value fix and packaging follow-up. All fourteen Automated rows are complete. Manual 2.6 and 2.7 require live Claude enforcement and planning/review probes. Manual 3.4 remains unticked, with passing implementation PR CI evidence available. |
+| 1 / [comparison integrity](compare-damaged-logs-not-comparable/change.md) | `route.mjs` comparison eligibility/rendering; comparison and partial-log tests; reference comparison section. | The 1,000-token baseline versus 1,100-token routed example becomes non-comparable when the 600-token record is damaged. Cover either side, both chains and `--unpinned`. |
+| 1 / [branch prefix](run-branch-prefix-consistency/change.md) | `prepare-run.mjs`, isolation policy/identity, `open-pr.mjs`, setup/publication skill sections and their tests. | A `codex/` override works from creation through cleanup, resume and publication while wrong-run protections remain. Shared policy changes require checking the comparison plan before parallel launch. |
+| 2 / S-13 | OpenSpec policy, prompts, module and tests; CLI version pin and matching integration instructions. | OpenSpec 2.0.0 workflow, saved-run compatibility and validation/archive behavior. Revalidate Wave 0's OpenSpec delegation contract after upgrade. |
+| 3 / S-12 | Fresh Claude-only 10x entry-point discovery, installed guard delivery and end-to-end evidence; observed fixes only. | Authorized change → completed work → reviewable PR, with exact versions and no steering. |
+| 4 / S-15 | Prerequisite discovery and prelaunch diagnostics across the selected hosts/chains. | Missing tool, skill, trust or permission produces an actionable refusal before dependent work. |
+| 5 / S-16 | Result intake, saved state, execution locks and rollback/recovery; runner changes only where required. | Include the audit's partially staged file: staged-only contents must survive rollback as well as the differing working copy. Preserve invocation ownership after child interruption. |
+| 5 / S-18 | Effective guard delivery, hooks/agent metadata, host policy evidence and inherited child restrictions. | Fresh host proof that the intended identity reaches and obeys the guard. If its plan needs runner/config regions owned by S-16, serialize this change before Wave 6. |
+| 6 / S-19 | Review/verification decisions, manual-proof rules and archive-decision gate. | Include the audit's `BLOCKED` review with a critical finding: it must not become `action: done`. Pending proof and owner decisions remain explicit. |
+| 7 / S-17 | Terminal report/archive locations, publication intent, available usage and final skill handoff. | Resumed and archived runs retain the correct report/PR location and honest publication result. Reuse S-19's decision contract. |
+| 8 / S-20 | Versioned acceptance/support record and final-candidate evidence. | Qualify the combined candidate; fixes found here return to their owning changes and require fresh affected evidence. |
 
-Three guard Manual rows remain unticked in the archived plan. No checkbox or SHA suffix was changed during archive. Any further acceptance work belongs in a new change referencing the archive. [Guard PR CI](https://github.com/xycu/agent-smith/actions/runs/43668603868)
+The two audit cases attached to S-16 and S-19 are acceptance inputs to those existing slices, not extra changes or claims that their fixes have shipped.
 
-The combined Node 24 integration suite passed 1,621 tests out of 1,624, with zero failures and three expected skips. Combined main CI and release-commit CI both passed before publication. [Combined main CI](https://github.com/xycu/agent-smith/actions/runs/43702180293) · [Release-commit CI](https://github.com/xycu/agent-smith/actions/runs/43702743803)
+## Parked work and deferred scope
 
-## Older CI changes — verified and archived
+- **`quote-router-in-skill-loops` / [draft PR #186](https://github.com/xycu/agent-smith/pull/186):** remains parked. The skill rewrite prerequisite has merged, but installed-plugin substitution evidence and the owner's resume instruction are still needed. If resumed, update it against the post-Wave-0 skills and place it in its own slot before first-delivery or final qualification evidence that depends on paths with spaces. Do not run it beside another skill edit or silently count affected setup as supported. A blocked dependent flow stays blocked until the fix or an explicit scope decision is available.
+- **`production-readiness-assessment`:** completed research informs the plan; no new implementation is scheduled under this ID and its lifecycle metadata is not changed here.
+- **FR-017–FR-019:** savings/scorer experiments, broader onboarding and delivery-quality reporting stay deferred. The comparison-integrity bug fix belongs to Wave 1; it does not launch the deferred experiment program.
+- **Historical Manual rows:** retain their recorded state in the read-only archives. Relevant live-host and recovery obligations feed S-12–S-20; feature-specific opt-in acceptance remains deferred unless needed by the selected scope. No historical checkbox is closed by this ledger.
 
-Both changes were archived on 2026-11-15 after all nine previously pending rows received acceptance evidence. Existing Progress titles and historical SHA suffixes are preserved. Newly completed rows reference evidence commit `ff75956`. The original implementation reviews remain available alongside current acceptance addenda.
+## Milestone completion
 
-| Change | Archive | Verified acceptance |
-| --- | --- | --- |
-| `release-after-green-ci` | `context/archive/2026-11-12-release-after-green-ci/` | CI run 43657049140 failed on attempt 1 and passed on attempt 2. The corresponding Release run skipped after failure and ran after success. Controlled reruns proved a valid queued release survived an intervening skipped release and completed successfully. All three remaining Manual rows are complete. |
-| `ci-self-hosted-truenas` | `context/archive/2026-11-11-ci-self-hosted-truenas/` | Six TrueNAS runners are online, same-repository PR and main jobs passed on them, and the owner confirmed the host setup. Fork approval reads `all_external_contributors`, recorded in ADR-020. All six remaining rows are resolved. The conditional fork-live check is not applicable to the available PRs, with all eight runner-selection cases passing. |
+S-20 must retain three successful normal runs for each of the six agreed combinations: Claude-only on Claude Code, mixed Claude/OpenAI on Claude Code, and OpenAI-only on Codex, each on 10x and OpenSpec. Both interactive-session and headless top-level launches are represented within each combination's three runs: **18 normal runs total**.
 
-The focused release-gate, CI-runner and pin suites passed 39 tests. Actionlint and version check passed. Available fork PR count is zero across 177 PR records, so live fork execution remains unobserved. [Release acceptance](../archive/2026-11-12-release-after-green-ci/evidence/acceptance-2026-11-15.md) · [TrueNAS acceptance](../archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md)
+Each combination also carries interruption/resume and owner-decision evidence. Cover default execution, successful archive and requested PR comments across applicable configurations, plus the child-delegation contract. Preserve all attempts, failures, interventions, missing-proof reasons and exact tested versions. Earlier evidence counts only where it still matches the final candidate and configuration; changed behavior needs fresh qualifying evidence.
 
-## Parked follow-up (1)
-
-| Change | Draft PR | Current state |
-| --- | --- | --- |
-| `quote-router-in-skill-loops` | [#186](https://github.com/xycu/agent-smith/pull/186) | Parked at the owner's request. Planning and plan review completed. Implementation halted on missing installed-plugin substitution transcripts for both chains and the reviewed rewrite-integration prerequisite. The Wave 7 rewrite has since merged in #188. The draft description records the stop, and its branch and worktree remain retained. |
-
-## Changes outside the waves
-
-- `proper-structure-of-rules` merged and archived in PR #155. Its structural changes apply to all remaining ownership checks.
-- `openai-codex-support` merged and archived in PR #157. Manual acceptance rows 4.4–4.6 remain pending, and phase 4 lacks formal implementation-review coverage. PR #157 also added project Codex permissions.
+A green unit suite, a merged PR, or the successful first run does not replace this acceptance contract. M-2 closes when its nine roadmap slices are delivered and the combined candidate meets the [PRD acceptance scope](../foundation/prd.md#agreed-reliability-acceptance-scope).
