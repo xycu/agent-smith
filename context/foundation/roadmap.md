@@ -3,269 +3,267 @@ project: agent-smith
 version: 1
 status: draft
 created: 2026-10-30
-updated: 2026-11-02
-prd_version: 1
-main_goal: speed
-top_blocker: decisions
-milestone_id: cheaper-pipeline-routing
-milestone_seq: 1
-milestone_status: done
+updated: 2026-11-15
+prd_version: 2
+main_goal: quality
+top_blocker: external
+milestone_id: reliable-unattended-delivery
+milestone_seq: 2
+milestone_status: open
 ---
 
 # Roadmap: agent-smith
 
-> Derived from `context/foundation/prd.md` (v1) + a probed codebase baseline.
-> Edit-in-place; the next milestone continues this file. Archive only when an independent roadmap replaces it.
-> Slices below are listed in dependency order. The "At a glance" table is the index.
+> Derived from PRD v2, the owner's child-delegation requirement and the confirmed codebase baseline, with the stack assessment and health check as supporting evidence.
+> This successor milestone continues the existing roadmap in place.
+> Current slices are listed in dependency order. The At a glance table is the index.
 
 ## Milestone
 
-**M-1: Cheaper pipeline routing** — Status: done
+**M-2: Reliable unattended delivery across supported hosts** — Status: open
 
-- **Intent:** Show that the pipeline picks a cheaper model and effort for a simple change than for a complex one, and that a report makes the difference visible and comparable to a full Sonnet-5.5 high-effort run.
-- **Source materials:** `context/foundation/prd.md` (v1), with the Phase 1 scope of `docs/ADR/ADR-001-phased-complexity-routing.md`.
-- **Done when:** every F-NN and S-NN below is `done`.
-- **Scope anchors:** FR-001 to FR-005, FR-007 to FR-011, US-01, US-02. Left out of this milestone: FR-006 (OpenSpec), nice-to-have.
-- **Scope extension (2026-10-31):** S-11 pulls FR-011 (LLM-scored complexity on a cheap model) into this milestone, by owner decision. It was parked as Phase 2 of `docs/ADR/ADR-001-phased-complexity-routing.md`.
-- **Off-roadmap change (2026-11-02):** `release-packaging` (release-please pipeline, Semantic Versioning, CI and commit lint; ADR-008) was done as a change with no slice, because it serves the plugin's install story and not the usage-drop claim. Archived 2026-11-02 → `context/archive/2026-11-02-release-packaging/`.
-- **Scope extension (2026-10-30):** S-07 to S-10 add the optional lifecycle steps of `docs/ADR/ADR-002-change-lifecycle-ideation-to-archive.md` (diagrams 5, 6 and 7), gated by the rigor level from S-03 so they run only when worth their cost. Split from change `rigor-gated-routing`; shared research in `context/changes/rigor-levels/research.md`.
+- **Intent:** The user can start an authorized workflow, return to reviewable work or an actionable owner-decision halt, and inspect the exact tested configurations supporting that result. The specification-based workflow uses the agreed OpenSpec 2.0.0 upgrade. Pipeline steps gain child-subagent delegation with verified completion and recovery.
+- **Source materials:** [PRD v2](prd.md), [stack assessment](stack-assessment.md), [health check](health-check.md), the confirmed baseline, the owner's sequencing decisions and the explicit child-delegation request captured in MS-01.
+- **Done when:** every current slice S-12 through S-20 is done and the final candidate meets the full acceptance contract below.
+- **Scope anchors:** US-03 through US-06, FR-012 through FR-016 and FR-020. FR-001 through FR-011 remain preservation obligations, with FR-006 included as delivered workflow support. FR-017 through FR-019 are deferred follow-ups. MS-01 adds the owner's child-delegation requirement.
+  - MS-01 — Owner request on 2026-11-15. “Also in the roadmap include a change that will allow subagents to spawn child subagents. I think that this is one thing that severely decreases the performance of the pipeline.” S-14 delivers the capability and records comparative performance evidence.
+- **Acceptance:** all six host/provider/chain combinations complete three out of three normal live runs on the final candidate without manual steering, for 18 normal runs total. Interactive-session and headless top-level launches are both represented within each combination's three runs.
+- **Feature coverage:** default execution, archive and requested PR report comments across applicable configurations. Recovery and owner-decision checks accompany each configuration. Covering tests, commands or scripts qualify when browser tools are unavailable. Archive with pending checks requires explicit owner approval.
+- **Delegation coverage:** child work returns to the spawning step before completion, effective safety controls remain enforced, and recovery/result attribution cover the added delegation. Performance improvement requires measured evidence. S-14 establishes exact host/mode support before final qualification.
+- **Version evidence:** the support record names exact tested versions and configurations while retaining documented prerequisite floors. The prerequisite and version contract in the PRD governs candidate selection.
+- **Evidence integrity:** retain every attempted run, outcome, intervention and missing-evidence reason. Earlier proof contributes to final acceptance when it matches the final candidate and its recorded configuration. A behavior change requires fresh qualifying evidence for the final candidate before milestone closure.
 
 ## Vision recap
 
-Running the 10x chain on expensive models and effort levels uses too much of the owner's weekly Claude usage limit. agent-smith should choose a cheaper model and effort when a change is simple, keep reviews strict where a change is risky, and show per step what ran so the saving can be measured against a full Sonnet-5.5 high-effort run. Nobody uses it yet, and the owner plans to use it daily if it works.
+The owner wants to start an authorized workflow and let it finish without repeated steering. Delivered execution support still carries live-acceptance gaps around installation, prerequisite discovery, permissions, unattended invocation, delegation and completion. This milestone establishes supported unattended behavior and resolves failures exposed by the agreed live flows.
 
 ## North star
 
-**S-01: User can run the pipeline on a simple change and see it routed to a cheaper model and effort** — this is the claim behind the usage-drop goal, and speed favors proving it before anything else.
+The north star is the first complete user flow that provides direct evidence the milestone's intended behavior works.
 
-> The north star is the smallest end-to-end slice whose successful delivery would prove the core product claim, placed as early as its prerequisites allow, because everything else only matters if this works.
+**S-12: First unattended plan-based delivery** — the owner selected a Claude-only run reaching a reviewable pull request as the first end-to-end outcome. It exposes fresh-host readiness and new default-step guard delivery early.
 
 ## At a glance
 
-| ID   | Change ID                    | Outcome (user can …)                                                                  | Prerequisites | PRD refs                          | Status   |
-| ---- | ---------------------------- | ------------------------------------------------------------------------------------- | ------------- | --------------------------------- | -------- |
-| S-01 | cheaper-routing-simple-change | run the pipeline on a simple change and see it routed to a cheaper model and effort   | —             | US-02, FR-001, FR-003, FR-007, FR-008 | done     |
-| S-02 | per-step-usage-report        | see a report of which model and effort ran each step, before the change is archived   | —             | FR-004, FR-009                    | done     |
-| S-03 | rigor-levels                 | have each change get a rigor level, with lean changes skipping plan-review and changes on often-changed paths always getting both reviews | S-01          | US-01, FR-002, FR-003, FR-010     | done |
-| S-04 | (merged into S-03)           | —                                                                                     | —             | —                                 | merged   |
-| S-05 | pr-comment-report            | see the same report as a comment on the pull request                                  | S-02          | FR-005                            | done     |
-| S-06 | baseline-usage-comparison    | compare the usage of a routed run with a baseline run of the same change              | S-01, S-02    | FR-009                            | done     |
-| S-07 | pre-plan-steps               | have research, domain briefs and framing run before the plan only when the rigor level and signals call for them | S-03          | FR-001, FR-003, FR-007            | done |
-| S-08 | phase-executors              | have each plan phase run on the executor that fits it, with manual checks automated where possible | S-03, S-07    | FR-001, FR-003, FR-007            | done |
-| S-09 | archive-adapter              | have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in) | S-03          | FR-004, FR-008                    | done |
-| S-10 | lesson-candidates            | see lesson candidates from the impl-review in the report, with a ready `/10x-lesson` command | S-03, S-08    | FR-004                            | done |
-| S-11 | llm-complexity-scorer        | have change complexity scored by an LLM on a cheap model, with the scores stored with evidence and unknowns and used by the router | S-03, S-10    | FR-001, FR-003, FR-011            | done |
+| ID | Change ID | Outcome (user can …) | Prerequisites | PRD refs | Status |
+| --- | --- | --- | --- | --- | --- |
+| S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | — | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | ready |
+| S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | ready |
+| S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | S-12 | MS-01, US-03, US-05, FR-007, FR-014 | proposed |
+| S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-13, S-14 | US-04, FR-013 | proposed |
+| S-16 | resumable-unattended-runs | user can resume an interrupted run with preserved work, consistent progress and results matched to the correct invocation. | S-15 | US-05, FR-008, FR-014 | proposed |
+| S-17 | reviewable-run-handoff | user can locate completed work, its optional archive and its requested pull-request report with an accurate shared outcome. | S-16 | US-06, FR-004, FR-005, FR-008, FR-009, FR-015 | proposed |
+| S-18 | verified-step-protection | user can run steps with observed host-mediated safety checks and understand the effective protection of the selected configuration. | S-15 | US-04, FR-007, FR-013 | proposed |
+| S-19 | truthful-owner-decision-halts | user can see why a workflow needs their decision, inspect pending proof and explicitly approve archive when checks remain pending. | S-18 | US-06, FR-002, FR-010, FR-015 | proposed |
+| S-20 | supported-host-acceptance | user can inspect exact tested-version support backed by all 18 normal runs across the six agreed configurations and their recovery and owner-decision evidence. | S-17, S-19 | US-03, FR-012, FR-016 | proposed |
 
 ## Streams
 
-Navigation aid — groups items that share a Prerequisites chain. Canonical ordering still lives in the dependency graph below; this table is the proposed reading order across parallel tracks.
+These chains show the parallel reading order. The prerequisites in the item records govern sequencing.
 
-| Stream | Theme     | Chain                      | Note                                                                       |
-| ------ | --------- | -------------------------- | -------------------------------------------------------------------------- |
-| A      | Routing   | `S-01` → `S-03` → `S-07` → `S-08` → `S-10` → `S-11` | Speed: the routing claim and its rigor and risk guard come first; the optional steps follow one by one, because all of them edit `decide()` in `route.mjs`. |
-| C      | Archive   | `S-03` → `S-09`            | Branches off Stream A at `S-03`. Only the research and plan steps can overlap with `S-03`; implement waits for `S-03` to merge, because both edit `route.mjs`. |
-| B      | Reporting | `S-02` → `S-05` → `S-06`   | Joins Stream A at `S-01` (`S-06` needs both); shows what ran and the saving. |
+| Stream | Theme | Chain | Note |
+| --- | --- | --- | --- |
+| A | First delivery, recovery and handoff | S-12 → S-14 → S-15 → S-16 → S-17 → S-20 | S-15 joins the upgrade stream, and S-20 joins the protection/decision stream. |
+| B | Specification workflow upgrade | S-13 | Can be planned alongside the first delivery, then alongside child delegation. Joins Stream A at S-15. |
+| C | Effective protection and owner decisions | S-18 → S-19 | Starts after S-15 and can proceed alongside recovery/handoff, then joins Stream A at S-20. |
 
 ## Baseline
 
-What's already in place in the codebase as of `2026-10-30` (probed and user-confirmed).
-No Foundation below re-scaffolds a layer the baseline reports as present.
+The owner confirmed this baseline after parallel source probes on 2026-11-15. Source inspection used revision `8a3ba5929b891aa5fac9f79c2c339b43539d44a8`. Existing capability supplies the starting point for the slices below.
 
-- **Frontend:** absent — no UI; the product is a plugin.
-- **Backend / API:** partial — no server; a command-line router script exists under `skills/10x-pipeline/scripts/`.
-- **Data:** partial — no database; run state is kept as files under `context/changes/<change-id>/agent-smith/`.
-- **Auth:** absent — the PRD needs none.
-- **Deploy / infra:** partial — plugin and marketplace manifests in `.claude-plugin/`; no CI and no container setup.
-- **Observability:** absent — no logging or error tracking beyond the step log. No automated tests exist.
+- **Frontend:** absent. Host-provided commands and skill selection supply interaction for the product. [Entry points](../../README.md)
+- **Backend / API:** present as CLI execution. The deterministic router, both chains and provider dispatch are implemented. Complete live host acceptance is partial. [Router](../../skills/10x-pipeline/scripts/route.mjs) · [Host runner](../../skills/10x-pipeline/scripts/run-codex.mjs)
+- **Data:** present as file-based run state, reports, locking and recoverable result intake. Both-chain and both-transport crash regressions exist. Real-host recovery evidence is partial. [State](../../skills/10x-pipeline/scripts/state.mjs) · [Result recovery](../../skills/10x-pipeline/scripts/flow.mjs) · [Recovery tests](../../skills/10x-pipeline/test/result-persist.test.mjs)
+- **Auth:** partial as host-provided credentials, trust and permission controls. Application authentication is absent and outside the source scope. Selected real-host permission behavior and guarded-step delivery need live evidence. [Host requirements](../../docs/REFERENCE.md) · [Shipped hook](../../hooks/hooks.json)
+- **Deploy / infra:** present for plugin packaging, CI and releases, including recorded runner/release acceptance. Fresh installation/discovery is partial. CI and generated integration instructions still use the earlier specification-tool version. [Manifest](../../.claude-plugin/plugin.json) · [CI](../../.github/workflows/ci.yml) · [Runner acceptance](../archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md) · [Release acceptance](../archive/2026-11-12-release-after-green-ci/evidence/acceptance-2026-11-15.md)
+- **Observability:** present as per-step logs, status, reports, usage coverage, diagnostics and automated contract tests. The six-configuration live support record remains incomplete. [Reports](../../skills/10x-pipeline/scripts/flow.mjs) · [Test index](../../skills/10x-pipeline/test/README.md) · [Current health evidence](health-check.md)
+
+The sequencing goal is quality, grounded in the PRD's three-out-of-three unattended-completion target. Host access and environment readiness are the owner-selected main constraint. Execution and live verification receive the deepest attention. Presentation and file-state work use the established product patterns. Recorded lessons guide cross-chain ownership, truthful verdicts, invocation attribution and synchronized behavior documentation. S-14 revisits the delivered flat-delegation restriction with new live evidence. [Lessons](lessons.md)
+
+The delivered contract forbids nested subagents and applies a project-level depth cap. Historical runs lost child hand-backs and rolled back completed work. Current documented host behavior differs across interactive and headless modes. The owner now requests child delegation in S-14, and its performance effect remains unmeasured. This scope addition supersedes flat delegation as the target for that change. The PRD's current-system description still records the delivered baseline. [Delegation decision](../../docs/ADR/ADR-018-no-nested-subagents.md)
 
 ## Foundations
 
-None. The baseline gaps (no UI, no auth, no CI, no tests, no usage figures) are not prerequisites for any slice: each slice can be planned and checked by running the router against a scratch change folder, and the policy override file already allows a baseline run configuration. A Foundation is added only if a slice turns out to be unplannable or unverifiable without one.
+None. Existing execution, state, tests and reporting support the first user-visible flow. S-12 introduces the minimum reusable evidence convention inside that flow, and later slices extend it as required by their own outcomes.
 
 ## Slices
 
-### S-01: Cheaper routing for a simple change
+Slice numbering continues after M-1's S-11 so prior Done entries retain their meaning. Each new Change ID has been checked against existing live and archived change names. Preservation anchors identify behavior exercised by that flow. MS-01 records the owner's explicit addition to the PRD-derived scope.
 
-- **Outcome:** user can run the pipeline on a simple change and see its steps routed to a cheaper model and effort than a complex change gets.
-- **Change ID:** cheaper-routing-simple-change
-- **PRD refs:** US-02, FR-001, FR-003, FR-007, FR-008
+### S-12: First unattended plan-based delivery
+
+- **Outcome:** user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request.
+- **Change ID:** first-unattended-delivery
+- **PRD refs:** US-03, FR-001, FR-003, FR-007, FR-011, FR-012
 - **Prerequisites:** —
-- **Parallel with:** S-02, S-05
-- **Blockers:** —
+- **Parallel with:** S-13
+- **Blockers:** Authenticated host/model access, project trust and review-remote credentials are needed for live execution. Owner readiness is checked early in this slice.
 - **Unknowns:**
-  - Which signals and thresholds count as "simple" (phase count, files changed, review verdicts, failures)? ADR-001 Phase 1 lists the signals; the thresholds are open. — Owner: user. Block: no.
-  - Does Phase 1 really need no scorer (PRD Open Question 3 and 6)? — Owner: user. Block: no.
-- **Risk:** This is the claim behind the whole goal, so it goes first. A change misjudged as simple fails on a cheap tier and costs more; per-failure escalation, which already exists, is the safety net.
-- **Status:** done
+  - Which eligible change and exact host configuration provide the first representative run? — Owner: maintainer with the user. Block: no, select during planning.
+  - Which fresh-session discovery or guard-delivery problems appear on the normal path? — Owner: maintainer. Block: no, establish through the first live proof.
+- **Risk:** Fresh-host setup can invalidate a normal workflow despite passing automated contracts, so this flow exposes that dependency first.
+- **Status:** ready
 
-### S-02: Per-step usage report
+### S-13: Complete the specification-based workflow on OpenSpec 2.0.0
 
-- **Outcome:** user can see, for a finished run, a report of which model and effort ran each step, with usage figures where readable, written before the change is archived.
-- **Change ID:** per-step-usage-report
-- **PRD refs:** FR-004, FR-009
+- **Outcome:** user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions.
+- **Change ID:** openspec-2-upgrade
+- **PRD refs:** US-03, FR-006, FR-008, FR-020
 - **Prerequisites:** —
-- **Parallel with:** S-01, S-03
-- **Blockers:** —
+- **Parallel with:** S-12, S-14
+- **Blockers:** Live execution needs the selected host/model access and trusted acceptance project.
 - **Unknowns:**
-  - Where can token or cost figures be read from (PRD Open Question 4)? Resolved 2026-10-30: the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. — Owner: user. Block: no.
-  - Which moment counts as "before archive", given the 10x toolkit cannot be changed? Resolved 2026-10-30: the router writes `agent-smith/report.md` when a run ends (done or halt). — Owner: user. Block: no.
-- **Risk:** The usage figures may not be readable, leaving the report with model and effort only. It is still useful for the baseline comparison, so it goes early.
-- **Status:** done
+  - Which upstream changes and project-specific integration adaptations affect compatibility? — Owner: maintainer. Block: no, investigate before upgrade edits.
+  - Which existing project inputs or saved runs require compatibility evidence? — Owner: maintainer. Block: no while preserving existing contracts. An incompatible contract change requires the owner's decision.
+- **Risk:** Upgrading the tool while retaining mismatched integration instructions can make the workflow fail after setup.
+- **Status:** ready
 
-### S-03: Rigor levels and risk-gated review
+### S-14: Pipeline steps can delegate to child subagents
 
-- **Outcome:** user can have each change get a rigor level (`lean`, `standard`, `thorough`) that only rises during a run. A `lean` change skips plan-review. A change that touches often-changed paths always gets plan-review and implementation review. The report shows every skipped step with its reason.
-- **Change ID:** rigor-levels
-- **PRD refs:** US-01, FR-002, FR-003, FR-010
-- **Prerequisites:** S-01
-- **Parallel with:** S-02, S-05, S-06
-- **Blockers:** —
+- **Outcome:** user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes.
+- **Change ID:** nested-step-delegation
+- **PRD refs:** MS-01, US-03, US-05, FR-007, FR-014
+- **Prerequisites:** S-12
+- **Parallel with:** S-13
+- **Blockers:** Live proof needs host capabilities, effective permissions and account access that permit child delegation.
 - **Unknowns:**
-  - Which path rules define elevated risk (PRD Open Question 11)? Resolved 2026-10-30: paths that change often, measured from git history; the proposed parameters are in the change's research (Follow-up 2) and live in `policy.json`. — Owner: user. Block: no.
-  - What counts as a clean plan (Roadmap Question 12)? Resolved 2026-10-30: the owner decided that `lean` skips plan-review; elevated risk never runs at `lean`. — Owner: user. Block: no.
-  - What does a halt look like in an unattended run? Resolved 2026-10-30: a subagent that cannot make an evidence-backed call reports `blocked` with `signals.needsHuman`, and the router halts. — Owner: user. Block: no.
-  - Are the churn thresholds right? Uncalibrated until real runs exist (S-06). — Owner: user. Block: no.
-- **Risk:** Churn can miss a risky file that rarely changes and flag a harmless busy one. Absorbs former S-04 (plan-review skip on a clean plan), which is why FR-002 moves here.
-- **Status:** done
+  - Which supported host and launch modes can reliably await children and return their results to the spawning step? — Owner: maintainer. Block: no for planning, establish capability evidence before selecting the implementation. A capability gap affecting the agreed configurations requires an owner scope decision.
+  - Which effective delegation controls and inherited step restrictions must change together to permit safe child work? — Owner: maintainer. Block: no, investigate the delivered restriction and preserve its recovery and attribution protections.
+  - Does child delegation improve representative pipeline performance after accounting for child usage, coordination and retries? — Owner: maintainer. Block: no for enabling the capability, measure against the first completed flow before making a performance claim.
+- **Acceptance:**
+  - Demonstrate a step spawning children, collecting their results and completing through the normal entry points of both chains. Record exact host versions and interactive/headless behavior for each applicable host/provider configuration.
+  - Demonstrate that child, late and foreign notifications cannot complete the enclosing step or advance the router prematurely. Keep child work and available usage attributable to the enclosing invocation.
+  - Exercise child failure, interruption/resume and late completion with recoverable work and consistent progress. Verify effective child permissions and applicable step safety controls.
+  - Record representative elapsed time, completion quality, interventions and available usage before and after enabling delegation, retaining overhead and failures. Performance improvement is an outcome to evaluate.
+- **Risk:** A host can deliver a child's completion to the top session while its spawning step finishes early, recreating the historical result-loss and rollback failure.
+- **Status:** proposed
 
-### S-04: Skip plan-review on a clean plan (merged into S-03)
+### S-15: Actionable prerequisite and permission failures
 
-- **Outcome:** merged into S-03 on 2026-10-30. The owner decided that a `lean` change skips plan-review, which replaces the "clean plan" definition this slice was blocked on.
-- **Change ID:** — (covered by `rigor-levels`)
-- **Status:** merged
-
-### S-05: PR comment report
-
-- **Outcome:** user can see the same report as a comment on the pull request, skipped when no pull request exists.
-- **Change ID:** pr-comment-report
-- **PRD refs:** FR-005
-- **Prerequisites:** S-02
-- **Parallel with:** S-01, S-03, S-06, S-07, S-08, S-09, S-10
-- **Blockers:** —
+- **Outcome:** user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration.
+- **Change ID:** actionable-run-prerequisites
+- **PRD refs:** US-04, FR-013
+- **Prerequisites:** S-13, S-14
+- **Parallel with:** —
+- **Blockers:** Owner-controlled account access, project trust or environment policy may need correction when a probe identifies an unavailable prerequisite.
 - **Unknowns:**
-  - Can the pipeline reach the pull request when it finishes (access and tooling)? — Owner: user. Block: no.
-- **Risk:** It depends on tooling outside the plugin. The report file is always written, so a missing pull request only skips the comment.
-- **Status:** done
+  - Which missing-tool, discovery, trust and permission cases remain unclear across the agreed configurations? — Owner: maintainer. Block: no, derive from the delivered entry points and first-run evidence.
+- **Risk:** A generic diagnostic can hide the actual setup dependency and cause repeated manual intervention.
+- **Status:** proposed
 
-### S-06: Baseline usage comparison
+### S-16: Resume an interrupted unattended run
 
-- **Outcome:** user can compare the total usage of a routed run against a baseline run of the same change (a full run on Sonnet-5.5 at high effort).
-- **Change ID:** baseline-usage-comparison
-- **PRD refs:** FR-009
-- **Prerequisites:** S-01, S-02
-- **Parallel with:** S-03, S-05, S-07, S-08, S-09, S-10
-- **Blockers:** —
+- **Outcome:** user can resume an interrupted run with preserved work, consistent progress and results matched to the correct invocation.
+- **Change ID:** resumable-unattended-runs
+- **PRD refs:** US-05, FR-008, FR-014
+- **Prerequisites:** S-15
+- **Parallel with:** S-18, S-19
+- **Blockers:** The selected live execution environments must be available for interruption and recovery checks.
 - **Unknowns:**
-  - What usage drop counts as success (PRD Open Question 1)? — Owner: user. Block: no.
-  - How are two runs of the same change made comparable? — Owner: user. Block: no.
-- **Risk:** With at most dozens of runs the comparison is noisy and may not show a real saving. It goes last because it needs both routing and the report.
-- **Status:** done
+  - Which saved-run variants need coverage for the selected environments? — Owner: maintainer. Block: no, inventory before any dependent change.
+  - Which interruption points expose a remaining gap beyond the delivered recovery regressions? — Owner: maintainer. Block: no, verify the real flow and fix observed failures.
+- **Risk:** An interruption can leave accepted work and pending execution out of agreement, so recovery precedes terminal handoff acceptance.
+- **Status:** proposed
 
-### S-07: Rigor-gated pre-plan steps
+### S-17: Reviewable completion, archive and report handoff
 
-- **Outcome:** user can have `/10x-research`, legacy research (when a repo map exists), a domain brief and `/10x-frame` run before the plan only when the rigor level and the subagent signals call for them, and have a plan-review RETHINK or a repeated REVISE loop back to frame or research.
-- **Change ID:** pre-plan-steps
-- **PRD refs:** FR-001, FR-003, FR-007
-- **Prerequisites:** S-03
-- **Parallel with:** S-05, S-06
-- **Blockers:** —
+- **Outcome:** user can locate completed work, its optional archive and its requested pull-request report with an accurate shared outcome.
+- **Change ID:** reviewable-run-handoff
+- **PRD refs:** US-06, FR-004, FR-005, FR-008, FR-009, FR-015
+- **Prerequisites:** S-16
+- **Parallel with:** S-18, S-19
+- **Blockers:** A usable review remote and authenticated report-publication access are needed for live evidence.
 - **Unknowns:**
-  - Which predicate decides that a domain rule is scattered or a dependency leaks? The research found a status column for invariants but no structured signal for leaking dependencies. — Owner: user. Block: no.
-  - Does `/10x-frame` stay usable unattended with only a prompt-level decision guide, given its four ask points? — Owner: user. Block: no.
-- **Risk:** Frame and the legacy prompts were built for a human. A weak decision guide makes them guess, so the needs-human halt is the safety net.
-- **Status:** done
+  - Which terminal or resumed paths still lose the correct report location, publication intent or available usage? — Owner: maintainer. Block: no, verify against the existing terminal contracts.
+- **Risk:** Archiving moves run artifacts and can break the final report handoff unless the complete terminal flow is exercised.
+- **Status:** proposed
 
-### S-08: Per-phase executors
+### S-18: Effective step protection in the supported environment
 
-- **Outcome:** user can have each plan phase run on `/10x-e2e`, `/10x-tdd` or `/10x-goal-implement` as it fits, with a blocked tdd or e2e run falling back to goal-implement, repeated failures and a REJECTED review re-planning, and manual checks automated (with Claude-in-Chrome where it helps) and backed by evidence.
-- **Change ID:** phase-executors
-- **PRD refs:** FR-001, FR-003, FR-007
-- **Prerequisites:** S-03, S-07
-- **Parallel with:** S-05, S-06
-- **Blockers:** —
+- **Outcome:** user can run steps with observed host-mediated safety checks and understand the effective protection of the selected configuration.
+- **Change ID:** verified-step-protection
+- **PRD refs:** US-04, FR-007, FR-013
+- **Prerequisites:** S-15
+- **Parallel with:** S-16, S-17
+- **Blockers:** Fresh host sessions with the required capabilities and effective permission settings are needed for live protection evidence.
 - **Unknowns:**
-  - How does the router tell real work from a tdd or e2e "Skip" that ticks rows with no commit? The research proposes a commit or SHA check. — Owner: user. Block: no.
-  - Can a subagent reliably load the Claude-in-Chrome tools? Not tested. — Owner: user. Block: no.
-- **Risk:** tdd and e2e have many interactive pauses and cannot be limited to one phase except by prompt. An agent ticking manual rows certifies its own work, so every ticked row needs evidence.
-- **Status:** done
+  - Does the selected host deliver the expected step identity and enforce the documented checks? — Owner: maintainer with the user. Block: no, this is the slice's verification work.
+  - Which host-policy restrictions need owner action to make an agreed configuration usable? — Owner: user, informed by maintainer evidence. Block: no for planning.
+- **Risk:** Installed guard configuration can appear usable while effective host settings prevent its intended delivery.
+- **Status:** proposed
 
-### S-09: Archive adapter
+### S-19: Truthful verification and owner-decision halts
 
-- **Outcome:** user can have a finished run commit the change folder and archive the change through `/10x-archive` (opt-in), with a read-only check that the archive succeeded. Split from the former S-09 on 2026-10-30: it needs only S-03, so it can start before S-07 and S-08.
-- **Change ID:** archive-adapter
-- **PRD refs:** FR-004, FR-008
-- **Prerequisites:** S-03
-- **Parallel with:** S-05, S-06, S-07, S-08
-- **Blockers:** —
+- **Outcome:** user can see why a workflow needs their decision, inspect pending proof and explicitly approve archive when checks remain pending.
+- **Change ID:** truthful-owner-decision-halts
+- **PRD refs:** US-06, FR-002, FR-010, FR-015
+- **Prerequisites:** S-18
+- **Parallel with:** S-16, S-17
+- **Blockers:** An available owner decision is needed to demonstrate the explicit archive-approval path.
 - **Unknowns:**
-  - None blocking. The adapter design is accepted in the research (Follow-up 1). — Owner: user. Block: no.
-- **Risk:** It is the router's first git write, and archive moves the run state out of reach, so nothing may write after the move. Its implement step edits `endRun` in `route.mjs`, so it waits for S-03 to merge.
-- **Status:** done
+  - Which live planning, review and verification paths fail to preserve an unresolved owner decision or truthful proof state? — Owner: maintainer. Block: no, exercise the delivered decision paths.
+- **Risk:** An inaccurate verification state can allow a terminal action before the owner has made the required decision.
+- **Status:** proposed
 
-### S-10: Lesson candidates in the report
+### S-20: Recorded support across all agreed configurations
 
-- **Outcome:** user can see lesson candidates from the impl-review in `report.md`, each with a ready `/10x-lesson <seed>` command.
-- **Change ID:** lesson-candidates
-- **PRD refs:** FR-004
-- **Prerequisites:** S-03, S-08
-- **Parallel with:** S-05, S-06, S-09
-- **Blockers:** —
+- **Outcome:** user can inspect exact tested-version support backed by all 18 normal runs across the six agreed configurations and their recovery and owner-decision evidence.
+- **Change ID:** supported-host-acceptance
+- **PRD refs:** US-03, FR-012, FR-016
+- **Prerequisites:** S-17, S-19
+- **Parallel with:** —
+- **Blockers:** All agreed host/model accounts, trusted acceptance projects, review remotes and owner-required decisions must be available for live execution.
 - **Unknowns:**
-  - Which lesson candidates does the impl-review report, given that it has no lesson-candidate section? The research proposes carrying them in RESULT `signals`. — Owner: user. Block: no.
-- **Risk:** The signal rides on the subagent's reply, so a weak prompt yields noise. `/10x-lesson` is interactive and is never run unattended.
-- **Status:** done
-
-### S-11: LLM complexity scorer
-
-- **Outcome:** user can have the complexity of a change scored by an LLM on a cheap model, with the scores stored with evidence and unknowns in a machine-readable file, and have the router use them next to the deterministic signals.
-- **Change ID:** llm-complexity-scorer
-- **PRD refs:** FR-001, FR-003, FR-011
-- **Prerequisites:** S-03, S-10
-- **Parallel with:** S-05, S-06
-- **Blockers:** — (ADR-007 accepted 2026-10-31: the scorer is a `score` step in a cheap-model subagent that the router schedules; the router stays a script.) S-10 must merge first.
-- **Unknowns:**
-  - Where does the scorer run? Resolved 2026-10-31 by ADR-007: an orchestrator-run subagent step that the router schedules. — Owner: user. Block: no.
-  - Which artifacts does the scorer read, and which scale does it use (ADR-001 sketches four factors, each 0 to 3)? — Owner: user. Block: no.
-  - Does the scorer's own token cost eat the saving? It counts toward the `compare` totals. — Owner: user. Block: no.
-- **Risk:** The scorer spends tokens on every change, including the simple ones it should make cheaper. S-06's `compare` is the check. It edits `decide()` and the `signals` parsing in `route.mjs`, so it waits for S-10 to merge.
-- **Status:** done
+  - Which exact candidate versions and representative run assignment cover both launch modes and selected features in each configuration? — Owner: maintainer with the user. Block: no, fix the assignment before qualification runs.
+  - Does every retained qualifying result match the final candidate and the agreed acceptance conditions? — Owner: maintainer. Block: no, verification is this slice's outcome.
+- **Risk:** Evidence from an earlier candidate can overstate current support after later behavior changes.
+- **Status:** proposed
 
 ## Backlog Handoff
 
-| Roadmap ID | Change ID                      | Suggested issue title                                   | Ready for `/10x-plan` | Notes                                   |
-| ---------- | ------------------------------ | ------------------------------------------------------- | --------------------- | --------------------------------------- |
-| S-01       | cheaper-routing-simple-change  | Route simple changes to a cheaper model and effort      | done                  | Archived 2026-10-30                     |
-| S-02       | per-step-usage-report          | Report model and effort per pipeline step               | done                  | Archived 2026-10-30                     |
-| S-03       | rigor-levels                   | Rigor levels, churn risk and plan-review skip at lean   | done                  | Archived 2026-10-30                     |
-| S-04       | —                              | (merged into S-03)                                      | —                     | Merged 2026-10-30                       |
-| S-05       | pr-comment-report              | Post the usage report as a pull request comment         | done                  | Archived 2026-10-31                     |
-| S-06       | baseline-usage-comparison      | Compare a routed run with a baseline run                | done                  | Archived 2026-10-31; target drop set to 30% (Open Question 1) |
-| S-07       | pre-plan-steps                 | Gate research, domain briefs and framing by rigor       | done                  | Archived 2026-10-31                     |
-| S-08       | phase-executors                | Route each plan phase to its executor                   | done                  | Archived 2026-10-31                     |
-| S-09       | archive-adapter                | Archive a finished run through the 10x-archive adapter  | done                  | Archived 2026-10-30                     |
-| S-10       | lesson-candidates              | Lesson candidates in the report                         | done                  | Archived 2026-11-01                     |
-| S-11       | llm-complexity-scorer          | Score change complexity with an LLM on a cheap model    | done                  | Archived 2026-11-02; scorer A/B check still pending (ADR-007 "A/B result") |
+| Roadmap ID | Change ID | Suggested issue title | Ready for `/10x-plan` | Notes |
+| --- | --- | --- | --- | --- |
+| S-12 | first-unattended-delivery | First unattended plan-based delivery | yes | Selected first outcome. Establish reusable run/evidence conventions inside this flow. |
+| S-13 | openspec-2-upgrade | Complete the specification-based workflow on OpenSpec 2.0.0 | yes | Separate upgrade change agreed by the owner. Can be planned alongside S-12. |
+| S-14 | nested-step-delegation | Pipeline steps can delegate to child subagents | no | Explicit owner addition MS-01. Uses S-12 as the first live baseline, then feeds recovery and protection acceptance. |
+| S-15 | actionable-run-prerequisites | Actionable prerequisite and permission failures | no | Uses the upgraded specification workflow and child-delegation capability as concrete setup cases. |
+| S-16 | resumable-unattended-runs | Resume an interrupted unattended run | no | Reuses the delivered recovery implementation and existing regression evidence. |
+| S-17 | reviewable-run-handoff | Reviewable completion, archive and report handoff | no | Covers the owner's default-workflow, archive and requested-comment acceptance scope. |
+| S-18 | verified-step-protection | Effective step protection in the supported environment | no | Verifies effective provider-specific protection, including child delegation. |
+| S-19 | truthful-owner-decision-halts | Truthful verification and owner-decision halts | no | Includes accepted alternative proof when browser tools are unavailable and clear headless halt guidance. |
+| S-20 | supported-host-acceptance | Recorded support across all agreed configurations | no | Three normal completions per combination. Include child-delegation capability evidence and retain attempts, failures, interventions and coverage. |
+
+Readiness here means per-change planning can proceed. The owner-controlled access listed under Blockers must be available for the corresponding live execution. S-12 probes that readiness early. Existing implementations and contract evidence are reused while each slice resolves its observed live gaps.
 
 ## Open Roadmap Questions
 
-1. **What usage drop counts as success?** — Resolved 2026-10-31: 30% in raw tokens against the Sonnet-5.5 high-effort baseline, provisional until at least 5 comparable pairs exist. To make `compare` use it, set `compare.targetDropPercent` to 30 in `context/foundation/agent-smith-policy.json`. Owner: user. Block: none.
-2. **What does "a dep for other models" mean?** — Resolved 2026-10-31: other projects install the plugin. The `/agent-smith:10x-pipeline` command, the policy override file and the `run.jsonl` and `report.md` formats stay stable. Owner: user. Block: none.
-3. **Which artifacts does the router score, and who produces the score?** — Resolved 2026-10-31: an LLM scorer is built in this milestone as S-11. Which artifacts it reads and who produces the score are settled in S-11's research, within ADR-007. Owner: user. Block: S-11.
-4. **Is usage or cost data available to the router, and from where?** — Answered by S-02 (2026-10-30): the orchestrator copies the Agent result's usage (total tokens, tool uses, duration) into the step result and the router stores it. Cost figures are not available. Not yet confirmed on a foreground Agent result: the real-run evidence for S-02 row 3.6 was archived unfilled. Decided 2026-10-31: verify on the next real run (S-10), then mark resolved. Owner: user. Block: none.
-5. **Is OpenSpec (FR-006) out of scope for this delivery?** — Resolved 2026-10-31: yes, it stays parked. Owner: user. Block: none.
-6. **Does the router become an LLM-run step on a cheap model, or stay a script?** — Resolved 2026-10-31: the owner chose a cheap-model LLM step. ADR-007 (accepted 2026-10-31) settles it as a scorer step that the router schedules; the router stays a script, so `AGENTS.md` and ADR-006 need no change. Owner: user. Block: none.
-7. **What are the expected target_scale.qps and target_scale.data_volume?** — Resolved 2026-10-31: qps 0 (one sequential run at a time); a few KB per run; hundreds of runs across a small team. Owner: user. Block: none.
-8. **Why now, and what is the current workaround and its cost?** — Resolved 2026-10-31: the weekly Claude usage limit runs out. The workaround is running every 10x step by hand on a fixed expensive model and effort. Owner: user. Block: none.
-9. **Confirm two assumptions.** — Resolved 2026-10-31: both confirmed (the change modifies the existing routing rule; there is no existing run data to carry over). Owner: user. Block: none.
-10. **Confirm the priorities of FR-009 to FR-011.** — Resolved 2026-10-31: FR-009 and FR-010 stay must-have (built). FR-011 moves to must-have and into M-1 as S-11. Owner: user. Block: none.
-11. **Which path rules and levels define elevated risk, and what does the pipeline do at the highest level?** — ADR-001 says the pipeline halts for a human, because subagents cannot ask questions. Resolved 2026-10-30: elevated risk = paths that change often in git history; the halt is a `needsHuman` signal from the subagent. Owner: user. Block: none.
-12. **What counts as a "clean" plan in Phase 1?** — FR-002 skips plan-review only on a clean result, but Phase 1 has no scorer. Resolved 2026-10-30: the owner decided that a `lean` change skips plan-review; S-04 merged into S-03. Owner: user. Block: none.
+Entries 1–11 reproduce the PRD decision and evidence register verbatim. Their recorded resolution and deferral states apply. Entry 12 captures the owner-selected execution constraint. MS-01 supersedes entry 6's flat-delegation acceptance target for S-14. Entry 13 records the added capability evidence.
+
+1. **Which configurations carry a v2 support commitment?** Planning decisions resolved by the owner on 2026-11-15. All three delivered configurations receive live acceptance across both chains, establishing six combinations as listed in Current System Overview. Both interactive-session and headless-CLI top-level launches are represented within each combination's three normal runs, retaining the 18-run total. Certify exact tested versions while retaining documented prerequisite floors. Initial coverage includes the default workflow, archive and requested report comments across applicable configurations. Further feature-specific opt-in acceptance is deferred. Owner: user for scope, maintainer for the certification record. Block: scope resolved, certification evidence due at milestone acceptance.
+2. **What measurable reliability outcome proves the goal?** Target resolved by the owner on 2026-11-15. Require three out of three normal live runs to complete without manual steering in each of six configurations on the final candidate revision, for 18 normal runs total, with both agreed launch modes represented within each configuration's three runs. Each configuration also exercises interruption/resume and owner-decision halt behavior. Collect current completion/intervention rates, hands-on time and representative-change evidence during the milestone, retaining attempted runs and their outcomes. Owner: maintainer for evidence, user for acceptance. By: milestone acceptance. Block: evidence required before declaring the target achieved.
+3. **Which proposed requirements are must-have next?** Resolved by the owner on 2026-11-15. The milestone includes reliability across all six combinations and the specification-tool upgrade, making FR-012 through FR-016 and FR-020 must-have. FR-017 savings/scorer experiments, FR-018 broader onboarding and FR-019 delivery-quality reporting are deferred follow-ups. Owner: user. Block: resolved.
+4. **Does the original timeline and scale still apply?** Delivery budget resolved by the owner on 2026-11-15. Work is after-hours with no fixed delivery window or hard deadline, replacing the original three-week assumption. The prior target of dozens to a hundred potential users and hundreds of runs still needs reconfirmation, and current active-user count is unknown. Owner: user for target scale, maintainer for observed usage. By: before a scale-dependent design decision. Block: conditional on such a decision.
+5. **Which existing runs must reliability changes support?** Inventory saved/in-flight runs and establish compatibility and recovery behavior before changing their contracts. Owner: maintainer with user confirmation. By: before a state-contract change. Block: conditional on such changes.
+6. **Which unattended paths are live-accepted?** Retain evidence for clean installation, discovery in fresh execution contexts, normal completion, interruption/resume, effective permissions, flat delegation and terminal review handling. Existing documentation records outstanding checks. Owner: maintainer, with user authorization where required. By: before each corresponding support claim. Block: yes for that claim.
+7. **Which manual-verification capabilities must each configuration provide?** Resolved by the owner on 2026-11-15. Covering tests, commands or scripts are accepted when browser tools are unavailable. Checks lacking qualifying proof remain pending, and archive with pending checks requires explicit owner approval. Owner: user. Block: resolved.
+8. **What baseline and aggregation prove the original 30% target?** Decide whether the historical baseline named in Current System Overview remains suitable, how changes are selected and how at least five comparable pairs are summarized. Retain the original target until an explicit replacement decision. Owner: user. By: before savings experiments. Block: yes for a product-wide savings verdict.
+9. **What is the scorer experiment's final result?** Its established rule requires at least five comparable pairs and an A/A control. Record results and the keep-or-disable decision, including inconclusive outcomes. Owner: user, with maintainer measurement. By: before claiming the scorer earns its cost. Block: yes for that claim.
+10. **How complete is end-to-end usage accounting?** Confirm foreground and late usage on supported hosts, coverage of orchestration and optional advisory work, and limits of monetary estimates and raw-token comparisons across providers. Owner: maintainer. By: before usage/cost claims. Block: yes for claims requiring complete coverage.
+11. **What delivery-quality guardrail is acceptable?** Confirm first-pass acceptance, retry and human-correction definitions and thresholds before using savings to change routing policy. Owner: user. By: before such changes. Block: conditional on those changes.
+
+12. **Which acceptance environments and accounts are ready for live execution?** Establish authenticated host/model access, trusted projects and review-remote access for the agreed combinations, then record the exact exercised versions and capability state. Owner: user with maintainer verification. Block: live execution of S-12 through S-20 where the corresponding external prerequisite is unavailable. Per-change planning can proceed.
+
+13. **Which configurations support reliable child delegation?** Establish exact tested host versions, launch modes, effective child permissions, completion delivery and recovery before broadening support claims. The owner selected the capability through MS-01. Any limitation affecting the six agreed configurations needs an explicit scope resolution before qualification. Owner: maintainer for evidence, user for any scope decision. Block: affected implementation and support claims in S-14 and S-20 until the host behavior is established. Planning can proceed.
 
 ## Parked
 
-- **Changing or forking the 10x toolkit skills, or OpenSpec** — Why parked: PRD Non-Goals; agent-smith is an add-on and never edits them.
-- **OpenSpec chain through a second pipeline skill (FR-006)** — Why parked: nice-to-have, built after dynamic routing works; speed favors the must-have path.
-- **Splitting model and effort into separate choices** — Why parked: ADR-001 keeps the single ladder until measurements show their effects separately.
+- **Savings and scorer experiments, FR-017.** Deferred by the owner's selected milestone scope. The original savings obligation and scorer decision rule remain pending for follow-up validation.
+- **Broader onboarding, FR-018.** Deferred beyond this milestone. Actionable prerequisite diagnostics remain in S-15.
+- **Delivery-quality reporting, FR-019.** Deferred beyond this milestone. Current acceptance still records run outcomes and interventions.
+- **Further feature-specific opt-in acceptance.** The owner selected default execution, archive and requested report comments for initial coverage.
+- **Splitting model and effort into independent choices.** The PRD retains the measurement-dependent deferral.
+- **Broader workflow expansion and a new routing algorithm.** The PRD requires a separate scope decision supported by evidence.
+- **Replacing or forking upstream toolkits.** The product retains its established add-on boundary.
 
 ## Milestone History
 
