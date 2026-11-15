@@ -1,10 +1,10 @@
 ---
 change_id: ci-self-hosted-truenas
 title: Run CI on self-hosted TrueNAS runners
-status: impl_reviewed
+status: archived
 created: 2026-11-11
-updated: 2026-11-11
-archived_at: null
+updated: 2026-11-15
+archived_at: 2026-11-15T11:25:04Z
 ---
 
 ## Notes
