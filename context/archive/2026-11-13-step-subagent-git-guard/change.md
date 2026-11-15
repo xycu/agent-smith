@@ -1,10 +1,10 @@
 ---
 change_id: step-subagent-git-guard
 title: Stop step subagents from running banned git, delete and push commands
-status: impl_reviewed
+status: archived
 created: 2026-11-13
 updated: 2026-11-15
-archived_at: null
+archived_at: 2026-11-15T10:18:09Z
 ---
 
 ## Notes

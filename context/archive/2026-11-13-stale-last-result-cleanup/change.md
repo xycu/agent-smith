@@ -1,10 +1,10 @@
 ---
 change_id: stale-last-result-cleanup
 title: Remove a stale last-result.json left after a crash between writeLog and rmSync
-status: impl_reviewed
+status: archived
 created: 2026-11-13
 updated: 2026-11-15
-archived_at: null
+archived_at: 2026-11-15T10:18:09Z
 ---
 
 ## Notes
