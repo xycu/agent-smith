@@ -1,0 +1,47 @@
+✔ every job of ci.yml uses the self-hosted labels with the fork fallback (1.237458ms)
+✔ every job of ci.yml stops after 15 minutes (0.480041ms)
+✔ the job of pr-title.yml stops after 15 minutes (0.794208ms)
+✔ release.yml stays off self-hosted runners (0.271417ms)
+✔ CI installs and selects the pinned contract CLI between Node setup and the suite (0.457417ms)
+✔ the CI install step propagates failures and exports its own verified executable (851.616792ms)
+✔ the suite step uses the runner temporary directory (0.439209ms)
+✔ the first step of job test is the uid guard, before the suite (0.200083ms)
+✔ the uid guard command fails for uid 0 and passes for another uid (44.109042ms)
+✔ pr-title.yml has one runs-on line equal to the ci.yml expression (0.439416ms)
+✔ the first step of pr-title.yml is the uid guard, before the commit-lint step (1.196583ms)
+✔ git availability preserves local skips and requires successful probes in CI (1366.025875ms)
+✔ openspec availability preserves local skips and requires successful probes in CI (4146.42075ms)
+✔ release.yml has no push or pull_request trigger (0.905583ms)
+✔ release.yml starts from a completed CI run of main (0.41475ms)
+✔ the release-please job runs only for a green CI run of a push that is still the head of main (0.205542ms)
+✔ release.yml keeps its write permissions and a queueing concurrency group (0.175125ms)
+✔ ci.yml still runs on pull requests and on pushes to main (0.144083ms)
+✔ ci.yml cancels only superseded pull request runs and gives each push its own group (0.352291ms)
+✔ the workflow name release.yml waits for is the name of ci.yml (0.216625ms)
+✔ every remote action of this repository is pinned to a commit SHA with a version comment (3.980833ms)
+✔ a pinned action passes and a tag reference is named with file and line (3.530708ms)
+✔ a .yaml workflow and a composite action are read (10.592166ms)
+✔ a SHA without a version comment, a short SHA and a branch are rejected (3.008041ms)
+✔ local references are retained, Docker and comments are skipped, remote workflows are checked (1.92475ms)
+✔ unusual YAML forms fail closed (6.739625ms)
+✔ a repository with no uses: line fails (1.406291ms)
+✔ local metadata and transitive root-relative references validate remotes at their actual line (5.302125ms)
+✔ missing local metadata reports each referring location and both expected names (4.272625ms)
+✔ root action references use existing root metadata (1.390792ms)
+✔ both metadata spellings are inspected (1.742167ms)
+✔ repeated targets, diamonds, normalized paths and seeded metadata are scanned once (3.192417ms)
+✔ self-cycles and two-action cycles terminate and still validate reachable remotes (282.913ms)
+✔ local reusable workflow files remain checked once and missing workflows identify their source (2.476583ms)
+✔ unsupported local values fail closed without following a partial path (12.099834ms)
+✔ local-only, empty metadata and Docker-only graphs retain the no-remote guard (3.553458ms)
+✔ non-file metadata and dangling links fail at the referring source (2.897625ms)
+✔ contained symlink aliases share file identity and lexical or symlink escapes fail (2.9495ms)
+✔ metadata read failures are returned with the source and target (1.616125ms)
+ℹ tests 39
+ℹ suites 0
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6482.511792

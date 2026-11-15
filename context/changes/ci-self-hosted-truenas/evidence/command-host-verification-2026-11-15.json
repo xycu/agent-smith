@@ -1,0 +1,250 @@
+{
+  "observedAt": "2026-11-15T11:21:09.608172+00:00",
+  "approvalPolicy": {
+    "approval_policy": "all_external_contributors"
+  },
+  "runners": [
+    {
+      "id": 22,
+      "name": "truenas-agent-smith-1",
+      "os": "Linux",
+      "status": "online",
+      "busy": false,
+      "version": "2.338.2",
+      "labels": [
+        {
+          "id": 0,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "Linux",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "X64",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "truenas",
+          "type": "custom"
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "name": "truenas-agent-smith-2",
+      "os": "Linux",
+      "status": "online",
+      "busy": false,
+      "version": "2.338.2",
+      "labels": [
+        {
+          "id": 0,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "Linux",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "X64",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "truenas",
+          "type": "custom"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "name": "truenas-agent-smith-3",
+      "os": "Linux",
+      "status": "online",
+      "busy": false,
+      "version": "2.338.2",
+      "labels": [
+        {
+          "id": 0,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "Linux",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "X64",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "truenas",
+          "type": "custom"
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "name": "truenas-agent-smith-4",
+      "os": "Linux",
+      "status": "online",
+      "busy": false,
+      "version": "2.338.2",
+      "labels": [
+        {
+          "id": 0,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "Linux",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "X64",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "truenas",
+          "type": "custom"
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "name": "truenas-agent-smith-5",
+      "os": "Linux",
+      "status": "online",
+      "busy": false,
+      "version": "2.338.2",
+      "labels": [
+        {
+          "id": 0,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "Linux",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "X64",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "truenas",
+          "type": "custom"
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "name": "truenas-agent-smith-6",
+      "os": "Linux",
+      "status": "online",
+      "busy": false,
+      "version": "2.338.2",
+      "labels": [
+        {
+          "id": 0,
+          "name": "self-hosted",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "Linux",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "X64",
+          "type": "read-only"
+        },
+        {
+          "id": 0,
+          "name": "truenas",
+          "type": "custom"
+        }
+      ]
+    }
+  ],
+  "prRun": 43701664098,
+  "mainRun": 43703539173,
+  "prJobs": [
+    {
+      "id": 132773926375,
+      "name": "Conventional Commits",
+      "status": "completed",
+      "conclusion": "success",
+      "runner_name": "truenas-agent-smith-3",
+      "labels": [
+        "self-hosted",
+        "linux",
+        "truenas"
+      ],
+      "started_at": "2026-11-15T09:56:47Z",
+      "completed_at": "2026-11-15T09:56:57Z"
+    },
+    {
+      "id": 132773926517,
+      "name": "Tests and version check",
+      "status": "completed",
+      "conclusion": "success",
+      "runner_name": "truenas-agent-smith-2",
+      "labels": [
+        "self-hosted",
+        "linux",
+        "truenas"
+      ],
+      "started_at": "2026-11-15T09:56:47Z",
+      "completed_at": "2026-11-15T10:02:35Z"
+    }
+  ],
+  "mainJobs": [
+    {
+      "id": 132779637927,
+      "name": "Tests and version check",
+      "status": "completed",
+      "conclusion": "success",
+      "runner_name": "truenas-agent-smith-4",
+      "labels": [
+        "self-hosted",
+        "linux",
+        "truenas"
+      ],
+      "started_at": "2026-11-15T10:19:52Z",
+      "completed_at": "2026-11-15T10:26:01Z"
+    },
+    {
+      "id": 132779638908,
+      "name": "Conventional Commits",
+      "status": "completed",
+      "conclusion": "skipped",
+      "runner_name": null,
+      "labels": [
+        "self-hosted",
+        "linux",
+        "truenas"
+      ],
+      "started_at": "2026-11-15T10:19:50Z",
+      "completed_at": "2026-11-15T10:19:50Z"
+    }
+  ]
+}

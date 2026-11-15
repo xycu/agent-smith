@@ -1,0 +1,15 @@
+Tests and version check	Set up job	﻿2026-11-15T10:19:52.9638249Z Current runner version: '2.338.2'
+Tests and version check	Set up job	2026-11-15T10:19:52.9643643Z Runner name: 'truenas-agent-smith-4'
+Tests and version check	Set up job	2026-11-15T10:19:52.9644314Z Runner group name: 'Default'
+Tests and version check	Refuse to run as root (ADR-020)	﻿2026-11-15T10:19:55.9875930Z ##[group]Run test "$(id -u)" -ne 0 || { echo "::error::the runner runs this job as uid 0; ADR-020 requires a non-root service user"; exit 1; }
+Tests and version check	Refuse to run as root (ADR-020)	2026-11-15T10:19:55.9876766Z ^[[36;1mtest "$(id -u)" -ne 0 || { echo "::error::the runner runs this job as uid 0; ADR-020 requires a non-root service user"; exit 1; }^[[0m
+Tests and version check	Refuse to run as root (ADR-020)	2026-11-15T10:19:55.9893807Z shell: /usr/bin/bash -e {0}
+Tests and version check	Refuse to run as root (ADR-020)	2026-11-15T10:19:55.9894260Z ##[endgroup]
+Tests and version check	Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09	2026-11-15T10:19:56.1013242Z [command]/usr/bin/git version
+Tests and version check	Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09	2026-11-15T10:19:56.1013502Z git version 2.53.0
+Tests and version check	Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444	2026-11-15T10:19:56.8620574Z   node-version: 24
+Tests and version check	Run actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444	2026-11-15T10:19:57.0850880Z node: v24.22.3
+Tests and version check	Install OpenSpec contract CLI	2026-11-15T10:19:57.1010928Z git version 2.53.0
+Tests and version check	Test suite	2026-11-15T10:19:59.2090480Z   TMPDIR: /mnt/main/lake/github/agent-smith-4/_temp
+Tests and version check	Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09	2026-11-15T10:25:56.1138349Z [command]/usr/bin/git version
+Tests and version check	Post Run actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09	2026-11-15T10:25:56.1169736Z git version 2.53.0
