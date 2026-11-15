@@ -1,6 +1,6 @@
 # Waves
 
-Work order and status as of 2026-11-15. Waves 1–7 are merged into `main`. Waves 2–7 are archived. This folder holds five active changes, including three follow-ups with open pull requests and two older merged changes awaiting acceptance or archival. The original seven-wave sequence is complete. GitHub PR merge state and change frontmatter were checked after the wave 7 release against `main` at `7408a66` (v1.11.1, release PR #189).
+Work order and status as of 2026-11-15. Waves 1–7 and the stale-result and step-guard follow-ups are merged into `main`. Waves 2–7 and both completed follow-ups are archived. This folder holds three active changes, including one parked draft follow-up and two older merged changes awaiting acceptance or archival. The original seven-wave sequence is complete. GitHub PR merge state and change frontmatter were checked after release v1.11.2 against `main` at `8dcb067` (release PR #191).
 
 A wave is a set of changes that can run **at the same time**, each in its own run worktree. No two changes of one wave edit the same code, workflow, policy or skill region. The waves themselves run one after another: a wave starts when every pull request of the wave before it is merged into `main`.
 
@@ -140,15 +140,24 @@ All three implementations merged on 2026-11-15 in the order #187, #183 and #188.
 
 Combined main CI passed 1,548 tests out of 1,551 with zero failures and three expected skips. Its first attempt hit the existing fake-child cancellation timing test, and the second attempt passed. Release-commit CI then passed before publication. [Combined CI](https://github.com/xycu/agent-smith/actions/runs/43657049140) · [Release-commit CI](https://github.com/xycu/agent-smith/actions/runs/43658209686)
 
-## Follow-ups with open pull requests (3)
+## Completed follow-ups (2) — merged and archived
 
-These changes are outside the original wave tables. Their pull requests remain open after the wave 7 release.
+Both implementations merged on 2026-11-15 in the order #184 and #185. Release PR #191 published v1.11.2 after green combined main CI and green release-commit CI. Both folders were archived on 2026-11-15 under `context/archive/2026-11-13-<change-id>/`, with `status: archived`. All 21 completed Progress rows retain their original SHA suffixes, referencing six original implementation commits. The retained refs `refs/archive/followups/stale-last-result-cleanup` and `refs/archive/followups/step-subagent-git-guard` preserve those commits after worktree and branch cleanup. [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.2)
 
-| Change | Open PR | Origin and ownership |
+| Change | Merged PR | Result and remaining acceptance |
 | --- | --- | --- |
-| `quote-router-in-skill-loops` | [#186](https://github.com/xycu/agent-smith/pull/186) | Wave 2 skill-path follow-up. Both skills' router invocations share ownership with the setup and dispatch work in wave 4 and the whole-skill rewrite merged in PR #188. |
-| `stale-last-result-cleanup` | [#185](https://github.com/xycu/agent-smith/pull/185) | PR #138 follow-up. Result consumption in `flow.mjs` and both-chain tests overlap wave 4 run-state work. |
-| `step-subagent-git-guard` | [#184](https://github.com/xycu/agent-smith/pull/184) | Wave 2 review follow-up. Step Git/deletion/PR rules, planning rules and possible hooks overlap wave 5 guards, wave 6 nesting rules and wave 7 skill edits. PR #155 defines the layered rule ownership. |
+| `stale-last-result-cleanup` | [#185](https://github.com/xycu/agent-smith/pull/185) | APPROVED. Persisted result cleanup recovers before routing and Git effects, preserves pending result ownership, and covers both chains and prompt transports. All seven Progress rows are complete. Integration with current main retained both recovery guidance and current verification rules. |
+| `step-subagent-git-guard` | [#184](https://github.com/xycu/agent-smith/pull/184) | APPROVED after the option-value fix and packaging follow-up. All fourteen Automated rows are complete. Manual 2.6 and 2.7 require live Claude enforcement and planning/review probes. Manual 3.4 remains unticked, with passing implementation PR CI evidence available. |
+
+Three guard Manual rows remain unticked in the archived plan. No checkbox or SHA suffix was changed during archive. Any further acceptance work belongs in a new change referencing the archive. [Guard PR CI](https://github.com/xycu/agent-smith/actions/runs/43668603868)
+
+The combined Node 24 integration suite passed 1,621 tests out of 1,624, with zero failures and three expected skips. Combined main CI and release-commit CI both passed before publication. [Combined main CI](https://github.com/xycu/agent-smith/actions/runs/43702180293) · [Release-commit CI](https://github.com/xycu/agent-smith/actions/runs/43702743803)
+
+## Parked follow-up (1)
+
+| Change | Draft PR | Current state |
+| --- | --- | --- |
+| `quote-router-in-skill-loops` | [#186](https://github.com/xycu/agent-smith/pull/186) | Parked at the owner's request. Planning and plan review completed. Implementation halted on missing installed-plugin substitution transcripts for both chains and the reviewed rewrite-integration prerequisite. The Wave 7 rewrite has since merged in #188. The draft description records the stop, and its branch and worktree remain retained. |
 
 ## Changes outside the waves
 
