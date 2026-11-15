@@ -28,3 +28,11 @@ Router modules own dispatch, prompts, run logs, metadata and PR-comment intent. 
 The verified CLI contract is Codex 0.169.0. Native sandbox can force legacy sandbox settings read-only, so permission parity may remain unverifiable and fail closed. The filesystem/Git proof does not prove model-command hooks or execpolicy approval behavior. Neither a profile name nor the parent skill catalog proves child capabilities. Existing configuration and host restrictions remain authoritative.
 
 Live installation, discovery, both-host execution and hook/approval acceptance remain Manual checks in the plan. The implementation uses no new dependencies or release version fields. Raw cross-provider token counts establish no tokenizer, cost or quality equivalence. [Implementation plan](../../context/archive/2026-11-13-openai-codex-support/plan.md), [Permission evidence](../../context/archive/2026-11-13-openai-codex-support/evidence/phase2-permissions.md)
+
+## Amendment 1 — Provider-specific step safety (2026-11-15)
+
+Both providers receive the shared Git/deletion/publication rules and pre-publication planning boundaries through the existing task carriers. New Claude actions select the dedicated inherited-tool agent unless a supported restricted mapping supplies a type. Claude archive actions use that dedicated identity.
+
+The plugin-level Bash guard enforces its documented direct-command subset for identity-bearing `agent-smith:step` calls. OpenAI children and custom Claude mappings use their existing execution/permission controls plus semantic prompt rules. The Codex permission probe establishes filesystem/Git capability, with live model-command hook behavior requiring its existing acceptance checks.
+
+Exact historical retries preserve stored prompt, provider and optional agent selection. `ruleFiles`, `agentFiles` and the new `hookFiles` hashes expose independent byte drift while stored provenance stays immutable. Claude’s plugin baseline is 2.1.292+, and fail-closed hook handling requires 2.1.295+. Older supported hosts have unverified runtime enforcement. Fresh-host identity/blocking and live planning adherence are pending Manual checks.

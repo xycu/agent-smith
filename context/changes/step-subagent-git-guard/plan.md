@@ -293,11 +293,11 @@ New rule files change `ruleFiles`, the new agent changes `agentFiles`, and hook 
 
 #### Automated
 
-- [x] 2.1 New Claude run and archive actions on both chains select the guarded identity, retain explicit restricted selections where already supported, and preserve exact legacy neutral retries.
-- [x] 2.2 Hook payload tests deny the documented direct Git/publication/delete forms and permit safe commits, read-only Git, stage-only restore, inspected file unlink/empty rmdir, orchestrator calls and unrelated agents.
-- [x] 2.3 Hook tests cover scoped malformed input, invalid JSON, oversized input, quoted arguments, supported compound commands, harmless quoted command text and plugin paths containing spaces.
-- [x] 2.4 OpenAI dispatch and runner fixtures pass with their original configuration, capability-rejection, usage and lifecycle contracts, and hook/agent/rule byte changes produce the expected independent provenance drift.
-- [x] 2.5 Plugin validation accepts the hook layout and both complete chain/tool suites pass on Node 24 or later.
+- [x] 2.1 New Claude run and archive actions on both chains select the guarded identity, retain explicit restricted selections where already supported, and preserve exact legacy neutral retries. — afdd5cb
+- [x] 2.2 Hook payload tests deny the documented direct Git/publication/delete forms and permit safe commits, read-only Git, stage-only restore, inspected file unlink/empty rmdir, orchestrator calls and unrelated agents. — afdd5cb
+- [x] 2.3 Hook tests cover scoped malformed input, invalid JSON, oversized input, quoted arguments, supported compound commands, harmless quoted command text and plugin paths containing spaces. — afdd5cb
+- [x] 2.4 OpenAI dispatch and runner fixtures pass with their original configuration, capability-rejection, usage and lifecycle contracts, and hook/agent/rule byte changes produce the expected independent provenance drift. — afdd5cb
+- [x] 2.5 Plugin validation accepts the hook layout and both complete chain/tool suites pass on Node 24 or later. — afdd5cb
 
 #### Manual
 
@@ -308,9 +308,9 @@ New rule files change `ruleFiles`, the new agent changes `agentFiles`, and hook 
 
 #### Automated
 
-- [ ] 3.1 Rule/prompt/test/ADR indexes and current reference sections document the selected ownership, planning boundary, upgrade behavior and runtime coverage limits consistently.
-- [ ] 3.2 Shared skill contracts preserve router-agent forwarding, provider dispatch, anti-stall equality and terminal publication ownership after available concurrent changes are reconciled.
-- [ ] 3.3 The complete repository test command passes and the final diff contains no edits to WAVES.md, context/archive, release fields or unrelated concurrent-change implementations.
+- [x] 3.1 Rule/prompt/test/ADR indexes and current reference sections document the selected ownership, planning boundary, upgrade behavior and runtime coverage limits consistently.
+- [x] 3.2 Shared skill contracts preserve router-agent forwarding, provider dispatch, anti-stall equality and terminal publication ownership after available concurrent changes are reconciled.
+- [x] 3.3 The complete repository test command passes and the final diff contains no edits to WAVES.md, context/archive, release fields or unrelated concurrent-change implementations.
 
 #### Manual
 
