@@ -187,15 +187,15 @@ No schema migration. Existing inline and file-prompt runs resume using the store
 
 #### Automated
 
-- [x] 1.1 The post-publication crash regression fails before the fix and passes afterward for both chains and both prompt transports; recovery preserves the completed entry and the next step requires its own result.
-- [x] 1.2 Unlink failure, missing-file, skipped-row, pending-owner and handoff-marker regressions pass without losing results or permitting premature routing.
-- [x] 1.3 Focused suites pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/result-persist.test.mjs skills/10x-pipeline/test/prompt-handoff.test.mjs skills/10x-pipeline/test/run-state.test.mjs`.
+- [x] 1.1 The post-publication crash regression fails before the fix and passes afterward for both chains and both prompt transports; recovery preserves the completed entry and the next step requires its own result. — 3ca242e
+- [x] 1.2 Unlink failure, missing-file, skipped-row, pending-owner and handoff-marker regressions pass without losing results or permitting premature routing. — 3ca242e
+- [x] 1.3 Focused suites pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/result-persist.test.mjs skills/10x-pipeline/test/prompt-handoff.test.mjs skills/10x-pipeline/test/run-state.test.mjs`. — 3ca242e
 
 ### Phase 2: Compatibility, isolation and routing documentation
 
 #### Automated
 
-- [ ] 2.1 Both-chain isolated regressions prove cleanup before successful commits and failed-step snapshots, with no Git or dispatch advance when cleanup fails.
-- [ ] 2.2 Both-chain neutral retry and late-usage regressions preserve pending result ownership, retry state and usage attribution.
-- [ ] 2.3 Routing documentation and test index describe the tested shared lifecycle; `git diff --check` passes and the diff leaves `WAVES.md`, archives and real router-owned run state untouched by implementation.
-- [ ] 2.4 The required repository suite passes on Node 24+: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.1 Both-chain isolated regressions prove cleanup before successful commits and failed-step snapshots, with no Git or dispatch advance when cleanup fails.
+- [x] 2.2 Both-chain neutral retry and late-usage regressions preserve pending result ownership, retry state and usage attribution.
+- [x] 2.3 Routing documentation and test index describe the tested shared lifecycle; `git diff --check` passes and the diff leaves `WAVES.md`, archives and real router-owned run state untouched by implementation.
+- [x] 2.4 The required repository suite passes on Node 24+: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
