@@ -69,6 +69,24 @@ test("direct Git discard, hook bypass, unique-ref deletion and publication forms
   ]) denied(command);
 });
 
+test("Git option values cannot masquerade as safety flags or hide hook bypass", () => {
+  for (const command of [
+    "git clean -e --dry-run -fd", "git clean --exclude -n -fd",
+    "git clean -en -fd", "git clean -e-n -fd", "git clean --exclude=-n -fd",
+    "git clean -n --no-dry-run -fd", "git clean --dry-run --no-dry-run -fd",
+    "git commit -m -- --no-verify", "git commit --message -- --no-verify",
+    "git commit --trailer -- --no-verify", "git commit --pathspec-from-file -- --no-verify",
+    'git commit -nm"fix: retained"', 'git commit -m"fix: retained" --no-verify',
+  ]) denied(command);
+  for (const command of [
+    'git commit -m"fix: retain work"', 'git commit -am"fix: retain work"',
+    'git commit -m"--no-verify"', "git commit -Fnotes.txt", "git commit -Ssigning-key -m fix",
+    "git commit --trailer --no-verify -m fix", "git commit -m -- -- tracked-file",
+    "git clean -ne pattern -fd", "git clean -e pattern -nfd", "git clean --exclude -n --dry-run -fd",
+    "git clean --no-dry-run -nfd", "git clean -n --exclude --no-dry-run -fd",
+  ]) neutral(payload(command));
+});
+
 test("recursive shell deletion variants are denied using inert payloads only", () => {
   for (const command of [
     "rm -rf scratch", "rm -r scratch", "rm -R scratch", "rm --recursive scratch", // Never execute.

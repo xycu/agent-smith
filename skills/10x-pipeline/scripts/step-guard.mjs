@@ -66,24 +66,41 @@ function gitProblem(words) {
     else at++;
   }
   const sub = words[at];
-  const args = beforePaths(words.slice(at + 1));
+  const args = words.slice(at + 1);
   const flags = [];
+  const shortValues = sub === "commit" ? "mFcCtSu" : sub === "clean" ? "e" : "";
+  const longValues = ["--message", "--file", "--author", "--date"];
+  if (sub === "commit") longValues.push("--reuse-message", "--reedit-message", "--template", "--fixup", "--squash", "--cleanup", "--trailer", "--pathspec-from-file");
+  if (sub === "clean") longValues.push("--exclude");
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (["-m", "--message", "-F", "--file", "--author", "--date"].includes(arg)) { i++; continue; }
+    if (arg === "--") break;
+    if (longValues.includes(arg) || ["-m", "-F"].includes(arg)) { i++; continue; }
+    if (shortValues && /^-[^-]/.test(arg)) {
+      // An option's attached or separate value is data, even when it looks like another flag.
+      for (let j = 1; j < arg.length; j++) {
+        flags.push("-" + arg[j]);
+        if (shortValues.includes(arg[j])) {
+          if (j === arg.length - 1 && !"Su".includes(arg[j])) i++;
+          break;
+        }
+      }
+      continue;
+    }
     flags.push(arg);
   }
+  const dryRun = flags.findLast((arg) => ["-n", "--dry-run", "--no-dry-run"].includes(arg));
   if (sub === "push") return PUBLICATION;
   if (flags.includes("--no-verify") || (sub === "commit" && flags.some((arg) => /^-[^-]*n/.test(arg)))) {
     return "Bypassing Git hooks is forbidden. Run the authorized commit with its hooks enabled.";
   }
   if (sub === "restore" || sub === "checkout" ||
       (sub === "reset" && flags.some((arg) => arg === "--hard" || arg.startsWith("--hard="))) ||
-      (sub === "clean" && !flags.some((arg) => arg === "--dry-run" || /^-[^-]*n/.test(arg))) ||
+      (sub === "clean" && !["-n", "--dry-run"].includes(dryRun)) ||
       (sub === "stash" && ["drop", "clear"].includes(args[0])) ||
       (["branch", "tag", "update-ref"].includes(sub) && flags.some((arg) => arg === "--delete" || /^-[^-]*[dD]/.test(arg))) ||
       (sub === "worktree" && ["remove", "prune"].includes(args[0])) ||
-      (sub === "update-ref" && args.some((arg) => arg.startsWith("refs/agent-smith/")))) {
+      (sub === "update-ref" && beforePaths(args).some((arg) => arg.startsWith("refs/agent-smith/")))) {
     return PRESERVATION;
   }
   return null;
