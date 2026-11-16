@@ -157,9 +157,9 @@ Rollback uses an ordinary preserving revert of the implementation commit. Existi
 
 #### Automated
 
-- [ ] 1.1 Focused CLI regressions prove the 1,000-versus-1,100 example, either/both sides, both chains, default/`--unpinned`, all damage categories, JSON/Markdown agreement, retained partial evidence, privacy, byte-identical reads and clean-input compatibility with `node --test --test-concurrency=2 skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/run-state.test.mjs`.
-- [ ] 1.2 Reference text documents `log-problems:<side>` and the integrity requirement across both chains and `--unpinned`, verified with `rg -n 'log-problems|logProblems|unpinned' docs/REFERENCE.md` and the scoped output of `git diff --name-only` and `git diff -- docs/REFERENCE.md`, and `git diff --check` passes.
-- [ ] 1.3 On Node 24+, `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` finishes with exit zero, zero failures/cancellations and only explained existing skips, with the command and final counts recorded in verification evidence.
+- [x] 1.1 Focused CLI regressions prove the 1,000-versus-1,100 example, either/both sides, both chains, default/`--unpinned`, all damage categories, JSON/Markdown agreement, retained partial evidence, privacy, byte-identical reads and clean-input compatibility with `node --test --test-concurrency=2 skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/run-state.test.mjs`.
+- [x] 1.2 Reference text documents `log-problems:<side>` and the integrity requirement across both chains and `--unpinned`, verified with `rg -n 'log-problems|logProblems|unpinned' docs/REFERENCE.md` and the scoped output of `git diff --name-only` and `git diff -- docs/REFERENCE.md`, and `git diff --check` passes.
+- [x] 1.3 On Node 24+, `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` finishes with exit zero, zero failures/cancellations and only explained existing skips, with the command and final counts recorded in verification evidence.
 
 #### Manual
 

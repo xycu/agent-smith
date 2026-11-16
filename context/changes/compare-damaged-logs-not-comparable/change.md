@@ -1,7 +1,7 @@
 ---
 change_id: compare-damaged-logs-not-comparable
 title: Reject damaged run logs as comparable savings evidence
-status: planned
+status: implementing
 created: 2026-11-15
 updated: 2026-11-16
 archived_at: null
