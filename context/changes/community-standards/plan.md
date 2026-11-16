@@ -215,7 +215,7 @@ If corrections are needed, apply a reviewed follow-up patch preserving interveni
 
 #### Manual
 
-- [ ] 2.4 After default-branch publication, the issue chooser presents bug and feature forms, a security-policy link and the blank-issue action, and the forms render without schema errors.
-- [ ] 2.5 After default-branch publication, form inspection confirms that core fields are required, optional evidence can be omitted, unknown versions are accepted, and the security link reaches the established private-reporting instructions.
-- [ ] 2.6 After default-branch publication, a manual PR compose view displays the summary and verification template with working guidance links.
-- [ ] 2.7 After default-branch publication, GitHub Community Standards recognizes code of conduct, contributing, issue templates and the PR template, with the live Community Profile API supplying corroborating evidence.
+- [x] 2.4 After default-branch publication, the issue chooser presents bug and feature forms, a security-policy link and the blank-issue action, and the forms render without schema errors. — 39a82d65
+- [x] 2.5 After default-branch publication, form inspection confirms that core fields are required, optional evidence can be omitted, unknown versions are accepted, and the security link reaches the established private-reporting instructions. — 39a82d65
+- [x] 2.6 After default-branch publication, a manual PR compose view displays the summary and verification template with working guidance links. — 39a82d65
+- [x] 2.7 After default-branch publication, GitHub Community Standards recognizes code of conduct, contributing, issue templates and the PR template, with the live Community Profile API supplying corroborating evidence. — 39a82d65
