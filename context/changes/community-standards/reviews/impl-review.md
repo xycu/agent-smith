@@ -26,7 +26,7 @@ The reviewed Phase 1 implementation has no actionable critical, warning or obser
 
 ## Coverage and current state
 
-The skill's default invocation covers phases whose Progress rows are complete. Phase 1 has six completed rows. Phase 2 has three completed automated rows and four pending post-publication manual rows, so the explicit reviewed-phase coverage is `1`. Overall recorded implementation progress is nine completed criteria out of thirteen. The owner expressly approved deferring Phase 2 rows 2.4–2.7 until default-branch publication. [Phase 1 Progress](/Users/blazej/.codex/worktrees/d6ea/agent-smith/context/changes/community-standards/plan.md:194) · [Phase 2 Progress](/Users/blazej/.codex/worktrees/d6ea/agent-smith/context/changes/community-standards/plan.md:208)
+At the initial review, the skill's default invocation covered phases whose Progress rows were complete. Phase 1 had six completed rows. Phase 2 had three completed automated rows and four pending post-publication manual rows, so the explicit reviewed-phase coverage was `1`. Recorded implementation progress was nine completed criteria out of thirteen. The owner expressly approved deferring Phase 2 rows 2.4–2.7 until default-branch publication. The follow-up below records their subsequent verification. [Phase 1 Progress](/Users/blazej/.codex/worktrees/d6ea/agent-smith/context/changes/community-standards/plan.md:194) · [Phase 2 Progress](/Users/blazej/.codex/worktrees/d6ea/agent-smith/context/changes/community-standards/plan.md:208)
 
 Two read-only review agents completed independent drift and safety/pattern investigations. The safety investigation inspected the changed Phase 2 files as cross-phase context and found no consequential conflict with Phase 1. The reviewed-phase declaration above records the completed-phase approval boundary.
 
@@ -65,17 +65,28 @@ Existing implementation-run evidence remains available in `/tmp/community-standa
 
 Rows 1.4, 1.5 and 1.6 are marked complete and identify the Phase 1 commit. In this conversation the owner explicitly selected “Confirm manual review passed” after receiving the concrete policy/guide links and the three review subjects. The persisted content contains the permission scope, reporting limitation, contributor commands, incoming rights and ownership clauses covered by that confirmation. This supports the recorded human content reviews. [Manual review rows](/Users/blazej/.codex/worktrees/d6ea/agent-smith/context/changes/community-standards/plan.md:204)
 
-## Pending verification
+## Verification deferred at the initial review
 
-Phase 2 retains the following owner-approved publication checks.
+The owner approved deferring the following Phase 2 publication checks.
 
 - 2.4 GitHub issue chooser, blank-issue action and form rendering.
 - 2.5 Required/optional fields, unknown versions and security-link behavior in GitHub.
 - 2.6 Manual PR compose template and its guidance links.
 - 2.7 Community Standards recognition, corroborated by the live Community Profile API.
 
-These rows remain pending in the canonical Progress section. The current review approval covers Phase 1. [Pending rows](/Users/blazej/.codex/worktrees/d6ea/agent-smith/context/changes/community-standards/plan.md:218)
+These rows were pending at the initial review. The review approval above covers Phase 1, and the publication verification below records the later completion of these checks. [Publication check rows](/Users/blazej/.codex/worktrees/d6ea/agent-smith/context/changes/community-standards/plan.md:218)
 
 ## Working-tree note
 
-The review began with the Phase 2 SHA write-back already uncommitted in plan.md. This review preserves those bytes and the Progress state. The report and the skill-required change.md review stamp are the review's repository edits.
+The initial review began with the Phase 2 SHA write-back already uncommitted in plan.md and preserved those bytes and the Progress state. Its repository edits were the report and the skill-required change.md review stamp.
+
+## Post-publication verification follow-up
+
+On 2026-11-16, the owner approved squash-merging PR #207 after green CI and delegated verification of the published forms, PR template and Community Standards checklist. The test/version job, PR-title check, commit-subject check and security scan succeeded for head `74a284b6667abfe67009cd0f06284320819b3ac9`. The PR merged at `2026-11-16T17:23:42Z` as `39a82d652026ed5ab041b8fed599ed700030a84d`. [Merged PR](https://github.com/xycu/agent-smith/pull/207)
+
+- 2.4 PASS. The live issue chooser displayed Bug report, Feature request, Blank issue and the configured security-policy link. Both forms rendered with their requested fields. [Issue chooser](https://github.com/xycu/agent-smith/issues/new/choose)
+- 2.5 PASS. The bug form displayed required markers for environment, reproduction, expected and observed behavior. Synthetic core-field text containing unknown versions and a not-applicable chain was retained while optional configuration and logs remained empty. The feature form displayed required problem/outcome fields and optional use-case detail. The security link opened the published private reporting instructions with the agreed mailbox. Verification used compose views and discarded the synthetic bug draft. [Bug form](https://github.com/xycu/agent-smith/issues/new?template=bug_report.yml) · [Feature form](https://github.com/xycu/agent-smith/issues/new?template=feature_request.yml) · [Security policy](https://github.com/xycu/agent-smith/blob/main/SECURITY.md)
+- 2.6 PASS. GitHub's manual PR compose view automatically populated Summary, Related work, Verification and Documentation. The Markdown preview rendered those sections, and its guidance links reached the published contribution and security documents. The original branch ref was restored after its removal during merge to make the compose preview available. [PR compose view](https://github.com/xycu/agent-smith/pull/new/codex/community-standards)
+- 2.7 PASS. The Community Standards UI marked the eight checklist items as Added, including the four requested additions. The Community Profile API reported `health_percentage` of `100`. Its `issue_template` field remained null, while the UI explicitly recognized issue templates and the chooser displayed both YAML forms. [Community Standards](https://github.com/xycu/agent-smith/community) · [Community Profile API](https://api.github.com/repos/xycu/agent-smith/community/profile)
+
+The canonical Progress section now records thirteen completed criteria. The original Phase 1 review coverage remains explicit in the report header, and this follow-up supplies the delegated post-publication verification evidence for Phase 2.
