@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { ROOT, executed, mtime, archiveRoot, DATED_ID, readGuarded } from "../../10x-pipeline/scripts/state.mjs";
 
-// A task row of tasks.md, the pattern of the OpenSpec CLI (1.16.1, dist/utils/task-progress.js TASK_LINE_PATTERN): a list
+// A task row of tasks.md, the pattern of the OpenSpec CLI (2.0.0, dist/utils/task-progress.js TASK_LINE_PATTERN): a list
 // item under `-`, `*`, `+` or `1.`/`1)` with a checkbox that holds at most one non-space marker. A row is complete only
 // for x or X; every other marker (`[ ]`, `[]`, `[~]`) is open work. Capture 1 is the marker. The contract test compares
 // the counts with the CLI; a later CLI version can change its pattern (REFERENCE "Limits").

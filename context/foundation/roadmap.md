@@ -50,7 +50,7 @@ The north star is the first complete user flow that provides direct evidence the
 | --- | --- | --- | --- | --- | --- |
 | S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | in-progress |
 | S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | ready |
-| S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | planning |
+| S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | in-progress |
 | S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-12, S-13, S-14 | US-04, FR-013 | proposed |
 | S-16 | resumable-unattended-runs | user can resume an interrupted run with preserved work, consistent progress and results matched to the correct invocation. | S-15 | US-05, FR-008, FR-014 | proposed |
 | S-17 | reviewable-run-handoff | user can locate completed work, its optional archive and its requested pull-request report with an accurate shared outcome. | S-16 | US-06, FR-004, FR-005, FR-008, FR-009, FR-015 | proposed |
@@ -117,7 +117,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
   - Which upstream changes and project-specific integration adaptations affect compatibility? — Owner: maintainer. Block: no, investigate before upgrade edits.
   - Which existing project inputs or saved runs require compatibility evidence? — Owner: maintainer. Block: no while preserving existing contracts. An incompatible contract change requires the owner's decision.
 - **Risk:** Upgrading the tool while retaining mismatched integration instructions can make the workflow fail after setup.
-- **Status:** planning
+- **Status:** in-progress
 
 ### S-14: Pipeline steps can delegate to child subagents
 

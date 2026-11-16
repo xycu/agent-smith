@@ -258,9 +258,9 @@ The router continues its file-derived execution path. Capture elapsed time and u
 
 #### Automated
 
-- [ ] 1.1 The exact-version CI/probe tests pass, including unavailable, failed, wrong-version and selected-binary cases, using `node --test tools/test/ci-runner.test.mjs`.
-- [ ] 1.2 All five original status contracts and the added setup/update/validation/archive fixtures execute against exactly 2.0.0 with zero skips using `CI=1 node --test skills/openspec-pipeline/test/openspec-contract.test.mjs` with an explicitly selected `OPENSPEC_BIN`.
-- [ ] 1.3 The full repository gate passes after the CI, fixture and parser-provenance changes, recording actual counts and skip identities.
+- [x] 1.1 The exact-version CI/probe tests pass, including unavailable, failed, wrong-version and selected-binary cases, using `node --test tools/test/ci-runner.test.mjs`.
+- [x] 1.2 All five original status contracts and the added setup/update/validation/archive fixtures execute against exactly 2.0.0 with zero skips using `CI=1 node --test skills/openspec-pipeline/test/openspec-contract.test.mjs` with an explicitly selected `OPENSPEC_BIN`.
+- [x] 1.3 The full repository gate passes after the CI, fixture and parser-provenance changes, recording actual counts and skip identities.
 
 ### Phase 2: Upgrade generated integration and setup instructions
 
