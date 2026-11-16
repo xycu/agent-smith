@@ -4,7 +4,7 @@ Study the flow the goal names. Use the areas in `context/map/repo-map.md` as pri
 
 ## Rules
 
-- **GIVEN** the research starts **WHEN** you split the work **THEN** you **MUST** work through three analyses yourself, one after the other: e2e trace, test gaps, blast radius.
+- **GIVEN** the research starts **WHEN** you split the work **THEN** you **MUST** cover three analyses: e2e trace, test gaps, blast radius; delegate independent read-only analyses under the shared child contract and synthesize their collected findings in this step.
 - **GIVEN** the e2e trace analysis **WHEN** you write its findings **THEN** you **MUST** give the path from entry point through the layers to write or read and back, as `file:line` steps plus one Mermaid diagram.
 - **GIVEN** the test gaps analysis **WHEN** you write its findings **THEN** you **MUST** list which methods and branches on that path have test coverage and which have none.
 - **GIVEN** the blast radius analysis **WHEN** you write its findings **THEN** you **MUST** list what must change together with this flow (interface seam, generated layers, model, migrations, tests), joining the static graph with git co-change history.

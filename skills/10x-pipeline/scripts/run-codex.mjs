@@ -126,7 +126,108 @@ try {
 
 function configArgs(action) {
   return ["-C", ROOT, ...(action.profile === null ? [] : ["-p", action.profile]),
-    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=false", "--disable", "multi_agent_v2"];
+    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2"];
+}
+
+// Model-free, bounded metadata reads: inactive labels and reconstructed interrupted turns prove no closure.
+async function settledDescendants(threadId) {
+  if (typeof threadId !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(threadId)) refuse("Missing native parent identity.");
+  const server = spawn("codex", ["app-server", "--stdio"], { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] });
+  let sequence = 0;
+  let waiting;
+  let failure;
+  let buffer = "";
+  const decoder = new StringDecoder("utf8");
+  const fail = (message) => {
+    failure ??= new Error(message);
+    waiting?.reject(failure);
+    waiting = null;
+  };
+  const closed = new Promise((resolve) => server.once("close", resolve));
+  server.on("error", () => fail("Native metadata service could not start."));
+  server.on("close", () => fail("Native metadata service closed before reconciliation."));
+  server.stdin.on("error", () => fail("Native metadata service input failed."));
+  server.stderr.resume();
+  server.stdout.on("data", (chunk) => {
+    buffer += decoder.write(chunk);
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    if (Buffer.byteLength(buffer) > MAX_EVENT) fail("Native metadata response is oversized.");
+    for (const line of lines) {
+      if (!line.trim() || failure) continue;
+      try {
+        if (Buffer.byteLength(line) > MAX_EVENT) throw new Error();
+        const response = JSON.parse(line);
+        if (!isObject(response)) throw new Error();
+        if (!Object.hasOwn(response, "id")) continue; // host notifications carry no response
+        if (!waiting || response.id !== waiting.id || response.error || !isObject(response.result)) throw new Error();
+        const current = waiting;
+        waiting = null;
+        current.resolve(response.result);
+      } catch { fail("Native metadata response is malformed or mismatched."); }
+    }
+  });
+  const timer = setTimeout(() => fail("Native metadata reconciliation timed out."), 30000);
+  const request = (method, params) => new Promise((resolve, reject) => {
+    if (failure) { reject(failure); return; }
+    const id = ++sequence;
+    waiting = { id, resolve, reject };
+    server.stdin.write(JSON.stringify({ id, method, params }) + "\n");
+  });
+  try {
+    await request("initialize", { clientInfo: { name: "agent-smith", version: "1" }, capabilities: { experimentalApi: true } });
+    server.stdin.write(JSON.stringify({ method: "initialized", params: {} }) + "\n");
+    const completed = async (id) => {
+      const page = await request("thread/turns/list", { threadId: id, limit: 1, sortDirection: "desc", itemsView: "notLoaded" });
+      const turn = page.data?.[0];
+      if (!Array.isArray(page.data) || page.data.length !== 1 || turn?.status !== "completed"
+        || !Number.isSafeInteger(turn.completedAt) || turn.completedAt <= 0
+        || (turn.startedAt != null && (!Number.isSafeInteger(turn.startedAt) || turn.startedAt > turn.completedAt))) {
+        refuse("Native parent or descendant has no proven completed latest turn.");
+      }
+    };
+    await completed(threadId);
+    const enumerate = async () => {
+      const descendants = new Set();
+      for (const archived of [false, true]) {
+        let cursor = null;
+        const cursors = new Set();
+        do {
+          const page = await request("thread/list", { ancestorThreadId: threadId, archived, cursor, limit: 100,
+            sourceKinds: ["cli", "vscode", "exec", "appServer", "subAgent", "subAgentReview", "subAgentCompact", "subAgentThreadSpawn", "subAgentOther", "unknown"] });
+          if (!Array.isArray(page.data) || !Object.hasOwn(page, "nextCursor")
+            || (page.nextCursor !== null && (typeof page.nextCursor !== "string" || !page.nextCursor))) {
+            refuse("Native descendant enumeration is incomplete.");
+          }
+          for (const entry of page.data) {
+            if (typeof entry?.id !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(entry.id) || entry.id === threadId) {
+              refuse("Native descendant identity is invalid.");
+            }
+            descendants.add(entry.id);
+          }
+          cursor = page.nextCursor;
+          if (cursor !== null && (cursors.has(cursor) || cursors.size >= 1000)) refuse("Native descendant pagination did not complete.");
+          cursors.add(cursor);
+        } while (cursor !== null);
+      }
+      return descendants;
+    };
+    const descendants = await enumerate();
+    for (const id of descendants) await completed(id);
+    // A child may have spawned another child while its first metadata read was in flight.
+    const finalDescendants = await enumerate();
+    if (finalDescendants.size !== descendants.size || [...finalDescendants].some(id => !descendants.has(id))) {
+      refuse("Native descendant membership changed during reconciliation.");
+    }
+    return descendants.size;
+  } finally {
+    clearTimeout(timer);
+    server.stdin.end();
+    server.kill("SIGTERM");
+    const kill = setTimeout(() => server.kill("SIGKILL"), 1000);
+    await closed;
+    clearTimeout(kill);
+  }
 }
 
 function readResult(message) {
@@ -178,17 +279,17 @@ export async function runCodex(id, chain, action) {
   const launch = (args, input, onStdout, model = false) => new Promise((resolve) => {
     let error;
     let streamError;
-    lock.setChild(null);
+    lock.setChild(null, model);
     try {
       child = spawn("codex", args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
     } catch (cause) {
-      lock.clearChild();
+      lock.clearChild(true); // synchronous spawn failure created no process
       resolve({ error: cause.code ?? "spawn error" });
       return;
     }
     child.on("spawn", () => {
       if (model) envelope.launched = true;
-      try { lock.setChild(child.pid); }
+      try { lock.setChild(child.pid, model); }
       catch { error = "child ownership could not be recorded"; terminate("SIGTERM"); }
       if (cancelled) terminate(cancelled);
     });
@@ -203,7 +304,7 @@ export async function runCodex(id, chain, action) {
       child = null;
       clearTimeout(killTimer);
       killTimer = null;
-      try { lock.clearChild(); }
+      try { if (!model || !envelope.launched) lock.clearChild(true); }
       catch (cause) { error = failureReason(cause); }
       resolve({ code, signal, error: error ?? streamError });
     });
@@ -251,11 +352,21 @@ export async function runCodex(id, chain, action) {
     let terminal;
     let latestUsage;
     let finalMessage;
+    let delegated = false;
+    let rootThread;
     const event = (line) => {
       if (!line.trim() || protocolError) return;
       if (Buffer.byteLength(line) > MAX_EVENT) { protocolError = "Codex emitted an oversized event."; return; }
       try {
         const e = JSON.parse(line);
+        if (!isObject(e)) throw new Error();
+        if (e.item?.type === "collab_tool_call") delegated = true;
+        if (e.type === "thread.started" && rootThread === undefined) {
+          if (typeof e.thread_id !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(e.thread_id)) throw new Error();
+          rootThread = e.thread_id;
+          lock.setThread(rootThread);
+        }
+        if (e.thread_id !== undefined && e.thread_id !== rootThread) return;
         if (e.type === "turn.started") terminal = "started";
         if (["turn.completed", "turn.failed", "turn.interrupted", "error"].includes(e.type)) terminal = e.type;
         if (e.type === "turn.completed") latestUsage = e.usage;
@@ -265,7 +376,7 @@ export async function runCodex(id, chain, action) {
     const start = process.hrtime.bigint();
     let completion;
     try {
-      completion = await launch(["exec", ...configArgs(action), "-m", action.model, "--json", "--ephemeral", "-o", finalFile, "-"], action.prompt, (chunk) => {
+      completion = await launch(["exec", ...configArgs(action), "-m", action.model, "--json", "-o", finalFile, "-"], action.prompt, (chunk) => {
         fs.writeSync(transcript, chunk);
         if (protocolError) return;
         pending += decoder.write(chunk);
@@ -281,8 +392,7 @@ export async function runCodex(id, chain, action) {
     pending += decoder.end();
     if (pending) event(pending);
     const total = tokenTotal(latestUsage);
-    if (total !== undefined) envelope.usage.totalTokens = total;
-    if (cancelled) refuse(`Execution cancelled by ${cancelled}. The child has closed.`);
+    if (cancelled) refuse(`Execution cancelled by ${cancelled}. Native settlement is unverified.`);
     if (completion.error) refuse(`Codex launch failed (${completion.error}).`);
     if (completion.code !== 0) refuse("Codex exited unsuccessfully. The child result was not accepted.");
     if (protocolError) refuse(protocolError);
@@ -291,7 +401,17 @@ export async function runCodex(id, chain, action) {
     if (!stat.isFile() || stat.size > MAX_MESSAGE) refuse("Codex final message file is missing or oversized.");
     const reply = fs.readFileSync(finalFile, "utf8");
     if (typeof finalMessage !== "string" || finalMessage !== reply) refuse("Codex final file does not match the final assistant message.");
-    envelope.result = { ...readResult(reply), usage: envelope.usage };
+    const result = readResult(reply);
+    const descendants = await settledDescendants(rootThread);
+    if (cancelled) refuse(`Execution cancelled by ${cancelled} during native reconciliation.`);
+    lock.clearChild(true);
+    if (total !== undefined && !delegated && descendants === 0) envelope.usage.totalTokens = total;
+    envelope.result = { ...result, usage: envelope.usage };
+    if (delegated || descendants > 0) {
+      const assumptions = Array.isArray(result.assumptions) ? result.assumptions : [];
+      envelope.result.assumptions = [...assumptions,
+        "Codex child token coverage is unknown; totalTokens omitted. Duration measures the enclosing exec including child waits."];
+    }
     envelope.completed = true;
     if (action.action === "archive") envelope.reply = reply;
   } catch (error) {
@@ -302,6 +422,12 @@ export async function runCodex(id, chain, action) {
     if (temp) {
       try { removeTree(temp); }
       catch { envelope.completed = false; envelope.reason = "Codex temporary-file cleanup failed."; }
+    }
+    const retained = lock?.retainedReason();
+    if (retained) {
+      envelope.completed = false;
+      envelope.result = null;
+      envelope.reason = (retained + " " + (envelope.reason ?? "")).slice(0, 2048);
     }
     lock?.release();
     process.removeListener("SIGINT", onInt);

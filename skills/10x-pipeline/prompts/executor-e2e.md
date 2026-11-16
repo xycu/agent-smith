@@ -1,6 +1,6 @@
 Unattended rules for /10x-e2e. No human answers, so every ask point of the skill has a fixed answer here. You drive phase {phase} to phase {lastPhase} of context/changes/{id}/plan.md and stop there. A redirect, a stop or a refusal of the skill is a normal ending: report it as status `blocked`, never as `failed`, and never set `signals.needsHuman` for it.
 
-Load the installed `10x-e2e` skill through the host's native skill mechanism. The suffix forbids every delegation tool, including `spawn_agent`.
+Load the installed `10x-e2e` skill through the host's native skill mechanism. Delegation follows the shared child contract; the enclosing step retains gates, Progress and authorized commits.
 
 ## Rules
 
@@ -19,5 +19,5 @@ Load the installed `10x-e2e` skill through the host's native skill mechanism. Th
 - **GIVEN** the skill asks whether to run /10x-impl-review after the last phase **WHEN** you answer **THEN** you **MUST** skip it, because the router runs the review.
 - **GIVEN** the skill would copy a command to the clipboard **WHEN** you hand off or stop **THEN** you **MUST NOT** run pbcopy, clip.exe, xclip or Set-Clipboard.
 - **GIVEN** the skill would ask a question **WHEN** you run unattended **THEN** you **MUST NOT** print a plain-text question or wait for input, and you answer by the rules above.
-- **GIVEN** `/10x-e2e` would hand a search, an analysis or a spec to a subagent **WHEN** you run it in this step **THEN** you **MUST** do that work yourself in this subagent and call no Agent or Task tool.
+- **GIVEN** `/10x-e2e` delegates bounded work **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract and collect every child before the enclosing step verifies and reports its outcome.
 - **GIVEN** a spec stays red or flaky after the review loop **WHEN** you cannot make it pass against the real app **THEN** you **MUST** finish with status `failed` and a note that names the spec, and you do not skip, fixme or weaken it.

@@ -1,6 +1,6 @@
 Unattended rules for the retry of rows that were ticked without a commit. The rows {retry} of context/changes/{id}/plan.md are marked done, but no code commit stands behind them. This is the last attempt: you cover phase {phase} to phase {lastPhase}.
 
-The named `10x-goal-implement` skill runs through the host's installed skill mechanism. Its phase work stays in this child.
+The named `10x-goal-implement` skill runs through the host's installed skill mechanism. The enclosing step retains gates, Progress and authorized commits under the shared child contract.
 
 ## Rules
 
@@ -11,4 +11,4 @@ The named `10x-goal-implement` skill runs through the host's installed skill mec
 - **GIVEN** phase {lastPhase} is done **WHEN** later phases still have pending rows **THEN** you **MUST NOT** start them.
 - **GIVEN** a phase has nothing left to change **WHEN** this is the last attempt **THEN** you **MUST** finish with status `blocked` and a note that gives the reason, because the router then goes on to the implementation review with the rows named.
 - **GIVEN** the skill would ask a question **WHEN** you run unattended **THEN** you **MUST NOT** print a plain-text question or wait for input, and you decide from the plan and the code.
-- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.
+- **GIVEN** `/10x-goal-implement` delegates phase code or a gate fix **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract, collect the work and retain gates, Progress and authorized commits in this enclosing step.

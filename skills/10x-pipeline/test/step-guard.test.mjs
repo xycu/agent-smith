@@ -198,3 +198,14 @@ test("the standalone guard has no execution, filesystem, network or routing depe
   assert.doesNotMatch(source, /getBuiltinModule|process\.(?:binding|dlopen|mainModule)/);
   assert.match(source, /for await \(const chunk of process\.stdin\)/);
 });
+
+test("guarded leaf identities retain denials without broadening the orchestrator boundary", () => {
+  for (const agent_id of ["leaf-id", "/root/step/leaf"]) {
+    for (const command of ["git push", "git restore --staged unique.txt", "node /plugin/open-pr.mjs demo"]) {
+      const result = invoke(payload(command, { agent_id }));
+      assert.equal(result.decision?.permissionDecision, "deny");
+    }
+    neutral(payload("git diff", { agent_id }));
+  }
+  neutral(payload("node /plugin/open-pr.mjs demo", { agent_id: undefined, agent_type: undefined }));
+});

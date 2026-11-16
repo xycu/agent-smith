@@ -24,6 +24,9 @@ const invariants = [
   "rm -rf", "rm -r", "rm -R", "rm --recursive", "rim" + "raf", "find ... -delete", // Never execute these prohibited command fixtures.
   "fs.rm", "fs.rmSync", "fs.rmdir", "fs.rmdirSync", "recursive: true", "removeTree",
   "list its files", "check the list", "one by one", "deepest first",
+  "one native child layer", "agent-smith:step", "delegated leaf", "no further delegation",
+  "all applicable always-true, chain and step safety rules", "collect every launched child",
+  "disjoint write ownership", "last-result.json", "signals.needsHuman",
 ];
 function safety(prompt) {
   const end = prompt.lastIndexOf("\nRESULT:");

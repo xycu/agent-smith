@@ -995,6 +995,10 @@ export function acquireRunLock(id, chain, onBusy = halt) {
         let owner;
         try { owner = JSON.parse(contents); } catch { /* legacy malformed locks are stale */ }
         const pid = isObject(owner) ? owner.pid : Number(contents);
+        if (isObject(owner) && Object.hasOwn(owner, "native")) {
+          release();
+          onBusy(`Execution suspended: native ownership unresolved (lock file ${lock}, thread ${owner.native?.threadId ?? "unknown"}). Keep the enabling revision and TMPDIR; the authorized owner must establish descendant settlement and router-owned recovery before mutation, relaunch or publication. Nothing was written.`);
+        }
         if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
           release();
           onBusy(`Another init, next or usage of change ${id} is running, or execution/status --report holds its lock (lock file ${lock}, pid ${pid}). Run calls one at a time. Nothing was written.`);
@@ -1025,12 +1029,26 @@ export function acquireRunLock(id, chain, onBusy = halt) {
   };
   return {
     release,
-    setChild(pid) {
+    retainedReason() {
+      return execution?.native
+        ? `Execution suspended: native ownership unresolved (lock file ${lock}, thread ${execution.native.threadId ?? "unknown"}). Keep the enabling revision and TMPDIR; the authorized owner must establish descendant settlement and router-owned recovery before mutation, relaunch or publication.`
+        : execution ? `Execution suspended: process ownership unresolved (lock file ${lock}). Confirm execution closure before router-owned recovery.` : null;
+    },
+    setChild(pid, native = false) {
       // null protects the spawn-to-PID-recording window after a supervisor crash.
-      execution = { pid: process.pid, childPid: pid, processGroup: process.platform !== "win32" };
+      execution = { pid: process.pid, childPid: pid, processGroup: process.platform !== "win32",
+        ...(native ? { native: execution?.native ?? { threadId: null } } : {}) };
       replace(JSON.stringify(execution));
     },
-    clearChild() {
+    setThread(threadId) {
+      if (!execution?.native || (execution.native.threadId && execution.native.threadId !== threadId)) {
+        throw new Error("Native execution identity changed.");
+      }
+      execution.native.threadId = threadId;
+      replace(JSON.stringify(execution));
+    },
+    clearChild(settled = false) {
+      if (execution?.native && !settled) throw new Error(this.retainedReason());
       if (execution?.processGroup && execution.childPid && pidAlive(-execution.childPid)) {
         throw new Error(`Codex child process group ${execution.childPid} is still alive. Execution lock retained at ${lock}.`);
       }

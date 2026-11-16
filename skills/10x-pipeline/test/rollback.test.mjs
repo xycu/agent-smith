@@ -163,6 +163,23 @@ test("4.1 a failed step that left a staged file is snapshotted with it", { skip 
   gw(wt, ["diff", "--cached", "--quiet"]);
 });
 
+test("rollback retry retains an interrupted index snapshot in the recovery ancestry", { skip }, () => {
+  const { wt } = freshRun();
+  fs.writeFileSync(path.join(wt.top, "staged.txt"), "original staged bytes\n");
+  gw(wt, ["add", "staged.txt"]);
+  const saved = gw(wt, ["commit-tree", gw(wt, ["write-tree"]), "-p", "HEAD", "-m", "saved index"]);
+  gw(wt, ["update-ref", REF(wt, 1), saved]);
+  // An interrupted rollback already replaced the index with the working copy.
+  fs.writeFileSync(path.join(wt.top, "staged.txt"), "working bytes\n");
+  gw(wt, ["add", "staged.txt"]);
+  writeResult(wt, { status: "failed", note: "retry interrupted snapshot" });
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "run", res.stdout);
+  assert.ok(ancestor(wt, saved, REF(wt, 1)));
+  assert.equal(showFile(wt, saved, "staged.txt"), "original staged bytes");
+  assert.equal(showFile(wt, REF(wt, 1), "staged.txt"), "working bytes");
+});
+
 test("4.1 a failed implement that ticked every row is followed by implement, from the restored plan", { skip }, () => {
   const { wt } = freshRun();
   toImplement(wt, planText({ phases: 2 }));

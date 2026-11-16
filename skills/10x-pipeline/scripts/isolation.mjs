@@ -603,9 +603,21 @@ export function rollback(p, id, meta, log, policy) {
     if (res.status !== 0) stop(`git ${args[0]} failed: ${gitMessage(res)}.`);
     return res.stdout.trim();
   };
+  // Publish the index before add can replace staged-only bytes; retain an interrupted snapshot on retry.
+  const previous = g(["rev-parse", "--verify", "--quiet", ref]);
+  if (previous.status !== 0 && previous.status !== 1) stop(`Cannot inspect earlier snapshot: ${gitMessage(previous)}.`);
+  const parents = ["-p", "HEAD"];
+  if (previous.status === 0) {
+    if (!SHA_RE.test(previous.stdout.trim())) stop("Earlier snapshot has no valid object ID.");
+    parents.push("-p", previous.stdout.trim());
+  }
+  const staged = step(["commit-tree", step(["write-tree"]), ...parents,
+    "-m", `agent-smith: staged state of failed step ${last.n} (${last.step})`, ...(trailer ? ["-m", trailer] : [])]);
+  step(["update-ref", ref, staged]);
+  refMade = true;
   step(["add", "-A"]);
   const tree = step(["write-tree"]);
-  const snapshot = step(["commit-tree", tree, "-p", "HEAD", "-m", `agent-smith: failed step ${last.n} (${last.step})`, ...(trailer ? ["-m", trailer] : [])]);
+  const snapshot = step(["commit-tree", tree, "-p", "HEAD", "-p", staged, "-m", `agent-smith: failed step ${last.n} (${last.step})`, ...(trailer ? ["-m", trailer] : [])]);
   step(["update-ref", ref, snapshot]); // a ref of that name from an earlier attempt is overwritten
   refMade = true;
   step(["reset", "-q", "--hard", last.startSha]);

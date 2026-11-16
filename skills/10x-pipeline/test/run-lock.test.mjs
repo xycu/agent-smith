@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
-import { cleanupAll, makeProject, run, writeLog, writeMetaFile, entry } from "./helpers.mjs";
+import { cleanupAll, makeProject, run, writeLog, writeMetaFile, entry, git, gitInit, commitFiles, writeResult } from "./helpers.mjs";
 import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { runLockPath } from "../scripts/state.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
@@ -80,6 +80,8 @@ test("a dead execution owner with uncertain child termination retains its lock",
   const { env, lock, tmp } = setup(project);
   for (const owner of [
     { pid: deadPid(), childPid: null, processGroup: true },
+    { pid: deadPid(), childPid: null, processGroup: true, native: { threadId: null } },
+    { pid: deadPid(), childPid: deadPid(), processGroup: true, native: { threadId: "saved-flat-prompt" } },
     { pid: deadPid(), childPid: deadPid(), processGroup: false },
   ]) {
     const contents = JSON.stringify(owner);
@@ -141,7 +143,7 @@ test("1.1f a lock made by temp-and-link carries its pid at once", () => {
 
 
 for (const chain of ["10x", "openspec"]) {
-  test(`${chain}: runner crash retains exclusion until its child process group exits`, { skip: process.platform === "win32" }, async (t) => {
+  test(`${chain}: native runner crash retains exclusion after its child process group exits`, { skip: process.platform === "win32" }, async (t) => {
     const w = codexFixture(chain, { mode: { hold: true } });
     const p = w.project;
     const statusArgs = ["status", p.id, "--chain", chain];
@@ -181,53 +183,175 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(fs.readFileSync(path.join(p.agentDir, "report.md")), before);
     assert.deepEqual(fs.readdirSync(w.tmp).filter(name => name.endsWith(".tmp")), []);
     await stopChild();
-    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
-    assert.equal(execute(w).json.completed, true, "execution can resume after the orphaned group exits");
+    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 1);
+    assert.equal(execute(w).json.completed, false, "group exit alone cannot reconcile native children");
   });
 
-  test(`${chain}: a runner holds the shared lock through close, plain status reads and report status refuses`, async (t) => {
-    const w = codexFixture(chain, { mode: { hold: true, holdUntilRelease: true } });
-    const p = w.project;
-    const statusArgs = ["status", p.id, "--chain", chain];
-    const reportFile = path.join(p.agentDir, "report.md");
-    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
-    const before = fs.readFileSync(reportFile);
-    const running = startRunner(w);
-    const release = path.join(w.fixture, "release");
-    t.after(async () => {
-      fs.writeFileSync(release, "yes");
+  for (const descendant of [false, true]) {
+    test(`${chain}: lock stays held through ${descendant ? "descendant collection" : "close"}`, { skip: descendant && process.platform === "win32" }, async (t) => {
+      const w = codexFixture(chain, { mode: { hold: true, holdUntilRelease: true, descendant } });
+      const p = w.project;
+      const statusArgs = ["status", p.id, "--chain", chain];
+      const reportFile = path.join(p.agentDir, "report.md");
+      assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
+      const before = fs.readFileSync(reportFile);
+      const running = startRunner(w);
+      const release = path.join(w.fixture, "release");
+      t.after(async () => {
+        fs.writeFileSync(release, "yes");
+        if (descendant) fs.writeFileSync(path.join(w.fixture, "descendant-release"), "yes");
+        running.child.kill("SIGTERM");
+        const closed = await running.closed;
+        assert.notEqual(closed.json?.signal, "SIGKILL", closed.stdout);
+      });
+      await waitForFile(path.join(w.fixture, "ready"));
+      if (descendant) await waitForFile(path.join(w.fixture, "descendant-ready"));
+      const verifyHeld = () => {
+        const duplicate = execute(w);
+        assert.equal(duplicate.json.launched, false);
+        assert.match(duplicate.json.reason, /lock/);
+        for (const args of [[...statusArgs, "--report"], ["next", p.id, "--chain", chain],
+          ["init", p.id, "--chain", chain], ["usage", p.id, "1", "--tokens", "10", "--chain", chain]]) {
+          const result = run(p, args, { env: w.env });
+          assert.equal(result.status, 1, result.stdout);
+          assert.match(result.json.reason, /lock/);
+        }
+        assert.equal(run(p, statusArgs, { env: w.env }).status, 0);
+        assert.deepEqual(fs.readFileSync(reportFile), before);
+      };
+      verifyHeld();
       running.child.kill("SIGTERM");
-      const closed = await running.closed;
-      assert.notEqual(closed.json?.signal, "SIGKILL", closed.stdout);
-    });
-    await waitForFile(path.join(w.fixture, "ready"));
-    const verifyHeld = () => {
-      const duplicate = execute(w);
-      assert.equal(duplicate.json.launched, false);
-      assert.match(duplicate.json.reason, /lock/);
-      for (const args of [[...statusArgs, "--report"], ["next", p.id, "--chain", chain],
-        ["init", p.id, "--chain", chain], ["usage", p.id, "1", "--tokens", "10", "--chain", chain]]) {
-        const result = run(p, args, { env: w.env });
-        assert.equal(result.status, 1, result.stdout);
-        assert.match(result.json.reason, /lock/);
-      }
-      assert.equal(run(p, statusArgs, { env: w.env }).status, 0);
+      await waitForFile(path.join(w.fixture, "terminating"));
+      if (descendant) await waitForFile(path.join(w.fixture, "descendant-terminating"));
+      const blocked = run(p, [...statusArgs, "--report"], { env: w.env });
+      assert.equal(blocked.status, 1, "lock is retained while the child is terminating");
       assert.deepEqual(fs.readFileSync(reportFile), before);
-    };
-    verifyHeld();
-    running.child.kill("SIGTERM");
-    await waitForFile(path.join(w.fixture, "terminating"));
-    const blocked = run(p, [...statusArgs, "--report"], { env: w.env });
-    assert.equal(blocked.status, 1, "lock is retained while the child is terminating");
-    assert.deepEqual(fs.readFileSync(reportFile), before);
-    fs.writeFileSync(release, "yes");
-    const closed = await running.closed;
-    assert.equal(closed.json.launched, true, closed.stdout);
-    assert.equal(closed.json.completed, false, closed.stdout);
-    assert.match(closed.json.reason, /cancelled/, closed.stdout);
-    assert.equal(closed.json.exitCode, 0, closed.stdout);
-    assert.equal(closed.json.signal, null, closed.stdout);
-    assert.deepEqual(runnerLeftovers(w), []);
-    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
+      fs.writeFileSync(release, "yes");
+      if (descendant) {
+        await waitForFile(path.join(w.fixture, "descendant-waiting"));
+        const pid = Number(fs.readFileSync(path.join(w.fixture, "descendant-ready"), "utf8"));
+        process.kill(pid, 0);
+        assert.equal(fs.existsSync(path.join(w.fixture, "descendant-collected")), false);
+        verifyHeld();
+        const args = calls(w.fixture).at(-1).args;
+        const finalFile = args[args.indexOf("-o") + 1];
+        assert.ok(fs.existsSync(path.dirname(finalFile)), "raw files survive while the descendant is held");
+        fs.writeFileSync(path.join(w.fixture, "descendant-release"), "yes");
+      }
+      const closed = await running.closed;
+      assert.equal(closed.json.launched, true, closed.stdout);
+      assert.equal(closed.json.completed, false, closed.stdout);
+      assert.match(closed.json.reason, /cancelled/, closed.stdout);
+      assert.equal(closed.json.exitCode, 0, closed.stdout);
+      assert.equal(closed.json.signal, null, closed.stdout);
+      if (descendant) {
+        const pid = Number(fs.readFileSync(path.join(w.fixture, "descendant-ready"), "utf8"));
+        assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+        assert.deepEqual(JSON.parse(fs.readFileSync(path.join(w.fixture, "descendant-collected"), "utf8")), { code: 0, signal: null });
+      }
+      assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, 1);
+      assert.match(closed.json.reason, /Execution suspended:/);
+      assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 1);
+    });
+  }
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: legacy flat records recover only after their process group is gone`, { skip: process.platform === "win32" }, () => {
+    const project = chain === "10x" ? makeProject() : makeOpenspecProject();
+    const { env, lock } = setup(project);
+    fs.writeFileSync(lock, JSON.stringify({ pid: deadPid(), childPid: process.pid, processGroup: false }));
+    assert.equal(usage(project, env, ["--chain", chain]).status, 1);
+    fs.writeFileSync(lock, JSON.stringify({ pid: deadPid(), childPid: deadPid(), processGroup: true }));
+    assert.equal(usage(project, env, ["--chain", chain]).status, 0);
+    assert.equal(fs.existsSync(lock), false);
   });
+
+  for (const crash of ["parent", "runner"]) {
+    test(`${chain}: ${crash} death with an out-of-group child retains every mutation boundary`,
+      { skip: process.platform === "win32" }, async (t) => {
+      const w = codexFixture(chain, { mode: { hold: true, descendant: true, outOfGroup: true } });
+      const p = w.project;
+      const status = ["status", p.id, "--chain", chain];
+      assert.equal(run(p, [...status, "--report"], { env: w.env }).status, 0);
+      gitInit(p);
+      commitFiles(p, ["versions.txt"]);
+      fs.writeFileSync(path.join(p.root, "versions.txt"), "staged-only version");
+      git(p, ["add", "--", "versions.txt"]);
+      fs.writeFileSync(path.join(p.root, "versions.txt"), "working child version");
+      fs.writeFileSync(path.join(p.root, "unrelated.txt"), "unrelated version");
+      const head = git(p, ["rev-parse", "HEAD"]);
+      const index = git(p, ["write-tree"]);
+      let lateResult;
+      const files = ["run.jsonl", "meta.json", "report.md"];
+      const before = files.map(file => fs.readFileSync(path.join(p.agentDir, file)));
+      const running = startRunner(w);
+      let parentPid;
+      let descendantPid;
+      const kill = pid => {
+        if (!pid) return;
+        try { process.kill(pid, "SIGKILL"); } catch (e) { if (e.code !== "ESRCH") throw e; }
+      };
+      const gone = async pid => {
+        const deadline = Date.now() + 10000;
+        for (;;) {
+          try { process.kill(pid, 0); } catch (e) { if (e.code === "ESRCH") return; throw e; }
+          assert.ok(Date.now() < deadline, "fixture process must stop");
+          await setTimeout(10);
+        }
+      };
+      t.after(async () => {
+        kill(parentPid);
+        kill(descendantPid);
+        running.child.kill("SIGKILL");
+        await running.closed;
+        if (descendantPid) await gone(descendantPid);
+        if (parentPid) await gone(parentPid);
+      });
+      await waitForFile(path.join(w.fixture, "ready"));
+      await waitForFile(path.join(w.fixture, "descendant-ready"));
+      parentPid = Number(fs.readFileSync(path.join(w.fixture, "ready"), "utf8"));
+      descendantPid = Number(fs.readFileSync(path.join(w.fixture, "descendant-ready"), "utf8"));
+      const lockFile = path.join(w.tmp, fs.readdirSync(w.tmp).find(name => name.endsWith(".lock")));
+      const owner = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+      assert.equal(owner.native.threadId, "root-fixture");
+      assert.equal(owner.childPid, parentPid);
+      if (crash === "runner") {
+        running.child.kill("SIGKILL");
+        await running.closed;
+      }
+      kill(parentPid);
+      await running.closed;
+      await gone(parentPid);
+      assert.throws(() => process.kill(-parentPid, 0), { code: "ESRCH" });
+      process.kill(descendantPid, 0);
+      const verifyHeld = () => {
+        assert.equal(execute(w).json.launched, false);
+        for (const args of [[...status, "--report"], ["next", p.id, "--chain", chain],
+          ["init", p.id, "--chain", chain], ["usage", p.id, "1", "--tokens", "1", "--chain", chain]]) {
+          const result = run(p, args, { env: w.env });
+          assert.equal(result.status, 1, result.stdout);
+          assert.match(result.json.reason, /Execution suspended:.*native ownership unresolved/);
+        }
+        assert.equal(run(p, status, { env: w.env }).status, 0);
+        files.forEach((file, i) => assert.deepEqual(fs.readFileSync(path.join(p.agentDir, file)), before[i]));
+        assert.deepEqual(JSON.parse(fs.readFileSync(lockFile, "utf8")), owner);
+        assert.equal(git(p, ["rev-parse", "HEAD"]), head);
+        assert.equal(git(p, ["write-tree"]), index);
+        assert.equal(git(p, ["show", ":versions.txt"]), "staged-only version");
+        assert.equal(fs.readFileSync(path.join(p.root, "versions.txt"), "utf8"), "working child version");
+        assert.equal(fs.readFileSync(path.join(p.root, "unrelated.txt"), "utf8"), "unrelated version");
+        if (lateResult) assert.deepEqual(fs.readFileSync(path.join(p.agentDir, "last-result.json")), lateResult);
+      };
+      verifyHeld();
+      writeResult(p, { status: "done", note: "late foreign child report" });
+      lateResult = fs.readFileSync(path.join(p.agentDir, "last-result.json"));
+      verifyHeld();
+      fs.writeFileSync(path.join(w.fixture, "descendant-release"), "yes");
+      await waitForFile(path.join(w.fixture, "late-write"));
+      await gone(descendantPid);
+      assert.equal(fs.readFileSync(path.join(w.fixture, "late-write"), "utf8"), "child work");
+      verifyHeld();
+    });
+  }
 }

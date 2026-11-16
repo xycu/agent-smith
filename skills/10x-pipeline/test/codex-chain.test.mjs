@@ -181,3 +181,36 @@ for (const chain of ["10x", "openspec"]) {
     assert.ok(readLogEntries(project).some((entry) => entry.provider === "openai" && entry.ok));
   });
 }
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: collected child failure preserves distinct staged and working versions`, () => {
+    const policy = { ...PRESET, isolation: { require: true } };
+    const project = projectFor(chain, policy, true);
+    const w = codexFixture(chain, { project, policy });
+    const first = w.action;
+    fs.writeFileSync(path.join(project.root, "child-edit.txt"), "staged child version\n");
+    gw(project, ["add", "--", "child-edit.txt"]);
+    fs.writeFileSync(path.join(project.root, "child-edit.txt"), "working child version\n");
+    fs.writeFileSync(path.join(project.root, "unrelated.txt"), "unrelated uncommitted version\n");
+    setMode(w, {
+      reply: 'RESULT: {"status":"failed","note":"parent collected child failure"}',
+      pages: { false: { first: { data: [{ id: "completed-child" }], nextCursor: null } } },
+    });
+    const result = execute(w);
+    assert.equal(result.json.completed, true, result.stdout);
+    assert.equal(result.json.usage.totalTokens, undefined);
+    writeResult(project, result.json.result);
+    const retry = run(project, ["next", project.id, "--chain", chain], { env: w.env });
+    assert.equal(retry.json.action, "run", retry.stdout);
+    const failed = readLogEntries(project).find(e => e.n === first.n);
+    assert.ok(failed.rolledBack);
+    assert.equal(gw(project, ["show", failed.rolledBack + ":child-edit.txt"]), "working child version");
+    assert.equal(gw(project, ["show", failed.rolledBack + ":unrelated.txt"]), "unrelated uncommitted version");
+    assert.equal(gw(project, ["show", failed.rolledBack + "^2:child-edit.txt"]), "staged child version");
+    assert.equal(gw(project, ["rev-parse", failed.rolledBack + "^1"]), failed.startSha, "original undo ancestry is unchanged");
+    assert.equal(fs.existsSync(path.join(project.root, "child-edit.txt")), false);
+    const count = calls(w.fixture).length;
+    assert.equal(execute(w, first).json.launched, false, "completed invocation cannot be relaunched after retry dispatch");
+    assert.equal(calls(w.fixture).length, count);
+  });
+}

@@ -630,7 +630,7 @@ test("the plan prompt carries named-skill loading, layered safety rules and the 
   const prompt = res.json.prompt;
   const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
   // Three defaults, two planning rules, then the shared safety and precedence rules.
-  assert.equal(rules.length, 19);
+  assert.equal(rules.length, 26);
   assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
   assert.match(rules[1], /`signals\.needsHuman`/);
   assert.match(rules[2], /\*\*MAY\*\* add `signals\.rigor`/);
@@ -638,9 +638,12 @@ test("the plan prompt carries named-skill loading, layered safety rules and the 
   assert.match(rules[6], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
   assert.match(rules[7], /\*\*MUST NOT\*\* use `rm -rf`/);
   assert.match(rules[8], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
-  assert.match(rules[16], /\*\*MUST NOT\*\* call the Agent tool/);
-  assert.match(rules[17], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
-  assert.match(rules[18], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
+  assert.match(rules[16], /\*\*MAY\*\* start one native child layer/);
+  assert.match(rules[17], /all applicable always-true, chain and step safety rules/);
+  assert.match(rules[20], /delegated leaf.*\*\*MUST NOT\*\* do so/);
+  assert.match(rules[22], /collect every launched child, reconcile edits and failures/);
+  assert.match(rules[24], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
+  assert.match(rules[25], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
   const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
   assert.equal(prompt.split("\n").at(-1), result, "the RESULT line of top.md ends the prompt");
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
