@@ -10,7 +10,7 @@ name: CI
 # fork PR, because a fork PR runs the workflow file of its own branch and its author can edit
 # `runs-on`. The boundary is the repository setting "Require approval for all external contributors".
 # The first step of `test` refuses uid 0, because ADR-020 D4 requires a non-root runner user.
-# Six test shards use the six TrueNAS runners, with two concurrent test files per shard.
+# Six duration-balanced test shards use the six TrueNAS runners, with two concurrent files per shard.
 # Each job stops after 15 minutes.
 on:
   pull_request:
@@ -50,7 +50,6 @@ jobs:
       # Three default skips with gh available, four with gh absent; a present CLAUDE.md reduces either by one.
       # Both permission checks in no-recursive-delete.test.mjs run on the non-root Linux runner.
       - name: Install OpenSpec contract CLI
-        shell: bash
         env:
           OPENSPEC_TELEMETRY: "0"
           DO_NOT_TRACK: "1"
@@ -67,9 +66,11 @@ jobs:
           echo "OpenSpec $version"
           echo "OPENSPEC_BIN=$openspec" >> "$GITHUB_ENV"
       - name: Test suite
+        shell: bash
         env:
           TMPDIR: ${{ runner.temp }}
-        run: node --test --test-concurrency=2 --test-shard=${{ matrix.shard }}/${{ strategy.job-total }} --experimental-test-coverage skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+          TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: node --experimental-test-coverage tools/test-shards.mjs "$TEST_SHARD"
       - name: Check version fields are in lockstep
         run: node tools/version-check.mjs
 
