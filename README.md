@@ -134,12 +134,16 @@ The cap affects every Claude session in that project, including workflows outsid
 
 - [`docs/REFERENCE.md`](docs/REFERENCE.md): every rule, threshold and edge case.
 - [`docs/ADR/`](docs/ADR/): why it works this way.
-- [`AGENTS.md`](AGENTS.md): contributor guide.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — contributor guide and submission terms.
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — participation standards and conduct reporting.
+- [`AGENTS.md`](AGENTS.md) — repository rules and architectural conventions.
 - [`SECURITY.md`](SECURITY.md): security policy and private reporting process.
 - [Releases](https://github.com/xycu/agent-smith/releases): changelog, [SemVer](https://semver.org) tags `vX.Y.Z`.
 
 ## 📄 License
 
 Copyright (c) 2026 Błażej Ksycki. Project-owned code, documentation and other material are licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0). You may share unadapted copies for noncommercial purposes with attribution. The license permits producing adaptations for noncommercial purposes, with sharing of adaptations requiring separate permission. Full terms appear in [LICENSE](LICENSE) and the [official license summary](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+
+The additional contribution permission covers noncommercial sharing of project-owned adaptations through forks and pull requests to propose or review contributions to agent-smith. Incoming contribution terms cover the maintainer's revision, incorporation and distribution of future contributions under the project's licensing terms, with contributors retaining ownership. [Contribution permission](CONTRIBUTING.md#contribution-permission) · [Incoming contribution terms](CONTRIBUTING.md#incoming-contribution-terms)
 
 Separately credited third-party material, including the header image and bundled OpenSpec skills with MIT notices, retains its own rights and terms. Earlier versions remain governed by the license supplied with them. For permissions beyond CC BY-NC-ND 4.0, contact Błażej Ksycki at [blazej@ksycki.pl](mailto:blazej@ksycki.pl).
