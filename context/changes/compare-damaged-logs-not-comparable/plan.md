@@ -163,5 +163,5 @@ Rollback uses an ordinary preserving revert of the implementation commit. Existi
 
 #### Manual
 
-- [ ] 1.4 After local verification and pipeline reviews, the authorized orchestrator pushes the run branch, opens or retains a reviewable pull request and records its URL and successful PR CI result.
-- [ ] 1.5 The authorized orchestrator posts or updates the requested run-report comment on that pull request and records its URL with the actual local test results and any remaining acceptance items.
+- [x] 1.4 After local verification and pipeline reviews, the authorized orchestrator pushes the run branch, opens or retains a reviewable pull request and records its URL and successful PR CI result. — [Publication acceptance](evidence/verification.md#post-publication-acceptance)
+- [x] 1.5 The authorized orchestrator posts or updates the requested run-report comment on that pull request and records its URL with the actual local test results and any remaining acceptance items. — [Publication acceptance](evidence/verification.md#post-publication-acceptance)

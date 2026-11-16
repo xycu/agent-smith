@@ -34,12 +34,12 @@ The plan-selected reason codes follow the existing side-attributed reason conven
 
 One native leaf, `/root/phase1_implementation`, implemented the four assigned files and returned a completed structured handback. The enclosing step reconciled the edits and owns all gates, Progress and commits. Child-inclusive token coverage is unknown, so no token total is asserted.
 
-Manual acceptance remains pending for orchestrator-owned publication, successful PR CI, and the requested run-report comment. Progress rows 1.4 and 1.5 retain their pending state.
+Manual acceptance for publication, successful PR CI and the requested report comment is complete. The post-publication acceptance record below supplies the external evidence and owner approval.
 
-### Pending Manual rows
+### Manual acceptance
 
-- 1.4 After local verification and pipeline reviews, the authorized orchestrator pushes the run branch, opens or retains a reviewable pull request and records its URL and successful PR CI result.
-- 1.5 The authorized orchestrator posts or updates the requested run-report comment on that pull request and records its URL with the actual local test results and any remaining acceptance items.
+- [x] 1.4 After local verification and pipeline reviews, the authorized orchestrator pushes the run branch, opens or retains a reviewable pull request and records its URL and successful PR CI result.
+- [x] 1.5 The authorized orchestrator posts or updates the requested run-report comment on that pull request and records its URL with the actual local test results and any remaining acceptance items.
 
 The full-suite plan criterion completed in 743,496.88625 ms with 1,739 tests and 13 suites. Its three existing skips are the two opt-in GH_LIVE tests in pr-comment.test.mjs and the CLAUDE.md import guard because that file is absent. Git is available and no Git-dependent gate was skipped.
 
@@ -52,3 +52,14 @@ The pre-existing dirty router-owned `agent-smith/run.jsonl` remains outside the 
 ## Final gate result
 
 The same final suite process was awaited to completion with exit zero, 1,739 tests, 13 suites and duration 768,851.217 ms. Its three skips match the expected categories above. Focused regressions, reference/scope validation, deliberate-break protection and both complete suite runs passed. `node tools/version-check.mjs` reports OK for 1.12.0. Both planned commit subjects pass `node tools/commit-lint.mjs --title`. Working and staged diff checks pass.
+
+## Post-publication acceptance
+
+Verified on 2026-11-16 after terminal publication. The reviewed implementation was published from `agent-smith/compare-damaged-logs-not-comparable` at `d7b2c0aad6549ee8e1032e31b96b1bcf2d9206b7`. GitHub confirms an open, reviewable pull request with that head and successful CI and PR-title workflows. The installed publication script pushed without force, and its output reported `pushed: true` and `committed: true`. [Pull request](https://github.com/xycu/agent-smith/pull/201) · [Successful CI](https://github.com/xycu/agent-smith/actions/runs/43875038953)
+
+The existing report comment identifies this change and contains the completed step log and the approval verdict. Its Manual section records the earlier manual-verification snapshot. This acceptance record and the checked plan rows record the completed publication checks. [Requested report comment](https://github.com/xycu/agent-smith/pull/201#issuecomment-6917625846)
+
+The owner approved review in this chat on 2026-11-16 with “I approve the review. Please update the manual rows.”
+
+- [x] 1.4 After local verification and pipeline reviews, the authorized orchestrator pushes the run branch, opens or retains a reviewable pull request and records its URL and successful PR CI result.
+- [x] 1.5 The authorized orchestrator posts or updates the requested run-report comment on that pull request and records its URL with the actual local test results and any remaining acceptance items.

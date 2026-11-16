@@ -41,3 +41,9 @@ Confidence: medium · Unknowns: 1
 Source: score step 1
 
 No tier shift.
+
+## Post-publication acceptance
+
+On 2026-11-16, publication, the requested report comment and PR CI were verified, and the owner approved review in the originating chat. Manual rows 1.4, 1.5 are complete in the plan and verification evidence. The earlier Manual checks section retains its step-time snapshot. [Pull request](https://github.com/xycu/agent-smith/pull/201) · [Successful CI](https://github.com/xycu/agent-smith/actions/runs/43875038953)
+
+Local implementation-review verification passed 1736 full-suite tests with zero failures and three expected skips. The implementation review is APPROVED with zero findings. The skips cover the two opt-in live GitHub tests and the absent CLAUDE.md import check.
