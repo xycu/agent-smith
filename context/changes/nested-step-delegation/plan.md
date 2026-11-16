@@ -4,7 +4,7 @@
 
 Enable pipeline steps to delegate bounded work to native child subagents, collect their results and finish through both normal workflow entry points. Preserve invocation identity, effective permissions, recoverable edits and orchestrator-owned publication throughout the change.
 
-This is S-14, the sole Wave 0 change. The owner deferred performance benchmarking in this invocation. Functional host evidence remains required. This plan covers the change through implementation and acceptance, while the current step delivers planning artifacts only. [Research](research.md) [Scope and ordering](../WAVES.md#wave-0-child-subagents-alone)
+This is S-14, the sole Wave 0 change. The owner deferred performance benchmarking in this invocation. Functional host evidence remains required. This plan covers the change through implementation and acceptance, while the current step delivers planning artifacts only. [Research](research.md) [Scope and ordering](../../changes/WAVES.md#wave-0-child-subagents-alone)
 
 ## Current State Analysis
 
@@ -41,7 +41,7 @@ Coverage includes Claude-hosted Claude-only and mixed Claude/OpenAI ladders, plu
 
 ## What We're NOT Doing
 
-The scope is delegation, its regression proof and matching instructions. OpenSpec 2.0.0, broader prerequisite onboarding and full milestone qualification retain their separate roadmap slices. [Wave ordering](../WAVES.md#wave-map)
+The scope is delegation, its regression proof and matching instructions. OpenSpec 2.0.0, broader prerequisite onboarding and full milestone qualification retain their separate roadmap slices. [Wave ordering](../../changes/WAVES.md#wave-map)
 
 This re-plan edits only this change folder. It does not restore implementation files, mutate router state/recovery refs, change lessons, publish, or run native children. The later implementation reuses the existing runner and lock; it introduces no independent child scheduler or recovery service.
 
@@ -247,7 +247,7 @@ Rollback begins by awaiting or stopping children through their existing native p
 
 - [Supplied source research](research.md)
 - [S-14 scope and acceptance](../../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents)
-- [Wave 0 ordering](../WAVES.md#wave-0-child-subagents-alone)
+- [Wave 0 ordering](../../changes/WAVES.md#wave-0-child-subagents-alone)
 - [Historical nesting decision and depth amendment](../../../docs/ADR/ADR-018-no-nested-subagents.md)
 - [Runner and provider-specific safety contract](../../../docs/ADR/ADR-024-openai-codex-support.md)
 - [Existing nesting regressions](../../../skills/10x-pipeline/test/nested-subagents.test.mjs)
@@ -289,4 +289,4 @@ Rollback begins by awaiting or stopping children through their existing native p
 #### Manual
 
 - [ ] 3.4 Final-candidate functional evidence passes all twelve configuration/mode cells through both normal entry points, including child collection, failure, interruption/resume, late-result rejection, usage attribution and effective child restrictions.
-- [ ] 3.5 The authorized orchestrator publishes the run branch and reviewable PR, its CI succeeds, and any explicitly requested report comment describes the actual delegation outcome and pending host evidence.
+- [x] 3.5 The authorized orchestrator publishes the run branch and reviewable PR, its CI succeeds, and any explicitly requested report comment describes the actual delegation outcome and pending host evidence. — d7e08ba6

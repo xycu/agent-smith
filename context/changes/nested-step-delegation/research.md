@@ -16,7 +16,7 @@ last_updated_note: "Mapped current restrictions and preservation contracts. Live
 
 ## Research question and scope
 
-What currently prevents a pipeline step from delegating to children, which completion and safety contracts must survive enabling delegation, and what host evidence is missing? The change record supplies its identity. S-14 and Wave 0 supply the intended behavior and both-chain coverage. This investigation uses that scope because the change's Notes contain a placeholder. [Change identity](change.md), [S-14](../../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents), [Wave 0](../WAVES.md#wave-0-child-subagents-alone)
+What currently prevents a pipeline step from delegating to children, which completion and safety contracts must survive enabling delegation, and what host evidence is missing? The change record supplies its identity. S-14 and Wave 0 supply the intended behavior and both-chain coverage. This investigation uses that scope because the change's Notes contain a placeholder. [Change identity](change.md), [S-14](../../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents), [Wave 0](../../changes/WAVES.md#wave-0-child-subagents-alone)
 
 The owner's instruction in this chat says, “You don't have to benchmark performance, this will be measured later.” Performance benchmarking is deferred for this change's handoff, superseding the comparative measurement work in the cited roadmap and wave records. Functional completion, recovery, attribution and effective safety remain in scope. [Recorded measurement scope](../../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents)
 
@@ -76,7 +76,7 @@ The score agent declares `Read, Grep, Glob, Write`. Its current tool list suppli
 
 ## Planning handoff
 
-The mapped ownership spans shared rules, implement/executor/research prompts, Claude depth settings, Codex `configArgs()`, both orchestrator skills and relevant identity/safety behavior. The result and recovery machinery supplies existing preservation contracts. New runtime changes depend on observed child-enabled event and lifetime behavior. [Wave 0 ownership](../WAVES.md#wave-0-child-subagents-alone), [runner parser, line 254](../../../skills/10x-pipeline/scripts/run-codex.mjs), [result intake, line 550](../../../skills/10x-pipeline/scripts/flow.mjs)
+The mapped ownership spans shared rules, implement/executor/research prompts, Claude depth settings, Codex `configArgs()`, both orchestrator skills and relevant identity/safety behavior. The result and recovery machinery supplies existing preservation contracts. New runtime changes depend on observed child-enabled event and lifetime behavior. [Wave 0 ownership](../../changes/WAVES.md#wave-0-child-subagents-alone), [runner parser, line 254](../../../skills/10x-pipeline/scripts/run-codex.mjs), [result intake, line 550](../../../skills/10x-pipeline/scripts/flow.mjs)
 
 The affected regression contracts include `nested-subagents.test.mjs` for the current ban/depth assertions and parent-notification protection, `skill-loop.test.mjs` for shared loop identity, `codex-runner.test.mjs` for flags and result parsing, `step-guard.test.mjs` for identity-scoped safety, and the recovery/chain cases cited above. Existing test text requires revision where it pins the replaced restriction. Parent identity, archive handling and recovery remain preservation obligations. [Nesting assertions, line 40](../../../skills/10x-pipeline/test/nested-subagents.test.mjs), [identity assertions, line 126](../../../skills/10x-pipeline/test/nested-subagents.test.mjs), [depth assertions, line 155](../../../skills/10x-pipeline/test/nested-subagents.test.mjs), [loop tests](../../../skills/10x-pipeline/test/skill-loop.test.mjs), [runner assertions, line 33](../../../skills/10x-pipeline/test/codex-runner.test.mjs)
 
@@ -99,4 +99,4 @@ Runtime tests and live nested-host acceptance were not run during this source in
 
 ## Related research
 
-The production-readiness assessment supplies broader acceptance context. Its ordering discussion predates Wave 0, whose current sequencing is recorded separately. [Assessment](../production-readiness-assessment/research.md), [current Wave 0](../WAVES.md#wave-0-child-subagents-alone)
+The production-readiness assessment supplies broader acceptance context. Its ordering discussion predates Wave 0, whose current sequencing is recorded separately. [Assessment](../2026-11-15-production-readiness-assessment/research.md), [current Wave 0](../../changes/WAVES.md#wave-0-child-subagents-alone)

@@ -33,7 +33,7 @@ Phase 2 is committed as `ce116d2`, using the top-level native observations and a
 
 The failed Phase 2 work is preserved in the router recovery ref identified by implementation-feedback.md. The revised local gate includes setup/handoff/archive contract repair, native execution-lock exclusion for an out-of-group child (new row 2.4), and a fresh full suite with zero failures/cancellations. Prior Phase 1 results and the failed attempt's partial logs do not qualify the feature. That planning-only revision left Automated rows pending; the subsequent Phase 2 implementation and successful full gate close rows 2.1–2.4. See the [implementation verification](verification.md) for exact counts and decisions.
 
-Manual rows 3.4 and 3.5 also remain pending. Final-candidate native verification and orchestrator-owned publication/CI are separate acceptance obligations. Performance benchmarking follows the owner's deferral. [Progress](../plan.md#progress)
+Manual row 3.4 remains pending. Publication row 3.5 is subsequently verified below. Final-candidate native verification and orchestrator-owned publication/CI are separate acceptance obligations. Performance benchmarking follows the owner's deferral. [Progress](../plan.md#progress)
 
 ## Verification record
 
@@ -45,12 +45,18 @@ Manual rows 3.4 and 3.5 also remain pending. Final-candidate native verification
 - `git diff --check`, `node tools/version-check.mjs` and the required phase commit subject lint passed.
 - Tests use a worktree-local ignored TMPDIR beneath `.claude/worktrees/nested-step-delegation-checks`. A temporary Git discovery boundary confines scratch repositories to that area.
 
-The first pending Automated row after Phase 1 was 2.1; Phase 2 has since passed its full replacement suite (1,668 passed, zero failures/cancellations, three existing skips). The top-level session corrected the plan's pre-implementation full-matrix gate after collecting the native observations above. Implementation and local verification are complete; Manual rows 1.3, 3.4 and 3.5 retain their qualification and publication obligations. [Sequencing correction](../plan.md#critical-implementation-details)
+The first pending Automated row after Phase 1 was 2.1; Phase 2 has since passed its full replacement suite (1,668 passed, zero failures/cancellations, three existing skips). The top-level session corrected the plan's pre-implementation full-matrix gate after collecting the native observations above. Implementation and local verification are complete; Manual rows 1.3 and 3.4 retain their qualification obligations. [Sequencing correction](../plan.md#critical-implementation-details)
 
 ## Pending manual verification
 
 - [ ] 1.3 Native capability evidence records parent receipt, event and usage semantics, cancellation and applicable child restrictions for the twelve configuration/mode cells, with unavailable proof explicitly pending until final-candidate qualification.
 - [ ] 3.4 Final-candidate functional evidence passes all twelve configuration/mode cells through both normal entry points, including child collection, failure, interruption/resume, late-result rejection, usage attribution and effective child restrictions.
-- [ ] 3.5 The authorized orchestrator publishes the run branch and reviewable PR, its CI succeeds, and any explicitly requested report comment describes the actual delegation outcome and pending host evidence.
+- [x] 3.5 The authorized orchestrator publishes the run branch and reviewable PR, its CI succeeds, and any explicitly requested report comment describes the actual delegation outcome and pending host evidence.
 
 Phase 3 gate details, the staged-source candidate hash and preservation regression evidence are in [implementation verification](verification.md#phase-3--recovery-and-compatibility). The phase commit is recorded beside the completed Progress rows.
+
+## Publication verification and archive closeout
+
+On 2026-11-16, a fresh GitHub check confirmed that PR #199 merged as `d7e08ba680c7c8b10823d7f639e116a947d81ee1`, its PR CI passed, and the requested report comment records the delegation outcome and pending native proof. Main-branch CI also passed for the merged implementation. These observations satisfy Manual 3.5. [PR #199](https://github.com/xycu/agent-smith/pull/199), [PR CI](https://github.com/xycu/agent-smith/actions/runs/43804747009), [main CI](https://github.com/xycu/agent-smith/actions/runs/43829951099), [report comment](https://github.com/xycu/agent-smith/pull/199#issuecomment-6903624666)
+
+The owner subsequently directed context closeout with one unarchived change remaining. This closeout archives the merged S-14 implementation and carries Manual rows 1.3 and 3.4 into S-20's final-candidate qualification. Both rows and all twelve native matrix cells stay pending. S-20 retains the existing eighteen-normal-run contract, including recovery, owner decisions, child ownership, effective restrictions and usage coverage. Performance measurement retains its earlier owner-approved deferral. Original phase SHA suffixes are preserved.

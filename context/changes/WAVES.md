@@ -15,7 +15,7 @@ Both audit fixes completed seven pipeline steps, received implementation-review 
 | Comparison integrity | PR #201 merged as `a48269ce`, with 1,736 local full-suite passes with three expected skips. | [Archive](../archive/2026-11-15-compare-damaged-logs-not-comparable/change.md), [verification and publication acceptance](../archive/2026-11-15-compare-damaged-logs-not-comparable/evidence/verification.md), [PR #201](https://github.com/xycu/agent-smith/pull/201) |
 | Configured branch prefix | PR #203 merged as `bd669ada`, with 1,727 local full-suite passes with three expected skips. | [Archive](../archive/2026-11-15-run-branch-prefix-consistency/change.md), [verification and publication acceptance](../archive/2026-11-15-run-branch-prefix-consistency/verification.md), [PR #203](https://github.com/xycu/agent-smith/pull/203) |
 
-The owner directed Wave 1 kickoff after the Wave 0 implementation merged, while S-14’s live-host qualification remained pending. That instruction supplied the scheduling exception for Wave 1. S-14’s recorded host-acceptance obligations remain open, and the final supported-host qualification remains assigned to S-20. [Wave 0 acceptance evidence](nested-step-delegation/evidence/acceptance.md)
+The owner directed Wave 1 kickoff after the Wave 0 implementation merged, while S-14’s live-host qualification remained pending. That instruction supplied the scheduling exception for Wave 1. The subsequent context closeout archives S-14 with its recorded host-acceptance obligations carried into S-20. [Wave 0 acceptance evidence](../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
 
 ## Wave 2 acceptance
 
@@ -38,8 +38,8 @@ Main-branch CI passed for both the implementation merge and the release merge, a
 | Audit fixes | Two descriptive change records merged in PR #197. Both have `status: new`; neither has a plan or implementation. | [Comparison integrity](../archive/2026-11-15-compare-damaged-logs-not-comparable/change.md), [branch prefix](../archive/2026-11-15-run-branch-prefix-consistency/change.md) |
 | Child delegation | Current rules forbid nested agents and the project applies a depth cap. S-14 is now first and ready for planning; its change folder and plan do not exist yet. | [Roadmap S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents), [ADR-018](../../docs/ADR/ADR-018-no-nested-subagents.md) |
 | Parked implementation | `quote-router-in-skill-loops` is the only open implementation PR, draft #186. It stays parked until the owner resumes it. | [Change](quote-router-in-skill-loops/change.md), [PR #186](https://github.com/xycu/agent-smith/pull/186) |
-| Readiness assessment | Research is complete and merged. Its identity file remains `preparing`; it is evidence for this schedule, not an implementation to run. Its original first-run ordering predates the Wave 0 decision. | [Assessment](production-readiness-assessment/research.md) |
-| Existing verification | The recorded full suite has 1,621 passes, zero failures and three expected skips. Runner/release acceptance exists; this does not establish the complete live product matrix. No runtime suite was rerun for this scheduling document. | [Health evidence](../foundation/health-check.md), [assessment](production-readiness-assessment/research.md) |
+| Readiness assessment | Research is complete and merged. Its identity file remains `preparing`; it is evidence for this schedule, not an implementation to run. Its original first-run ordering predates the Wave 0 decision. | [Assessment](../archive/2026-11-15-production-readiness-assessment/research.md) |
+| Existing verification | The recorded full suite has 1,621 passes, zero failures and three expected skips. Runner/release acceptance exists; this does not establish the complete live product matrix. No runtime suite was rerun for this scheduling document. | [Health evidence](../foundation/health-check.md), [assessment](../archive/2026-11-15-production-readiness-assessment/research.md) |
 
 The initial schedule contained **11 changes**, comprising nine roadmap slices and two audit fixes. At that planning baseline, only the two audit fixes had change folders on `main`; the roadmap-only IDs below described proposed work identities.
 
@@ -56,11 +56,11 @@ The initial schedule contained **11 changes**, comprising nine roadmap slices an
 
 ## Wave map
 
-Waves 1 and 2 are complete, with Wave 2's approved qualification deferral recorded above. Wave 0 has merged implementation and pending live-host qualification. Waves 3–8 retain their planned outcomes. Wave 3's preceding-wave entry condition is satisfied, and its authenticated Claude and review-remote prerequisites apply. Roadmap readiness continues to mean ready for planning.
+Waves 0–2 have merged implementations and archived change records. Wave 0's native qualification and Wave 2's six-cell upgrade qualification are carried into S-20 with pending evidence preserved. Waves 3–8 retain their planned outcomes. Wave 3's preceding-wave entry condition is satisfied, and its authenticated Claude and review-remote prerequisites apply. Roadmap readiness continues to mean ready for planning.
 
 | Wave | Changes | Entry condition | Exit outcome |
 | --- | --- | --- | --- |
-| **0 — child delegation (1)** | **S-14 `nested-step-delegation`** | Owner-selected first change; establish focused host prerequisites and baseline within this change. | A step awaits its children, owns their results and preserves recovery/safety in the supported modes. |
+| **0 — child delegation (1), archived** | **S-14 `nested-step-delegation`** | Owner-selected first change; establish focused host prerequisites and baseline within this change. | Merged through PR #199 and archived during owner-directed context closeout. Publication acceptance is complete; native qualification rows 1.3 and 3.4 carry into S-20 as pending. |
 | **1 — audit correctness (2), complete** | `compare-damaged-logs-not-comparable`; `run-branch-prefix-consistency` | Owner-directed kickoff after Wave 0 implementation merged, with disjoint runtime ownership confirmed in the plans. | Accepted, archived and merged through PRs #201 and #203. Damaged logs are ineligible for comparison; configured run branches work through setup and publication. |
 | **2 — specification compatibility (1), complete** | S-13 `openspec-2-upgrade` | Wave 1 merged. | Accepted, archived and merged through PR #208, released as v1.13.0. OpenSpec 2.0.0 CLI contracts and migrated integration instructions pass; six live-host qualification cells are explicitly deferred to S-20. |
 | **3 — first complete delivery (1)** | S-12 `first-unattended-delivery` | Wave 2 merged; authenticated Claude and review-remote access available. | One normal Claude-only plan-based run reaches a reviewable PR without steering. |
@@ -72,15 +72,18 @@ Waves 1 and 2 are complete, with Wave 2's approved qualification deferral record
 
 S-13 and S-12 are deliberately sequential here: the first delivery can expose fixes in shared entry points. S-19 precedes S-17 because both can change archive and terminal skill sections. These are execution choices, not additional product features.
 
-## Wave 0 contract and remaining acceptance
+<a id="wave-0-child-subagents-alone"></a>
+<a id="wave-0-contract-and-remaining-acceptance"></a>
 
-**Only change:** `nested-step-delegation` / [S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents). Its implementation merged through PR #199 as `d7e08ba6` and shipped in v1.12.0. The single-change execution scope and acceptance contract below retain their original obligations. The owner's later-wave scheduling decisions are recorded in the acceptance sections above. [PR #199](https://github.com/xycu/agent-smith/pull/199), [release](https://github.com/xycu/agent-smith/releases/tag/v1.12.0), [current evidence](nested-step-delegation/evidence/acceptance.md)
+## Wave 0 contract and deferred acceptance
+
+**Only change:** `nested-step-delegation` / [S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents). Its implementation merged through PR #199 as `d7e08ba6` and shipped in v1.12.0. The single-change execution scope and acceptance contract below retain their original obligations. The owner's later-wave scheduling decisions are recorded in the acceptance sections above. [PR #199](https://github.com/xycu/agent-smith/pull/199), [release](https://github.com/xycu/agent-smith/releases/tag/v1.12.0), [current evidence](../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md)
 
 The change must reconcile the current restrictions as one coherent delivery: shared step rules, executor instructions, both orchestrator skills, host depth/delegation settings, effective step protection, result/usage attribution and interruption recovery. Likely ownership includes `skills/10x-pipeline/rules/top.md`, affected prompts, both `SKILL.md` files, `.claude/settings.json`, relevant Codex/agent/hook configuration, and the existing runner/state paths where evidence shows a change is needed. The plan must identify the exact callers and tests; this list does not require rewriting every listed area.
 
 Before enabling delegation, record a bounded representative run with today's flat behavior. Repeat the same work with child delegation after the change, recording exact host versions and launch modes, elapsed time, available usage, failures and interventions. This local-to-the-change baseline replaces the old dependency on a completed S-12; S-12 remains the later full delivery outcome.
 
-Wave 0 is complete only when its reviewed implementation and evidence establish that:
+The carried qualification contract requires evidence that:
 
 1. A step can spawn children, receive their completed results and finish through the normal entry points of both chains in the declared supported host/mode combinations.
 2. Child, foreign, late and superseded notifications cannot complete the parent step or advance the router prematurely. Available child usage remains attributable to the correct enclosing invocation.
@@ -88,7 +91,7 @@ Wave 0 is complete only when its reviewed implementation and evidence establish 
 4. Interactive and headless behavior is recorded. Any capability gap affecting the six agreed configurations is resolved explicitly before making that support claim; a fixture alone does not prove host behavior.
 5. The existing delegation decision and tests are updated with the new supported contract. Performance is reported from measurements, including coordination and retries, without assuming an improvement.
 
-The initial planning action was `/10x-new nested-step-delegation` with S-14 and this Wave 0 record as its intent. S-14 remains in progress with Manual rows 1.3, 3.4 and 3.5 pending in its recorded plan. Qualification and publication evidence must be reconciled before its archive decision. [Progress](nested-step-delegation/plan.md#progress)
+The initial planning action was `/10x-new nested-step-delegation` with S-14 and this Wave 0 record as its intent. S-14 is now archived and marked done for implementation delivery. Publication row 3.5 is complete, while Manual rows 1.3 and 3.4 preserve their unverified status for S-20. Performance measurement retains its earlier owner-approved deferral. [Progress](../archive/2026-11-16-nested-step-delegation/plan.md#progress), [closeout decision](../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
 
 ## Ownership and acceptance anchors for later waves
 
@@ -110,7 +113,7 @@ The two audit cases attached to S-16 and S-19 are acceptance inputs to those exi
 ## Parked work and deferred scope
 
 - **`quote-router-in-skill-loops` / [draft PR #186](https://github.com/xycu/agent-smith/pull/186):** remains parked. The skill rewrite prerequisite has merged, but installed-plugin substitution evidence and the owner's resume instruction are still needed. If resumed, update it against the post-Wave-0 skills and place it in its own slot before first-delivery or final qualification evidence that depends on paths with spaces. Do not run it beside another skill edit or silently count affected setup as supported. A blocked dependent flow stays blocked until the fix or an explicit scope decision is available.
-- **`production-readiness-assessment`:** completed research informs the plan; no new implementation is scheduled under this ID and its lifecycle metadata is not changed here.
+- **Completed context records:** `production-readiness-assessment` closes as research-only. `license-and-security-policy` closes with all seven criteria complete. The existing approved `community-standards` archive is integrated with all thirteen criteria complete. These records join S-14 in the archive during owner-directed context closeout. `quote-router-in-skill-loops` is the sole remaining unarchived change folder.
 - **FR-017–FR-019:** savings/scorer experiments, broader onboarding and delivery-quality reporting stay deferred. The comparison-integrity bug fix belongs to Wave 1; it does not launch the deferred experiment program.
 - **Historical Manual rows:** retain their recorded state in the read-only archives. Relevant live-host and recovery obligations feed S-12–S-20; feature-specific opt-in acceptance remains deferred unless needed by the selected scope. No historical checkbox is closed by this ledger.
 

@@ -1,7 +1,7 @@
 # License and security policy — Plan brief
 
-> [Full plan](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/plan.md)
-> [Research](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md)
+> [Full plan](plan.md)
+> [Research](research.md)
 
 ## What & Why
 
@@ -63,7 +63,7 @@ Retain correct draft content and make corrections in the document or metadata fi
 
 ## References
 
-- [Change request](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/change.md)
-- [Full plan and canonical Progress](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/plan.md)
-- [Research and evidence](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md)
+- [Change request](change.md)
+- [Full plan and canonical Progress](plan.md)
+- [Research and evidence](research.md)
 - [Official CC BY-NC-ND 4.0 text](https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode.txt)

@@ -1,7 +1,7 @@
 <!-- PLAN-REVIEW-REPORT -->
 # Plan Review — License and security policy
 
-- **Plan**: [Implementation plan](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/plan.md)
+- **Plan**: [Implementation plan](../plan.md)
 - **Mode**: Deep
 - **Date**: 2026-11-16
 - **Verdict**: SOUND
@@ -22,7 +22,7 @@
 
 Grounding covered six existing paths, comprising the four deliverables and the plan/change identity files. The `license` metadata field and the `collect` and `check` functions matched the described contracts. Brief and plan agree on the phase structure, scope, license selection and proposed security defaults. The seven Success Criteria map to their corresponding Automated or Manual Progress entries.
 
-Deep verification inspected the licensing declarations, release-update paths, version guard, historical Unlicense object, third-party notices, scoped Bash guard, isolation/recovery, publication and CI boundaries. The verified source sections support the document-and-metadata approach. [Version guard](/Users/blazej/.codex/worktrees/b4ff/agent-smith/tools/version-check.mjs:36) · [Release update paths](/Users/blazej/.codex/worktrees/b4ff/agent-smith/release-please-config.json:10) · [Security coverage limits](/Users/blazej/.codex/worktrees/b4ff/agent-smith/docs/REFERENCE.md:45)
+Deep verification inspected the licensing declarations, release-update paths, version guard, historical Unlicense object, third-party notices, scoped Bash guard, isolation/recovery, publication and CI boundaries. The verified source sections support the document-and-metadata approach. [Version guard](../../../../tools/version-check.mjs:36) · [Release update paths](../../../../release-please-config.json:10) · [Security coverage limits](../../../../docs/REFERENCE.md:45)
 
 ## Findings
 
@@ -32,9 +32,9 @@ Deep verification inspected the licensing declarations, release-update paths, ve
 - **Impact**: 🏃 LOW — quick decision with an obvious, narrowly scoped fix
 - **Dimension**: Plan Completeness
 - **Location**: Scope Boundaries and the Phase 1/Phase 2 file entries
-- **Detail**: The file-entry links point into the authoring checkout. Default isolated preparation copies the plan into another worktree and selects that worktree as the run root. The working-directory contract confines file operations to the selected root, leaving an ambiguity between the edit-target links and the execution contract. This finding concerns target interpretation when running the saved plan in another worktree. [Plan targets](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/plan.md:54) · [Worktree preparation](/Users/blazej/.codex/worktrees/b4ff/agent-smith/skills/10x-pipeline/scripts/prepare-run.mjs:197) · [Working-directory contract](/Users/blazej/.codex/worktrees/b4ff/agent-smith/skills/10x-pipeline/prompts/worktree.md:3)
+- **Detail**: The file-entry links point into the authoring checkout. Default isolated preparation copies the plan into another worktree and selects that worktree as the run root. The working-directory contract confines file operations to the selected root, leaving an ambiguity between the edit-target links and the execution contract. This finding concerns target interpretation when running the saved plan in another worktree. [Plan targets](../plan.md:54) · [Worktree preparation](../../../../skills/10x-pipeline/scripts/prepare-run.mjs:197) · [Working-directory contract](../../../../skills/10x-pipeline/prompts/worktree.md:3)
 - **Fix**: Add an explicit target-resolution paragraph under Scope Boundaries, resolving the named implementation targets against the active root and defining absolute links as navigation references.
-- **Decision**: FIXED — the user approved the exact addition during triage on 2026-11-16, and it was applied to the plan. [Applied rule](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/plan.md:34)
+- **Decision**: FIXED — the user approved the exact addition during triage on 2026-11-16, and it was applied to the plan. [Applied rule](../plan.md:34)
 
 The applied paragraph reads as follows.
 
