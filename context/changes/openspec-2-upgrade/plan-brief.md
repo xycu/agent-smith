@@ -60,7 +60,7 @@ Estimated effort is three implementation phases plus account-dependent live veri
 
 ## References
 
-- [Wave 2 schedule](../WAVES.md)
+- [Wave 2 schedule](../../changes/WAVES.md)
 - [Roadmap S-13](../../foundation/roadmap.md#s-13-complete-the-specification-based-workflow-on-openspec-200)
-- [Wave 0 acceptance](../nested-step-delegation/evidence/acceptance.md)
+- [Wave 0 acceptance](../../changes/nested-step-delegation/evidence/acceptance.md)
 - [Upstream 2.0 upgrade guide](https://github.com/Fission-AI/OpenSpec/blob/v2.0.0/docs-lab/help/upgrade-to-2.md)

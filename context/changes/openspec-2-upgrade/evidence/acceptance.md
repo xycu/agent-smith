@@ -42,7 +42,7 @@ Unique child-nonce collection, normal `/agent-smith:openspec-pipeline` dispatch,
 
 ## OpenSpec normal-entry matrix
 
-Cell numbers retain Wave 0's existing identities. No cell below has been attempted against this upgraded candidate in this Automated-only implementation step. Each needs an authorized fresh trusted acceptance launch through the normal pipeline entry point and retained raw or stable sanitized evidence. Account, quota and trust readiness require checks in that actual launch. Earlier quota and primitive-probe observations retain their original recorded scope. [Wave 0 matrix](../../nested-step-delegation/evidence/acceptance.md) [Historical native observations](../../nested-step-delegation/evidence/capabilities.md)
+Cell numbers retain Wave 0's existing identities. No cell below has been attempted against this upgraded candidate in this Automated-only implementation step. Each needs an authorized fresh trusted acceptance launch through the normal pipeline entry point and retained raw or stable sanitized evidence. Account, quota and trust readiness require checks in that actual launch. Earlier quota and primitive-probe observations retain their original recorded scope. [Wave 0 matrix](../../../changes/nested-step-delegation/evidence/acceptance.md) [Historical native observations](../../../changes/nested-step-delegation/evidence/capabilities.md)
 
 | Wave 0 cell | Host | Provider ladder | Launch | Candidate result | Concrete remaining prerequisite |
 | --- | --- | --- | --- | --- | --- |
@@ -73,3 +73,7 @@ The requested report comment exists and records the actual implementation-review
 
 - [ ] 3.4 Fresh upgraded OpenSpec pipeline runs revalidate discovery, awaited child/result ownership, recovery, restrictions and usage coverage for the six OpenSpec host/provider/launch cells, with any unavailable cell retained as pending and its prerequisite recorded.
 - [x] 3.5 The enclosing orchestrator pushes the run branch, opens the reviewable PR, obtains successful PR CI and posts the requested run report as a PR comment reflecting the actual outcome and pending live proof.
+
+## Owner archive decision
+
+On 2026-11-16 the owner selected “Archive with qualification deferred to S-20” after being informed that Manual 3.4 retains six unverified OpenSpec host/provider/launch cells and PR #208 is open. Archive closes S-13 with those cells pending. S-20 owns their normal-entry, child ownership, recovery, restriction and usage qualification on the final combined candidate. Manual 3.4 stays unchecked, and existing Progress SHA suffixes are preserved. Manual 3.5 has separate publication evidence above.

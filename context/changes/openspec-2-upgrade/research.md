@@ -40,7 +40,7 @@ Two read-only native research leaves returned to enclosing plan step 2. Host ide
 
 A read-only inventory found one historical OpenSpec run at `openspec/changes/archive/2026-11-09-openspec-project-rules/agent-smith/`. Its metadata predates `host`, and its four completed numbered entries have no saved pending prompt/handoff. No live OpenSpec run metadata was found in this checkout. External consumer runs remain covered by compatibility fixtures, including old flat and current delegated pending dispatches. This inventory supplies no authorization to rewrite historical state.
 
-Wave 0's OpenSpec acceptance cells 3, 4, 7, 8, 11 and 12 remain pending. Its earlier bounded Codex headless smoke collected a child nonce and advanced `os-propose` to `os-apply` once. Delegated token inclusion remains unproved. The upgraded generated skills require fresh discovery and delegation evidence on the upgrade candidate. [Wave 0 acceptance](../nested-step-delegation/evidence/acceptance.md) [Recorded capabilities](../nested-step-delegation/evidence/capabilities.md)
+Wave 0's OpenSpec acceptance cells 3, 4, 7, 8, 11 and 12 remain pending. Its earlier bounded Codex headless smoke collected a child nonce and advanced `os-propose` to `os-apply` once. Delegated token inclusion remains unproved. The upgraded generated skills require fresh discovery and delegation evidence on the upgrade candidate. [Wave 0 acceptance](../../changes/nested-step-delegation/evidence/acceptance.md) [Recorded capabilities](../../changes/nested-step-delegation/evidence/capabilities.md)
 
 ## Executed checks
 

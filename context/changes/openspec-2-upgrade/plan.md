@@ -4,7 +4,7 @@
 
 Deliver Wave 2 / roadmap S-13 from accepted Wave 1 revision `58ce4ea8`. Make the OpenSpec workflow, committed project integration, setup guidance and CI contracts work with exactly OpenSpec `2.0.0`. Preserve project inputs and saved execution contracts, and revalidate the OpenSpec portion of Wave 0's child-delegation contract.
 
-The change remains the sole Wave 2 implementation. The enclosing orchestrator owns the final reviewable PR and requested run-report comment. [Wave schedule](../WAVES.md) [Roadmap S-13](../../foundation/roadmap.md#s-13-complete-the-specification-based-workflow-on-openspec-200)
+The change remains the sole Wave 2 implementation. The enclosing orchestrator owns the final reviewable PR and requested run-report comment. [Wave schedule](../../changes/WAVES.md) [Roadmap S-13](../../foundation/roadmap.md#s-13-complete-the-specification-based-workflow-on-openspec-200)
 
 ## Current State Analysis
 
@@ -31,14 +31,14 @@ The final evidence identifies candidate revision, exact tools, commands, skips, 
 - A default core installation lacks `openspec-verify-change`. Custom profiles can retain existing workflows while supplying propose/apply/verify. [Profiles](https://github.com/Fission-AI/OpenSpec/blob/v2.0.0/src/core/profiles.ts#L14)
 - Canonical generated-skill edits can be overwritten by upstream update. Customized legacy tool copies and commands can be retained by update and need deliberate reconciliation. [Upgrade preservation behavior](https://github.com/Fission-AI/OpenSpec/blob/v2.0.0/docs-lab/help/upgrade-to-2.md#skills-you-customized)
 - The archive CLI retains `--yes --json`, success fields and error codes. `fix` can be absent, so the error-reporting prompt must describe that optionality accurately. [Archive prompt](../../../skills/openspec-pipeline/prompts/os-archive.md:13) [Upstream diagnostic schema](https://github.com/Fission-AI/OpenSpec/blob/v2.0.0/src/core/archive.ts#L195)
-- Wave 0's final-candidate native matrix remains pending. Existing bounded smoke and deterministic ownership/recovery tests supply reusable evidence with explicit scope. [Wave 0 acceptance](../nested-step-delegation/evidence/acceptance.md)
+- Wave 0's final-candidate native matrix remains pending. Existing bounded smoke and deterministic ownership/recovery tests supply reusable evidence with explicit scope. [Wave 0 acceptance](../../changes/nested-step-delegation/evidence/acceptance.md)
 
 ## Scope and Delivery Assumptions
 
 1. The unattended invocation authorizes evidence-backed planning decisions in place of an interview. Complexity is medium because setup/layout, CI contracts and retained execution semantics interact. Three implementation phases follow those ownership boundaries. [S-13 scope](../../foundation/roadmap.md#s-13-complete-the-specification-based-workflow-on-openspec-200)
 2. Existing project inputs include schema/context/rules, change metadata, artifacts, completed task rows, project overrides and the currently installed workflow set. Preserve all twelve existing repository workflows during migration. A separate clean-install fixture may select only the pipeline's three requirements. [Current config](../../../openspec/config.yaml) [Research inventory](research.md)
 3. Evidence supports preserving the current state schema, policy, router decisions, invocation ownership and archive command. A newly demonstrated compatibility failure must be fixed in its existing owner with a regression. A required incompatible state-contract change needs an explicit owner decision. [PRD constraints](../../foundation/prd.md#constraints--compatibility)
-4. S-12 owns the first complete plan-based delivery. S-15 through S-19 own their scheduled reliability slices. S-20 owns the final 18-run qualification. This change records fresh OpenSpec compatibility and delegation evidence and carries unresolved live cells forward explicitly. [Wave schedule](../WAVES.md)
+4. S-12 owns the first complete plan-based delivery. S-15 through S-19 own their scheduled reliability slices. S-20 owns the final 18-run qualification. This change records fresh OpenSpec compatibility and delegation evidence and carries unresolved live cells forward explicitly. [Wave schedule](../../changes/WAVES.md)
 5. Tool versions observed during planning are Node `v24.19.0`, npm `11.17.0`, Git `2.54.0 (Apple Git-157)`, OpenSpec `2.0.0`, Codex CLI `0.169.0` and Claude Code `2.1.311`. Implementation records its actual versions again. Version inspection supplies a prerequisite observation, while live support requires the corresponding run evidence. [Research](research.md)
 
 ## Implementation Approach
@@ -244,11 +244,11 @@ The router continues its file-derived execution path. Capture elapsed time and u
 ## References
 
 - [Planning research and executable probes](research.md)
-- [Wave 2 scope and acceptance anchors](../WAVES.md)
+- [Wave 2 scope and acceptance anchors](../../changes/WAVES.md)
 - [Roadmap S-13](../../foundation/roadmap.md#s-13-complete-the-specification-based-workflow-on-openspec-200)
 - [PRD compatibility obligations](../../foundation/prd.md#constraints--compatibility)
-- [Wave 0 acceptance](../nested-step-delegation/evidence/acceptance.md)
-- [Wave 0 native observations](../nested-step-delegation/evidence/capabilities.md)
+- [Wave 0 acceptance](../../changes/nested-step-delegation/evidence/acceptance.md)
+- [Wave 0 native observations](../../changes/nested-step-delegation/evidence/capabilities.md)
 - [OpenSpec 2.0.0 upgrade guide](https://github.com/Fission-AI/OpenSpec/blob/v2.0.0/docs-lab/help/upgrade-to-2.md)
 - [OpenSpec release comparison](https://github.com/Fission-AI/OpenSpec/compare/v1.16.1...v2.0.0)
 
