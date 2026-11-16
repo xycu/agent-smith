@@ -1,7 +1,7 @@
 ---
 change_id: license-and-security-policy
 title: Migrate the license to CC BY-NC-ND and propose a security policy
-status: implemented
+status: impl_reviewed
 created: 2026-11-16
 updated: 2026-11-16
 archived_at: null
