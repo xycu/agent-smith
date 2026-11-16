@@ -95,11 +95,11 @@ The real-CLI fixtures must prove the following cases.
 
 #### 3. Contract documentation
 
-**Files** — `docs/REFERENCE.md`, `skills/openspec-pipeline/scripts/openspec.mjs` parser provenance comment.
+**Files** — `docs/REFERENCE.md`, `docs/ADR/ADR-013-openspec-pipeline.md`, `skills/openspec-pipeline/scripts/openspec.mjs` parser provenance comment.
 
-**Intent** — Record the verified 2.0.0 CLI/parser provenance and expanded executable fixture scope. Keep the task parser expression consistent with the proven upstream expression.
+**Intent** — Record the verified 2.0.0 CLI/parser provenance and expanded executable fixture scope. Keep the task parser expression consistent with the proven upstream expression. Add a dated amendment to ADR-013 D2 superseding its 1.16.1 CI pin and defining exact-version probe outcomes, while retaining its historical observations.
 
-**Contract** — The OpenSpec reference accurately describes selected-version enforcement, local availability skips, CI failure behavior and task/readiness compatibility.
+**Contract** — The OpenSpec reference and ADR-013 amendment agree on the selected 2.0.0 executable, local skips for unavailable or failed probes, failure in nonempty CI for those probes, and failure everywhere for successful incompatible or malformed version responses. The reference records task/readiness compatibility. Search active documentation for the superseded pin and probe behavior, reconcile normative instructions, and retain dated evidence with its original tested version.
 
 ### Success Criteria
 

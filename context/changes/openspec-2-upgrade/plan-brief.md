@@ -31,7 +31,7 @@ The change covers the CI pin, exact-version contract fixtures, generated OpenSpe
 
 ## Architecture / Approach
 
-Expand real CLI contracts first, migrate the generated layout with preservation checks, then verify the existing shared runner/router/terminal boundaries. Reuse fixture helpers, inspected file-by-file cleanup and fake Git/GitHub clients. The enclosing orchestrator owns actual PR publication and report commenting.
+Expand real CLI contracts first, including a dated ADR-013 amendment for the 2.0.0 pin and exact-version probe outcomes. Migrate the generated layout with preservation checks, then verify the existing shared runner/router/terminal boundaries. Reuse fixture helpers, inspected file-by-file cleanup and fake Git/GitHub clients. The enclosing orchestrator owns actual PR publication and report commenting.
 
 ## Phases at a Glance
 
