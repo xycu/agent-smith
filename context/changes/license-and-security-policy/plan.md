@@ -174,7 +174,7 @@ SECURITY.md remains a proposal through this change. Its operating defaults provi
 
 #### Manual
 
-- [x] 1.3 The maintainer accepts the licensing explanation, attribution, third-party scope and historical-distribution wording.
+- [x] 1.3 The maintainer accepts the licensing explanation, attribution, third-party scope and historical-distribution wording. — 80d30de7
 
 ### Phase 2: Refine the security proposal and verify
 
@@ -186,4 +186,4 @@ SECURITY.md remains a proposal through this change. Its operating defaults provi
 
 #### Manual
 
-- [x] 2.4 The maintainer accepts SECURITY.md as a proposal, including its proposed support and response defaults, private reporting guidance and qualified security-boundary claims.
+- [x] 2.4 The maintainer accepts SECURITY.md as a proposal, including its proposed support and response defaults, private reporting guidance and qualified security-boundary claims. — 80d30de7
