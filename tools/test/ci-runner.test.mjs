@@ -132,6 +132,13 @@ test("the suite step uses the runner temporary directory", () => {
   assert.match(suite, /^ {8}env:\n(?: {10}[^\n]*\n)*? {10}TMPDIR: \$\{\{ runner\.temp \}\}$/m);
 });
 
+test("CI runs the complete suite across six shards with bounded concurrency", () => {
+  const job = testJob();
+  assert.match(job, /^ {4}strategy:\n {6}fail-fast: false\n {6}matrix:\n {8}shard: \[1, 2, 3, 4, 5, 6\]$/m);
+  assert.match(job, /^ {4}name: Tests and version check \(\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}\)$/m);
+  assert.match(job, /^ {8}run: node --test --test-concurrency=2 --test-shard=\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\} --experimental-test-coverage skills\/10x-pipeline\/test\/\*\.test\.mjs skills\/openspec-pipeline\/test\/\*\.test\.mjs tools\/test\/\*\.test\.mjs$/m);
+});
+
 test("the first step of job test is the uid guard, before the suite", () => {
   const job = testJob();
   const first = job.split("\n").find((l) => l.trimStart().startsWith("- "));
