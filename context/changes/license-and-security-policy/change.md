@@ -13,3 +13,5 @@ please migrate the license of the project to CC BY-NC-ND
 Also acting as a Senior Security Expert please define a proposal of a security policy in SECURITY.md.
 
 Drop the commercial trial
+
+I will review everything on final PR

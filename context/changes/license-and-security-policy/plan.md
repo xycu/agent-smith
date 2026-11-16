@@ -169,8 +169,8 @@ SECURITY.md remains a proposal through this change. Its operating defaults provi
 
 #### Automated
 
-- [x] 1.1 LICENSE matches the official CC BY-NC-ND 4.0 legal text after final-newline normalization and retains the copyright and third-party scope header.
-- [x] 1.2 README and plugin metadata identify CC BY-NC-ND 4.0 consistently, and the active licensing declarations contain zero commercial-trial or custom-license-placeholder references.
+- [x] 1.1 LICENSE matches the official CC BY-NC-ND 4.0 legal text after final-newline normalization and retains the copyright and third-party scope header. — cea239c2
+- [x] 1.2 README and plugin metadata identify CC BY-NC-ND 4.0 consistently, and the active licensing declarations contain zero commercial-trial or custom-license-placeholder references. — cea239c2
 
 #### Manual
 
@@ -180,9 +180,9 @@ SECURITY.md remains a proposal through this change. Its operating defaults provi
 
 #### Automated
 
-- [ ] 2.1 SECURITY.md contains the proposal designation, reporting address, support scope, reporting guidance, security boundaries, proposed response/disclosure targets, research expectations and maintainer handling.
-- [ ] 2.2 Relative document links in README and SECURITY.md resolve, and `git diff --check` passes.
-- [ ] 2.3 The repository packaging guard passes with `node tools/version-check.mjs`.
+- [x] 2.1 SECURITY.md contains the proposal designation, reporting address, support scope, reporting guidance, security boundaries, proposed response/disclosure targets, research expectations and maintainer handling.
+- [x] 2.2 Relative document links in README and SECURITY.md resolve, and `git diff --check` passes.
+- [x] 2.3 The repository packaging guard passes with `node tools/version-check.mjs`.
 
 #### Manual
 
