@@ -1,0 +1,2 @@
+- 1.4 — No matching PR was returned by the read-only GitHub search for this run branch, and no PR URL or successful PR CI evidence is recorded. Pushing and creating a PR are reserved for the orchestrator and prohibited in this step.
+- 1.5 — No matching PR or report-comment URL is available to inspect. Posting or updating the requested report comment is reserved for the orchestrator and prohibited in this step.
