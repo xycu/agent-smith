@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1](https://github.com/xycu/agent-smith/compare/v1.12.0...v1.12.1) (2026-11-16)
+
+
+### Documentation
+
+* **license:** adopt CC BY-NC-ND 4.0 and publish security policy ([#202](https://github.com/xycu/agent-smith/issues/202)) ([9dcf206](https://github.com/xycu/agent-smith/commit/9dcf206a78ee77efa6aac8cb429f2dda8dcc5a55))
+
 ## [1.12.0](https://github.com/xycu/agent-smith/compare/v1.11.2...v1.12.0) (2026-11-16)
 
 

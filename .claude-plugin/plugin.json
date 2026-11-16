@@ -1,14 +1,14 @@
 {
   "name": "agent-smith",
   "displayName": "Agent Smith",
-  "version": "1.12.0",
+  "version": "1.12.1",
   "skills": "./skills/",
   "description": "Run 10xDevs and OpenSpec workflows through explicit slash commands, with each step in its own subagent and model and effort routing based on earlier results.",
   "author": {
     "name": "xycu"
   },
   "repository": "https://github.com/xycu/agent-smith",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "CC-BY-NC-ND-4.0",
   "keywords": [
     "orchestration",
     "sdlc",
