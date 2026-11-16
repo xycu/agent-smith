@@ -1,0 +1,42 @@
+Read-only publication recheck, observed 2026-11-16T14:00:57Z
+
+Command: git branch --show-current
+Exit: 0
+agent-smith/run-branch-prefix-consistency
+
+Command: git rev-parse HEAD
+Exit: 0
+785bfc70e6bde98f4391d27968a1e9f1123a3b0d
+
+Command: git ls-remote --heads origin refs/heads/agent-smith/run-branch-prefix-consistency
+Exit: 0
+Output: empty (no matching remote branch)
+
+Command: curl --fail --silent --show-error --max-time 30 "https://api.github.com/repos/xycu/agent-smith/pulls?state=all&head=xycu%3Aagent-smith%2Frun-branch-prefix-consistency&per_page=100"
+Exit: 0
+[]
+
+Authenticated GitHub connector call: search_prs
+Arguments: {"query":"head:agent-smith/run-branch-prefix-consistency","repository_full_name":"xycu/agent-smith","state":"all","topn":20}
+Result: {"structuredContent":{"issues":[]},"isError":false}
+
+Command: rg --files context/changes/run-branch-prefix-consistency
+Exit: 0
+context/changes/run-branch-prefix-consistency/reviews/plan-review.md
+context/changes/run-branch-prefix-consistency/complexity.json
+context/changes/run-branch-prefix-consistency/plan.md
+context/changes/run-branch-prefix-consistency/verification.md
+context/changes/run-branch-prefix-consistency/agent-smith/meta.json
+context/changes/run-branch-prefix-consistency/agent-smith/run.jsonl
+context/changes/run-branch-prefix-consistency/plan-brief.md
+context/changes/run-branch-prefix-consistency/change.md
+context/changes/run-branch-prefix-consistency/evidence/unproven.md
+context/changes/run-branch-prefix-consistency/evidence/command-publication-lookup.txt
+
+3.5 remains pending. Both PR lookups returned no pull request, and the remote has no matching branch. The local verification.md records full-suite results, but the local change folder has no implementation-review report. These observations do not prove an open reviewable PR containing reviewed implementation and full-suite evidence, or an actual non-force publication.
+
+3.6 remains pending. No PR was found, so a run-report comment URL and its actual branch identity cannot be checked. The local folder has no generated agent-smith/report.md.
+
+3.7 remains pending. No PR was found, so its CI and owner access to the requested implementation review and report comment cannot be checked.
+
+Publication, report generation, PR creation and comment posting remain owned by the enclosing orchestrator. This attempt performed read-only remote checks and wrote verification evidence only. Existing automated tests cannot establish the actual publication, comment or live PR CI required by these rows, so no test rerun was used as a substitute.
