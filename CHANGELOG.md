@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/xycu/agent-smith/compare/v1.11.2...v1.12.0) (2026-11-16)
+
+
+### Features
+
+* **nested-step-delegation:** enable bounded child delegation ([#199](https://github.com/xycu/agent-smith/issues/199)) ([d7e08ba](https://github.com/xycu/agent-smith/commit/d7e08ba680c7c8b10823d7f639e116a947d81ee1))
+
 ## [1.11.2](https://github.com/xycu/agent-smith/compare/v1.11.1...v1.11.2) (2026-11-15)
 
 
