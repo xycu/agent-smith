@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes quoting, preserved loop behavior, touched tests, and completion checks; reconciliation with the concurrent Wave 7 skill rewrite is a planning detail with a clear same-file coordination path" },
+    "novelty": { "score": 1, "evidence": "change.md describes a mechanical update to existing SKILL.md command and content-test patterns" },
+    "coupling": { "score": 2, "evidence": "change.md names both pipeline SKILL.md files and three content tests, whose pinned assertions cover routing, usage ordering, chain flags, and anti-stall parity" },
+    "discovery": { "score": 1, "evidence": "change.md names all three tests and both skills; the only external prerequisite is recorded in the archived skill-dir-variable review" },
+    "volume": { "score": 2, "evidence": "change.md requires paired skill edits, repinning three tests, and one regression assertion across several files" },
+    "verification": { "score": 2, "evidence": "change.md provides existing automated tests and suite coverage, while installed-plugin acceptance for both skills requires a live manual check" }
+  },
+  "unknowns": [
+    "Whether the skill-dir-variable installed-plugin checks 3.5 and 3.6 can be completed in this environment; archived evidence says they were unproved and require an installed plugin in a live session",
+    "Exact overlap with the concurrent Wave 7 skill rewrite; reconcile during planning against its current artifacts"
+  ],
+  "confidence": "medium"
+}
