@@ -43,5 +43,10 @@
       "advisor.enabled": false,
       "host": "codex"
     }
+  },
+  "startCommit": "7a5ad44c59ae3740e193647a26eac46cbcbfacbd",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain"
   }
 }
