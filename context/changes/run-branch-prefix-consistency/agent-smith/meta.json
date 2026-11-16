@@ -48,5 +48,19 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/isolation.mjs, skills/10x-pipeline/scripts/open-pr.mjs, skills/10x-pipeline/test/open-pr.test.mjs +2"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.5 The orchestrator publishes this run branch without force and returns an open reviewable pull request containing the reviewed implementation and full-suite evidence.",
+      "3.6 The orchestrator posts or updates the requested run-report comment on that pull request and reports its URL with the actual branch identity.",
+      "3.7 PR CI is green and the owner can inspect the branch, plan, implementation review and report comment before deciding whether to merge."
+    ],
+    "manualNotProved": [
+      "3.5 The orchestrator publishes this run branch without force and returns an open reviewable pull request containing the reviewed implementation and full-suite evidence. — not proved: Fresh authenticated GitHub search and direct API lookup returned no PR for xycu/agent-smith head agent-smith/run-branch-prefix-consistency, and read-only remote lookup returned no matching branch. An",
+      "3.6 The orchestrator posts or updates the requested run-report comment on that pull request and reports its URL with the actual branch identity. — not proved: No PR was found, so the requested run-report comment URL and actual branch identity remain unproved. The local folder has no generated run report. Posting or updating comments is reserved for the encl",
+      "3.7 PR CI is green and the owner can inspect the branch, plan, implementation review and report comment before deciding whether to merge. — not proved: No PR was found, so green PR CI and owner access to its implementation review and report comment remain unproved. The local folder contains a plan review and verification.md, but no implementation-rev"
+    ]
   }
 }
