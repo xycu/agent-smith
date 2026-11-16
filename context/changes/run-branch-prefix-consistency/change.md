@@ -1,7 +1,7 @@
 ---
 change_id: run-branch-prefix-consistency
 title: Honor the configured run-branch prefix throughout the workflow
-status: implemented
+status: impl_reviewed
 created: 2026-11-15
 updated: 2026-11-16
 archived_at: null
