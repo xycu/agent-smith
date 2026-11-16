@@ -256,15 +256,15 @@ Deploy the scripts and skills together. Existing default runs need no conversion
 
 #### Automated
 
-- [x] 1.1 Both-chain configured-prefix lifecycle and safety regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/isolation.test.mjs`.
-- [x] 1.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Both-chain configured-prefix lifecycle and safety regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/isolation.test.mjs`. — fbebbe53
+- [x] 1.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — fbebbe53
 
 ### Phase 2: Configured publication and base selection
 
 #### Automated
 
-- [ ] 2.1 Configured publication, base selection and compatibility regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs` using local remotes and fake clients.
-- [ ] 2.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.1 Configured publication, base selection and compatibility regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs` using local remotes and fake clients.
+- [x] 2.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 ### Phase 3: Workflow guidance, amendments and delivery gates
 
