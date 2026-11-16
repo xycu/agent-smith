@@ -566,6 +566,7 @@ function comparePair(id, flags, policy, chain = "10x") {
   const providers = new Set(sides.flatMap(([, side]) => Object.keys(side.tokens.byProviderModel).map((key) => key.split("/")[0])));
   if (providers.size > 1) warnings.push("cross-provider-raw-tokens");
   for (const [name, s] of sides) {
+    if (s.logProblems?.length) reasons.push(`log-problems:${name}`);
     if (s.steps === 0) reasons.push(`no-steps:${name}`);
     if (s.outcome !== "done") reasons.push(`outcome-not-done:${name}`);
     if (s.steps > 0 && s.tokens.stepsWithFigures < s.steps) reasons.push(`usage-incomplete:${name}`);

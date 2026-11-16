@@ -358,6 +358,10 @@ test("2.7 a zero baseline, an empty log and garbage lines do not throw", () => {
   assert.equal(res.status, 0, res.stderr);
   assert.equal(res.json.baseline.steps, 1);
   assert.equal(res.json.baseline.tokens.total, 500);
+  assert.deepEqual(res.json.reasons, ["log-problems:baseline"]);
+  assert.equal(res.json.comparable, false);
+  assert.equal(res.json.dropPercent, null);
+  assert.equal(res.json.verdict, "not comparable");
 });
 
 // A project whose routed run lives only in context/archive/<name>, with an optional log.
@@ -857,4 +861,29 @@ test("4.3 a pair whose only file difference is complexity.json has no input-file
   // A malformed score block falls back to complexity.json.
   const broken = side({ totals: [600], files: { "complexity.json": score }, policy: { score: { file: "../x" } } });
   assert.deepEqual(compare(broken, off).json.warnings, ["input-files-differ:research.md"]);
+});
+
+
+test("damaged skipped records retain integrity reasons beside pin, outcome and usage failures", () => {
+  const baseline = side({ totals: [1000], over: { model: "haiku" }, skips: ["plan-review"] });
+  const routed = side({ totals: [null], meta: { outcome: { action: "halt" } }, policy: targetPolicy(30) });
+  const skipped = JSON.stringify(skipEntry("research", 1, { reason: "private skipped record" })).slice(0, -1);
+  for (const project of [baseline, routed]) fs.appendFileSync(path.join(project.agentDir, "run.jsonl"), `${skipped}\n`);
+  for (const flags of [[], ["--unpinned"]]) {
+    const res = compare(routed, baseline, flags);
+    assert.equal(res.status, 0, res.stderr);
+    const expected = ["log-problems:baseline", "log-problems:routed", "outcome-not-done:routed", "usage-incomplete:routed"];
+    if (!flags.length) expected.unshift("baseline-not-pinned");
+    assert.deepEqual(res.json.reasons, expected);
+    assert.equal(res.json.comparable, false);
+    assert.equal(res.json.dropPercent, null);
+    assert.equal(res.json.verdict, "not comparable");
+    assert.ok(res.json.warnings.includes("baseline-skipped-steps:1"));
+    assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+    const md = compare(routed, baseline, [...flags, "--format", "md"]);
+    assert.equal(md.status, 0, md.stderr);
+    for (const reason of expected) assert.ok(md.stdout.includes(reason), md.stdout);
+    assert.match(md.stdout, /Verdict: not comparable/);
+    for (const result of [res, md]) assert.doesNotMatch(result.stdout + result.stderr, /private skipped record/);
+  }
 });

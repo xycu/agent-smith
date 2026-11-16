@@ -411,6 +411,10 @@ for (const chain of ["10x", "openspec"]) {
     const args = ["compare", p.id, "--chain", chain, "--baseline", b.root];
     const cmp = runIn(p, args);
     assert.equal(cmp.status, 0, cmp.stdout);
+    assert.equal(cmp.json.comparable, false);
+    assert.equal(cmp.json.dropPercent, null);
+    assert.equal(cmp.json.verdict, "not comparable");
+    assert.deepEqual(cmp.json.reasons.filter((reason) => reason.startsWith("log-problems:")), ["log-problems:baseline", "log-problems:routed"]);
     assert.deepEqual(cmp.json.routed.logProblems.map((problem) => problem.line), [2, 4]);
     assert.deepEqual(cmp.json.baseline.logProblems, [{ file: baselineFile, line: 2, reason: "Expected a JSON object" }]);
     const md = runIn(p, [...args, "--format", "md"]);
@@ -676,4 +680,174 @@ for (const chain of ["10x", "openspec"]) {
     assert.match(res.json.reason, /not on the run branch agent-smith\/other/);
     assert.deepEqual(gitSnapshot(p), before);
   });
+}
+
+
+function comparisonPair(chain) {
+  const pair = {};
+  for (const [side, totals] of [["baseline", [1000]], ["routed", [500, 600]]]) {
+    const project = seed(projectFor(chain, { policy: { compare: { targetDropPercent: 30 } } }), chain, {
+      baseSha: "a".repeat(40), outcome: { action: "done" },
+    });
+    writeLog(project, totals.map((totalTokens, i) => entry(i + 1, chain === "openspec" ? "os-apply" : "implement", {
+      usage: { totalTokens, toolUses: 2, durationMs: 100 },
+    })));
+    fs.writeFileSync(path.join(project.agentDir, "report.md"), Buffer.from([0xff, 0, 13, 10, 0x80]));
+    addTemps(project);
+    pair[side] = project;
+  }
+  return pair;
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: truncating the 600-token record cannot turn a missed target into savings`, () => {
+    const { baseline, routed } = comparisonPair(chain);
+    const args = ["compare", routed.id, "--baseline", baseline.root, "--chain", chain];
+    const clean = runIn(routed, args);
+    assert.equal(clean.status, 0, clean.stderr);
+    assert.equal(clean.json.comparable, true);
+    assert.deepEqual(clean.json.reasons, []);
+    assert.equal(clean.json.routed.tokens.total, 1100);
+    assert.equal(clean.json.dropPercent, -10);
+    assert.equal(clean.json.verdict, "not met");
+    const cleanMd = runIn(routed, [...args, "--format", "md"]);
+    assert.equal(cleanMd.status, 0, cleanMd.stderr);
+    assert.match(cleanMd.stdout, /Verdict: not met/);
+    const file = path.join(routed.agentDir, "run.jsonl");
+    const [first, second] = fs.readFileSync(file, "utf8").trimEnd().split("\n");
+    fs.writeFileSync(file, `${first}\n${second.slice(0, -1)}\n`);
+    const before = [snapshot(baseline.changeDir), snapshot(routed.changeDir)];
+    for (const flags of [[], ["--unpinned"]]) {
+      const res = runIn(routed, [...args, ...flags]);
+      assert.equal(res.status, 0, res.stderr);
+      assert.equal(res.json.comparable, false);
+      assert.deepEqual(res.json.reasons, ["log-problems:routed"]);
+      assert.equal(res.json.dropPercent, null);
+      assert.equal(res.json.verdict, "not comparable");
+      assert.deepEqual(res.json.routed.logProblems, [{ file, line: 2, reason: "Invalid JSON" }]);
+      assert.equal(res.json.routed.steps, 1);
+      assert.equal(res.json.routed.tokens.total, 500);
+      assert.equal(res.json.routed.tokens.stepsWithFigures, 1);
+      assert.deepEqual(res.json.routed.tokens.byModel, { sonnet: 500 });
+      assert.deepEqual(res.json.routed.tokens.byTier, { "sonnet/high": 500 });
+      assert.deepEqual(res.json.routed.toolUses, { total: 2, stepsWithFigures: 1 });
+      assert.deepEqual(res.json.routed.durationMs, { total: 100, stepsWithFigures: 1 });
+      assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+      const md = runIn(routed, [...args, ...flags, "--format", "md"]);
+      assert.equal(md.status, 0, md.stderr);
+      for (const text of ["Verdict: not comparable", "Drop: none", "log-problems:routed", "| Tokens | 1000 (1 of 1) | 500 (1 of 1) |"]) {
+        assert.ok(md.stdout.includes(text), md.stdout);
+      }
+      assert.deepEqual([snapshot(baseline.changeDir), snapshot(routed.changeDir)], before);
+    }
+  });
+
+  for (const damagedSides of [["baseline"], ["routed"], ["baseline", "routed"]]) {
+    for (const [label, damage, reason] of [
+      ["invalid JSON", "{private-damage-contents", "Invalid JSON"],
+      ["string", JSON.stringify("private-damage-contents"), "Expected a JSON object"],
+      ["number", "42", "Expected a JSON object"],
+      ["boolean", "true", "Expected a JSON object"],
+      ["null", "null", "Expected a JSON object"],
+      ["array", JSON.stringify(["private-damage-contents"]), "Expected a JSON object"],
+      ["whitespace", " \t", "Invalid JSON"],
+      ["damaged skipped record", JSON.stringify({ skipped: true, step: "research", reason: "private-damage-contents" }).slice(0, -1), "Invalid JSON"],
+    ]) {
+      test(`${chain}: ${label} on ${damagedSides.join("+")} disqualifies pinned and unpinned comparisons`, () => {
+        const pair = comparisonPair(chain);
+        const { baseline, routed } = pair;
+        const args = ["compare", routed.id, "--baseline", baseline.root, "--chain", chain];
+        for (const project of Object.values(pair)) {
+          const file = path.join(project.agentDir, "run.jsonl");
+          const lines = fs.readFileSync(file, "utf8").trimEnd().split("\n");
+          fs.writeFileSync(file, `\r\n${lines.join("\r\n\r\n")}\r\n`);
+        }
+        const clean = runIn(routed, args);
+        assert.equal(clean.status, 0, clean.stderr);
+        assert.equal(clean.json.comparable, true);
+        assert.deepEqual(clean.json.reasons, []);
+        assert.equal(clean.json.dropPercent, -10);
+        assert.equal(clean.json.verdict, "not met");
+        const expectedProblems = {};
+        for (const side of damagedSides) {
+          const file = path.join(pair[side].agentDir, "run.jsonl");
+          const line = fs.readFileSync(file, "utf8").split("\n").length + 1;
+          fs.appendFileSync(file, `\r\n${damage}\r\n`);
+          expectedProblems[side] = [{ file, line, reason }];
+        }
+        const before = [snapshot(baseline.changeDir), snapshot(routed.changeDir)];
+        for (const flags of [[], ["--unpinned"]]) {
+          const res = runIn(routed, [...args, ...flags]);
+          assert.equal(res.status, 0, res.stderr);
+          assert.equal(res.json.comparable, false);
+          assert.deepEqual(res.json.reasons, damagedSides.map((side) => `log-problems:${side}`));
+          assert.equal(res.json.dropPercent, null);
+          assert.equal(res.json.verdict, "not comparable");
+          assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+          for (const [side, total, steps] of [["baseline", 1000, 1], ["routed", 1100, 2]]) {
+            assert.deepEqual(res.json[side].logProblems, expectedProblems[side]);
+            assert.equal(res.json[side].steps, steps);
+            assert.equal(res.json[side].tokens.total, total);
+            assert.equal(res.json[side].tokens.stepsWithFigures, steps);
+            assert.deepEqual(res.json[side].tokens.byModel, { sonnet: total });
+            assert.deepEqual(res.json[side].tokens.byTier, { "sonnet/high": total });
+          }
+          const md = runIn(routed, [...args, ...flags, "--format", "md"]);
+          assert.equal(md.status, 0, md.stderr);
+          assert.match(md.stdout, /Verdict: not comparable/);
+          assert.match(md.stdout, /Drop: none/);
+          for (const side of damagedSides) {
+            const problem = expectedProblems[side][0];
+            assert.ok(md.stdout.includes(`log-problems:${side}`), md.stdout);
+            assert.ok(md.stdout.includes(`Partial-log warning for ${side} at ${problem.file} line ${problem.line} — ${reason}`), md.stdout);
+          }
+          for (const result of [res, md]) assert.doesNotMatch(result.stdout + result.stderr, /private-damage-contents/);
+          assert.deepEqual([snapshot(baseline.changeDir), snapshot(routed.changeDir)], before);
+        }
+      });
+    }
+
+    test(`${chain}: log read failure on ${damagedSides.join("+")} remains attributed and ineligible`, () => {
+      const pair = comparisonPair(chain);
+      const { baseline, routed } = pair;
+      const args = ["compare", routed.id, "--baseline", baseline.root, "--chain", chain];
+      const clean = runIn(routed, args);
+      assert.equal(clean.status, 0, clean.stderr);
+      assert.equal(clean.json.comparable, true);
+      assert.deepEqual(clean.json.reasons, []);
+      const files = damagedSides.map((side) => path.join(pair[side].agentDir, "run.jsonl"));
+      const script = faultScript(routed, `
+        const read = fs.readFileSync;
+        fs.readFileSync = (file, ...options) => {
+          if (${JSON.stringify(files)}.includes(file)) throw Object.assign(new Error("private-read-failure"), { code: "EACCES" });
+          return read(file, ...options);
+        };
+      `);
+      const before = [snapshot(baseline.changeDir), snapshot(routed.changeDir)];
+      for (const flags of [[], ["--unpinned"]]) {
+        const res = runIn(routed, [...args, ...flags], { script });
+        assert.equal(res.status, 0, res.stderr);
+        assert.equal(res.json.comparable, false);
+        assert.deepEqual(res.json.reasons, damagedSides.flatMap((side) => [`log-problems:${side}`, `no-steps:${side}`]));
+        assert.equal(res.json.dropPercent, null);
+        assert.equal(res.json.verdict, "not comparable");
+        assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+        const md = runIn(routed, [...args, ...flags, "--format", "md"], { script });
+        assert.equal(md.status, 0, md.stderr);
+        assert.match(md.stdout, /Verdict: not comparable/);
+        assert.match(md.stdout, /Drop: none/);
+        for (const side of damagedSides) {
+          const file = path.join(pair[side].agentDir, "run.jsonl");
+          assert.deepEqual(res.json[side].logProblems, [{ file, line: null, reason: "Cannot read log (EACCES)" }]);
+          assert.equal(res.json[side].steps, 0);
+          assert.equal(res.json[side].tokens.total, 0);
+          assert.equal(res.json[side].tokens.stepsWithFigures, 0);
+          assert.ok(md.stdout.includes(`log-problems:${side}`), md.stdout);
+          assert.ok(md.stdout.includes(`Partial-log warning for ${side} at ${file} — Cannot read log (EACCES)`), md.stdout);
+        }
+        for (const result of [res, md]) assert.doesNotMatch(result.stdout + result.stderr, /private-read-failure/);
+        assert.deepEqual([snapshot(baseline.changeDir), snapshot(routed.changeDir)], before);
+      }
+    });
+  }
 }
