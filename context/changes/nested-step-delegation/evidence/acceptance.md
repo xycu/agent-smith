@@ -23,6 +23,8 @@ Recorded primitive observations supply Phase 2's controls and event contract; th
 
 ## Local verification
 
+Real candidate headless smoke checks passed through the router and runner on both chains, collecting child nonces and advancing exactly once. The relevant runner, state and flow source hashes still match the final implementation. The candidate settlement verifier also accepted completed native records and rejected forced termination. Full matrix rows remain pending because these checks cover bounded normal-entry flows. [Candidate smoke evidence](capabilities.md#candidate-normal-entry-smoke-evidence)
+
 Phases 1–3 provide deterministic model-free descendant lifecycle, native-lock, recovery and exact-retry coverage. The final full suite passed 1,679 of 1,682 tests with zero failures/cancellations and three existing skips; all Automated rows are complete. Local gate outcomes and the closing commit are recorded in the plan's canonical Progress and the verification record below. Native matrix rows retain their pending state. [Progress](../plan.md#progress) [Fixture evidence](capabilities.md#deterministic-process-evidence)
 
 ## Recovery and continuation

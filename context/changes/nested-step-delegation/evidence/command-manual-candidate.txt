@@ -1,0 +1,7 @@
+Command: git rev-parse HEAD; shasum -a 256 <runner state flow>; git diff --check
+c5250f1677acf0da94783dfac0b0a3eb557ddd55
+f92e98e679609e31dfbcbc4c066881efb137ad0aee88e58a772e8432e1bb7905  skills/10x-pipeline/scripts/run-codex.mjs
+cd47c90105a78970b78f56e5341d51b590ad328e347ba7611716b2133990b0ea  skills/10x-pipeline/scripts/state.mjs
+1e6897039cf25b3bc8374c2a64a12fb67e2ea13cb9f24e82b86feeb1e63a477c  skills/10x-pipeline/scripts/flow.mjs
+context/changes/nested-step-delegation/evidence/capabilities.md:124: new blank line at EOF.
+git diff --check exit: 2
