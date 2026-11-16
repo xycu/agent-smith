@@ -144,3 +144,7 @@ The newly spawned `/root/phase3` native leaf received a fresh host skill catalog
 The enclosing step collected the Phase 1 leaf and its fix return, then the Phase 2 leaf, before running their gates and commits. The enclosing step collected the Phase 3 evidence return and the Phase 1 leaf's ambient-home correction before their gates. No verified child-inclusive token snapshot is available. Inclusive child coverage and aggregate token totals remain unknown. Gate elapsed times describe their respective test processes.
 
 Manual rows 3.4 and 3.5 remain pending. This Automated-only implementation has made no upgraded normal-entry native pipeline qualification attempt and no external publication attempt. Version probes and the bounded fresh-child catalog observation retain their observed scope. S-20 keeps the final combined-candidate eighteen-run obligation. [Acceptance and handoff](acceptance.md)
+
+## Subsequent publication verification
+
+The enclosing orchestrator subsequently published PR #208 and its requested report comment. A fresh GitHub API check on 2026-11-16 confirmed successful CI and PR-title runs for published head `cb67ce4ee92eaaeb1fea8086913be0838daa9ee6`, satisfying Manual 3.5. Manual 3.4 retains its six pending live-host cells. The earlier implementation and review records retain their pre-publication scope. [Publication acceptance](acceptance.md#publication-acceptance)

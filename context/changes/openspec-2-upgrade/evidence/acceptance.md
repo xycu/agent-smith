@@ -59,9 +59,17 @@ Every cell must retain candidate and exact tool/host versions, configuration and
 
 Phase 1 and Phase 2 native leaf returns were collected before their enclosing gates and commits. The enclosing step collected the Phase 3 leaf's two evidence files and the Phase 1 leaf's ambient-home correction before their gates. The enclosing implementation step owns final gate execution, evidence reconciliation, Progress updates and authorized local commits. The current run branch remains `agent-smith/openspec-2-upgrade`.
 
-The outer orchestrator owns pushing that run branch, opening or retaining the reviewable pull request, observing successful PR CI and posting the requested report comment. The local fake-client tests exercise the default/archived terminal paths and suspended-execution exclusion. The actual external publication remains pending. The report must retain the six pending live-host cells and unknown inclusive child usage scope. [Verification](verification.md#phase-3-final-gates)
+The outer orchestrator pushed that run branch, opened the reviewable pull request, observed successful PR CI and posted the requested report comment. The local fake-client tests exercise the default/archived terminal paths and suspended-execution exclusion. The published report retains the six pending live-host cells and unknown inclusive child usage scope. [Verification](verification.md#phase-3-final-gates)
 
-## Pending Manual rows
+## Publication acceptance
+
+Rechecked through the connected GitHub API on 2026-11-16 at 21:25 UTC. PR #208 is open, ready for review and mergeable. Its published head is `cb67ce4ee92eaaeb1fea8086913be0838daa9ee6` on `agent-smith/openspec-2-upgrade`. [PR #208](https://github.com/xycu/agent-smith/pull/208)
+
+CI run 43956254233 and PR-title run 43956254107 both completed successfully for that exact head. The publication criterion in Manual 3.5 is satisfied. [CI](https://github.com/xycu/agent-smith/actions/runs/43956254233) [PR title](https://github.com/xycu/agent-smith/actions/runs/43956254107)
+
+The requested report comment exists and records the actual implementation-review approval, six pending live-host cells and partial usage coverage. Its Manual section preserves the earlier manual-verification snapshot taken before publication. This acceptance record supplies the later publication result. [Report comment](https://github.com/xycu/agent-smith/pull/208#issuecomment-6929295241)
+
+## Manual acceptance
 
 - [ ] 3.4 Fresh upgraded OpenSpec pipeline runs revalidate discovery, awaited child/result ownership, recovery, restrictions and usage coverage for the six OpenSpec host/provider/launch cells, with any unavailable cell retained as pending and its prerequisite recorded.
-- [ ] 3.5 The enclosing orchestrator pushes the run branch, opens the reviewable PR, obtains successful PR CI and posts the requested run report as a PR comment reflecting the actual outcome and pending live proof.
+- [x] 3.5 The enclosing orchestrator pushes the run branch, opens the reviewable PR, obtains successful PR CI and posts the requested run report as a PR comment reflecting the actual outcome and pending live proof.
