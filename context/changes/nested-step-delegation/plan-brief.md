@@ -26,7 +26,7 @@ Both workflow chains support a verified child layer under their steps. The paren
 | Usage | Apply verified coverage to runner output and Claude on-time, late and archive figures, omitting partial or unknown token totals | Preserves attribution and truthful totals through every intake path | Plan Phase 2, Research |
 | Compatibility | Preserve persistent schemas and exact saved prompts | Existing run recovery and neutral retry depend on those contracts | Plan A4, Research |
 | Retry strategy | Selectively reuse the saved diff and preserve unrelated skill wording | Repairs known setup, handoff and archive failures without weakening their tests | Plan A6, implementation-feedback.md |
-| Crash safety | Extend the existing execution lock before accepting native enablement | A gone parent group does not prove child closure; uncertain native ownership keeps mutation/relaunch blocked | Plan A7, capabilities.md |
+| Crash safety | Extend the existing execution lock and suspend both orchestrators while ownership is unresolved | Retained exclusion also gates result writes, archive follow-up and terminal publication | Plan A7, Phase 2 sections 3a and 4 |
 | Measurement | Defer performance benchmarking | The owner assigned measurement to later work | Owner instruction, A5 |
 
 ## Scope
@@ -35,7 +35,7 @@ The change reaches shared rules, delegating prompts, Claude settings, Codex exec
 
 ## Architecture / Approach
 
-Native children remain internal to the step. The parent supplies bounded tasks and restrictions, collects children and returns one enclosing RESULT. The existing lock owner gains additive native-execution metadata before model spawn. Both stale takeover and close handling retain exclusion until settlement is established; unresolved ownership produces an actionable retained lock. Run/result schemas and legacy flat-lock behavior remain compatible.
+Native children remain internal to the step. The parent supplies bounded tasks and restrictions, collects children and returns one enclosing RESULT. The existing lock owner gains additive native-execution metadata before model spawn. Both stale takeover and close handling retain exclusion until settlement is established; unresolved ownership produces an actionable retained lock. The retained-lock diagnostic suspends result writes, router mutation, archive follow-up and publication, including prelaunch lock refusals. Both anti-stall sections recognize that suspension STOP. Run/result schemas and legacy flat-lock behavior remain compatible. Each native-enabled model launch records native ownership even for an exact historical flat prompt. Explicit legacy-record fixtures cover historical takeover, while current runner-crash fixtures require retained native ownership.
 
 ## Phases at a Glance
 

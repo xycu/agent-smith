@@ -5,15 +5,15 @@
 - **Mode**: Deep
 - **Date**: 2026-11-16
 - **Verdict**: REVISE
-- **Findings**: 0 critical, 2 warnings, 0 observations
+- **Findings**: 1 critical, 1 warning, 0 observations
 
-The verdict and counts describe the plan before review edits. Both findings have been applied.
+The verdict and counts describe the plan before this review applied its fixes. Both findings are APPLIED. The earlier review’s usage-coverage and downgrade corrections remain incorporated in the plan.
 
 ## Verdicts
 
 | Dimension | Verdict |
 | --- | --- |
-| End-State Alignment | WARNING |
+| End-State Alignment | FAIL |
 | Lean Execution | PASS |
 | Architectural Fitness | PASS |
 | Blind Spots | WARNING |
@@ -21,51 +21,55 @@ The verdict and counts describe the plan before review edits. Both findings have
 
 ## Grounding
 
-Grounding passed for 16/16 existing implementation, configuration and test paths, 5/5 referenced symbols or configuration keys, and brief-to-plan phase and scope consistency. Evidence files named for creation are new deliverables.
+Grounding passed for 24/24 existing planned source, configuration, test and documentation paths and 5/5 referenced symbols. The symbols checked were `configArgs`, `acquireRunLock`, `setChild`, `clearChild` and `neutralRetry`. Brief and plan agree on the three phases, scope, parent ownership and final-candidate qualification. The optional contract-surfaces document is absent.
 
-Verified paths include the shared rule, policy, both pipeline skills, Claude settings, both agent definitions, the runner, guard, fixture and six relevant test files. Verified symbols and keys include `configArgs`, `tokenTotal`, `neutralRetry`, `acquireRunLock` and `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`. The optional contract-surfaces document is absent.
+Deep verification traced runner launch/close/finally, lock takeover/release, router lock callers, both orchestrator run/archive/halt/publication paths, fake CLI construction and existing crash tests. The preserved Phase 2 runner diff confirms shared native enablement. Historical nesting instructions and lessons remain subject to the plan’s replacement rule and documentation amendments.
 
-Canonical Progress has three matching phases and eleven unticked rows. All eight Automated and three Manual rows match their phase Success Criteria. Publication, PR CI and the requested external comment are Manual. Automated publication tests use local fake clients. The complete Progress block is preserved byte-for-byte after fixes.
+Canonical Progress has three matching phases, nine Automated rows and three Manual rows. Two Automated rows are completed. All twelve rows match their phase Success Criteria. Publication, PR CI and any requested external comment are Manual. Automated publication checks use local fake clients. The complete Progress block is preserved byte-for-byte by this review.
 
 ## Findings
 
-### F1 — Apply usage coverage checks to every Claude intake path
+### F1 — Suspend orchestrator mutation and publication for retained execution locks
 
-- **Severity**: WARNING
-- **Impact**: LOW — quick decision, fix is obvious and narrowly scoped
+- **Severity**: CRITICAL
+- **Impact**: MEDIUM — real tradeoff, pause to reason through it
 - **Dimension**: End-State Alignment
-- **Location**: Phase 2, Result, usage and process boundaries
-- **Detail**: The original coverage fallback is attached to runner normalization. Claude Loop step 4 still instructs both orchestrators to map any matched `subagent_tokens` directly to `totalTokens`, and their Late usage sections attach matched tokens without a completeness check. Parent identity alone leaves child inclusion unproved. The runner tests can pass while a Claude parent-only snapshot is recorded as the complete delegated total. Archive reporting has the same coverage issue.
+- **Location**: Phase 2, Result, usage and process boundaries and Durable native-child exclusion
+- **Detail**: The plan adds an incomplete runner envelope and a retained native lock when descendant closure is uncertain. Both existing orchestrators write an `unknown` result and call `next` for `completed: false, launched: true`. A prelaunch refusal permits an `orchestrator-error` result. The plan leaves these branches and the unconditional terminal publication procedure intact. Router locking stops `next`, but the resulting halt still reaches publication, whose standalone helper stages and commits leftovers without acquiring that execution lock. The live child can therefore overlap result writes and a publication commit despite the new lock.
 
-The two skills expose separate on-time and late intake instructions. The existing router accepts any nonempty subset of measured token, tool and duration counters, allowing truthful partial figures within the existing schema. [10x intake](../../../../skills/10x-pipeline/SKILL.md:87) [10x late usage](../../../../skills/10x-pipeline/SKILL.md:137) [OpenSpec intake](../../../../skills/openspec-pipeline/SKILL.md:93) [OpenSpec late usage](../../../../skills/openspec-pipeline/SKILL.md:140) [Usage command](../../../../skills/10x-pipeline/scripts/route.mjs:767) [Usage normalization](../../../../skills/10x-pipeline/scripts/flow.mjs:462)
+The current instructions expose the incomplete-result branches, archive follow-up and terminal publication procedure. The publication helper calls `commitLeftovers` after its isolation/base checks. [10x runner intake](../../../../skills/10x-pipeline/SKILL.md:77) [OpenSpec runner intake](../../../../skills/openspec-pipeline/SKILL.md:83) [10x terminal publication](../../../../skills/10x-pipeline/SKILL.md:159) [OpenSpec terminal publication](../../../../skills/openspec-pipeline/SKILL.md:162) [Publication commit](../../../../skills/10x-pipeline/scripts/open-pr.mjs:249) [Publication call site](../../../../skills/10x-pipeline/scripts/open-pr.mjs:416) [Router lock callers](../../../../skills/10x-pipeline/scripts/route.mjs:935)
 
-- **Fix**: Specify coverage filtering for Claude on-time, late and archive figures in both skills, omit token totals with partial or unknown child coverage, retain independently measured admissible counters, and extend both-chain contract tests.
-- **Decision**: APPLIED — updated Phase 2, Result, usage and process boundaries, Testing Strategy, and the plan brief Usage decision.
+- **Fix**: Use a recognizable retained-execution reason within the existing envelope and add a suspension STOP before incomplete-result handling, archive follow-up and terminal publication in both skills. Cover prelaunch lock refusals and lock-related router halts. Preserve result/run/report bytes and allow read-only status until reconciliation. Extend both-chain instruction and lifecycle checks and synchronize the brief.
+  - Strength — carries the existing lock invariant through every orchestrator-owned mutation path.
+  - Tradeoff — unresolved executions suspend publication until their recovery prerequisite is met.
+  - Confidence — HIGH, the intake and publication call paths are explicit in the current source.
+  - Blind spot — native reconciliation and final-candidate host behavior retain their Manual gates.
+- **Decision**: APPLIED — changed Phase 2 section 0, added section 3a, updated section 4, Testing Strategy and Migration Notes, and synchronized the plan brief Crash safety decision and Architecture / Approach.
 
-### F2 — Resolve saved child-enabled dispatches before downgrading
+### F2 — Separate historical lock compatibility from native-enabled runner tests
 
 - **Severity**: WARNING
 - **Impact**: MEDIUM — real tradeoff, pause to reason through it
 - **Dimension**: Blind Spots
-- **Location**: Migration Notes, rollback paragraph
-- **Detail**: The original rollback awaits child closure, reverts the feature, restores prior host settings and resumes through the router. Closure can leave a pending child-enabled dispatch after interruption. Neutral retry deliberately returns its exact saved prompt, so restoring the old depth cap and runner flags can replay delegation instructions on a host configuration that disables children. The rollback procedure needs a pending-dispatch compatibility condition as well as a process-lifetime condition.
+- **Location**: Phase 2, Durable native-child exclusion in the existing lock
+- **Detail**: The plan enables native agents in the shared runner configuration and also asks the existing flat crash tests to retain automatic takeover after group exit. Those tests construct a dispatch and execute the current runner through `codexFixture` and `startRunner`. After enablement they exercise native-capable execution, even when their fake stream contains zero collaboration items. Treating such a launch as legacy flat execution contradicts the requirement to record native ownership before spawn and would preserve the demonstrated unsafe takeover path. Historical prompt text also cannot establish disabled native capability.
 
-The saved prompt survives a neutral retry, while the old runner unconditionally disables agents and the old Claude project setting caps depth at one. [Exact retry](../../../../skills/10x-pipeline/scripts/flow.mjs:404) [Runner configuration](../../../../skills/10x-pipeline/scripts/run-codex.mjs:127) [Claude settings](../../../../.claude/settings.json:3) [Retry regression](../../../../skills/10x-pipeline/test/neutral.test.mjs:41)
+`configArgs` is shared by every model launch. The crash case currently permits takeover after its group exits, and its fixture always points at the current runner. The preserved feature diff changes that shared argument path to native enablement. [Shared runner arguments](../../../../skills/10x-pipeline/scripts/run-codex.mjs:127) [Model launch](../../../../skills/10x-pipeline/scripts/run-codex.mjs:268) [Crash recovery assertion](../../../../skills/10x-pipeline/test/run-lock.test.mjs:143) [Current-runner fixture](../../../../skills/10x-pipeline/test/codex-helpers.mjs:140) [Historical lock reader](../../../../skills/10x-pipeline/scripts/state.mjs:995)
 
-- **Fix**: Resolve pending child-enabled dispatches and neutral retries on their recorded enabling revision and controls before downgrade. Keep an unresolved run pinned with an actionable recovery blocker. Add saved-prompt compatibility assertions to the existing recovery tests and synchronize the brief.
-  - Strength — preserves exact retry bytes and the existing router-owned recovery architecture.
-  - Tradeoff — downgrade waits for affected runs to reach a compatible recovery boundary.
-  - Confidence — HIGH, saved-prompt reuse and prior disabling controls are explicit in the code.
-  - Blind spot — native interruption and recovery behavior still requires Phase 1 and final-candidate evidence.
-- **Decision**: APPLIED — updated Phase 3, Recovery and saved-run regressions, Migration Notes, and the plan brief Open Risks & Assumptions.
+- **Fix**: Mark every native-enabled model launch conservatively before spawn, including saved flat-prompt retries and event-free launches. Update current-runner crash/cancellation fixtures to require native retention. Verify historical numeric/object lock takeover with explicit legacy-record fixtures under the new reader and synchronize the migration description and brief.
+  - Strength — preserves historical record compatibility and native execution exclusion under their actual ownership conditions.
+  - Tradeoff — some existing runner tests gain stronger retention assertions while dedicated legacy records prove takeover compatibility.
+  - Confidence — HIGH, fixture launch ownership and shared configuration are explicit in source.
+  - Blind spot — final-candidate native lifecycle acceptance remains pending.
+- **Decision**: APPLIED — changed Phase 2 section 4, Testing Strategy and Migration Notes, and synchronized the plan brief Architecture / Approach.
 
 ## Assumptions and verification limits
 
-- Deep verification was performed directly in this step under the supplied prohibition on nested delegation.
-- The supplied research establishes the installed implementation skill ownership contract. Native host behavior remains gated by the plan capability evidence.
-- Performance benchmarking remains deferred under the recorded owner instruction.
-- Rollback uses coherent revision pinning and existing recovery. This choice follows the persistent-schema and exact-retry constraints in the plan.
-- This review checked source and document contracts. Runtime suites, native child execution and the twelve-cell live matrix remain implementation and acceptance work.
+- This fresh review uses the supplied skill’s deep workflow. The step’s delegation prohibition requires direct source verification in this subagent.
+- Execution capability determines lock ownership. This decision follows the plan’s pre-spawn invariant, shared runner configuration and recorded out-of-group-child failure.
+- Existing envelope fields and a bounded retained-lock diagnostic carry suspension. This decision preserves the plan’s schema compatibility and existing owner boundaries.
+- The owner’s recorded performance deferral and final-candidate twelve-cell Manual qualification remain in force.
+- Verification covers source contracts, phase/Progress consistency, the actual router review parser and whitespace validation. Runtime suites and native execution remain implementation and acceptance work.
 
 ## Triage
 
