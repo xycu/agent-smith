@@ -48,5 +48,17 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.4 After local verification and pipeline reviews, the authorized orchestrator pushes the run branch, opens or retains a reviewable pull request and records its URL and successful PR CI result.",
+      "1.5 The authorized orchestrator posts or updates the requested run-report comment on that pull request and records its URL with the actual local test results and any remaining acceptance items."
+    ],
+    "manualNotProved": [
+      "1.4 After local verification and pipeline reviews, the authorized orchestrator pushes the run branch, opens or retains a reviewable pull request and records its URL and successful PR CI result. — not proved: Fresh exact-head and title GitHub searches returned no PR, and the exact remote branch lookup exited 2 with no matching ref. No PR URL or successful PR CI evidence is available. Pushing and creating a",
+      "1.5 The authorized orchestrator posts or updates the requested run-report comment on that pull request and records its URL with the actual local test results and any remaining acceptance items. — not proved: Fresh GitHub searches returned no matching PR, leaving no report-comment URL or content to inspect. Posting or updating the requested report comment is reserved for the orchestrator and prohibited in"
+    ]
   }
 }
