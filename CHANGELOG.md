@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.0](https://github.com/xycu/agent-smith/compare/v1.12.2...v1.13.0) (2026-11-16)
+
+
+### Features
+
+* **openspec-2-upgrade:** upgrade the specification workflow to OpenSpec 2.0.0 ([#208](https://github.com/xycu/agent-smith/issues/208)) ([fed1cfb](https://github.com/xycu/agent-smith/commit/fed1cfb2ccb1ebd78227a97413a35baf323d33c0))
+
 ## [1.12.2](https://github.com/xycu/agent-smith/compare/v1.12.1...v1.12.2) (2026-11-16)
 
 
