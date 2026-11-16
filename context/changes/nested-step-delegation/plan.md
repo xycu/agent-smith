@@ -282,9 +282,9 @@ Rollback begins by awaiting or stopping children through their existing native p
 
 #### Automated
 
-- [x] 3.1 Both-chain tests extend Phase 2 native-lock safety to preserved child/staged edits, late results and exact saved flat/delegated retries, passing `node --test --test-concurrency=2 skills/10x-pipeline/test/run-lock.test.mjs skills/10x-pipeline/test/result-persist.test.mjs skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/neutral.test.mjs skills/10x-pipeline/test/prompt-handoff.test.mjs skills/10x-pipeline/test/stepcommit.test.mjs skills/10x-pipeline/test/rollback.test.mjs skills/10x-pipeline/test/provenance.test.mjs`.
-- [x] 3.2 Final docs/indexes describe retained native locks, legacy compatibility and pending host qualification consistently with Phase 2; `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` completes with zero failures/cancellations and only justified existing skips.
-- [x] 3.3 `git diff --check` and `node tools/version-check.mjs` pass, and existing fake-client publication tests preserve orchestrator-only publication with `node --test --test-concurrency=2 skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs`.
+- [x] 3.1 Both-chain tests extend Phase 2 native-lock safety to preserved child/staged edits, late results and exact saved flat/delegated retries, passing `node --test --test-concurrency=2 skills/10x-pipeline/test/run-lock.test.mjs skills/10x-pipeline/test/result-persist.test.mjs skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/neutral.test.mjs skills/10x-pipeline/test/prompt-handoff.test.mjs skills/10x-pipeline/test/stepcommit.test.mjs skills/10x-pipeline/test/rollback.test.mjs skills/10x-pipeline/test/provenance.test.mjs`. — 947fd9a
+- [x] 3.2 Final docs/indexes describe retained native locks, legacy compatibility and pending host qualification consistently with Phase 2; `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` completes with zero failures/cancellations and only justified existing skips. — 947fd9a
+- [x] 3.3 `git diff --check` and `node tools/version-check.mjs` pass, and existing fake-client publication tests preserve orchestrator-only publication with `node --test --test-concurrency=2 skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs`. — 947fd9a
 
 #### Manual
 
