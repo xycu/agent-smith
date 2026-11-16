@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 1,
+      "evidence": "context/changes/openspec-2-upgrade/change.md fixes S-13 and OpenSpec 2.0.0; implementation details follow from compatibility evidence."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "skills/openspec-pipeline/test/openspec-contract.test.mjs already compares router behavior against real OpenSpec CLI fixtures."
+    },
+    "coupling": {
+      "score": 2,
+      "evidence": "S-13 in context/foundation/roadmap.md reaches the OpenSpec router, CI pin, contract fixtures, and user integration instructions."
+    },
+    "discovery": {
+      "score": 2,
+      "evidence": "The goal names the upstream compatibility investigation, CI CLI pin, contract fixtures, and delegation revalidation, requiring several repository areas."
+    },
+    "volume": {
+      "score": 2,
+      "evidence": "docs/REFERENCE.md documents OpenSpec behavior while the CI and contract fixture updates span several likely files."
+    },
+    "verification": {
+      "score": 2,
+      "evidence": "skills/openspec-pipeline/test/openspec-contract.test.mjs provides executable CLI fixtures, while Wave 0 child-delegation qualification may require live-host proof."
+    }
+  },
+  "unknowns": [
+    "Exact OpenSpec 2.0.0 upstream behavior and required compatibility changes have not yet been investigated.",
+    "Whether the available execution host can provide live proof for Wave 0 child delegation after the upgrade is unknown."
+  ],
+  "confidence": "medium"
+}
