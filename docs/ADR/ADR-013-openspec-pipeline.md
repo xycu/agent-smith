@@ -52,6 +52,16 @@ A pin upgrade requires a deliberate commit and successful execution of all five 
 
 **GIVEN** `CI` is absent or empty **WHEN** the selected binary fails its version probe **THEN** the fixtures **MUST** keep their local skip behavior.
 
+Amendment of 2026-11-16 for `openspec-2-upgrade`, superseding the 2026-11-14 CI pin and version-probe target.
+
+**GIVEN** CI prepares its contract tool **WHEN** installation succeeds **THEN** it **MUST** select its own isolated `@fission-ai/openspec@2.0.0` executable through `OPENSPEC_BIN` after an exact `2.0.0` version assertion.
+
+**GIVEN** the selected executable is unavailable or its version probe fails **WHEN** fixtures load **THEN** they **MUST** skip locally with absent or empty `CI` and fail with nonempty `CI`.
+
+**GIVEN** the selected executable returns a successful version response **WHEN** the response differs from exactly `2.0.0`, including a malformed response **THEN** the fixtures **MUST** fail locally and in CI.
+
+The five original status fixtures retain their names and cover readiness with optional design and every supported task marker. The executable suite additionally covers isolated custom/core setup, twelve-workflow legacy migration, customized-input preservation, read-only dry run, idempotent update, tracked shared targets and fresh-checkout Claude links, validation, archive merge and extra-folder preservation, and validation/collision diagnostics with optional `fix`. Setup/update use scratch-local HOME and XDG paths. A later pin upgrade requires a deliberate commit and all real fixtures passing against the selected version. Historical 1.16.1 observations above retain their original evidence scope.
+
 The reason: the router makes no network or model call and adds no dependency (ADR-006, ADR-009). A subprocess to a binary the project may not have would add one. A drift from OpenSpec's parser is the price; the contract test bounds it.
 
 ### Run state and isolation (D3, D8, D11)

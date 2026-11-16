@@ -261,6 +261,20 @@ test("the argument hint and Start step 1 name --rigor with its value and the goa
   for (const w of ["--rigor=<level>", "goal text", "lean", "standard", "thorough", "forward only when supplied"]) assert.ok(step.includes(w), w);
 });
 
+test("OpenSpec setup requires the custom verify workflow and tracked shared-skill discovery", () => {
+  const start = section(lines, "## Start").join("\n");
+  for (const text of ["OpenSpec 2.0.0", "openspec-propose", "openspec-apply-change", "openspec-verify-change",
+    "custom-profile setup", "retain existing workflow selections", "propose,apply,verify", "openspec update",
+    "openspec init --tools claude,codex --profile custom", "default core profile omits verify",
+    "Profile configuration is global", "HOME and XDG paths", ".agents/skills/openspec-*/SKILL.md",
+    "relative Claude links", "git status --porcelain -- .agents/skills .claude/skills",
+    ".agents/skills/.openspec-target", "before creating run worktrees", "fresh child from the run root"]) {
+    assert.ok(start.includes(text), text);
+  }
+  assert.match(start, /create the change with `openspec new change <change-name>` \(or the `openspec-propose` skill\)/);
+  assert.doesNotMatch(start, /\/opsx:/);
+});
+
 test("the Bash timeout line names the three scripts and `timeout: 600000`, outside the anti-stall section, equal to the 10x copy", () => {
   const hits = lines.filter((l) => l.startsWith("Bash timeout: "));
   assert.equal(hits.length, 1, "exactly one Bash timeout line");
