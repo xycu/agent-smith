@@ -1,6 +1,6 @@
 {
   "id": "nested-step-delegation",
-  "goal": "Deliver the change automatically. Make sure that nothing is broken. You don\\x27t have to benchmark performance, this will be measured later.",
+  "goal": "Deliver the change automatically. Make sure that nothing is broken. You don't have to benchmark performance, this will be measured later.",
   "host": "codex",
   "prComment": true,
   "isolated": true,
@@ -48,9 +48,5 @@
   "rigor": {
     "level": "lean",
     "by": "goal short"
-  },
-  "outcome": {
-    "action": "halt",
-    "reason": "Step 1 (plan) hit its limit of 3 neutral reruns after orchestrator faults (limits.maxNeutralRetries). Needs a human. Fix the harness, then either write a result file with the real status (the router verifies the step by its files), or raise limits.maxNeutralRetries in context/foundation/agent-smith-policy.json and write the orchestrator-error result file again, then run next."
   }
 }

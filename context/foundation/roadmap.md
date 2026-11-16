@@ -3,7 +3,7 @@ project: agent-smith
 version: 1
 status: draft
 created: 2026-10-30
-updated: 2026-11-15
+updated: 2026-11-16
 prd_version: 2
 main_goal: quality
 top_blocker: external
@@ -48,7 +48,7 @@ The north star is the first complete user flow that provides direct evidence the
 
 | ID | Change ID | Outcome (user can …) | Prerequisites | PRD refs | Status |
 | --- | --- | --- | --- | --- | --- |
-| S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | ready |
+| S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | planning |
 | S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | ready |
 | S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | ready |
 | S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-12, S-13, S-14 | US-04, FR-013 | proposed |
@@ -138,7 +138,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
   - Exercise child failure, interruption/resume and late completion with recoverable work and consistent progress. Verify effective child permissions and applicable step safety controls.
   - Record representative elapsed time, completion quality, interventions and available usage before and after enabling delegation, retaining overhead and failures. Performance improvement is an outcome to evaluate.
 - **Risk:** A host can deliver a child's completion to the top session while its spawning step finishes early, recreating the historical result-loss and rollback failure.
-- **Status:** ready
+- **Status:** planning
 
 ### S-15: Actionable prerequisite and permission failures
 
