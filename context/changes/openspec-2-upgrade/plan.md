@@ -273,9 +273,9 @@ The router continues its file-derived execution path. Capture elapsed time and u
 
 #### Automated
 
-- [x] 3.1 Focused saved-dispatch, result/usage, child-settlement, lock/recovery and fake publication tests pass through their normal existing entry points, including the OpenSpec cases.
-- [x] 3.2 The final full repository gate passes on the candidate with all real 2.0.0 CLI contracts executed, exact counts and skip identities recorded, and a clean whitespace/version check.
-- [x] 3.3 The verification and acceptance records identify candidate/tool versions, executable commands, failed attempts and unresolved host coverage, with every completed Automated Progress row backed by local evidence.
+- [x] 3.1 Focused saved-dispatch, result/usage, child-settlement, lock/recovery and fake publication tests pass through their normal existing entry points, including the OpenSpec cases. — 7057cd07
+- [x] 3.2 The final full repository gate passes on the candidate with all real 2.0.0 CLI contracts executed, exact counts and skip identities recorded, and a clean whitespace/version check. — 7057cd07
+- [x] 3.3 The verification and acceptance records identify candidate/tool versions, executable commands, failed attempts and unresolved host coverage, with every completed Automated Progress row backed by local evidence. — 7057cd07
 
 #### Manual
 
