@@ -1,10 +1,10 @@
 ---
 change_id: nested-step-delegation
 title: Nested step delegation
-status: impl_reviewed
+status: archived
 created: 2026-11-16
 updated: 2026-11-16
-archived_at: null
+archived_at: 2026-11-16T22:22:44Z
 ---
 
 ## Notes
