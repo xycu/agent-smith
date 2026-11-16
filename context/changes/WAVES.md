@@ -1,24 +1,35 @@
 # Waves v2
 
-Updated 2026-11-15. Snapshot: `main` at `dee383af2ecd1080bb5f0f254cb6bcf01ca1b8e6`, after [PR #197](https://github.com/xycu/agent-smith/pull/197). This is the execution order for the current reliability milestone and the two new audit fixes.
+Updated 2026-11-16. The initial planning snapshot was `main` at `dee383af2ecd1080bb5f0f254cb6bcf01ca1b8e6`, after [PR #197](https://github.com/xycu/agent-smith/pull/197). Wave 1 is now accepted, archived and merged. The remaining waves retain their planned entry conditions.
 
 **Wave 0 contains exactly one change: `nested-step-delegation` (S-14).** The owner selected child-subagent support as the first delivery on 2026-11-15. No other change runs alongside it. The former prerequisite S-12 → S-14 is reversed: S-14 establishes its own focused baseline and proof; the first complete unattended delivery follows it.
 
 This version replaces the completed seven-wave schedule. Its full history, merged PRs and outstanding archived acceptance rows remain in the [version 1 ledger](https://github.com/xycu/agent-smith/blob/dee383af2ecd1080bb5f0f254cb6bcf01ca1b8e6/context/changes/WAVES.md). No archived artifact is changed or implicitly marked complete.
 
-## Current state
+## Wave 1 acceptance
+
+Both audit fixes completed seven pipeline steps, received implementation-review approval with zero findings, passed their local full suites and PR CI, and received the owner’s review approval on 2026-11-16. Every Automated and Manual Progress row is complete in both archived plans.
+
+| Change | Accepted implementation | Archive and verification |
+| --- | --- | --- |
+| Comparison integrity | PR #201 merged as `a48269ce`, with 1,736 local full-suite passes with three expected skips. | [Archive](../archive/2026-11-15-compare-damaged-logs-not-comparable/change.md), [verification and publication acceptance](../archive/2026-11-15-compare-damaged-logs-not-comparable/evidence/verification.md), [PR #201](https://github.com/xycu/agent-smith/pull/201) |
+| Configured branch prefix | PR #203 merged as `bd669ada`, with 1,727 local full-suite passes with three expected skips. | [Archive](../archive/2026-11-15-run-branch-prefix-consistency/change.md), [verification and publication acceptance](../archive/2026-11-15-run-branch-prefix-consistency/verification.md), [PR #203](https://github.com/xycu/agent-smith/pull/203) |
+
+The owner directed Wave 1 kickoff after the Wave 0 implementation merged, while S-14’s live-host qualification remained pending. That instruction supplied the scheduling exception for Wave 1. S-14’s recorded host-acceptance obligations remain open, and the final supported-host qualification remains assigned to S-20. [Wave 0 acceptance evidence](nested-step-delegation/evidence/acceptance.md)
+
+## Initial planning snapshot
 
 | Area | State at this snapshot | Source |
 | --- | --- | --- |
 | Released product | Latest release is v1.11.2. Both workflow chains, provider dispatch, isolation, recovery, reports and terminal PR publication are implemented. | [Release](https://github.com/xycu/agent-smith/releases/tag/v1.11.2), [PRD](../foundation/prd.md) |
 | Reliability milestone | M-2 is open. All nine slices S-12–S-20 remain undelivered. Child delegation and OpenSpec 2.0.0 are committed additions; installed-host qualification is still pending. | [Roadmap](../foundation/roadmap.md) |
-| Audit fixes | Two descriptive change records merged in PR #197. Both have `status: new`; neither has a plan or implementation. | [Comparison integrity](compare-damaged-logs-not-comparable/change.md), [branch prefix](run-branch-prefix-consistency/change.md) |
+| Audit fixes | Two descriptive change records merged in PR #197. Both have `status: new`; neither has a plan or implementation. | [Comparison integrity](../archive/2026-11-15-compare-damaged-logs-not-comparable/change.md), [branch prefix](../archive/2026-11-15-run-branch-prefix-consistency/change.md) |
 | Child delegation | Current rules forbid nested agents and the project applies a depth cap. S-14 is now first and ready for planning; its change folder and plan do not exist yet. | [Roadmap S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents), [ADR-018](../../docs/ADR/ADR-018-no-nested-subagents.md) |
 | Parked implementation | `quote-router-in-skill-loops` is the only open implementation PR, draft #186. It stays parked until the owner resumes it. | [Change](quote-router-in-skill-loops/change.md), [PR #186](https://github.com/xycu/agent-smith/pull/186) |
 | Readiness assessment | Research is complete and merged. Its identity file remains `preparing`; it is evidence for this schedule, not an implementation to run. Its original first-run ordering predates the Wave 0 decision. | [Assessment](production-readiness-assessment/research.md) |
 | Existing verification | The recorded full suite has 1,621 passes, zero failures and three expected skips. Runner/release acceptance exists; this does not establish the complete live product matrix. No runtime suite was rerun for this scheduling document. | [Health evidence](../foundation/health-check.md), [assessment](production-readiness-assessment/research.md) |
 
-There are **11 scheduled changes**: nine roadmap slices and two audit fixes. Of these, only the two audit fixes currently have change folders on `main`; the roadmap-only IDs below are proposed work identities, not evidence of an initialized or running pipeline.
+The initial schedule contained **11 changes**, comprising nine roadmap slices and two audit fixes. At that planning baseline, only the two audit fixes had change folders on `main`; the roadmap-only IDs below described proposed work identities.
 
 ## Execution rules
 
@@ -33,12 +44,12 @@ There are **11 scheduled changes**: nine roadmap slices and two audit fixes. Of 
 
 ## Wave map
 
-All waves below are pending. “Ready” in the roadmap means ready for planning, not implemented or live-accepted.
+Wave 1 is complete. Wave 0 has merged implementation and pending live-host qualification. Waves 2–8 retain their planned outcomes. Roadmap readiness continues to mean ready for planning.
 
 | Wave | Changes | Entry condition | Exit outcome |
 | --- | --- | --- | --- |
 | **0 — child delegation (1)** | **S-14 `nested-step-delegation`** | Owner-selected first change; establish focused host prerequisites and baseline within this change. | A step awaits its children, owns their results and preserves recovery/safety in the supported modes. |
-| **1 — audit correctness (2)** | `compare-damaged-logs-not-comparable`; `run-branch-prefix-consistency` | Wave 0 merged; plans confirm the ownership split below. | Damaged logs cannot prove savings; configured run branches work through setup and publication. |
+| **1 — audit correctness (2), complete** | `compare-damaged-logs-not-comparable`; `run-branch-prefix-consistency` | Owner-directed kickoff after Wave 0 implementation merged, with disjoint runtime ownership confirmed in the plans. | Accepted, archived and merged through PRs #201 and #203. Damaged logs are ineligible for comparison; configured run branches work through setup and publication. |
 | **2 — specification compatibility (1)** | S-13 `openspec-2-upgrade` | Wave 1 merged. | Both integration instructions and the specification workflow work with OpenSpec 2.0.0. |
 | **3 — first complete delivery (1)** | S-12 `first-unattended-delivery` | Wave 2 merged; authenticated Claude and review-remote access available. | One normal Claude-only plan-based run reaches a reviewable PR without steering. |
 | **4 — actionable setup (1)** | S-15 `actionable-run-prerequisites` | S-12, S-13 and S-14 delivered; first-run evidence available. | Missing tools, discovery, trust and permissions identify the required action before affected execution. |
@@ -71,8 +82,8 @@ The first planning action is `/10x-new nested-step-delegation` with S-14 and thi
 
 | Wave / change | Initial ownership to confirm in its plan | Evidence that matters |
 | --- | --- | --- |
-| 1 / [comparison integrity](compare-damaged-logs-not-comparable/change.md) | `route.mjs` comparison eligibility/rendering; comparison and partial-log tests; reference comparison section. | The 1,000-token baseline versus 1,100-token routed example becomes non-comparable when the 600-token record is damaged. Cover either side, both chains and `--unpinned`. |
-| 1 / [branch prefix](run-branch-prefix-consistency/change.md) | `prepare-run.mjs`, isolation policy/identity, `open-pr.mjs`, setup/publication skill sections and their tests. | A `codex/` override works from creation through cleanup, resume and publication while wrong-run protections remain. Shared policy changes require checking the comparison plan before parallel launch. |
+| 1 / [comparison integrity](../archive/2026-11-15-compare-damaged-logs-not-comparable/change.md) | `route.mjs` comparison eligibility/rendering; comparison and partial-log tests; reference comparison section. | The 1,000-token baseline versus 1,100-token routed example becomes non-comparable when the 600-token record is damaged. Cover either side, both chains and `--unpinned`. |
+| 1 / [branch prefix](../archive/2026-11-15-run-branch-prefix-consistency/change.md) | `prepare-run.mjs`, isolation policy/identity, `open-pr.mjs`, setup/publication skill sections and their tests. | A `codex/` override works from creation through cleanup, resume and publication while wrong-run protections remain. Shared policy changes require checking the comparison plan before parallel launch. |
 | 2 / S-13 | OpenSpec policy, prompts, module and tests; CLI version pin and matching integration instructions. | OpenSpec 2.0.0 workflow, saved-run compatibility and validation/archive behavior. Revalidate Wave 0's OpenSpec delegation contract after upgrade. |
 | 3 / S-12 | Fresh Claude-only 10x entry-point discovery, installed guard delivery and end-to-end evidence; observed fixes only. | Authorized change → completed work → reviewable PR, with exact versions and no steering. |
 | 4 / S-15 | Prerequisite discovery and prelaunch diagnostics across the selected hosts/chains. | Missing tool, skill, trust or permission produces an actionable refusal before dependent work. |
