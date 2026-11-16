@@ -48,5 +48,17 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths .github/workflows/ci.yml, skills/openspec-pipeline/test/openspec-skill.test.mjs, tools/test/ci-runner.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.4 Fresh upgraded OpenSpec pipeline runs revalidate discovery, awaited child/result ownership, recovery, restrictions and usage coverage for the six OpenSpec host/provider/launch cells, with any unavailable cell retained as pending and its prerequisite recorded.",
+      "3.5 The enclosing orchestrator pushes the run branch, opens the reviewable PR, obtains successful PR CI and posts the requested run report as a PR comment reflecting the actual outcome and pending live proof."
+    ],
+    "manualNotProved": [
+      "3.4 Fresh upgraded OpenSpec pipeline runs revalidate discovery, awaited child/result ownership, recovery, restrictions and usage coverage for the six OpenSpec host/provider/launch cells, with any unavailable cell retained as pending and its prerequisite recorded. — not proved: Six live normal-entry host/provider/launch cells remain unproved. Their disposable-change, router and Git recovery writes exceed this step's plan/evidence-only and read-only Git restrictions. Each nee",
+      "3.5 The enclosing orchestrator pushes the run branch, opens the reviewable PR, obtains successful PR CI and posts the requested run report as a PR comment reflecting the actual outcome and pending live proof. — not proved: Read-only connected GitHub search returned no matching PR for head agent-smith/openspec-2-upgrade in xycu/agent-smith. Actual PR CI and report-comment acceptance remain unproved. Push, PR creation and"
+    ]
   }
 }
