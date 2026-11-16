@@ -195,23 +195,23 @@ If corrections are needed, apply a reviewed follow-up patch preserving interveni
 
 #### Automated
 
-- [x] 1.1 Policy files and discovery links exist, local link targets resolve, and the agreed contact and versioned conduct attribution are present.
-- [x] 1.2 The LICENSE canonical CC legal body matches the pre-change baseline byte-for-byte, and the contribution-permission links resolve.
-- [x] 1.3 Whitespace validation passes for the phase diff using `git diff --check`, including new files in the checked diff.
+- [x] 1.1 Policy files and discovery links exist, local link targets resolve, and the agreed contact and versioned conduct attribution are present. — f7d72a65
+- [x] 1.2 The LICENSE canonical CC legal body matches the pre-change baseline byte-for-byte, and the contribution-permission links resolve. — f7d72a65
+- [x] 1.3 Whitespace validation passes for the phase diff using `git diff --check`, including new files in the checked diff. — f7d72a65
 
 #### Manual
 
-- [x] 1.4 Policy review confirms the permission's contribution-and-review scope, consistent licensing summaries, complete conduct text, and the agreed single-maintainer reporting limitation.
-- [x] 1.5 Contributor-guide review confirms usable setup and submission instructions, exact repository commands, and accurate links to existing security, architecture and release guidance.
-- [x] 1.6 Incoming-contribution terms review confirms coverage of future submissions, maintainer revision, incorporation and distribution within agent-smith under the project's licensing terms, retained contributor ownership, and the submitter's ability to grant those rights.
+- [x] 1.4 Policy review confirms the permission's contribution-and-review scope, consistent licensing summaries, complete conduct text, and the agreed single-maintainer reporting limitation. — f7d72a65
+- [x] 1.5 Contributor-guide review confirms usable setup and submission instructions, exact repository commands, and accurate links to existing security, architecture and release guidance. — f7d72a65
+- [x] 1.6 Incoming-contribution terms review confirms coverage of future submissions, maintainer revision, incorporation and distribution within agent-smith under the project's licensing terms, retained contributor ownership, and the submitter's ability to grant those rights. — f7d72a65
 
 ### Phase 2: Issue and PR templates with verification
 
 #### Automated
 
-- [ ] 2.1 The issue YAML files parse and focused assertions confirm valid form metadata and body structure, distinct field IDs, the agreed required/optional fields, `blank_issues_enabled` as Boolean true, and the security contact-link target.
-- [ ] 2.2 Cross-file checks confirm the PR template's requested sections, resolving local guidance links, the security-policy URLs, and compatibility with the existing explicit automated PR-body contract.
-- [ ] 2.3 Whitespace validation passes for the complete implementation diff using `git diff --check`, including new files in the checked diff.
+- [x] 2.1 The issue YAML files parse and focused assertions confirm valid form metadata and body structure, distinct field IDs, the agreed required/optional fields, `blank_issues_enabled` as Boolean true, and the security contact-link target.
+- [x] 2.2 Cross-file checks confirm the PR template's requested sections, resolving local guidance links, the security-policy URLs, and compatibility with the existing explicit automated PR-body contract.
+- [x] 2.3 Whitespace validation passes for the complete implementation diff using `git diff --check`, including new files in the checked diff.
 
 #### Manual
 
