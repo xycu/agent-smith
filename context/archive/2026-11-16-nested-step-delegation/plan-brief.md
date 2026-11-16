@@ -67,5 +67,5 @@ Prerequisites include Node 24+, installed workflow toolkits and top-level permis
 
 - [Full plan and canonical Progress](plan.md#progress)
 - [S-14 acceptance](../../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents)
-- [Wave 0 scope](../WAVES.md#wave-0-child-subagents-alone)
+- [Wave 0 scope](../../changes/WAVES.md#wave-0-child-subagents-alone)
 - [Host and safety research](research.md)

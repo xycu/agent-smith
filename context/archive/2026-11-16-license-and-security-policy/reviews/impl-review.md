@@ -1,7 +1,7 @@
 <!-- IMPL-REVIEW-REPORT -->
 # Implementation Review — License and security policy
 
-- **Plan**: [Implementation plan](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/plan.md)
+- **Plan**: [Implementation plan](../plan.md)
 - **Scope**: Full plan, implemented phases with owner-deferred manual acceptance
 - **Reviewed phases**: 1, 2
 - **Date**: 2026-11-16
@@ -26,11 +26,11 @@ Zero actionable findings in the reviewed implementation. The drift and safety/pa
 
 ## Scope and evidence
 
-The inspected range is `adff64f7332b141c1ded8b29e5085d9b696a4d18..7e07aa6bf295bce12d3282a1cc6107323dc9bd7b`. It contains the four planned deliverables and five expected change-workflow artifacts. Coverage includes phases 1 and 2 under the owner's instruction to conduct manual acceptance on the final PR. [Recorded owner instruction](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/change.md:17)
+The inspected range is `adff64f7332b141c1ded8b29e5085d9b696a4d18..7e07aa6bf295bce12d3282a1cc6107323dc9bd7b`. It contains the four planned deliverables and five expected change-workflow artifacts. Coverage includes phases 1 and 2 under the owner's instruction to conduct manual acceptance on the final PR. [Recorded owner instruction](../change.md:17)
 
-- Phase 1 matches the planned project-owned scope, attribution, third-party exception, canonical CC BY-NC-ND 4.0 text, README explanation and plugin license identifier. The manifest diff changes its license field, preserving the other metadata. [License scope](/Users/blazej/.codex/worktrees/b4ff/agent-smith/LICENSE:1) · [README licensing](/Users/blazej/.codex/worktrees/b4ff/agent-smith/README.md:143) · [Plugin license](/Users/blazej/.codex/worktrees/b4ff/agent-smith/.claude-plugin/plugin.json:11)
-- Phase 2 supplies the requested proposal, private reporting process, supported-version statement, best-effort response/disclosure targets, authorized-research expectations and maintainer handling. Its boundary claims qualify host and hook dependence. [Proposal designation](/Users/blazej/.codex/worktrees/b4ff/agent-smith/SECURITY.md:3) · [Security boundaries](/Users/blazej/.codex/worktrees/b4ff/agent-smith/SECURITY.md:37) · [Proposed response targets](/Users/blazej/.codex/worktrees/b4ff/agent-smith/SECURITY.md:43)
-- The changed manifest and workflow artifacts follow the existing metadata, canonical Progress and saved-review conventions. The added target-resolution rule addresses the earlier plan-review finding. [Target-resolution contract](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/plan.md:34)
+- Phase 1 matches the planned project-owned scope, attribution, third-party exception, canonical CC BY-NC-ND 4.0 text, README explanation and plugin license identifier. The manifest diff changes its license field, preserving the other metadata. [License scope](../../../../LICENSE:1) · [README licensing](../../../../README.md:143) · [Plugin license](../../../../.claude-plugin/plugin.json:11)
+- Phase 2 supplies the requested proposal, private reporting process, supported-version statement, best-effort response/disclosure targets, authorized-research expectations and maintainer handling. Its boundary claims qualify host and hook dependence. [Proposal designation](../../../../SECURITY.md:3) · [Security boundaries](../../../../SECURITY.md:37) · [Proposed response targets](../../../../SECURITY.md:43)
+- The changed manifest and workflow artifacts follow the existing metadata, canonical Progress and saved-review conventions. The added target-resolution rule addresses the earlier plan-review finding. [Target-resolution contract](../plan.md:34)
 
 ## Automated acceptance verification
 

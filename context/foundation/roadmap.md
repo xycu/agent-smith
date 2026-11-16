@@ -48,7 +48,7 @@ The north star is the first complete user flow that provides direct evidence the
 
 | ID | Change ID | Outcome (user can …) | Prerequisites | PRD refs | Status |
 | --- | --- | --- | --- | --- | --- |
-| S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | in-progress |
+| S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | done |
 | S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | ready |
 | S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | done |
 | S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-12, S-13, S-14 | US-04, FR-013 | proposed |
@@ -138,7 +138,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
   - Exercise child failure, interruption/resume and late completion with recoverable work and consistent progress. Verify effective child permissions and applicable step safety controls.
   - Record representative elapsed time, completion quality, interventions and available usage before and after enabling delegation, retaining overhead and failures. Performance improvement is an outcome to evaluate.
 - **Risk:** A host can deliver a child's completion to the top session while its spawning step finishes early, recreating the historical result-loss and rollback failure.
-- **Status:** in-progress
+- **Status:** done
 
 ### S-15: Actionable prerequisite and permission failures
 
@@ -219,6 +219,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
   - Which exact candidate versions and representative run assignment cover both launch modes and selected features in each configuration? — Owner: maintainer with the user. Block: no, fix the assignment before qualification runs.
   - Does every retained qualifying result match the final candidate and the agreed acceptance conditions? — Owner: maintainer. Block: no, verification is this slice's outcome.
 - **Risk:** Evidence from an earlier candidate can overstate current support after later behavior changes.
+- **Carried acceptance:** S-14 Manual rows 1.3 and 3.4 retain twelve unverified configuration/mode cells, and S-13 Manual row 3.4 retains six unverified OpenSpec cells. S-20 qualifies these obligations against the final combined candidate within its existing eighteen-normal-run contract. [S-14 closeout](../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout), [S-13 decision](../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision)
 - **Status:** proposed
 
 ## Backlog Handoff
@@ -286,3 +287,4 @@ Entries 1–11 reproduce the PRD decision and evidence register verbatim. Their 
 - **S-10: user can see lesson candidates from the impl-review in `report.md`, each with a ready `/10x-lesson <seed>` command.** — Archived 2026-11-01 → `context/archive/2026-10-30-lesson-candidates/`. Lesson: —.
 - **S-11: user can have the complexity of a change scored by an LLM on a cheap model, with the scores stored with evidence and unknowns in a machine-readable file, and have the router use them next to the deterministic signals.** — Archived 2026-11-02 → `context/archive/2026-11-02-llm-complexity-scorer/`. Lesson: —.
 - **S-13: user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions.** — Archived 2026-11-16 → `context/archive/2026-11-16-openspec-2-upgrade/`. Lesson: —. Owner-approved deferral of six live-host cells to S-20 is recorded in [archive acceptance](../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision).
+- **S-14: user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes.** — Archived 2026-11-16 → `context/archive/2026-11-16-nested-step-delegation/`. Lesson: —. Owner-directed context closeout carries native qualification rows 1.3 and 3.4 into S-20.

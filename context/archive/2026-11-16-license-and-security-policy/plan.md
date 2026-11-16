@@ -8,9 +8,9 @@ The owner confirmed CC BY-NC-ND 4.0 International and approved the phase structu
 
 ## Current State Analysis
 
-The research baseline is commit `adff64f7332b141c1ded8b29e5085d9b696a4d18`, with pre-existing uncommitted drafts in LICENSE, README.md, `.claude-plugin/plugin.json` and SECURITY.md. The committed license contains custom noncommercial-project terms and a commercial trial. The drafts already use CC BY-NC-ND 4.0, remove the trial from the active licensing declarations and label SECURITY.md as a proposal. Implementation should reconcile and verify those drafts against this plan. Their presence provides a starting point for execution, with acceptance recorded through Progress. [Research](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md:20)
+The research baseline is commit `adff64f7332b141c1ded8b29e5085d9b696a4d18`, with pre-existing uncommitted drafts in LICENSE, README.md, `.claude-plugin/plugin.json` and SECURITY.md. The committed license contains custom noncommercial-project terms and a commercial trial. The drafts already use CC BY-NC-ND 4.0, remove the trial from the active licensing declarations and label SECURITY.md as a proposal. Implementation should reconcile and verify those drafts against this plan. Their presence provides a starting point for execution, with acceptance recorded through Progress. [Research](research.md:20)
 
-Historical Git objects contain an earlier Unlicense dedication. Third-party material includes the credited README image and OpenSpec-generated skills carrying MIT notices. The researched guard, recovery, publication and CI paths define the security boundaries the proposal should describe. [Licensing findings](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md:30) · [Security findings](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md:48)
+Historical Git objects contain an earlier Unlicense dedication. Third-party material includes the credited README image and OpenSpec-generated skills carrying MIT notices. The researched guard, recovery, publication and CI paths define the security boundaries the proposal should describe. [Licensing findings](research.md:30) · [Security findings](research.md:48)
 
 ## Desired End State
 
@@ -22,10 +22,10 @@ Historical Git objects contain an earlier Unlicense dedication. Third-party mate
 
 ### Key Discoveries
 
-- The canonical draft license text matched the official Creative Commons source during research after final-newline normalization. [Research verification](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md:80)
-- CC BY-NC-ND permits producing adaptations for noncommercial purposes while restricting their sharing. Standard terms and the earlier Unlicense history need accurate treatment in explanatory prose. [License grant](/Users/blazej/.codex/worktrees/b4ff/agent-smith/LICENSE:151) · [Historical findings](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md:66)
-- Security response values and release support originate in the draft proposal. Their wording should communicate proposed commitments awaiting adoption. [Security proposal](/Users/blazej/.codex/worktrees/b4ff/agent-smith/SECURITY.md:3)
-- The version guard checks release versions and descriptions. Canonical legal text and policy content need dedicated content checks. [Version guard](/Users/blazej/.codex/worktrees/b4ff/agent-smith/tools/version-check.mjs:36)
+- The canonical draft license text matched the official Creative Commons source during research after final-newline normalization. [Research verification](research.md:80)
+- CC BY-NC-ND permits producing adaptations for noncommercial purposes while restricting their sharing. Standard terms and the earlier Unlicense history need accurate treatment in explanatory prose. [License grant](../../../LICENSE:151) · [Historical findings](research.md:66)
+- Security response values and release support originate in the draft proposal. Their wording should communicate proposed commitments awaiting adoption. [Security proposal](../../../SECURITY.md:3)
+- The version guard checks release versions and descriptions. Canonical legal text and policy content need dedicated content checks. [Version guard](../../../tools/version-check.mjs:36)
 
 ## Scope Boundaries
 
@@ -51,7 +51,7 @@ Make LICENSE, README and plugin metadata describe the approved CC BY-NC-ND 4.0 t
 
 #### 1. License text and attribution
 
-**File** — [LICENSE](/Users/blazej/.codex/worktrees/b4ff/agent-smith/LICENSE)
+**File** — [LICENSE](../../../LICENSE)
 
 **Intent** — Apply the approved license to project-owned material using the official legal text. Preserve attribution and distinguish separately credited third-party material through the scope statement.
 
@@ -59,7 +59,7 @@ Make LICENSE, README and plugin metadata describe the approved CC BY-NC-ND 4.0 t
 
 #### 2. Reader-facing licensing explanation
 
-**File** — [README.md](/Users/blazej/.codex/worktrees/b4ff/agent-smith/README.md)
+**File** — [README.md](../../../README.md)
 
 **Intent** — Replace the custom trial explanation with a concise description of the selected terms. Preserve the provenance of separately licensed material and earlier distributions.
 
@@ -67,7 +67,7 @@ Make LICENSE, README and plugin metadata describe the approved CC BY-NC-ND 4.0 t
 
 #### 3. Plugin license declaration
 
-**File** — [.claude-plugin/plugin.json](/Users/blazej/.codex/worktrees/b4ff/agent-smith/.claude-plugin/plugin.json)
+**File** — [.claude-plugin/plugin.json](../../../.claude-plugin/plugin.json)
 
 **Intent** — Expose the same license identifier to plugin metadata consumers.
 
@@ -94,7 +94,7 @@ Complete the proposed security policy, connect it to README and verify the docum
 
 #### 1. Security policy proposal
 
-**File** — [SECURITY.md](/Users/blazej/.codex/worktrees/b4ff/agent-smith/SECURITY.md)
+**File** — [SECURITY.md](../../../SECURITY.md)
 
 **Intent** — Give reporters a practical private-reporting process and the maintainer a reviewable response policy appropriate to an agent-executing developer tool.
 
@@ -104,7 +104,7 @@ Describe the researched boundaries accurately. The worktree and recovery mechani
 
 #### 2. Policy discovery
 
-**File** — [README.md](/Users/blazej/.codex/worktrees/b4ff/agent-smith/README.md)
+**File** — [README.md](../../../README.md)
 
 **Intent** — Make the policy discoverable from the existing documentation links.
 
@@ -138,7 +138,7 @@ Review licensing prose against the canonical grant and historical provenance. Re
 
 ### Runtime verification scope
 
-This plan's verification concerns document content, links and packaging metadata. If execution introduces changes to scripts, runtime policies, prompts or tools, apply the repository's full-suite requirement from AGENTS.md to that changed scope. [Repository commands](/Users/blazej/.codex/worktrees/b4ff/agent-smith/AGENTS.md:16)
+This plan's verification concerns document content, links and packaging metadata. If execution introduces changes to scripts, runtime policies, prompts or tools, apply the repository's full-suite requirement from AGENTS.md to that changed scope. [Repository commands](../../../AGENTS.md:16)
 
 ## Performance Considerations
 
@@ -148,7 +148,7 @@ The planned deliverables are prose and license metadata. The existing router and
 
 The revision landing the licensing change establishes the new declaration for material distributed from that revision under the selected terms. Historical copies retain their accompanying licensing evidence, including the earlier Unlicense dedication. Explanatory prose must account for rights obtained through those earlier terms and for third-party rights.
 
-A repository-file correction can use a reviewed inverse patch that preserves intervening work. The CC grant is irrevocable within its terms, and its separate-licensing provision preserves existing grants. File rollback therefore requires the historical and legal provenance to remain visible in any later licensing explanation. [License grant](/Users/blazej/.codex/worktrees/b4ff/agent-smith/LICENSE:151) · [Separate licensing](/Users/blazej/.codex/worktrees/b4ff/agent-smith/LICENSE:349)
+A repository-file correction can use a reviewed inverse patch that preserves intervening work. The CC grant is irrevocable within its terms, and its separate-licensing provision preserves existing grants. File rollback therefore requires the historical and legal provenance to remain visible in any later licensing explanation. [License grant](../../../LICENSE:151) · [Separate licensing](../../../LICENSE:349)
 
 Creative Commons recommends against using CC licenses for software because of source-distribution, patent and compatibility considerations. The owner confirmed the selected license during planning. [Official guidance](https://creativecommons.org/faq/#can-i-apply-a-creative-commons-license-to-software)
 
@@ -156,12 +156,12 @@ SECURITY.md remains a proposal through this change. Its operating defaults provi
 
 ## References
 
-- [Change request](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/change.md)
-- [Research](/Users/blazej/.codex/worktrees/b4ff/agent-smith/context/changes/license-and-security-policy/research.md)
+- [Change request](change.md)
+- [Research](research.md)
 - [Official CC BY-NC-ND 4.0 text](https://creativecommons.org/licenses/by-nc-nd/4.0/legalcode.txt)
 - [Creative Commons software guidance](https://creativecommons.org/faq/#can-i-apply-a-creative-commons-license-to-software)
-- [Step safety and guard coverage](/Users/blazej/.codex/worktrees/b4ff/agent-smith/docs/REFERENCE.md:33)
-- [Repository verification rules](/Users/blazej/.codex/worktrees/b4ff/agent-smith/AGENTS.md:16)
+- [Step safety and guard coverage](../../../docs/REFERENCE.md:33)
+- [Repository verification rules](../../../AGENTS.md:16)
 
 ## Progress
 
