@@ -1,10 +1,9 @@
 // Shared pre-init setup. Router state and recovery remain owned by the router.
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
+import { readPolicyObject, readIsolationPolicy, isolationEnabled, runBranch, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
 
-const SKILL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const USAGE = "Usage: prepare-run.mjs <id> [--chain 10x|openspec] [--cleanup]";
 const GIT_TIMEOUT_MS = 120000;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -20,33 +19,6 @@ function parseArgs(args) {
     throw new Error("expected only --chain 10x|openspec after the id");
   }
   return { id, chain: rest[1], cleanup };
-}
-
-function readPolicy(file) {
-  const value = JSON.parse(fs.readFileSync(file, "utf8"));
-  if (!isObject(value)) throw new Error(`${file} must hold a JSON object`);
-  return value;
-}
-
-// Only this projection affects setup. Match state.mjs deepMerge for the isolation block.
-function isolationRequired(root) {
-  const policies = [readPolicy(path.join(SKILL, "policy.json")),
-    readPolicy(path.join(SKILL, "../openspec-pipeline/policy.json"))];
-  const override = path.join(root, "context/foundation/agent-smith-policy.json");
-  let present = true;
-  try { fs.lstatSync(override); } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-    present = false;
-  }
-  if (present) policies.push(readPolicy(override));
-  let isolation;
-  for (const policy of policies) {
-    if (!Object.hasOwn(policy, "isolation")) continue;
-    const over = policy.isolation;
-    isolation = isObject(over) && typeof isolation === "object" && !Array.isArray(isolation)
-      ? { ...isolation, ...over } : over;
-  }
-  return isObject(isolation) && isolation.require === true;
 }
 
 function git(args, input) {
@@ -68,13 +40,16 @@ function branchExists(branch) {
   return checked(git(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]), "read run branch", [0, 1]).status === 0;
 }
 
-function registeredWorktree(branch) {
-  const records = gitText(["worktree", "list", "--porcelain", "-z"]).split("\0\0");
-  for (const record of records) {
+function registeredWorktrees() {
+  return gitText(["worktree", "list", "--porcelain", "-z"]).split("\0\0").filter(Boolean).map((record) => {
     const fields = record.split("\0");
-    if (fields.includes(`branch refs/heads/${branch}`)) return fields.find((field) => field.startsWith("worktree ")).slice(9);
-  }
-  return null;
+    return { worktree: fields.find((field) => field.startsWith("worktree ")).slice(9),
+      branch: fields.find((field) => field.startsWith("branch refs/heads/"))?.slice(18) ?? null };
+  });
+}
+
+function registeredWorktree(branch) {
+  return registeredWorktrees().find((record) => record.branch === branch)?.worktree ?? null;
 }
 
 function outsidePaths(prefix, change) {
@@ -158,7 +133,8 @@ function prepare(opts, result) {
     return;
   }
   checked(inside, "discover Git worktree");
-  if (inside.stdout.trim() !== "true" || !isolationRequired(result.root)) {
+  const config = readIsolationPolicy(result.root);
+  if (inside.stdout.trim() !== "true" || !isolationEnabled(config)) {
     result.case = "opt-out";
     result.runRoot = result.root;
     return;
@@ -167,15 +143,63 @@ function prepare(opts, result) {
   const gitDir = gitText(["rev-parse", "--absolute-git-dir"]);
   const common = gitText(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   const current = checked(git(["symbolic-ref", "--quiet", "--short", "HEAD"]), "read current branch", [0, 1]).stdout.replace(/\n$/, "");
-  const inRun = gitDir !== common && current.startsWith("agent-smith/");
-  const branch = inRun ? current : `agent-smith/${opts.id}`;
   const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
+  const generated = runBranch(config, opts.id, git);
+  let invocation = readRunIdentity(path.join(result.root, change));
+  if (invocation && !Object.hasOwn(invocation, "isolated") && !Object.hasOwn(invocation, "branch")
+    && invocation.id === opts.id && (invocation.chain ?? "10x") === opts.chain) {
+    // Opt-out runs record id/chain without an isolated branch and retain the in-flight-main setup case.
+    invocation = null;
+  }
+  if (invocation) validateRunIdentity(invocation, config, opts.id, opts.chain, gitDir !== common ? current : null, git);
+  const inRun = gitDir !== common && current.startsWith(config.branchPrefix ?? "agent-smith/");
+  let branch = inRun ? current : invocation?.branch ?? generated;
+  validateRunBranch(config, opts.id, branch, git);
+  const validateSelected = (worktree, expected) => {
+    const root = path.resolve(worktree, prefix);
+    const meta = readRunIdentity(path.join(root, change));
+    if (meta) {
+      validateRunIdentity(meta, config, opts.id, opts.chain, expected, git);
+      const selectedConfig = readIsolationPolicy(root);
+      if (!isolationEnabled(selectedConfig)) throw new Error(`Restore isolation.require before resuming recorded branch ${meta.branch}`);
+      validateRunIdentity(meta, selectedConfig, opts.id, opts.chain, expected, git);
+    }
+  };
+  if (!inRun && !invocation && !branchExists(generated)) {
+    const candidates = [];
+    for (const record of registeredWorktrees()) {
+      if (!record.branch || record.branch === current) continue;
+      const root = path.resolve(record.worktree, prefix);
+      const candidateCommon = git(["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+      const candidatePrefix = git(["-C", root, "rev-parse", "--show-prefix"]);
+      if (candidateCommon.timedOut || candidatePrefix.timedOut) throw new Error("Git timed out while validating registered run roots");
+      if (candidateCommon.status !== 0 || candidatePrefix.status !== 0
+        || path.resolve(candidateCommon.stdout.trim()) !== path.resolve(common)
+        || candidatePrefix.stdout.replace(/\n$/, "") !== prefix) continue;
+      const meta = readRunIdentity(path.join(root, change));
+      if (!meta || meta.id !== opts.id || (meta.chain ?? "10x") !== opts.chain) continue;
+      candidates.push({ ...record, meta });
+    }
+    if (candidates.length > 1) {
+      throw new Error(`Ambiguous saved runs for ${opts.id}: ${candidates.map((c) => `${c.branch} at ${c.worktree}`).sort().join(", ")}. Resume from the intended run worktree`);
+    }
+    if (candidates.length === 1) {
+      const selected = candidates[0];
+      branch = validateRunIdentity(selected.meta, config, opts.id, opts.chain, selected.branch, git);
+    }
+  }
+  const selected = inRun ? gitText(["rev-parse", "--show-toplevel"]) : registeredWorktree(branch);
+  if (selected !== null) validateSelected(selected, branch);
+  if (invocation && !branchExists(branch)) throw new Error(`Recorded run branch ${branch} is unavailable; restore it and resume its original worktree`);
   if (!inRun && !branchExists(branch) && fs.existsSync(path.join(result.root, change, "agent-smith/meta.json"))) {
     result.case = "in-flight-main";
     result.runRoot = result.root;
     return;
   }
   withSetupLock(common, branch, () => {
+    if (invocation) validateRunIdentity(readRunIdentity(path.join(result.root, change)) ?? {}, config, opts.id, opts.chain, inRun ? current : null, git);
+    const registered = registeredWorktree(branch);
+    if (registered !== null) validateSelected(registered, branch);
     result.branch = branch;
     if (inRun) {
       result.case = "in-run-worktree";
@@ -202,6 +226,22 @@ function prepare(opts, result) {
       if (result.worktree !== null) {
         result.case = "reused";
       } else {
+        const branchObject = (file) => {
+          const tree = gitText(["ls-tree", "-r", "--name-only", "-z", branch, "--", `:(literal)${file}`]);
+          if (!tree.split("\0").includes(file)) return null;
+          const value = JSON.parse(gitText(["show", `${branch}:${file}`]));
+          if (!isObject(value)) throw new Error(`Saved ${file} must hold a JSON object`);
+          return value;
+        };
+        const projectPolicy = branchObject(`${prefix}context/foundation/agent-smith-policy.json`) ?? {};
+        const selectedConfig = readIsolationPolicy(result.root, undefined, projectPolicy);
+        const meta = branchObject(`${prefix}${change}/agent-smith/meta.json`);
+        if (meta && ["id", "chain", "isolated", "branch"].some((key) => Object.hasOwn(meta, key))) {
+          validateRunIdentity(meta, config, opts.id, opts.chain, branch, git);
+          if (!isolationEnabled(selectedConfig)) throw new Error("Restore isolation.require in the saved run before attachment");
+          validateRunIdentity(meta, selectedConfig, opts.id, opts.chain, branch, git);
+        }
+
         result.case = "attached";
         result.worktree = path.join(result.root, ".claude/worktrees", `agent-smith-${opts.id}`);
         checked(git(["worktree", "add", result.worktree, branch]), "attach run worktree");
@@ -216,6 +256,7 @@ function prepare(opts, result) {
     if (fs.realpathSync(selectedCommon) !== fs.realpathSync(common) || selectedBranch !== branch) {
       throw new Error(`Run worktree no longer belongs to this repository and branch ${branch}: ${runRoot}`);
     }
+    validateSelected(result.worktree, branch);
     result.runRoot = runRoot;
   });
 }
@@ -294,7 +335,9 @@ function cleanup(opts, result) {
   if (fs.realpathSync(result.root) !== process.cwd()) throw new Error("Setup root differs from the invocation root");
   if (result.reason !== null || result.runRoot === null) throw new Error("Setup did not succeed");
   if (result.case !== "created" || result.copied !== true) return;
-  const branch = `agent-smith/${opts.id}`;
+  const config = readIsolationPolicy(result.root);
+  if (!isolationEnabled(config)) throw new Error("Cleanup needs the original active isolation policy");
+  const branch = runBranch(config, opts.id, git);
   const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
   const prefix = gitText(["rev-parse", "--show-prefix"]);
   const top = gitText(["rev-parse", "--show-toplevel"]);
@@ -317,7 +360,11 @@ function cleanup(opts, result) {
       || gitText(["-C", result.runRoot, "rev-parse", "--show-prefix"]) !== prefix) {
       throw new Error("Cleanup run is not the registered worktree of this repository and branch");
     }
-    const meta = readPolicy(path.join(result.runRoot, change, "agent-smith/meta.json"));
+    const meta = readPolicyObject(path.join(result.runRoot, change, "agent-smith/meta.json"));
+    validateRunIdentity(meta, config, opts.id, opts.chain, branch, git);
+    const selectedConfig = readIsolationPolicy(result.runRoot);
+    if (!isolationEnabled(selectedConfig)) throw new Error("Cleanup needs the original active isolation policy in the run");
+    validateRunIdentity(meta, selectedConfig, opts.id, opts.chain, branch, git);
     const sha = meta.startCommit;
     if (meta.id !== opts.id || meta.isolated !== true || meta.branch !== branch
       || (meta.chain ?? "10x") !== opts.chain || meta.outcome?.action === "halt"

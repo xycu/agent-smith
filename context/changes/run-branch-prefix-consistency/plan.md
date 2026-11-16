@@ -256,8 +256,8 @@ Deploy the scripts and skills together. Existing default runs need no conversion
 
 #### Automated
 
-- [ ] 1.1 Both-chain configured-prefix lifecycle and safety regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/isolation.test.mjs`.
-- [ ] 1.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Both-chain configured-prefix lifecycle and safety regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/isolation.test.mjs`.
+- [x] 1.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 ### Phase 2: Configured publication and base selection
 
