@@ -1,7 +1,7 @@
 ---
 change_id: openspec-2-upgrade
 title: Upgrade the specification workflow to OpenSpec 2.0.0
-status: implemented
+status: impl_reviewed
 created: 2026-11-16
 updated: 2026-11-16
 archived_at: null
