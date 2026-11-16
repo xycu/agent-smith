@@ -23,7 +23,7 @@ Both workflow chains support a verified child layer under their steps. The paren
 | Child safety | Reuse the guarded Claude step identity and effective native permissions | Preserves the existing guard boundary and applicable restricted tools | Plan A2, ADR-024 |
 | Activation | Establish live capability evidence before Phase 2 | Event scope, waiting and descendant lifetime determine safe enablement | Plan A3, Research |
 | Results | Parent report alone advances the router | Existing invocation matching protects retries and unrelated notifications | Research, ADR-018 |
-| Usage | Count verified inclusive usage once and disclose incomplete coverage | Avoids child double counting and incomplete totals presented as complete | Plan, Research |
+| Usage | Apply verified coverage to runner output and Claude on-time, late and archive figures, omitting partial or unknown token totals | Preserves attribution and truthful totals through every intake path | Plan Phase 2, Research |
 | Compatibility | Preserve persistent schemas and exact saved prompts | Existing run recovery and neutral retry depend on those contracts | Plan A4, Research |
 | Measurement | Defer performance benchmarking | The owner assigned measurement to later work | Owner instruction, A5 |
 
@@ -50,7 +50,7 @@ Prerequisites include Node 24+, installed workflow toolkits, authenticated trust
 - The scope assumes one child layer and native awaited execution. The exact supported settings must be established before activation.
 - Functional evidence covers six host/provider/chain combinations in both launch modes, giving twelve cells. Mixed ladders exercise both provider dispatches.
 - Missing host access or a capability gap blocks the affected prerequisite or support claim with an actionable needs-human reason. A step whose instructions prohibit children requires top-level acceptance execution.
-- Existing pending prompts retain their flat instructions across upgrades. Fresh sessions adopt the verified settings and new prompts.
+- Existing pending prompts retain their flat instructions across upgrades. Fresh sessions adopt the verified settings and new prompts. Before downgrading, resolve pending child-enabled dispatches and neutral retries on their recorded enabling revision and controls. Unresolved runs retain that revision with a blocked recovery reason.
 
 ## Success Criteria (Summary)
 
