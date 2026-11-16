@@ -209,9 +209,9 @@ If corrections are needed, apply a reviewed follow-up patch preserving interveni
 
 #### Automated
 
-- [x] 2.1 The issue YAML files parse and focused assertions confirm valid form metadata and body structure, distinct field IDs, the agreed required/optional fields, `blank_issues_enabled` as Boolean true, and the security contact-link target.
-- [x] 2.2 Cross-file checks confirm the PR template's requested sections, resolving local guidance links, the security-policy URLs, and compatibility with the existing explicit automated PR-body contract.
-- [x] 2.3 Whitespace validation passes for the complete implementation diff using `git diff --check`, including new files in the checked diff.
+- [x] 2.1 The issue YAML files parse and focused assertions confirm valid form metadata and body structure, distinct field IDs, the agreed required/optional fields, `blank_issues_enabled` as Boolean true, and the security contact-link target. — 49697498
+- [x] 2.2 Cross-file checks confirm the PR template's requested sections, resolving local guidance links, the security-policy URLs, and compatibility with the existing explicit automated PR-body contract. — 49697498
+- [x] 2.3 Whitespace validation passes for the complete implementation diff using `git diff --check`, including new files in the checked diff. — 49697498
 
 #### Manual
 

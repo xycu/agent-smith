@@ -1,7 +1,7 @@
 ---
 change_id: community-standards
 title: Complete the missing GitHub community standards
-status: implementing
+status: impl_reviewed
 created: 2026-11-16
 updated: 2026-11-16
 archived_at: null
