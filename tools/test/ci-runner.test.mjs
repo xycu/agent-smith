@@ -132,11 +132,19 @@ test("the suite step uses the runner temporary directory", () => {
   assert.match(suite, /^ {8}env:\n(?: {10}[^\n]*\n)*? {10}TMPDIR: \$\{\{ runner\.temp \}\}$/m);
 });
 
+test("CI runs the complete suite across six shards with bounded concurrency", () => {
+  const job = testJob();
+  assert.match(job, /^ {4}strategy:\n {6}fail-fast: false\n {6}matrix:\n {8}shard: \[1, 2, 3, 4, 5, 6\]$/m);
+  assert.match(job, /^ {4}name: Tests and version check \(\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}\)$/m);
+  assert.ok(job.includes('          TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}'));
+  assert.ok(job.includes('        run: node --experimental-test-coverage tools/test-shards.mjs "$TEST_SHARD"'));
+});
+
 test("the first step of job test is the uid guard, before the suite", () => {
   const job = testJob();
   const first = job.split("\n").find((l) => l.trimStart().startsWith("- "));
   assert.match(first, /name: Refuse to run as root \(ADR-020\)/);
-  assert.ok(job.indexOf('test "$(id -u)" -ne 0') < job.indexOf("node --test"));
+  assert.ok(job.indexOf('test "$(id -u)" -ne 0') < job.indexOf("tools/test-shards.mjs"));
 });
 
 test("the uid guard command fails for uid 0 and passes for another uid", { skip: process.platform === "win32" }, () => {

@@ -56,6 +56,8 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | --- | --- |
 | `ladder.test.mjs` | the 8-rung ladder and the effort floor on the rung's effort (ADR-010) |
 | `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp/copy and resume preservation, concurrent setup exclusion, runtime failures and command restrictions |
+| `prepare-run-timeout.test.mjs` | The real two-minute Git deadline, isolated so it runs alongside the other setup checks |
+| `prepare-run-helpers.mjs` | Shared setup fixtures, JSON assertions and Git wrapper for both pre-init test files |
 | `isolation.test.mjs` | the isolation gate of `init`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
 | `stepcommit.test.mjs` | the start and step commits (ADR-010) |
 | `rollback.test.mjs` | the failed-step rollback, preserved interrupted index-snapshot ancestry and undo on halt (ADR-010) |
@@ -108,11 +110,14 @@ The OpenSpec tests and `openspec-helpers.mjs` live in `skills/openspec-pipeline/
 
 ## tools/test
 
+CI calls `tools/test-shards.mjs <index>/<total>` to select files by longest-first duration balancing. It discovers the same three test globs as the full-suite command. `tools/test-durations.json` seeds per-file seconds from the top-level case durations in [CI run 43973074457](https://github.com/xycu/agent-smith/actions/runs/43973074457), with the real deadline separated from the other setup cases. Refresh these estimates when test workloads change. Files without a timing receive a five-second estimate and are included automatically. Each shard starts its longest files first and runs two files concurrently. Coverage appears in each shard's log.
+
 | File | Scope |
 | --- | --- |
 | `agents-md-no-imports.test.mjs` | `AGENTS.md`, and `CLAUDE.md` when present, has no `@path` import outside a code span |
 | `agents-md-size.test.mjs` | `AGENTS.md` stays at or under 12288 bytes; new detail goes into the index files |
-| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, that the suite step sets `TMPDIR` to `${{ runner.temp }}`, and that `release.yml` stays hosted |
+| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, that the suite step sets `TMPDIR` to `${{ runner.temp }}`, six duration-balanced test shards with two concurrent files each and fail-fast disabled, and that `release.yml` stays hosted |
+| `test-shards.test.mjs` | Duration balancing, deterministic assignments, complete discovery including new files, timing data, invalid shard arguments, runner order, coverage reporting and failure exit status |
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects (no `Merge ` exemption), range mode with a real merge commit, title mode, CLI exit codes |
 | `pr-title-workflow.test.mjs` | `.github/workflows/pr-title.yml` as text: the four `types`, no `pull_request_target`, concurrency group by PR number, title passed through `env:`, name not `CI`; `ci.yml` has no `edited` (ADR-008, Amendment 2) |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |
