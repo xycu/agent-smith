@@ -46,7 +46,7 @@
   },
   "startCommit": "d6ce4d72ed61c22d82296282c02de753cbc576da",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "hot paths .github/workflows/ci.yml, skills/openspec-pipeline/test/openspec-skill.test.mjs, tools/test/ci-runner.test.mjs"
   }
 }
