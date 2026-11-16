@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md fixes the configured-prefix outcome, compatibility rules, protections, and acceptance cases." },
+    "novelty": { "score": 1, "evidence": "prepare-run.mjs and isolation.mjs already implement policy-driven isolation and branch validation; this aligns existing seams." },
+    "coupling": { "score": 2, "evidence": "change.md spans setup, router isolation/state, publication, both skills, reference, ADRs, and tests." },
+    "discovery": { "score": 2, "evidence": "change.md names the main files, while searches found additional fixed-prefix assumptions across setup and publication tests." },
+    "volume": { "score": 3, "evidence": "change.md requires coordinated edits to more than ten implementation, test, skill, reference, and ADR files." },
+    "verification": { "score": 1, "evidence": "change.md identifies existing scratch-repository regression suites and the required full automated test command." }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}
