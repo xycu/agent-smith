@@ -40,7 +40,7 @@ The tolerant reader returns usable entries and diagnostics. `readSide` exposes b
 | --- | --- | --- |
 | 1. Enforce comparison integrity and verify the delivery | Eligibility fix, focused cases, reference updates and full-suite evidence | Unrelated fixture eligibility failures could hide a missing integrity check |
 
-**Prerequisites** Wave 0 is merged. The declared Wave 1 runtime and test ownership is disjoint. Recheck any newly committed sibling plan/diff before implementation, and coordinate the shared reference by section. Node 24+ runs the repository gates.
+**Prerequisites** Wave 0 is merged. The declared Wave 1 runtime and test ownership is disjoint. Recheck any newly committed sibling plan/diff before implementation, and coordinate the shared reference by section. Node 24+ runs the repository gates. For in-worktree scratch tests, use the plan’s disposable PATH Git launcher and verify Git discovery through a `cleanEnv` child before the gates.
 
 **Estimated effort** One bounded implementation phase followed by the existing pipeline reviews and terminal publication flow.
 
@@ -50,6 +50,7 @@ The tolerant reader returns usable entries and diagnostics. `readSide` exposes b
 - The selected reason spelling follows repository convention and remains subject to plan review.
 - The sibling branch had only run artifacts at planning inspection. Shared runtime or policy expansion requires serialization, and shared reference edits require section-level coordination.
 - Old plugin revisions retain the false-success bug. Saved files require no migration, and integrity-qualified comparisons use the corrected revision.
+- The shared helper strips inherited `GIT_*` variables. The local Git launcher supplies the discovery boundary after that filtering while preserving fixture-owned ceilings. Its child-level isolation checks are recorded with verification evidence.
 - Publication, PR CI and the requested report comment remain Manual acceptance owned by the orchestrator.
 
 ## Success Criteria (Summary)
