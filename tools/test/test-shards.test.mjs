@@ -46,11 +46,13 @@ test("the shard runner preserves file order, reports coverage and exits on test 
     fs.writeFileSync(first, 'import test from "node:test"; test("scheduled first", () => {});\n');
     fs.writeFileSync(second, 'import test from "node:test"; test("scheduled second", () => { throw new Error("expected fixture failure"); });\n');
     const runner = pathToFileURL(path.join(ROOT, "tools/test-shards.mjs")).href;
+    const entry = path.join(scratch, "run.mjs");
     const env = { ...process.env };
     delete env.NODE_TEST_CONTEXT;
     for (const [files, status] of [[[first], 0], [[first, second], 1]]) {
       const code = `import { runShard } from ${JSON.stringify(runner)}; await runShard(${JSON.stringify(files)});`;
-      const result = spawnSync(process.execPath, ["--experimental-test-coverage", "--input-type=module", "-e", code], {
+      fs.writeFileSync(entry, code);
+      const result = spawnSync(process.execPath, ["--experimental-test-coverage", entry], {
         cwd: ROOT, env, encoding: "utf8", timeout: 10000,
       });
       assert.ifError(result.error);

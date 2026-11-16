@@ -50,6 +50,7 @@ jobs:
       # Three default skips with gh available, four with gh absent; a present CLAUDE.md reduces either by one.
       # Both permission checks in no-recursive-delete.test.mjs run on the non-root Linux runner.
       - name: Install OpenSpec contract CLI
+        shell: bash
         env:
           OPENSPEC_TELEMETRY: "0"
           DO_NOT_TRACK: "1"
