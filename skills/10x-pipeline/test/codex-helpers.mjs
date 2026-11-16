@@ -16,6 +16,19 @@ const path = require("node:path");
 const args = process.argv.slice(2);
 const fixture = process.env.CODEX_FIXTURE;
 const mode = JSON.parse(fs.readFileSync(path.join(fixture, "mode.json"), "utf8"));
+if (args[0] === "--fixture-descendant") {
+  const terminate = () => fs.writeFileSync(path.join(fixture, "descendant-terminating"), "yes");
+  process.on("SIGTERM", terminate);
+  process.on("SIGINT", terminate);
+  fs.writeFileSync(path.join(fixture, "descendant-ready"), String(process.pid));
+  setInterval(() => {
+    if (fs.existsSync(path.join(fixture, "descendant-release"))) {
+      fs.writeFileSync(path.join(fixture, "descendant-exited"), String(process.pid));
+      process.exit(0);
+    }
+  }, 10);
+  return;
+}
 let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", chunk => input += chunk);
@@ -32,6 +45,19 @@ process.stdin.on("end", async () => {
     const { execFileSync } = require("node:child_process");
     execFileSync("git", ["add", "--", ...mode.commitPaths], { cwd: process.cwd() });
     execFileSync("git", ["commit", "-m", mode.commitMessage, "-m", "Co-Authored-By: Codex <noreply@openai.com>"], { cwd: process.cwd(), stdio: ["ignore", "ignore", "pipe"] });
+  }
+  let descendantClosed;
+  if (mode.descendant) {
+    const { spawn } = require("node:child_process");
+    const descendant = spawn(process.execPath, [__filename, "--fixture-descendant"], { stdio: ["ignore", "inherit", "inherit"] });
+    descendantClosed = new Promise((resolve, reject) => {
+      descendant.on("error", reject);
+      descendant.on("close", (code, signal) => {
+        fs.writeFileSync(path.join(fixture, "descendant-collected"), JSON.stringify({ code, signal }));
+        if (code === 0) resolve();
+        else reject(new Error("Fixture descendant exited unsuccessfully"));
+      });
+    });
   }
   if (mode.hold) {
     await new Promise(resolve => {
@@ -50,6 +76,10 @@ process.stdin.on("end", async () => {
       global.keepAlive = setInterval(() => {}, 1000);
     });
     clearInterval(global.keepAlive);
+  }
+  if (descendantClosed) {
+    fs.writeFileSync(path.join(fixture, "descendant-waiting"), "yes");
+    await descendantClosed;
   }
   const reply = mode.reply ?? 'RESULT: {"status":"done","note":"zażółć","signals":{"rigor":"thorough"},"custom":true}';
   fs.writeFileSync(args[args.indexOf("-o") + 1], mode.fileReply ?? reply);

@@ -61,11 +61,11 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `rollback.test.mjs` | the failed-step rollback and its undo on halt (ADR-010) |
 | `firstattempt.test.mjs` | the cheaper first implement attempt (ADR-010) |
 | `coauthor.test.mjs` | the `coAuthor` trailer (ADR-021): start commit, step commit, rollback snapshot, pre-archive and late-usage commits carry it; `coAuthor: null` gives none; a malformed value halts; parity of `coAuthorProblem`/`coAuthorTrailer` in `state.mjs` with `coAuthorLine` in `open-pr.mjs` |
-| `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight refusal, RESULT/completion/usage boundaries, cancellation, cleanup and archive moves on both chains |
-| `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd and a controllable child lifetime |
+| `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight refusal, RESULT/completion/usage boundaries, held-descendant collection before reply, cancellation, cleanup and archive moves on both chains |
+| `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd, a controllable child lifetime and a model-free descendant with readiness, termination, release and collection barriers |
 | `result-persist.test.mjs` | persist-before-unlink, both-chain inline/file crash recovery, cleanup errors, result ownership boundaries, isolated success commits and failure snapshots, pending neutral retry and late-usage preservation |
 | `run-state.test.mjs` | atomic log, metadata and report publication, failure and process-termination boundaries, permission preservation, exact owned-temp cleanup, strict log guards and read-only diagnostics, both-chain CLI smoke checks and byte-exact late-usage recovery |
-| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, crash exclusion until the child process group exits, uncertain-child refusal, release on success and halt, read-only commands, both chains. `TMPDIR` points the lock into a scratch directory |
+| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, crash exclusion until the child process group exits, uncertain-child refusal, cancellation exclusion through held-descendant collection, release on success and halt, read-only commands, both chains. `TMPDIR` points the lock into a scratch directory |
 
 ## Reviews, cost, retries and policy
 

@@ -200,8 +200,8 @@ Rollback begins by awaiting or stopping children through their existing native p
 
 #### Automated
 
-- [ ] 1.1 Existing flat dispatch, completion and invocation-identity tests pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs`.
-- [ ] 1.2 Fake descendant readiness, close ordering and cleanup are deterministic, and the repository suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Existing flat dispatch, completion and invocation-identity tests pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/10x-pipeline/test/skill-loop.test.mjs`.
+- [x] 1.2 Fake descendant readiness, close ordering and cleanup are deterministic, and the repository suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 #### Manual
 

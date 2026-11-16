@@ -185,49 +185,70 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(execute(w).json.completed, true, "execution can resume after the orphaned group exits");
   });
 
-  test(`${chain}: a runner holds the shared lock through close, plain status reads and report status refuses`, async (t) => {
-    const w = codexFixture(chain, { mode: { hold: true, holdUntilRelease: true } });
-    const p = w.project;
-    const statusArgs = ["status", p.id, "--chain", chain];
-    const reportFile = path.join(p.agentDir, "report.md");
-    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
-    const before = fs.readFileSync(reportFile);
-    const running = startRunner(w);
-    const release = path.join(w.fixture, "release");
-    t.after(async () => {
-      fs.writeFileSync(release, "yes");
+  for (const descendant of [false, true]) {
+    test(`${chain}: lock stays held through ${descendant ? "descendant collection" : "close"}`, { skip: descendant && process.platform === "win32" }, async (t) => {
+      const w = codexFixture(chain, { mode: { hold: true, holdUntilRelease: true, descendant } });
+      const p = w.project;
+      const statusArgs = ["status", p.id, "--chain", chain];
+      const reportFile = path.join(p.agentDir, "report.md");
+      assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
+      const before = fs.readFileSync(reportFile);
+      const running = startRunner(w);
+      const release = path.join(w.fixture, "release");
+      t.after(async () => {
+        fs.writeFileSync(release, "yes");
+        if (descendant) fs.writeFileSync(path.join(w.fixture, "descendant-release"), "yes");
+        running.child.kill("SIGTERM");
+        const closed = await running.closed;
+        assert.notEqual(closed.json?.signal, "SIGKILL", closed.stdout);
+      });
+      await waitForFile(path.join(w.fixture, "ready"));
+      if (descendant) await waitForFile(path.join(w.fixture, "descendant-ready"));
+      const verifyHeld = () => {
+        const duplicate = execute(w);
+        assert.equal(duplicate.json.launched, false);
+        assert.match(duplicate.json.reason, /lock/);
+        for (const args of [[...statusArgs, "--report"], ["next", p.id, "--chain", chain],
+          ["init", p.id, "--chain", chain], ["usage", p.id, "1", "--tokens", "10", "--chain", chain]]) {
+          const result = run(p, args, { env: w.env });
+          assert.equal(result.status, 1, result.stdout);
+          assert.match(result.json.reason, /lock/);
+        }
+        assert.equal(run(p, statusArgs, { env: w.env }).status, 0);
+        assert.deepEqual(fs.readFileSync(reportFile), before);
+      };
+      verifyHeld();
       running.child.kill("SIGTERM");
-      const closed = await running.closed;
-      assert.notEqual(closed.json?.signal, "SIGKILL", closed.stdout);
-    });
-    await waitForFile(path.join(w.fixture, "ready"));
-    const verifyHeld = () => {
-      const duplicate = execute(w);
-      assert.equal(duplicate.json.launched, false);
-      assert.match(duplicate.json.reason, /lock/);
-      for (const args of [[...statusArgs, "--report"], ["next", p.id, "--chain", chain],
-        ["init", p.id, "--chain", chain], ["usage", p.id, "1", "--tokens", "10", "--chain", chain]]) {
-        const result = run(p, args, { env: w.env });
-        assert.equal(result.status, 1, result.stdout);
-        assert.match(result.json.reason, /lock/);
-      }
-      assert.equal(run(p, statusArgs, { env: w.env }).status, 0);
+      await waitForFile(path.join(w.fixture, "terminating"));
+      if (descendant) await waitForFile(path.join(w.fixture, "descendant-terminating"));
+      const blocked = run(p, [...statusArgs, "--report"], { env: w.env });
+      assert.equal(blocked.status, 1, "lock is retained while the child is terminating");
       assert.deepEqual(fs.readFileSync(reportFile), before);
-    };
-    verifyHeld();
-    running.child.kill("SIGTERM");
-    await waitForFile(path.join(w.fixture, "terminating"));
-    const blocked = run(p, [...statusArgs, "--report"], { env: w.env });
-    assert.equal(blocked.status, 1, "lock is retained while the child is terminating");
-    assert.deepEqual(fs.readFileSync(reportFile), before);
-    fs.writeFileSync(release, "yes");
-    const closed = await running.closed;
-    assert.equal(closed.json.launched, true, closed.stdout);
-    assert.equal(closed.json.completed, false, closed.stdout);
-    assert.match(closed.json.reason, /cancelled/, closed.stdout);
-    assert.equal(closed.json.exitCode, 0, closed.stdout);
-    assert.equal(closed.json.signal, null, closed.stdout);
-    assert.deepEqual(runnerLeftovers(w), []);
-    assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
-  });
+      fs.writeFileSync(release, "yes");
+      if (descendant) {
+        await waitForFile(path.join(w.fixture, "descendant-waiting"));
+        const pid = Number(fs.readFileSync(path.join(w.fixture, "descendant-ready"), "utf8"));
+        process.kill(pid, 0);
+        assert.equal(fs.existsSync(path.join(w.fixture, "descendant-collected")), false);
+        verifyHeld();
+        const args = calls(w.fixture).at(-1).args;
+        const finalFile = args[args.indexOf("-o") + 1];
+        assert.ok(fs.existsSync(path.dirname(finalFile)), "raw files survive while the descendant is held");
+        fs.writeFileSync(path.join(w.fixture, "descendant-release"), "yes");
+      }
+      const closed = await running.closed;
+      assert.equal(closed.json.launched, true, closed.stdout);
+      assert.equal(closed.json.completed, false, closed.stdout);
+      assert.match(closed.json.reason, /cancelled/, closed.stdout);
+      assert.equal(closed.json.exitCode, 0, closed.stdout);
+      assert.equal(closed.json.signal, null, closed.stdout);
+      if (descendant) {
+        const pid = Number(fs.readFileSync(path.join(w.fixture, "descendant-ready"), "utf8"));
+        assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+        assert.deepEqual(JSON.parse(fs.readFileSync(path.join(w.fixture, "descendant-collected"), "utf8")), { code: 0, signal: null });
+      }
+      assert.deepEqual(runnerLeftovers(w), []);
+      assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 0);
+    });
+  }
 }

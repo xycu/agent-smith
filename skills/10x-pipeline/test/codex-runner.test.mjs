@@ -152,6 +152,36 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(runnerLeftovers(w), []);
   });
 
+  test(`${chain}: fake parent collects its held descendant before publishing a reply`, async (t) => {
+    const w = codexFixture(chain, { mode: { descendant: true } });
+    const before = snapshot(w.project.agentDir);
+    const running = startRunner(w);
+    const release = path.join(w.fixture, "descendant-release");
+    t.after(async () => {
+      fs.writeFileSync(release, "yes");
+      running.child.kill("SIGTERM");
+      await running.closed;
+    });
+    await waitForFile(path.join(w.fixture, "descendant-ready"));
+    await waitForFile(path.join(w.fixture, "descendant-waiting"));
+    const pid = Number(fs.readFileSync(path.join(w.fixture, "descendant-ready"), "utf8"));
+    process.kill(pid, 0);
+    const args = calls(w.fixture).at(-1).args;
+    const finalFile = args[args.indexOf("-o") + 1];
+    assert.equal(fs.existsSync(finalFile), false, "parent awaits collection before writing its final reply");
+    assert.equal(fs.existsSync(path.join(w.fixture, "descendant-collected")), false);
+    assert.ok(fs.existsSync(path.dirname(finalFile)), "raw files remain until the execution closes");
+    fs.writeFileSync(release, "yes");
+    const result = await running.closed;
+    assert.equal(result.json.completed, true, result.stdout + result.stderr);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(w.fixture, "descendant-collected"), "utf8")), { code: 0, signal: null });
+    assert.equal(fs.readFileSync(path.join(w.fixture, "descendant-exited"), "utf8"), String(pid));
+    assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+    assert.equal(fs.existsSync(path.dirname(finalFile)), false);
+    assert.deepEqual(snapshot(w.project.agentDir), before);
+    assert.deepEqual(runnerLeftovers(w), []);
+  });
+
   test(`${chain}: handled cancellation waits for child close and removes raw files`, async (t) => {
     const w = codexFixture(chain, { mode: { hold: true, holdUntilRelease: true } });
     const running = startRunner(w);
