@@ -180,9 +180,9 @@ SECURITY.md remains a proposal through this change. Its operating defaults provi
 
 #### Automated
 
-- [x] 2.1 SECURITY.md contains the proposal designation, reporting address, support scope, reporting guidance, security boundaries, proposed response/disclosure targets, research expectations and maintainer handling.
-- [x] 2.2 Relative document links in README and SECURITY.md resolve, and `git diff --check` passes.
-- [x] 2.3 The repository packaging guard passes with `node tools/version-check.mjs`.
+- [x] 2.1 SECURITY.md contains the proposal designation, reporting address, support scope, reporting guidance, security boundaries, proposed response/disclosure targets, research expectations and maintainer handling. — e00555c8
+- [x] 2.2 Relative document links in README and SECURITY.md resolve, and `git diff --check` passes. — e00555c8
+- [x] 2.3 The repository packaging guard passes with `node tools/version-check.mjs`. — e00555c8
 
 #### Manual
 
