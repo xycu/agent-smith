@@ -48,16 +48,28 @@ actual branch reporting uses publication, saved setup and unavailable identity
 - The final required full-suite command exited zero with 1,727 passes, three expected skips, zero failures and zero cancellations in 826 seconds. Its output includes both final saved-suffix/default regressions. The skips are the two opt-in live GitHub tests and the absent CLAUDE.md import check.
 - Final working/staged diff checks, version check and Conventional Commit lint passed. The phase 3 commit title was separately linted before commit.
 
-## Pending manual verification
+## Manual acceptance
 
-- [ ] 3.5 The orchestrator publishes this run branch without force and returns an open reviewable pull request containing the reviewed implementation and full-suite evidence.
-- [ ] 3.6 The orchestrator posts or updates the requested run-report comment on that pull request and reports its URL with the actual branch identity.
-- [ ] 3.7 PR CI is green and the owner can inspect the branch, plan, implementation review and report comment before deciding whether to merge.
+- [x] 3.5 The orchestrator publishes this run branch without force and returns an open reviewable pull request containing the reviewed implementation and full-suite evidence.
+- [x] 3.6 The orchestrator posts or updates the requested run-report comment on that pull request and reports its URL with the actual branch identity.
+- [x] 3.7 PR CI is green and the owner can inspect the branch, plan, implementation review and report comment before deciding whether to merge.
 
 ## Assumptions and handoff
 
 - Native leaf children implement bounded phase edits. The enclosing step collects each child and retains gates, Progress and local commits. Child-inclusive token coverage is unavailable.
 - Plan-review findings F1 and F2 are marked APPLIED in `reviews/plan-review.md`. Implementation review follows this implementation step through the enclosing pipeline.
 - The sibling change has no plan in this checkout. Its committed plan and actual diff at `ef0c9498` were inspected through `agent-smith/compare-damaged-logs-not-comparable`. Runtime changes stay in `comparePair`, tests stay in `compare.test.mjs` and `run-state.test.mjs`, and Reference edits stay in the damaged-log and comparison eligibility paragraphs. The baseline branch-creation sentence remains within this change's ownership.
-- Manual rows 3.5 through 3.7 remain pending for orchestrator publication, requested report comment and PR CI/owner inspection.
+- Manual rows 3.5 through 3.7 are complete with publication, report-comment, PR CI and owner-approval evidence recorded below.
 - Rollback preserves run branches and metadata. Custom runs require a publisher version supporting their configured branch prefix.
+
+## Post-publication acceptance
+
+Verified on 2026-11-16 after terminal publication. The reviewed implementation was published from `agent-smith/run-branch-prefix-consistency` at `04eed2d02c47902ef78085cc39d361d0fa9ab4ed`. GitHub confirms an open, reviewable pull request with that head and successful CI and PR-title workflows. The installed publication script pushed without force, and its output reported `pushed: true` and `committed: true`. [Pull request](https://github.com/xycu/agent-smith/pull/203) · [Successful CI](https://github.com/xycu/agent-smith/actions/runs/43884750269)
+
+The existing report comment identifies this change and contains the completed step log and the approval verdict. Its Manual section records the earlier manual-verification snapshot. This acceptance record and the checked plan rows record the completed publication checks. [Requested report comment](https://github.com/xycu/agent-smith/pull/203#issuecomment-6919053791)
+
+The owner approved review in this chat on 2026-11-16 with “I approve the review. Please update the manual rows.”
+
+- [x] 3.5 The orchestrator publishes this run branch without force and returns an open reviewable pull request containing the reviewed implementation and full-suite evidence.
+- [x] 3.6 The orchestrator posts or updates the requested run-report comment on that pull request and reports its URL with the actual branch identity.
+- [x] 3.7 PR CI is green and the owner can inspect the branch, plan, implementation review and report comment before deciding whether to merge.

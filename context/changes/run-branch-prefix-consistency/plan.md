@@ -277,6 +277,6 @@ Deploy the scripts and skills together. Existing default runs need no conversion
 
 #### Manual
 
-- [ ] 3.5 The orchestrator publishes this run branch without force and returns an open reviewable pull request containing the reviewed implementation and full-suite evidence.
-- [ ] 3.6 The orchestrator posts or updates the requested run-report comment on that pull request and reports its URL with the actual branch identity.
-- [ ] 3.7 PR CI is green and the owner can inspect the branch, plan, implementation review and report comment before deciding whether to merge.
+- [x] 3.5 The orchestrator publishes this run branch without force and returns an open reviewable pull request containing the reviewed implementation and full-suite evidence. — [Publication acceptance](verification.md#post-publication-acceptance)
+- [x] 3.6 The orchestrator posts or updates the requested run-report comment on that pull request and reports its URL with the actual branch identity. — [Publication acceptance](verification.md#post-publication-acceptance)
+- [x] 3.7 PR CI is green and the owner can inspect the branch, plan, implementation review and report comment before deciding whether to merge. — [Publication acceptance](verification.md#post-publication-acceptance)
