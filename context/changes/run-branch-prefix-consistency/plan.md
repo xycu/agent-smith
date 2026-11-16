@@ -83,7 +83,9 @@ Use saved identity when present without changing metadata. Missing metadata and 
 
 ### Identity resolution precedes mutation
 
-Detect saved identity conflicts in the invocation root and selected registered run root before treating a changed prefix as a fresh run. Consult existing worktree registration for the selected change/project when the original source folder has already been cleaned. An existing run at a custom registered location must also survive prefix drift without a replacement branch being created. Preserve setup case precedence and branch-scoped locking, and revalidate the selected root before returning success.
+Detect saved identity conflicts in the invocation root and selected registered run root before treating a changed prefix as a fresh run. An invocation-root saved isolated identity is authoritative and any conflict refuses before another candidate is considered. Preserve the already-in-run case and actual current branch. Otherwise prefer the exact configured branch and its registered worktree, validating any identity recorded there. Only when those paths supply no selected run, inspect relevant registered worktrees for the requested change at the same nested-project prefix and Git common directory. Match metadata id and chain, normalizing an absent chain to `10x` as existing cleanup does. A unique remaining saved identity may select the run, subject to effective-policy validation. Multiple remaining identities refuse with candidate branches and roots before mutation, including when they are same-id baseline arms. Registration enumeration order never chooses a run, and unrelated fallback candidates do not override an exact valid selection.
+
+Consult registration even when the original source folder has already been cleaned. An existing run at a custom registered location must survive prefix drift without a replacement branch being created. Preserve setup case precedence and branch-scoped locking. Revalidate any selected saved identity under the resolved branch lock before creation or attachment, then revalidate the selected root before returning success.
 
 ### Cleanup trusts verified preservation evidence
 
@@ -92,6 +94,8 @@ The original setup JSON supplies the created branch. It must agree with effectiv
 ### Publication and recovery identity
 
 Resolve metadata from the requested chain and the `--report` change directory for archived publication. Validate policy and saved identity before committing leftovers or pushing. Carry the validated branch through base selection, explicit refspecs, GitHub arguments, JSON and manual guidance. If validation fails, recovery output may name the observed and expected branches with their provenance.
+
+Git-valid names can contain shell metacharacters. Render every dynamic argument in executable recovery commands with shell-safe literal quoting, including the complete refspec, branch, base, remote, repository and worktree path. Keep runtime Git/GitHub execution on argument arrays. Cover the missing-remote, failed-push and failed-PR recovery paths in `open-pr.mjs`.
 
 ## Phase 1: Consistent setup and saved-run identity
 
@@ -115,7 +119,7 @@ Expand policy handling and identity validation, then wire setup and cleanup to t
 
 **Intent** Replace default-prefix assumptions at creation, run recognition, reuse, attachment and cleanup. Detect saved-run policy conflicts before fresh creation and retain original run identity through resume.
 
-**Contract** Existing setup JSON fields and ordered cases remain supported. Locks and registration use the resolved full branch. Only creation copies inputs. Cleanup cross-checks the saved setup branch against router-owned metadata and immutable preservation evidence. Saved `meta.branch` is never reassigned by these standalone tools. Existing router Git-write checks remain exact.
+**Contract** Existing setup JSON fields and ordered cases remain supported. Apply the deterministic identity-selection and ambiguity-refusal rules above, including legacy absent-chain normalization. Locks and registration use the resolved full branch. Only creation copies inputs. Cleanup cross-checks the saved setup branch against router-owned metadata and immutable preservation evidence. Saved `meta.branch` is never reassigned by these standalone tools. Existing router Git-write checks remain exact.
 
 #### 3. Focused lifecycle regressions
 
@@ -124,6 +128,8 @@ Expand policy handling and identity validation, then wire setup and cleanup to t
 **Intent** Extend existing scratch fixtures for both chains, committed overrides and nested projects. Update the Git-wrapper allowlist only for required read-only validation commands and extend projection parity assertions to branch fields.
 
 **Contract** Cover creation followed by actionable real init, fresh and repeated cleanup, source-absent reuse, custom registered locations, unattached branches, setup inside the selected run, custom-prefix lock contention, and saved default/custom runs with zero or executed entries. Conflict and tampering cases assert unchanged refs, index, metadata and preserved source/destination bytes. Include blank/non-string prefixes, invalid refs, option-like names, default-branch collisions, main checkout, detached HEAD, wrong saved branch/chain and opt-out. Include a valid non-slash prefix.
+
+Include multiple registered default/custom same-id baseline runs with the source absent, shuffled registration order, a valid exact configured selection alongside other candidates, and ambiguous fallback candidates. Assert exact selection remains stable, ambiguity refuses before mutation, nested-project and chain identities stay separate, and saved 10x metadata without `chain` still resumes.
 
 ### Success Criteria
 
@@ -146,7 +152,7 @@ Use effective configuration and saved identity throughout the standalone publish
 
 **Intent** Consume the shared isolation projection and guard the selected run before any leftover commit or push. Render actual branch identity in output and recovery instructions.
 
-**Contract** Linked-worktree, attached HEAD, default-branch, opt-out, exact legacy fallback and saved-identity protections all apply. Saved metadata under the live or `--report` change folder must agree with the selected chain/id and HEAD. Invalid identity or policy skips before writes and remote calls. Existing JSON shape and runtime/usage exit codes remain supported.
+**Contract** Linked-worktree, attached HEAD, default-branch, opt-out, exact legacy fallback and saved-identity protections all apply. Saved metadata under the live or `--report` change folder must agree with the selected chain/id and HEAD, treating an absent saved chain as `10x`. Invalid identity or policy skips before writes and remote calls. Executable manual guidance quotes dynamic arguments literally through the existing recovery-message functions. Existing JSON shape and runtime/usage exit codes remain supported.
 
 #### 2. Base discovery and existing publication flow
 
@@ -163,6 +169,8 @@ Use effective configuration and saved identity throughout the standalone publish
 **Intent** Parameterize existing real-Git/local-bare-remote/fake-GitHub fixtures for custom prefixes and both chains. Exercise identity from archived report locations in scratch projects.
 
 **Contract** Assert the remote ref, `--head`, selected base, JSON and manual commands contain the configured branch. Include repeated publication, a nearer `codex/other-run` ancestor, legacy run ancestors, feature branches, tie/fallback paths, nested project roots, valid saved noncanonical suffix branches, absent/empty legacy metadata and contradictory/malformed saved identity. Refusals preserve working and staged contents and invoke neither push nor GitHub. Preserve existing forbidden-operation guards.
+
+Include Git-valid prefixes containing command-substitution characters, a semicolon and a single quote. Exercise emitted recovery commands only against inert scratch Git/GitHub clients and assert their received argv preserves the exact branch, complete refspec and other dynamic values without shell expansion or additional commands.
 
 ### Success Criteria
 

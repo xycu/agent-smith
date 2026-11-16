@@ -20,7 +20,7 @@ Both chains can create `codex/demo`, initialize to an actionable step, clean pre
 | --- | --- | --- |
 | Policy ownership | Extend the existing isolation projection and share its narrow standalone behavior | Setup projection and router merge parity |
 | Prefix syntax | Literal prefix, optional trailing slash, native Git branch validation | Existing `startsWith` contract and input-safety acceptance |
-| Saved identity | Exact recorded branch, id and chain checks, with safe refusal on conflict | Existing isolation guards and change acceptance |
+| Saved identity | Exact recorded branch and id, absent chain normalized to `10x`, deterministic selection and refusal on conflict or ambiguous fallback | Existing isolation guards, cleanup normalization and same-id baseline arms |
 | Legacy publication | Exact generated branch when metadata carries no saved identity | Existing publisher fixtures, including empty metadata |
 | Automatic base | Exclude configured and legacy run namespaces | Existing default exclusion and configured-prefix requirement |
 | External acceptance | Manual rows completed after orchestrator publication | ADR-017 Amendment 2 and plan-step rules |
@@ -34,6 +34,8 @@ Retains the existing worktree layout, recovery namespace and saved-state format.
 ## Architecture / Approach
 
 Resolve effective isolation configuration once per entry point through a shared standalone seam, validate its branch targets, then carry actual run identity through existing lifecycle operations. Setup and publication retain standalone boundaries. The router owns saved-state writes and recovery. Both skills consume returned branch values.
+
+Saved invocation identity takes precedence, followed by established in-run handling and exact configured-branch selection. Fallback registration discovery matches repository, nested-project prefix, change id and normalized chain, and refuses multiple remaining identities. Executable recovery commands quote every dynamic argument literally because Git-valid branch names can contain shell metacharacters.
 
 ## Phases at a Glance
 
@@ -49,13 +51,13 @@ Prerequisites include plan review, Node 24+, Git and a confirmed disjoint siblin
 
 - Unattended planning uses the task's delegated decision authority. Explicit non-string and blank prefixes are rejected when isolation is active, and valid prefixes without a slash remain supported.
 - Sibling ownership was confirmed against its change record and the Wave ledger. It owns comparison code/tests and eligibility paragraphs. This change leaves `route.mjs`, `state.mjs`, policy defaults and log readers read-only. Recheck a later sibling plan before parallel implementation and coordinate adjacent Reference hunks.
-- Saved identity discovery must still work after source cleanup and at custom registered worktree locations. Partial or contradictory saved identity must refuse before mutation.
+- Saved identity discovery must still work after source cleanup and at custom registered worktree locations. Partial, contradictory or ambiguous fallback identity must refuse before mutation. Regression cases include multiple same-id baseline arms and legacy 10x metadata without `chain`.
 - Rollback retains branches and run data. An older publisher can reject a custom run created by the fix, so retain or restore the compatible plugin version for it.
 - Read-only research children were collected. Child-inclusive token totals are unavailable. Installed-host qualification remains with the roadmap's existing acceptance changes.
 
 ## Success Criteria (Summary)
 
-- Automated local tests prove both-chain configured/default lifecycles, preservation, wrong-run guards, fake-client publication and base selection. Reintroducing the original faults makes focused tests fail.
+- Automated local tests prove both-chain configured/default lifecycles, preservation, deterministic saved-run selection, ambiguity refusal, wrong-run guards, fake-client publication, literal recovery-command arguments and base selection. Reintroducing the original faults makes focused tests fail.
 - Both skills report actual branch identity, amendments match behavior, the full Node suite passes, and local diff/version/commit checks pass before publication.
 - Manual acceptance records the orchestrator's open PR, requested report-comment URL and green PR CI for owner inspection.
 
