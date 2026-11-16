@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.12.2](https://github.com/xycu/agent-smith/compare/v1.12.1...v1.12.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **compare-damaged-logs-not-comparable:** Reject damaged run logs as comparable savings evidence ([#201](https://github.com/xycu/agent-smith/issues/201)) ([a48269c](https://github.com/xycu/agent-smith/commit/a48269ced07949ec45f711e64a151001fd8f550a))
+* **run-branch-prefix-consistency:** Honor the configured run-branch prefix throughout the workflow ([#203](https://github.com/xycu/agent-smith/issues/203)) ([bd669ad](https://github.com/xycu/agent-smith/commit/bd669ada87d7220c110552a6d13512f0a074c97b))
+
 ## [1.12.1](https://github.com/xycu/agent-smith/compare/v1.12.0...v1.12.1) (2026-11-16)
 
 
