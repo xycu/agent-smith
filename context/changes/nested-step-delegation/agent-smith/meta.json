@@ -48,5 +48,19 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.3 Native capability evidence records parent receipt, event and usage semantics, cancellation and applicable child restrictions for the twelve configuration/mode cells, with unavailable proof explicitly pending until final-candidate qualification.",
+      "3.4 Final-candidate functional evidence passes all twelve configuration/mode cells through both normal entry points, including child collection, failure, interruption/resume, late-result rejection, usage attribution and effective child restrictions.",
+      "3.5 The authorized orchestrator publishes the run branch and reviewable PR, its CI succeeds, and any explicitly requested report comment describes the actual delegation outcome and pending host evidence."
+    ],
+    "manualNotProved": [
+      "1.3 Native capability evidence records parent receipt, event and usage semantics, cancellation and applicable child restrictions for the twelve configuration/mode cells, with unavailable proof explicitly pending until final-candidate qualification. — not proved: Twelve-cell capability proof remains incomplete for usage, cancellation and effective child restrictions; matching smoke-tested source hashes confirm only bounded prior observations, and this step pro",
+      "3.4 Final-candidate functional evidence passes all twelve configuration/mode cells through both normal entry points, including child collection, failure, interruption/resume, late-result rejection, usage attribution and effective child restrictions. — not proved: All twelve final-candidate matrix cells remain pending; retained headless smoke checks and deterministic tests do not establish the complete live matrix, and this step prohibits child launches. See ju",
+      "3.5 The authorized orchestrator publishes the run branch and reviewable PR, its CI succeeds, and any explicitly requested report comment describes the actual delegation outcome and pending host evidence. — not proved: Retained records do not establish publication, a reviewable PR and successful remote CI; this step prohibits publication and GitHub CLI calls and reserves publication scripts to the orchestrator. See"
+    ]
   }
 }
