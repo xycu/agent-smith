@@ -23,13 +23,13 @@ Recorded primitive observations supply Phase 2's controls and event contract; th
 
 ## Local verification
 
-Phase 1 adds deterministic model-free descendant lifecycle coverage to the existing runner and lock tests. Local gate outcomes and the closing commit are recorded in the plan's canonical Progress and the verification record below. Native matrix rows retain their pending state. [Progress](../plan.md#progress) [Fixture evidence](capabilities.md#deterministic-process-evidence)
+Phases 1–3 provide deterministic model-free descendant lifecycle, native-lock, recovery and exact-retry coverage. The final full suite passed 1,679 of 1,682 tests with zero failures/cancellations and three existing skips; all Automated rows are complete. Local gate outcomes and the closing commit are recorded in the plan's canonical Progress and the verification record below. Native matrix rows retain their pending state. [Progress](../plan.md#progress) [Fixture evidence](capabilities.md#deterministic-process-evidence)
 
 ## Recovery and continuation
 
-Continue Phase 2 using the top-level native observations and authoritative host contracts. Manual row 1.3 and final-candidate qualification stay pending where their full evidence is absent. Historical pending prompts retain their exact bytes. Downgrade requires resolved child-enabled dispatches and proven child closure under the plan's existing router-owned recovery procedure. [Migration notes](../plan.md#migration-notes)
+Phase 2 is committed as `ce116d2`, using the top-level native observations and authoritative host contracts. Manual row 1.3 and final-candidate qualification stay pending where their full evidence is absent. Historical pending prompts retain their exact bytes. Downgrade requires resolved child-enabled dispatches and proven child closure under the plan's existing router-owned recovery procedure. [Migration notes](../plan.md#migration-notes)
 
-The failed Phase 2 work is preserved in the router recovery ref identified by implementation-feedback.md. The revised local gate includes setup/handoff/archive contract repair, native execution-lock exclusion for an out-of-group child (new row 2.4), and a fresh full suite with zero failures/cancellations. Prior Phase 1 results and the failed attempt's partial logs do not qualify the feature. All pending Automated rows remain pending after this planning-only revision.
+The failed Phase 2 work is preserved in the router recovery ref identified by implementation-feedback.md. The revised local gate includes setup/handoff/archive contract repair, native execution-lock exclusion for an out-of-group child (new row 2.4), and a fresh full suite with zero failures/cancellations. Prior Phase 1 results and the failed attempt's partial logs do not qualify the feature. That planning-only revision left Automated rows pending; the subsequent Phase 2 implementation and successful full gate close rows 2.1–2.4. See the [implementation verification](verification.md) for exact counts and decisions.
 
 Manual rows 3.4 and 3.5 also remain pending. Final-candidate native verification and orchestrator-owned publication/CI are separate acceptance obligations. Performance benchmarking follows the owner's deferral. [Progress](../plan.md#progress)
 
@@ -43,10 +43,12 @@ Manual rows 3.4 and 3.5 also remain pending. Final-candidate native verification
 - `git diff --check`, `node tools/version-check.mjs` and the required phase commit subject lint passed.
 - Tests use a worktree-local ignored TMPDIR beneath `.claude/worktrees/nested-step-delegation-checks`. A temporary Git discovery boundary confines scratch repositories to that area.
 
-The first pending Automated row after Phase 1 is 2.1. The top-level session corrected the plan's pre-implementation full-matrix gate after collecting the native observations above. Implementation and local verification can continue while Manual rows 1.3, 3.4 and 3.5 retain their qualification and publication obligations. [Sequencing correction](../plan.md#critical-implementation-details)
+The first pending Automated row after Phase 1 was 2.1; Phase 2 has since passed its full replacement suite (1,668 passed, zero failures/cancellations, three existing skips). The top-level session corrected the plan's pre-implementation full-matrix gate after collecting the native observations above. Implementation and local verification are complete; Manual rows 1.3, 3.4 and 3.5 retain their qualification and publication obligations. [Sequencing correction](../plan.md#critical-implementation-details)
 
 ## Pending manual verification
 
 - [ ] 1.3 Native capability evidence records parent receipt, event and usage semantics, cancellation and applicable child restrictions for the twelve configuration/mode cells, with unavailable proof explicitly pending until final-candidate qualification.
 - [ ] 3.4 Final-candidate functional evidence passes all twelve configuration/mode cells through both normal entry points, including child collection, failure, interruption/resume, late-result rejection, usage attribution and effective child restrictions.
 - [ ] 3.5 The authorized orchestrator publishes the run branch and reviewable PR, its CI succeeds, and any explicitly requested report comment describes the actual delegation outcome and pending host evidence.
+
+Phase 3 gate details, the staged-source candidate hash and preservation regression evidence are in [implementation verification](verification.md#phase-3--recovery-and-compatibility). The phase commit is recorded beside the completed Progress rows.

@@ -189,3 +189,11 @@ Runtime outcomes print one JSON object and exit 0. Successful setup carries `rea
 An exclusive filesystem lock in the absolute Git common directory serializes setup for each full branch name across chains and project prefixes. It covers discovery, worktree registration, complete copying and usable-root validation. Contention returns failure JSON. An interrupted process can leave a lock requiring inspection before manual removal.
 
 Real CLI acceptance tests cover both chains, policy parity with the router loader, prefixes, copy fidelity, unchanged resumes, injected failures, the Git deadline, concurrent setup and command restrictions. The source change folder stays in place and `left` stays empty in Wave 4. Stale-copy cleanup is deferred to Wave 5. The existing live host-permission question above remains open.
+
+## Amendment 3 — Preserve distinct staged versions during rollback (2026-11-16)
+
+The delegated-failure recovery test exposed an existing loss boundary: `git add -A` replaced staged-only bytes before the working snapshot held them. Before that add, rollback now commits the existing index and publishes it under the same per-step recovery ref. The final working snapshot keeps the previous HEAD as its first parent and the index snapshot as its second parent. Existing undo ancestry and router-state schemas stay unchanged.
+
+A retry parents the new index snapshot to any previous commit at that ref, preserving snapshots from an interrupted attempt before replacing the ref. Failures halt through the existing rollback error path. Both working and staged contents remain reachable, including when they differ at the same path. Inspect the original index through `<ref>^2`; cherry-picking the final working snapshot requires `-m 1`.
+
+Both-chain runner tests cover collected child failure, differing staged/working versions, unrelated uncommitted files and rejected stale invocation. The rollback suite covers retry ancestry after an interrupted snapshot; existing undo-on-halt tests retain their first-parent checks.

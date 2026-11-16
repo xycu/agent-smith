@@ -58,14 +58,14 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp/copy and resume preservation, concurrent setup exclusion, runtime failures and command restrictions |
 | `isolation.test.mjs` | the isolation gate of `init`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
 | `stepcommit.test.mjs` | the start and step commits (ADR-010) |
-| `rollback.test.mjs` | the failed-step rollback and its undo on halt (ADR-010) |
+| `rollback.test.mjs` | the failed-step rollback, preserved interrupted index-snapshot ancestry and undo on halt (ADR-010) |
 | `firstattempt.test.mjs` | the cheaper first implement attempt (ADR-010) |
 | `coauthor.test.mjs` | the `coAuthor` trailer (ADR-021): start commit, step commit, rollback snapshot, pre-archive and late-usage commits carry it; `coAuthor: null` gives none; a malformed value halts; parity of `coAuthorProblem`/`coAuthorTrailer` in `state.mjs` with `coAuthorLine` in `open-pr.mjs` |
 | `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight refusal, RESULT/completion/usage boundaries, held-descendant collection before reply, retained native metadata (recursive pagination, archived threads, completed timestamps), cancellation, cleanup and archive moves on both chains |
 | `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd, a controllable child lifetime and a model-free descendant with readiness, termination, release and collection barriers |
 | `result-persist.test.mjs` | persist-before-unlink, both-chain inline/file crash recovery, cleanup errors, result ownership boundaries, isolated success commits and failure snapshots, pending neutral retry and late-usage preservation |
 | `run-state.test.mjs` | atomic log, metadata and report publication, failure and process-termination boundaries, permission preservation, exact owned-temp cleanup, strict log guards and read-only diagnostics, both-chain CLI smoke checks and byte-exact late-usage recovery |
-| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, native crash exclusion after group exit and surviving out-of-group child writes, uncertain-child refusal, cancellation retention through held-descendant collection, release on success and halt, read-only commands, both chains. `TMPDIR` points the lock into a scratch directory |
+| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, native crash exclusion after group exit and surviving out-of-group child writes, unchanged staged/working edits and late results while blocked, uncertain-child refusal, cancellation retention through held-descendant collection, release on success and halt, read-only commands, both chains. `TMPDIR` points the lock into a scratch directory |
 
 ## Reviews, cost, retries and policy
 
@@ -74,12 +74,12 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `openfindings.test.mjs` | routing of reviews on open findings (ADR-011): the `### F<n>` and `Decision` parser, policy keys, the `review` field of the log and `status`, the review gates and halt texts, the confirmation round, the `## Review findings` report section. It writes its own Decision-bearing reviews |
 | `cost.test.mjs` | the run cost estimate: the `prices` block and its validation, `estimateCost`, the `Cost (est.)` column and `Cost (estimate)` line of `report.md`, the `cost` object of `status` for both chains, and `compare` cost rows and the `cost-incomplete` warning. Turn on with `prices: { usdPerMillionTokens: { ... } }` |
 | `neutral.test.mjs` | the `orchestrator-error` rerun (ADR-015): same prompt and tier on both chains and in an isolated run, with no failed attempt, rigor rise, budget use or rollback; the `limits.maxNeutralRetries` cap; the `neutralRetries` field of `status`; the `## Neutral reruns` report section |
-| `prompt-handoff.test.mjs` | opt-in task files: exact dispatch, replay, cleanup recovery, Codex validation, commit hygiene and synthetic byte measurements |
+| `prompt-handoff.test.mjs` | opt-in task files: exact dispatch and saved flat/delegated replay across settings drift, cleanup recovery, Codex validation, commit hygiene and synthetic byte measurements |
 | `late-usage.test.mjs` | the `usage` command (ADR-019): arguments and refusals that leave the change folder byte-identical, attaching on both chains, an unchanged and a refused second figure, the rewritten report and cost of an ended run, `compare`, survival of an isolated rollback, and the archive state (folder commit of `archive.usageMessage`, restore after a hook failure, `next` resume with `commit: null`) |
 | `policy-validate.test.mjs` | the policy check at load (ADR-022): `init`, `next` and `usage` halt with the key name and write nothing on a malformed limit, ladder, step tier or prompt placeholder; `status` reports `policyProblem`; the shipped `policy.json` and `baseline-policy.json` pass |
 | `providers.test.mjs` | per-rung provider and fixed run host: legacy Claude defaults, GPT overlay/profile validation, exact neutral retry, capability refusals, both archive actions, provenance and provider-aware report/comparison aggregates |
 | `host-integration.test.mjs` | Shared host instruction and packaging contracts, OpenAI manual template selection and truthful browser evidence kinds |
-| `codex-chain.test.mjs` | Both-chain runner/result/router matrix, completion/report/comparison, typed child commits, guarded archive and isolated mixed-provider rollback/neutral retry |
+| `codex-chain.test.mjs` | Both-chain runner/result/router matrix, completion/report/comparison, typed child commits, guarded archive and isolated mixed-provider rollback/neutral retry and distinct staged/working versions after collected child failure |
 | `pr-comment-intent.test.mjs` | Router-owned boolean opt-in/reset/resume intent and terminal done/halt/archive propagation on both chains |
 
 ## Orchestrator skills and pull-request scripts

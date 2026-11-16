@@ -476,3 +476,46 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
     fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + "\n");
   }
 });
+
+for (const chain of ["10x", "openspec"]) {
+  for (const byFile of [false, true]) {
+    for (const flat of [false, true]) {
+      test(`${chain}: saved ${flat ? "flat" : "delegated"} ${byFile ? "file" : "inline"} dispatch survives settings drift exactly`, () => {
+        const w = codexFixture(chain, { policy: { ...preset, prompts: { byFile } } });
+        const p = w.project;
+        if (flat) {
+          const entries = readLogEntries(p);
+          const saved = entries.filter(e => !e.skipped).at(-1);
+          saved.pendingPrompt = "Historical flat dispatch: do all work yourself; never start a subagent.\n"
+            + saved.pendingPrompt.slice(saved.pendingPrompt.lastIndexOf("\nRESULT:"));
+          writeLog(p, entries);
+          if (byFile) fs.writeFileSync(taskPath(p), saved.pendingPrompt);
+          else w.action.prompt = saved.pendingPrompt;
+        }
+        const saved = pending(p);
+        assert.equal(saved.pendingPrompt.includes("one native child layer"), !flat);
+        const prompt = saved.pendingPrompt;
+        const first = w.action;
+        fs.mkdirSync(path.join(p.root, ".claude"), { recursive: true });
+        fs.writeFileSync(path.join(p.root, ".claude/settings.json"), JSON.stringify({ env: { CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "2" } }));
+        writeOverride(p, { ...preset, codex: { profile: "changed-profile" }, prompts: { byFile: !byFile } });
+        writeResult(p, FAULT);
+        const retry = run(p, ["next", p.id, "--chain", chain], { env: w.env }).json;
+        assert.ok(retry.neutralRetry);
+        for (const key of ["n", "step", "agent", "provider", "model", "effort", "profile", "prompt", "promptFile"]) {
+          assert.equal(retry[key], first[key], key);
+          assert.equal(Object.hasOwn(retry, key), Object.hasOwn(first, key), key);
+        }
+        assert.equal(pending(p).pendingPrompt, prompt);
+        assert.deepEqual(pending(p).pendingHandoff, saved.pendingHandoff);
+        if (byFile) assert.equal(fs.readFileSync(taskPath(p), "utf8"), prompt);
+        const result = execute(w, retry);
+        assert.equal(result.json.completed, true, result.stdout);
+        const model = calls(w.fixture).find(call => call.args[0] === "exec");
+        assert.equal(model.input, first.prompt);
+        assert.ok(model.args.includes("agents.enabled=true"), "effective launch, not old prompt text, owns native capability");
+        assert.equal(model.args.includes("--ephemeral"), false);
+      });
+    }
+  }
+}
