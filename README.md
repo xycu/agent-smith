@@ -139,4 +139,6 @@ The cap affects every Claude session in that project, including workflows outsid
 
 ## 📄 License
 
-Free for non-commercial open source projects. Commercial use is free for a 60-day trial. Any other use needs a written license: contact Błażej Ksycki, [blazej@ksycki.pl](mailto:blazej@ksycki.pl). Full terms in [`LICENSE`](LICENSE).
+Copyright (c) 2026 Błażej Ksycki. Project-owned code, documentation and other material are licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0). You may share unadapted copies for noncommercial purposes with attribution. The license permits producing adaptations for noncommercial purposes, with sharing of adaptations requiring separate permission. Full terms appear in [LICENSE](LICENSE) and the [official license summary](https://creativecommons.org/licenses/by-nc-nd/4.0/).
+
+Separately credited third-party material, including the header image and bundled OpenSpec skills with MIT notices, retains its own rights and terms. Earlier versions remain governed by the license supplied with them. For permissions beyond CC BY-NC-ND 4.0, contact Błażej Ksycki at [blazej@ksycki.pl](mailto:blazej@ksycki.pl).
