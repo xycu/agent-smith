@@ -103,9 +103,11 @@ function commitFile(w, cwd, file, text, message) {
 
 // A repository with main pushed to the bare remote, origin/HEAD -> main, and a linked worktree on agent-smith/demo
 // branched from `from`. With start: true the worktree has the start commit of a run.
-function world({ id = "demo", url = GH_URL, from = "main", feature = false, start = true, chain = "10x", withGh = true } = {}) {
+function world({ id = "demo", url = GH_URL, from = "main", feature = false, start = true, chain = "10x", withGh = true,
+  prefix = "agent-smith/", branch = `${prefix}${id}`, nest = null, identity = false, worktreeName = "wt" } = {}) {
   const base = tmpDir("as-opr-");
-  const w = { base, id, repo: path.join(base, "repo"), bare: path.join(base, "remote.git"), wt: path.join(base, "wt") };
+  const w = { base, id, chain, branch, repo: path.join(base, "repo"), bare: path.join(base, "remote.git"), wt: path.join(base, worktreeName) };
+  w.root = nest ? path.join(w.wt, nest) : w.wt;
   fs.mkdirSync(w.repo);
   g(w, base, ["init", "-q", "--bare", w.bare]);
   g(w, w.repo, ["init", "-q"]);
@@ -122,11 +124,14 @@ function world({ id = "demo", url = GH_URL, from = "main", feature = false, star
     g(w, w.repo, ["checkout", "-q", "main"]);
     from = "feature/x";
   }
-  g(w, w.repo, ["worktree", "add", "-q", "-b", `agent-smith/${id}`, w.wt, from]);
-  const changeDir = chain === "openspec" ? path.join(w.wt, "openspec/changes", id) : path.join(w.wt, "context/changes", id);
+  g(w, w.repo, ["worktree", "add", "-q", "-b", branch, w.wt, from]);
+  const changeDir = path.join(w.root, chain === "openspec" ? "openspec/changes" : "context/changes", id);
+  w.changeDir = changeDir;
   fs.mkdirSync(path.join(changeDir, "agent-smith"), { recursive: true });
   if (chain === "10x") fs.writeFileSync(path.join(changeDir, "change.md"), CHANGE_MD);
   fs.writeFileSync(path.join(changeDir, "agent-smith", "report.md"), REPORT.replace("# Run report: demo", `# Run report: ${id}`));
+  if (prefix !== "agent-smith/") writePolicy(w, { isolation: { require: true, branchPrefix: prefix } });
+  if (identity) fs.writeFileSync(path.join(changeDir, "agent-smith/meta.json"), JSON.stringify({ id, isolated: true, branch, ...(chain === "openspec" ? { chain } : {}) }));
   if (start) {
     g(w, w.wt, ["add", "-A"]);
     g(w, w.wt, ["commit", "-q", "-m", `chore(${id}): start run`]);
@@ -140,6 +145,12 @@ function world({ id = "demo", url = GH_URL, from = "main", feature = false, star
   return w;
 }
 
+function writePolicy(w, policy) {
+  const file = path.join(w.root, "context/foundation/agent-smith-policy.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(policy));
+}
+
 function setAnswers(w, answers) {
   for (const [kind, a] of Object.entries(answers)) {
     for (const ext of ["out", "err", "code"]) fs.rmSync(path.join(w.fake, `${kind}.${ext}`), { force: true });
@@ -147,7 +158,7 @@ function setAnswers(w, answers) {
   }
 }
 
-function runScript(w, args = [w.id], { cwd = w.wt, onlyBin = false } = {}) {
+function runScript(w, args = [w.id], { cwd = w.root, onlyBin = false } = {}) {
   const res = spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd,
     encoding: "utf8",
@@ -186,7 +197,7 @@ function assertNoForbidden(w) {
 const WRITES = new Set(["add", "commit", "push", "reset", "update-ref", "branch", "tag", "checkout", "switch", "stash", "config"]);
 const writeCalls = (w) => gitCalls(w).filter((a) => WRITES.has(a[0]));
 
-const remoteRef = (w, branch = `agent-smith/${w.id}`) => {
+const remoteRef = (w, branch = w.branch) => {
   const res = spawnSync(REAL_GIT, ["--git-dir", w.bare, "rev-parse", "-q", "--verify", `refs/heads/${branch}`], { encoding: "utf8", env: envFor(w) });
   return res.status === 0 ? res.stdout.trim() : null;
 };
@@ -339,7 +350,7 @@ test("gh missing gives pushed: true and a pull request skip with the manual comm
   assert.equal(res.json.pushed, true, res.stdout);
   assert.equal(res.json.pr.action, "skipped");
   assert.equal(res.json.pr.reason, "gh is not installed");
-  assert.match(res.json.manual, /^gh pr create --repo acme\/demo --head agent-smith\/demo --base main/);
+  assert.match(res.json.manual, /^gh pr create --repo 'acme\/demo' --head 'agent-smith\/demo' --base 'main'/);
 });
 
 test("gh failures: not authenticated, a failed create and unexpected output are pull request skips", { skip }, () => {
@@ -427,7 +438,7 @@ test("a diverged remote branch gives pushed: false with git's line, and no force
   assert.match(res.json.reason, /^push failed: /);
   assert.equal(remoteRef(w), stray, "the remote branch is untouched");
   assert.equal(gitCalls(w).filter((a) => a[0] === "push").length, 1, "no second push");
-  assert.match(res.json.manual, /push origin refs\/heads\/agent-smith\/demo:refs\/heads\/agent-smith\/demo/);
+  assert.match(res.json.manual, /push 'origin' 'refs\/heads\/agent-smith\/demo:refs\/heads\/agent-smith\/demo'/);
   assert.deepEqual(ghCalls(w), []);
 });
 
@@ -685,5 +696,205 @@ test("guard: the script source names no merge, review, delete or force operation
   const source = fs.readFileSync(SCRIPT, "utf8");
   for (const word of ["\"merge\"", "\"review\"", "--force", "--delete", "--no-verify", "--set-upstream", "\"-u\"", "\"remove\"", "\"--amend\""]) {
     assert.equal(source.includes(word), false, word);
+  }
+});
+
+// ---- configured and recorded branch identity ---------------------------------------------
+
+function publicationSnapshot(w) {
+  const index = g(w, w.wt, ["rev-parse", "--path-format=absolute", "--git-path", "index"]);
+  const read = (file) => fs.existsSync(file) ? fs.readFileSync(file) : null;
+  return { head: head(w), index: read(index), kept: read(path.join(w.root, "kept.txt")),
+    meta: read(path.join(w.changeDir, "agent-smith/meta.json")),
+    policy: read(path.join(w.root, "context/foundation/agent-smith-policy.json")) };
+}
+
+function refuseWithoutWrites(w, args = [w.id, "--chain", w.chain]) {
+  const before = publicationSnapshot(w);
+  const gitStart = gitCalls(w).length;
+  const ghStart = ghCalls(w).length;
+  const result = runScript(w, args);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.json.pushed, false, result.stdout);
+  assert.ok(result.json.reason, result.stdout);
+  assert.deepEqual(publicationSnapshot(w), before);
+  assert.deepEqual(gitCalls(w).slice(gitStart).filter((a) => WRITES.has(a[0])), []);
+  assert.deepEqual(ghCalls(w).slice(ghStart), []);
+  return result.json;
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const nest of [null, "apps/widget"]) {
+    test(`${chain}: configured publication carries the branch through push and repeated PR creation (${nest})`, { skip }, () => {
+      const w = world({ chain, prefix: "codex/", nest, identity: true });
+      const args = ["demo", "--chain", chain];
+      const result = runScript(w, args).json;
+      assert.equal(result.pushed, true, JSON.stringify(result));
+      assert.equal(result.branch, "codex/demo");
+      assert.equal(result.base, "main");
+      assert.equal(result.pr.action, "created");
+      assert.equal(remoteRef(w), head(w));
+      assert.deepEqual(gitCalls(w).find((a) => a[0] === "push"), ["push", "origin", "refs/heads/codex/demo:refs/heads/codex/demo"]);
+      assert.equal(ghCalls(w).find((a) => a[1] === "create")[5], "codex/demo");
+      setAnswers(w, { "pr-list": { out: JSON.stringify([{ number: 7, url: PR_URL, state: "OPEN" }]) } });
+      assert.equal(runScript(w, args).json.pr.action, "existing");
+      assert.equal(ghCalls(w).filter((a) => a[1] === "create").length, 1);
+    });
+  }
+
+  test(`${chain}: saved suffix and archived report retain the original configured identity`, { skip }, () => {
+    const defaults = world({ chain, identity: true });
+    assert.equal(runScript(defaults, ["demo", "--chain", chain]).json.pushed, true);
+    assert.equal(remoteRef(defaults), head(defaults));
+    const w = world({ chain, prefix: "runs-", branch: "runs-demo-baseline", identity: true });
+    const archive = path.join(w.root, chain === "10x" ? "context/archive/2026-11-16-demo" : "openspec/changes/archive/2026-11-16-demo");
+    fs.mkdirSync(path.dirname(archive), { recursive: true });
+    fs.renameSync(w.changeDir, archive);
+    const report = path.join(archive, "agent-smith/report.md");
+    const args = ["demo", "--chain", chain, "--report", report];
+    assert.equal(runScript(w, args).json.pushed, true);
+    assert.equal(remoteRef(w), head(w));
+    w.changeDir = archive;
+    writePolicy(w, { isolation: { require: true, branchPrefix: "changed/" } });
+    const refused = refuseWithoutWrites(w, args);
+    assert.match(refused.reason, /isolation.branchPrefix.*recorded branch runs-demo-baseline/);
+    assert.match(refused.manual, /runs-demo-baseline/);
+  });
+
+  test(`${chain}: saved invalid-prefix drift names the retained branch and restoration prerequisite`, { skip }, () => {
+    const w = world({ chain, prefix: "codex/", identity: true });
+    fs.writeFileSync(path.join(w.root, "kept.txt"), "staged contents");
+    g(w, w.wt, ["add", "--", path.relative(w.wt, path.join(w.root, "kept.txt"))]);
+    fs.writeFileSync(path.join(w.root, "kept.txt"), "working contents");
+    const refs = g(w, w.wt, ["show-ref"]);
+    for (const prefix of [null, "", " ", "bad..ref/"]) {
+      writePolicy(w, { isolation: { require: true, branchPrefix: prefix } });
+      const refused = refuseWithoutWrites(w);
+      for (const text of [refused.reason, refused.manual]) {
+        assert.ok(text.includes(w.branch), text);
+        assert.match(text, /isolation.branchPrefix/);
+        assert.match(text, /restore|resume/i);
+      }
+      assert.equal(g(w, w.wt, ["show-ref"]), refs);
+      assert.equal(remoteRef(w), null);
+    }
+  });
+
+  test(`${chain}: malformed and contradictory recorded identities preserve working and staged contents`, { skip }, () => {
+    const cases = ["{", "null", "[]", { id: "other", isolated: true, branch: "codex/demo", chain },
+      { id: "demo", isolated: true, branch: "codex/demo", chain: chain === "10x" ? "openspec" : "10x" },
+      { id: "demo" }, { id: "demo", isolated: false, branch: "codex/demo", chain },
+      { id: "demo", isolated: true, branch: null, chain },
+      { id: "demo", isolated: true, branch: "codex/other", chain },
+      { id: "demo", isolated: true, branch: "codex/@{-1}", chain }];
+    const w = world({ chain, prefix: "codex/", identity: true });
+    fs.writeFileSync(path.join(w.root, "kept.txt"), "staged contents");
+    g(w, w.wt, ["add", "--", path.relative(w.wt, path.join(w.root, "kept.txt"))]);
+    fs.writeFileSync(path.join(w.root, "kept.txt"), "working contents");
+    for (const meta of cases) {
+      fs.writeFileSync(path.join(w.changeDir, "agent-smith/meta.json"), typeof meta === "string" ? meta : JSON.stringify(meta));
+      const result = refuseWithoutWrites(w);
+      assert.match(result.reason, /saved run identity|Saved run identity|started on branch|Invalid run branch/);
+    }
+    assert.equal(remoteRef(w), null);
+  });
+}
+
+test("configured publication preserves missing and empty legacy identity while requiring the exact generated branch", { skip }, () => {
+  for (const empty of [false, true]) {
+    const w = world({ prefix: "codex/" });
+    if (empty) fs.writeFileSync(path.join(w.changeDir, "agent-smith/meta.json"), "{}");
+    assert.equal(runScript(w).json.pushed, true);
+    assert.equal(remoteRef(w), head(w));
+  }
+  const other = world({ prefix: "codex/", branch: "codex/demo-baseline" });
+  assert.match(refuseWithoutWrites(other).reason, /HEAD is on codex\/demo-baseline, not codex\/demo/);
+});
+
+test("configured publication validates active prefixes, policy parsing and default branches before writes", { skip }, () => {
+  const w = world({ prefix: "codex/", identity: true });
+  for (const prefix of ["", " ", null, [], {}, 5, "-option/", "bad..ref/"]) {
+    writePolicy(w, { isolation: { require: true, branchPrefix: prefix } });
+    assert.match(refuseWithoutWrites(w).reason, /branchPrefix|Invalid run branch/);
+    writePolicy(w, { isolation: { require: false, branchPrefix: prefix } });
+    assert.match(refuseWithoutWrites(w).reason, /isolation.require/);
+  }
+  const policy = path.join(w.root, "context/foundation/agent-smith-policy.json");
+  fs.writeFileSync(policy, "{");
+  assert.match(refuseWithoutWrites(w).reason, /JSON|Unexpected|Expected/);
+  writePolicy(w, { isolation: { require: true, branchPrefix: "codex/", defaultBranches: [w.branch] } });
+  assert.match(refuseWithoutWrites(w).reason, /default branch/);
+  writePolicy(w, { isolation: { require: true, branchPrefix: "codex/" } });
+  g(w, w.wt, ["symbolic-ref", "refs/remotes/upstream/HEAD", "refs/remotes/upstream/codex/demo"]);
+  assert.match(refuseWithoutWrites(w, ["demo", "--remote", "upstream"]).reason, /default branch of upstream/);
+  fs.writeFileSync(path.join(w.bin, "git"), GIT_SHIM(REAL_GIT).replace("exec ", 'case "$*" in *refs/remotes/upstream/HEAD*) exit 70;; esac\nexec '));
+  assert.match(refuseWithoutWrites(w, ["demo", "--remote", "upstream"]).reason, /Cannot read the default branch of upstream/);
+});
+
+test("configured base discovery excludes both run namespaces and keeps feature, tie and older-Git behavior", { skip }, () => {
+  for (const oldGit of [false, true]) {
+    const w = world({ prefix: "codex/", feature: true, identity: true });
+    g(w, w.wt, ["push", "-q", "origin", "HEAD:refs/heads/codex/other-run", "HEAD:refs/heads/agent-smith/older-run"]);
+    commitFile(w, w.wt, "later.txt", "later", "fix: later");
+    if (oldGit) fs.writeFileSync(path.join(w.bin, "git"), GIT_SHIM(REAL_GIT).replace("exec ", 'case "$*" in *ahead-behind*) exit 128;; esac\nexec '));
+    assert.equal(runScript(w).json.base, "feature/x");
+  }
+  const tie = world({ prefix: "codex/" });
+  g(tie, tie.repo, ["push", "-q", "origin", "main:refs/heads/aaa-copy"]);
+  assert.equal(runScript(tie).json.base, "main");
+  assert.equal(runScript(tie, ["demo", "--base", "aaa-copy"]).json.base, "aaa-copy");
+});
+
+test("configured automatic fallback bases validate names and exclude both run namespaces", { skip }, () => {
+  for (const fallback of ["main", "codex/other-run", "agent-smith/older-run", "-option", "bad..ref"]) {
+    const w = world({ prefix: "codex/" });
+    g(w, w.wt, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/codex/other-run"]);
+    fs.writeFileSync(path.join(w.bin, "git"), GIT_SHIM(REAL_GIT).replace("exec ", 'if [ "$1" = for-each-ref ]; then exit 0; fi\nexec '));
+    setAnswers(w, { "repo-view": { out: fallback } });
+    const result = runScript(w).json;
+    assert.equal(result.pushed, fallback === "main", JSON.stringify(result));
+    if (fallback === "main") assert.equal(result.base, "main");
+    else assert.match(result.reason, /base branch not found/);
+  }
+  const remoteHead = world({ prefix: "codex/" });
+  fs.writeFileSync(path.join(remoteHead.bin, "git"), GIT_SHIM(REAL_GIT).replace("exec ", 'if [ "$1" = for-each-ref ]; then exit 0; fi\nexec '));
+  assert.equal(runScript(remoteHead).json.base, "main");
+  assert.equal(ghCalls(remoteHead).some((a) => a[0] === "repo"), false);
+});
+
+test("configured recovery commands preserve literal argv for Git-valid shell metacharacters", { skip }, () => {
+  for (const prefix of ["codex/$(probe)/", "codex/;probe;/", "codex/'/"]) {
+    for (const failure of ["missing-remote", "push", "pr"]) {
+      const w = world({ prefix, identity: true, worktreeName: "wt $(probe);'" });
+      const base = "feature/$(probe);'";
+      g(w, w.repo, ["push", "-q", "origin", `main:refs/heads/${base}`]);
+      g(w, w.repo, ["symbolic-ref", "refs/remotes/origin/HEAD", `refs/remotes/origin/${base}`]);
+      let args = ["demo"];
+      if (failure === "missing-remote") args.push("--remote", "upstream");
+      if (failure === "push") {
+        const stray = g(w, w.repo, ["commit-tree", g(w, w.repo, ["rev-parse", "HEAD^{tree}"]), "-p", "HEAD", "-m", "diverged"]);
+        g(w, w.repo, ["push", "-q", "origin", `${stray}:refs/heads/${w.branch}`]);
+      }
+      if (failure === "pr") setAnswers(w, { "pr-create": { code: 1, err: "injected failure" } });
+      const result = runScript(w, args).json;
+      assert.ok(result.manual, JSON.stringify(result));
+      const inert = tmpDir("as-opr-inert-");
+      const calls = path.join(inert, "calls.log");
+      const expanded = path.join(inert, "expanded");
+      for (const command of ["git", "gh"]) fs.writeFileSync(path.join(inert, command),
+        `#!/bin/sh\nprintf '%s\\037' '${command}' "$@" >> "$INERT_LOG"\nprintf '\\n' >> "$INERT_LOG"\n`, { mode: 0o755 });
+      fs.writeFileSync(path.join(inert, "probe"), '#!/bin/sh\nprintf expanded >> "$EXPANDED"\n', { mode: 0o755 });
+      const command = result.manual.split(", then")[0];
+      const ran = spawnSync("/bin/sh", ["-c", command], {
+        cwd: inert, encoding: "utf8", env: { ...envFor(w), PATH: inert, INERT_LOG: calls, EXPANDED: expanded },
+      });
+      assert.equal(ran.status, 0, ran.stderr);
+      assert.equal(fs.existsSync(expanded), false, "no command substitution or extra command executes");
+      const received = readLog(calls);
+      const pr = ["gh", "pr", "create", "--repo", "acme/demo", "--head", w.branch, "--base", base, "--fill"];
+      if (failure === "missing-remote") assert.deepEqual(received, [["git", "-C", w.wt, "remote", "add", "upstream", "<url>"]]);
+      else if (failure === "push") assert.deepEqual(received, [["git", "-C", w.wt, "push", "origin", `refs/heads/${w.branch}:refs/heads/${w.branch}`], pr]);
+      else assert.deepEqual(received, [pr]);
+    }
   }
 });

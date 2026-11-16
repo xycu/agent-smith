@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { validateRunBranch, validateRunIdentity } from "./run-identity.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -297,18 +298,13 @@ export function isolationCheck(id, policy, prev, fresh, chain = "10x") {
   const head = g(["symbolic-ref", "-q", "--short", "HEAD"]);
   const branch = head.status === 0 ? head.stdout.trim() : "";
   if (!branch) stop("HEAD is detached; run isolation needs the run worktree on its run branch.");
-  const defaults = Array.isArray(c.defaultBranches) ? c.defaultBranches.filter((b) => typeof b === "string" && b) : [];
-  const originHead = g(["symbolic-ref", "-q", "--short", "refs/remotes/origin/HEAD"]);
-  const originName = originHead.status === 0 ? originHead.stdout.trim().replace(/^origin\//, "") : "";
-  if (originName) defaults.push(originName);
-  if (defaults.includes(branch)) stop(`Branch ${branch} is a default branch; run isolation needs a run branch of its own.`);
-  const prefix = typeof c.branchPrefix === "string" ? c.branchPrefix : "agent-smith/";
-  if (!branch.startsWith(prefix)) stop(`Branch ${branch} does not start with ${prefix}; run isolation needs the run branch ${prefix}${id}.`);
+  try {
+    if (prev.isolated === true || Object.hasOwn(prev, "branch")) {
+      validateRunIdentity(prev, c, id, chain, branch, g);
+    } else validateRunBranch(c, id, branch, g);
+  } catch (error) { stop(error.message); }
   const ignored = ignoredProbePaths(id, { timeout, chain });
   if (ignored.length) stop(`Run isolation needs git to track the change folder, but git ignores ${ignored.join(", ")}. Fix .gitignore.`);
-  if (prev.isolated === true && typeof prev.branch === "string" && prev.branch !== branch) {
-    stop(`This run started on branch ${prev.branch} and HEAD is on ${branch}; resume it on ${prev.branch}.`);
-  }
   if (!fresh && prev.isolated !== true) {
     stop(`This run has executed steps and was not started isolated, so it cannot become isolated now. To finish it, set ${ISOLATION_OFF}.`);
   }

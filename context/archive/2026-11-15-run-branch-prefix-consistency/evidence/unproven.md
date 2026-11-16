@@ -1,0 +1,11 @@
+# Resolved publication acceptance
+
+All listed rows were verified after publication on 2026-11-16 and approved by the owner. [Current acceptance evidence](../verification.md#post-publication-acceptance)
+
+## Earlier manual-verification snapshot
+
+The following reasons record the checks before terminal publication. They were resolved by the evidence linked above.
+
+- 3.5 — Fresh authenticated GitHub search and direct API lookup returned no PR for xycu/agent-smith head agent-smith/run-branch-prefix-consistency, and read-only remote lookup returned no matching branch. An open PR containing the reviewed implementation and full-suite evidence remains unproved. Publication is reserved for the enclosing orchestrator and forbidden in this step. See command-publication-recheck.txt.
+- 3.6 — No PR was found, so the requested run-report comment URL and actual branch identity remain unproved. The local folder has no generated run report. Posting or updating comments is reserved for the enclosing orchestrator and forbidden in this step. See command-publication-recheck.txt.
+- 3.7 — No PR was found, so green PR CI and owner access to its implementation review and report comment remain unproved. The local folder contains a plan review and verification.md, but no implementation-review report or generated run report. Publication must precede this check. See command-publication-recheck.txt.

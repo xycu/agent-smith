@@ -218,7 +218,7 @@ test("the pull request section follows ## PR comment (opt-in) and calls the scri
   const text = section(lines, PR_HEADING).join("\n");
   assert.match(text, /`cd "<run root>" && node \$OPEN_PR <change-name> --chain openspec`/);
   for (const m of skill.matchAll(/node \$OPEN_PR[^`]*/g)) assert.match(m[0], /--chain openspec/, m[0]);
-  assert.match(text, /Pull request: NOT pushed, <reason>\. Branch agent-smith\/<change-name> is local only: <manual>/);
+  assert.match(text, /Pull request: NOT pushed, <reason>\. Branch <branch> is local only: <manual>/);
   assert.match(text, /never merges/);
   assert.ok(!text.includes("**GIVEN**"));
 });

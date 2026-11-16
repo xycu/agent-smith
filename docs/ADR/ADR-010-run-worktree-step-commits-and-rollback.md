@@ -1,6 +1,6 @@
 # ADR-010: Run every change in its own worktree, commit each step, roll back a failed step, and make the first implement attempt cheaper
 
-- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending); amended (Amendments 1 and 2)
+- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending); amended through Amendment 4
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `worktree-step-commits`; the repository owner confirms or changes the readings below
 - **Origin:** change `worktree-step-commits` (`context/changes/worktree-step-commits/change.md`, `plan.md`, `research.md` and `reviews/plan-review.md`). It widens the router's git-write rule in `AGENTS.md` (Hard Rules), which before this change allowed only the pre-archive commit of ADR-003 ("Archive adapter"). That commit is unchanged.
@@ -197,3 +197,19 @@ The delegated-failure recovery test exposed an existing loss boundary: `git add 
 A retry parents the new index snapshot to any previous commit at that ref, preserving snapshots from an interrupted attempt before replacing the ref. Failures halt through the existing rollback error path. Both working and staged contents remain reachable, including when they differ at the same path. Inspect the original index through `<ref>^2`; cherry-picking the final working snapshot requires `-m 1`.
 
 Both-chain runner tests cover collected child failure, differing staged/working versions, unrelated uncommitted files and rejected stale invocation. The rollback suite covers retry ancestry after an interrupted snapshot; existing undo-on-halt tests retain their first-parent checks.
+
+## Amendment 4 — Configured run-branch identity (2026-11-16)
+
+Both chains use the effective `isolation.branchPrefix` throughout setup, initialization, cleanup and resume. A standalone helper projects isolation policy by merging the shipped 10x policy, OpenSpec fragment and project override in router order. The default prefix is `agent-smith/`. Literal prefixes can omit the trailing slash, including `runs-`.
+
+**GIVEN** active isolation **WHEN** fresh setup chooses a branch **THEN** it **MUST** concatenate the effective prefix and change id and validate the literal Git branch before selecting a mutation target, rejecting blank or non-string prefixes, option-like names and default-branch collisions.
+
+**GIVEN** an isolated saved run **WHEN** setup or initialization continues it **THEN** it **MUST** validate the recorded id, normalized chain and branch against the selected run HEAD and effective policy, including before any executed step, and refuse a conflict with guidance naming the recorded branch and `isolation.branchPrefix`.
+
+Saved invocation identity is checked first, followed by the established already-in-run case and exact configured-branch selection. Fallback registration discovery matches the same Git common directory, nested-project prefix, change id and chain, interpreting an absent saved chain as `10x`. Multiple remaining identities refuse with candidate branches and roots. Invoking setup from the intended run worktree selects its actual branch. The resolved branch lock covers revalidation, and the selected root is revalidated before success. These checks apply after source cleanup and at custom registered locations. An unattached saved branch is inspected before attachment.
+
+**GIVEN** the original fresh setup result **WHEN** cleanup would unlink source inputs **THEN** it **MUST** require agreement among its branch, effective policy, registration, project prefix and router-owned metadata, retaining the existing immutable start-commit, tracking, byte, symlink and race checks.
+
+The router owns `meta.json` and `run.jsonl`, and the saved format needs no added field. Worktree directories use `.claude/worktrees/agent-smith-<id>`. Router recovery refs use `refs/agent-smith/`. The strict boolean isolation opt-out precedes prefix-specific validation. Both skills report saved setup identity and publication identity in terminal diagnostics.
+
+Deploy scripts and skills together. Existing default-prefix runs resume through their recorded identity. An older publisher can refuse a custom-prefix run after downgrade, so keep that run on a compatible revision or restore the fixed version. Roll back code with a new revert commit through the normal review process and retain run branches, worktrees and recovery refs.

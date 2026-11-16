@@ -229,3 +229,58 @@ test("2.1 init without change.md halts and makes no start commit (missing change
   assert.equal(fs.existsSync(wt.agentDir), false);
   assert.equal(git(wt, ["rev-parse", "HEAD"]), before);
 });
+
+for (const prefix of ["codex/", "runs-"]) {
+  test(`configured isolation accepts literal ${prefix} and keeps saved identity with zero or executed entries`, { skip }, () => {
+    for (const executed of [false, true]) {
+      const main = repo({ policy: { isolation: { require: true, branchPrefix: prefix } }, nest: "apps/widget" });
+      const branch = `${prefix}demo-baseline`;
+      const wt = worktree(main, branch);
+      if (executed) assert.equal(initIn(wt).json.action, "run");
+      else writeMetaFile(wt, { id: "demo", isolated: true, branch, goal: GOAL });
+      const policy = path.join(wt.root, "context/foundation/agent-smith-policy.json");
+      const original = fs.readFileSync(policy, "utf8");
+      const before = fs.readFileSync(path.join(wt.agentDir, "meta.json"));
+      const head = git(wt, ["-C", wt.root, "rev-parse", "HEAD"]);
+      for (const changedPrefix of ["changed/", null, "", "bad..ref/"]) {
+        fs.writeFileSync(policy, JSON.stringify({ isolation: { require: true, branchPrefix: changedPrefix } }));
+        const refused = initIn(wt);
+        assertHalt(refused, /isolation.branchPrefix.*recorded branch/);
+        assert.ok(refused.json.reason.includes(branch), refused.stdout);
+        assert.match(refused.json.reason, /restore.*resume/i);
+        assert.deepEqual(fs.readFileSync(path.join(wt.agentDir, "meta.json")), before);
+        assert.equal(git(wt, ["-C", wt.root, "rev-parse", "HEAD"]), head);
+      }
+      fs.writeFileSync(policy, original);
+      const result = initIn(wt);
+      if (!executed) assert.equal(result.json.action, "run", result.stdout);
+      assert.equal(readMetaFile(wt).branch, branch);
+    }
+  });
+}
+
+test("configured isolation rejects invalid prefixes before state writes and retains explicit opt-out", { skip }, () => {
+  for (const prefix of [null, "", " ", [], {}, 1, "-option/", "bad..ref/", "@{-1}"]) {
+    const main = repo({ policy: { isolation: { require: true, branchPrefix: prefix } } });
+    const wt = worktree(main, "codex/demo");
+    assertHalt(initIn(wt), /branchPrefix|Invalid run branch/, wt);
+    const policy = path.join(wt.root, "context/foundation/agent-smith-policy.json");
+    fs.writeFileSync(policy, JSON.stringify({ isolation: { require: false, branchPrefix: prefix }, score: { minRigor: null } }));
+    assert.equal(initIn(wt).json.action, "run");
+  }
+});
+
+test("configured isolation protects main checkout, detached HEAD, defaults and wrong saved branch", { skip }, () => {
+  const main = repo({ policy: { isolation: { require: true, branchPrefix: "codex/", defaultBranches: ["codex/default"] } } });
+  assertHalt(initIn(main), /main checkout/, main);
+  const defaults = worktree(main, "codex/default", "default");
+  assertHalt(initIn(defaults), /default branch/, defaults);
+  const wt = worktree(main, "codex/demo");
+  git(main, ["-C", wt.root, "checkout", "-q", "--detach"]);
+  assertHalt(initIn(wt), /HEAD is detached/, wt);
+  git(main, ["-C", wt.root, "checkout", "-q", "codex/demo"]);
+  writeMetaFile(wt, { id: "demo", isolated: true, branch: "codex/other" });
+  const before = fs.readFileSync(path.join(wt.agentDir, "meta.json"));
+  assertHalt(initIn(wt), /started on branch codex\/other/);
+  assert.deepEqual(fs.readFileSync(path.join(wt.agentDir, "meta.json")), before);
+});
