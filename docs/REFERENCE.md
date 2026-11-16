@@ -548,10 +548,30 @@ Runs an existing OpenSpec change (`openspec/changes/<change-name>/`) through the
 Requirements in the target project:
 
 - An OpenSpec project: `openspec/config.yaml`, committed. In a git work tree the skill stops when `openspec/config.yaml` is not tracked, because the run worktree sees only committed files (ADR-013 D11).
-- The change folder, made with `openspec new change <change-name>` (or `/opsx:propose`). The router never creates it: `init` and `next` halt, and write nothing, when it is missing, and say that a change hosted in a store (`--store`) is not supported.
-- The OpenSpec skills `openspec-propose`, `openspec-apply-change` and `openspec-verify-change`. They resolve from the session's project, not from the worktree files (check 1 of ADR-013); the skill prints one line naming untracked `.claude/skills/openspec-*` folders, because a session started inside the run worktree sees them only once they are committed.
+- The change folder, made with `openspec new change <change-name>` or the `openspec-propose` skill. The router never creates it: `init` and `next` halt, and write nothing, when it is missing, and say that a change hosted in a store (`--store`) is not supported.
+- OpenSpec 2.0.0 and its skills `openspec-propose`, `openspec-apply-change` and `openspec-verify-change`, selected through a custom profile that includes `propose,apply,verify`. The core profile omits verify. Canonical files live in `.agents/skills/`, and Claude reads project-relative `.claude/skills/` links. Track the canonical targets, `.agents/skills/.openspec-target` and links in Git before creating run worktrees. The skill warns about untracked targets/links. Confirm discovery in a fresh native child from the run root, since the parent session's skill catalog alone cannot establish it.
 - With `--archive`, the `openspec` CLI on `PATH` (the archive subagent runs it) and a git work tree, as for the 10x archive.
 - Node.js 24 or later and `git`, as for the 10x chain.
+
+### OpenSpec 2.0.0 setup and upgrade
+
+Install the exact compatibility target with `npm install -g @fission-ai/openspec@2.0.0` and confirm `openspec --version` prints `2.0.0`. Profile configuration is global. Inspect `openspec config get profile` and `openspec config get workflows` before changing an existing selection. Preserve every additional workflow the user selected when extending the custom workflow array to include `propose`, `apply` and `verify`.
+
+For a new configuration using only the pipeline's required workflows, run the following commands from the project root.
+
+```sh
+openspec config set profile custom
+openspec config set workflows '["propose","apply","verify"]'
+openspec init --tools claude,codex --profile custom
+```
+
+Choose the tools used by the project explicitly. This example selects Claude and Codex. The repository's own migration retains all twelve installed workflows, `propose,explore,new,continue,apply,update,ff,sync,archive,bulk-archive,verify,onboard`. If verify is missing, include it in the deliberate custom-profile selection and run `openspec update`. Scripted setup/update fixtures supply scratch-local HOME and XDG config/data/cache paths and disable telemetry/update checks, preserving real global configuration.
+
+Before upgrading an existing project, preserve generated-file customizations in Git and inspect `openspec update --dry-run` or `openspec update --dry-run --json`. Review the selected workflow inventory and proposed changes before `openspec update`. Upstream can retain customized legacy tool copies and command files, while updates overwrite canonical `.agents/skills/openspec-*` content. Reconcile meaningful custom instructions into project context/rules or a separately named skill before replacing old copies. List the obsolete files, check their contents against the preserved versions, unlink them individually, then remove empty directories deepest first. When every legacy tool file has been removed, explicit `openspec init --tools claude,codex --profile custom` reselects tools and recreates Claude links. An `update` with no discovered tool can succeed without creating those links.
+
+Commit `.agents/skills/openspec-*/SKILL.md`, the generated `.agents/skills/.openspec-target` tool-selection marker and the relative `.claude/skills/openspec-*` links together. Codex discovers shared skills directly. Claude links resolve to targets inside the project. A fresh Git worktree needs both the tracked links and their targets, followed by fresh-child discovery from that run root. Restart existing host sessions after migration so discovery reflects the new layout. Project config, main specs, change artifacts, overrides and run state retain their contents. A repeated update should show an empty integration diff.
+
+### Chain behavior
 
 Chain switch (`--chain`):
 
@@ -608,7 +628,7 @@ Archive (`--archive`, D5):
 - At a passing verdict the router runs the git safety checks of the 10x archive (nothing staged, a symbolic HEAD, no merge, rebase, cherry-pick or revert in progress), except the `created:` line, which an OpenSpec change does not have. It halts when `tasks.md` has an open row, and when the target folder exists, naming `archive_target_exists`, the CLI error it would hit. A halt carries `archive: "skipped: ..."` and `committed`, as in the 10x chain.
 - Then it writes `report.md`, whose `Archive: requested` line names the CLI command `openspec archive <change-name> --yes --json`, commits `openspec/changes/<change-name>/` with `archive.commitMessage`, and returns an `archive` action with the `os-archive` prompt at the pinned tier, `archivePath`, `commit` and `ignored`.
 - `archivePath` is `openspec/changes/archive/<local YYYY-MM-DD>-<change-name>`, or `openspec/changes/archive/<change-name>` when the name already starts with a date, as the CLI names it.
-- The orchestrator runs the `os-archive` prompt in one subagent. It runs `openspec archive <change-name> --yes --json` once from the run root, never the archive skill or `/opsx:archive`, and on success commits only the paths the CLI changed (`openspec/changes/<change-name>/`, the archive folder and `openspec/specs/`) as `chore(archive): close <change-name>`; when anything else is staged it ends `blocked` without committing. A CLI error (for example `archive_target_exists` or a validation error) ends it `blocked` with the error quoted, without a retry. The step has no log entry, no usage figure and no report row, as the 10x `archive` step.
+- The orchestrator runs the `os-archive` prompt in one subagent. It runs `openspec archive <change-name> --yes --json` once from the run root, never the archive skill or `/opsx:archive`, and on success commits only the paths the CLI changed (`openspec/changes/<change-name>/`, the archive folder and `openspec/specs/`) as `chore(archive): close <change-name>`; when anything else is staged it ends `blocked` without committing. A CLI error (for example `archive_target_exists` or a validation error) ends it `blocked` with each error's `code` and `message` quoted, plus `fix` when supplied, without a retry. The step has no log entry, no usage figure and no report row, as the 10x `archive` step.
 - `verify-archive <change-name> --chain openspec [--path <p>]` then reads files only: `archived: true` when the archive folder exists and `openspec/changes/<change-name>/` is gone. It prints `{ archived, path, report }`; OpenSpec stamps no status, so there is no `archivedAt`. Without `--path`, several matching folders give `archived: false` with an `ambiguous` list. With a `--path` that is not an archive folder of the name, the reason lists the `<date>-<change-name>` folders that exist.
 
 Read-only commands:

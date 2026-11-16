@@ -58,7 +58,18 @@ For both chains, choose a change id or name of 1–100 characters using lowercas
 
 🔁 Propose, apply, verify, with up to two automatic fix loops. A lighter chain: no score, plan review or manual checks.
 
-Needs: the skills `openspec-propose`, `openspec-apply-change` and `openspec-verify-change`, the `openspec` CLI for `--archive`, Node.js 24+ and `git`. [Details](docs/REFERENCE.md).
+Use OpenSpec `2.0.0`, Node.js 24+ and `git`. The pipeline needs `openspec-propose`, `openspec-apply-change` and `openspec-verify-change`. The default core profile omits verify. For a new configuration, select the required workflows and tools with the following commands.
+
+```sh
+npm install -g @fission-ai/openspec@2.0.0
+openspec config set profile custom
+openspec config set workflows '["propose","apply","verify"]'
+openspec init --tools claude,codex --profile custom
+```
+
+Profile commands change global OpenSpec configuration. Before updating an existing selection, inspect `openspec config get profile` and `openspec config get workflows`, then retain every additional workflow you use in the custom array. Scripted fixtures isolate HOME and XDG configuration/data/cache paths.
+
+For an existing project, preserve customized generated instructions in Git and review `openspec update --dry-run` before `openspec update`. Reconcile retained legacy files before removing them individually. Explicit `init --tools claude,codex --profile custom` restores tool selection when all legacy tool files have been removed. Shared skills live in `.agents/skills/`, with relative Claude links in `.claude/skills/`. Commit the shared targets, `.agents/skills/.openspec-target` and Claude links so fresh run worktrees contain them, then confirm skill discovery in a fresh child from the run root. `--archive` also needs the CLI on PATH. [Setup and upgrade details](docs/REFERENCE.md#openspec-200-setup-and-upgrade).
 
 ### 🔟 10xDevs
 

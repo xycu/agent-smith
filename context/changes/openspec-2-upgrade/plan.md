@@ -258,16 +258,16 @@ The router continues its file-derived execution path. Capture elapsed time and u
 
 #### Automated
 
-- [x] 1.1 The exact-version CI/probe tests pass, including unavailable, failed, wrong-version and selected-binary cases, using `node --test tools/test/ci-runner.test.mjs`.
-- [x] 1.2 All five original status contracts and the added setup/update/validation/archive fixtures execute against exactly 2.0.0 with zero skips using `CI=1 node --test skills/openspec-pipeline/test/openspec-contract.test.mjs` with an explicitly selected `OPENSPEC_BIN`.
-- [x] 1.3 The full repository gate passes after the CI, fixture and parser-provenance changes, recording actual counts and skip identities.
+- [x] 1.1 The exact-version CI/probe tests pass, including unavailable, failed, wrong-version and selected-binary cases, using `node --test tools/test/ci-runner.test.mjs`. — bef2a2e1
+- [x] 1.2 All five original status contracts and the added setup/update/validation/archive fixtures execute against exactly 2.0.0 with zero skips using `CI=1 node --test skills/openspec-pipeline/test/openspec-contract.test.mjs` with an explicitly selected `OPENSPEC_BIN`. — bef2a2e1
+- [x] 1.3 The full repository gate passes after the CI, fixture and parser-provenance changes, recording actual counts and skip identities. — bef2a2e1
 
 ### Phase 2: Upgrade generated integration and setup instructions
 
 #### Automated
 
-- [ ] 2.1 The integration fixture proves the twelve-workflow migration, tracked shared-skill targets, valid in-project Claude links, input preservation and idempotence, and the prerequisite/prompt tests pass using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs skills/openspec-pipeline/test/openspec-archive.test.mjs`.
-- [ ] 2.2 The full repository gate passes after generated-file, prerequisite and prompt changes, and the final integration diff matches the preserved workflow inventory.
+- [x] 2.1 The integration fixture proves the twelve-workflow migration, tracked shared-skill targets, valid in-project Claude links, input preservation and idempotence, and the prerequisite/prompt tests pass using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs skills/openspec-pipeline/test/openspec-archive.test.mjs`.
+- [x] 2.2 The full repository gate passes after generated-file, prerequisite and prompt changes, and the final integration diff matches the preserved workflow inventory.
 
 ### Phase 3: Revalidate saved runs, delegation and terminal handoff
 
