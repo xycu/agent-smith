@@ -24,7 +24,7 @@ export async function runShard(files) {
   // The API preserves file order, while the CLI sorts file arguments alphabetically.
   const tests = run({ files, concurrency: 2, coverage: true, cwd: ROOT });
   tests.on("test:fail", () => { process.exitCode = 1; });
-  await pipeline(tests, spec, process.stdout);
+  await pipeline(tests, new spec(), process.stdout);
 }
 
 if (isEntryPoint(import.meta.url)) {
