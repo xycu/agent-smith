@@ -15,3 +15,5 @@ Also acting as a Senior Security Expert please define a proposal of a security p
 Drop the commercial trial
 
 I will review everything on final PR
+
+Owner review accepted the content and requested removal of draft/proposal wording from SECURITY.md. Publish the security policy with the accepted reporting, support and response terms.

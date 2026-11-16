@@ -135,7 +135,7 @@ The cap affects every Claude session in that project, including workflows outsid
 - [`docs/REFERENCE.md`](docs/REFERENCE.md): every rule, threshold and edge case.
 - [`docs/ADR/`](docs/ADR/): why it works this way.
 - [`AGENTS.md`](AGENTS.md): contributor guide.
-- [`SECURITY.md`](SECURITY.md): proposed security policy and private reporting process.
+- [`SECURITY.md`](SECURITY.md): security policy and private reporting process.
 - [Releases](https://github.com/xycu/agent-smith/releases): changelog, [SemVer](https://semver.org) tags `vX.Y.Z`.
 
 ## 📄 License

@@ -1,10 +1,8 @@
-# Security policy proposal
-
-Draft for maintainer review. This proposal uses the project's existing contact address. The maintainer should confirm inbox monitoring and the response targets below before adopting it.
+# Security policy
 
 ## Supported versions
 
-Security fixes are proposed for the latest stable release. Users of older versions should upgrade to that release. Reports concerning `main` are also welcome. Older release lines receive fixes at the maintainer's discretion.
+Security fixes target the latest stable release. Users of older versions should upgrade to that release. Reports concerning `main` are also welcome. Older release lines receive fixes at the maintainer's discretion.
 
 ## Reporting a vulnerability
 
@@ -40,7 +38,7 @@ Report upstream model, host, toolkit or GitHub vulnerabilities to their respecti
 
 ## Response and coordinated disclosure
 
-The proposed targets are acknowledgment within five business days and an initial triage update within ten business days of receipt. During an active investigation, aim to provide an update at least every ten business days. These are best-effort targets, subject to maintainer availability.
+The response targets are acknowledgment within five business days and an initial triage update within ten business days of receipt. During an active investigation, aim to provide an update at least every ten business days. These are best-effort targets, subject to maintainer availability.
 
 If you receive no acknowledgment after five business days, follow up at the same address. Once contact is established, agree on remediation and disclosure dates. Aim for coordinated disclosure within 90 days of the initial report, adjusting by mutual agreement for severity, active exploitation and upstream dependencies. Active exploitation may warrant earlier mitigation or disclosure.
 

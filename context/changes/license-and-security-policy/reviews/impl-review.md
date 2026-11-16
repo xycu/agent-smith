@@ -56,3 +56,7 @@ Progress records five completed automated criteria and two pending manual criter
 ## Verification limits and follow-up
 
 The approval records implementation conformity and the focused acceptance results above. Inbox monitoring, live host enforcement, external metadata validation and legal ownership remain outside the verified scope. The owner stopped the broad local router suite during implementation. The subsequently reported CI test failure will be investigated after this review is saved.
+
+## Owner acceptance and publication wording
+
+On 2026-11-16, the owner accepted the content and requested removal of the draft/proposal designation from SECURITY.md. The public document now presents the security policy with the accepted support and response terms, and README uses the corresponding description. This instruction supersedes the proposal-designation requirement recorded in the original plan and review. Manual acceptance items 1.3 and 2.4 are confirmed by the owner's review.
