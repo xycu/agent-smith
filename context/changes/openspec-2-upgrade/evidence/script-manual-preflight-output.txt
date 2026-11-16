@@ -1,5 +1,5 @@
 Manual verification preflight, read-only checks
-Candidate 5e8fc8f8f1e762850da1774d32bfaa27f826929a
+Candidate 684621fad9ffbada7f20b30b6a70f8997837b996
 Branch agent-smith/openspec-2-upgrade
 Node v24.19.0
 Pending Manual rows
