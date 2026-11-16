@@ -16,6 +16,28 @@ const path = require("node:path");
 const args = process.argv.slice(2);
 const fixture = process.env.CODEX_FIXTURE;
 const mode = JSON.parse(fs.readFileSync(path.join(fixture, "mode.json"), "utf8"));
+if (args[0] === "app-server") {
+  const readline = require("node:readline");
+  readline.createInterface({ input: process.stdin }).on("line", line => {
+    const request = JSON.parse(line);
+    fs.appendFileSync(path.join(fixture, "metadata-calls.jsonl"), JSON.stringify(request) + "\\n");
+    if (request.id === undefined) return;
+    if (mode.metadataFailure) {
+      process.stdout.write(JSON.stringify({ id: request.id, error: { message: "fixture failure" } }) + "\\n");
+      return;
+    }
+    let result = {};
+    if (request.method === "thread/list") {
+      const pages = mode.pages?.[String(request.params.archived)];
+      result = pages?.[request.params.cursor ?? "first"] ?? { data: [], nextCursor: null };
+    }
+    if (request.method === "thread/turns/list") {
+      result = mode.turns?.[request.params.threadId] ?? { data: [{ status: "completed", startedAt: 10, completedAt: 20 }], nextCursor: null };
+    }
+    process.stdout.write(JSON.stringify({ id: mode.mismatchedResponse ? request.id + 1 : request.id, result }) + "\\n");
+  });
+  return;
+}
 if (args[0] === "--fixture-descendant") {
   const terminate = () => fs.writeFileSync(path.join(fixture, "descendant-terminating"), "yes");
   process.on("SIGTERM", terminate);
@@ -23,6 +45,7 @@ if (args[0] === "--fixture-descendant") {
   fs.writeFileSync(path.join(fixture, "descendant-ready"), String(process.pid));
   setInterval(() => {
     if (fs.existsSync(path.join(fixture, "descendant-release"))) {
+      if (mode.outOfGroup) fs.writeFileSync(path.join(fixture, "late-write"), "child work");
       fs.writeFileSync(path.join(fixture, "descendant-exited"), String(process.pid));
       process.exit(0);
     }
@@ -41,6 +64,7 @@ process.stdin.on("end", async () => {
     return;
   }
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
+  if (!mode.noThread) process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: mode.threadId ?? "root-fixture" }) + "\\n");
   if (mode.commitPaths) {
     const { execFileSync } = require("node:child_process");
     execFileSync("git", ["add", "--", ...mode.commitPaths], { cwd: process.cwd() });
@@ -49,7 +73,9 @@ process.stdin.on("end", async () => {
   let descendantClosed;
   if (mode.descendant) {
     const { spawn } = require("node:child_process");
-    const descendant = spawn(process.execPath, [__filename, "--fixture-descendant"], { stdio: ["ignore", "inherit", "inherit"] });
+    const descendant = spawn(process.execPath, [__filename, "--fixture-descendant"], {
+      detached: mode.outOfGroup === true, stdio: mode.outOfGroup ? "ignore" : ["ignore", "inherit", "inherit"],
+    });
     descendantClosed = new Promise((resolve, reject) => {
       descendant.on("error", reject);
       descendant.on("close", (code, signal) => {

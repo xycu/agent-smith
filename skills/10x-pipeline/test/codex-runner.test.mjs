@@ -50,9 +50,10 @@ for (const chain of ["10x", "openspec"]) {
       assert.equal(model.args[model.args.indexOf("-C") + 1], w.project.root);
       assert.equal(model.args[model.args.indexOf("-m") + 1], w.action.model);
       assert.ok(model.args.includes(`model_reasoning_effort=${JSON.stringify(w.action.effort)}`));
-      assert.ok(model.args.includes("agents.enabled=false"));
+      assert.ok(model.args.includes("agents.enabled=true"));
       assert.ok(model.args.includes("multi_agent_v2"));
-      assert.ok(model.args.includes("--json") && model.args.includes("--ephemeral"));
+      assert.ok(model.args.includes("--json"));
+      assert.equal(model.args.includes("--ephemeral"), false, "native settlement requires retained CLI history");
       assert.equal(model.args.includes("-p"), profile !== null);
       if (profile) assert.equal(model.args[model.args.indexOf("-p") + 1], profile);
       for (const flag of ["--approve-for-me", "--trust", "--ignore-user-config", "--worktree", "-s"]) assert.equal(model.args.includes(flag), false);
@@ -208,7 +209,8 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(fs.existsSync(path.dirname(finalFile)), false);
     const pid = Number(fs.readFileSync(path.join(w.fixture, "ready"), "utf8"));
     assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
-    assert.deepEqual(runnerLeftovers(w), []);
+    assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, 1);
+    assert.match(result.json.reason, /Execution suspended:/);
   });
 }
 
@@ -246,7 +248,7 @@ for (const [label, mode, ok, tokens] of [
     if (label === "child self-declared orchestration fault") assert.equal(result.json.result.status, "unknown");
     if (label === "valid unsuccessful child result") assert.equal(result.json.result.status, "failed");
     if (!ok) assert.equal(result.json.result, null);
-    assert.deepEqual(runnerLeftovers(w), []);
+    assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, ok ? 0 : 1);
   });
 }
 
@@ -258,7 +260,7 @@ test("an oversized completed JSONL record is refused with bounded diagnostics", 
   assert.equal(result.json.completed, false);
   assert.match(result.json.reason, /oversized event/);
   assert.ok(result.stdout.length < 1000);
-  assert.deepEqual(runnerLeftovers(w), []);
+  assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, 1);
 });
 
 for (const chain of ["10x", "openspec"]) {
@@ -324,5 +326,79 @@ test("fake child readiness guarantees immediate cancellation can be handled", as
   const result = await running.closed;
   assert.equal(result.json.exitCode, 0, result.stdout);
   assert.equal(result.json.signal, null, result.stdout);
-  assert.deepEqual(runnerLeftovers(w), []);
+  assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, 1);
+  assert.match(result.json.reason, /Execution suspended:/);
 });
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: recursive paginated metadata settles archived children and suppresses unknown token coverage`, () => {
+    const w = codexFixture(chain, { mode: {
+      pages: {
+        false: { first: { data: [{ id: "child-one" }], nextCursor: "page-two" },
+          "page-two": { data: [{ id: "child-two" }], nextCursor: null } },
+        true: { first: { data: [{ id: "archived-child" }], nextCursor: null } },
+      },
+    } });
+    const result = execute(w);
+    assert.equal(result.json.completed, true, result.stdout);
+    assert.equal(result.json.usage.totalTokens, undefined, "metadata identifies children even without collaboration events");
+    assert.match(result.json.result.assumptions.at(-1), /coverage is unknown/);
+    assert.deepEqual(runnerLeftovers(w), []);
+    const requests = fs.readFileSync(path.join(w.fixture, "metadata-calls.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    const turns = requests.filter(r => r.method === "thread/turns/list");
+    assert.deepEqual(turns.map(r => r.params.threadId), ["root-fixture", "child-one", "child-two", "archived-child"]);
+    for (const r of turns) assert.deepEqual(r.params, { threadId: r.params.threadId, limit: 1, sortDirection: "desc", itemsView: "notLoaded" });
+    const lists = requests.filter(r => r.method === "thread/list");
+    assert.equal(lists.length, 6, "enumeration is repeated after completion to catch newly spawned descendants");
+    for (const r of lists) {
+      assert.equal(r.params.ancestorThreadId, "root-fixture");
+      assert.equal(r.params.parentThreadId, undefined);
+      assert.deepEqual(r.params.sourceKinds, ["cli", "vscode", "exec", "appServer", "subAgent", "subAgentReview", "subAgentCompact", "subAgentThreadSpawn", "subAgentOther", "unknown"]);
+    }
+  });
+  for (const [label, mode] of [
+    ["missing parent identity", { noThread: true }],
+    ["invalid parent identity", { threadId: "" }],
+    ["metadata error", { metadataFailure: true }],
+    ["mismatched response", { mismatchedResponse: true }],
+    ["unfinished parent", { turns: { "root-fixture": { data: [{ status: "interrupted", completedAt: null }] } } }],
+    ["missing timestamp", { turns: { "root-fixture": { data: [{ status: "completed" }] } } }],
+    ["malformed enumeration", { pages: { false: { first: { data: [] } } } }],
+    ["parent returned as child", { pages: { false: { first: { data: [{ id: "root-fixture" }], nextCursor: null } } } }],
+    ["cursor cycle", { pages: { false: { first: { data: [], nextCursor: "first" } } } }],
+    ["held child", { pages: { false: { first: { data: [{ id: "held-child" }], nextCursor: null } } },
+      turns: { "held-child": { data: [{ status: "interrupted", completedAt: null }] } } }],
+    ["archived unfinished child", { pages: { true: { first: { data: [{ id: "held-child" }], nextCursor: null } } },
+      turns: { "held-child": { data: [{ status: "inProgress", completedAt: null }] } } }],
+  ]) {
+    test(`${chain}: ${label} retains native ownership and rejects relaunch`, () => {
+      const w = codexFixture(chain, { mode });
+      const before = snapshot(w.project.agentDir);
+      const result = execute(w);
+      assert.equal(result.json.launched, true, result.stdout);
+      assert.equal(result.json.completed, false);
+      assert.equal(result.json.result, null);
+      assert.match(result.json.reason, /^Execution suspended:/);
+      assert.match(result.json.reason, /lock file .*\.lock.*settlement.*recovery/);
+      assert.equal(runnerLeftovers(w).length, 1, "only the durable lock remains");
+      assert.deepEqual(snapshot(w.project.agentDir), before);
+      assert.equal(execute(w).json.launched, false);
+      assert.deepEqual(snapshot(w.project.agentDir), before);
+    });
+  }
+  test(`${chain}: child report and terminal events cannot replace the enclosing failed result`, () => {
+    const reply = 'RESULT: {"status":"failed","note":"child failed; parent reconciled edits"}';
+    const w = codexFixture(chain, { mode: { reply, events: [
+      { type: "item.completed", item: { type: "collab_tool_call", text: 'RESULT: {"status":"done"}' } },
+      { type: "item.completed", item: { type: "agent_message", text: reply } },
+      { type: "turn.completed", usage: { input_tokens: 10, output_tokens: 5 } },
+      { type: "item.completed", thread_id: "foreign-child", item: { type: "agent_message", text: 'RESULT: {"status":"done"}' } },
+      { type: "turn.failed", thread_id: "foreign-child" },
+    ] } });
+    const result = execute(w);
+    assert.equal(result.json.completed, true, result.stdout);
+    assert.equal(result.json.result.status, "failed");
+    assert.equal(result.json.usage.totalTokens, undefined);
+    assert.deepEqual(runnerLeftovers(w), []);
+  });
+}

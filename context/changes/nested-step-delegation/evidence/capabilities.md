@@ -71,8 +71,44 @@ An attempt to queue this finding to the active implementation CLI failed because
 
 The native successes above do not complete the twelve-cell normal-entry matrix, mixed-provider integration, final-candidate cancellation/resume, negative safety probes or delegated usage attribution. Forced parent termination exposed a concrete native-child recovery defect that the implementation must address. Claude interactive quota is an observed external limitation, while the remaining cells still require their own final-candidate evidence. Performance benchmarking remains deferred by the owner.
 
+## Observable settlement through retained host metadata
+
+The step 7 implementation requested version-specific evidence of an observable all-child settlement condition. Additional top-level probes used the installed Codex CLI `0.169.0` and its generated experimental app-server schema. The schema was generated with `codex app-server generate-json-schema --experimental --out <scratch-directory>`. The model-free API requests below were executed against `codex app-server --stdio` with the ordinary initialize/initialized handshake. The source schema and raw probe records remain under the nonce fixture directory recorded above.
+
+### Documented control API
+
+The installed `ThreadListParams` schema documents `ancestorThreadId` as returning spawned descendants at any depth, excluding the ancestor. The filter is mutually exclusive with `parentThreadId`. Pagination uses `cursor` and `nextCursor`. Omitting `sourceKinds` defaults to interactive sources, so that default cannot enumerate native children. An omitted/false `archived` filter excludes archived threads.
+
+For the completed probe, descendant enumeration explicitly requested the full installed source-kind set `cli`, `vscode`, `exec`, `appServer`, `subAgent`, `subAgentReview`, `subAgentCompact`, `subAgentThreadSpawn`, `subAgentOther` and `unknown`. It queried both `archived=false` and `archived=true`. Both pages ended with `nextCursor=null`. An implementation must consume subsequent pages when present and retain uncertainty on errors or malformed/incomplete responses.
+
+The installed `thread/turns/list` API accepts `threadId`, `limit=1`, `sortDirection=desc` and `itemsView=notLoaded`. This returns the latest turn's status and `startedAt`/`completedAt` without loading the model transcript. The schema describes `completedAt` as the Unix timestamp in seconds when the turn completed. Use this bounded metadata view to avoid copying full transcripts into the run or execution lock.
+
+### Positive and negative controls
+
+An isolated probe omitted `--ephemeral`, retained ordinary CLI session metadata, enabled `agents.enabled=true` and retained `--disable multi_agent_v2`. A native child still spawned and returned the nonce under this existing transport setting. Enabling v2 is therefore unnecessary for the observed child capability on this installation.
+
+In a held-child probe using retained metadata, ancestor `01a1e230-17b8-71f3-81e0-08b69fbad0bc` exposed child `01a1e230-3ecb-7c40-9f07-1056d9f42921` through `thread/list` while the child's scratch command was still held. The API reported the thread as `notLoaded` and reconstructed its unfinished turn as `interrupted`. After release and normal parent exit, it reported the child's turn as `completed`.
+
+A separate query after that normal run enumerated archived and unarchived descendants using the complete source-kind set. It returned that child in the unarchived set, no archived descendants and no further pages. Bounded latest-turn queries returned the parent as `completed` with `completedAt=1794796217` and the child as `completed` with `completedAt=1794796191`. The parent command exited zero. These observations provide a concrete normal-completion predicate for this CLI contract, while the control API's ancestor filter supplies the documented recursive enumeration boundary. Raw records are `codex-observable/ownership-observations.json` and `codex-observable/completed-ownership-proof.json`.
+
+A retained-metadata SIGKILL probe supplied a stronger negative control. While its native child was held, both before and after forced parent termination, `thread/turns/list` returned child status `interrupted` with `completedAt=null`. After release, the child produced the late-write marker. Its metadata still had no completion timestamp during the bounded follow-up observation. That state must remain uncertain. Treating `notLoaded`, `interrupted`, parent death, a vanished process group or a timeout as settlement would be incorrect. Raw records are `codex-persisted-hard-cancel/ownership-observations.json`.
+
+### Implementation boundary supported by these observations
+
+Retain native CLI session metadata instead of launching native-capable executions with `--ephemeral`, capture the parent id from `thread.started`, and preserve it in the existing execution-lock owner before accepting results. This changes local Codex history retention and must be disclosed in behavior documentation. The CLI continues to own those session records.
+
+For normal acceptance, combine the existing enclosing final-message/turn/exit validation with successful recursive enumeration of the parent's archived and unarchived descendants and explicit completed latest turns with valid completion timestamps for the parent and descendants. Validate the parent identity and complete pagination. Reject unknown, missing, malformed or unfinished metadata. The native parent instructions continue to require collection and reconciliation before its own report. The metadata barrier establishes settlement and does not replace those semantic responsibilities.
+
+An uncertain or forcibly terminated native execution retains its lock and suspends result intake, rollback, relaunch and publication. The probes do not justify automatically clearing a crashed parent's lock merely because a listed child later looks inactive. Preserve the existing flat-lock compatibility path separately. Model-free fake API responses can cover pagination, archived descendants, active/unfinished children, malformed responses, parent mismatch, API failure, successful normal collection and retained native exclusion after hard termination. No parallel lock owner or new capability toggle is required.
+
+This evidence establishes a usable metadata-based normal-settlement boundary and a fail-closed crash boundary for implementation. Final-candidate runtime verification and the full live matrix remain pending.
+
+### Observer configuration boundary
+
+The installed CLI rejects `codex -p <name> app-server` because profile selection applies to runtime commands rather than app-server, and rejects `codex app-server -p <name>` as an unexpected argument. These were model-free argument checks using a deliberately nonexistent profile name. Do not invent a profile flag for the observer. Preserve the action's existing profile for model execution and permission preflight. Metadata observation targets the shared local Codex history through the supported app-server interface and must fail closed when that observer cannot resolve or verify the captured native parent. Any profile-specific alternate metadata-store behavior remains unproved by these default-configuration probes.
+
 ## Implementation controls and limits
 
-The enabling candidate uses the observed `agents.enabled=true --enable multi_agent_v2` controls and Claude depth `"2"`. The [current native Codex contract](https://learn.chatgpt.com/docs/agent-configuration/subagents), reviewed 2026-11-16, lists enablement and concurrent-thread controls but no depth control. Assumption: enforce the one-child-layer bound through the shared leaf instructions; do not invent a depth flag or claim a runtime cap. Codex documents inherited sandbox/approval settings, while actual hook inheritance remains a pending live check.
+The enabling candidate follows the newer retained-metadata probe with `agents.enabled=true --disable multi_agent_v2` controls and Claude depth `"2"`. The [current native Codex contract](https://learn.chatgpt.com/docs/agent-configuration/subagents), reviewed 2026-11-16, lists enablement and concurrent-thread controls but no depth control. Assumption: enforce the one-child-layer bound through the shared leaf instructions; do not invent a depth flag or claim a runtime cap. Codex documents inherited sandbox/approval settings, while actual hook inheritance remains a pending live check.
 
 The recorded root stream informs completion parsing: collaboration items never supply parent assistant messages or terminal turns. Defensive explicitly foreign-thread fixtures are synthetic safety checks, not newly observed native events. Inclusive delegated usage remains unproved; collaboration causes token omission and a bounded coverage assumption, while duration covers the enclosing exec. Claude Agent figures require separate coverage evidence for on-time, late and archive paths. Required unavailable safe-child capability reports blocked; the twelve-cell matrix remains pending.

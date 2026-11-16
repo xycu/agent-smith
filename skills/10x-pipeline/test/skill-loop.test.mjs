@@ -381,11 +381,11 @@ for (const [chain, source] of [
   ["10x", skill],
   ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8")],
 ]) {
-  test(`${chain}: full Anti-stall baseline is immutable`, () => {
+  test(`${chain}: Anti-stall baseline is immutable apart from the required suspension STOP`, () => {
     const start = source.indexOf(HEADING);
     const end = source.indexOf("\n## ", start + HEADING.length);
     assert.ok(start >= 0 && end > start);
-    const digest = createHash("sha256").update(source.slice(start, end + 1)).digest("hex");
+    const digest = createHash("sha256").update(source.slice(start, end + 1).replace("the suspension STOP for unresolved native ownership or ", "")).digest("hex");
     assert.equal(digest, "9d262e57b558c87ce54b3a258c9454b3eec2eb35b44cc3539a0d1047077b1d44");
   });
   test(`${chain}: routing literals stay in policy and reference`, () => {
@@ -407,7 +407,7 @@ test("AGENTS assigns routing documentation to the reference for both skills", ()
 });
 
 for (const [chain, source, ceiling] of [
-  ["10x", skill, 26000],
+  ["10x", skill, 28100],
   ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36449],
 ]) {
   test(`${chain}: skill byte budget and single procedure owners`, () => {
@@ -477,5 +477,49 @@ for (const [chain, source] of [
       assert.ok(archive.includes("archivedAs"));
       assert.ok(archive.includes("archive_target_exists"));
     }
+  });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  const source = fs.readFileSync(path.join(REPO_ROOT, `skills/${chain}-pipeline/SKILL.md`), "utf8");
+  const onTime = source.split("\n  4. For matched Agent usage")[1].split("\n  5. ")[0];
+  const late = source.split("## Late usage (before every end)")[1].split("\n## ")[0];
+  test(`${chain}: enclosing report follows collection and failure reconciliation`, () => {
+    assert.match(source, /Accept only the enclosing step report after it has collected every child and reconciled failures/);
+    assert.match(source, /child notifications never complete the step/);
+  });
+  for (const [name, block, omitted] of [["on-time", onTime, "totalTokens"], ["late", late.includes("Apply Loop step 4’s") ? onTime + late : late, "--tokens"]]) {
+    test(`${chain}: ${name} inclusive, partial and unknown Claude usage retains its coverage boundary`, () => {
+      assert.match(block, /count a verified child-inclusive snapshot once/);
+      assert.match(block, /partial or unknown/);
+      assert.ok(block.includes(`omit \`${omitted}\``));
+      assert.match(block, /independently measured tool\/duration figures at their documented scope/);
+      assert.match(block, /bounded.*assumptions and evidence/);
+    });
+  }
+  test(`${chain}: unknown coverage never delays next or mutates attached/archive figures`, () => {
+    assert.match(onTime, /Replace step-authored usage with measured figures only/);
+    assert.match(onTime, /Invocation matching proves attribution, not coverage/);
+    assert.match(onTime, /Omit missing usage without waiting/);
+    assert.match(late, /Omit the call when no admissible figure exists/);
+    assert.match(late, /Figures already attached remain immutable/);
+    assert.match(late, /Archive usage and its coverage limitation belong only in the final message/);
+  });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: unresolved native execution suspends before result intake and publication`, () => {
+    const source = fs.readFileSync(path.join(REPO_ROOT, `skills/${chain}-pipeline/SKILL.md`), "utf8");
+    const stop = source.indexOf("Suspension STOP:");
+    assert.ok(stop > 0 && stop < source.indexOf("- **`run`**"));
+    for (const text of ["pending dispatch, saved prompt and existing result bytes", "read-only status",
+      "signals.needsHuman", "same TMPDIR", "archive verification/dispatch", "late `usage`",
+      "terminal publication/comment", "router-owned recovery", "foreground process has closed"]) {
+      assert.ok(source.slice(stop, source.indexOf("- **`run`**")).includes(text), text);
+    }
+    assert.ok(source.indexOf("Before any result handling") < source.indexOf("With `completed: false`"));
+    assert.match(source, /including `launched: false` and lock-related router halts/);
+    assert.match(source, /Check the suspension STOP before archive verification or publication/);
+    assert.match(source, /for example the suspension STOP for unresolved native ownership/);
   });
 }

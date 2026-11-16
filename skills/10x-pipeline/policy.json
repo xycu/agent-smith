@@ -219,7 +219,7 @@
       "@prompts/plan-review-confirm.md",
       "@prompts/plan-review-apply.md"
     ],
-    "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md.\n- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.\n- **GIVEN** a phase changed files outside `context/changes/{id}/` **WHEN** its gates pass **THEN** you **MUST** commit those files before you write the RESULT line, under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`.",
+    "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md.\n- **GIVEN** `/10x-goal-implement` delegates phase code or a gate fix **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract, collect the work and retain gates, Progress and authorized commits in this enclosing step.\n- **GIVEN** a phase changed files outside `context/changes/{id}/` **WHEN** its gates pass **THEN** you **MUST** commit those files before you write the RESULT line, under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`.",
     "impl-review": [
       "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md.",
       "@prompts/impl-review-apply.md",
@@ -258,7 +258,7 @@
     "implement-segment": [
       "Run /10x-goal-implement {id} phase {phase}\nImplement every pending #### Automated row of phases {phase} to {lastPhase} in context/changes/{id}/plan.md.",
       "- **GIVEN** phase {lastPhase} is done **WHEN** later phases still have pending rows **THEN** you **MUST NOT** start them.",
-      "- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.",
+      "- **GIVEN** `/10x-goal-implement` delegates phase code or a gate fix **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract, collect the work and retain gates, Progress and authorized commits in this enclosing step.",
       "- **GIVEN** a phase changed files outside `context/changes/{id}/` **WHEN** its gates pass **THEN** you **MUST** commit those files before you write the RESULT line, under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`."
     ],
     "implement-e2e": [

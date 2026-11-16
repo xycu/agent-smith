@@ -101,7 +101,7 @@ test("OpenAI browser fallback preserves native advisor refusals under either tem
   }
 });
 
-test("shared wired prompts explain named skills and forbid every child delegation mechanism", () => {
+test("shared wired prompts explain named skills and bound delegation to collected leaves", () => {
   for (const template of Object.keys(POLICY.prompts).filter((key) => key !== "byFile")) {
     const text = promptText(POLICY, template);
     assert.equal(typeof text, "string", template);
@@ -109,7 +109,10 @@ test("shared wired prompts explain named skills and forbid every child delegatio
   const suffix = ruleTail(POLICY, { step: "plan" });
   assert.match(suffix, /load its SKILL\.md through the host's skill discovery/);
   assert.match(suffix, /treating the slash text as a skill name and arguments/);
-  assert.match(suffix, /\*\*MUST NOT\*\* call the Agent tool, the Task tool, spawn_agent or any other delegation tool/);
+  assert.match(suffix, /\*\*MAY\*\* start one native child layer/);
+  assert.match(suffix, /identify the child as a leaf with no further delegation/);
+  assert.match(suffix, /collect every launched child, reconcile edits and failures/);
+  assert.match(suffix, /you are a delegated leaf.*\*\*MUST NOT\*\* do so/);
   assert.doesNotMatch(suffix, /AskUserQuestion is unavailable/);
 });
 

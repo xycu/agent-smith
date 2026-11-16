@@ -118,17 +118,17 @@ Opt-in extras: restricted step agents, advisor prompts, confirmation review roun
 
 ### Claude Code subagent depth
 
-This repository caps Claude Code subagent depth at one layer. Plugin users can optionally merge this entry into their project’s `.claude/settings.json`.
+This repository permits the orchestrator → step → child layers. Plugin users enable delegation by merging this entry into their project’s `.claude/settings.json`.
 
 ```json
 {
   "env": {
-    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2"
   }
 }
 ```
 
-The cap affects every Claude session in that project, including workflows outside the pipeline. Commit the setting before creating run worktrees, then start a fresh Claude session from the intended project root. The reference covers version support, overrides and verification. [Subagent depth](docs/REFERENCE.md)
+The cap affects every Claude session in that project, including workflows outside the pipeline. Commit the setting before creating run worktrees, then start a fresh Claude session from the intended project root. Use awaited foreground children with the guarded `agent-smith:step` identity. Native collection was observed on Claude Code 2.1.311 headless; interactive collection remains quota-blocked and full pipeline qualification is pending. The reference covers version support, overrides, usage coverage and recovery. [Subagent depth](docs/REFERENCE.md)
 
 ## 📚 More
 
