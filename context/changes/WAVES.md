@@ -1,6 +1,6 @@
 # Waves v2
 
-Updated 2026-11-16. The initial planning snapshot was `main` at `dee383af2ecd1080bb5f0f254cb6bcf01ca1b8e6`, after [PR #197](https://github.com/xycu/agent-smith/pull/197). Wave 1 is now accepted, archived and merged. The remaining waves retain their planned entry conditions.
+Updated 2026-11-16. The initial planning snapshot was `main` at `dee383af2ecd1080bb5f0f254cb6bcf01ca1b8e6`, after [PR #197](https://github.com/xycu/agent-smith/pull/197). Waves 1 and 2 are accepted, archived and merged. Wave 2 carries the owner's explicit deferral of six live-host qualification cells to S-20. The current release is [v1.13.0](https://github.com/xycu/agent-smith/releases/tag/v1.13.0), at `f126287f`. Wave 3 is next, subject to its recorded host/account prerequisites.
 
 **Wave 0 contains exactly one change: `nested-step-delegation` (S-14).** The owner selected child-subagent support as the first delivery on 2026-11-15. No other change runs alongside it. The former prerequisite S-12 → S-14 is reversed: S-14 establishes its own focused baseline and proof; the first complete unattended delivery follows it.
 
@@ -16,6 +16,18 @@ Both audit fixes completed seven pipeline steps, received implementation-review 
 | Configured branch prefix | PR #203 merged as `bd669ada`, with 1,727 local full-suite passes with three expected skips. | [Archive](../archive/2026-11-15-run-branch-prefix-consistency/change.md), [verification and publication acceptance](../archive/2026-11-15-run-branch-prefix-consistency/verification.md), [PR #203](https://github.com/xycu/agent-smith/pull/203) |
 
 The owner directed Wave 1 kickoff after the Wave 0 implementation merged, while S-14’s live-host qualification remained pending. That instruction supplied the scheduling exception for Wave 1. S-14’s recorded host-acceptance obligations remain open, and the final supported-host qualification remains assigned to S-20. [Wave 0 acceptance evidence](nested-step-delegation/evidence/acceptance.md)
+
+## Wave 2 acceptance
+
+S-13 completed seven pipeline steps, received implementation-review approval with zero findings, and passed the independent local full suite with 1,790 passes, zero failures and three expected skips. The OpenSpec CLI contracts execute against exactly 2.0.0, and all twelve generated workflows have migrated integration instructions. All eight Automated Progress rows and publication row 3.5 are complete. [Implementation review](../archive/2026-11-16-openspec-2-upgrade/reviews/impl-review.md), [verification](../archive/2026-11-16-openspec-2-upgrade/evidence/verification.md), [Progress](../archive/2026-11-16-openspec-2-upgrade/plan.md#progress)
+
+| Change | Accepted implementation | Archive and publication |
+| --- | --- | --- |
+| S-13 `openspec-2-upgrade` | PR #208 merged as `fed1cfb2`. Release PR #209 merged as `f126287f`, publishing v1.13.0. | [Archive](../archive/2026-11-16-openspec-2-upgrade/change.md), [publication acceptance](../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#publication-acceptance), [PR #208](https://github.com/xycu/agent-smith/pull/208), [release PR #209](https://github.com/xycu/agent-smith/pull/209) |
+
+The owner selected “Archive with qualification deferred to S-20” on 2026-11-16. Manual row 3.4 preserves six unverified OpenSpec host/provider/launch cells, covering Claude-only, mixed-provider and OpenAI-only configurations across interactive and headless launches. S-20 retains their normal-entry, child ownership, recovery, restriction and usage proof obligations on the final combined candidate. S-13 is closed under that explicit decision. [Owner archive decision](../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision), [pending matrix](../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#openspec-normal-entry-matrix)
+
+Main-branch CI passed for both the implementation merge and the release merge, and the release workflow published v1.13.0 successfully. The requested PR report comment is present. [Implementation CI](https://github.com/xycu/agent-smith/actions/runs/43962649787), [release CI](https://github.com/xycu/agent-smith/actions/runs/43964089841), [release workflow](https://github.com/xycu/agent-smith/actions/runs/43965222889), [report comment](https://github.com/xycu/agent-smith/pull/208#issuecomment-6929295241)
 
 ## Initial planning snapshot
 
@@ -44,13 +56,13 @@ The initial schedule contained **11 changes**, comprising nine roadmap slices an
 
 ## Wave map
 
-Wave 1 is complete. Wave 0 has merged implementation and pending live-host qualification. Waves 2–8 retain their planned outcomes. Roadmap readiness continues to mean ready for planning.
+Waves 1 and 2 are complete, with Wave 2's approved qualification deferral recorded above. Wave 0 has merged implementation and pending live-host qualification. Waves 3–8 retain their planned outcomes. Wave 3's preceding-wave entry condition is satisfied, and its authenticated Claude and review-remote prerequisites apply. Roadmap readiness continues to mean ready for planning.
 
 | Wave | Changes | Entry condition | Exit outcome |
 | --- | --- | --- | --- |
 | **0 — child delegation (1)** | **S-14 `nested-step-delegation`** | Owner-selected first change; establish focused host prerequisites and baseline within this change. | A step awaits its children, owns their results and preserves recovery/safety in the supported modes. |
 | **1 — audit correctness (2), complete** | `compare-damaged-logs-not-comparable`; `run-branch-prefix-consistency` | Owner-directed kickoff after Wave 0 implementation merged, with disjoint runtime ownership confirmed in the plans. | Accepted, archived and merged through PRs #201 and #203. Damaged logs are ineligible for comparison; configured run branches work through setup and publication. |
-| **2 — specification compatibility (1)** | S-13 `openspec-2-upgrade` | Wave 1 merged. | Both integration instructions and the specification workflow work with OpenSpec 2.0.0. |
+| **2 — specification compatibility (1), complete** | S-13 `openspec-2-upgrade` | Wave 1 merged. | Accepted, archived and merged through PR #208, released as v1.13.0. OpenSpec 2.0.0 CLI contracts and migrated integration instructions pass; six live-host qualification cells are explicitly deferred to S-20. |
 | **3 — first complete delivery (1)** | S-12 `first-unattended-delivery` | Wave 2 merged; authenticated Claude and review-remote access available. | One normal Claude-only plan-based run reaches a reviewable PR without steering. |
 | **4 — actionable setup (1)** | S-15 `actionable-run-prerequisites` | S-12, S-13 and S-14 delivered; first-run evidence available. | Missing tools, discovery, trust and permissions identify the required action before affected execution. |
 | **5 — recovery and protection (2)** | S-16 `resumable-unattended-runs`; S-18 `verified-step-protection` | Wave 4 merged; plans prove recovery and guard changes do not edit the same runner/settings/skill regions. | Interrupted work is recoverable and supported-host protection is observed. |
@@ -60,9 +72,9 @@ Wave 1 is complete. Wave 0 has merged implementation and pending live-host quali
 
 S-13 and S-12 are deliberately sequential here: the first delivery can expose fixes in shared entry points. S-19 precedes S-17 because both can change archive and terminal skill sections. These are execution choices, not additional product features.
 
-## Wave 0: child subagents, alone
+## Wave 0 contract and remaining acceptance
 
-**Only change:** `nested-step-delegation` / [S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents). There is no sibling change in this wave, and later waves do not start while it is in flight.
+**Only change:** `nested-step-delegation` / [S-14](../foundation/roadmap.md#s-14-pipeline-steps-can-delegate-to-child-subagents). Its implementation merged through PR #199 as `d7e08ba6` and shipped in v1.12.0. The single-change execution scope and acceptance contract below retain their original obligations. The owner's later-wave scheduling decisions are recorded in the acceptance sections above. [PR #199](https://github.com/xycu/agent-smith/pull/199), [release](https://github.com/xycu/agent-smith/releases/tag/v1.12.0), [current evidence](nested-step-delegation/evidence/acceptance.md)
 
 The change must reconcile the current restrictions as one coherent delivery: shared step rules, executor instructions, both orchestrator skills, host depth/delegation settings, effective step protection, result/usage attribution and interruption recovery. Likely ownership includes `skills/10x-pipeline/rules/top.md`, affected prompts, both `SKILL.md` files, `.claude/settings.json`, relevant Codex/agent/hook configuration, and the existing runner/state paths where evidence shows a change is needed. The plan must identify the exact callers and tests; this list does not require rewriting every listed area.
 
@@ -76,7 +88,7 @@ Wave 0 is complete only when its reviewed implementation and evidence establish 
 4. Interactive and headless behavior is recorded. Any capability gap affecting the six agreed configurations is resolved explicitly before making that support claim; a fixture alone does not prove host behavior.
 5. The existing delegation decision and tests are updated with the new supported contract. Performance is reported from measurements, including coordination and retries, without assuming an improvement.
 
-The first planning action is `/10x-new nested-step-delegation` with S-14 and this Wave 0 record as its intent. Host access needed for this bounded proof is handled inside the same change; it does not turn S-12 or S-15 into a prerequisite wave.
+The initial planning action was `/10x-new nested-step-delegation` with S-14 and this Wave 0 record as its intent. S-14 remains in progress with Manual rows 1.3, 3.4 and 3.5 pending in its recorded plan. Qualification and publication evidence must be reconciled before its archive decision. [Progress](nested-step-delegation/plan.md#progress)
 
 ## Ownership and acceptance anchors for later waves
 
