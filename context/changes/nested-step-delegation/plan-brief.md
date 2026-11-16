@@ -9,7 +9,7 @@ Allow a pipeline step to delegate bounded work to children and collect their com
 
 ## Starting Point
 
-Shared rules, executor prompts, Claude's depth cap and Codex runner flags currently prevent delegation. Both orchestrators already reject child and foreign notifications as parent results. Native child waiting, event scope, permissions, usage and cancellation remain unverified in the supplied research.
+Phase 1 is committed at `c4f7b69`. Router recovery preserved the failed Phase 2 attempt in `refs/agent-smith/nested-step-delegation/a0b7de060795/failed-4`; implementation files are back at Phase 1. The failed diff shortened unrelated skill instructions, breaking setup/handoff and archive contracts. Its full suite did not complete successfully. Native probes demonstrate child collection in bounded modes and expose a child surviving its parent's process group.
 
 ## Desired End State
 
@@ -21,10 +21,12 @@ Both workflow chains support a verified child layer under their steps. The paren
 | --- | --- | --- | --- |
 | Child depth | One child layer below the step | Fits the requested capability and current implementation skill's ownership pattern | Plan A1, Research |
 | Child safety | Reuse the guarded Claude step identity and effective native permissions | Preserves the existing guard boundary and applicable restricted tools | Plan A2, ADR-024 |
-| Activation | Establish live capability evidence before Phase 2 | Event scope, waiting and descendant lifetime determine safe enablement | Plan A3, Research |
+| Qualification | Use recorded native probes for implementation and qualify the complete matrix on the final candidate | Preserves honest support claims while quota-blocked acceptance remains pending | Plan A3, capabilities.md |
 | Results | Parent report alone advances the router | Existing invocation matching protects retries and unrelated notifications | Research, ADR-018 |
 | Usage | Apply verified coverage to runner output and Claude on-time, late and archive figures, omitting partial or unknown token totals | Preserves attribution and truthful totals through every intake path | Plan Phase 2, Research |
 | Compatibility | Preserve persistent schemas and exact saved prompts | Existing run recovery and neutral retry depend on those contracts | Plan A4, Research |
+| Retry strategy | Selectively reuse the saved diff and preserve unrelated skill wording | Repairs known setup, handoff and archive failures without weakening their tests | Plan A6, implementation-feedback.md |
+| Crash safety | Extend the existing execution lock before accepting native enablement | A gone parent group does not prove child closure; uncertain native ownership keeps mutation/relaunch blocked | Plan A7, capabilities.md |
 | Measurement | Defer performance benchmarking | The owner assigned measurement to later work | Owner instruction, A5 |
 
 ## Scope
@@ -33,28 +35,31 @@ The change reaches shared rules, delegating prompts, Claude settings, Codex exec
 
 ## Architecture / Approach
 
-Native children remain internal to the step. The parent supplies bounded tasks and inherited restrictions, collects every child and returns one enclosing RESULT. The current router, state protocol, run lock and guarded Claude identity remain the integration points. Runtime changes follow observed host evidence.
+Native children remain internal to the step. The parent supplies bounded tasks and restrictions, collects children and returns one enclosing RESULT. The existing lock owner gains additive native-execution metadata before model spawn. Both stale takeover and close handling retain exclusion until settlement is established; unresolved ownership produces an actionable retained lock. Run/result schemas and legacy flat-lock behavior remain compatible.
 
 ## Phases at a Glance
 
 | Phase | Delivery | Key risk |
 | --- | --- | --- |
-| 1. Establish the native child contract | Host capability records and deterministic fake descendant/event fixtures | Installed hosts may lack reliable waiting or inherited protection |
-| 2. Enable bounded delegation with parent ownership | Coordinated host controls, prompt contract and result/usage protection | A child report or active descendant could outlive the parent boundary |
-| 3. Verify recovery, compatibility and supported behavior | Recovery regressions, synchronized docs and final host acceptance | Saved dispatches or failure paths could lose work or attribution |
+| 1. Establish the native child contract | Completed local fixtures; live qualification remains pending | Primitive probes do not qualify the full matrix |
+| 2. Enable bounded delegation with parent ownership | Selective recovery, instruction repair, native-lock safety, controls/usage and coupled depth docs | Out-of-group children and incomplete test runs must not pass the gate |
+| 3. Verify recovery, compatibility and supported behavior | Broader preservation/retry regressions, final docs and host acceptance | Saved dispatches or failure paths could lose work or attribution |
 
-Prerequisites include Node 24+, installed workflow toolkits, authenticated trusted acceptance projects and top-level permission to run child probes. Phase 1's live evidence gates Phase 2 activation. Estimated effort is three implementation phases plus host acceptance sessions, depending on account and mode availability.
+Prerequisites include Node 24+, installed workflow toolkits and top-level permission/account access for live probes. Resume at Phase 2; its gate now includes archive contracts, an out-of-group-child lock regression (new row 2.4) and a completed full suite. Phase 3 and host acceptance follow. Quota-blocked live cells remain pending.
 
 ## Open Risks & Assumptions
 
-- The scope assumes one child layer and native awaited execution. The exact supported settings must be established before activation.
+- A native forced-termination probe found a child writing after its parent process group disappeared. Phase 2 must fix both lock takeover and close handling, retaining the lock when native ownership cannot be reconciled. An ephemeral parent may have no recoverable rollout. [Probe evidence](evidence/capabilities.md#codex-cancellation-and-forced-parent-termination)
+- The scope assumes one child layer and native awaited execution. Native probes and authoritative host contracts establish the implementation settings, with final-candidate support qualification recorded separately.
 - Functional evidence covers six host/provider/chain combinations in both launch modes, giving twelve cells. Mixed ladders exercise both provider dispatches.
-- Missing host access or a capability gap blocks the affected prerequisite or support claim with an actionable needs-human reason. A step whose instructions prohibit children requires top-level acceptance execution.
-- Existing pending prompts retain their flat instructions across upgrades. Fresh sessions adopt the verified settings and new prompts. Before downgrading, resolve pending child-enabled dispatches and neutral retries on their recorded enabling revision and controls. Unresolved runs retain that revision with a blocked recovery reason.
+- Missing host access or a capability gap leaves the affected support claim unqualified with its observed reason while local implementation and regression checks continue. A step whose instructions prohibit children requires top-level acceptance execution.
+- Existing pending prompts retain exact bytes. Before downgrading, resolve native execution locks and pending child-enabled dispatches on the enabling revision: an old lock reader may otherwise ignore new metadata and permit unsafe takeover. Unresolved runs retain that revision and an actionable blocker.
+- The pending-promise cancellations have no demonstrated root cause yet. Reproduce and diagnose the first failing file; require zero failures/cancellations and only justified existing skips in a fresh complete suite. This re-plan runs no implementation or native acceptance.
 
 ## Success Criteria (Summary)
 
 - Deterministic local tests establish parent-only result ownership, inherited safety, recovery and exact historical retry compatibility before publication.
+- Phase 2 preserves setup/handoff/archive contracts and blocks mutation/relaunch for an out-of-group child; the full suite finishes with recorded totals.
 - Top-level live acceptance proves child collection, failure, interruption/resume, late-result rejection and effective restrictions in all twelve cells on the final candidate.
 - Publication, PR CI and any requested external report comment remain Manual acceptance owned by the authorized orchestrator.
 
