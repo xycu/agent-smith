@@ -33,11 +33,14 @@ const skip = probe();
 // The CLI's JSON answer for the change, run in the project with HOME in the scratch folder so it writes nothing
 // outside it. The JSON starts at the first `{` (the CLI can print a notice before it).
 function cli(project, args, expected = 0) {
+  const env = cleanEnv();
+  delete env.CODEX_HOME;
+  const fixtureHome = path.join(project.base, "home");
   const res = spawnSync(BIN, args, {
     cwd: project.root,
     encoding: "utf8",
     timeout: 30000,
-    env: { ...cleanEnv(), HOME: path.join(project.base, "home"),
+    env: { ...env, HOME: fixtureHome, USERPROFILE: fixtureHome,
       XDG_CONFIG_HOME: path.join(project.base, "xdg-config"),
       XDG_DATA_HOME: path.join(project.base, "xdg-data"),
       XDG_CACHE_HOME: path.join(project.base, "xdg-cache"),

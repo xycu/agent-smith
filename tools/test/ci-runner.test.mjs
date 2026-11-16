@@ -197,6 +197,11 @@ childProcess.spawnSync = (command, args, options) => {
     }
   }
   assert.deepEqual(args, ["instructions", "apply", "--change", "demo", "--json"]);
+  assert.ok(process.env.CODEX_HOME);
+  assert.ok(process.env.USERPROFILE);
+  assert.equal(Object.hasOwn(options.env, "CODEX_HOME"), false);
+  assert.equal(options.env.USERPROFILE, options.env.HOME);
+  assert.notEqual(options.env.HOME, process.env.USERPROFILE);
   const [state, total, complete] = [
     ["blocked", 0, 0], ["blocked", 0, 0], ["ready", 3, 0], ["ready", 3, 1], ["ready", 8, 2],
   ][fixture++];
@@ -224,6 +229,7 @@ for (const tool of ["git", "openspec"]) {
         for (const outcome of ["ok", "missing", "exit", "signal", "timeout", "spawn", ...(tool === "openspec" ? ["wrong-version", "malformed", "empty-version"] : [])]) {
           const selected = `${scratch}/selected-openspec`;
           const env = childEnv({ CI: ci, PROBE_TOOL: tool, PROBE_RESULT: outcome,
+            CODEX_HOME: `${scratch}/ambient-codex`, USERPROFILE: `${scratch}/ambient-profile`,
             OPENSPEC_BIN: selected, PATH: outcome === "missing" ? scratch : parent.PATH });
           const args = tool === "git"
             ? ["--import", preloadUrl, "--input-type=module", "-e",

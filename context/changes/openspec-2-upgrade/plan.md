@@ -266,16 +266,16 @@ The router continues its file-derived execution path. Capture elapsed time and u
 
 #### Automated
 
-- [x] 2.1 The integration fixture proves the twelve-workflow migration, tracked shared-skill targets, valid in-project Claude links, input preservation and idempotence, and the prerequisite/prompt tests pass using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs skills/openspec-pipeline/test/openspec-archive.test.mjs`.
-- [x] 2.2 The full repository gate passes after generated-file, prerequisite and prompt changes, and the final integration diff matches the preserved workflow inventory.
+- [x] 2.1 The integration fixture proves the twelve-workflow migration, tracked shared-skill targets, valid in-project Claude links, input preservation and idempotence, and the prerequisite/prompt tests pass using `node --test skills/openspec-pipeline/test/openspec-contract.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs skills/openspec-pipeline/test/openspec-archive.test.mjs`. — c7c9436d
+- [x] 2.2 The full repository gate passes after generated-file, prerequisite and prompt changes, and the final integration diff matches the preserved workflow inventory. — c7c9436d
 
 ### Phase 3: Revalidate saved runs, delegation and terminal handoff
 
 #### Automated
 
-- [ ] 3.1 Focused saved-dispatch, result/usage, child-settlement, lock/recovery and fake publication tests pass through their normal existing entry points, including the OpenSpec cases.
-- [ ] 3.2 The final full repository gate passes on the candidate with all real 2.0.0 CLI contracts executed, exact counts and skip identities recorded, and a clean whitespace/version check.
-- [ ] 3.3 The verification and acceptance records identify candidate/tool versions, executable commands, failed attempts and unresolved host coverage, with every completed Automated Progress row backed by local evidence.
+- [x] 3.1 Focused saved-dispatch, result/usage, child-settlement, lock/recovery and fake publication tests pass through their normal existing entry points, including the OpenSpec cases.
+- [x] 3.2 The final full repository gate passes on the candidate with all real 2.0.0 CLI contracts executed, exact counts and skip identities recorded, and a clean whitespace/version check.
+- [x] 3.3 The verification and acceptance records identify candidate/tool versions, executable commands, failed attempts and unresolved host coverage, with every completed Automated Progress row backed by local evidence.
 
 #### Manual
 
