@@ -270,10 +270,10 @@ Deploy the scripts and skills together. Existing default runs need no conversion
 
 #### Automated
 
-- [x] 3.1 Both skills' actual-branch reporting and shared-rule content checks pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
-- [x] 3.2 Focused regressions detect the original hardcoded setup and publisher behavior when each fault is reintroduced separately in an isolated scratch copy, followed by a green focused rerun on the implementation.
-- [x] 3.3 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [x] 3.4 Local delivery hygiene passes with `git diff --check`, `node tools/version-check.mjs` and `node tools/commit-lint.mjs adff64f7..HEAD`.
+- [x] 3.1 Both skills' actual-branch reporting and shared-rule content checks pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`. — a80fc55b
+- [x] 3.2 Focused regressions detect the original hardcoded setup and publisher behavior when each fault is reintroduced separately in an isolated scratch copy, followed by a green focused rerun on the implementation. — a80fc55b
+- [x] 3.3 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — a80fc55b
+- [x] 3.4 Local delivery hygiene passes with `git diff --check`, `node tools/version-check.mjs` and `node tools/commit-lint.mjs adff64f7..HEAD`. — a80fc55b
 
 #### Manual
 
