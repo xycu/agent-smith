@@ -1,6 +1,6 @@
 # Manual publication verification
 
-Checked on 2026-11-16 against local revision `ecb4c1e4`.
+Rechecked on 2026-11-16 against local revision `768a802b` after reading the earlier `unproven.md`.
 
 ## Claims checked
 
@@ -12,7 +12,7 @@ Checked on 2026-11-16 against local revision `ecb4c1e4`.
 
 Read-only Git inspection identifies branch `agent-smith/compare-damaged-logs-not-comparable` and repository `xycu/agent-smith`.
 
-The GitHub connector search used `search_prs` with query `head:agent-smith/compare-damaged-logs-not-comparable`, repository `xycu/agent-smith`, state `all`, and limit 10. The current response was successful and contained `{"issues":[]}`. No matching pull request was returned, so there was no PR URL, successful PR CI result or report-comment URL to inspect.
+Fresh GitHub connector searches used `search_prs` with the exact head query and an alternative `"damaged" in:title` query, both scoped to `xycu/agent-smith` and state `all`. Both succeeded with `{"issues":[]}`. An independent `git ls-remote --exit-code --heads` check for the exact run branch exited 2 with no matching ref. Exact requests, responses and command results are saved in `command-publication-recheck.md`. No matching pull request was returned, so there was no PR URL, successful PR CI result or report-comment URL to inspect.
 
 The existing implementation evidence explicitly states, “Manual acceptance remains pending for orchestrator-owned publication, successful PR CI, and the requested run-report comment. Progress rows 1.4 and 1.5 retain their pending state.” A search of the change Markdown artifacts found no recorded GitHub PR or comment URL.
 
@@ -20,4 +20,4 @@ The comparison owner was inspected in `route.mjs`. Its side-specific integrity g
 
 ## Judgment
 
-Neither row is proved. Both remain unchecked. The search establishes only that no matching PR was returned at verification time. This step cannot perform publication or post a report comment under its explicit unattended restrictions. The orchestrator must supply the external artifacts and successful PR CI evidence in a later stage. No tests were rerun because these rows require actual external delivery evidence.
+Neither row is proved. Both remain unchecked. The remote run branch was absent and both searches returned no PR at verification time. The missing publication, CI and comment artifacts prevent proving the quoted claims. The manual-verification rules reserve publication and report posting for the orchestrator. No tests were rerun because these rows require actual external delivery evidence. The existing local verification report remains historical evidence of the implementation gates.
