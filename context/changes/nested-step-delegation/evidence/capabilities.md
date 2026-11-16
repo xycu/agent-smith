@@ -121,4 +121,3 @@ The source hashes were rechecked at final implementation commit `c5250f16`. All 
 A model-free check of the candidate's actual descendant-settlement function accepted a normally completed parent with one descendant and rejected the forcibly terminated parent with the reason `Native parent or descendant has no proven completed latest turn.` The runner source hash in `candidate-native-settlement-check.json` matches the final candidate above.
 
 These focused headless checks leave the full twelve-cell qualification pending. The scratch Git-metadata permission entry used for these checks was removed afterward. The run worktree's scoped entry remains available for the ongoing pipeline.
-
