@@ -761,6 +761,25 @@ for (const chain of ["10x", "openspec"]) {
     assert.match(refused.manual, /runs-demo-baseline/);
   });
 
+  test(`${chain}: saved invalid-prefix drift names the retained branch and restoration prerequisite`, { skip }, () => {
+    const w = world({ chain, prefix: "codex/", identity: true });
+    fs.writeFileSync(path.join(w.root, "kept.txt"), "staged contents");
+    g(w, w.wt, ["add", "--", path.relative(w.wt, path.join(w.root, "kept.txt"))]);
+    fs.writeFileSync(path.join(w.root, "kept.txt"), "working contents");
+    const refs = g(w, w.wt, ["show-ref"]);
+    for (const prefix of [null, "", " ", "bad..ref/"]) {
+      writePolicy(w, { isolation: { require: true, branchPrefix: prefix } });
+      const refused = refuseWithoutWrites(w);
+      for (const text of [refused.reason, refused.manual]) {
+        assert.ok(text.includes(w.branch), text);
+        assert.match(text, /isolation.branchPrefix/);
+        assert.match(text, /restore|resume/i);
+      }
+      assert.equal(g(w, w.wt, ["show-ref"]), refs);
+      assert.equal(remoteRef(w), null);
+    }
+  });
+
   test(`${chain}: malformed and contradictory recorded identities preserve working and staged contents`, { skip }, () => {
     const cases = ["{", "null", "[]", { id: "other", isolated: true, branch: "codex/demo", chain },
       { id: "demo", isolated: true, branch: "codex/demo", chain: chain === "10x" ? "openspec" : "10x" },

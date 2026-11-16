@@ -73,7 +73,7 @@ Needs: the skills `openspec-propose`, `openspec-apply-change` and `openspec-veri
 
 Needs: the skills `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-impl-review`, Node.js 24+ and `git`.
 
-💡 Each run works in its own worktree on the branch `agent-smith/<change-id>`, and ends with that branch pushed and a pull request open for human review. agent-smith never merges it. Needs a `github.com` remote and `gh` for the pull request. Running without a worktree (no push, no pull request): see [Run isolation](docs/REFERENCE.md).
+💡 Each run works in its own worktree and ends with its branch pushed and a pull request open for human review. Branches use `isolation.branchPrefix` plus the change id, with `agent-smith/` as the default. agent-smith never merges the PR. A `github.com` remote and `gh` are required. The reference covers configured naming and the `isolation.require: false` opt-out. [Run isolation](docs/REFERENCE.md)
 
 ### Claude Code invocation
 

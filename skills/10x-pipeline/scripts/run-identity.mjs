@@ -51,6 +51,12 @@ function validBranch(branch, g) {
   }
 }
 
+export function runBranchName(config, id, g) {
+  const branch = `${branchPrefix(config)}${id}`;
+  validBranch(branch, g);
+  return branch;
+}
+
 export function runBranch(config, id, g) {
   const branch = `${branchPrefix(config)}${id}`;
   validateRunBranch(config, id, branch, g);
@@ -69,7 +75,7 @@ export function validateRunBranch(config, id, branch, g) {
     throw new Error(`Branch ${branch} is a default branch; run isolation needs a run branch of its own`);
   }
   if (!branch.startsWith(prefix)) {
-    throw new Error(`Branch ${branch} does not start with ${prefix}; restore isolation.branchPrefix to match the recorded branch ${branch} and resume its worktree (configured branch ${prefix}${id})`);
+    throw new Error(`Branch ${branch} does not start with ${prefix}; run isolation needs the configured branch ${prefix}${id}`);
   }
   return branch;
 }
@@ -88,7 +94,9 @@ export function validateRunIdentity(meta, config, id, chain, branch, g) {
   if (meta.isolated !== true || meta.id !== id || (meta.chain ?? "10x") !== chain || typeof meta.branch !== "string") {
     throw new Error(`Saved run identity does not match isolated ${chain} change ${id}; resume the original recorded run ${meta.branch ?? "(branch unavailable)"}`);
   }
-  validateRunBranch(config, id, meta.branch, g);
+  try { validateRunBranch(config, id, meta.branch, g); } catch (error) {
+    throw new Error(`${error.message}. Restore isolation.branchPrefix to match the recorded branch ${meta.branch} and resume its original worktree`);
+  }
   if (branch !== null && meta.branch !== branch) {
     throw new Error(`This run started on branch ${meta.branch} and HEAD is on ${branch}; resume it on ${meta.branch}`);
   }

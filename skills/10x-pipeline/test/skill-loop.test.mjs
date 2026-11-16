@@ -155,7 +155,7 @@ test("the pull request section follows ## PR comment (opt-in) and runs the scrip
   assert.ok(c >= 0 && p > c, "pull request section is not after the PR comment section");
   const text = sectionOf(PR_HEADING);
   assert.match(text, /`cd "<run root>" && node \$OPEN_PR <change-id>`/);
-  assert.match(text, /Pull request: NOT pushed, <reason>\. Branch agent-smith\/<change-id> is local only: <manual>/);
+  assert.match(text, /Pull request: NOT pushed, <reason>\. Branch <branch> is local only: <manual>/);
   assert.match(text, /never merges/);
   assert.match(text, /isolation\.require: false/);
   assert.doesNotMatch(text, /\b(sonnet|opus|haiku|fable|effort|tier|tiers|model|low|medium|high|xhigh|max)\b/i);
@@ -321,6 +321,16 @@ for (const [chain, source, id, selector] of [
 ]) {
   const start = source.slice(source.indexOf("## Start"), source.indexOf("## Loop"));
   const setup = start.slice(start.indexOf("\n3. "), start.indexOf("\n4. "));
+  test(`${chain}: actual branch reporting uses publication, saved setup and unavailable identity`, () => {
+    const publication = source.split("## Pull request (always)")[1].split("\n## ")[0];
+    assert.ok(setup.includes("name the branch from saved setup `branch`"));
+    assert.ok(publication.includes("Use publication `branch`, else saved setup `branch`, else `unavailable` as `<branch>`"));
+    assert.ok(publication.includes("pushes its validated branch without force"));
+    assert.ok(publication.includes("(branch <branch>, pushed <true|false>)"));
+    assert.ok(publication.includes("Pull request: NOT pushed, <reason>. Branch <branch> is local only: <manual>"));
+    assert.match(publication, /On nonzero exit or no JSON object, print `Pull request: NOT pushed, script error\. Branch <branch> is local only/);
+    assert.doesNotMatch(setup + publication, /agent-smith\/<change-(?:id|name)>/);
+  });
   test(`${chain}: cleanup uses saved fresh setup after successful init and before each dispatch`, () => {
     for (const text of [
       "Save original setup JSON verbatim, independently of cleanup",

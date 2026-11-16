@@ -263,17 +263,17 @@ Deploy the scripts and skills together. Existing default runs need no conversion
 
 #### Automated
 
-- [x] 2.1 Configured publication, base selection and compatibility regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs` using local remotes and fake clients.
-- [x] 2.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.1 Configured publication, base selection and compatibility regressions pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs` using local remotes and fake clients. — 4c645b95
+- [x] 2.2 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 4c645b95
 
 ### Phase 3: Workflow guidance, amendments and delivery gates
 
 #### Automated
 
-- [ ] 3.1 Both skills' actual-branch reporting and shared-rule content checks pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
-- [ ] 3.2 Focused regressions detect the original hardcoded setup and publisher behavior when each fault is reintroduced separately in an isolated scratch copy, followed by a green focused rerun on the implementation.
-- [ ] 3.3 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
-- [ ] 3.4 Local delivery hygiene passes with `git diff --check`, `node tools/version-check.mjs` and `node tools/commit-lint.mjs adff64f7..HEAD`.
+- [x] 3.1 Both skills' actual-branch reporting and shared-rule content checks pass with `node --test --test-concurrency=2 skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
+- [x] 3.2 Focused regressions detect the original hardcoded setup and publisher behavior when each fault is reintroduced separately in an isolated scratch copy, followed by a green focused rerun on the implementation.
+- [x] 3.3 The required full suite passes on Node 24+ with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 3.4 Local delivery hygiene passes with `git diff --check`, `node tools/version-check.mjs` and `node tools/commit-lint.mjs adff64f7..HEAD`.
 
 #### Manual
 

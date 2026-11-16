@@ -1,6 +1,6 @@
 # ADR-017: Push every run branch and open its pull request for human review
 
-- **Status:** Accepted (the repository owner decided the two open review findings on 2026-11-09; the live checks below are still pending). Amendment 1 (2026-11-13) derives a conventional title for the pull request
+- **Status:** Accepted (the repository owner decided the two open review findings on 2026-11-09; the live checks below are still pending). Amendment 1 (2026-11-13) derives a conventional title for the pull request. Amendment 3 (2026-11-16) applies configured branch identity
 - **Date:** 2026-11-09
 - **Deciders:** unattended implementation run of change `worktree-pr-only`; the repository owner decided the opt-out (F1) and the number of this record (F9)
 - **Origin:** change `worktree-pr-only` (`context/changes/worktree-pr-only/change.md`, `plan.md` and `reviews/plan-review.md`). The goal: "All work must done on worktrees and always pushed to be reviewd by human on PRs - no exceptions". It builds on ADR-010 (run worktree, start and step commits) and on the relaxed git rule of `AGENTS.md` (Hard Rules, commit 2d28f0c), which lets code, skills and prompts push a branch and create or edit pull requests and forbids only operations that cannot be undone.
@@ -109,3 +109,21 @@ The shared always-true `rules/top.md` rules carry publication ownership into bot
 Local fake-client tests remain valid Automated criteria. Plan review checks phase Success Criteria and canonical Progress, moving an actionable pending row intact to Manual with its id, title and tick state, and synchronizing the brief. OpenSpec proposal/design artifacts hold equivalent follow-up outside apply tasks. Immutable contradictions use existing pending-finding handling.
 
 The orchestrator runs publication scripts at their terminal points, with report comments governed by existing strict authorization. A supported Claude guard denies the documented direct publication commands inside the dedicated step identity. Semantic rules cover actions through other tools and APIs. Human PR CI acceptance, review and merge follow publication.
+
+## Amendment 3 — Publish the validated configured branch (2026-11-16)
+
+Publication uses the same effective isolation projection and literal branch validation as setup under ADR-010 Amendment 4. This extends the earlier fixed-prefix guard to the configured branch and the selected run identity before any leftover commit or push.
+
+**GIVEN** saved isolated identity in the requested chain or the change directory selected by `--report` **WHEN** the publisher validates the run **THEN** it **MUST** require matching change id, normalized chain, isolated flag, recorded branch and HEAD, protecting configured defaults and the remote default and refusing contradictory or malformed identity before writes or remote calls.
+
+Missing metadata and legacy empty metadata use the exact configured prefix plus change id. An absent saved chain reads as `10x`. The strict boolean isolation opt-out skips publication before prefix validation. A conflicting policy diagnostic identifies the recorded branch and the policy restoration prerequisite.
+
+**GIVEN** automatic base discovery **WHEN** the script considers an ancestor or default-branch fallback **THEN** it **MUST** validate its literal branch name and exclude the run branch, the effective run prefix and the legacy `agent-smith/` namespace.
+
+Explicit base precedence, nearest-ancestor counting, remote-HEAD tie preference and older-Git counting fallback continue to determine the base. The validated actual branch flows through the complete push refspec, GitHub `--head`, JSON output and recovery guidance.
+
+**GIVEN** an executable recovery command **WHEN** the script renders dynamic arguments **THEN** it **MUST** quote each as a shell literal, including the worktree path, remote, complete refspec, repository, branch and base, while runtime Git and GitHub calls use argument arrays.
+
+**GIVEN** terminal reporting **WHEN** publication returns or fails to return JSON **THEN** both skills **MUST** use publication `branch`, then saved setup `branch`, then explicit `unavailable` identity for normal and failure messages.
+
+Deterministic tests cover both chains, saved suffix branches, archived report locations, configured and legacy base exclusions, refusal preservation and literal recovery-command arguments. External PR, comment and CI acceptance remains orchestrator-owned under Amendment 2.

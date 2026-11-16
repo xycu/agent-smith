@@ -1058,3 +1058,132 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(fs.existsSync(path.join(p.root, ".claude")), false);
   });
 }
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: invalid saved-prefix drift names the preserved branch through setup, init and cleanup`, () => {
+    const p = fixture(chain, "apps/widget");
+    configurePrefix(p);
+    const { saved, file } = initialize(p);
+    const current = { ...p, root: saved.runRoot };
+    const source = snapshot(path.join(p.changeDir, "change.md"));
+    const metadata = snapshot(file);
+    const runInput = snapshot(path.join(saved.runRoot, relChange(chain), "change.md"));
+    const log = snapshot(path.join(saved.runRoot, relChange(chain), "agent-smith/run.jsonl"));
+    const indexFile = git(p, ["-C", saved.runRoot, "rev-parse", "--path-format=absolute", "--git-path", "index"]);
+    const index = fs.readFileSync(indexFile);
+    for (const prefix of [null, "", "bad..ref/"]) {
+      override(p, { isolation: { require: true, branchPrefix: prefix } });
+      override(current, { isolation: { require: true, branchPrefix: prefix } });
+      const state = originalState(p);
+      const resumed = run(current, ["init", "demo", "--chain", chain], { env: gitEnv(p) });
+      assert.equal(resumed.json?.action, "halt", resumed.stdout);
+      for (const reason of [setup(current).reason, setup(p).reason, cleanup(p, saved).json?.reason, resumed.json.reason]) {
+        assert.match(reason, /codex\/demo/);
+        assert.match(reason, /isolation\.branchPrefix/);
+        assert.match(reason, /restore/i);
+        assert.match(reason, /resume.*worktree/i);
+      }
+      assert.deepEqual(originalState(p), state);
+      assert.deepEqual(fs.readFileSync(indexFile), index);
+      assert.deepEqual(snapshot(file), metadata);
+      assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), source);
+      assert.deepEqual(snapshot(path.join(saved.runRoot, relChange(chain), "change.md")), runInput);
+      assert.deepEqual(snapshot(path.join(saved.runRoot, relChange(chain), "agent-smith/run.jsonl")), log);
+    }
+  });
+
+  test(`${chain}: invalid saved-prefix drift discovers a source-absent custom registration without mutation`, () => {
+    const p = fixture(chain, "apps/widget", true);
+    configurePrefix(p);
+    const wt = linked(p, "codex/demo", "preserved custom registration");
+    const file = savedIdentity(wt, "codex/demo");
+    fs.renameSync(p.changeDir, `${p.changeDir}-saved`);
+    const metadata = snapshot(file);
+    const input = snapshot(path.join(wt.root, relChange(chain), "change.md"));
+    const registration = git(p, ["worktree", "list", "--porcelain", "-z"]);
+    for (const prefix of [null, "", "bad..ref/"]) {
+      override(p, { isolation: { require: true, branchPrefix: prefix } });
+      const state = originalState(p);
+      for (const env of [{}, wrapper(p, "reverse").env]) {
+        const out = setup(p, { env });
+        assert.equal(out.runRoot, null);
+        assert.match(out.reason, /codex\/demo/);
+        assert.match(out.reason, /isolation\.branchPrefix/);
+        assert.match(out.reason, /restore/i);
+        assert.match(out.reason, /resume.*worktree/i);
+        assert.ok(out.reason.includes(wt.top), out.reason);
+      }
+      assert.deepEqual(originalState(p), state);
+      assert.equal(git(p, ["worktree", "list", "--porcelain", "-z"]), registration);
+      assert.deepEqual(snapshot(file), metadata);
+      assert.deepEqual(snapshot(path.join(wt.root, relChange(chain), "change.md")), input);
+    }
+  });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: cleanup rejects symlinked run roots before reading foreign identity`, () => {
+    for (const replacement of ["worktree", "project"]) {
+      const p = fixture(chain, "apps/widget");
+      configurePrefix(p);
+      const { saved, file } = initialize(p);
+      const metadata = snapshot(file);
+      const source = snapshot(path.join(p.changeDir, "change.md"));
+      const replaced = replacement === "worktree" ? saved.worktree : saved.runRoot;
+      fs.renameSync(replaced, `${replaced}-saved`);
+      const foreign = path.join(p.base, "foreign root");
+      const foreignRoot = replacement === "worktree" ? path.join(foreign, "apps/widget") : foreign;
+      const foreignMeta = path.join(foreignRoot, relChange(chain), "agent-smith/meta.json");
+      fs.mkdirSync(path.dirname(foreignMeta), { recursive: true });
+      fs.writeFileSync(foreignMeta, JSON.stringify({ id: "other", isolated: true, branch: "codex/foreign-identity-marker" }));
+      fs.symlinkSync(foreign, replaced);
+      const foreignBefore = snapshot(foreignMeta);
+      const state = originalState(p);
+      const out = cleanup(p, saved);
+      assert.match(out.json?.reason, /run root is not canonical/);
+      assert.doesNotMatch(out.json.reason, /foreign-identity-marker/);
+      assert.deepEqual(snapshot(foreignMeta), foreignBefore);
+      assert.deepEqual(snapshot(path.join(`${replaced}-saved`, path.relative(replaced, file))), metadata);
+      assert.deepEqual(snapshot(path.join(p.changeDir, "change.md")), source);
+      assert.deepEqual(originalState(p), state);
+    }
+  });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: a safe saved suffix resumes when the canonical run name is a configured or remote default`, () => {
+    for (const remote of [false, true]) {
+      const p = fixture(chain, "apps/widget", true);
+      configurePrefix(p, "codex/", remote ? {} : { defaultBranches: ["codex/demo"] });
+      if (remote) {
+        git(p, ["update-ref", "refs/remotes/origin/codex/demo", "HEAD"]);
+        git(p, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/codex/demo"]);
+      }
+      const wt = linked(p, "codex/demo-baseline", "safe suffix");
+      const file = savedIdentity(wt, "codex/demo-baseline");
+      const metadata = snapshot(file);
+      const input = snapshot(path.join(wt.root, relChange(chain), "change.md"));
+      const indexFile = git(p, ["-C", wt.root, "rev-parse", "--path-format=absolute", "--git-path", "index"]);
+      const index = fs.readFileSync(indexFile);
+      let state = originalState(p);
+      assert.equal(success(wt, "in-run-worktree").branch, "codex/demo-baseline");
+      assert.deepEqual(originalState(p), state);
+      fs.renameSync(p.changeDir, `${p.changeDir}-saved`);
+      state = originalState(p);
+      const resumed = success(p, "reused");
+      assert.equal(resumed.branch, "codex/demo-baseline");
+      assert.equal(resumed.runRoot, wt.root);
+      assert.deepEqual(originalState(p), state);
+      assert.deepEqual(snapshot(file), metadata);
+      assert.deepEqual(snapshot(path.join(wt.root, relChange(chain), "change.md")), input);
+      assert.deepEqual(fs.readFileSync(indexFile), index);
+      assert.equal(spawnSync(REAL_GIT, ["show-ref", "--verify", "--quiet", "refs/heads/codex/demo"], { cwd: p.base, env: gitEnv(p) }).status, 1);
+      // Protect the selected saved branch itself, including when the canonical name is also a default.
+      override(p, { isolation: { require: true, branchPrefix: "codex/", defaultBranches: ["codex/demo", "codex/demo-baseline"] } });
+      state = originalState(p);
+      assert.match(setup(p).reason, /codex\/demo-baseline is a default branch/);
+      assert.deepEqual(originalState(p), state);
+      assert.deepEqual(snapshot(file), metadata);
+    }
+  });
+}

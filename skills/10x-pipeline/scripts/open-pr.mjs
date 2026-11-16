@@ -142,13 +142,13 @@ function checkIsolated(opts) {
   try {
     config = readIsolationPolicy(process.cwd());
     if (!isolationEnabled(config)) return { skip: "run is not isolated: isolation.require is not true", branch };
-    expected = runBranch(config, opts.id, runGit);
     const meta = readRunIdentity(changeDir(opts));
     if (meta) {
       expected = meta.branch;
       validateRunIdentity(meta, config, opts.id, opts.chain, branch, runGit);
-    } else if (branch !== expected) {
-      return { skip: `run is not isolated: HEAD is on ${branch}, not ${expected}`, branch, expected };
+    } else {
+      expected = runBranch(config, opts.id, runGit);
+      if (branch !== expected) return { skip: `run is not isolated: HEAD is on ${branch}, not ${expected}`, branch, expected };
     }
     if (remoteHeadBranch(opts.remote, true) === branch) throw new Error(`Branch ${branch} is the default branch of ${opts.remote}`);
   } catch (error) {

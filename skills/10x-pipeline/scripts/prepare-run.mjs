@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
-import { readPolicyObject, readIsolationPolicy, isolationEnabled, runBranch, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
+import { readPolicyObject, readIsolationPolicy, isolationEnabled, runBranch, runBranchName, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
 
 const USAGE = "Usage: prepare-run.mjs <id> [--chain 10x|openspec] [--cleanup]";
 const GIT_TIMEOUT_MS = 120000;
@@ -50,6 +50,24 @@ function registeredWorktrees() {
 
 function registeredWorktree(branch) {
   return registeredWorktrees().find((record) => record.branch === branch)?.worktree ?? null;
+}
+
+function savedRunCandidates(opts, prefix, change, common, current) {
+  const candidates = [];
+  for (const record of registeredWorktrees()) {
+    if (!record.branch || record.branch === current) continue;
+    const root = path.resolve(record.worktree, prefix);
+    const candidateCommon = git(["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+    const candidatePrefix = git(["-C", root, "rev-parse", "--show-prefix"]);
+    if (candidateCommon.timedOut || candidatePrefix.timedOut) throw new Error("Git timed out while validating registered run roots");
+    if (candidateCommon.status !== 0 || candidatePrefix.status !== 0
+      || path.resolve(candidateCommon.stdout.trim()) !== path.resolve(common)
+      || candidatePrefix.stdout.replace(/\n$/, "") !== prefix) continue;
+    const meta = readRunIdentity(path.join(root, change));
+    if (!meta || meta.id !== opts.id || (meta.chain ?? "10x") !== opts.chain) continue;
+    candidates.push({ ...record, meta });
+  }
+  return candidates;
 }
 
 function outsidePaths(prefix, change) {
@@ -144,7 +162,6 @@ function prepare(opts, result) {
   const common = gitText(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
   const current = checked(git(["symbolic-ref", "--quiet", "--short", "HEAD"]), "read current branch", [0, 1]).stdout.replace(/\n$/, "");
   const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
-  const generated = runBranch(config, opts.id, git);
   let invocation = readRunIdentity(path.join(result.root, change));
   if (invocation && !Object.hasOwn(invocation, "isolated") && !Object.hasOwn(invocation, "branch")
     && invocation.id === opts.id && (invocation.chain ?? "10x") === opts.chain) {
@@ -152,9 +169,15 @@ function prepare(opts, result) {
     invocation = null;
   }
   if (invocation) validateRunIdentity(invocation, config, opts.id, opts.chain, gitDir !== common ? current : null, git);
+  let generated;
+  try { generated = runBranchName(config, opts.id, git); } catch (error) {
+    const saved = savedRunCandidates(opts, prefix, change, common, current);
+    if (!saved.length) throw error;
+    const runs = saved.map((record) => `${record.meta.branch ?? record.branch} at ${record.worktree}`).sort().join(", ");
+    throw new Error(`${error.message}. Restore isolation.branchPrefix to match the recorded branch of the saved run (${runs}) and resume its original worktree`);
+  }
   const inRun = gitDir !== common && current.startsWith(config.branchPrefix ?? "agent-smith/");
   let branch = inRun ? current : invocation?.branch ?? generated;
-  validateRunBranch(config, opts.id, branch, git);
   const validateSelected = (worktree, expected) => {
     const root = path.resolve(worktree, prefix);
     const meta = readRunIdentity(path.join(root, change));
@@ -166,20 +189,7 @@ function prepare(opts, result) {
     }
   };
   if (!inRun && !invocation && !branchExists(generated)) {
-    const candidates = [];
-    for (const record of registeredWorktrees()) {
-      if (!record.branch || record.branch === current) continue;
-      const root = path.resolve(record.worktree, prefix);
-      const candidateCommon = git(["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
-      const candidatePrefix = git(["-C", root, "rev-parse", "--show-prefix"]);
-      if (candidateCommon.timedOut || candidatePrefix.timedOut) throw new Error("Git timed out while validating registered run roots");
-      if (candidateCommon.status !== 0 || candidatePrefix.status !== 0
-        || path.resolve(candidateCommon.stdout.trim()) !== path.resolve(common)
-        || candidatePrefix.stdout.replace(/\n$/, "") !== prefix) continue;
-      const meta = readRunIdentity(path.join(root, change));
-      if (!meta || meta.id !== opts.id || (meta.chain ?? "10x") !== opts.chain) continue;
-      candidates.push({ ...record, meta });
-    }
+    const candidates = savedRunCandidates(opts, prefix, change, common, current);
     if (candidates.length > 1) {
       throw new Error(`Ambiguous saved runs for ${opts.id}: ${candidates.map((c) => `${c.branch} at ${c.worktree}`).sort().join(", ")}. Resume from the intended run worktree`);
     }
@@ -188,6 +198,7 @@ function prepare(opts, result) {
       branch = validateRunIdentity(selected.meta, config, opts.id, opts.chain, selected.branch, git);
     }
   }
+  validateRunBranch(config, opts.id, branch, git);
   const selected = inRun ? gitText(["rev-parse", "--show-toplevel"]) : registeredWorktree(branch);
   if (selected !== null) validateSelected(selected, branch);
   if (invocation && !branchExists(branch)) throw new Error(`Recorded run branch ${branch} is unavailable; restore it and resume its original worktree`);
@@ -337,15 +348,19 @@ function cleanup(opts, result) {
   if (result.case !== "created" || result.copied !== true) return;
   const config = readIsolationPolicy(result.root);
   if (!isolationEnabled(config)) throw new Error("Cleanup needs the original active isolation policy");
-  const branch = runBranch(config, opts.id, git);
   const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
   const prefix = gitText(["rev-parse", "--show-prefix"]);
   const top = gitText(["rev-parse", "--show-toplevel"]);
   const common = gitText(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  const expected = path.join(result.root, ".claude/worktrees", `agent-smith-${opts.id}`);
+  const selectedRoot = path.resolve(expected, prefix);
+  if (fs.realpathSync(selectedRoot) !== selectedRoot) throw new Error("Cleanup run root is not canonical");
+  const original = readRunIdentity(path.join(selectedRoot, change));
+  if (original) validateRunIdentity(original, config, opts.id, opts.chain, result.branch, git);
+  const branch = runBranch(config, opts.id, git);
   withSetupLock(common, branch, () => {
-    const expected = path.join(result.root, ".claude/worktrees", `agent-smith-${opts.id}`);
     if (result.branch !== branch || result.worktree !== expected
-      || result.runRoot !== path.resolve(expected, prefix) || result.runRoot === result.root
+      || result.runRoot !== selectedRoot || result.runRoot === result.root
       || fs.realpathSync(result.runRoot) !== result.runRoot) {
       throw new Error("Cleanup roots, project prefix or branch differ from fresh setup");
     }

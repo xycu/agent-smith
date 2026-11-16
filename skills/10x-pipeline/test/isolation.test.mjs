@@ -242,10 +242,15 @@ for (const prefix of ["codex/", "runs-"]) {
       const original = fs.readFileSync(policy, "utf8");
       const before = fs.readFileSync(path.join(wt.agentDir, "meta.json"));
       const head = git(wt, ["-C", wt.root, "rev-parse", "HEAD"]);
-      fs.writeFileSync(policy, JSON.stringify({ isolation: { require: true, branchPrefix: "changed/" } }));
-      assertHalt(initIn(wt), /isolation.branchPrefix.*recorded branch/);
-      assert.deepEqual(fs.readFileSync(path.join(wt.agentDir, "meta.json")), before);
-      assert.equal(git(wt, ["-C", wt.root, "rev-parse", "HEAD"]), head);
+      for (const changedPrefix of ["changed/", null, "", "bad..ref/"]) {
+        fs.writeFileSync(policy, JSON.stringify({ isolation: { require: true, branchPrefix: changedPrefix } }));
+        const refused = initIn(wt);
+        assertHalt(refused, /isolation.branchPrefix.*recorded branch/);
+        assert.ok(refused.json.reason.includes(branch), refused.stdout);
+        assert.match(refused.json.reason, /restore.*resume/i);
+        assert.deepEqual(fs.readFileSync(path.join(wt.agentDir, "meta.json")), before);
+        assert.equal(git(wt, ["-C", wt.root, "rev-parse", "HEAD"]), head);
+      }
       fs.writeFileSync(policy, original);
       const result = initIn(wt);
       if (!executed) assert.equal(result.json.action, "run", result.stdout);
