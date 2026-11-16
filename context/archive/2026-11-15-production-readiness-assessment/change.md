@@ -1,10 +1,10 @@
 ---
 change_id: production-readiness-assessment
 title: Assess production readiness and minimum remaining delivery
-status: preparing
+status: archived
 created: 2026-11-15
-updated: 2026-11-15
-archived_at: null
+updated: 2026-11-16
+archived_at: 2026-11-16T22:22:43Z
 ---
 
 ## Notes
