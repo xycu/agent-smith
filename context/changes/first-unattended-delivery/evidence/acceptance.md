@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-Local preparation is in progress. This record covers all five Automated and three Manual criteria from the approved plan. Native Claude discovery, guard delivery, full normal-entry execution and representative PR acceptance await the authorized top-level acceptance session. No live acceptance attempt has been launched during this local implementation. [plan.md](../plan.md), [launch.md](launch.md)
+All five local Automated criteria passed. This record covers all five Automated and three Manual criteria from the approved plan. Native Claude discovery, guard delivery, full normal-entry execution and representative PR acceptance await the authorized top-level acceptance session. No live acceptance attempt has been launched during this local implementation. [plan.md](../plan.md), [launch.md](launch.md)
 
 ## Criteria
 
@@ -10,9 +10,9 @@ Local preparation is in progress. This record covers all five Automated and thre
 | --- | --- | --- | --- | --- |
 | 1.1 | Automated | evidenced | [Manifest assertion](launch.md#local-manifest-assertion), exit 0, [raw result](../../../../.claude/worktrees/acceptance-first-unattended-delivery/scratch/local-20261117/phase1-launch.json) | — |
 | 1.2 | Automated | evidenced | [Coverage assertion](#coverage-assertion), exit 0, [raw result](../../../../.claude/worktrees/acceptance-first-unattended-delivery/scratch/local-20261117/phase1-acceptance.json) | — |
-| 2.1 | Automated | pending | Phase 2 verification record | Focused setup/provider/commit/loop/guard/fake-publication gate and skip accounting await enclosing gate execution. |
-| 2.2 | Automated | pending | Phase 2 verification record | Full repository suite and version alignment gate await enclosing gate execution with counts and explained skips. |
-| 2.3 | Automated | pending | Phase 2 verification record | Record the reproduced/regressed defect set or explicitly confirm the observed-fix set is empty after local verification. |
+| 2.1 | Automated | evidenced | [Focused suite](verification.md#gate-commands-and-results), exit 0, 248 passed, zero skips | — |
+| 2.2 | Automated | evidenced | [Full suite and version alignment](verification.md#gate-commands-and-results), exit 0, 1795 passed and three explained skips | — |
+| 2.3 | Automated | evidenced | [Observed-fix set is empty](verification.md#observed-failures-and-compatibility) after both full gates and the focused suite passed | — |
 | 3.1 | Manual | pending | [Native prerequisites](launch.md#prelaunch-preparation) | Fresh Claude must discover the pinned installation/toolkit, establish native guarded agent/hook identity and safe denial, and demonstrate authorized work. |
 | 3.2 | Manual | pending | [Normal entry](launch.md#normal-entry) | A separately authorized top-level session must retain one complete fresh Claude-only headless run with approved implementation review and zero post-launch steering. |
 | 3.3 | Manual | pending | [Publication evidence](#publication-evidence) | The top-level orchestrator must publish the completed representative head and retain PR, CI and residual-state evidence. |
@@ -100,3 +100,5 @@ Parent collected the completed `/root/phase1_launch` report before running gates
 Phase 1 repository gate exited 0 with 1798 tests, 1795 passed, zero failed and three explained skips. Two live GitHub comment checks require the disabled human opt-in `GH_LIVE=1`. The conditional `CLAUDE.md has no @ imports` check is skipped because this candidate has no root `CLAUDE.md`. [Full gate result](../../../../.claude/worktrees/acceptance-first-unattended-delivery/scratch/local-20261117/phase1-full-result.json), [raw log](../../../../.claude/worktrees/acceptance-first-unattended-delivery/scratch/local-20261117/phase1-full.log)
 
 The two inline evidence assertions also rejected ten malformed in-memory copies, covering wrong identity/flags, outside paths, non-Claude providers, missing pending reasons/status/criteria and duplicate ids on both sides. [Negative check results](../../../../.claude/worktrees/acceptance-first-unattended-delivery/scratch/local-20261117/assertion-negative-checks.json)
+
+Parent collected `/root/phase2_verification` before running its gates. Phase 2 focused tests passed 248/248 with zero skips. The full suite passed 1795/1798 with the same three explained skips, and version alignment passed at 1.13.0. No live attempt has begun. [Verification](verification.md)

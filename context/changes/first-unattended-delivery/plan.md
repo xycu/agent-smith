@@ -211,16 +211,16 @@ For rollback, preserve the acceptance copy, branches, commits and failed-attempt
 
 #### Automated
 
-- [x] 1.1 Launch specification passes inline Node assertions for the chosen change, command flags, manifest fields, provider constraints and paths, with the command and exit code retained in the acceptance record.
-- [x] 1.2 Acceptance record passes an inline Node assertion matching every Progress row id to one evidenced or explicitly pending status and reason.
+- [x] 1.1 Launch specification passes inline Node assertions for the chosen change, command flags, manifest fields, provider constraints and paths, with the command and exit code retained in the acceptance record. — 9fdf5cd1
+- [x] 1.2 Acceptance record passes an inline Node assertion matching every Progress row id to one evidenced or explicitly pending status and reason. — 9fdf5cd1
 
 ### Phase 2: Verify the Local Delivery Contracts
 
 #### Automated
 
-- [ ] 2.1 Focused setup, provider, commit, skill-loop, guard and local publication tests pass with recorded exit codes and explained skips.
-- [ ] 2.2 The full repository test command and `node tools/version-check.mjs` pass with recorded counts and explained skips.
-- [ ] 2.3 Every repaired first-flow defect has a reproduced failure and passing regression, or verification explicitly records that the observed-fix set is empty.
+- [x] 2.1 Focused setup, provider, commit, skill-loop, guard and local publication tests pass with recorded exit codes and explained skips.
+- [x] 2.2 The full repository test command and `node tools/version-check.mjs` pass with recorded counts and explained skips.
+- [x] 2.3 Every repaired first-flow defect has a reproduced failure and passing regression, or verification explicitly records that the observed-fix set is empty.
 
 ### Phase 3: Accept the Fresh Claude Delivery
 
