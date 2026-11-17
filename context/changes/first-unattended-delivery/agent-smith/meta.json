@@ -49,5 +49,19 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/isolation.mjs, skills/10x-pipeline/scripts/open-pr.mjs +19"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "3.1 Fresh Claude discovers the pinned plugin/toolkit, delivers native guarded identity and a safe denial, and permits authorized work in the generated worktree with retained evidence.",
+      "3.2 One fresh headless Claude-only normal-entry run completes the selected change through planning, plan review, implementation and approved implementation review with zero post-launch steering.",
+      "3.3 The representative run has a reviewable PR whose published head contains the completed README change and final artifacts, with terminal outcome, CI state and residual worktree state recorded accurately."
+    ],
+    "manualNotProved": [
+      "3.1 Fresh Claude discovers the pinned plugin/toolkit, delivers native guarded identity and a safe denial, and permits authorized work in the generated worktree with retained evidence. — not proved: Fresh inventory still finds no acceptance project/generated worktree or native discovery/guard evidence. Preparation needs writes outside evidence and local commits forbidden in this verification step",
+      "3.2 One fresh headless Claude-only normal-entry run completes the selected change through planning, plan review, implementation and approved implementation review with zero post-launch steering. — not proved: No completed live attempt, representative change or transcript is retained. Normal-entry execution needs source/router writes, commits and terminal publication beyond this step’s permissions. See judg",
+      "3.3 The representative run has a reviewable PR whose published head contains the completed README change and final artifacts, with terminal outcome, CI state and residual worktree state recorded accurately. — not proved: No representative PR identity, completed-run publication record or matching local ref is retained. Publishing the required head is prohibited for this step. The enclosing orchestrator must retain publ"
+    ]
   }
 }
