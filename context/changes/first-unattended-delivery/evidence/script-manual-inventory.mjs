@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const root = process.cwd();
+const root = fs.realpathSync(process.cwd());
 const evidence = path.join(root, "context/changes/first-unattended-delivery/evidence");
 const launch = fs.readFileSync(path.join(evidence, "launch.md"), "utf8");
 const manifest = JSON.parse(launch.match(/^```json\n([\s\S]*?)\n```$/m)[1]);
@@ -12,7 +12,13 @@ console.log("Read-only inventory for pending Manual rows 3.1, 3.2 and 3.3");
 console.log("Observed at " + new Date().toISOString());
 for (const key of ["projectRoot", "generatedRunRoot", "changeSource", "transcriptRoot"]) {
   const target = manifest.paths[key];
+  assert.ok(path.isAbsolute(target));
+  assert.equal(target, path.resolve(target), "canonical path " + key);
   assert.ok(target.startsWith(root + path.sep));
+  let ancestor = target;
+  while (!fs.lstatSync(ancestor, { throwIfNoEntry: false })) ancestor = path.dirname(ancestor);
+  const physical = fs.realpathSync(ancestor);
+  assert.ok(physical === root || physical.startsWith(root + path.sep), "physical path " + key);
   console.log(key + ": " + path.relative(root, target) + " exists=" + fs.existsSync(target));
 }
 for (const [section, keys] of Object.entries({

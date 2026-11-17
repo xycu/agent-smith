@@ -102,3 +102,5 @@ Phase 1 repository gate exited 0 with 1798 tests, 1795 passed, zero failed and t
 The two inline evidence assertions also rejected ten malformed in-memory copies, covering wrong identity/flags, outside paths, non-Claude providers, missing pending reasons/status/criteria and duplicate ids on both sides. [Negative check results](../../../../.claude/worktrees/acceptance-first-unattended-delivery/scratch/local-20261117/assertion-negative-checks.json)
 
 Parent collected `/root/phase2_verification` before running its gates. Phase 2 focused tests passed 248/248 with zero skips. The full suite passed 1795/1798 with the same three explained skips, and version alignment passed at 1.13.0. No live attempt has begun. [Verification](verification.md)
+
+Implementation review corrected the launch/inventory path validation and the manual inventory's ref query. Original observations remain preserved; [review verification](impl-review-verification.md) records the reproductions, regression checks and post-fix gates. These evidence-reader repairs do not establish any of the pending native acceptance criteria.

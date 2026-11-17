@@ -20,10 +20,10 @@ for (const relative of [
   assert.ok(fs.realpathSync(target).startsWith(root + path.sep));
   console.log(relative + " entries=" + JSON.stringify(fs.readdirSync(target).sort()));
 }
-const refs = spawnSync("git", ["for-each-ref", "--format=%(refname)", "*" + id + "*"], {
+const refs = spawnSync("git", ["for-each-ref", "--format=%(refname)"], {
   cwd: root, encoding: "utf8", timeout: 10000,
 });
 assert.equal(refs.error, undefined);
 assert.equal(refs.status, 0, refs.stderr);
-console.log("Matching local representative refs=" + JSON.stringify(refs.stdout.trim().split("\n").filter(Boolean)));
+console.log("Matching local representative refs=" + JSON.stringify(refs.stdout.trim().split("\n").filter(ref => ref.includes(id))));
 console.log("Exit 0 establishes inventory completion only. Manual acceptance requires the live observations specified in the plan.");

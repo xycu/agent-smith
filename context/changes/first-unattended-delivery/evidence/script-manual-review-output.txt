@@ -1,0 +1,38 @@
+Read-only inventory for pending Manual rows 3.1, 3.2 and 3.3
+Observed at 2026-11-17T01:22:35.541Z
+projectRoot: .claude/worktrees/acceptance-first-unattended-delivery/project exists=false
+generatedRunRoot: .claude/worktrees/acceptance-first-unattended-delivery/project/.claude/worktrees/agent-smith-claude-only-10x-example exists=false
+changeSource: .claude/worktrees/acceptance-first-unattended-delivery/project/context/changes/claude-only-10x-example/change.md exists=false
+transcriptRoot: .claude/worktrees/acceptance-first-unattended-delivery/transcripts exists=false
+candidate.acceptanceSha=null
+candidate.installedSha=null
+candidate.configurationCommit=null
+candidate.changePreparationCommit=null
+invocation.changeCreated=null
+invocation.nativeDiscovery=null
+invocation.nativeGuard=null
+invocation.trustAndAccountReadiness=null
+effectivePolicy.ladder=null
+effectivePolicy.effectiveSpawnDepth=null
+effectivePolicy.effectiveHooks=null
+Recorded no-attempt statement=true
+| 3.1 | Manual | pending | [Native prerequisites](launch.md#prelaunch-preparation) | Fresh Claude must discover the pinned installation/toolkit, establish native guarded agent/hook identity and safe denial, and demonstrate authorized work. |
+| 3.2 | Manual | pending | [Normal entry](launch.md#normal-entry) | A separately authorized top-level session must retain one complete fresh Claude-only headless run with approved implementation review and zero post-launch steering. |
+| 3.3 | Manual | pending | [Publication evidence](#publication-evidence) | The top-level orchestrator must publish the completed representative head and retain PR, CI and residual-state evidence. |
+git rev-parse HEAD
+82baa6dfa54c12a4713e453ef88ebf64d5145431
+git branch --show-current
+agent-smith/first-unattended-delivery
+git status --short
+ M context/changes/first-unattended-delivery/agent-smith/run.jsonl
+ M context/changes/first-unattended-delivery/evidence/launch.md
+ M context/changes/first-unattended-delivery/evidence/script-manual-inventory.mjs
+ M context/changes/first-unattended-delivery/evidence/script-manual-retry.mjs
+?? context/changes/first-unattended-delivery/evidence/impl-review-verification.md
+Inventory only. Native host enforcement, completed delivery and published PR acceptance remain unproved.
+Alternate proof search for retained representative artifacts and local refs
+.claude/worktrees/acceptance-first-unattended-delivery entries=["scratch"]
+context/changes/claude-only-10x-example exists=false
+openspec/changes/claude-only-10x-example exists=false
+Matching local representative refs=[]
+Exit 0 establishes inventory completion only. Manual acceptance requires the live observations specified in the plan.

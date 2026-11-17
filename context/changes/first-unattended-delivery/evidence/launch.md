@@ -147,7 +147,12 @@ assert.equal(m.paths.runRoot, root);
 for (const [key, value] of Object.entries(m.paths)) {
   if (key.endsWith("Pending") || value === null) continue;
   assert.ok(path.isAbsolute(value), key);
+  assert.equal(value, path.resolve(value), "canonical path " + key);
   assert.ok(value === root || value.startsWith(root + path.sep), key);
+  let ancestor = value;
+  while (!fs.lstatSync(ancestor, { throwIfNoEntry: false })) ancestor = path.dirname(ancestor);
+  const physical = fs.realpathSync(ancestor);
+  assert.ok(physical === root || physical.startsWith(root + path.sep), "physical path " + key);
 }
 assert.equal(m.paths.projectRoot, path.join(m.paths.acceptanceParent, "project"));
 assert.equal(m.paths.changeSource, path.join(m.paths.projectRoot, "context/changes/claude-only-10x-example/change.md"));
