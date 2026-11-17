@@ -218,9 +218,9 @@ For rollback, preserve the acceptance copy, branches, commits and failed-attempt
 
 #### Automated
 
-- [x] 2.1 Focused setup, provider, commit, skill-loop, guard and local publication tests pass with recorded exit codes and explained skips.
-- [x] 2.2 The full repository test command and `node tools/version-check.mjs` pass with recorded counts and explained skips.
-- [x] 2.3 Every repaired first-flow defect has a reproduced failure and passing regression, or verification explicitly records that the observed-fix set is empty.
+- [x] 2.1 Focused setup, provider, commit, skill-loop, guard and local publication tests pass with recorded exit codes and explained skips. — 7b8850e9
+- [x] 2.2 The full repository test command and `node tools/version-check.mjs` pass with recorded counts and explained skips. — 7b8850e9
+- [x] 2.3 Every repaired first-flow defect has a reproduced failure and passing regression, or verification explicitly records that the observed-fix set is empty. — 7b8850e9
 
 ### Phase 3: Accept the Fresh Claude Delivery
 
