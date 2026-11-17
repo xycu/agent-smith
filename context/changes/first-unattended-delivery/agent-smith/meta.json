@@ -47,7 +47,7 @@
   },
   "startCommit": "fca25820008d11270fcb59fc7e1df57165ac3454",
   "rigor": {
-    "level": "lean",
-    "by": "goal short"
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/isolation.mjs, skills/10x-pipeline/scripts/open-pr.mjs +19"
   }
 }

@@ -22,7 +22,8 @@ One fresh Claude-only headless run finishes its authorized documentation change 
 | Representative change | `claude-only-10x-example`, a README configuration recipe | Addresses the researched whole-array override gap through a bounded real documentation delivery | Research / Plan assumption |
 | Launch mode | Fresh Claude headless, standard rigor | Exercises the pending unattended complete-flow path with plan review | README / Plan assumption |
 | Providers | Remove only the ladder override in a separate acceptance copy to use candidate defaults | Host selection retains project provider overrides | Research |
-| Location and remote | Acceptance copy under this run root, existing origin and main base | Retains repository history and keeps file operations beneath the authorized root | Plan assumption |
+| Location and remote | Independent acceptance clone under `<run-root>/.claude/worktrees/acceptance-first-unattended-delivery/project`, existing origin and main base | Existing ignore boundary prevents enclosing whole-worktree commits from collecting acceptance storage | Plan / Repository staging behavior |
+| Representative identity | Create `claude-only-10x-example/change.md` with `/10x-new` before the pipeline launch | Normal setup/init requires an existing change identity | Pipeline Start / prepare-run |
 | Publication | Separately authorized top-level orchestrator | Step rules reserve push and PR handling to the orchestrator | Task rules |
 | Evidence classification | Five Automated rows and three Manual rows | Local proof executes before publication, real-host completion and PR acceptance need live evidence | Task rules / Plan |
 | Fix scope | Reproduced first-flow defects in existing owners | Current architecture already implements the required path | Research |
@@ -33,7 +34,7 @@ S-12 covers launch specification, local proof, installed discovery/guard evidenc
 
 ## Architecture / Approach
 
-Reuse existing provider, setup, step-commit, loop, guard and publication fixtures. Prepare Markdown evidence under this change. A separate acceptance project uses committed candidate defaults for Claude routing before isolation. Its normal pipeline owns execution and publication.
+Reuse existing provider, setup, step-commit, loop, guard and publication fixtures. Prepare Markdown evidence under this change. An independent acceptance clone uses committed candidate defaults for Claude routing before isolation and creates the representative change identity before launch. Verify the enclosing ignore boundary and clone Git identity, retaining raw transcripts and dedicated test scratch parents beneath the ignored acceptance parent. Derive acceptance coverage from both `auto` and `manual` arrays in `readPlan(...).phaseList`. Its normal pipeline owns execution and publication.
 
 ## Phases at a Glance
 
@@ -43,7 +44,7 @@ Reuse existing provider, setup, step-commit, loop, guard and publication fixture
 | 2. Verify the Local Delivery Contracts | Focused/full test evidence and reproduced fixes | Fixture scope overstates native host behavior |
 | 3. Accept the Fresh Claude Delivery | Native discovery/guard proof and completed run PR | Trust, quota, permissions or publication blocks launch/completion |
 
-Prerequisites include Node 24+, Claude Code 2.1.295+ for guard proof, pinned candidate/toolkit discovery, trusted acceptance project and authenticated model/review-remote access. Exact versions are measured before each live attempt.
+Prerequisites include Node 24+, Claude Code 2.1.295+ for guard proof, pinned candidate/toolkit discovery, `/10x-new` for prelaunch change creation, trusted acceptance project and authenticated model/review-remote access. Exact versions are measured before each live attempt.
 
 Estimated effort is one local preparation/verification pass and one complete live acceptance attempt, followed by failure-driven repairs and fresh attempts when needed.
 
