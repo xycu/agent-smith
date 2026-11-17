@@ -68,6 +68,10 @@ test("2.1 policy.json ships the isolation block on, and the worktree prompt wire
   assert.equal(POLICY.prompts.worktree, "@prompts/worktree.md");
   assert.ok(RULES.includes("{workdir}"));
   assert.doesNotMatch(RULES, /\b(sonnet|opus|haiku|fable|effort|tier|model)\b/i);
+  // A Codex child read the old blanket rule as a ban on reading installed skills outside the worktree.
+  assert.match(RULES, /installed skill, plugin or tool file lies outside `\{workdir\}`.*\*\*MAY\*\* read it where it lies/);
+  assert.match(RULES, /a file lies outside `\{workdir\}`.*\*\*WHEN\*\* you would change it \*\*THEN\*\* you \*\*MUST NOT\*\* change it/);
+  assert.doesNotMatch(RULES, /\*\*WHEN\*\* you read, create, edit or delete a file \*\*THEN\*\*/);
 });
 
 test("2.1 the main checkout halts, names the override and writes nothing", { skip }, () => {
