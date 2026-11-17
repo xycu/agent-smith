@@ -211,8 +211,8 @@ For rollback, preserve the acceptance copy, branches, commits and failed-attempt
 
 #### Automated
 
-- [ ] 1.1 Launch specification passes inline Node assertions for the chosen change, command flags, manifest fields, provider constraints and paths, with the command and exit code retained in the acceptance record.
-- [ ] 1.2 Acceptance record passes an inline Node assertion matching every Progress row id to one evidenced or explicitly pending status and reason.
+- [x] 1.1 Launch specification passes inline Node assertions for the chosen change, command flags, manifest fields, provider constraints and paths, with the command and exit code retained in the acceptance record.
+- [x] 1.2 Acceptance record passes an inline Node assertion matching every Progress row id to one evidenced or explicitly pending status and reason.
 
 ### Phase 2: Verify the Local Delivery Contracts
 
