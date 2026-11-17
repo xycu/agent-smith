@@ -44,5 +44,14 @@
       "advisor.enabled": false,
       "host": "codex"
     }
+  },
+  "startCommit": "75c5de2966a7ef40f65bbd8e246a4728261170ff",
+  "rigor": {
+    "level": "thorough",
+    "by": "signals"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 1 (plan) needs a human: Provide validated Codex capture-completeness and Claude exporter-flush evidence, or authorize qualification-only scope."
   }
 }
