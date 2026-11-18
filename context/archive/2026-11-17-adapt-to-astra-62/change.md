@@ -1,10 +1,10 @@
 ---
 change_id: adapt-to-astra-62
 title: Adapt to the newly released OpenAI models by updating Sol and Astra versions
-status: impl_reviewed
+status: archived
 created: 2026-11-17
 updated: 2026-11-18
-archived_at: null
+archived_at: 2026-11-18T19:39:18Z
 ---
 
 ## Notes
