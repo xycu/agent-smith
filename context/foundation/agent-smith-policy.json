@@ -10,37 +10,37 @@
     },
     {
       "provider": "openai",
-      "model": "gpt-6.1-sol",
+      "model": "gpt-6.2-sol",
       "effort": "low"
     },
     {
       "provider": "openai",
-      "model": "gpt-6.1-sol",
+      "model": "gpt-6.2-sol",
       "effort": "medium"
     },
     {
       "provider": "openai",
-      "model": "gpt-6.1-sol",
+      "model": "gpt-6.2-sol",
       "effort": "high"
     },
     {
       "provider": "openai",
-      "model": "gpt-6-astra",
+      "model": "gpt-6.2-astra",
       "effort": "medium"
     },
     {
       "provider": "openai",
-      "model": "gpt-6-astra",
+      "model": "gpt-6.2-astra",
       "effort": "high"
     },
     {
       "provider": "openai",
-      "model": "gpt-6-astra",
+      "model": "gpt-6.2-astra",
       "effort": "xhigh"
     },
     {
       "provider": "openai",
-      "model": "gpt-6-astra",
+      "model": "gpt-6.2-astra",
       "effort": "max"
     }
   ],
