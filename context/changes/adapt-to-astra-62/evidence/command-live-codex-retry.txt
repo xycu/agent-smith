@@ -1,0 +1,22 @@
+Manual 1.4 — Codex CLI live verification retry
+Client: codex-cli 0.169.0
+Configuration: existing authenticated Codex configuration, no explicit profile. Read-only sandbox, approvals set to never and ephemeral session. SQLite and logs were explicitly directed to scratch.
+
+Command (scratch path abbreviated):
+timeout -k 5 45 codex -a never exec --json --ephemeral --sandbox read-only --skip-git-repo-check -C '<scratch>' -m gpt-6.2-sol -c 'model_reasoning_effort="low"' -c 'sqlite_home="<scratch>/sqlite"' -c 'log_dir="<scratch>/log"' 'Reply exactly ASTRA62_PROBE_OK. Do not use tools or access files.'
+
+Exit: 1
+JSON lines: 0
+WARNING: proceeding, even though we could not create PATH aliases: Operation not permitted (os error 1)
+failed to initialize in-process app-server client: Operation not permitted (os error 1)
+
+Startup diagnostic: opening the existing Codex installation_id file without writing or creating it.
+installation_id open (r): OK
+installation_id open (r+): EPERM
+
+Codex 0.169.0 initializes the in-process app server before dispatch, and startup opens installation_id with write access even when an ID already exists. The read/write open is denied in this environment.
+https://github.com/openai/codex/blob/rust-v0.169.0/codex-rs/exec/src/lib.rs#L1097
+https://github.com/openai/codex/blob/rust-v0.169.0/codex-rs/app-server/src/in_process.rs#L451
+https://github.com/openai/codex/blob/rust-v0.169.0/codex-rs/runtime-agent-instance/src/installation_id.rs#L19
+
+The retry failed before dispatch. The six remaining pairs share this startup path and were not attempted. Successful live completions: 0 of 7.
