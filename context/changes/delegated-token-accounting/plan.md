@@ -297,17 +297,17 @@ Stream bounded JSONL sources and keep only deduplication identities, counters an
 
 #### Automated
 
-- [x] 2.1 Codex fixture totals reconcile once per settled invocation and all incomplete, unsafe and unsupported sources omit totals: `node --test skills/10x-pipeline/test/codex-usage.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs`.
-- [x] 2.2 Both chains preserve settlement, single intake, permission controls and archive isolation: `node --test skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/run-lock.test.mjs`.
-- [x] 2.3 The required repository suite passes after Phase 2: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.1 Codex fixture totals reconcile once per settled invocation and all incomplete, unsafe and unsupported sources omit totals: `node --test skills/10x-pipeline/test/codex-usage.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs`. — 26a524e4
+- [x] 2.2 Both chains preserve settlement, single intake, permission controls and archive isolation: `node --test skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/run-lock.test.mjs`. — 26a524e4
+- [x] 2.3 The required repository suite passes after Phase 2: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 26a524e4
 
 ### Phase 3: Collect Claude usage without trusting final-request counts
 
 #### Automated
 
-- [ ] 3.1 Claude fixtures prove whole-invocation totals, cache accounting, exact attribution and fail-closed immediate/late/archive behavior: `node --test skills/10x-pipeline/test/claude-usage.test.mjs skills/10x-pipeline/test/late-usage.test.mjs`.
-- [ ] 3.2 Both skills preserve matching and anti-stall behavior while rejecting flat or delegated final-request totals: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
-- [ ] 3.3 The required repository suite passes after Phase 3: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 3.1 Claude fixtures prove whole-invocation totals, cache accounting, exact attribution and fail-closed immediate/late/archive behavior: `node --test skills/10x-pipeline/test/claude-usage.test.mjs skills/10x-pipeline/test/late-usage.test.mjs`.
+- [x] 3.2 Both skills preserve matching and anti-stall behavior while rejecting flat or delegated final-request totals: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
+- [x] 3.3 The required repository suite passes after Phase 3: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 ### Phase 4: Truthful reports, comparisons and migration evidence
 

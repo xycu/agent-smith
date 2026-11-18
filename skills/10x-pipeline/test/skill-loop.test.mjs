@@ -185,7 +185,7 @@ test("done, archive and halt reach publication before STOP, with comments owned 
 
 test("late usage has one owner and precedes terminal status, publication and archive launch", () => {
   const owner = sectionOf("## Late usage (before every end)");
-  const call = "node $ROUTER usage <change-id> <n> --tokens N --tool-uses N --duration-ms N";
+  const call = "node $ROUTER usage <change-id> <n> --usage-file <usage-file>";
   assert.equal(skill.split(call).length - 1, 1);
   assert.ok(owner.includes(call));
   assert.match(owner, /Usage: step <n> <attached\|not attached>/);
@@ -266,10 +266,12 @@ for (const [chain, text, id] of [
   test(`${chain}: on-time usage excludes earlier and foreign notifications without delaying next`, () => {
     for (const needle of [
       "Usage ownership in Loop step 4 follows the identity check in rule 6",
-      "only from the current invocation's result or its matched notification",
-      "earlier numbered step follows the late-usage path, even if already present when the current report arrives",
+      "use only the current invocation's matched records",
+      "earlier numbered step follows the late-usage path",
       "Leave unmatched or ambiguous figures unattached",
-      "current report has no matched figure, omit `usage` and run `next` in the same turn under rule 2",
+      "Without a matched figure, attach unavailable evidence and run `next` in the same turn under rule 2",
+      "native Agent `tool_use_id` as `runId`",
+      "never derive them from a description",
     ]) assert.ok(dispatch.includes(needle), needle);
     assert.match(rules[1], /without `usage`.*`next`.*same turn/);
   });
@@ -280,14 +282,12 @@ for (const [chain, text, id] of [
       const paragraph = text.split("## Late usage (before every end)")[1].split("\n## ")[0];
       for (const needle of [
         "Recover `<n>` from the earlier launch matched by rule 6",
-        "a known agent id selects its launch and any supplied description must agree",
-        "otherwise the exact description must identify one recorded launch uniquely, with no conflict against its known id",
-        "associating a newly supplied id if that launch has none",
         "full router `change`, `n` and `step` identity against the recorded description",
         "printed `Step <n>` line is corroborating context",
         "never a guess from the latest step or a repeated step name",
         "Leave unmatched or ambiguous figures unattached", "Archive-agent usage belongs only in the final message",
-        "once, as a call of its own, omitting a flag whose figure is missing", "A refusal exits 1",
+        "once, as a call of its own", "--usage-file <usage-file>", "No verified total or no recorded invocation: omit the call",
+        "Include no raw source paths or records", "Unlink the owned payload in a finally step", "A refusal exits 1",
       ]) assert.ok(paragraph.includes(needle), needle);
     });
   }
@@ -435,7 +435,7 @@ for (const [chain, source, ceiling] of [
       "same step/prompt without a failed attempt", "Cut-off replies are also `unknown`",
       "Replace a child-authored `orchestrator-error` with `unknown`", "preserving other keys",
       "Preserve all keys, including `signals`", "<subagent_tokens>N</subagent_tokens>",
-      "<tool_uses>N</tool_uses>", "<duration_ms>N</duration_ms>", "with exact figures",
+      "<tool_uses>N</tool_uses>", "<duration_ms>N</duration_ms>", "using exact figures only",
       "Omit missing usage without waiting", "foreground timeout never permits relaunch",
       "For absent/uncertain envelopes, inspect and wait", "before result/router mutation",
       "Runner and child must close before `next`, rollback or another launch",
@@ -492,28 +492,36 @@ for (const [chain, source] of [
 
 for (const chain of ["10x", "openspec"]) {
   const source = fs.readFileSync(path.join(REPO_ROOT, `skills/${chain}-pipeline/SKILL.md`), "utf8");
-  const onTime = source.split("\n  4. For matched Agent usage")[1].split("\n  5. ")[0];
+  const onTime = source.split("\n  4. For every Agent result")[1].split("\n  5. ")[0];
   const late = source.split("## Late usage (before every end)")[1].split("\n## ")[0];
   test(`${chain}: enclosing report follows collection and failure reconciliation`, () => {
     assert.match(source, /Accept only the enclosing step report after it has collected every child and reconciled failures/);
     assert.match(source, /child notifications never complete the step/);
   });
-  for (const [name, block, omitted] of [["on-time", onTime, "totalTokens"], ["late", late.includes("Apply Loop step 4’s") ? onTime + late : late, "--tokens"]]) {
-    test(`${chain}: ${name} inclusive, partial and unknown Claude usage retains its coverage boundary`, () => {
-      assert.match(block, /count a verified child-inclusive snapshot once/);
-      assert.match(block, /partial or unknown/);
-      assert.ok(block.includes(`omit \`${omitted}\``));
-      assert.match(block, /independently measured tool\/duration figures at their documented scope/);
-      assert.match(block, /bounded.*assumptions and evidence/);
-    });
-  }
-  test(`${chain}: unknown coverage never delays next or mutates attached/archive figures`, () => {
-    assert.match(onTime, /Replace step-authored usage with measured figures only/);
+  test(`${chain}: immediate accounting rejects final-request totals and always uses the shared reader`, () => {
+    assert.match(source, /4\. For every Agent result, run/);
+    assert.match(onTime, /node "\$CLAUDE_USAGE"/);
+    assert.match(onTime, /never map it to `totalTokens`, even for a flat step/);
+    assert.match(onTime, /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
+    assert.match(onTime, /independently measured tool\/duration figures at their documented scope/);
     assert.match(onTime, /Invocation matching proves attribution, not coverage/);
+    assert.match(onTime, /Missing sources produce unavailable evidence through the same reader/);
     assert.match(onTime, /Omit missing usage without waiting/);
-    assert.match(late, /Omit the call when no admissible figure exists/);
-    assert.match(late, /Figures already attached remain immutable/);
-    assert.match(late, /Archive usage and its coverage limitation belong only in the final message/);
+    assert.match(onTime, /bounded assumptions and evidence/);
+  });
+  test(`${chain}: late and archive accounting share collection without a second next or raw payload`, () => {
+    assert.match(late, /under Loop step 4 once/);
+    assert.match(late, /usage:\{totalTokens\},usageEvidence/);
+    assert.match(late, /No verified total or no recorded invocation: omit the call/);
+    assert.match(late, /Recorded numbers remain immutable/);
+    assert.match(late, /identical source\/version\/invocation evidence/);
+    assert.match(late, /Include no raw source paths or records/);
+    assert.match(late, /create an exclusively owned unique transient run-root file/);
+    assert.match(late, /Unlink the owned payload in a finally step before terminal handoff, including on refusal/);
+    assert.match(late, /Never wait or poll/);
+    assert.match(late, /Archive-agent usage belongs only in the final message, including its coverage limitation/);
+    assert.doesNotMatch(late, /node \$ROUTER next|--tokens N/);
+    assert.match(branch("archive", source.split("\n")), /For Claude, apply Loop step 4.s collector too/);
   });
 }
 
