@@ -289,9 +289,9 @@ Stream bounded JSONL sources and keep only deduplication identities, counters an
 
 #### Automated
 
-- [ ] 1.1 Evidence validation and intake preserve valid results and legacy counters while rejecting unsafe token claims: `node --test skills/10x-pipeline/test/usage-evidence.test.mjs skills/10x-pipeline/test/result-persist.test.mjs`.
-- [ ] 1.2 Late enrichment is invocation-bound, idempotent and atomic across both chains and archive preparation: `node --test skills/10x-pipeline/test/late-usage.test.mjs skills/10x-pipeline/test/run-state.test.mjs`.
-- [ ] 1.3 The required repository suite passes after Phase 1: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Evidence validation and intake preserve valid results and legacy counters while rejecting unsafe token claims: `node --test skills/10x-pipeline/test/usage-evidence.test.mjs skills/10x-pipeline/test/result-persist.test.mjs`.
+- [x] 1.2 Late enrichment is invocation-bound, idempotent and atomic across both chains and archive preparation: `node --test skills/10x-pipeline/test/late-usage.test.mjs skills/10x-pipeline/test/run-state.test.mjs`.
+- [x] 1.3 The required repository suite passes after Phase 1: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 ### Phase 2: Collect settled Codex step-tree usage
 

@@ -12,6 +12,8 @@ import {
   verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS, render,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "../../openspec-pipeline/scripts/openspec.mjs";
+import { normalizeAccounting } from "./usage.mjs";
+export { cleanUsage } from "./usage.mjs";
 
 // ---- report ---------------------------------------------------------------
 
@@ -457,17 +459,6 @@ export function neutralRetry(p, id, meta, log, policy) {
 
 // ---- result intake + verification ---------------------------------------
 
-// Keep only non-negative safe integers. Returns null when nothing survives.
-export function cleanUsage(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const clean = {};
-  for (const key of ["totalTokens", "toolUses", "durationMs"]) {
-    const v = raw[key];
-    if (Number.isSafeInteger(v) && v >= 0) clean[key] = v;
-  }
-  return Object.keys(clean).length ? clean : null;
-}
-
 // Keep only known signal keys with valid types: rigor (a level; never for a score entry), needsHuman (a short text) and,
 // for an impl-review entry only, lessonCandidates (a few short one-line rules).
 // Anything else is dropped. Returns null when nothing survives.
@@ -610,10 +601,10 @@ export function attachResult(p, log, policy) {
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
   // The raw signals object never reaches run.jsonl; only the cleaned one does.
-  const { signals: rawSignals, ...stored } = result;
-  last.result = stored;
-  const usage = cleanUsage(result.usage);
-  if (usage) last.usage = usage;
+  const { signals: rawSignals, usage: rawUsage, usageEvidence: rawEvidence, ...stored } = result;
+  const accounting = normalizeAccounting(rawUsage, rawEvidence);
+  last.result = { ...stored, ...accounting };
+  Object.assign(last, accounting);
   const signals = cleanSignals(rawSignals, policy, last.step);
   if (signals) last.signals = signals;
   last.verified = verified;

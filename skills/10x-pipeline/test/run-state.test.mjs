@@ -851,3 +851,52 @@ for (const chain of ["10x", "openspec"]) {
     });
   }
 }
+
+for (const chain of ["10x", "openspec"]) {
+  for (const rejected of [false, true]) {
+    test(`${chain}: structured pre-archive evidence ${rejected ? "restores bytes after rejected commit" : "commits with counters and report"}`, () => {
+      const p = archivedState(chain);
+      const invocation = { host: "codex", rootThreadId: "root", rootTurnId: "turn" };
+      const waiting = {
+        schemaVersion: 1, status: "unavailable", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+        invocation, reason: "incomplete-capture", explanation: "The captured records do not prove complete invocation coverage.",
+      };
+      const evidence = {
+        schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+        invocation, sessionCount: 2, requestCount: 3, reconciliation: "response-snapshot",
+      };
+      const step = chain === "openspec" ? "os-apply" : "implement";
+      const first = entry(1, step, { usage: { durationMs: 42, toolUses: 5 }, usageEvidence: waiting });
+      const log = path.join(p.agentDir, "run.jsonl");
+      fs.writeFileSync(log, ` \t${JSON.stringify(first)} \r\n\r\n`);
+      commitAll(p);
+      const before = gitSnapshot(p);
+      if (rejected) rejectCommit(p);
+      const file = path.join(p.root, "late-usage.json");
+      fs.writeFileSync(file, JSON.stringify({ change: p.id, chain, n: 1, step,
+        usage: { totalTokens: 7 }, usageEvidence: evidence }));
+      const args = ["usage", p.id, "1", "--usage-file", file, "--chain", chain];
+      const res = runIn(p, args);
+      assert.equal(res.status, rejected ? 1 : 0, res.stdout);
+      if (rejected) {
+        assert.equal(res.json.attached, false);
+        assert.match(res.json.reason, /figure was not kept/);
+        const after = gitSnapshot(p);
+        assert.deepEqual(after.files, before.files);
+        assert.equal(after.head, before.head);
+        assert.equal(after.refs, before.refs);
+        git(p, ["diff", "--cached", "--quiet"]);
+        assert.deepEqual(readLog(log).entries[0].usageEvidence, waiting);
+      } else {
+        assert.equal(typeof res.json.commit, "string");
+        assert.deepEqual(readLogEntries(p)[0].usage, { durationMs: 42, toolUses: 5, totalTokens: 7 });
+        assert.deepEqual(readLogEntries(p)[0].usageEvidence, evidence);
+        assert.match(fs.readFileSync(path.join(p.agentDir, "report.md"), "utf8"), /\| 7 \|/);
+        const committed = gitSnapshot(p);
+        const replay = runIn(p, args);
+        assert.equal(replay.json.unchanged, true);
+        assert.deepEqual(gitSnapshot(p), committed);
+      }
+    });
+  }
+}

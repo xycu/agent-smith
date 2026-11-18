@@ -375,3 +375,44 @@ for (const chain of ["10x", "openspec"]) {
 function nextIn(p) {
   return run(p, ["next", p.id], { env: gitEnv(p) });
 }
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: intake sanitizes reserved accounting in both result and entry without changing result acceptance`, () => {
+    const p = projectFor(chain);
+    start(p, chain);
+    output(p, chain);
+    const evidence = { schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+      invocation: { host: "codex", rootThreadId: "root", rootTurnId: "turn" },
+      sessionCount: 1, requestCount: 2, reconciliation: "response-snapshot" };
+    writeResult(p, { status: "done", note: "valid artifacts", unrelated: { kept: true },
+      usage: { totalTokens: 42, toolUses: 2, durationMs: 3, raw: "private-source" },
+      usageEvidence: { ...evidence, raw: "private-source", path: "/private/transcript" } });
+    const result = next(p);
+    assert.equal(result.status, 0, result.stdout);
+    const first = executedEntries(p)[0];
+    assert.equal(first.ok, true);
+    assert.deepEqual(first.usageEvidence, evidence);
+    assert.deepEqual(first.result.usageEvidence, evidence);
+    assert.deepEqual(first.result.usage, { totalTokens: 42, toolUses: 2, durationMs: 3 });
+    assert.deepEqual(first.result.unrelated, { kept: true });
+    assert.doesNotMatch(JSON.stringify(first), /private-source|private\/transcript/);
+  });
+
+  test(`${chain}: invalid accounting remains unavailable after post-publication crash and single intake recovery`, () => {
+    const p = projectFor(chain);
+    start(p, chain);
+    output(p, chain);
+    writeResult(p, { status: "done", note: "complete with invalid accounting", extra: "preserved",
+      usage: { totalTokens: 7, toolUses: 2, durationMs: 3 },
+      usageEvidence: { schemaVersion: 99, raw: "/private/source" } });
+    const completed = crash(p);
+    assert.equal(completed.ok, true);
+    assert.deepEqual(completed.usage, { toolUses: 2, durationMs: 3 });
+    assert.equal(completed.usageEvidence.reason, "invalid-evidence");
+    assert.equal(completed.result.extra, "preserved");
+    assert.deepEqual(completed.result.usageEvidence, completed.usageEvidence);
+    assert.equal(next(p).json.n, 2);
+    assert.deepEqual(executedEntries(p)[0], completed);
+    assert.doesNotMatch(JSON.stringify(completed), /private\/source/);
+  });
+}

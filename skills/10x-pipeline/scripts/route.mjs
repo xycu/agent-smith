@@ -11,7 +11,7 @@
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
 //   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]   # read-only: usage of a routed run against a baseline run
 //                                      # --unpinned: the baseline is a routed run too (scorer off), for the scorer A/B
-//   node route.mjs usage  <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N]   # attach a late usage figure to executed step <n>
+//   node route.mjs usage  <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])   # late usage
 //   Every command takes --chain 10x|openspec. Without it, a run whose openspec/changes/<id>/agent-smith/meta.json
 //   (or that of its archive folder) holds chain "openspec" is an OpenSpec run; any other run is 10x.
 //
@@ -20,6 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { normalizeAccounting, cleanInvocation, readBoundedFile } from "./usage.mjs";
 import {
   ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
@@ -773,17 +774,39 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
     refuse("Usage: route.mjs usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] [--chain 10x|openspec]; <n> is the step number, a positive integer that directly follows the change id.");
   }
   const n = Number(rawN);
-  const raw = {};
-  for (const [flag, key] of USAGE_FLAGS) {
-    if (flags[flag] === undefined) continue;
-    const v = flags[flag];
-    if (typeof v !== "string" || !/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) {
-      refuse(`--${flag} needs a non-negative integer, got ${v === true ? "no value" : JSON.stringify(v)}.`, n);
+  const structured = flags["usage-file"] !== undefined;
+  let payload;
+  let accounting;
+  let usage;
+  if (structured) {
+    if (typeof flags["usage-file"] !== "string" || !flags["usage-file"].trim()) refuse("--usage-file needs a local file path.", n);
+    if (USAGE_FLAGS.some(([flag]) => flags[flag] !== undefined)) refuse("--usage-file cannot be mixed with numeric usage flags.", n);
+    try {
+      payload = JSON.parse(readBoundedFile(path.resolve(ROOT, flags["usage-file"]), { root: ROOT }));
+    } catch {
+      refuse("--usage-file must be a bounded, stable regular JSON file within the run root.", n);
     }
-    raw[key] = Number(v);
+    if (!isObject(payload) || payload.change !== id || payload.chain !== chain || payload.n !== n || typeof payload.step !== "string") {
+      refuse("--usage-file change, chain, n and step must identify this completed invocation.", n);
+    }
+    accounting = normalizeAccounting(payload.usage, payload.usageEvidence);
+    if (!isDeepStrictEqual(cleanUsage(payload.usage), payload.usage) || accounting.usageEvidence?.status !== "verified") {
+      refuse("--usage-file requires valid numeric usage and verified accounting evidence.", n);
+    }
+    usage = accounting.usage;
+  } else {
+    const raw = {};
+    for (const [flag, key] of USAGE_FLAGS) {
+      if (flags[flag] === undefined) continue;
+      const v = flags[flag];
+      if (typeof v !== "string" || !/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) {
+        refuse(`--${flag} needs a non-negative integer, got ${v === true ? "no value" : JSON.stringify(v)}.`, n);
+      }
+      raw[key] = Number(v);
+    }
+    usage = cleanUsage(raw);
+    if (!usage) refuse("Give at least one of --tokens, --tool-uses and --duration-ms, or --usage-file.", n);
   }
-  const usage = cleanUsage(raw);
-  if (!usage) refuse("Give at least one of --tokens, --tool-uses and --duration-ms.", n);
 
   const p = paths(id, policy, chain);
   guardArchived(p, id, chain);
@@ -793,11 +816,38 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   const entry = executed(log).find((e) => e.n === n);
   if (!entry) refuse(`Step ${n} is not logged.`, n);
   if (!isObject(entry.result)) refuse(`Step ${n} (${entry.step}) has no result yet; put the figure in its result file.`, n);
-  const base = { action: "usage", attached: true, n, step: entry.step, usage };
-  if (entry.usage !== undefined) {
-    if (isDeepStrictEqual(entry.usage, usage)) out({ ...base, unchanged: true, report: null, commit: null });
-    refuse(`Step ${n} (${entry.step}) already has the figure ${JSON.stringify(entry.usage)}; a figure is never overwritten.`, n);
+  let evidence;
+  if (structured) {
+    const recorded = normalizeAccounting(entry.usage, entry.usageEvidence).usageEvidence;
+    const identity = cleanInvocation(recorded?.invocation);
+    if (payload.step !== entry.step || !identity || !isDeepStrictEqual(identity, accounting.usageEvidence.invocation)
+        || recorded.source !== accounting.usageEvidence.source || recorded.hostVersion !== accounting.usageEvidence.hostVersion) {
+      refuse("Structured usage must match the recorded host invocation and step exactly.", n);
+    }
+    for (const key of ["toolUses", "durationMs"]) {
+      if (Object.hasOwn(usage, key) && usage[key] !== entry.usage?.[key]) {
+        refuse(`Structured usage cannot fill or replace ${key}.`, n);
+      }
+    }
+    if (entry.usage?.totalTokens !== undefined && entry.usage.totalTokens !== usage.totalTokens) {
+      refuse("A recorded token total is never overwritten.", n);
+    }
+    evidence = accounting.usageEvidence;
+    usage = { ...entry.usage, totalTokens: usage.totalTokens };
+    if (entry.usage?.totalTokens !== undefined) {
+      if (isDeepStrictEqual(entry.usage, usage) && isDeepStrictEqual(entry.usageEvidence, evidence)) {
+        out({ action: "usage", attached: true, n, step: entry.step, usage, usageEvidence: evidence, unchanged: true, report: null, commit: null });
+      }
+      refuse("An existing token measurement and its evidence are immutable.", n);
+    }
+  } else {
+    if (entry.usageEvidence !== undefined) refuse("A recorded evidence contract requires --usage-file.", n);
+    if (entry.usage !== undefined) {
+      if (isDeepStrictEqual(entry.usage, usage)) out({ action: "usage", attached: true, n, step: entry.step, usage, unchanged: true, report: null, commit: null });
+      refuse(`Step ${n} (${entry.step}) already has the figure ${JSON.stringify(entry.usage)}; a figure is never overwritten.`, n);
+    }
   }
+  const base = { action: "usage", attached: true, n, step: entry.step, usage, ...(evidence ? { usageEvidence: evidence } : {}) };
   const meta = readMeta(p.meta, { id, goal: "" });
   const ended = isObject(meta.outcome);
   // The archive state: the run is done, started with --archive, and the folder is committed for /10x-archive. Everything
@@ -810,6 +860,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   const oldBytes = archiveState ? [p.log, p.report].map((file) => [file, fs.existsSync(file) ? fs.readFileSync(file) : null]) : [];
   cleanupStateTemps(p.dir);
   entry.usage = usage;
+  if (evidence) entry.usageEvidence = evidence;
   entry.usageLate = true;
   writeLog(p.log, log);
   // An ended run has a report; rewrite it so the Tokens column, the totals and the cost include the figure.
