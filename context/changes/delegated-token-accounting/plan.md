@@ -313,8 +313,8 @@ Stream bounded JSONL sources and keep only deduplication identities, counters an
 
 #### Automated
 
-- [x] 4.1 Status, report, compare and cost fixtures distinguish verified, legacy, missing and mixed scopes without double counting: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/cost.test.mjs`.
-- [x] 4.2 Final local validation passes and evidence records the commands and results: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, `node tools/version-check.mjs`, and `git diff --check`.
+- [x] 4.1 Status, report, compare and cost fixtures distinguish verified, legacy, missing and mixed scopes without double counting: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/cost.test.mjs`. — 74452e1f
+- [x] 4.2 Final local validation passes and evidence records the commands and results: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, `node tools/version-check.mjs`, and `git diff --check`. — 74452e1f
 
 #### Manual
 
