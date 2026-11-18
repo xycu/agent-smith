@@ -4,7 +4,7 @@ import path from "node:path";
 import { makeProject } from "./helpers.mjs";
 
 export const claudeBuckets = ["input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"];
-export const otelAttribute = (key, value) => ({ key, value: typeof value === "number" ? { intValue: String(value) } : { stringValue: value } });
+export const otelAttribute = (key, value) => ({ key, value: typeof value === "number" ? { intValue: value } : { stringValue: value } });
 export const eventValue = (event, key) => event.attributes.find(item => item.key === key)?.value;
 export const setEvent = (event, key, value) => {
   const item = otelAttribute(key, value);
@@ -41,9 +41,13 @@ export function claudeUsageFixture({ project = makeProject(), chain = "10x", n =
         message: { role: "user", content: [{ type: "tool_result", tool_use_id: `${id}-local-tool` }] } });
       records.push({ type: "assistant", uuid: `${id}-answer-${index}`, parentUuid: records.at(-1).uuid,
         requestId: `${id}-request-${index}`, message: { id: `${id}-message-${index}`, role: "assistant",
-          content: [{ type: "text", text: index === usages.length - 1 ? `${id} finished` : "using a tool" }],
+          content: index === usages.length - 1 ? [{ type: "text", text: `${id} finished` }]
+            : [{ type: "tool_use", id: `${id}-local-tool`, name: "Bash", input: {} }],
           usage: Object.fromEntries(["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"].map((key, i) => [key, values[i]])) } });
     });
+    records[1].parentUuid = `${id}-attachment`;
+    records.push({ type: "attachment", uuid: `${id}-attachment`, parentUuid: records[0].uuid,
+      attachment: { type: "directory", content: "private-prompt ignored attachment" } });
     for (const record of records) Object.assign(record, { sessionId: "native-session", agentId: id, version: "2.1.311", isSidechain: true });
     transcripts.set(file, records);
     const parentField = parent ? { agent_id: parent } : {};
@@ -63,7 +67,7 @@ export function claudeUsageFixture({ project = makeProject(), chain = "10x", n =
     const attribution = { agent_id: agent.id, ...(agent.parent ? { parent_agent_id: agent.parent } : {}) };
     event("api_request", { ...attribution, request_id: id,
       ...Object.fromEntries(claudeBuckets.map((key, i) => [key, agent.usages[index][i]])) });
-    event("assistant_response", { ...attribution, request_id: id, "message.uuid": `${agent.id}-answer-${index}` });
+    if (index === agent.usages.length - 1) event("assistant_response", { ...attribution, request_id: id, "message.uuid": `${agent.id}-answer-${index}` });
   };
   event("api_request", { request_id: "orchestrator-request", input_tokens: 900, output_tokens: 90, cache_read_tokens: 0, cache_creation_tokens: 0 });
   event("assistant_response", { request_id: "orchestrator-request", "message.uuid": "orchestrator-answer" });

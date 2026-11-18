@@ -91,6 +91,21 @@ test("mixed and unavailable coverage keeps measured zero, labels subtotals, and 
   assert.match(md, /Unavailable routed step 2: incomplete-capture/);
 });
 
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: missing pending and counter-only steps do not invent legacy token figures`, () => {
+    const project = fixture([measured(1, 100), entry(2, "plan", { result: undefined }),
+      entry(3, "plan", { usage: { durationMs: 3 } })], { chain });
+    assert.deepEqual(status(project, chain).usageCoverage, { verified: 1, unavailable: 0, legacy: 0, missing: 2 });
+    assert.doesNotMatch(readReportFile(project), /Legacy figures retain/);
+    const pair = compare(project, project, chain);
+    assert.ok(pair.reasons.includes("usage-incomplete:routed"));
+    assert.ok(!pair.reasons.includes("usage-scope-mismatch"));
+    assert.ok(!pair.warnings.includes("legacy-usage-scope"));
+    const zero = fixture([entry(1, "plan", { usage: { totalTokens: 0 } })], { chain });
+    assert.deepEqual(status(zero, chain).usageCoverage, { verified: 0, unavailable: 0, legacy: 1, missing: 0 });
+  });
+}
+
 test("no figures render as missing while an explicit verified zero renders as zero", () => {
   const missing = fixture([omitted(1)]);
   status(missing);

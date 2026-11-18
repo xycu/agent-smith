@@ -71,7 +71,7 @@ export function collectCodexUsage({ rootThreadId, threads, delegated = false, ex
     const byId = new Map(threads.map(item => [item.id, item]));
     for (const item of threads) {
       const meta = item.metadata;
-      if (!identifier(item.id) || !object(meta) || meta.id !== item.id || meta.sessionId !== rootThreadId
+      if (!identifier(item.id) || !object(meta) || meta.id !== item.id || meta.sessionId !== item.id
           || !identifier(item.turn?.id) || item.turn.rootTurnId !== invocation.rootTurnId) fail("missing-identity");
       if (meta.cliVersion !== CODEX_USAGE_VERSION) fail("unsupported-host");
       if (meta.forkedFromId != null && (item.id === rootThreadId || meta.forkedFromId !== meta.parentThreadId)) fail("ambiguous-history");

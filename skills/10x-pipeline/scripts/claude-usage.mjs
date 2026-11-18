@@ -45,7 +45,7 @@ function scalar(attrs, key) {
   if (Object.hasOwn(value, "stringValue")) return value.stringValue;
   if (Object.hasOwn(value, "intValue")) {
     const raw = value.intValue;
-    if (typeof raw !== "string" || !/^\d+$/.test(raw) || !integer(Number(raw))) fail("unsupported-schema");
+    if (!(integer(raw) || (typeof raw === "string" && /^\d+$/.test(raw) && integer(Number(raw))))) fail("unsupported-schema");
     return Number(raw);
   }
   if (Object.hasOwn(value, "doubleValue")) return value.doubleValue;
@@ -253,7 +253,7 @@ export function collectClaudeUsage(descriptor = {}) {
     if (terminalSequence === undefined) fail("incomplete-capture");
     // event.sequence restarts across processes, so its prefix only corroborates the independently matched process.
     for (let sequence = 0; sequence <= terminalSequence; sequence++) if (!events.has(sequence)) fail("incomplete-capture");
-    if (responses.size !== requests.size || [...responses.keys()].some(requestId => !requests.has(requestId))) fail("snapshot-mismatch");
+    if ([...responses.keys()].some(requestId => !requests.has(requestId))) fail("snapshot-mismatch");
     let totalTokens = 0;
     let requestCount = 0;
     const transcriptFiles = new Set();
@@ -268,13 +268,12 @@ export function collectClaudeUsage(descriptor = {}) {
       const native = new Map();
       const messages = new Map();
       const entries = new Map();
-      let previous = null;
-      let last;
       read(agent.stop.file, record => {
-        if (!["user", "assistant"].includes(record.type)) return;
+        if (!["user", "assistant", "attachment"].includes(record.type)) return;
         if (record.sessionId !== invocation.sessionId || record.agentId !== agent.id || record.version !== hostVersion
             || !identifier(record.uuid) || (record.parentUuid !== null && !identifier(record.parentUuid))) fail("missing-identity");
         const entry = { type: record.type, parent: record.parentUuid, request: record.requestId, message: record.message?.id };
+        if (record.type === "user") entry.textHash = hash(textContent(record.message));
         if (record.type === "assistant") {
           if (!identifier(entry.request) || !identifier(entry.message)) fail("missing-identity");
           entry.counts = counters(record.message.usage, transcriptBuckets);
@@ -284,15 +283,10 @@ export function collectClaudeUsage(descriptor = {}) {
         if (prior) {
           if (isDeepStrictEqual(prior, entry)) return;
           if (prior.type !== entry.type || prior.parent !== entry.parent || prior.request !== entry.request || prior.message !== entry.message) fail("conflicting-duplicate");
-          if (!isDeepStrictEqual(prior, entry) && (record.uuid !== previous || !entry.counts
+          if (!isDeepStrictEqual(prior, entry) && (!entry.counts
               || entry.counts.values.some((value, index) => value < prior.counts.values[index]))) fail("conflicting-duplicate");
-        } else {
-          if (record.parentUuid !== previous) fail("ambiguous-history");
-          if (previous === null && (record.type !== "user" || hash(textContent(record.message)) !== agent.promptHash)) fail("ambiguous-history");
-          previous = record.uuid;
         }
         entries.set(record.uuid, entry);
-        if (record.uuid === previous) last = { ...entry, uuid: record.uuid };
         if (record.type !== "assistant") return;
         if (messages.has(entry.message) && messages.get(entry.message) !== entry.request) fail("conflicting-duplicate");
         messages.set(entry.message, entry.request);
@@ -301,7 +295,6 @@ export function collectClaudeUsage(descriptor = {}) {
         native.set(entry.request, { message: entry.message, counts: entry.counts, uuid: record.uuid });
         if (native.size > CLAUDE_USAGE_LIMITS.requests) fail("resource-limit");
       });
-      if (last?.type !== "assistant" || last.textHash !== agent.stop.textHash || !native.size) fail("incomplete-capture");
       const exported = [...requests].filter(([, request]) => request.agent === agent.id);
       if (exported.length !== native.size) fail("snapshot-mismatch");
       let finalSequence = -1;
@@ -309,15 +302,28 @@ export function collectClaudeUsage(descriptor = {}) {
       for (const [requestId, observed] of exported) {
         const record = native.get(requestId);
         const response = responses.get(requestId);
-        if (!record || !response || response.agent !== agent.id || response.uuid !== record.uuid
+        if (!record || (response && (response.agent !== agent.id || response.uuid !== record.uuid))
             || !isDeepStrictEqual(record.counts, observed.counts)) fail("snapshot-mismatch");
-        if (observed.sequence >= ended.sequence || response.sequence >= ended.sequence) fail("ambiguous-history");
-        if (response.sequence > finalSequence) { finalSequence = response.sequence; finalRequest = { record, observed }; }
+        if (observed.sequence >= ended.sequence || (response && response.sequence >= ended.sequence)) fail("ambiguous-history");
+        if (response && response.sequence > finalSequence) { finalSequence = response.sequence; finalRequest = { record, observed }; }
         totalTokens += observed.counts.total;
         if (!Number.isSafeInteger(totalTokens)) fail("resource-limit");
         requestCount++;
       }
-      if (finalRequest?.record.uuid !== last.uuid || ended.total !== finalRequest.observed.counts.total
+      const last = entries.get(finalRequest?.record.uuid);
+      if (last?.type !== "assistant" || last.textHash !== agent.stop.textHash || !native.size) fail("incomplete-capture");
+      // Attachments can be serialized late; membership follows UUID links, never file order.
+      const visited = new Set();
+      let uuid = finalRequest.record.uuid;
+      while (uuid !== null) {
+        const entry = entries.get(uuid);
+        if (!entry || visited.has(uuid)) fail("ambiguous-history");
+        visited.add(uuid);
+        if (entry.parent === null && (entry.type !== "user" || entry.textHash !== agent.promptHash)) fail("ambiguous-history");
+        uuid = entry.parent;
+      }
+      if (visited.size !== entries.size) fail("ambiguous-history");
+      if (ended.total !== finalRequest.observed.counts.total
           || (agent.response.totalTokens !== undefined && agent.response.totalTokens !== ended.total)) fail("snapshot-mismatch");
     }
     return normalizeAccounting({ ...independent, totalTokens }, { schemaVersion: 1, status: "verified", scope: "step-tree",

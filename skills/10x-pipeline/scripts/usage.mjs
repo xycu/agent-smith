@@ -94,7 +94,7 @@ export function usageCoverage(entries) {
   const coverage = { verified: 0, unavailable: 0, legacy: 0, missing: 0 };
   for (const entry of entries) {
     const accounting = accountingFor(entry);
-    coverage[accounting.tokenScope]++;
+    if (accounting.tokenScope !== "legacy" || accounting.usage?.totalTokens !== undefined) coverage[accounting.tokenScope]++;
     if (accounting.usage?.totalTokens === undefined) coverage.missing++;
   }
   return coverage;

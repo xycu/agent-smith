@@ -120,12 +120,68 @@ test("equal sums with different request membership are unavailable", () => {
 
 test("an extra assistant response cannot hide an unaccounted request", () => {
   const fixture = claudeUsageFixture();
-  const extra = structuredClone(fixture.events[3]);
+  const extra = structuredClone(named(fixture, "assistant_response").at(-1));
   setEvent(extra, "event.sequence", fixture.events.length);
   setEvent(extra, "request_id", "unaccounted-request");
   fixture.events.push(extra);
   fixture.write();
   unavailable(collectClaudeUsage(fixture.descriptor), "snapshot-mismatch");
+});
+
+test("decimal-string OTLP integers and text responses on earlier requests remain supported", () => {
+  const fixture = claudeUsageFixture();
+  for (const event of named(fixture, "api_request").filter(event => key(event, "agent_id"))) {
+    const request = key(event, "request_id");
+    if (named(fixture, "assistant_response").some(response => key(response, "request_id") === request)) continue;
+    const response = structuredClone(event);
+    response.body.stringValue = "claude_code.assistant_response";
+    setEvent(response, "message.uuid", `${key(event, "agent_id")}-answer-0`);
+    fixture.events.splice(fixture.events.indexOf(event) + 1, 0, response);
+  }
+  fixture.events.forEach((event, sequence) => setEvent(event, "event.sequence", sequence));
+  for (const attr of [...fixture.resource.attributes, ...fixture.events.flatMap(event => event.attributes)]) {
+    if (Object.hasOwn(attr.value, "intValue")) attr.value.intValue = String(attr.value.intValue);
+  }
+  fixture.write();
+  assert.equal(collectClaudeUsage(fixture.descriptor).usage.totalTokens, 151);
+});
+
+for (const value of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, "1.5", "-1", "9007199254740992"]) {
+  test(`unsafe OTLP intValue ${value} is unavailable`, () => {
+    const fixture = claudeUsageFixture();
+    eventValue(fixture.events[0], "event.sequence").intValue = value;
+    fixture.write();
+    unavailable(collectClaudeUsage(fixture.descriptor), "unsupported-schema");
+  });
+}
+
+for (const [name, mutate] of [
+  ["broken", records => { records.find(record => record.type === "attachment").parentUuid = "missing"; }],
+  ["cyclic", records => { records.find(record => record.type === "attachment").parentUuid = records[1].uuid; }],
+  ["disconnected", records => { records.push({ ...records.at(-1), uuid: "disconnected" }); }],
+  ["wrong launch prompt", records => { records[0].message.content = "different prompt"; }],
+]) {
+  test(`${name} attachment history cannot establish invocation coverage`, () => {
+    const fixture = claudeUsageFixture();
+    mutate([...fixture.transcripts.values()][0]);
+    fixture.write();
+    unavailable(collectClaudeUsage(fixture.descriptor), "ambiguous-history");
+  });
+}
+
+test("tool-only requests still require complete membership and a terminal assistant response", () => {
+  const fixture = claudeUsageFixture();
+  const first = named(fixture, "api_request").find(event => key(event, "agent_id") === "leaf-agent");
+  fixture.events.splice(fixture.events.indexOf(first), 1);
+  fixture.events.forEach((event, sequence) => setEvent(event, "event.sequence", sequence));
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "snapshot-mismatch");
+  const complete = claudeUsageFixture();
+  const terminal = named(complete, "assistant_response").at(-1);
+  complete.events.splice(complete.events.indexOf(terminal), 1);
+  complete.events.forEach((event, sequence) => setEvent(event, "event.sequence", sequence));
+  complete.write();
+  unavailable(collectClaudeUsage(complete.descriptor), "incomplete-capture");
 });
 
 test("request and message identity are a bijection, not just equal counters", () => {

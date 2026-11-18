@@ -63,7 +63,7 @@ if (args[0] === "app-server") {
     }
     if (request.method === "thread/read") {
       const id = request.params.threadId;
-      result = { thread: { id, path: sourcePath(id), cliVersion: mode.hostVersion ?? "0.169.0", sessionId: rootId,
+      result = { thread: { id, path: sourcePath(id), cliVersion: mode.hostVersion ?? "0.169.0", sessionId: id,
         parentThreadId: id === rootId ? null : rootId, forkedFromId: null, ...mode.threadMetadata?.[id] } };
     }
     process.stdout.write(JSON.stringify({ id: mode.mismatchedResponse ? request.id + 1 : request.id, result }) + "\\n");

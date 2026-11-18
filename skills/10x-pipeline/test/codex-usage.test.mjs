@@ -24,7 +24,7 @@ function fixture({ children = [], usages } = {}) {
       ...(usages?.[id] ? { usages: usages[id] } : id === rootThreadId ? {} : { usages: [small] }) });
     fs.writeFileSync(file, records[id].map(record => JSON.stringify(record)).join("\n") + "\n");
     return { id, turn: { id: "turn-" + id, rootTurnId: "turn-root-fixture", status: "completed", completedAt: 20 },
-      metadata: { id, parentThreadId, sessionId: rootThreadId, forkedFromId: null, cliVersion: "0.169.0", path: file } };
+      metadata: { id, parentThreadId, sessionId: id, forkedFromId: null, cliVersion: "0.169.0", path: file } };
   });
   const input = { rootThreadId, codexHome, threads };
   return { project, input, records, files, write(id = rootThreadId) {
@@ -57,6 +57,24 @@ test("stable response duplicates, even after the terminal marker, add nothing", 
   assert.equal(measured.usage.totalTokens, 110);
   assert.equal(measured.usageEvidence.requestCount, 1);
 });
+
+test("child app-server session identity belongs to its thread, not the causal root", () => {
+  const f = fixture({ children: ["child"] });
+  assert.equal(collectCodexUsage(f.input).usage.totalTokens, 132);
+  for (const sessionId of ["foreign", f.input.rootThreadId]) {
+    f.input.threads[1].metadata.sessionId = sessionId;
+    unavailable(collectCodexUsage(f.input), "missing-identity");
+  }
+});
+
+for (const [label, index] of [["session header", 0], ["response", 2]]) {
+  test(`child persisted ${label} must retain the causal root session`, () => {
+    const f = fixture({ children: ["child"] });
+    f.records.child[index].payload.session_id = "child";
+    f.write("child");
+    unavailable(collectCodexUsage(f.input), "missing-identity");
+  });
+}
 
 test("a conflicting duplicate cannot supply a total", () => {
   const f = fixture();
