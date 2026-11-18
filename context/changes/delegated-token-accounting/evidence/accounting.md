@@ -72,3 +72,9 @@ Searched current `skills/`, `docs/`, `README.md` and `context/foundation/` for f
 ## Independent Manual verification attempt — 2026-11-18
 
 Rows 4.3 and 4.4 remain pending. Installed CLI versions match the pinned versions (command-manual-host-versions.log). A fresh Claude collector test run passed all 34 tests (test-manual-claude-usage.log), including the immediate/late/archive collector boundary. Neither establishes the required live-host matrix. No fresh live model run, external capture read, exporter setup or publication was performed. judgment-manual-host-qualification.md records the reviewed claims, known real-format gaps and limits of this proof; unproven.md lists every pending Manual row.
+
+## Manual qualification retry — current adapter reproduction
+
+A second verification attempt read the pending reasons and used a different proof: [script-adapter-recheck.mjs](script-adapter-recheck.mjs) with complete [output](script-adapter-recheck.log). Synthetic positive controls verified 220 Codex tokens and 151 Claude tokens. Changing only the Codex child metadata sessionId to the per-thread value described by the retained review produced unavailable/missing-identity. Changing Claude event.sequence intValue to numeric encoding produced unavailable/unsupported-schema on both chain fixtures. These numbers belong solely to synthetic fixtures, not live invocation measurements. The script source and output are retained; its temporary inputs were safely removed.
+
+[judgment-manual-recheck.md](judgment-manual-recheck.md) records the quoted criteria, reasoning and proof limits. Rows 4.3 and 4.4 remain pending: this attempt did not obtain fresh interactive/headless host qualification or inspect immediate/late/archive output on qualified hosts. No implementation, host setup, stored ledger or archived data was changed. Unsupported positive adapters remain unqualified.
