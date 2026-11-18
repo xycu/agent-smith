@@ -557,3 +557,156 @@ test("2.3 OpenSpec --archive: the commit holds only openspec/changes/demo/ and t
   assert.equal(folderStatus(project), "");
   assert.match(blob(project, "agent-smith/report.md"), /\| 2 \| os-verify \| .* \| 1200 \|/);
 });
+
+// Hand-authored invocation evidence, independent of live telemetry availability.
+const TREE_EVIDENCE = {
+  schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+  invocation: { host: "codex", rootThreadId: "root", rootTurnId: "turn" },
+  sessionCount: 2, requestCount: 4, reconciliation: "response-snapshot",
+};
+const WAITING_EVIDENCE = {
+  schemaVersion: 1, status: "unavailable", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+  invocation: TREE_EVIDENCE.invocation, reason: "incomplete-capture",
+  explanation: "The captured records do not prove complete invocation coverage.",
+};
+
+function treeProject(chain) {
+  const p = chain === "openspec" ? openspecRun() : running();
+  const log = readLogEntries(p);
+  log[0].usage = { durationMs: 45, toolUses: 7 };
+  log[0].usageEvidence = WAITING_EVIDENCE;
+  // Matching descriptions and neutral reruns cannot substitute for the host invocation.
+  log[0].neutralRetries = [{ at: 1, note: "repeated description" }];
+  writeLog(p, log);
+  return p;
+}
+
+function treePayload(p, chain, over = {}) {
+  const first = readLogEntries(p)[0];
+  return { change: p.id, chain, n: 1, step: first.step,
+    usage: { totalTokens: 123, durationMs: 45 }, usageEvidence: TREE_EVIDENCE, ...over };
+}
+
+function treeFile(p, payload) {
+  const file = path.join(p.root, "late-usage.json");
+  fs.writeFileSync(file, JSON.stringify(payload));
+  return file;
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: structured late tokens fill duration-only usage once for the exact invocation`, () => {
+    const p = treeProject(chain);
+    const pending = readLogEntries(p)[1];
+    const file = treeFile(p, treePayload(p, chain));
+    const args = ["--usage-file", file, "--chain", chain];
+    const res = usage(p, 1, args);
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(res.json.unchanged, false);
+    const [first, later] = readLogEntries(p);
+    assert.deepEqual(first.usage, { durationMs: 45, toolUses: 7, totalTokens: 123 });
+    assert.deepEqual(first.usageEvidence, TREE_EVIDENCE);
+    assert.deepEqual(later, pending);
+    const bytes = snapshot(p.changeDir);
+    const replay = usage(p, 1, args);
+    assert.equal(replay.json.unchanged, true, replay.stdout);
+    assert.deepEqual(snapshot(p.changeDir), bytes);
+  });
+
+  test(`${chain}: structured late refusals preserve every run file and legacy flags cannot bypass evidence`, () => {
+    const p = treeProject(chain);
+    const payload = treePayload(p, chain);
+    const before = snapshot(p.changeDir);
+    for (const over of [
+      { change: "another" }, { chain: chain === "10x" ? "openspec" : "10x" },
+      { n: 2 }, { step: "same description" },
+      { usageEvidence: { ...TREE_EVIDENCE, invocation: { ...TREE_EVIDENCE.invocation, rootTurnId: "other-turn" } } },
+      { usageEvidence: { ...TREE_EVIDENCE, schemaVersion: 2 } },
+      { usageEvidence: { ...TREE_EVIDENCE, hostVersion: "0.170.0" } },
+      { usageEvidence: { ...TREE_EVIDENCE, source: "unknown" } },
+      { usageEvidence: WAITING_EVIDENCE },
+      { usageEvidence: { ...TREE_EVIDENCE, invocation: undefined } },
+      { usage: { totalTokens: 123, durationMs: 46 } },
+      { usage: { totalTokens: 123, toolUses: 8 } },
+      { usage: { totalTokens: Number.MAX_SAFE_INTEGER + 1 } },
+      { usage: { totalTokens: 123, raw: "ignored" } },
+    ]) {
+      const file = treeFile(p, { ...payload, ...over });
+      const res = usage(p, 1, ["--usage-file", file, "--chain", chain]);
+      assert.equal(res.status, 1, JSON.stringify(over) + res.stdout);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+    const file = treeFile(p, payload);
+    for (const extra of [["--tokens", "123"], ["--tool-uses", "7"], ["--duration-ms", "45"]]) {
+      const res = usage(p, 1, ["--usage-file", file, ...extra]);
+      assert.equal(res.status, 1, res.stdout);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+    assert.equal(usage(p, 1, ["--tokens", "123"]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    assert.equal(usage(p, 2, ["--usage-file", file]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    fs.writeFileSync(file, "x".repeat(65537));
+    const oversized = usage(p, 1, ["--usage-file", file]);
+    assert.equal(oversized.status, 1, oversized.stdout);
+    assert.doesNotMatch(oversized.stdout, /x{20}/);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+
+  test(`${chain}: structured late input cannot upgrade legacy attribution or fill other missing counters`, () => {
+    const p = treeProject(chain);
+    const log = readLogEntries(p);
+    delete log[0].usageEvidence;
+    writeLog(p, log);
+    const payload = treePayload(p, chain);
+    const file = treeFile(p, payload);
+    const before = snapshot(p.changeDir);
+    assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    log[0].usageEvidence = WAITING_EVIDENCE;
+    delete log[0].usage.toolUses;
+    writeLog(p, log);
+    treeFile(p, { ...payload, usage: { totalTokens: 123, toolUses: 7 } });
+    const missing = snapshot(p.changeDir);
+    assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), missing);
+  });
+
+  test(`${chain}: verified zero can arrive late, but neither that total nor its evidence can be replaced`, () => {
+    const p = treeProject(chain);
+    const payload = treePayload(p, chain, { usage: { totalTokens: 0 } });
+    const file = treeFile(p, payload);
+    assert.equal(usage(p, 1, ["--usage-file", file]).status, 0);
+    assert.equal(readLogEntries(p)[0].usage.totalTokens, 0);
+    const before = snapshot(p.changeDir);
+    for (const over of [{ usage: { totalTokens: 1 } }, { usageEvidence: { ...TREE_EVIDENCE, requestCount: 5 } }]) {
+      treeFile(p, { ...payload, ...over });
+      assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+  });
+}
+
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: structured file redirects and archived targets refuse without changing run files`, () => {
+    const p = treeProject(chain);
+    const file = treeFile(p, treePayload(p, chain));
+    const link = path.join(p.root, "late-redirect.json");
+    fs.symlinkSync(file, link);
+    const before = snapshot(p.changeDir);
+    const res = usage(p, 1, ["--usage-file", link, "--chain", chain]);
+    assert.equal(res.status, 1, res.stdout);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    if (chain === "10x") {
+      fs.writeFileSync(path.join(p.changeDir, "change.md"), "---\nchange_id: demo\nstatus: archived\n---\n");
+      const stamped = snapshot(p.changeDir);
+      assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+      assert.deepEqual(snapshot(p.changeDir), stamped);
+    } else {
+      const target = moveToArchive(p);
+      const archived = snapshot(target);
+      assert.equal(usage(p, 1, ["--usage-file", file, "--chain", chain]).status, 1);
+      assert.deepEqual(snapshot(target), archived);
+    }
+  });
+}

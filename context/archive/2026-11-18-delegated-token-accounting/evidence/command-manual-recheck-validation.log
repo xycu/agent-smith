@@ -1,0 +1,2 @@
+Command: final evidence integrity checks and git diff --check
+PASS: 4.3/4.4 remain pending, unproven.md lists exactly both, evidence nonempty and below 1 MB, scratch removed, plan unchanged, git diff --check passed.

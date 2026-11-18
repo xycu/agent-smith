@@ -240,7 +240,7 @@ test("terminal branches reach publication and archive verifies before publishing
 });
 
 test("one chain-selected usage procedure is called before status and publication on every terminal path", () => {
-  const call = "node $ROUTER usage <change-name> <n> --tokens N --tool-uses N --duration-ms N --chain openspec";
+  const call = "node $ROUTER usage <change-name> <n> --usage-file <usage-file> --chain openspec";
   assert.equal(skill.split(call).length - 1, 1);
   assert.ok(section(lines, "## Late usage (before every end)").join("\n").includes(call));
   for (const name of ["done", "halt", "archive"]) {
@@ -290,6 +290,20 @@ test("archive reuses dispatch with its archive description override", () => {
   assert.match(branch("archive"), /Call the Agent tool with the same parameters as for `run`/);
   assert.ok(branch("run").includes('description: "agent-smith <change-name> step <n> <step>"'));
   assert.ok(branch("run").includes("override the description with `agent-smith <change-name> archive`"));
+});
+
+test("native accounting shares the immediate, late and archive reader without final-request mapping", () => {
+  assert.ok(skill.includes('CLAUDE_USAGE="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/claude-usage.mjs"'));
+  assert.match(branch("run"), /node "\$CLAUDE_USAGE"/);
+  assert.match(branch("run"), /never map it to `totalTokens`, even for a flat step/);
+  assert.match(branch("run"), /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
+  assert.match(branch("archive"), /For Claude, apply Loop step 4.s collector too/);
+  const late = section(lines, "## Late usage (before every end)").join("\n");
+  assert.match(late, /--usage-file <usage-file> --chain openspec/);
+  assert.match(late, /No verified total or no recorded invocation: omit the call/);
+  assert.match(late, /Include no raw source paths or records/);
+  assert.match(late, /Unlink the owned payload in a finally step/);
+  assert.doesNotMatch(late, /node \$ROUTER next|--tokens N/);
 });
 
 // OpenSpec consumes the same setup owner with its chain selector.

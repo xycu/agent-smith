@@ -119,7 +119,7 @@ Override any policy key per project in `context/foundation/agent-smith-policy.js
 { "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2, "fable": 12 } } }
 ```
 
-All numbers above are illustrative user-supplied blended rates. Supply current rates for your deployment. Pricing is a separate opt-in, with `prices: null` as the default. The estimate uses `totalTokens * rate / 1e6`, with one rate per model key across providers and efforts and no input/output/cache split. Omit unknown prices, since `0` is a real zero rate. Estimates carry no billing or savings guarantee.
+All numbers above are illustrative user-supplied blended rates. Supply current rates for your deployment. Pricing is a separate opt-in, with `prices: null` as the default. The estimate uses `totalTokens * rate / 1e6`, with one rate per model key across providers and efforts and no input/output/cache split. Omit unknown prices, since `0` is a real zero rate. With verified subtree usage the estimate is labelled a routing-rate approximation: child models may differ, and all child usage is priced at the enclosing dispatch rate. Estimates carry no billing or savings guarantee.
 
 Eligible Claude hosts can merge the complete opt-in fable ladder and four selected ceilings into their project override. Arrays replace whole, so preserve unrelated keys deliberately. The shipped rigor floors remain supported. A custom `xhigh` floor skips the high rung and can exceed a lower ceiling, while a custom `max` floor exhausts this extension at xhigh. A Codex host requires an OpenAI-only ladder. Combining this example with the GPT overlay requires a deliberate provider and ladder redesign. [Opt-in fable ladder](docs/REFERENCE.md#opt-in-fable-ladder)
 
@@ -140,6 +140,12 @@ This repository permits the orchestrator → step → child layers. Plugin users
 ```
 
 The cap affects every Claude session in that project, including workflows outside the pipeline. Commit the setting before creating run worktrees, then start a fresh Claude session from the intended project root. Use awaited foreground children with the guarded `agent-smith:step` identity. Native collection was observed on Claude Code 2.1.311 headless; interactive collection remains quota-blocked and full pipeline qualification is pending. The reference covers version support, overrides, usage coverage and recovery. [Subagent depth](docs/REFERENCE.md)
+
+## Observed token coverage
+
+Reports and status distinguish verified observed `step-tree` tokens, unavailable measurements and legacy/unverified scope. Missing is `-`, measured zero is `0`, and partial totals say subtotal. Codex 0.169.0 records reconcile per response/context; optional Claude 2.1.311 collection needs already-authorized native transcripts, paired Agent records and matching OTLP provenance. The plugin enables no telemetry. A final-request footprint or notification alone cannot prove whole-step usage. Unsupported or incomplete captures return a bounded unavailable reason.
+
+Legacy-only comparisons retain their result with a scope warning; verified/legacy mixtures refuse a savings verdict. Provider/model/tier groups describe the enclosing dispatch. Activate the complete accounting candidate after all Automated gates; fresh interactive/headless host qualification remains pending. [Capture, limits, late attachment and rollback](docs/REFERENCE.md#observed-token-accounting).
 
 ## 📚 More
 

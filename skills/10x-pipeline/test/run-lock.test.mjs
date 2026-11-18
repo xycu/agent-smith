@@ -355,3 +355,23 @@ for (const chain of ["10x", "openspec"]) {
     });
   }
 }
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: accounting failure after proven closure releases every mutation boundary`, () => {
+    const w = codexFixture(chain, { mode: { usageMetadataFailure: true,
+      reply: 'RESULT: {"status":"failed","note":"collected failure","usage":{"totalTokens":999},"usageEvidence":{"status":"verified","path":"/private-source"}}' } });
+    const result = execute(w);
+    assert.equal(result.json.completed, true, result.stdout);
+    assert.equal(result.json.result.status, "failed");
+    assert.equal(result.json.usage.totalTokens, undefined);
+    assert.equal(result.json.usageEvidence.status, "unavailable");
+    assert.ok(result.json.usage.durationMs >= 0);
+    assert.doesNotMatch(JSON.stringify(result.json.usageEvidence), /private-source/);
+    assert.deepEqual(runnerLeftovers(w), []);
+    writeResult(w.project, result.json.result);
+    const next = run(w.project, ["next", w.project.id, "--chain", chain], { env: w.env });
+    assert.doesNotMatch(next.json.reason ?? "", /Execution suspended:|lock file/);
+    assert.equal(fs.existsSync(path.join(w.project.agentDir, "last-result.json")), false);
+    assert.equal(calls(w.fixture).filter(call => call.args[0] === "exec").length, 1);
+  });
+}

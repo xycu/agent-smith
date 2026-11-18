@@ -11,7 +11,7 @@
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
 //   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]   # read-only: usage of a routed run against a baseline run
 //                                      # --unpinned: the baseline is a routed run too (scorer off), for the scorer A/B
-//   node route.mjs usage  <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N]   # attach a late usage figure to executed step <n>
+//   node route.mjs usage  <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])   # late usage
 //   Every command takes --chain 10x|openspec. Without it, a run whose openspec/changes/<id>/agent-smith/meta.json
 //   (or that of its archive folder) holds chain "openspec" is an OpenSpec run; any other run is 10x.
 //
@@ -20,6 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { normalizeAccounting, cleanInvocation, readBoundedFile, accountingFor, usageCoverage, usageFigure, addFigures } from "./usage.mjs";
 import {
   ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
@@ -427,53 +428,49 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
   const found = locateSide(dirArg, id, side, chain);
   const { entries: log, logProblems } = readLog(path.join(found.dir, "run.jsonl"), { tolerant: true });
   const meta = readMeta(path.join(found.dir, "meta.json"), {});
-  const steps = executed(log);
+  const steps = executed(log).map((entry) => ({ ...entry, ...accountingFor(entry) }));
+  const coverage = usageCoverage(steps);
   const skipped = log.filter((e) => e.skipped).map((e) => (typeof e.step === "string" ? e.step : "unknown"));
-  const figure = (key) => {
-    let total = 0;
-    let withFigures = 0;
-    for (const e of steps) {
-      const v = e.usage?.[key];
-      // A running total past the safe-integer range counts as a missing figure, so the pair is not comparable.
-      if (validFigure(v) && !Number.isSafeInteger(total + v)) continue;
-      if (validFigure(v)) { total += v; withFigures++; }
-    }
-    return { total, stepsWithFigures: withFigures };
-  };
+  const figure = (key) => usageFigure(steps, key);
   // Tokens per model alias, and per tier as <model>/<effort>: byModel cannot show an effort move.
-  const byModel = {};
-  const byTier = {};
-  const byProviderModel = {};
-  const byProviderTier = {};
+  const byModel = Object.create(null);
+  const byTier = Object.create(null);
+  const byProviderModel = Object.create(null);
+  const byProviderTier = Object.create(null);
+  const group = (groups, key, value) => { groups[key] = addFigures(Object.hasOwn(groups, key) ? groups[key] : 0, value); };
   for (const e of steps) {
     const v = e.usage?.totalTokens;
     if (!validFigure(v)) continue;
     const model = typeof e.model === "string" && e.model ? e.model : "unknown";
     const effort = typeof e.effort === "string" && e.effort ? e.effort : "unknown";
-    byModel[model] = (byModel[model] ?? 0) + v;
-    byTier[`${model}/${effort}`] = (byTier[`${model}/${effort}`] ?? 0) + v;
+    group(byModel, model, v);
+    group(byTier, `${model}/${effort}`, v);
     const providerModel = `${providerOf(e)}/${model}`;
-    byProviderModel[providerModel] = (byProviderModel[providerModel] ?? 0) + v;
-    byProviderTier[`${providerModel}/${effort}`] = (byProviderTier[`${providerModel}/${effort}`] ?? 0) + v;
+    group(byProviderModel, providerModel, v);
+    group(byProviderTier, `${providerModel}/${effort}`, v);
   }
   // The cost estimate at a blended rate: USD in total and per alias over priced steps, summed before rounding.
   let cost = null;
   if (prices) {
     const est = estimateCost(steps, prices);
-    const usdByModel = {};
-    const usdByProviderModel = {};
+    const usdByModel = Object.create(null);
+    const usdByProviderModel = Object.create(null);
     for (const e of steps) {
       const usd = est.perEntry[e.n];
-      if (typeof usd !== "number") continue;
       const model = typeof e.model === "string" && e.model ? e.model : "unknown";
-      usdByModel[model] = (usdByModel[model] ?? 0) + usd;
-      const providerModel = `${providerOf(e)}/${model}`;
-      usdByProviderModel[providerModel] = (usdByProviderModel[providerModel] ?? 0) + usd;
+      if (!validFigure(e.usage?.totalTokens) || !Object.hasOwn(prices.usdPerMillionTokens, model)) continue;
+      const addCost = (groups, key) => {
+        const current = Object.hasOwn(groups, key) ? groups[key] : 0;
+        groups[key] = current === null || usd === null || !Number.isFinite(current + usd) ? null : current + usd;
+      };
+      addCost(usdByModel, model);
+      addCost(usdByProviderModel, `${providerOf(e)}/${model}`);
     }
     cost = {
       usd: est.priced ? roundUsd(est.usd) : null, priced: est.priced, withFigures: est.withFigures, unpriced: est.unpriced,
       byModel: Object.fromEntries(Object.entries(usdByModel).map(([m, v]) => [m, roundUsd(v)])),
       byProviderModel: Object.fromEntries(Object.entries(usdByProviderModel).map(([m, v]) => [m, roundUsd(v)])),
+      ...(coverage.verified ? { scope: "enclosing-dispatch-routing-rate" } : {}),
     };
   }
   const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
@@ -501,6 +498,9 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
     outcome: meta.outcome?.action ?? null,
     provenance: isObject(meta.provenance) ? meta.provenance : null,
     steps: steps.length,
+    usageCoverage: coverage,
+    usageSteps: steps.map((entry) => ({ n: entry.n, step: entry.step, usage: entry.usage, tokenScope: entry.tokenScope, usageEvidence: entry.usageEvidence ?? null })),
+    groupingScope: "enclosing-dispatch",
     skipped,
     failedAttempts: steps.filter(isFailure).length,
     plan,
@@ -570,6 +570,7 @@ function comparePair(id, flags, policy, chain = "10x") {
     if (s.steps === 0) reasons.push(`no-steps:${name}`);
     if (s.outcome !== "done") reasons.push(`outcome-not-done:${name}`);
     if (s.steps > 0 && s.tokens.stepsWithFigures < s.steps) reasons.push(`usage-incomplete:${name}`);
+    if ([s.tokens, s.toolUses, s.durationMs].some((figure) => figure.total === null)) reasons.push(`usage-overflow:${name}`);
   }
   const baselineComplete = baseline.steps > 0 && baseline.tokens.stepsWithFigures === baseline.steps;
   if (baselineComplete && baseline.tokens.total === 0) reasons.push("baseline-total-zero");
@@ -591,6 +592,10 @@ function comparePair(id, flags, policy, chain = "10x") {
   const expected = provenanceConfig(policy).expected[unpinned ? "unpinned" : "pinned"];
   warnings.push(...provenanceWarnings(sides.map(([name, s]) => [name, s.provenance]), expected));
 
+  const verified = sides.some(([, side]) => side.usageCoverage.verified > 0);
+  const legacy = sides.some(([, side]) => side.usageCoverage.legacy > 0);
+  if (verified && legacy) reasons.push("usage-scope-mismatch");
+  else if (legacy) warnings.push("legacy-usage-scope");
   const comparable = reasons.length === 0;
   let dropPercent = null;
   let verdict = "not comparable";
@@ -620,21 +625,22 @@ function compareMarkdown(pair) {
   const { baseline: b, routed: r } = pair;
   const row = (label, f) => `| ${label} | ${f(b)} | ${f(r)} |`;
   const list = (a) => (a.length ? a.join(", ") : "none");
-  const withSteps = (key) => (s) => `${s[key].total} (${s[key].stepsWithFigures} of ${s.steps})`;
+  const shown = (value) => value === null ? "- (overflow)" : value;
+  const withSteps = (key) => (s) => `${s[key].stepsWithFigures ? shown(s[key].total) : "-"} (${s[key].stepsWithFigures} of ${s.steps})`;
   const models = (s) => {
     const names = Object.keys(s.tokens.byModel).sort();
-    return names.length ? names.map((m) => `${m} ${s.tokens.byModel[m]}`).join(", ") : "none";
+    return names.length ? names.map((m) => `${m} ${shown(s.tokens.byModel[m])}`).join(", ") : "none";
   };
   const tiers = (s) => {
     const names = Object.keys(s.tokens.byTier).sort();
-    return names.length ? names.map((t) => `${t} ${s.tokens.byTier[t]}`).join(", ") : "none";
+    return names.length ? names.map((t) => `${t} ${shown(s.tokens.byTier[t])}`).join(", ") : "none";
   };
   // Cost rows print only when compare ran with prices; both sides are priced from the same table.
   const priced = b.cost !== null && r.cost !== null;
   const costCell = (s) => `${s.cost.usd === null ? "-" : `$${s.cost.usd.toFixed(2)}`} (${s.cost.priced} of ${s.cost.withFigures} priced)`;
   const costModels = (s) => {
     const names = Object.keys(s.cost.byModel).sort();
-    return names.length ? names.map((m) => `${m} $${s.cost.byModel[m].toFixed(2)}`).join(", ") : "none";
+    return names.length ? names.map((m) => `${m} ${s.cost.byModel[m] === null ? "-" : `$${s.cost.byModel[m].toFixed(2)}`}`).join(", ") : "none";
   };
   return [
     `# Usage comparison: ${pair.change}`,
@@ -652,14 +658,20 @@ function compareMarkdown(pair) {
     row("Duration (ms)", withSteps("durationMs")),
     row("Plan phases and rows", (s) => (s.plan ? `${s.plan.phases} and ${s.plan.rows}` : "none")),
     row("Source", (s) => s.source),
+    row("Token coverage (verified / unavailable / legacy / missing)", (s) => { const c = s.usageCoverage; return `${c.verified} / ${c.unavailable} / ${c.legacy} / ${c.missing}`; }),
     "",
+    "Provider/model/tier groups describe the enclosing dispatch.",
+    ...[["baseline", b], ["routed", r]].filter(([, s]) => s.tokens.stepsWithFigures > 0 && s.tokens.stepsWithFigures < s.steps).map(([name]) => `Token total for ${name} is a subtotal (incomplete coverage).`),
+    ...[["baseline", b], ["routed", r]].flatMap(([name, s]) => s.usageSteps.filter((entry) => entry.usageEvidence?.status === "unavailable").map((entry) => `Unavailable ${name} step ${entry.n}: ${entry.usageEvidence.reason} — ${entry.usageEvidence.explanation}`)),
+    ...(priced && (b.usageCoverage.verified || r.usageCoverage.verified) ? ["Cost is a routing-rate approximation: child usage can be priced at the enclosing dispatch rate."] : []),
+    ...(pair.warnings.includes("legacy-usage-scope") ? ["Legacy token figures have unverified scope."] : []),
     `Tokens by model, baseline: ${models(b)}`,
     `Tokens by model, routed: ${models(r)}`,
     `Tokens by tier, baseline: ${tiers(b)}`,
     `Tokens by tier, routed: ${tiers(r)}`,
     ...(priced ? [`Cost by model, baseline: ${costModels(b)}`, `Cost by model, routed: ${costModels(r)}`] : []),
-    `Tokens by provider/model, baseline: ${Object.entries(b.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${value}`).join(", ") || "none"}`,
-    `Tokens by provider/model, routed: ${Object.entries(r.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${value}`).join(", ") || "none"}`,
+    `Tokens by provider/model, baseline: ${Object.entries(b.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${shown(value)}`).join(", ") || "none"}`,
+    `Tokens by provider/model, routed: ${Object.entries(r.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${shown(value)}`).join(", ") || "none"}`,
     "",
     `Baseline pinned to sonnet at high effort: ${pair.pinned ? "yes" : "no"}`,
     `Drop: ${pair.dropPercent === null ? "none" : `${pair.dropPercent}%`} (rounded down to 2 decimals; the verdict uses exact tokens)`,
@@ -690,12 +702,19 @@ function status(id, flags, chain = "10x", policy = null) {
   const { entries: log, logProblems } = readLog(p.log, { tolerant: !flags.report });
   // The cost estimate, only when the merged policy prices a model; without prices status has no cost key.
   const prices = loadPrices();
-  const cost = prices ? estimateCost(executed(log), prices) : null;
+  const normalized = executed(log).map((entry) => ({ ...entry, ...accountingFor(entry) }));
+  const coverage = usageCoverage(normalized);
+  const cost = prices ? estimateCost(normalized, prices) : null;
   const stored = readMeta(p.meta, {});
   const res = {
     change: id,
     ...(logProblems.length ? { logProblems } : {}),
     host: hostOf(stored),
+    usageCoverage: coverage,
+    tokens: usageFigure(normalized, "totalTokens"),
+    toolUses: usageFigure(normalized, "toolUses"),
+    durationMs: usageFigure(normalized, "durationMs"),
+    groupingScope: "enclosing-dispatch",
     rigor: stored.rigor?.level ?? null,
     ...prCommentField(stored),
     steps: log.map((e) => e.skipped ? {
@@ -705,7 +724,8 @@ function status(id, flags, chain = "10x", policy = null) {
       n: e.n, step: e.step, template: e.template ?? null, provider: providerOf(e), model: e.model, effort: e.effort, simple: e.simple ?? null,
       ...(providerOf(e) === "openai" ? { profile: e.profile ?? null } : {}),
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
-      usage: e.usage ?? null,
+      ...accountingFor(e),
+      usageEvidence: accountingFor(e).usageEvidence ?? null,
       ...(cost ? { cost: typeof cost.perEntry[e.n] === "number" ? roundUsd(cost.perEntry[e.n]) : null } : {}),
       ...(e.step === "manual-verify" ? {
         ticked: e.ticked?.length ?? 0,
@@ -739,6 +759,7 @@ function status(id, flags, chain = "10x", policy = null) {
     res.cost = {
       usd: cost.priced ? roundUsd(cost.usd) : null, currency: "USD", rate: "blended",
       priced: cost.priced, withFigures: cost.withFigures, unpriced: cost.unpriced,
+      ...(coverage.verified ? { scope: "enclosing-dispatch-routing-rate" } : {}),
     };
   }
   // The OpenSpec state the router reads from files, as the contract test compares it with `openspec instructions apply`.
@@ -773,17 +794,39 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
     refuse("Usage: route.mjs usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] [--chain 10x|openspec]; <n> is the step number, a positive integer that directly follows the change id.");
   }
   const n = Number(rawN);
-  const raw = {};
-  for (const [flag, key] of USAGE_FLAGS) {
-    if (flags[flag] === undefined) continue;
-    const v = flags[flag];
-    if (typeof v !== "string" || !/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) {
-      refuse(`--${flag} needs a non-negative integer, got ${v === true ? "no value" : JSON.stringify(v)}.`, n);
+  const structured = flags["usage-file"] !== undefined;
+  let payload;
+  let accounting;
+  let usage;
+  if (structured) {
+    if (typeof flags["usage-file"] !== "string" || !flags["usage-file"].trim()) refuse("--usage-file needs a local file path.", n);
+    if (USAGE_FLAGS.some(([flag]) => flags[flag] !== undefined)) refuse("--usage-file cannot be mixed with numeric usage flags.", n);
+    try {
+      payload = JSON.parse(readBoundedFile(path.resolve(ROOT, flags["usage-file"]), { root: ROOT }));
+    } catch {
+      refuse("--usage-file must be a bounded, stable regular JSON file within the run root.", n);
     }
-    raw[key] = Number(v);
+    if (!isObject(payload) || payload.change !== id || payload.chain !== chain || payload.n !== n || typeof payload.step !== "string") {
+      refuse("--usage-file change, chain, n and step must identify this completed invocation.", n);
+    }
+    accounting = normalizeAccounting(payload.usage, payload.usageEvidence);
+    if (!isDeepStrictEqual(cleanUsage(payload.usage), payload.usage) || accounting.usageEvidence?.status !== "verified") {
+      refuse("--usage-file requires valid numeric usage and verified accounting evidence.", n);
+    }
+    usage = accounting.usage;
+  } else {
+    const raw = {};
+    for (const [flag, key] of USAGE_FLAGS) {
+      if (flags[flag] === undefined) continue;
+      const v = flags[flag];
+      if (typeof v !== "string" || !/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) {
+        refuse(`--${flag} needs a non-negative integer, got ${v === true ? "no value" : JSON.stringify(v)}.`, n);
+      }
+      raw[key] = Number(v);
+    }
+    usage = cleanUsage(raw);
+    if (!usage) refuse("Give at least one of --tokens, --tool-uses and --duration-ms, or --usage-file.", n);
   }
-  const usage = cleanUsage(raw);
-  if (!usage) refuse("Give at least one of --tokens, --tool-uses and --duration-ms.", n);
 
   const p = paths(id, policy, chain);
   guardArchived(p, id, chain);
@@ -793,11 +836,38 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   const entry = executed(log).find((e) => e.n === n);
   if (!entry) refuse(`Step ${n} is not logged.`, n);
   if (!isObject(entry.result)) refuse(`Step ${n} (${entry.step}) has no result yet; put the figure in its result file.`, n);
-  const base = { action: "usage", attached: true, n, step: entry.step, usage };
-  if (entry.usage !== undefined) {
-    if (isDeepStrictEqual(entry.usage, usage)) out({ ...base, unchanged: true, report: null, commit: null });
-    refuse(`Step ${n} (${entry.step}) already has the figure ${JSON.stringify(entry.usage)}; a figure is never overwritten.`, n);
+  let evidence;
+  if (structured) {
+    const recorded = normalizeAccounting(entry.usage, entry.usageEvidence).usageEvidence;
+    const identity = cleanInvocation(recorded?.invocation);
+    if (payload.step !== entry.step || !identity || !isDeepStrictEqual(identity, accounting.usageEvidence.invocation)
+        || recorded.source !== accounting.usageEvidence.source || recorded.hostVersion !== accounting.usageEvidence.hostVersion) {
+      refuse("Structured usage must match the recorded host invocation and step exactly.", n);
+    }
+    for (const key of ["toolUses", "durationMs"]) {
+      if (Object.hasOwn(usage, key) && usage[key] !== entry.usage?.[key]) {
+        refuse(`Structured usage cannot fill or replace ${key}.`, n);
+      }
+    }
+    if (entry.usage?.totalTokens !== undefined && entry.usage.totalTokens !== usage.totalTokens) {
+      refuse("A recorded token total is never overwritten.", n);
+    }
+    evidence = accounting.usageEvidence;
+    usage = { ...entry.usage, totalTokens: usage.totalTokens };
+    if (entry.usage?.totalTokens !== undefined) {
+      if (isDeepStrictEqual(entry.usage, usage) && isDeepStrictEqual(entry.usageEvidence, evidence)) {
+        out({ action: "usage", attached: true, n, step: entry.step, usage, usageEvidence: evidence, unchanged: true, report: null, commit: null });
+      }
+      refuse("An existing token measurement and its evidence are immutable.", n);
+    }
+  } else {
+    if (entry.usageEvidence !== undefined) refuse("A recorded evidence contract requires --usage-file.", n);
+    if (entry.usage !== undefined) {
+      if (isDeepStrictEqual(entry.usage, usage)) out({ action: "usage", attached: true, n, step: entry.step, usage, unchanged: true, report: null, commit: null });
+      refuse(`Step ${n} (${entry.step}) already has the figure ${JSON.stringify(entry.usage)}; a figure is never overwritten.`, n);
+    }
   }
+  const base = { action: "usage", attached: true, n, step: entry.step, usage, ...(evidence ? { usageEvidence: evidence } : {}) };
   const meta = readMeta(p.meta, { id, goal: "" });
   const ended = isObject(meta.outcome);
   // The archive state: the run is done, started with --archive, and the folder is committed for /10x-archive. Everything
@@ -810,6 +880,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   const oldBytes = archiveState ? [p.log, p.report].map((file) => [file, fs.existsSync(file) ? fs.readFileSync(file) : null]) : [];
   cleanupStateTemps(p.dir);
   entry.usage = usage;
+  if (evidence) entry.usageEvidence = evidence;
   entry.usageLate = true;
   writeLog(p.log, log);
   // An ended run has a report; rewrite it so the Tokens column, the totals and the cost include the figure.

@@ -12,6 +12,7 @@ import {
 import { dispatchProblem, promptFilePath } from "./flow.mjs";
 import { archiveDescriptor } from "./isolation.mjs";
 import { removeTree } from "./remove-tree.mjs";
+import { collectCodexUsage, CODEX_USAGE_LIMITS } from "./codex-usage.mjs";
 
 const MAX_MESSAGE = 1024 * 1024;
 const MAX_EVENT = 8 * 1024 * 1024;
@@ -130,7 +131,7 @@ function configArgs(action) {
 }
 
 // Model-free, bounded metadata reads: inactive labels and reconstructed interrupted turns prove no closure.
-async function settledDescendants(threadId) {
+async function settledDescendants(threadId, onSettled) {
   if (typeof threadId !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(threadId)) refuse("Missing native parent identity.");
   const server = spawn("codex", ["app-server", "--stdio"], { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] });
   let sequence = 0;
@@ -167,7 +168,7 @@ async function settledDescendants(threadId) {
       } catch { fail("Native metadata response is malformed or mismatched."); }
     }
   });
-  const timer = setTimeout(() => fail("Native metadata reconciliation timed out."), 30000);
+  let timer = setTimeout(() => fail("Native metadata reconciliation timed out."), 30000);
   const request = (method, params) => new Promise((resolve, reject) => {
     if (failure) { reject(failure); return; }
     const id = ++sequence;
@@ -185,8 +186,9 @@ async function settledDescendants(threadId) {
         || (turn.startedAt != null && (!Number.isSafeInteger(turn.startedAt) || turn.startedAt > turn.completedAt))) {
         refuse("Native parent or descendant has no proven completed latest turn.");
       }
+      return { id, turn };
     };
-    await completed(threadId);
+    const threads = [await completed(threadId)];
     const enumerate = async () => {
       const descendants = new Set();
       for (const archived of [false, true]) {
@@ -213,13 +215,28 @@ async function settledDescendants(threadId) {
       return descendants;
     };
     const descendants = await enumerate();
-    for (const id of descendants) await completed(id);
+    for (const id of descendants) threads.push(await completed(id));
     // A child may have spawned another child while its first metadata read was in flight.
     const finalDescendants = await enumerate();
     if (finalDescendants.size !== descendants.size || [...finalDescendants].some(id => !descendants.has(id))) {
       refuse("Native descendant membership changed during reconciliation.");
     }
-    return descendants.size;
+    onSettled();
+    // Closure is already proved. Optional accounting metadata cannot retain native execution ownership.
+    clearTimeout(timer);
+    const deadline = Date.now() + CODEX_USAGE_LIMITS.readMs;
+    let metadataReason;
+    timer = setTimeout(() => fail("Native usage metadata read timed out."), CODEX_USAGE_LIMITS.readMs);
+    try {
+      if (threads.length > CODEX_USAGE_LIMITS.sessions) metadataReason = "resource-limit";
+      else for (const item of threads) {
+        const response = await request("thread/read", { threadId: item.id, includeTurns: false });
+        item.metadata = response.thread;
+      }
+    } catch {
+      metadataReason = Date.now() >= deadline ? "resource-limit" : "missing-source";
+    }
+    return { threads, metadataReason, deadline };
   } finally {
     clearTimeout(timer);
     server.stdin.end();
@@ -239,19 +256,6 @@ function readResult(message) {
   if (!isObject(result) || typeof result.status !== "string" || !result.status.trim()) refuse("RESULT must be an object with a status.");
   if (result.status === "orchestrator-error") result.status = "unknown";
   return result;
-}
-
-function tokenTotal(usage) {
-  if (usage === undefined || usage === null) return undefined;
-  if (!isObject(usage)) refuse("Codex returned malformed usage counters.");
-  for (const key of ["input_tokens", "output_tokens", "cached_input_tokens", "cache_write_input_tokens", "reasoning_output_tokens"]) {
-    const value = usage[key];
-    if (value !== undefined && (!Number.isSafeInteger(value) || value < 0)) refuse("Codex returned unsafe usage counters.");
-  }
-  if (usage.input_tokens === undefined || usage.output_tokens === undefined) return undefined;
-  const total = usage.input_tokens + usage.output_tokens;
-  if (!Number.isSafeInteger(total)) refuse("Codex token total overflowed.");
-  return total;
 }
 
 export async function runCodex(id, chain, action) {
@@ -391,7 +395,6 @@ export async function runCodex(id, chain, action) {
     envelope.signal = completion.signal;
     pending += decoder.end();
     if (pending) event(pending);
-    const total = tokenTotal(latestUsage);
     if (cancelled) refuse(`Execution cancelled by ${cancelled}. Native settlement is unverified.`);
     if (completion.error) refuse(`Codex launch failed (${completion.error}).`);
     if (completion.code !== 0) refuse("Codex exited unsuccessfully. The child result was not accepted.");
@@ -402,15 +405,18 @@ export async function runCodex(id, chain, action) {
     const reply = fs.readFileSync(finalFile, "utf8");
     if (typeof finalMessage !== "string" || finalMessage !== reply) refuse("Codex final file does not match the final assistant message.");
     const result = readResult(reply);
-    const descendants = await settledDescendants(rootThread);
-    if (cancelled) refuse(`Execution cancelled by ${cancelled} during native reconciliation.`);
-    lock.clearChild(true);
-    if (total !== undefined && !delegated && descendants === 0) envelope.usage.totalTokens = total;
-    envelope.result = { ...result, usage: envelope.usage };
-    if (delegated || descendants > 0) {
+    const settled = await settledDescendants(rootThread, () => {
+      if (cancelled) refuse(`Execution cancelled by ${cancelled} during native reconciliation.`);
+      lock.clearChild(true);
+    });
+    const accounting = collectCodexUsage({ rootThreadId: rootThread, ...settled, delegated, execUsage: latestUsage });
+    Object.assign(envelope.usage, accounting.usage);
+    envelope.usageEvidence = accounting.usageEvidence;
+    envelope.result = { ...result, usage: envelope.usage, usageEvidence: envelope.usageEvidence };
+    if (accounting.usageEvidence.status === "unavailable") {
       const assumptions = Array.isArray(result.assumptions) ? result.assumptions : [];
       envelope.result.assumptions = [...assumptions,
-        "Codex child token coverage is unknown; totalTokens omitted. Duration measures the enclosing exec including child waits."];
+        `Codex observed step-tree token coverage is unavailable (${accounting.usageEvidence.reason}); totalTokens omitted. Duration measures the enclosing exec including child waits.`];
     }
     envelope.completed = true;
     if (action.action === "archive") envelope.reply = reply;

@@ -358,31 +358,31 @@ test("1.5 compare stays silent when both sides lack provenance and warns provena
   const rec = freshRecord();
   const none = compare(side(), side({ totals: [1000] }));
   assert.equal(none.status, 0, none.stdout);
-  assert.deepEqual(none.json.warnings, []);
+  assert.deepEqual(none.json.warnings, ["legacy-usage-scope"]);
   assert.equal(none.json.baseline.provenance, null);
   assert.equal(none.json.routed.provenance, null);
 
   const baselineUnknown = compare(side({ meta: { provenance: rec } }), side({ totals: [1000] }));
-  assert.deepEqual(baselineUnknown.json.warnings, ["provenance-unknown:baseline"]);
+  assert.deepEqual(baselineUnknown.json.warnings, ["provenance-unknown:baseline", "legacy-usage-scope"]);
   assert.deepEqual(baselineUnknown.json.routed.provenance, rec);
   assert.equal(baselineUnknown.json.baseline.provenance, null);
 
   const routedUnknown = compare(side(), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(routedUnknown.json.warnings, ["provenance-unknown:routed"]);
+  assert.deepEqual(routedUnknown.json.warnings, ["provenance-unknown:routed", "legacy-usage-scope"]);
 
   // A stored value that is not an object is no record.
   const broken = compare(side({ meta: { provenance: "x" } }), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(broken.json.warnings, ["provenance-unknown:routed"]);
+  assert.deepEqual(broken.json.warnings, ["provenance-unknown:routed", "legacy-usage-scope"]);
   assert.equal(broken.json.routed.provenance, null);
 
   const both = compare(side({ meta: { provenance: rec } }), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(both.json.warnings, []);
+  assert.deepEqual(both.json.warnings, ["legacy-usage-scope"]);
   for (const res of [baselineUnknown, routedUnknown, both]) assert.deepEqual(verdictOf(res.json), verdictOf(none.json));
   assert.equal(none.json.verdict, "target not set");
   assert.equal(none.json.comparable, true);
 
   const md = compare(side(), side({ totals: [1000], meta: { provenance: rec } }), ["--format", "md"]);
-  assert.ok(md.stdout.includes("Warnings: provenance-unknown:routed\n"), md.stdout);
+  assert.ok(md.stdout.includes("Warnings: provenance-unknown:routed, legacy-usage-scope\n"), md.stdout);
 });
 
 // A copy of `rec` with some sections, flags or top-level keys replaced.
@@ -404,29 +404,29 @@ test("1.6 compare warns provenance-differs, flags-differ and provenance-drift ou
   // Pinned pair: ladder, rigor and score are expected to differ, and so is score.minRigor.
   const pinned = compare(routed, baseline);
   assert.equal(pinned.status, 0, pinned.stdout);
-  assert.deepEqual(pinned.json.warnings, ["provenance-differs:plugin,prompts,steps", "flags-differ:archive"]);
+  assert.deepEqual(pinned.json.warnings, ["provenance-differs:plugin,prompts,steps", "flags-differ:archive", "legacy-usage-scope"]);
   // --unpinned: only score is expected to differ.
   const unpinned = compare(routed, baseline, ["--unpinned"]);
-  assert.deepEqual(unpinned.json.warnings, ["baseline-unpinned", "provenance-differs:ladder,plugin,prompts,rigor,steps", "flags-differ:archive"]);
+  assert.deepEqual(unpinned.json.warnings, ["baseline-unpinned", "provenance-differs:ladder,plugin,prompts,rigor,steps", "flags-differ:archive", "legacy-usage-scope"]);
 
   // A section on one side only differs; a flag on one side only differs.
   const extra = changed(rec, { sections: { agents: h("5") }, flags: { "agents.restricted": undefined } });
   delete extra.flags["agents.restricted"];
   const oneSided = compare(side({ meta: { provenance: extra } }), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(oneSided.json.warnings, ["provenance-differs:agents", "flags-differ:agents.restricted"]);
+  assert.deepEqual(oneSided.json.warnings, ["provenance-differs:agents", "flags-differ:agents.restricted", "legacy-usage-scope"]);
 
   // Drift is reported per side, sorted, whatever the other side holds.
   const drifted = { ...rec, drift: ["prompts", "limits"] };
   assert.deepEqual(compare(side({ meta: { provenance: drifted } }), side({ totals: [1000], meta: { provenance: rec } })).json.warnings,
-    ["provenance-drift:routed:limits,prompts"]);
+    ["provenance-drift:routed:limits,prompts", "legacy-usage-scope"]);
   assert.deepEqual(compare(side({ meta: { provenance: drifted } }), side({ totals: [1000], meta: { provenance: drifted } })).json.warnings,
-    ["provenance-drift:baseline:limits,prompts", "provenance-drift:routed:limits,prompts"]);
+    ["provenance-drift:baseline:limits,prompts", "provenance-drift:routed:limits,prompts", "legacy-usage-scope"]);
   assert.deepEqual(compare(side({ meta: { provenance: drifted } }), side({ totals: [1000] })).json.warnings,
-    ["provenance-unknown:baseline", "provenance-drift:routed:limits,prompts"]);
+    ["provenance-unknown:baseline", "provenance-drift:routed:limits,prompts", "legacy-usage-scope"]);
 
   // The md output prints the same warnings.
   const md = compare(routed, baseline, ["--format", "md"]).stdout;
-  assert.ok(md.includes("Warnings: provenance-differs:plugin,prompts,steps, flags-differ:archive\n"), md);
+  assert.ok(md.includes("Warnings: provenance-differs:plugin,prompts,steps, flags-differ:archive, legacy-usage-scope\n"), md);
 });
 
 test("1.6 the expected set comes from the policy of the project that runs compare; a malformed set reads as the default", () => {
@@ -434,9 +434,9 @@ test("1.6 the expected set comes from the policy of the project that runs compar
   const other = changed(rec, { sections: { ladder: "0".repeat(16), steps: "3".repeat(16) }, flags: { "score.minRigor": "standard" } });
   const baseline = side({ totals: [1000], meta: { provenance: other } });
   const own = compare(side({ meta: { provenance: rec }, policy: { provenance: { expected: { pinned: ["steps"] } } } }), baseline);
-  assert.deepEqual(own.json.warnings, ["provenance-differs:ladder", "flags-differ:score.minRigor"]);
+  assert.deepEqual(own.json.warnings, ["provenance-differs:ladder", "flags-differ:score.minRigor", "legacy-usage-scope"]);
   const bad = compare(side({ meta: { provenance: rec }, policy: { provenance: { expected: { pinned: "steps" } } } }), baseline);
-  assert.deepEqual(bad.json.warnings, ["provenance-differs:steps"]);
+  assert.deepEqual(bad.json.warnings, ["provenance-differs:steps", "legacy-usage-scope"]);
 });
 
 test("1.6 provenance never changes comparable, reasons, dropPercent or the verdict", () => {
@@ -467,19 +467,19 @@ test("1.6 records the real router writes: the pinned baseline file differs only 
   const routed = freshRecord();
   const pinnedBase = freshRecord(BASELINE);
   const pair = (r, b, extra = []) => compare(side({ meta: { provenance: r } }), side({ totals: [1000], meta: { provenance: b } }), extra).json.warnings;
-  assert.deepEqual(pair(routed, pinnedBase), []);
-  assert.deepEqual(pair(routed, pinnedBase, ["--unpinned"]), ["baseline-unpinned", "provenance-differs:ladder,rigor"]);
+  assert.deepEqual(pair(routed, pinnedBase), ["legacy-usage-scope"]);
+  assert.deepEqual(pair(routed, pinnedBase, ["--unpinned"]), ["baseline-unpinned", "provenance-differs:ladder,rigor", "legacy-usage-scope"]);
 
   // The routing-only additions of README "Baseline comparison" turn features off on one arm only.
   const routingOnly = freshRecord({ ...BASELINE, extraSteps: { allowance: { lean: 0, standard: 0, thorough: 0 } }, codeReplan: { afterFailures: 0 } });
-  assert.deepEqual(pair(routed, routingOnly), ["provenance-differs:codeReplan,extraSteps"]);
+  assert.deepEqual(pair(routed, routingOnly), ["provenance-differs:codeReplan,extraSteps", "legacy-usage-scope"]);
 
   // Scorer A/B: the arms differ in score only, which both modes expect.
   const scorerOff = freshRecord({ score: { minRigor: null } });
   const scorerOn = freshRecord({ score: { minRigor: "standard" } });
   assert.notEqual(scorerOn.sections.score, scorerOff.sections.score);
-  assert.deepEqual(pair(scorerOn, scorerOff, ["--unpinned"]), ["baseline-unpinned"]);
-  assert.deepEqual(pair(scorerOn, scorerOff), []);
+  assert.deepEqual(pair(scorerOn, scorerOff, ["--unpinned"]), ["baseline-unpinned", "legacy-usage-scope"]);
+  assert.deepEqual(pair(scorerOn, scorerOff), ["legacy-usage-scope"]);
 });
 
 // ---- prices are display-only (run-cost-estimate 1.3) -------------------------------------
@@ -494,7 +494,7 @@ test("1.3 a run with an override that sets prices records no prices section, and
   const baseline = side({ totals: [1000], meta: { provenance: otherPrices } });
   const res = compare(routed, baseline);
   assert.equal(res.status, 0, res.stdout);
-  assert.deepEqual(res.json.warnings, []);
+  assert.deepEqual(res.json.warnings, ["legacy-usage-scope"]);
   assert.ok(!res.json.warnings.some((w) => w.includes("prices")));
 });
 

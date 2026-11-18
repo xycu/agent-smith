@@ -72,3 +72,15 @@ The rollback of an isolated run and its undo on halt write the in-memory log bac
 - **Suggestion 1 of the issue, write the file and wait.** Rejected: the order of messages is not under the orchestrator's control, and waiting for a notification that may not come stalls the run.
 - **Let `next` accept a figure for an earlier step.** Rejected: `next` consumes the result file of the last step, and a second meaning would blur the neutral rerun and the missing-result halt.
 - **Write the figure without a commit in the archive state.** Rejected: the folder would be dirty and the archive would refuse or move an uncommitted log.
+
+## Amendment 1 — Structured missing-token enrichment
+
+**Date** 2026-11-18. Change `delegated-token-accounting` retains the legacy flag mode and its whole-object immutability. It adds a separate mode for a completed invocation whose new evidence contract already records an exact host identity and whose token figure is missing. Historical decisions and cutoffs above remain recorded.
+
+`usage <change-id> <n> --usage-file <path> [--chain 10x|openspec]` reads bounded regular JSON `{ change, chain, n, step, usage: { totalTokens }, usageEvidence }`. Every router identity must match the completed target. Only verified step-tree evidence with the target’s exact initial source, host version and invocation can fill missing tokens and transition unavailable evidence to verified. Existing counters must agree when supplied; this mode does not fill other counters or merge measurements. Recorded numbers and their verified evidence remain immutable. Exact replay is a no-op. Numeric flags and structured mode are mutually exclusive, and numeric flags cannot bypass recorded new evidence. Legacy entries without exact attribution are not upgraded.
+
+The input is at most 64 KiB, normalized evidence 4 KiB. Unsafe numbers, redirects, schema/identity conflict, a pending or archived target and oversized input refuse before writes. Orchestrators use an exclusively created uniquely named transient file outside the change folder and unlink only their owned file in `finally`. No raw transcript, prompt, tool body or source path is persisted.
+
+Both modes retain the run lock, atomic log/report publication, report refresh, archive-state commit and saved-byte recovery. No result rewrite or repeated `next` is introduced. Settlement exclusion applies before either mode. Attach before terminal status/publication or archive launch; later arrivals are dropped. Archive-agent usage is final-message-only. Coverage changes are rendered immediately when an ended report is refreshed; the archive commit/recovery preserves both total and evidence.
+
+[Observed accounting, operator prerequisites and limits](../REFERENCE.md#observed-token-accounting) · [Activation, rollback and pending live acceptance](../../context/changes/delegated-token-accounting/evidence/accounting.md). All candidate phases activate together after Automated gates, with active invocation revision pinned through intake. No stored-ledger migration or destructive downgrade is required.
