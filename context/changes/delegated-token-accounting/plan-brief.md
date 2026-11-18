@@ -26,7 +26,7 @@ Reports distinguish verified observed totals, unavailable measurements and legac
 | Late usage | Structured, invocation-checked token enrichment only | Duration must not prevent a later complete total; existing numbers stay immutable. | Plan; ADR-019 |
 | Legacy | Preserve stored figures, label scope, reject mixed-scope savings verdicts | New totals must not be compared silently with final-request counts. | Plan; research |
 | Costs | Label subtree prices as routing-rate approximations | Current pricing uses the parent routing model. | Plan; state estimator |
-| Delivery | Local deterministic gates; separate live Manual qualification | Missing host telemetry must not block execution or manufacture support evidence. | User; research |
+| Delivery | One candidate containing all four phases, activated only after all Automated gates; separate live Manual qualification | Readers must classify the new producer scope before it is used; missing host telemetry must not block execution or manufacture support evidence. | Plan review F1; current report/compare readers; research |
 
 ## Scope
 
@@ -37,6 +37,8 @@ Reports distinguish verified observed totals, unavailable measurements and legac
 ## Architecture / Approach
 
 Host-owned records flow through read-only collectors into numeric `usage` plus bounded `usageEvidence`. Existing router intake and late-usage commands remain the only state writers. Execution settlement is proved independently before accounting; unusable telemetry yields an omission reason. Reports use the evidence to explain scope without retaining raw transcripts or prompts.
+
+Phases are development checkpoints, not separate releases. Keep the installed revision unchanged through an active invocation's settlement and intake. Activate all four phases together only after local gates prove actual producer fixture output reaches both chains' intake and readers, including mixed legacy runs; no runtime enablement switch is added.
 
 ## Phases at a Glance
 

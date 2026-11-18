@@ -46,7 +46,9 @@ Acceptance is deterministic local proof of both positive and fail-closed paths f
 
 ## Implementation Approach
 
-Extend existing owners, with small dependency-free host readers and a shared accounting contract. Expand the router reader/intake first; then wire Codex and Claude producers; finally update BI output and migration documentation. All new producers replace step-authored accounting fields with measured data or a measured unavailability reason.
+Extend existing owners, with small dependency-free host readers and a shared accounting contract. Expand router persistence/intake first; then wire Codex and Claude producers; finally update report/comparison readers and migration documentation. All new producers replace step-authored accounting fields with measured data or a measured unavailability reason.
+
+The four phases are development checkpoints within one candidate, not independently deployable releases. Do not activate intermediate phase commits for pipeline runs or mix new producers with older report/comparison readers. Keep the installed execution revision unchanged through settlement and intake. Activate the complete candidate only after all four phases' Automated gates, including producer-to-reader integration, pass; no new runtime switch is needed. Live host qualification remains separately Manual.
 
 ### Evidence-backed decisions and assumptions
 
@@ -230,7 +232,7 @@ Require complete verified scope on both sides for a new verified comparison. Kee
 
 **Intent**: Verify numbers and user-facing explanations at the final report boundary with local fixtures.
 
-**Contract**: Cover all-verified, all-legacy, mixed, incomplete and zero-token runs; same totals with different coverage; safe-sum overflow; parent-routed model labels for mixed child models; late token report refresh; archive exclusion and byte-identical legacy data. Use existing local fake clients if publication rendering is exercised; no GitHub access is required.
+**Contract**: Cover all-verified, all-legacy, mixed, incomplete and zero-token runs; same totals with different coverage; safe-sum overflow; parent-routed model labels for mixed child models; late token report refresh; archive exclusion and byte-identical legacy data. For both chains, feed the actual Codex runner and Claude collector fixture output through router intake into status/report/compare, including a resumed run with legacy entries, to prove that producer evidence reaches the reader and prevents mixed-scope savings verdicts before activation. Use existing local fake clients if publication rendering is exercised; no GitHub access is required.
 
 ### Success Criteria:
 
@@ -252,13 +254,15 @@ Add sanitized fixtures in the new test modules or small fixture files indexed by
 
 Run focused checks while editing and the full required suite after each phase that changes scripts or prompts. On Node 24+, the full suite command above is the repository gate. Unattended implementation may continue after Automated rows pass; it must leave Manual rows unchecked unless their proof is actually obtained. No publication-dependent condition is classified Automated.
 
+Passing an intermediate phase gate permits development to continue, not activation of that revision. Phase 4's existing reader acceptance covers the integrated producer-to-reader cases above; the complete candidate must pass every Automated gate before use by a pipeline run.
+
 ## Performance Considerations
 
 Stream bounded JSONL sources and keep only deduplication identities, counters and limited reconciliation metadata. Avoid whole-history directory walks or retained raw output. Reuse the already verified tree; usage-specific reads have their own finite limits and no polling loop. Missing access or exhausted limits omit tokens rather than slow or block completion indefinitely.
 
 ## Migration Notes
 
-**Expand:** Release additive readers and the structured late-input path before producers use them. Keep existing numeric fields, legacy CLI and log readers working. No stored-ledger migration or deletion is needed.
+**Expand:** Build additive persistence and the structured late-input path first, then complete host producers and scope-aware report/comparison readers within the same candidate. Release and activate all four phases together after their Automated gates pass; no intermediate producer revision may run against older readers. Keep existing numeric fields, legacy CLI and log readers working. No stored-ledger migration or deletion is needed.
 
 **Migrate:** New invocations emit versioned evidence. Old entries remain legacy and immutable, including historical final-request totals. A resumed run can contain both; display the distinction and withhold an incompatible savings verdict. New late enrichment requires evidence identity recorded at initial intake; it cannot upgrade an old ambiguous entry merely because `<n>` matches.
 
