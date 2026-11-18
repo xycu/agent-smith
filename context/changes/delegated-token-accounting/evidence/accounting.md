@@ -68,3 +68,7 @@ The enclosing step collected native leaf invocations `/root/phase1`, `/root/phas
 ## Live-contract consistency review
 
 Searched current `skills/`, `docs/`, `README.md` and `context/foundation/` for flat-token mappings, collaboration suppression and whole-object immutability claims. Updated the reference’s old exec-snapshot and notification mapping, distinguished legacy flag mode from structured enrichment, and appended amendments to ADR-018 and ADR-019 without rewriting history. ADR-024 received an additional amendment because its current collaboration omission also contradicted the new producer contract. Existing skill loops already carry measured usage and exact-identity enrichment. Historical archive files were left untouched.
+
+## Independent Manual verification attempt — 2026-11-18
+
+Rows 4.3 and 4.4 remain pending. Installed CLI versions match the pinned versions (command-manual-host-versions.log). A fresh Claude collector test run passed all 34 tests (test-manual-claude-usage.log), including the immediate/late/archive collector boundary. Neither establishes the required live-host matrix. No fresh live model run, external capture read, exporter setup or publication was performed. judgment-manual-host-qualification.md records the reviewed claims, known real-format gaps and limits of this proof; unproven.md lists every pending Manual row.
