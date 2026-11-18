@@ -1,10 +1,10 @@
 ---
 change_id: delegated-token-accounting
 title: Report token usage for delegated pipeline steps
-status: impl_reviewed
+status: archived
 created: 2026-11-18
 updated: 2026-11-18
-archived_at: null
+archived_at: 2026-11-18T03:46:14Z
 ---
 
 ## Notes
