@@ -42,6 +42,14 @@
       "score.minRigor": "standard",
       "agents.restricted": false,
       "advisor.enabled": false
-    }
+    },
+    "drift": [
+      "prompts"
+    ]
+  },
+  "startCommit": "531ebaca59902bcc61dea281d0510bd13aac96a0",
+  "rigor": {
+    "level": "standard",
+    "by": "failed steps 1"
   }
 }
