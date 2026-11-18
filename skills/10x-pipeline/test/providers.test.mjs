@@ -35,8 +35,8 @@ test("the GPT overlay preserves all eight tier/effort positions without changing
   assert.deepEqual(Object.keys(PRESET), ["ladder"]);
   assert.deepEqual(PRESET.ladder.map((r) => r.effort), DEFAULT.ladder.map((r) => r.effort));
   assert.deepEqual(PRESET.ladder.map((r) => r.model), [
-    "gpt-6-luna", "gpt-6.1-sol", "gpt-6.1-sol", "gpt-6.1-sol",
-    "gpt-6-astra", "gpt-6-astra", "gpt-6-astra", "gpt-6-astra",
+    "gpt-6-luna", "gpt-6.2-sol", "gpt-6.2-sol", "gpt-6.2-sol",
+    "gpt-6.2-astra", "gpt-6.2-astra", "gpt-6.2-astra", "gpt-6.2-astra",
   ]);
   assert.equal(PRESET.ladder.every((r) => r.provider === "openai"), true);
   assert.deepEqual(DEFAULT.ladder.map((r) => r.model), ["haiku", "sonnet", "sonnet", "sonnet", "opus", "opus", "opus", "opus"]);
