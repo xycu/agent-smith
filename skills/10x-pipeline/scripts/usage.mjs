@@ -84,10 +84,10 @@ export function normalizeAccounting(rawUsage, rawEvidence) {
   return { ...(Object.keys(usage).length ? { usage } : {}), usageEvidence };
 }
 
-// Explicit local inputs only: bound allocation and reject file/parent redirects and replacement during a read.
-export function readBoundedFile(file, { root, maxBytes = USAGE_LIMITS.fileBytes } = {}) {
+// Explicit local inputs only: bound reads and reject redirects and replacement during a read.
+// shortcut: elapsed budgets cannot interrupt a filesystem syscall; isolate reads before supporting blocking remote storage.
+function readStableFile(file, { root, maxBytes, deadline = Date.now() + USAGE_LIMITS.readMs }, consume) {
   let fd;
-  const started = Date.now();
   try {
     const canonicalRoot = fs.realpathSync(root);
     const absolute = path.resolve(file);
@@ -103,22 +103,51 @@ export function readBoundedFile(file, { root, maxBytes = USAGE_LIMITS.fileBytes 
     const opened = fs.fstatSync(fd);
     const same = (a, b) => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
     if (!opened.isFile() || !same(before, opened)) throw new Error();
-    const bytes = Buffer.alloc(opened.size + 1);
+    const bytes = Buffer.alloc(Math.min(opened.size + 1, 65536));
     let length = 0;
-    while (length < bytes.length) {
-      if (Date.now() - started > USAGE_LIMITS.readMs) throw Object.assign(new Error(), { reason: "resource-limit" });
-      const count = fs.readSync(fd, bytes, length, bytes.length - length, null);
+    for (;;) {
+      if (Date.now() > deadline) throw Object.assign(new Error(), { reason: "resource-limit" });
+      const count = fs.readSync(fd, bytes, 0, bytes.length, null);
       if (count === 0) break;
       length += count;
+      if (length > maxBytes) throw Object.assign(new Error(), { reason: "resource-limit" });
+      if (length > opened.size) throw new Error();
+      consume(bytes.subarray(0, count));
     }
-    if (Date.now() - started > USAGE_LIMITS.readMs) throw Object.assign(new Error(), { reason: "resource-limit" });
+    if (Date.now() > deadline) throw Object.assign(new Error(), { reason: "resource-limit" });
     if (length !== opened.size || !same(opened, fs.fstatSync(fd)) || !same(opened, fs.lstatSync(absolute))
         || fs.realpathSync(absolute) !== absolute) throw new Error();
-    return bytes.subarray(0, length).toString("utf8");
+    return length;
   } catch (error) {
+    if (error.accounting) throw error;
     throw Object.assign(new Error(error.reason === "resource-limit" ? REASONS["resource-limit"] : REASONS["unsafe-path"]),
       { reason: error.reason === "resource-limit" ? "resource-limit" : "unsafe-path" });
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
   }
+}
+
+export function readBoundedFile(file, { root, maxBytes = USAGE_LIMITS.fileBytes } = {}) {
+  const chunks = [];
+  readStableFile(file, { root, maxBytes }, chunk => chunks.push(Buffer.from(chunk)));
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+// Visitors retain derived counters only; no whole transcript is held in memory.
+export function readBoundedLines(file, { root, maxBytes, recordBytes, deadline }, visit) {
+  let pending = Buffer.alloc(0);
+  const size = readStableFile(file, { root, maxBytes, deadline }, chunk => {
+    pending = Buffer.concat([pending, chunk]);
+    let end;
+    while ((end = pending.indexOf(10)) >= 0) {
+      if (end > recordBytes) throw Object.assign(new Error(), { reason: "resource-limit", accounting: true });
+      const line = pending.subarray(0, end);
+      pending = pending.subarray(end + 1);
+      if (!line.length) throw Object.assign(new Error(), { reason: "unsupported-schema", accounting: true });
+      visit(line.toString("utf8"));
+    }
+    if (pending.length > recordBytes) throw Object.assign(new Error(), { reason: "resource-limit", accounting: true });
+  });
+  if (pending.length) throw Object.assign(new Error(), { reason: "incomplete-capture", accounting: true });
+  return size;
 }

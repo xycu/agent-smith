@@ -198,7 +198,8 @@ for (const chain of ["10x", "openspec"]) {
     });
     const result = execute(w);
     assert.equal(result.json.completed, true, result.stdout);
-    assert.equal(result.json.usage.totalTokens, undefined);
+    assert.equal(result.json.usage.totalTokens, 132, "failed enclosing result still owns root 110 plus collected child 22");
+    assert.equal(result.json.usageEvidence.status, "verified");
     writeResult(project, result.json.result);
     const retry = run(project, ["next", project.id, "--chain", chain], { env: w.env });
     assert.equal(retry.json.action, "run", retry.stdout);

@@ -30,7 +30,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(runnerLeftovers(w), []);
   });
 
-  test(`${chain}: exact model/effort/stdin/cwd, optional profile, cumulative accounting and read-only state`, () => {
+  test(`${chain}: exact model/effort/stdin/cwd, optional profile, observed accounting and read-only state`, () => {
     for (const profile of [null, "existing-profile"]) {
       const w = codexFixture(chain, { profile });
       const before = snapshot(w.project.agentDir);
@@ -38,7 +38,7 @@ for (const chain of ["10x", "openspec"]) {
       assert.equal(result.status, 0, result.stdout + result.stderr);
       assert.equal(result.json.launched, true);
       assert.equal(result.json.completed, true);
-      assert.deepEqual(result.json.result, { status: "done", note: "zażółć", signals: { rigor: "thorough" }, custom: true, usage: result.json.usage });
+      assert.deepEqual(result.json.result, { status: "done", note: "zażółć", signals: { rigor: "thorough" }, custom: true, usage: result.json.usage, usageEvidence: result.json.usageEvidence });
       assert.equal(result.json.usage.totalTokens, 110, "input 100 plus output 10 excludes duplicate cached/cache-write/reasoning counters");
       assert.equal(Object.hasOwn(result.json.usage, "toolUses"), false);
       assert.ok(result.json.usage.durationMs >= 0);
@@ -219,12 +219,12 @@ const agent = { type: "item.completed", item: { type: "agent_message", text: rep
 for (const [label, mode, ok, tokens] of [
   ["latest cumulative snapshot", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 50, output_tokens: 5 } }, { type: "turn.completed", usage: { input_tokens: 100, output_tokens: 10 } }] }, true, 110],
   ["missing usage", { reply, events: [agent, { type: "turn.completed" }] }, true, undefined],
-  ["negative usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: -1, output_tokens: 2 } }] }, false],
-  ["unsafe usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 9007199254740992, output_tokens: 2 } }] }, false],
-  ["overflowing total", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: Number.MAX_SAFE_INTEGER, output_tokens: 2 } }] }, false],
+  ["negative usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: -1, output_tokens: 2 } }] }, true, undefined],
+  ["unsafe usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 9007199254740992, output_tokens: 2 } }] }, true, undefined],
+  ["overflowing total", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: Number.MAX_SAFE_INTEGER, output_tokens: 2 } }] }, true, undefined],
   ["last malformed RESULT", { reply: reply + "\nRESULT: broken" }, false],
   ["missing RESULT", { reply: "No result" }, false],
-  ["model-authored usage is replaced", { reply: 'RESULT: {"status":"done","usage":{"totalTokens":1,"toolUses":999}}' }, true, 110],
+  ["model-authored accounting is replaced", { reply: 'RESULT: {"status":"done","usage":{"totalTokens":1,"toolUses":999},"usageEvidence":{"status":"verified","path":"/private-source"}}' }, true, 110],
   ["RESULT array", { reply: "RESULT: []" }, false],
   ["child self-declared orchestration fault", { reply: 'RESULT: {"status":"orchestrator-error"}' }, true, 110],
   ["nonzero exit after plausible result", { code: 1 }, false],
@@ -243,6 +243,9 @@ for (const [label, mode, ok, tokens] of [
     if (ok) {
       assert.equal(result.json.usage.totalTokens, tokens);
       assert.deepEqual(result.json.result.usage, result.json.usage);
+      assert.deepEqual(result.json.result.usageEvidence, result.json.usageEvidence);
+      assert.equal(result.json.usageEvidence.status, tokens === undefined ? "unavailable" : "verified");
+      assert.doesNotMatch(JSON.stringify(result.json.result.usageEvidence), /private-source/);
       assert.equal(Object.hasOwn(result.json.result.usage, "toolUses"), false);
     }
     if (label === "child self-declared orchestration fault") assert.equal(result.json.result.status, "unknown");
@@ -331,7 +334,7 @@ test("fake child readiness guarantees immediate cancellation can be handled", as
 });
 
 for (const chain of ["10x", "openspec"]) {
-  test(`${chain}: recursive paginated metadata settles archived children and suppresses unknown token coverage`, () => {
+  test(`${chain}: recursive paginated metadata accounts for settled archived children once`, () => {
     const w = codexFixture(chain, { mode: {
       pages: {
         false: { first: { data: [{ id: "child-one" }], nextCursor: "page-two" },
@@ -341,8 +344,9 @@ for (const chain of ["10x", "openspec"]) {
     } });
     const result = execute(w);
     assert.equal(result.json.completed, true, result.stdout);
-    assert.equal(result.json.usage.totalTokens, undefined, "metadata identifies children even without collaboration events");
-    assert.match(result.json.result.assumptions.at(-1), /coverage is unknown/);
+    assert.equal(result.json.usage.totalTokens, 176, "root 110 plus three disjoint child totals of 22");
+    assert.equal(result.json.usageEvidence.sessionCount, 4);
+    assert.equal(result.json.usageEvidence.requestCount, 4);
     assert.deepEqual(runnerLeftovers(w), []);
     const requests = fs.readFileSync(path.join(w.fixture, "metadata-calls.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
     const turns = requests.filter(r => r.method === "thread/turns/list");
@@ -399,6 +403,57 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(result.json.completed, true, result.stdout);
     assert.equal(result.json.result.status, "failed");
     assert.equal(result.json.usage.totalTokens, undefined);
+    assert.deepEqual(runnerLeftovers(w), []);
+  });
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const [label, mode, reason] of [
+    ["optional native metadata error", { usageMetadataFailure: true }, "missing-source"],
+    ["optional native metadata timeout", { usageMetadataHang: true }, "resource-limit"],
+    ["unsupported host", { hostVersion: "0.170.0" }, "unsupported-host"],
+    ["missing source", { noUsageSource: true }, "missing-source"],
+  ]) {
+    test(`${chain}: ${label} leaves completed execution accepted and releases its lock`, () => {
+      const w = codexFixture(chain, { mode });
+      const before = snapshot(w.project.agentDir);
+      const result = execute(w);
+      assert.equal(result.status, 0, result.stdout);
+      assert.equal(result.json.completed, true);
+      assert.equal(result.json.result.status, "done");
+      assert.equal(result.json.usage.totalTokens, undefined);
+      assert.equal(result.json.usageEvidence.reason, reason);
+      assert.ok(result.json.usage.durationMs >= 0);
+      assert.deepEqual(snapshot(w.project.agentDir), before);
+      assert.deepEqual(runnerLeftovers(w), []);
+      assert.equal(calls(w.fixture).filter(call => call.args[0] === "exec").length, 1);
+      const requests = fs.readFileSync(path.join(w.fixture, "metadata-calls.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+      assert.equal(requests.some(request => /resume|turn\/start/.test(request.method)), false);
+      assert.equal(run(w.project, ["status", w.project.id, "--report", "--chain", chain], { env: w.env }).status, 0);
+    });
+  }
+
+  test(`${chain}: malformed execution JSON still suspends even when usage sources are complete`, () => {
+    const w = codexFixture(chain, { mode: { malformedJson: true } });
+    const result = execute(w);
+    assert.equal(result.json.completed, false);
+    assert.equal(result.json.result, null);
+    assert.match(result.json.reason, /Execution suspended:.*malformed JSONL/);
+    assert.equal(runnerLeftovers(w).length, 1);
+  });
+
+  test(`${chain}: settled duplicate child enumeration and multi-request usage count once`, () => {
+    const w = codexFixture(chain, { mode: {
+      pages: { false: { first: { data: [{ id: "child" }, { id: "child" }], nextCursor: null } },
+        true: { first: { data: [{ id: "child" }], nextCursor: null } } },
+      rolloutUsages: { child: [{ input_tokens: 20, output_tokens: 2 }, { input_tokens: 30, output_tokens: 3 }] },
+    } });
+    const result = execute(w);
+    assert.equal(result.json.completed, true, result.stdout);
+    assert.equal(result.json.usage.totalTokens, 165, "root 110 + child 22 + 33");
+    assert.equal(result.json.usageEvidence.sessionCount, 2);
+    assert.equal(result.json.usageEvidence.requestCount, 3);
+    assert.equal(calls(w.fixture).filter(call => call.args[0] === "exec").length, 1);
     assert.deepEqual(runnerLeftovers(w), []);
   });
 }
