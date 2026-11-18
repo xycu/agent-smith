@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/xycu/agent-smith/compare/v1.13.0...v1.13.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **isolation:** let run steps read installed skills outside the worktree ([#216](https://github.com/xycu/agent-smith/issues/216)) ([9f91c89](https://github.com/xycu/agent-smith/commit/9f91c89d84c4063895f57f1c62151658e89a2471))
+
 ## [1.13.0](https://github.com/xycu/agent-smith/compare/v1.12.2...v1.13.0) (2026-11-16)
 
 
