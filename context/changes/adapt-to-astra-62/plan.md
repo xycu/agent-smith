@@ -161,8 +161,8 @@ The router adds no work. New models may have different latency, token use and pr
 
 #### Automated
 
-- [x] 1.1 Policy integrity passes: a local Node assertion confirms the exact target table, equal preset/override ladders, and no parsed policy changes beyond the fourteen intended model substitutions against the pre-edit baseline.
-- [x] 1.2 The required Node 24+ suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`; `git diff --check` also passes.
+- [x] 1.1 Policy integrity passes: a local Node assertion confirms the exact target table, equal preset/override ladders, and no parsed policy changes beyond the fourteen intended model substitutions against the pre-edit baseline. — 5a32a877
+- [x] 1.2 The required Node 24+ suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`; `git diff --check` also passes. — 5a32a877
 
 #### Manual
 
