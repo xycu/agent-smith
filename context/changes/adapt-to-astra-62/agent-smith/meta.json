@@ -44,6 +44,7 @@
       "advisor.enabled": false
     },
     "drift": [
+      "ladder",
       "prompts"
     ]
   },

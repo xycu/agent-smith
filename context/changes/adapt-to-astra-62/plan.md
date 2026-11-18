@@ -166,5 +166,5 @@ The router adds no work. New models may have different latency, token use and pr
 
 #### Manual
 
-- [ ] 1.3 Upgrade guidance review confirms explicit adoption, preservation of unrelated override keys and historical targets, accurate drift/comparison wording, and a reversible rollback path.
+- [x] 1.3 Upgrade guidance review confirms explicit adoption, preservation of unrelated override keys and historical targets, accurate drift/comparison wording, and a reversible rollback path. — evidence: evidence/judgment-upgrade-guidance.md
 - [ ] 1.4 Live Codex verification records successful completion for all seven changed model/effort pairs on the exact tested client/account configuration, without claiming broader host certification.

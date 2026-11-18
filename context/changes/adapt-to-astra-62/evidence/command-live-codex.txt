@@ -1,0 +1,17 @@
+Manual 1.4 — Codex CLI live verification attempt
+codex --version: codex-cli 0.169.0
+codex login status: Logged in using ChatGPT
+Both probes used the current authenticated CLI configuration, no explicit profile, and a read-only ephemeral session in scratch with approvals disabled.
+Requested pair: gpt-6.2-sol / low
+
+First probe: codex -a never exec --json --ephemeral --sandbox read-only --skip-git-repo-check -C <scratch> -m gpt-6.2-sol -c 'model_reasoning_effort="low"' 'Reply exactly ASTRA62_PROBE_OK. Do not use tools or access files.'
+Exit: 1
+Error: failed to initialize in-process app-server client: Operation not permitted (os error 1)
+JSON events: none
+
+Retry: same probe with CODEX_SQLITE_HOME and the log_dir configuration directed to scratch.
+Exit: 1
+Error: failed to initialize in-process app-server client: Operation not permitted (os error 1)
+JSON events: none
+
+The CLI failed before dispatch. Sol medium/high and Astra medium/high/xhigh/max were not attempted after the repeated startup failure. Successful live completions: 0 of 7.

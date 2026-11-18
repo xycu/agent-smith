@@ -1,0 +1,1 @@
+- 1.4 — Codex CLI 0.169.0 exited before dispatch on both read-only Sol/low probes: failed to initialize in-process app-server client (Operation not permitted, os error 1). No live completions were observed for the seven required pairs. See evidence/command-live-codex.txt.
