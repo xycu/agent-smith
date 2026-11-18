@@ -49,5 +49,17 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "4.3 Qualify the final candidate on fresh multi-request delegated Codex and native Claude runs in both interactive and headless modes, across both pipeline entry points; record exact versions, invocation boundaries, matching totals or explicit unavailable reasons, and unchanged settlement in `evidence/accounting.md`.",
+      "4.4 Inspect immediate, late and archive output on the qualified hosts: no final-request count presented as a whole step, no double count, no missing value shown as zero, no archive usage in numbered totals, and clear subtotal and routing-rate labels; retain unsupported positive paths as unqualified."
+    ],
+    "manualNotProved": [
+      "4.3 Qualify the final candidate on fresh multi-request delegated Codex and native Claude runs in both interactive and headless modes, across both pipeline entry points; record exact versions, invocation boundaries, matching totals or explicit unavailable reasons, and unchanged settlement in `evidence/accounting.md`. — not proved: Fresh final-candidate interactive/headless qualification across both hosts and entry points remains unavailable: interactive launches wait for input (forbidden), no matched authorized in-root live cap",
+      "4.4 Inspect immediate, late and archive output on the qualified hosts: no final-request count presented as a whole step, no double count, no missing value shown as zero, no archive usage in numbered totals, and clear subtotal and routing-rate labels; retain unsupported positive paths as unqualified. — not proved: Immediate/late/archive output inspection on qualified hosts remains unavailable while 4.3 is pending; the new collector compatibility reproduction and existing synthetic reader fixtures do not establi"
+    ]
   }
 }
