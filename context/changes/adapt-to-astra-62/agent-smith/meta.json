@@ -52,5 +52,15 @@
   "rigor": {
     "level": "standard",
     "by": "failed steps 1"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.4 Live Codex verification records successful completion for all seven changed model/effort pairs on the exact tested client/account configuration, without claiming broader host certification."
+    ],
+    "manualNotProved": [
+      "1.4 Live Codex verification records successful completion for all seven changed model/effort pairs on the exact tested client/account configuration, without claiming broader host certification. — not proved: Codex CLI 0.169.0 exited before dispatch even with SQLite and logs redirected to scratch. This environment denies the read/write open of installation_id required at app-server startup. No live complet"
+    ]
   }
 }
