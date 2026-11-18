@@ -4,6 +4,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { accountingFor } from "./usage.mjs";
 
 export const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // The OpenSpec chain's skill folder: its policy fragment, prompts, rules and module (ADR-013 Amendment 1).
@@ -217,7 +218,7 @@ export function estimateCost(entries, table) {
   const unpriced = new Set();
   for (const e of Array.isArray(entries) ? entries : []) {
     if (!isObject(e)) continue;
-    const tokens = isObject(e.usage) ? e.usage.totalTokens : undefined;
+    const tokens = accountingFor(e).usage?.totalTokens;
     const has = Number.isSafeInteger(tokens) && tokens >= 0;
     const model = typeof e.model === "string" && e.model ? e.model : "unknown";
     const price = Object.hasOwn(prices, model) ? prices[model] : undefined;
@@ -227,7 +228,9 @@ export function estimateCost(entries, table) {
       if (price === undefined) unpriced.add(model);
       else {
         usd = (tokens * price) / 1e6;
-        res.usd += usd;
+        if (!Number.isFinite(usd)) usd = (tokens / 1e6) * price;
+        if (!Number.isFinite(usd)) usd = null;
+        res.usd = usd === null || res.usd === null || !Number.isFinite(res.usd + usd) ? null : res.usd + usd;
         res.priced++;
       }
     }
@@ -238,7 +241,7 @@ export function estimateCost(entries, table) {
 }
 
 // A USD figure rounded to `digits` decimals, as a number.
-export const roundUsd = (usd, digits = 4) => Number(usd.toFixed(digits));
+export const roundUsd = (usd, digits = 4) => Number.isFinite(usd) ? Number(usd.toFixed(digits)) : null;
 
 export function mtime(file) {
   try { return fs.statSync(file).mtimeMs; } catch { return 0; }

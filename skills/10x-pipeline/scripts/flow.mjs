@@ -12,7 +12,7 @@ import {
   verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS, render,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "../../openspec-pipeline/scripts/openspec.mjs";
-import { normalizeAccounting } from "./usage.mjs";
+import { normalizeAccounting, accountingFor, usageCoverage, usageFigure } from "./usage.mjs";
 export { cleanUsage } from "./usage.mjs";
 
 // ---- report ---------------------------------------------------------------
@@ -98,15 +98,18 @@ function complexityLines(fullLog) {
 }
 
 // The Cost (estimate) line under the totals line: a blended rate over the steps that have a token figure and a price.
-function costLine(cost) {
+function costLine(cost, verified) {
+  const scope = verified ? " · routing-rate approximation: child usage can be priced at the enclosing dispatch rate" : "";
   const missing = cost.unpriced.length ? ` · no price for: ${cost.unpriced.join(", ")}` : "";
-  if (cost.priced === 0) return `Cost (estimate): - (no step with a token figure has a price) at a blended rate${missing}`;
-  return `Cost (estimate): $${cost.usd.toFixed(2)} at a blended rate (USD per million tokens, no input/output split) · priced ${cost.priced} of ${cost.withFigures} steps with a token figure${missing}`;
+  if (cost.priced > 0 && !Number.isFinite(cost.usd)) return `Cost (estimate): - (aggregate unavailable)${scope}${missing}`;
+  if (cost.priced === 0) return `Cost (estimate): - (no step with a token figure has a price) at a blended rate${missing}${scope}`;
+  return `Cost (estimate): $${cost.usd.toFixed(2)} at a blended rate (USD per million tokens, no input/output split) · priced ${cost.priced} of ${cost.withFigures} steps with a token figure${missing}${scope}`;
 }
 
 function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
-  const log = executed(fullLog);
+  const log = executed(fullLog).map((entry) => ({ ...entry, ...accountingFor(entry) }));
+  const coverage = usageCoverage(log);
   const skips = fullLog.filter((e) => e.skipped);
   const o = meta.outcome;
   const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
@@ -127,7 +130,8 @@ function buildReport(id, meta, fullLog) {
     return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${providerOf(e)} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |${costCell}`;
   });
   const withTokens = log.filter((e) => tokens(e) !== null);
-  const total = withTokens.reduce((sum, e) => sum + tokens(e), 0);
+  const total = usageFigure(log, "totalTokens").total;
+  const subtotal = withTokens.length > 0 && withTokens.length < log.length ? " · subtotal" : "";
   return [
     `# Run report: ${id}`,
     "",
@@ -141,8 +145,15 @@ function buildReport(id, meta, fullLog) {
     `| --- | --- | --- | --- | --- | --- | --- | --- | --- |${cost ? " --- |" : ""}`,
     ...rows,
     "",
-    `Steps: ${log.length} · Tokens: ${withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
-    ...(cost ? [costLine(cost)] : []),
+    `Steps: ${log.length} · Tokens: ${total === null ? "unavailable (overflow)" : withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${subtotal}${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
+    ...(cost ? [costLine(cost, coverage.verified > 0)] : []),
+    "",
+    "## Token coverage",
+    "",
+    `Verified observed host usage: ${coverage.verified} · Unavailable: ${coverage.unavailable} · Legacy/unverified scope: ${coverage.legacy} · Missing figures: ${coverage.missing}`,
+    "Provider, model and tier groups describe the enclosing dispatch.",
+    ...(coverage.legacy ? ["Legacy figures retain their original unverified scope."] : []),
+    ...log.filter((entry) => entry.usageEvidence?.status === "unavailable").map((entry) => `- Step ${entry.n} ${entry.step}: ${entry.usageEvidence.reason} — ${entry.usageEvidence.explanation}`),
     "",
     ...(skips.length ? [
       "## Skipped steps",

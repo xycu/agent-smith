@@ -84,6 +84,39 @@ export function normalizeAccounting(rawUsage, rawEvidence) {
   return { ...(Object.keys(usage).length ? { usage } : {}), usageEvidence };
 }
 
+// Reader projections never upgrade a legacy scalar or mutate the stored entry.
+export function accountingFor(entry) {
+  const accounting = normalizeAccounting(entry?.usage, entry?.usageEvidence);
+  return { ...accounting, usage: accounting.usage ?? null, tokenScope: accounting.usageEvidence?.status ?? "legacy" };
+}
+
+export function usageCoverage(entries) {
+  const coverage = { verified: 0, unavailable: 0, legacy: 0, missing: 0 };
+  for (const entry of entries) {
+    const accounting = accountingFor(entry);
+    coverage[accounting.tokenScope]++;
+    if (accounting.usage?.totalTokens === undefined) coverage.missing++;
+  }
+  return coverage;
+}
+
+// Null is sticky: an overflow is unavailable, never a smaller selectively accumulated sum.
+export function addFigures(total, value) {
+  return integer(total) && integer(value) && Number.isSafeInteger(total + value) ? total + value : null;
+}
+
+export function usageFigure(entries, key) {
+  let total = 0;
+  let stepsWithFigures = 0;
+  for (const entry of entries) {
+    const value = accountingFor(entry).usage?.[key];
+    if (!integer(value)) continue;
+    total = addFigures(total, value);
+    stepsWithFigures++;
+  }
+  return { total, stepsWithFigures };
+}
+
 // Explicit local inputs only: bound reads and reject redirects and replacement during a read.
 // shortcut: elapsed budgets cannot interrupt a filesystem syscall; isolate reads before supporting blocking remote storage.
 function readStableFile(file, { root, maxBytes, deadline = Date.now() + USAGE_LIMITS.readMs }, consume) {

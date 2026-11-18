@@ -305,16 +305,16 @@ Stream bounded JSONL sources and keep only deduplication identities, counters an
 
 #### Automated
 
-- [x] 3.1 Claude fixtures prove whole-invocation totals, cache accounting, exact attribution and fail-closed immediate/late/archive behavior: `node --test skills/10x-pipeline/test/claude-usage.test.mjs skills/10x-pipeline/test/late-usage.test.mjs`.
-- [x] 3.2 Both skills preserve matching and anti-stall behavior while rejecting flat or delegated final-request totals: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`.
-- [x] 3.3 The required repository suite passes after Phase 3: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 3.1 Claude fixtures prove whole-invocation totals, cache accounting, exact attribution and fail-closed immediate/late/archive behavior: `node --test skills/10x-pipeline/test/claude-usage.test.mjs skills/10x-pipeline/test/late-usage.test.mjs`. — 9da3accc
+- [x] 3.2 Both skills preserve matching and anti-stall behavior while rejecting flat or delegated final-request totals: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/10x-pipeline/test/nested-subagents.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`. — 9da3accc
+- [x] 3.3 The required repository suite passes after Phase 3: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 9da3accc
 
 ### Phase 4: Truthful reports, comparisons and migration evidence
 
 #### Automated
 
-- [ ] 4.1 Status, report, compare and cost fixtures distinguish verified, legacy, missing and mixed scopes without double counting: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/cost.test.mjs`.
-- [ ] 4.2 Final local validation passes and evidence records the commands and results: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, `node tools/version-check.mjs`, and `git diff --check`.
+- [x] 4.1 Status, report, compare and cost fixtures distinguish verified, legacy, missing and mixed scopes without double counting: `node --test skills/10x-pipeline/test/route.test.mjs skills/10x-pipeline/test/compare.test.mjs skills/10x-pipeline/test/cost.test.mjs`.
+- [x] 4.2 Final local validation passes and evidence records the commands and results: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`, `node tools/version-check.mjs`, and `git diff --check`.
 
 #### Manual
 
