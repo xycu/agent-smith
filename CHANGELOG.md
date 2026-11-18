@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.14.0](https://github.com/xycu/agent-smith/compare/v1.13.1...v1.14.0) (2026-11-18)
+
+
+### Features
+
+* **delegated-token-accounting:** Report token usage for delegated pipeline steps ([#215](https://github.com/xycu/agent-smith/issues/215)) ([2ceca34](https://github.com/xycu/agent-smith/commit/2ceca343ae1f7119c6d8fe72f943f18753c7467d))
+
+
+### Bug Fixes
+
+* **adapt-to-astra-62:** Adapt to the newly released OpenAI models by updating Sol and Astra versions ([#218](https://github.com/xycu/agent-smith/issues/218)) ([8a88e70](https://github.com/xycu/agent-smith/commit/8a88e7052c1ea3619635fe64e0af3f31279665e5))
+
 ## [1.13.1](https://github.com/xycu/agent-smith/compare/v1.13.0...v1.13.1) (2026-11-18)
 
 
