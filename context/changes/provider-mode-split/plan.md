@@ -252,7 +252,7 @@ Existing router-owned `meta.json` and `run.jsonl` require no rewrite. Resume mod
 
 #### Automated
 
-- [x] 3.1 Both skill loop contracts and the full Node 24 repository suite pass locally using scratch fixtures and fake provider and GitHub clients.
+- [x] 3.1 Both skill loop contracts and the full Node 24 repository suite pass locally using scratch fixtures and fake provider and GitHub clients. — f89c77cc
 
 #### Manual
 
