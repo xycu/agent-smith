@@ -319,8 +319,8 @@ Existing router-owned `meta.json` and `run.jsonl` require no rewrite. Resume run
 
 #### Automated
 
-- [ ] 4.1 F1 and F4. Claude fixtures prove that ambiguous completion retains the lock and that settled failures preserve duration and unavailable token evidence through intake in both skill loops.
-- [ ] 4.2 F2. Both chain fixtures prove that damaged metadata on a logged run prevents writes and leaves plain status available, while fresh and valid legacy runs retain their routing.
-- [ ] 4.3 F3 and F6. Headless Claude refuses work when the manual verification template requires a native advisor or a listed skill lacks its invocation tool.
-- [ ] 4.4 F5 and F7. Codex fixtures prove that dispatch drift prevents launch after preflight and that oversized, unterminated toolkit output hits the discovery byte limit.
-- [ ] 4.5 F8. Local CLI output and transport fixtures agree with the reference on init flags, no-Chrome evidence and headless Bash guard scope.
+- [x] 4.1 F1 and F4. Claude fixtures prove that ambiguous completion retains the lock and that settled failures preserve duration and unavailable token evidence through intake in both skill loops.
+- [x] 4.2 F2. Both chain fixtures prove that damaged metadata on a logged run prevents writes and leaves plain status available, while fresh and valid legacy runs retain their routing.
+- [x] 4.3 F3 and F6. Headless Claude refuses work when the manual verification template requires a native advisor or a listed skill lacks its invocation tool.
+- [x] 4.4 F5 and F7. Codex fixtures prove that dispatch drift prevents launch after preflight and that oversized, unterminated toolkit output hits the discovery byte limit.
+- [x] 4.5 F8. Local CLI output and transport fixtures agree with the reference on init flags, no-Chrome evidence and headless Bash guard scope.

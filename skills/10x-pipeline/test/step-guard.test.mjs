@@ -425,5 +425,7 @@ test("headless Bash binds main and leaf identities, including oversized and miss
     assert.equal(runHook("git status", extra).decision.permissionDecision, "deny");
     assert.equal(runHook("x".repeat(70000), extra).status, 2);
   }
-  assert.equal(runHook("x".repeat(70000)).status, 2);
+  for (const identity of [{}, { agent_id: "leaf" }]) {
+    assert.equal(runHook(oversizedCommand, identity).status, 2);
+  }
 });

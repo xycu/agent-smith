@@ -61,11 +61,16 @@ function ruleProblem(policy) {
 }
 
 // A logged run's host and mode cannot be recovered from a damaged metadata file.
+function metadataProblem(p, meta) {
+  return meta === null && fs.existsSync(p.log)
+    ? `Cannot read an object from ${p.meta} for the existing run. Recover its metadata before continuing. Nothing was written.`
+    : null;
+}
+
 function mutationMeta(p) {
   const meta = readMeta(p.meta, null);
-  if (!meta && fs.existsSync(p.meta) && fs.existsSync(p.log)) {
-    halt(`Cannot read an object from ${p.meta} for the existing run. Recover its metadata before continuing. Nothing was written.`);
-  }
+  const problem = metadataProblem(p, meta);
+  if (problem) halt(problem);
   return meta;
 }
 
@@ -719,18 +724,20 @@ function status(id, flags, chain = "10x", policy = null) {
   const normalized = executed(log).map((entry) => ({ ...entry, ...accountingFor(entry) }));
   const coverage = usageCoverage(normalized);
   const cost = prices ? estimateCost(normalized, prices) : null;
-  const stored = readMeta(p.meta, {});
+  const stored = readMeta(p.meta, null);
+  const recovery = metadataProblem(p, stored);
   const res = {
     change: id,
     ...(logProblems.length ? { logProblems } : {}),
-    host: hostOf(stored),
-    providerMode: stored.providerMode ?? "legacy",
+    host: recovery ? null : hostOf(stored),
+    providerMode: recovery ? null : stored?.providerMode ?? "legacy",
+    ...(recovery ? { metadataProblem: recovery } : {}),
     usageCoverage: coverage,
     tokens: usageFigure(normalized, "totalTokens"),
     toolUses: usageFigure(normalized, "toolUses"),
     durationMs: usageFigure(normalized, "durationMs"),
     groupingScope: "enclosing-dispatch",
-    rigor: stored.rigor?.level ?? null,
+    rigor: stored?.rigor?.level ?? null,
     ...prCommentField(stored),
     steps: log.map((e) => e.skipped ? {
       skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null,
@@ -768,7 +775,7 @@ function status(id, flags, chain = "10x", policy = null) {
     })),
   };
   // status stays usable on a broken policy; the fault shows here, and init, next and usage halt on it.
-  const policyProblem = policyProblems(policy, false) ?? selectionProblem(policy, stored) ?? promptProblem(policy);
+  const policyProblem = policyProblems(policy, false) ?? (recovery ? null : selectionProblem(policy, stored ?? {})) ?? promptProblem(policy);
   if (policyProblem) res.policyProblem = policyProblem;
   if (cost) {
     res.cost = {

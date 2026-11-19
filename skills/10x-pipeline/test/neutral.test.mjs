@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, planText, init, next, writeLog, entry, readLogEntries, readMetaFile, writeResult, run,
+  cleanupAll, makeProject, planText, init, next, seedRun, writeLog, entry, readLogEntries, readMetaFile, writeResult, run,
   readReportFile, writeMetaFile, gitAvailable, gitEnv, gitInit, git, commitFiles
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
@@ -249,11 +249,11 @@ test("an entry without a stored prompt halts plainly and leaves the file", () =>
 
 test("a completed owner cleans a stray orchestrator-error file without recording a retry", () => {
   const control = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(control, [entry(1, "plan")]);
+  seedRun(control, [entry(1, "plan")]);
   const want = init(control, "fix typo");
 
   const project = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(project, [entry(1, "plan")]);
+  seedRun(project, [entry(1, "plan")]);
   writeResult(project, FAULT);
   const got = init(project, "fix typo");
   assert.equal(got.json.action, "run");

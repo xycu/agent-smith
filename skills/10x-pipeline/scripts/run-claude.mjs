@@ -350,7 +350,10 @@ export async function runClaude(id, chain, action) {
     const reply = terminal.result;
     if (!/^RESULT:/.test(reply.trimEnd().split(/\r?\n/).at(-1))) fail("Enclosing Claude reply has no final RESULT line.");
     const result = readResult(reply);
-    if (action.action === "archive") lock.clearChild(true);
+    if (action.action === "archive") {
+      if (!["done", "blocked", "failed"].includes(result.status)) fail("Claude archive RESULT has an invalid status.");
+      lock.clearChild(true);
+    }
     envelope.result = { ...result, usage: envelope.usage, usageEvidence: envelope.usageEvidence };
     envelope.completed = true;
     if (action.action === "archive") envelope.reply = reply;

@@ -25,8 +25,9 @@ function snapshot(dir) {
   for (const name of fs.readdirSync(dir).sort()) {
     const file = path.join(dir, name);
     if (fs.statSync(file).isDirectory()) {
+      files[name + "/"] = null;
       for (const [child, bytes] of Object.entries(snapshot(file))) files[`${name}/${child}`] = bytes;
-    } else files[name] = fs.readFileSync(file, "utf8");
+    } else files[name] = fs.readFileSync(file);
   }
   return files;
 }
@@ -53,16 +54,25 @@ for (const chain of ["10x", "openspec"]) {
 
   test(`${chain}: damaged metadata cannot change a logged run's provider mode`, () => {
     const p = make({});
-    assert.equal(start(p, ["--host=codex", "--provider-mode=split"]).json.action, "run");
-    for (const damaged of ["not JSON", "[]"]) {
-      writeMetaFile(p, damaged);
+    const first = start(p, ["--host=codex", "--provider-mode=split"]).json;
+    assert.equal(first.action, "run");
+    writeResult(p, { status: "done", note: "keep the pending result for recovery" });
+    for (const damaged of ["not JSON", "[]", null]) {
+      if (damaged === null) fs.unlinkSync(path.join(p.agentDir, "meta.json"));
+      else writeMetaFile(p, damaged);
       const before = snapshot(p.changeDir);
       for (const args of [["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens=1"], ["status", p.id, "--report"]]) {
         const response = run(p, [...args, "--chain", chain]);
         assert.match(response.json.reason, /Recover its metadata/);
         assert.deepEqual(snapshot(p.changeDir), before);
       }
-      assert.equal(run(p, ["status", p.id, "--chain", chain]).status, 0);
+      const status = run(p, ["status", p.id, "--chain", chain]);
+      assert.equal(status.status, 0, status.stdout);
+      assert.equal(status.json.host, null);
+      assert.equal(status.json.providerMode, null);
+      assert.match(status.json.metadataProblem, /Recover its metadata/);
+      assert.equal(status.json.steps.find(step => step.n === first.n).provider, first.provider);
+      assert.deepEqual(snapshot(p.changeDir), before);
     }
   });
 
@@ -108,7 +118,15 @@ for (const chain of ["10x", "openspec"]) {
       writeLog(p, [logged]);
       const meta = readMetaFile(p);
       delete meta.host;
+      delete meta.providerMode;
       writeMetaFile(p, meta);
+      const before = snapshot(p.changeDir);
+      const plain = run(p, ["status", p.id, "--chain", chain]).json;
+      assert.equal(plain.host, "claude");
+      assert.equal(plain.providerMode, "legacy");
+      assert.equal(plain.metadataProblem, undefined);
+      assert.equal(plain.steps[0].provider, "claude");
+      assert.deepEqual(snapshot(p.changeDir), before);
       const status = run(p, ["status", p.id, "--chain", chain, "--report"]);
       assert.equal(status.json.host, "claude");
       assert.equal(status.json.steps[0].provider, "claude");

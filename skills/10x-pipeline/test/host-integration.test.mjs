@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, init, next, writeResult, writeLog, entry, readLogEntries,
+  cleanupAll, makeProject, init, next, writeResult, seedRun, entry, readLogEntries,
 } from "./helpers.mjs";
 import { writePlan, writeReview, stampAhead } from "./ahead.mjs";
 import { buildPlan } from "./phase-helpers.mjs";
@@ -21,7 +21,7 @@ const plan = (manual) => buildPlan([{ auto: AUTO, manual }]);
 function manualProject(host = "codex", flags = [], mode = "codex") {
   const project = makeProject({ plan: plan([BROWSER]), policy: { ...PRESET, manualVerify: { minRigor: "lean" } } });
   writeReview(project, "plan-review", { verdict: "SOUND" });
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { host, providerMode: mode });
   const action = init(project, "fix typo", ["--host", host, "--provider-mode", mode, ...flags]).json;
   assert.equal(action.step, "manual-verify", JSON.stringify(action));
   return { project, action };
@@ -78,17 +78,21 @@ for (const kind of ["test", "browser"]) {
   });
 }
 
-test("OpenAI fallback refuses a claimed browser evidence prefix through the shared evidence-kind check", () => {
-  const { project, action } = manualProject();
-  evidence(project, "browser-invented.txt", "Fixture claim without an available browser integration\n");
-  writePlan(project, plan([{ text: `${BROWSER} — evidence: evidence/browser-invented.txt`, done: true }]));
-  writeResult(project, { status: "done" });
-  next(project);
-  const finished = readLogEntries(project).find((item) => item.n === action.n);
-  assert.equal(finished.ok, false);
-  assert.deepEqual(finished.unproven, ["1.2"]);
-  assert.match(finished.unprovenWhy["1.2"], /only test, command, script evidence/);
-});
+for (const [host, flags, mode] of [["codex", [], "codex"], ["claude", ["--chrome=false"], "claude"]]) {
+  test(`${host} host in ${mode} mode refuses browser evidence when routed with local capability`, () => {
+    const { project, action } = manualProject(host, flags, mode);
+    assert.equal(action.provider, mode === "codex" ? "openai" : "claude");
+    assert.equal(readLogEntries(project).at(-1).browserEvidence, "local");
+    evidence(project, "browser-invented.txt", "Fixture claim without an available browser integration\n");
+    writePlan(project, plan([{ text: `${BROWSER} — evidence: evidence/browser-invented.txt`, done: true }]));
+    writeResult(project, { status: "done" });
+    next(project);
+    const finished = readLogEntries(project).find((item) => item.n === action.n);
+    assert.equal(finished.ok, false);
+    assert.deepEqual(finished.unproven, ["1.2"]);
+    assert.match(finished.unprovenWhy["1.2"], /only test, command, script evidence/);
+  });
+}
 
 for (const kind of ["test", "command", "script"]) {
   test(`OpenAI fallback accepts covering ${kind} evidence without fabricating browser access`, () => {
@@ -120,25 +124,12 @@ test("OpenAI browser fallback preserves native advisor refusals under either tem
       ...PRESET, manualVerify: { minRigor: "lean" }, advisor: { enabled: true, templates: [template] },
     } });
     writeReview(project, "plan-review", { verdict: "SOUND" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { host: "codex", providerMode: "codex" });
     const before = readLogEntries(project).length;
     const refused = init(project, "fix typo", ["--host", "codex"]);
     assert.equal(refused.json.action, "halt", refused.stdout);
     assert.match(refused.json.reason, /cannot use the native Claude advisor/);
     assert.equal(readLogEntries(project).length, before);
-  }
-});
-
-test("headless browser fallback retains an advisor requirement under either template spelling", () => {
-  for (const template of ["manual-verify", "manual-verify-headless"]) {
-    const project = makeProject({ plan: plan([BROWSER]), policy: {
-      manualVerify: { minRigor: "lean" }, advisor: { enabled: true, templates: [template] },
-    } });
-    writeReview(project, "plan-review", { verdict: "SOUND" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
-    const action = init(project, "fix typo", ["--host=codex", "--provider-mode=claude"]).json;
-    assert.equal(action.step, "manual-verify");
-    assert.equal(readLogEntries(project).at(-1).advisor, true);
   }
 });
 

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, init, next, run, writeOverride, writeResult, readLogEntries,
-  readMetaFile, planText, gitInit, git, gitEnv, writeLog, entry,
+  readMetaFile, planText, gitInit, git, gitEnv, seedRun, writeLog, entry,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, initOpenspec, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -311,7 +311,7 @@ test("both providers keep manual variants byte-identical to inline rendering", (
           policy: { ...(provider === "openai" ? preset : {}), prompts: { byFile }, manualVerify: { minRigor: "lean" } },
         });
         writeReview(p, "plan-review", { verdict: "SOUND" });
-        writeLog(p, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+        seedRun(p, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { providerMode: provider === "openai" ? "codex" : "claude" });
         const action = init(p, "fix typo", ["--chrome", String(chrome)]).json;
         assert.equal(action.step, "manual-verify");
         actions.push(pending(p).pendingPrompt);
@@ -437,7 +437,7 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
       if (c.manual) {
         writePlan(q, buildPlan([{ auto: [{ text: "implemented", done: true }], manual: ["Browser displays saved result"] }]));
         writeReview(q, "plan-review", { verdict: "SOUND" });
-        writeLog(q, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+        seedRun(q, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { providerMode: c.openai ? "codex" : "claude" });
       }
       const first = run(q, ["init", q.id, "--chain", c.chain, "--goal", "fix typo"]);
       record(q, first, c.label + "-initial", policy);

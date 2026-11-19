@@ -8,7 +8,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   cleanupAll, makeProject, writePlan, writeReview, init, next, run, writeResult, readLogEntries, readMetaFile, writeMetaFile,
-  readReportFile, entry, writeLog, gitInit, git, gitEnv, commitFiles, gitAvailable,
+  readReportFile, entry, seedRun, writeLog, gitInit, git, gitEnv, commitFiles, gitAvailable,
   ruleTail,
 } from "./helpers.mjs";
 import { buildPlan, pendingEntry, headSha, gateCheck } from "./phase-helpers.mjs";
@@ -171,7 +171,7 @@ test("entry records before state", { skip: noGit }, () => {
   writeReview(strict, "plan-review", { verdict: "SOUND" });
   gitInit(strict);
   commitFiles(strict, ["src/base.mjs"]);
-  writeLog(strict, [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(strict, [entry(1, "plan"), entry(2, "plan-review")]);
   const res = init(strict, "fix typo");
   assert.equal(res.json.step, "implement", JSON.stringify(res.json));
   const e = readLogEntries(strict).pop();
@@ -182,14 +182,14 @@ test("entry records before state", { skip: noGit }, () => {
   // Without a repository head is null.
   const bare = makeProject({ plan: buildPlan([{ auto: ROWS }]), policy: { executors: { strictVerify: ["implement"] } } });
   writeReview(bare, "plan-review", { verdict: "SOUND" });
-  writeLog(bare, [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(bare, [entry(1, "plan"), entry(2, "plan-review")]);
   init(bare, "fix typo");
   assert.deepEqual(readLogEntries(bare).pop().before, { autoDone: 0, head: null, done: [] });
 
   // A plain entry under the shipped policy keeps `before` byte for byte.
   const plain = makeProject({ plan: buildPlan([{ auto: ROWS }]) });
   writeReview(plain, "plan-review", { verdict: "SOUND" });
-  writeLog(plain, [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(plain, [entry(1, "plan"), entry(2, "plan-review")]);
   init(plain, "fix typo");
   assert.deepEqual(readLogEntries(plain).pop().before, { autoDone: 0 });
 });
@@ -327,7 +327,7 @@ function e2eProject({ specs, setup = true, useGit = false, policy = null, log = 
     gitInit(project);
     commitFiles(project, ["src/base.mjs", `context/changes/${project.id}/plan.md`]);
   }
-  writeLog(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
   return project;
 }
 
@@ -759,7 +759,7 @@ test("no phase list stays plain", () => {
   const project = makeProject({ plan: text });
   writeReview(project, "plan-review", { verdict: "SOUND" });
   writeSetup(project);
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
   const res = start(project).json;
   assert.equal(res.step, "implement");
   assert.equal(res.prompt, PLAIN_IMPLEMENT);
@@ -1119,7 +1119,7 @@ test("executors smoke", () => {
   const specs = [{ name: "Login flow", auto: ["Playwright spec covers login: `npx playwright test tests/e2e/login.spec.ts`"], manual: ["Run `node --version` and see a version"] }];
   const project = makeProject({ plan: buildPlan(specs) });
   writeReview(project, "plan-review", { verdict: "SOUND" });
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
   // init prints one JSON object with a run action; status prints one JSON object with the step log.
   const started = init(project, "Cover the login flow in the browser", ["--rigor", "standard", "--chrome"]);
   assert.equal(started.status, 0, started.stderr);

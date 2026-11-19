@@ -659,13 +659,17 @@ for (const chain of ["10x", "openspec"]) {
   });
 }
 
-test("Codex rechecks policy and proven skill after preflight", () => {
-  for (const drift of ["policy", "skill"]) {
+test("Codex rechecks policy, skill, template and advisor after preflight", () => {
+  for (const drift of ["policy", "skill", "template", "advisor"]) {
     const w = codexFixture();
-    const changeAfterPreflight = drift === "policy"
-      ? { file: path.join(w.project.root, "context/foundation/agent-smith-policy.json"), content: "[]" }
-      : { file: path.join(w.project.agentDir, "run.jsonl"),
-          content: readLogEntries(w.project).map(e => JSON.stringify({ ...e, skill: "different-skill" })).join("\n") + "\n" };
+    let changeAfterPreflight;
+    if (drift === "policy") {
+      changeAfterPreflight = { file: path.join(w.project.root, "context/foundation/agent-smith-policy.json"), content: "[]" };
+    } else {
+      const log = readLogEntries(w.project);
+      log.at(-1)[drift] = drift === "advisor" ? true : "changed-" + drift;
+      changeAfterPreflight = { file: path.join(w.project.agentDir, "run.jsonl"), content: log.map(e => JSON.stringify(e)).join("\n") + "\n" };
+    }
     setMode(w, { changeAfterPreflight });
     const res = execute(w);
     assert.equal(res.json.launched, false, res.stdout);

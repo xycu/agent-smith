@@ -343,15 +343,16 @@ test("1.4 a run whose log holds executed steps and has no record gets none, and 
   assert.ok(res.json.warnings.includes("provenance-unknown:routed"), res.json.warnings.join(","));
 });
 
-test("1.4 a log with executed steps and no meta.json at all gets no record", () => {
+test("1.4 a log with executed steps and no meta.json halts for recovery", () => {
   const project = makeProject();
   // A plan step that started and has no result yet: JSON drops the undefined fields.
   writeLog(project, [entry(1, "plan", { result: undefined, ok: undefined, verified: undefined, finishedAt: undefined })]);
   finishPlan(project);
   const res = init(project, "fix typo");
-  assert.equal(res.status, 0, res.stdout);
-  assert.equal(res.json.action, "run");
-  assert.equal(Object.hasOwn(readMetaFile(project), "provenance"), false);
+  assert.equal(res.status, 1, res.stdout);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /Recover its metadata/);
+  assert.equal(fs.existsSync(path.join(project.agentDir, "meta.json")), false);
 });
 
 // ---- 1.5 and 1.6 compare ---------------------------------------------------------------------

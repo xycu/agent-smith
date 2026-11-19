@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, run, init, next, writeLog, entry, writeResult, readLogEntries, git,
+  cleanupAll, makeProject, planText, run, init, next, seedRun, writeLog, entry, writeResult, readLogEntries, git,
   gitAvailable, gitEnv, gitInit, writeMetaFile, readReportFile
 } from "./helpers.mjs";
 import { writePlan, writeReview, stampAhead } from "./ahead.mjs";
@@ -49,7 +49,7 @@ function observe(text, { step = "plan-review", policy = {} } = {}) {
     ? [entry(1, "plan"), entry(2, "plan-review", pending)]
     : [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review", pending)];
   if (step === "impl-review") writeReview(project, "plan-review", { verdict: "SOUND" });
-  writeLog(project, log);
+  seedRun(project, log);
   writeResult(project, { status: "done", note: "fixture" });
   const res = next(project);
   const logged = readLogEntries(project)[log.length - 1];
@@ -197,7 +197,7 @@ describe("fallback: a review without Decision lines is unaware", () => {
   test("no ### F block at all: verdict and measured pair only", () => {
     const project = makeProject({ plan: planText() });
     writeReview(project, "plan-review", { verdict: "REVISE", findings: "1 critical, 2 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
     writeResult(project, { status: "done", note: "fixture" });
     next(project);
     const logged = readLogEntries(project)[1];
@@ -222,7 +222,7 @@ describe("fallback: a review without Decision lines is unaware", () => {
 
     const project = makeProject({ plan: planText() });
     writeReview(project, "plan-review", { verdict: "REVISE", findings: "1 critical, 0 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
     writeResult(project, { status: "done", note: "fixture" });
     const plain = next(project);
     assert.equal(plain.json.step, "plan");
@@ -258,7 +258,7 @@ describe("fallback: a review without Decision lines is unaware", () => {
     const project = makeProject({ plan: planText() });
     fs.mkdirSync(path.join(project.changeDir, "reviews"), { recursive: true });
     fs.writeFileSync(path.join(project.changeDir, "reviews", "plan-review.md"), "# Review\n\nnothing\n");
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
     writeResult(project, { status: "done", note: "fixture" });
     next(project);
     const logged = readLogEntries(project)[1];
@@ -413,7 +413,7 @@ function writeReviewFile(project, name, text) {
 function routePlan(text, { policy = {}, rigor = "standard", log = null, plan = planText() } = {}) {
   const project = makeProject({ plan, policy });
   writeReviewFile(project, "plan-review", text);
-  writeLog(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
   return { project, res: init(project, GOAL, ["--rigor", rigor]) };
 }
 
@@ -421,7 +421,7 @@ function routeImpl(text, { policy = {}, rigor = "standard" } = {}) {
   const project = makeProject({ plan: planText({ done: 1 }), policy });
   writeReview(project, "plan-review", { verdict: "SOUND" });
   writeReviewFile(project, "impl-review", text);
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
   return { project, res: init(project, GOAL, ["--rigor", rigor]) };
 }
 
@@ -542,7 +542,7 @@ describe("plan review routing on open findings", () => {
   test("a review without Decision lines keeps the old routing and the exact reason prefix", () => {
     const project = makeProject({ plan: planText() });
     writeReview(project, "plan-review", { verdict: "REVISE", findings: "1 critical, 1 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
     assert.equal(res.json.step, "plan");
     assert.match(res.json.reason, /^plan review REVISE \(1 critical, 1 warnings\);/);
@@ -550,7 +550,7 @@ describe("plan review routing on open findings", () => {
     // The same header with a tolerated count goes on, as before.
     const ok = makeProject({ plan: planText() });
     writeReview(ok, "plan-review", { verdict: "REVISE", findings: "0 critical, 1 warnings" });
-    writeLog(ok, [entry(1, "plan"), entry(2, "plan-review")]);
+    seedRun(ok, [entry(1, "plan"), entry(2, "plan-review")]);
     assert.equal(init(ok, GOAL, ["--rigor", "standard"]).json.step, "implement");
   });
 
@@ -721,7 +721,7 @@ describe("implementation review routing on open findings", () => {
     const project = makeProject({ plan: planText({ done: 1 }) });
     writeReview(project, "plan-review", { verdict: "SOUND" });
     writeReview(project, "impl-review", { verdict: "NEEDS ATTENTION", findings: "0 critical, 1 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
     assert.equal(res.json.step, "fix");
     assert.match(res.json.reason, /^impl review NEEDS ATTENTION \(0 critical, 1 warnings\);/);
@@ -730,7 +730,7 @@ describe("implementation review routing on open findings", () => {
     const off = makeProject({ plan: planText({ done: 1 }), policy: { review: { fixOnNeedsAttention: false } } });
     writeReview(off, "plan-review", { verdict: "SOUND" });
     writeReview(off, "impl-review", { verdict: "NEEDS ATTENTION", findings: "0 critical, 1 warnings" });
-    writeLog(off, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+    seedRun(off, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
     assert.equal(init(off, GOAL, ["--rigor", "standard"]).json.action, "done");
   });
 
@@ -1003,7 +1003,7 @@ function confirmImpl(text, { policy = CONFIRM_ON(1), confirms = [], rigor = "sta
   const project = makeProject({ plan: planText({ done: 1 }), policy });
   writeReview(project, "plan-review", { verdict: "SOUND" });
   writeReviewFile(project, "impl-review", text);
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), ...confirms.map((over, i) => implConfirm(5 + i, over))]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), ...confirms.map((over, i) => implConfirm(5 + i, over))]);
   return { project, res: init(project, GOAL, ["--rigor", rigor]) };
 }
 
@@ -1123,7 +1123,7 @@ describe("plan review confirmation round", () => {
   test("the gate acts only before any automated row is done", () => {
     const project = makeProject({ plan: planText({ done: 1 }), policy: CONFIRM_ON(1) });
     writeReviewFile(project, "plan-review", APPLIED_PLAN);
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
     assert.notEqual(lastEntry(project).template, "plan-review-confirm", res.stdout);
   });
@@ -1374,7 +1374,7 @@ describe("report: Review findings section", () => {
       findings: "0 critical, 1 warnings",
       blocks: [block("F1", WARN, "PENDING")],
     }));
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review", {
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review", {
       review: { verdict: "NEEDS ATTENTION", critical: 0, warnings: 1, openCritical: 0, openWarnings: 1 },
     })]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
@@ -1560,7 +1560,7 @@ describe("verdict validation before advancing", () => {
   test("an ordinary implementation review retry keeps the bump for prior code failures", () => {
     const project = makeProject({ plan: planText({ done: 1 }) });
     writeReview(project, "plan-review", { verdict: "SOUND" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", FAILED), entry(4, "implement")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", FAILED), entry(4, "implement")]);
     const first = init(project, GOAL, ["--rigor", "standard"]);
     assert.equal(first.json.step, "impl-review", first.stdout);
     assert.match(lastEntry(project).tierWhy, /\+1 from results/);
