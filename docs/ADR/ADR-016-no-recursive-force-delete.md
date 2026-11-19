@@ -1,6 +1,6 @@
 # ADR-016: No recursive or forced directory delete; list, check, delete one by one, then rmdir
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (implemented by the unattended `no-recursive-delete` run), as amended for shared rules and scoped Claude enforcement. [Cleanup helper](../../skills/10x-pipeline/scripts/remove-tree.mjs) · [Repository guard](../../skills/10x-pipeline/test/no-recursive-delete.test.mjs)
 - **Date:** 2026-11-09
 - **Deciders:** the repository owner (the request in `change.md`, 2026-11-09); unattended implementation run of change `no-recursive-delete` for the readings marked A1 to A5 below
 - **Origin:** change `no-recursive-delete` (`context/changes/no-recursive-delete/change.md` and `plan.md`)
@@ -77,4 +77,4 @@ The shared `rules/top.md` prohibition includes recursive `fs.rmdir` and `fs.rmdi
 
 The plugin-level Bash hook scopes enforcement to identity-bearing `agent-smith:step` calls and forbids recognized direct recursive rm and find deletion forms. Literal quotes and common shell separators receive payload regression coverage. Single-file unlink and empty-directory removal follow the inspected cleanup procedure. The hook performs only input parsing and decision output.
 
-Interpreter internals, helpers, dynamic shell construction, filesystem tools and MCP/API actions rely on semantic rules and host controls. OpenAI children and custom Claude agent mappings use their existing host controls. Disabled hooks and unsupported identity schemas have no runtime guarantee. The plugin supports 2.1.292+, and fail-closed hook handling requires 2.1.295+. Older-host runtime enforcement is unverified. Live identity and blocking acceptance remains pending. [Hooks](https://code.claude.com/docs/en/hooks)
+Interpreter internals, helpers, dynamic shell construction, filesystem tools and MCP/API actions rely on semantic rules and host controls. OpenAI children and custom Claude agent mappings use their existing host controls. Disabled hooks and unsupported identity schemas have no runtime guarantee. The plugin supports 2.1.292+, and fail-closed hook handling requires 2.1.295+. Older-host runtime enforcement is unverified. Live identity and blocking acceptance remains open in row 2.6. [Guard plan, Manual rows 2.6–2.7](../../context/archive/2026-11-13-step-subagent-git-guard/plan.md#progress) · [S-18 effective protection](../../context/foundation/roadmap.md#s-18-effective-step-protection-in-the-supported-environment) [Hooks](https://code.claude.com/docs/en/hooks)

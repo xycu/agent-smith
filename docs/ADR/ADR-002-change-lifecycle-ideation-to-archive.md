@@ -1,6 +1,6 @@
 # ADR-002: Change lifecycle from ideation to archive, with a three-step mandatory core and every other step optional
 
-- **Status:** Proposed
+- **Status:** Partially implemented. The plugin routes the change-level steps from planning through implementation and review, with optional pre-plan work and opt-in archive. The nine-stage catalog, including ideation and project foundations, describes the broader toolkit design. [ADR-017](ADR-017-run-branch-always-pushed-for-review.md) adds terminal publication for isolated runs.
 - **Date:** 2026-10-30
 - **Deciders:** repository owner
 - **Sources:** the 10xDevs 4.0 toolkit and lessons in `../10xdevs4-content/` (CLI manifest 1.30.0, lesson `m5l5`): skills in `.claude/skills/*/SKILL.md`, prompts in `.claude/prompts/`, lessons in `en/m1` to `en/m5`.

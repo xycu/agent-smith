@@ -1,6 +1,6 @@
 # ADR-021: Agent Smith co-authors the commits of the router
 
-- **Status:** Accepted (implemented by an unattended run of change `agent-smith-coauthor`; the owner has not yet checked the GitHub attribution on a pushed commit)
+- **Status:** Accepted (implemented by the unattended `agent-smith-coauthor` run). Row 3.4 verified the local trailer. GitHub account attribution on a pushed commit remains an owner check. [Trailer evidence](../../context/archive/2026-11-12-agent-smith-coauthor/evidence/test-coauthor-start-commit.txt) · [Requested GitHub identity](../../context/archive/2026-11-12-agent-smith-coauthor/change.md)
 - **Date:** 2026-11-12
 - **Deciders:** the repository owner (change `agent-smith-coauthor`, `change.md`); unattended plan and implementation runs for the readings below
 - **Origin:** change `agent-smith-coauthor` (`context/changes/agent-smith-coauthor/change.md`, `plan.md` and `reviews/plan-review.md`). It builds on ADR-010 (start and step commits, rollback), ADR-017 (`open-pr.mjs`) and ADR-019 (the late-usage commit); no earlier decision is superseded.
@@ -37,7 +37,7 @@
 
 - A constant in the scripts: no off switch for a project, and the identity would live in code instead of policy.
 - Setting the commit author or committer to Agent Smith (git config or `--author`): it hides the human or Claude identity that made the run, and the router never writes git config.
-- A shared standalone `co-author.mjs` imported by both `isolation.mjs` and `open-pr.mjs`: one copy of the rule, but it changes the import rules of AGENTS.md and ADR-017. Left open for the owner (plan review F6); the parity test guards the copy.
+- A shared standalone `co-author.mjs` imported by both `isolation.mjs` and `open-pr.mjs`: one copy of the rule, but it changes the import rules of AGENTS.md and ADR-017. The parity test guards the copy while the owner decision remains open. [Plan review F6](../../context/archive/2026-11-12-agent-smith-coauthor/reviews/plan-review.md#f6--validation-and-policy-merge-are-written-twice)
 
 ## Not done
 

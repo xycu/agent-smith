@@ -1,10 +1,14 @@
 # ADR-017: Push every run branch and open its pull request for human review
 
-- **Status:** Accepted (the repository owner decided the two open review findings on 2026-11-09; the live checks below are still pending). Amendment 1 (2026-11-13) derives a conventional title for the pull request. Amendment 3 (2026-11-16) applies configured branch identity
+- **Status:** Accepted (owner, 2026-11-09, including the isolation opt-out), amended through Amendment 3. S-14 records a published run. The original throwaway-repository checks remain open. [Published run](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout) · [Original evidence register](../../context/archive/2026-11-09-worktree-pr-only/evidence/unproven.md)
 - **Date:** 2026-11-09
 - **Deciders:** unattended implementation run of change `worktree-pr-only`; the repository owner decided the opt-out (F1) and the number of this record (F9)
 - **Origin:** change `worktree-pr-only` (`context/changes/worktree-pr-only/change.md`, `plan.md` and `reviews/plan-review.md`). The goal: "All work must done on worktrees and always pushed to be reviewd by human on PRs - no exceptions". It builds on ADR-010 (run worktree, start and step commits) and on the relaxed git rule of `AGENTS.md` (Hard Rules, commit 2d28f0c), which lets code, skills and prompts push a branch and create or edit pull requests and forbids only operations that cannot be undone.
 - **Number:** ADR-014, ADR-015 and ADR-016 are reserved by the changes `archive-manual-gate`, `neutral-orchestrator-retry` and `no-recursive-delete`, which run in parallel with this one, so this record is ADR-017.
+
+## Rule in force
+
+At a terminal action the orchestrator runs `open-pr.mjs`, which validates the configured run branch and saved identity, pushes without force, and opens a PR with a Conventional Commit title or reuses the existing PR. The owner retains review and merge. `isolation.require: false` skips publication. Only the orchestrator posts a report comment with explicit authorization. Checks requiring a real PR, its CI or an external comment belong to Manual acceptance. [Publisher](../../skills/10x-pipeline/scripts/open-pr.mjs) · [Acceptance ownership](#amendment-2--step-publication-and-acceptance-ownership-2026-11-15)
 
 ## Context
 
@@ -51,7 +55,7 @@ The PR comment step now runs from the run root and names the pull request with `
 
 - One remote (`origin` by default) on `github.com`. GitHub Enterprise is not supported, as in `pr-comment.mjs`.
 - The base is the nearest remote branch the run descends from, else the default branch. A feature branch that exists only locally is no remote ref, so its run gets the default branch as base and its pull request carries that branch's commits.
-- `gh pr list --head` and `gh pr create --head` work on a branch without upstream config as the fake `gh` of the tests simulates. This is unverified live until the manual rows 1.5 and 2.4 of the change run.
+- `gh pr list --head` and `gh pr create --head` work on a branch without upstream config as the fake `gh` of the tests simulates. S-14 row 3.5 records a published branch, PR, green CI and requested comment on 2026-11-16. Original row 1.5 still requires a throwaway repository and an unchanged second invocation. Row 2.4 requires unattended terminal publication on both done and halt paths in a throwaway repository. [S-14 publication](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout) · [Original Manual rows](../../context/archive/2026-11-09-worktree-pr-only/evidence/unproven.md)
 - The pull request carries the goal text and the report header to a repository that may be public, with no opt-in.
 - The step and leftover commits use `git add -A`. When their commits are pushed, that includes unignored files in the worktree such as `evidence/`. The redaction rule of the `manual-verify` prompt is the only guard against a secret in evidence.
 - A successful leftover commit saves a halted run's partial edits (`kept`). A later rollback of a retry resets to that step's `startSha`, at or after the pushed head, preserving pushed history and the committed edits.

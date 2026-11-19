@@ -1,6 +1,6 @@
 # ADR-019: Attach a late usage figure with a router command
 
-- **Status:** Accepted (the repository owner accepted it on 2026-11-10; no live run has used the command yet)
+- **Status:** Accepted (owner, 2026-11-10). A legacy late figure was attached in a real run. Structured late attachment shipped with fixture coverage in v1.14.0. [Legacy attachment](#assumptions) · [Outstanding host and output checks](../../context/archive/2026-11-18-delegated-token-accounting/evidence/accounting.md#manual-acceptance-outstanding)
 - **Date:** 2026-11-10
 - **Deciders:** the repository owner (GitHub issue #71, which chose suggestion 2); unattended plan and implementation runs of change `late-step-usage` for the readings below
 - **Origin:** change `late-step-usage` (`context/archive/2026-11-10-late-step-usage/change.md`, `plan.md` and `reviews/plan-review.md`), GitHub issue #71 "late usage figure". It builds on ADR-010 (isolated run, step commits, rollback) and on the archive commit of `docs/REFERENCE.md`; no earlier decision is superseded.
@@ -58,7 +58,7 @@ The rollback of an isolated run and its undo on halt write the in-memory log bac
 
 - A notification that arrives before the pull request step is the common case. The cut-off points are chosen so a figure that arrives later costs a push or a second archive attempt, not a wrong report.
 - The 7-character `commit` of the output is the short hash of the new commit, or `null` when no commit was made.
-- Not run live: no real orchestrator has called the command from a task notification yet.
+- On 2026-11-13, commit `6f8a5a56` attached the late figure for `proper-structure-of-rules` step 7. The archived entry records `usageLate`. Its notification source was unrecorded. [Attachment commit](https://github.com/xycu/agent-smith/commit/6f8a5a56) · [Step 7 log](../../context/archive/2026-11-13-proper-structure-of-rules/agent-smith/run.jsonl)
 
 ## Consequences
 
@@ -83,4 +83,4 @@ The input is at most 64 KiB, normalized evidence 4 KiB. Unsafe numbers, redirect
 
 Both modes retain the run lock, atomic log/report publication, report refresh, archive-state commit and saved-byte recovery. No result rewrite or repeated `next` is introduced. Settlement exclusion applies before either mode. Attach before terminal status/publication or archive launch; later arrivals are dropped. Archive-agent usage is final-message-only. Coverage changes are rendered immediately when an ended report is refreshed; the archive commit/recovery preserves both total and evidence.
 
-[Observed accounting, operator prerequisites and limits](../REFERENCE.md#observed-token-accounting) · [Activation, rollback and pending live acceptance](../../context/changes/delegated-token-accounting/evidence/accounting.md). All candidate phases activate together after Automated gates, with active invocation revision pinned through intake. No stored-ledger migration or destructive downgrade is required.
+[Observed accounting, operator prerequisites and limits](../REFERENCE.md#observed-token-accounting) · [Activation, rollback and pending live acceptance](../../context/archive/2026-11-18-delegated-token-accounting/evidence/accounting.md). All four accounting phases shipped together in v1.14.0 after their Automated gates passed. Retain the enabling revision through settlement and intake. Manual rows 4.3 and 4.4 still require live host qualification and immediate, late and archive output checks. [Release](../../CHANGELOG.md#1140-2026-11-18) No stored-ledger migration or destructive downgrade is required.

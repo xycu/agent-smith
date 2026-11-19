@@ -1,6 +1,6 @@
 # ADR-015: Rerun a step unchanged after an orchestrator fault, with no failed attempt
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (implemented by the unattended `neutral-orchestrator-retry` run), as amended by ADR-022. Neutral retries replay the stored dispatch under the validated cap. [Router](../../skills/10x-pipeline/scripts/route.mjs) · [Retry tests](../../skills/10x-pipeline/test/neutral.test.mjs)
 - **Date:** 2026-11-09
 - **Deciders:** the repository owner (the request in `change.md`, 2026-11-09, which named this record ADR-015); unattended plan and implementation runs of change `neutral-orchestrator-retry` for the readings D1 to D8 below
 - **Origin:** change `neutral-orchestrator-retry` (`context/changes/neutral-orchestrator-retry/change.md`, `plan.md` and `reviews/plan-review.md`). It adds a result status next to the result intake of ADR-010 and ADR-013; no earlier decision is superseded.
@@ -118,7 +118,7 @@ The owner named this record ADR-015. ADR-014 is not in this tree; the number is 
 
 ## Unverified assumptions
 
-- No live run has declared `orchestrator-error`. The router side is covered by `skills/10x-pipeline/test/neutral.test.mjs` on both chains and in an isolated run; the orchestrator's use of the status is not.
+- The original checks exercised neutral retry in scratch runs. Subsequent archived runs record actual neutral retries, including S-14. Final host interruption and recovery checks belong to S-20. [Original checks](../../context/archive/2026-11-09-neutral-orchestrator-retry/plan.md#progress) · [S-14 run log](../../context/archive/2026-11-16-nested-step-delegation/agent-smith/run.jsonl) · [S-20](../../context/foundation/roadmap.md#s-20-recorded-support-across-all-agreed-configurations)
 - The cap of 2 is not calibrated.
 
 ## Amendment 1: a malformed cap halts (change policy-limits-fail-open, ADR-022)

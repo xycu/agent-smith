@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "context/changes/docs-status-truth-up/change.md fixes the done conditions; the roadmap and WAVES decisions have a few bounded choices." },
+    "novelty": { "score": 1, "evidence": "docs/ADR/ and README.md use existing status and documentation conventions; WAVES.md maintenance adapts those conventions." },
+    "coupling": { "score": 1, "evidence": "The goal spans documentation files and optionally tools/test/, with no public interface changes." },
+    "discovery": { "score": 2, "evidence": "change.md names key files, while ADR truth, README pending notes, roadmap status, and archive-row policy require checking several repository areas." },
+    "volume": { "score": 2, "evidence": "change.md scopes six broken link occurrences, multiple ADRs, README notes, roadmap entries, WAVES.md, and archive decision across several files." },
+    "verification": { "score": 1, "evidence": "change.md requires the existing full Node test suite; link correctness and document/code truth also need focused manual review." }
+  },
+  "unknowns": ["Whether the optional link test is worth its upkeep, as stated in change.md.", "Whether archived unchecked Automated and Manual rows should be guarded or answered, pending code and convention review.", "The accurate current implementation state for roadmap items S-12 and S-20, pending investigation.", "Whether WAVES.md has users, pending owner decision in the plan."] ,
+  "confidence": "medium"
+}

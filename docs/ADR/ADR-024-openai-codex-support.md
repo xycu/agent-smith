@@ -2,6 +2,10 @@
 
 Status accepted. Approved plan dated 2026-11-13, implementation started on that date.
 
+## Rule in force
+
+Each ladder rung selects its provider, and the host stays fixed for the run. The standalone Codex runner uses existing permissions and verifies Git capability before launch. Claude’s scoped Bash hook and the Codex execution boundary have different coverage. Native delegation permits one awaited layer of restricted leaves. After settlement the runner attributes observed usage to the matched step and descendants, or records why the total is unavailable. [Provider limits](#limits-and-verification) · [Settlement and accounting](../REFERENCE.md#observed-token-accounting)
+
 ## Context
 
 The pipeline skills used Claude Code Agent dispatch and Claude-specific paths and task tools. Users need Codex-hosted OpenAI runs and Claude-hosted mixed ladders through the existing deterministic router, file protocols and Git recovery machinery. Native Codex subagents support model overrides. Shared execution and usage handling across both hosts motivated the selected standalone runner.
@@ -35,7 +39,7 @@ Both providers receive the shared Git/deletion/publication rules and pre-publica
 
 The plugin-level Bash guard enforces its documented direct-command subset for identity-bearing `agent-smith:step` calls. OpenAI children and custom Claude mappings use their existing execution/permission controls plus semantic prompt rules. The Codex permission probe establishes filesystem/Git capability, with live model-command hook behavior requiring its existing acceptance checks.
 
-Exact historical retries preserve stored prompt, provider and optional agent selection. `ruleFiles`, `agentFiles` and the new `hookFiles` hashes expose independent byte drift while stored provenance stays immutable. Claude’s plugin baseline is 2.1.292+, and fail-closed hook handling requires 2.1.295+. Older supported hosts have unverified runtime enforcement. Fresh-host identity/blocking and live planning adherence are pending Manual checks.
+Exact historical retries preserve stored prompt, provider and optional agent selection. `ruleFiles`, `agentFiles` and the new `hookFiles` hashes expose independent byte drift while stored provenance stays immutable. Claude’s plugin baseline is 2.1.292+, and fail-closed hook handling requires 2.1.295+. Older supported hosts have unverified runtime enforcement. Fresh-host identity and blocking (2.6) and live planning adherence (2.7) remain open. [Guard plan, Manual rows 2.6–2.7](../../context/archive/2026-11-13-step-subagent-git-guard/plan.md#progress) · [S-18 effective protection](../../context/foundation/roadmap.md#s-18-effective-step-protection-in-the-supported-environment)
 
 ## Amendment 2 — Native step children (2026-11-16)
 

@@ -1,9 +1,13 @@
 # ADR-010: Run every change in its own worktree, commit each step, roll back a failed step, and make the first implement attempt cheaper
 
-- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending); amended through Amendment 4
+- **Status:** Accepted (owner, 2026-11-08), amended through Amendment 4. Isolated edits, step commits and scratch rollback have recorded results. The permission prompt and first-attempt savings still need evidence. [Live checks](#live-checks) · [First-attempt experiment](#ab-result)
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `worktree-step-commits`; the repository owner confirms or changes the readings below
 - **Origin:** change `worktree-step-commits` (`context/changes/worktree-step-commits/change.md`, `plan.md`, `research.md` and `reviews/plan-review.md`). It widens the router's git-write rule in `AGENTS.md` (Hard Rules), which before this change allowed only the pre-archive commit of ADR-003 ("Archive adapter"). That commit is unchanged.
+
+## Rule in force
+
+Shared setup prepares or resumes the isolated worktree using its configured branch identity. The router commits verified step changes and reports paths swept in from outside the change. Before rollback it preserves working contents, commits made by the step and any distinct staged version under recovery refs. `isolation.require: false` opts out of isolated setup, these step commits and terminal publication. [Setup and rollback](../REFERENCE.md) · [Publication](ADR-017-run-branch-always-pushed-for-review.md)
 
 ## Context
 
@@ -139,20 +143,20 @@ A failed step is reset to its `startSha`, as the change notes decide ("hard-rese
 
 ## Unverified assumptions
 
-- A subagent of a live run works in the worktree. The docs say a subagent starts in the main conversation's working directory; an orchestrator that itself runs inside a subagent never carries a `cd` over. The router therefore names the run root in every prompt, and the orchestrator runs each router call with `cd` into it. Not checked live.
+- A subagent of a live run works in the worktree. The docs say a subagent starts in the main conversation's working directory; an orchestrator that itself runs inside a subagent never carries a `cd` over. The router therefore names the run root in every prompt, and the orchestrator runs each router call with `cd` into it. Row 2.5 subsequently recorded edits confined to the worktree. [Archived isolation check](../../context/archive/2026-11-03-worktree-step-commits/plan.md#progress)
 - `.claude` is a protected directory. The documented exemption names "Claude's own git worktrees under `.claude/worktrees/`"; whether a worktree made by plain `git worktree add` counts is not stated. If it does not, Edit and Write under the worktree prompt even in `acceptEdits`, and an unattended run stalls. The untested fallback is to make the worktree with the `EnterWorktree` tool.
 - Hooks: git runs no hook on `git add -A`, `write-tree`, `commit-tree` or `update-ref`. A hook on the step commit can stage or write files; the post-commit checks halt on that.
 - Cost: no run has measured whether the cheaper first attempt saves tokens once its failures, retries and redone phases are counted.
 
 ## Live checks
 
-All pending. A human runs each check with the plugin installed from the branch and records the result here.
+The archived plan records outcomes at the original implementation revisions for rows 2.5, 3.5 and 4.4. Its Manual Testing Steps retain the separate permission-prompt check. [Recorded rows](../../context/archive/2026-11-03-worktree-step-commits/plan.md#progress) · [Permission check](../../context/archive/2026-11-03-worktree-step-commits/plan.md#testing-strategy)
 
 | Check | What it settles | Result |
 | --- | --- | --- |
-| Live check 1 | In a live run the subagent edits files only under the worktree, not in the main checkout, and Edit and Write under `.claude/worktrees/` do not prompt in `acceptEdits`. | Pending |
-| Live check 2 | `git log --oneline` in a run worktree shows the start commit and one `chore(<id>): step <n> <step>` commit per step that left changes, and the subjects pass `node tools/commit-lint.mjs`. | Pending |
-| Live check 3 | After a forced failed step, `git show refs/agent-smith/<id>/<run>/failed-<n> --stat` lists the partial edits and `git status` in the worktree is clean. | Pending |
+| Live check 1 | In a live run the subagent edits files only under the worktree, not in the main checkout, and Edit and Write under `.claude/worktrees/` do not prompt in `acceptEdits`. | Isolated edits recorded in row 2.5. Prompt-free Edit and Write under `acceptEdits` still require observation. |
+| Live check 2 | `git log --oneline` in a run worktree shows the start commit and one `chore(<id>): step <n> <step>` commit per step that left changes, and the subjects pass `node tools/commit-lint.mjs`. | Recorded in row 3.5 for changed steps. |
+| Live check 3 | After a forced failed step, `git show refs/agent-smith/<id>/<run>/failed-<n> --stat` lists the partial edits and `git status` in the worktree is clean. | Recorded in row 4.4 in a scratch worktree. |
 
 ## Decision rule
 
@@ -169,6 +173,8 @@ Anything else, including fewer than 5 comparable pairs, sets `escalation.firstAt
 ## A/B result
 
 Pending. A human runs the pairs and records here, per pair, `dropPercent`, `tokens.byModel`, `tokens.byTier`, the failed implement attempts and the rigor level of both arms, and the reasons of every pair that is not comparable, then the decision.
+
+The paired first-attempt experiment remains unmeasured. [first-attempt-drop-unmeasured](../../context/changes/first-attempt-drop-unmeasured/change.md)
 
 ## Amendment 1: the step commit records the code it takes (change step-commit-code-under-chore)
 

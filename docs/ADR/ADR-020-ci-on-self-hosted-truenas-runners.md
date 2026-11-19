@@ -46,7 +46,7 @@ The repository holds no runner setup. A runner for this repository needs:
 
 ## Assumptions
 
-- The owner confirmed the operational TrueNAS setup on 2026-11-15 (Progress row 2.3). Current main CI independently verifies runner version 2.338.2, Node 24.22.3, Git 2.53.0, writable test scratch storage and the passing non-root guard. CI run 43134692634 ran as uid 0 on the first historical reading (Amendment 1).
+- The owner confirmed the operational TrueNAS setup on 2026-11-15 (Progress row 2.3). Main CI run 43703539173 on that date recorded runner version 2.338.2, Node 24.22.3, Git 2.53.0, writable test scratch storage and the passing non-root guard. CI run 43134692634 ran as uid 0 on the first historical reading (Amendment 1).
 - The fork approval setting is "Require approval for all external contributors". On 2026-11-15 the read-only command `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` returned `all_external_contributors`. Progress row 3.5 records this check. The 2026-11-11 reading was `first_time_contributors`.
 
 ## Consequences
@@ -76,4 +76,4 @@ The repository holds no runner setup. A runner for this repository needs:
 
 The owner confirmed that the TrueNAS installation works. Read-only API evidence reports six online labelled runners and the required fork approval policy. Same-repository PR CI run 43701664098 passed both jobs on TrueNAS. Main CI run 43703539173 passed the non-root guard and complete test suite on TrueNAS. Its logs show runner version 2.338.2, Node 24.22.3, Git 2.53.0 and the configured writable scratch directory.
 
-The available fork PR count is zero across 177 pull requests. All eight automated cases evaluating the two current runner-selection expressions passed, including fork fallback to `ubuntu-latest`. The conditional live-fork check is recorded as not applicable to the available PRs. Historical findings remain in Amendment 1 and the original implementation review. Acceptance evidence is retained with change `ci-self-hosted-truenas`.
+On 2026-11-15, none of the 177 pull requests examined came from a fork. All eight automated cases evaluating the two runner-selection expressions at that revision passed, including fork fallback to `ubuntu-latest`. The conditional live-fork check is recorded as not applicable to the available PRs. Historical findings remain in Amendment 1 and the original implementation review. [TrueNAS runner and fork-fallback evidence](../../context/archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md)

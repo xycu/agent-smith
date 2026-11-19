@@ -5,6 +5,10 @@
 - **Deciders:** the repository owner (direction: FR-006, `context/foundation/shape-notes.md:20`; scope request of 2026-11-09); decisions D1 to D12 below accepted as proposed on 2026-11-09
 - **Origin:** change `openspec-pipeline` (`context/changes/openspec-pipeline/research.md`, status `partial`). It un-parks FR-006, which `context/foundation/prd.md:143` listed as a non-goal of the first delivery. It builds on the module split of change `split-route-mjs`, which gave the router the seams used here.
 
+## Rule in force
+
+The shared router reads OpenSpec files directly and merges the chain-local policy, step definitions and prompts. Contract fixtures use exactly OpenSpec 2.0.0. An unavailable executable or failed probe skips locally with `CI` empty or unset and fails in CI. A successful probe reporting any other version fails everywhere. [Contract and pin](#reading-openspec-state-d2) · [2.0 acceptance](../../context/archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md)
+
 ## Context
 
 - FR-006 says "a second pipeline skill sharing the same router and policy". No ADR, slice or design existed for it. ADR-001 states the rule that binds it: the 10x toolkit and OpenSpec are never changed or forked; agent-smith is an add-on.
