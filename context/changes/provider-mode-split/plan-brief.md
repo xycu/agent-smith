@@ -51,12 +51,12 @@ The router selects a provider for the step, then settles the tier on that provid
 
 - The optional CLI summary supplies no verified step-tree token total. The runner replaces step-authored accounting with measured duration and structured unavailable token evidence.
 - The headless launch probe covered a simple response. Guard behavior, tool restrictions, native child settlement and fresh-child toolkit discovery need evidence on the final candidate. Unsupported or uncertain execution fails closed.
-- Use the enabling revision and the same TMPDIR to reconcile unresolved runners. Existing runs keep their original metadata and routing on upgrade.
+- Use the enabling revision and the same TMPDIR to reconcile unresolved runners. Runs with valid mode-less metadata keep their original routing on upgrade. A surviving log with absent or malformed metadata requires recovery. Plain status shows recorded steps and identifies unavailable run-level selection.
 
 ## Success Criteria (Summary)
 
 - Local router fixtures prove all six host/mode combinations, both chains, exact retries and saved-run compatibility.
-- The review records all eight fixes in `84205bf02744`. Phase 4 verifies terminal ownership, settled failure intake for both chains, both skill-loop contracts, metadata preservation, advisor and skill checks, Codex preflight and discovery bounds, and agreement between CLI help, transport behavior and documentation. [Implementation review](reviews/impl-review.md)
+- The review records all eight fixes in `84205bf02744`. Phase 4 verifies terminal ownership, settled failure intake for both chains, both skill-loop contracts, recovery for absent or damaged metadata across all router writers, compatibility of initialized fixtures, archive lock release for a settled task-level refusal, lock retention for archive transport failure, advisor and skill checks, Codex preflight and discovery bounds, and agreement between CLI help, transport behavior and documentation. [Implementation review](reviews/impl-review.md)
 - Fake CLI and guard fixtures prove dispatch identity, normalized results and suspension on uncertain closure. Fake Git and GitHub clients prove publication honors suspension. The full Node 24 suite runs locally before closing each code-changing phase.
 - During unattended verification, leave fresh-host qualification and post-publication checks pending. Qualify all six host/mode combinations per chain on the final candidate, using disposable changes that meet archive prerequisites for archive qualification. The orchestrator can publish the delivery change while it is still open if its archive gate leaves it unarchived. After terminal publication, verify the branch, open PR and PR CI. Check report comments when the owner elected them.
 

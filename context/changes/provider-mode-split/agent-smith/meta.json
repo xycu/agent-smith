@@ -48,9 +48,5 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
-  },
-  "outcome": {
-    "action": "halt",
-    "reason": "Step 9 (plan-review) needs a human: F2 requires the owner to decide whether a run with a surviving log but missing metadata must stop for recovery, or whether to provide an explicit legacy recovery path."
   }
 }
