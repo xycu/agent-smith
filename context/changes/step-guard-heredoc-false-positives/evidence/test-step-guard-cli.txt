@@ -1,0 +1,15 @@
+skills/10x-pipeline/test/step-guard.test.mjs — shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling; direct Git discard, hook bypass, unique-ref deletion and publication forms are denied; heredocs distinguish literal text routes from executable or unresolved recipients; only an entire separate git commit message operand can capture a literal heredoc
+Local hook regression coverage for 2.3. Live Claude Code subagent verification remains pending.
+
+✔ shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling (1.405208ms)
+✔ direct Git discard, hook bypass, unique-ref deletion and publication forms are denied (1792.075334ms)
+✔ heredocs distinguish literal text routes from executable or unresolved recipients (791.244417ms)
+✔ only an entire separate git commit message operand can capture a literal heredoc (627.122125ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3278.668958

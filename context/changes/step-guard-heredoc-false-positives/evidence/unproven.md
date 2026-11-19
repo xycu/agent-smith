@@ -1,0 +1,1 @@
+- 2.3 — Local hook tests passed. The row requires a live Claude Code step child to create a scratch commit, which the delegated-leaf rules prohibit.
