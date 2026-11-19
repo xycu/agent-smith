@@ -5,9 +5,9 @@
 - **Mode**: Deep
 - **Date**: 2026-11-19
 - **Verdict**: REVISE
-- **Findings**: 1 critical, 2 warnings, 0 observations
+- **Findings**: 2 critical, 2 warnings, 1 observation
 
-The verdict and counts describe the submitted plan. All three findings were applied during triage.
+The verdict and counts describe the plan submitted at `5e3d69ae`, with Phase 1 already implemented and Phase 2 pending. All five findings were applied to the plan during triage.
 
 ## Verdicts
 
@@ -15,48 +15,78 @@ The verdict and counts describe the submitted plan. All three findings were appl
 | --- | --- |
 | End-State Alignment | FAIL |
 | Lean Execution | PASS |
-| Architectural Fitness | PASS |
+| Architectural Fitness | WARNING |
 | Blind Spots | WARNING |
 | Plan Completeness | WARNING |
 
 ## Grounding
 
-- Confirmed all five planned edit paths and the three named router entry points, `readReview`, `attachResult` and `decide`. The brief matched the submitted plan's scope and phase.
-- The independent read-only codebase check traced both review routes, retry and rollback, and the reader's callers. The three automated criteria match Progress and run locally before publication.
-- Reproduced the 190-file archive baseline and checked that restricting the label to the opening metadata preserves the archived verdicts. [Archive baseline](../plan.md#migration-notes)
+- Confirmed all seven planned edit paths and ten named reader, router and rollback functions. The brief matched the submitted plan's phases and scope.
+- The independent read-only code check traced both CLI resume commands, both review kinds, rollback and undo, terminal halt publication and the shared OpenSpec fixtures. Child-inclusive token coverage is unknown.
+- All six Automated success criteria matched their Progress rows. They run locally before publication and require no pushed branch, PR, CI run or external comment.
+- The read-only archive comparison reproduced all 190 tuples' baseline digest at `9b8d0af620d7dd8e4bf6929403e96aac1a2e3661e91b33779e9ee95f5c75b635`. [Archive comparison](../plan.md#migration-notes)
 
 ## Findings
 
-### F1 — A failed review can lose its authority on resume
+### F1 — A review absent at dispatch can reappear with an eligible timestamp
 
 - **Severity**: ❌ CRITICAL
-- **Impact**: 🔎 MEDIUM — worth pausing for a non-trivial edit
+- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: End-State Alignment
-- **Location**: Critical Implementation Details and Phase 1, Gate verification and routing
-- **Detail**: The plan carried an invalid confirmation diagnostic through only the current call. Both entry points use the same routing code, intake skips an already consumed result, and freshness looks up only successful review entries. On resume an unchanged earlier valid review can authorize advancement. A first review corrected after retry exhaustion can also be treated as stale indefinitely. A correction used only once can fail the same lookup after the next implementation result. The retry halt also has two exits, and the total step budget is checked before the per-step cap. [Intake](../../../../skills/10x-pipeline/scripts/flow.mjs#L549) · [Success-only lookup](../../../../skills/10x-pipeline/scripts/state.mjs#L604) · [Resume](../../../../skills/10x-pipeline/scripts/route.mjs#L1114) · [Retry limits](../../../../skills/10x-pipeline/scripts/route.mjs#L174)
-- **Fix**: Persist the verdict diagnostic in the existing `invalid` field, consult it before ordinary freshness and skips, and define which fresh correction can supersede the failed evidence across later calls. Retain the failed history, route immediate halts through the existing rollback finalizer, and test both retry limits and unchanged and corrected resumes.
-  - **Strength**: Keeps the review decision stable across process restarts and uses the router's existing diagnostic and halt paths.
-  - **Tradeoff**: Recovery must compare the failed attempt with the latest review and relevant plan or code step.
-  - **Confidence**: HIGH. The ordering follows directly from the current log lookup and rollback code.
-  - **Blind spot**: The corrected behavior still needs the CLI regressions in Phase 1.
-- **Decision**: APPLIED in Current State Analysis, Critical Implementation Details, Phase 1 items 2–4, and Migration Notes. The brief records the same recovery contract.
+- **Location**: Phase 2, Record which timestamps still need restoration
+- **Detail**: Dispatch records a zero time for a missing review. If the file is tracked but locally absent, rollback can recreate the older valid review from `startSha`. Timestamp restoration skips zero, leaving the Git checkout mtime newer than the failed attempt. The freshness gate can accept that checkout as a correction even after the proposed checkpoint is complete. [Missing mtime](../../../../skills/10x-pipeline/scripts/state.mjs#L246) · [Timestamp restoration](../../../../skills/10x-pipeline/scripts/isolation.mjs#L535) · [Freshness gate](../../../../skills/10x-pipeline/scripts/flow.mjs#L558)
+- **Fix**: When rollback restores a matching checkout of the failed review and the recorded time is zero, use the failed attempt's start time. Add a CLI fixture for a previously tracked review that reappears after rollback.
+- **Decision**: APPLIED in Phase 2 items 1 and 2 and the brief's Key Decisions Made.
 
-### F2 — Body text can supply a passing verdict
+### F2 — The checkpoint can be durable while metadata still belongs to the reset
+
+- **Severity**: ❌ CRITICAL
+- **Impact**: 🔎 MEDIUM — real tradeoff or a non-trivial edit
+- **Dimension**: End-State Alignment
+- **Location**: Scope, Phase 2, and Migration Notes
+- **Detail**: `writeState` publishes the log before metadata. A crash between writes can expose the proposed pending checkpoint alongside metadata from the checkout, even though resume trusts that metadata. An earlier crash after Git reset can leave the failed result only in the snapshot, because intake already removed the result file. Undo has the same state publication boundary after its two resets. A restore error also needs a fresh halt report because the orchestrators publish ordinary halts and can advance HEAD. [Result intake](../../../../skills/10x-pipeline/scripts/flow.mjs#L640) · [State order](../../../../skills/10x-pipeline/scripts/isolation.mjs#L544) · [Undo](../../../../skills/10x-pipeline/scripts/route.mjs#L52) · [Halt publication](../../../../docs/ADR/ADR-017-run-branch-always-pushed-for-review.md#what-the-script-does)
+- **Fix**: Publish metadata before the log checkpoint, pin the checkout commit, and define the post-publication recovery boundary. Finalize catchable recovery errors as halts with the checkpoint and ref intact. Document how to inspect the snapshot for interruptions before the checkpoint.
+  - **Strength**: Timestamp replay can operate on the recorded checkout even after publication or an owner commit moves HEAD.
+  - **Tradeoff**: Automatic recovery begins at log publication. An earlier interruption requires manual reconciliation from the snapshot.
+  - **Confidence**: HIGH. The reset, atomic state writes and halt publication order are explicit in the current code.
+  - **Blind spot**: Phase 2 still needs to exercise the durable boundary and a resumed run with a newer HEAD.
+- **Decision**: APPLIED in Scope, Planning assumptions, Phase 2 items 1 and 2, Migration Notes, and the brief's Key Decisions Made and Open Risks & Assumptions.
+
+### F3 — Comparing raw Git blobs can misclassify a restored review
+
+- **Severity**: ⚠️ WARNING
+- **Impact**: 🔎 MEDIUM — real tradeoff or a non-trivial edit
+- **Dimension**: Architectural Fitness
+- **Location**: Phase 2, Record which timestamps still need restoration
+- **Detail**: The plan names a commit without defining checkout equivalence. Git can change the working bytes through line-ending or checkout filters, and an Agent Smith project can sit below the Git root. Treating a failed object lookup as a missing entry could also accept stale evidence. The current timestamp writer follows symlinks. [Project prefix](../../../../skills/10x-pipeline/scripts/prepare-run.mjs#L352) · [Git environment](../../../../skills/10x-pipeline/scripts/state.mjs#L766) · [Current writer](../../../../skills/10x-pipeline/scripts/isolation.mjs#L535)
+- **Fix**: Fingerprint the actual post-reset bytes for new checkpoints. Use checkout-aware evidence for legacy entries. Guard timestamp writes against redirects and nonregular files, and pass legacy evidence into routing through its existing context.
+  - **Strength**: New checkpoints compare the exact checkout bytes even after Git configuration changes. The legacy comparison accounts for project prefixes and checkout conversion.
+  - **Tradeoff**: New pending entries store a fingerprint per relevant file. Legacy comparisons need Git lookups.
+  - **Confidence**: HIGH. The router already handles Git prefixes and has an established module import order.
+  - **Blind spot**: A fixture must show that checkout conversion leaves an unchanged review ineligible.
+- **Decision**: APPLIED in Phase 2 items 1 and 2, Migration Notes, and the brief's Key Decisions Made.
+
+### F4 — Completion and legacy state need distinct routing rules
 
 - **Severity**: ⚠️ WARNING
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: Blind Spots
-- **Location**: Phase 1, Parse the whole verdict
-- **Detail**: The existing search accepts a bold verdict label anywhere in the file. The plan calls for a whole phrase but does not explicitly bound the header or its annotation syntax. An inline label quoted in a finding can supply a known verdict when the header is missing. The archive already contains such quoted label syntax in review prose. [Reader](../../../../skills/10x-pipeline/scripts/state.mjs#L332) · [Quoted label in a review](../../../archive/2026-10-30-cheaper-routing-simple-change/reviews/plan-review.md#L32)
-- **Fix**: Require one standalone label in the opening metadata, enumerate the supported delimiters and test prose, code, duplicate labels and unknown suffixes.
-- **Decision**: APPLIED in Planning assumptions and Phase 1 items 1, 3 and 4. The brief records the standalone header requirement.
+- **Location**: Phase 2 and Migration Notes
+- **Detail**: The plan calls for marking work complete and treats an absent marker as legacy. It leaves the persisted distinction and the precedence of the legacy comparison implicit. Clearing the field would make new completed work ambiguous. Checking all historical failures could interfere with a later successful review. [Rollback eligibility](../../../../skills/10x-pipeline/scripts/isolation.mjs#L569) · [Authoritative failure selection](../../../../skills/10x-pipeline/scripts/flow.mjs#L708)
+- **Fix**: Retain an explicit completion marker. Apply the conservative legacy comparison only to the authoritative isolated rollback or undo when the review otherwise passes verdict and freshness validation. Cover both matching and corrected legacy reviews.
+- **Decision**: APPLIED in Phase 2 items 1 and 2, Migration Notes, and the brief's Key Decisions Made.
 
-### F3 — The blocking verdict gate omits reopened rows and zero-tick attempts
+### F5 — OpenSpec compatibility needs a timestamp assertion
 
-- **Severity**: ⚠️ WARNING
+- **Severity**: OBSERVATION
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: Plan Completeness
-- **Location**: Planning assumptions and Phase 1, Gate verification and routing
-- **Detail**: Current plan review re-plans when zero automated rows are ticked, even if an implementation attempt already ran. The implementation branch can also reopen ticked but unproven rows when zero automated rows are unchecked. The submitted plan's partial-work case did not cover either boundary. [Plan verdict branch](../../../../skills/10x-pipeline/scripts/flow.mjs#L743) · [Implementation branch](../../../../skills/10x-pipeline/scripts/flow.mjs#L772) · [Reopened rows](../../../../skills/10x-pipeline/scripts/steps.mjs#L195)
-- **Fix**: Define started work as an automated tick or an executed code step. Use the same unchecked or reopened work condition as implementation routing, and test both boundaries.
-- **Decision**: APPLIED in Planning assumptions and Phase 1 items 2–4. The brief records both conditions.
+- **Location**: Phase 2, Exercise the interruption and the owner's correction separately
+- **Detail**: The existing OpenSpec fixture checks rollback, file contents and the side ref. It does not prove interruption recovery restores the times of the chain's distinct routing files. The CLI already has a subprocess-only filesystem fault pattern that can supply this proof. [OpenSpec rollback fixture](../../../../skills/openspec-pipeline/test/openspec-isolation.test.mjs#L94) · [Fault injection fixture](../../../../skills/10x-pipeline/test/result-persist.test.mjs#L107)
+- **Fix**: Extend the OpenSpec isolation fixture to assert both routing timestamps after an interrupted restore. Use the existing full local gate.
+- **Decision**: APPLIED in Phase 2 item 2 and the brief's Success Criteria.
+
+## Assumptions
+
+- Phase 2 addresses the post-state-publication window identified by the implementation review's F6. Earlier interruptions use snapshot inspection and owner-led reconciliation. [Implementation review](impl-review.md#f6--interrupted-rollback-can-leave-a-misleading-review-timestamp)
+- Catchable timestamp errors use the existing ordinary halt and report path. A later resume does timestamp work only, so a published halt can advance HEAD safely. [Rollback decision](../../../../docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md#failed-step-rollback) · [Publication decision](../../../../docs/ADR/ADR-017-run-branch-always-pushed-for-review.md)
