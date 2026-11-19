@@ -16,7 +16,7 @@ milestone_status: open
 
 > Derived from PRD v2, the owner's child-delegation requirement and the confirmed codebase baseline, with the stack assessment and health check as supporting evidence.
 > This successor milestone continues the existing roadmap in place.
-> Slice identifiers remain stable. The At a glance table records dependencies; [WAVES.md v2](../changes/WAVES.md) records the current execution batches and file-ownership constraints.
+> Slice identifiers remain stable. The At a glance table records dependencies; [WAVES.md v3](../changes/WAVES.md) records the current execution batches and file-ownership constraints.
 
 ## Milestone
 
@@ -60,7 +60,7 @@ The north star is the first complete user flow that provides direct evidence the
 
 ## Streams
 
-These chains show logical dependencies. The prerequisites in the item records and the execution batches in [WAVES.md v2](../changes/WAVES.md) govern sequencing. Potential parallel work still needs disjoint ownership in the approved plans; Wave 0 always runs alone.
+These chains show logical dependencies. The prerequisites in the item records and the execution batches in [WAVES.md v3](../changes/WAVES.md) govern sequencing. Potential parallel work still needs disjoint ownership in the approved plans; Wave 0 always runs alone.
 
 | Stream | Theme | Chain | Note |
 | --- | --- | --- | --- |
