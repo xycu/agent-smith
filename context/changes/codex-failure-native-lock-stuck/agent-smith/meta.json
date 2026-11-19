@@ -47,5 +47,10 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/run-codex.mjs, skills/10x-pipeline/scripts/state.mjs, skills/10x-pipeline/test/codex-helpers.mjs +1"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": []
   }
 }
