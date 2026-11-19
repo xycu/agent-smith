@@ -938,12 +938,15 @@ fs.renameSync = (from, to) => {
   for (const unresolved of [false, true]) {
     test(`a nested checkout comparison blocks an unchanged ${unresolved ? "unresolved" : "legacy"} plan review`, () => {
       const { wt, env, route, file, applied } = confirmationRun("plan-review", { nest: "packages/widget", crlf: true });
-      writeReviewFile(wt, "plan-review", reviewText({ verdict: "BROKEN" }));
+      writeReviewFile(wt, "plan-review", "# Review without a verdict\n");
       interruptConfirmation(wt, env);
       const entries = readLogEntries(wt);
       const failed = entries.at(-1);
       if (unresolved) delete failed.timestamps.files.planReview.sha256;
-      else delete failed.timestamps;
+      else {
+        delete failed.timestamps;
+        delete failed.invalid; // The earlier intake recorded only verified: false and ok: false.
+      }
       writeLog(wt, entries);
       assert.equal(fs.readFileSync(file, "utf8"), applied.replaceAll("\n", "\r\n"));
       stampAhead(file);
@@ -1382,6 +1385,11 @@ describe("report: Review findings section", () => {
 });
 
 describe("readReview header label forms", () => {
+  test("a leading byte-order mark preserves the first verdict and Markdown body boundary", () => {
+    assert.equal(observe("\uFEFF**Verdict**: SOUND\n").review.verdict, "SOUND");
+    assert.equal(observe("\uFEFF## Findings\n**Verdict**: SOUND\n").entry.verified, false);
+  });
+
   const cases = [
     ["**Verdict:** APPROVED", "**Findings:** 1 critical, 2 warnings", "APPROVED", 1, 2],
     ["- **Verdict**: APPROVED.", "- **Findings**: 0 critical, 0 warnings", "APPROVED", 0, 0],
@@ -1477,12 +1485,14 @@ describe("verdict validation before advancing", () => {
     ["a multiline inline HTML comment", "Example: <!--\n**Verdict**: APPROVED\n-->"],
     ["an HTML preformatted block", "<pre>\n**Verdict**: APPROVED\n</pre>"],
     ["a multiline code span", "Example: `\n**Verdict**: APPROVED\n`"],
+    ["a multiline code span containing a number in prose", "Example: `\n2. continuation\n**Verdict**: APPROVED\n`"],
     ["a quoted label", "> **Verdict**: REJECTED"],
     ["a lazy blockquote continuation", "> Example:\n**Verdict**: APPROVED"],
     ["duplicate labels", "**Verdict**: APPROVED\n- **Verdict:** REJECTED"],
     ["duplicate labels around a literal comment opener", "**Verdict**: APPROVED\nThe literal `<!--` starts a comment.\n**Verdict**: REJECTED"],
     ["duplicate labels around an escaped comment opener", "**Verdict**: APPROVED\nThe literal \\<!-- starts a comment.\n**Verdict**: REJECTED"],
     ["duplicate labels around an unclosed inline comment opener", "**Verdict**: APPROVED\nThe literal <!-- starts a comment.\n**Verdict**: REJECTED"],
+    ["duplicate verdict items between literal backticks", "- Text with a `\n- **Verdict**: REJECTED\n- Another `\n- **Verdict**: APPROVED"],
   ];
   for (const [label, header] of noVerdictHeaders) {
     test(`no-log init halts for ${label}`, () => {

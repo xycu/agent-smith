@@ -683,7 +683,7 @@ function checkpointTimes(p, meta, log, last, g, timeout, commit, times) {
   let problem = null;
   for (const [key, file] of Object.entries(timedFiles(p))) {
     const recorded = times?.[key];
-    const missingReview = last.rolledBack && last.invalid && recorded === 0 &&
+    const missingReview = last.rolledBack && last.verified === false && recorded === 0 &&
       last.step === (key === "planReview" ? "plan-review" : key === "implReview" ? "impl-review" : null);
     const time = missingReview ? last.startedAt : recorded;
     if (!Number.isFinite(time) || time <= 0) continue;

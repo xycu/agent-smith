@@ -332,6 +332,7 @@ function readFindings(text) {
 const REVIEW_BODY = /^[ \t]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,}|<(?:pre|code|script|style|textarea)(?=[\s/>]|$))/i;
 const REVIEW_QUOTE = /^ {0,3}>[ \t]?/;
 const REVIEW_TITLE = /^ {0,3}#(?:[ \t]|$)/;
+const REVIEW_BULLET = /^ {0,3}[-+*][ \t]+\S/;
 
 // Index inline delimiters within a paragraph so multiline spans need no repeated lookahead.
 function reviewInlineSpans(lines) {
@@ -358,12 +359,17 @@ function reviewInlineSpans(lines) {
         nextRun.set(size, { line: i, column: token.index + size });
       }
     }
+    // A nonempty bullet starts a new paragraph. Its continuation lines can still close spans it opens.
+    if (REVIEW_BULLET.test(line)) {
+      nextRun.clear();
+      commentCloses = false;
+    }
   }
   return { codeEnds, inlineComments };
 }
 
 function readReviewVerdict(text) {
-  const lines = text.split(/\r?\n/);
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
   const { codeEnds, inlineComments } = reviewInlineSpans(lines);
   let header = null;
   let inComment = false;

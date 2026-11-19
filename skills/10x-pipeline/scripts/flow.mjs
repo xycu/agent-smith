@@ -710,13 +710,13 @@ function openFindingsHalt(label, skillName, file, oc, policy, meta) {
 function reviewRecovery(step, file, read, log, sourceAt, ctx) {
   const i = lastIdx(log, [step], false);
   const attempt = log[i];
-  if (i <= sourceAt || attempt?.ok !== false || !attempt.invalid) return null;
+  if (i <= sourceAt || attempt?.ok !== false || attempt.verified !== false) return null;
   let problem = attempt === ctx.justFailedReview ? attempt.invalid : reviewProblem(step, file, read, attempt);
   if (problem === null && !Object.hasOwn(attempt, "timestamps") && (attempt.rolledBack || attempt.kept)) {
     problem = ctx.legacyReviewCheck?.(file, attempt) ?? null;
   }
   if (problem === null) return { recovered: true };
-  const reason = problem === attempt.invalid ? problem : `${attempt.invalid} Current artifact: ${problem}`;
+  const reason = attempt.invalid && problem !== attempt.invalid ? `${attempt.invalid} Current artifact: ${problem}` : problem;
   return {
     problem: reason,
     confirmation: attempt.template === `${step}-confirm`,
