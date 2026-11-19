@@ -120,7 +120,7 @@ Existing run directories and both pipeline chains use the same JSON response. De
 
 #### Automated
 
-- [ ] 1.1 Publisher regression tests prove conflicts, marker-only state and probe failure skip the leftover commit while existing commits reach the local bare remote and fake PR handling proceeds. Run `node --test skills/10x-pipeline/test/open-pr.test.mjs`.
-- [ ] 1.2 Router archive tests prove active-operation and markerless-unmerged refusals. Run `node --test skills/10x-pipeline/test/archive.test.mjs`.
-- [ ] 1.3 The reference and ADR-017 describe the guard, preserved local state and existing-commit publication. Inspect the scoped diff and grep live docs for `commitError`, `leftover commit` and `final run state`.
-- [ ] 1.4 Full suite passes on Node 24 or later. Run `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Publisher regression tests prove conflicts, marker-only state and probe failure skip the leftover commit while existing commits reach the local bare remote and fake PR handling proceeds. Run `node --test skills/10x-pipeline/test/open-pr.test.mjs`.
+- [x] 1.2 Router archive tests prove active-operation and markerless-unmerged refusals. Run `node --test skills/10x-pipeline/test/archive.test.mjs`.
+- [x] 1.3 The reference and ADR-017 describe the guard, preserved local state and existing-commit publication. Inspect the scoped diff and grep live docs for `commitError`, `leftover commit` and `final run state`.
+- [x] 1.4 Full suite passes on Node 24 or later. Run `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.

@@ -716,6 +716,28 @@ test("a merge in progress halts before the commit", { skip: noGit }, () => {
   assert.equal(commitCount(project), 1);
 });
 
+test("markerless unmerged entries halt before the archive commit", { skip: noGit }, () => {
+  const project = archiveProject();
+  const file = path.join(project.base, "conflict.txt");
+  fs.writeFileSync(file, "conflicting version\n");
+  const ours = git(project, ["rev-parse", "HEAD:README.md"]);
+  const theirs = git(project, ["hash-object", "-w", file]);
+  const conflict = spawnSync("git", ["update-index", "--index-info"], {
+    cwd: project.base, env: gitEnv(project), encoding: "utf8",
+    input: `100644 ${ours} 2\tconflict.txt\n100644 ${theirs} 3\tconflict.txt\n`,
+  });
+  assert.equal(conflict.status, 0, conflict.stderr);
+  const index = path.join(project.base, ".git/index");
+  const before = fs.readFileSync(index);
+  const res = runNext(project);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /index holds unmerged entries/);
+  assert.equal(res.json.committed, false);
+  assert.equal(res.json.archive, "skipped: run halted");
+  assert.deepEqual(fs.readFileSync(index), before);
+  assert.equal(commitCount(project), 1);
+});
+
 test("kind C: a failing pre-commit hook halts with its output, nothing staged, outcome stays done", { skip: noGit }, () => {
   const project = archiveProject();
   writeHook(project, "pre-commit", "echo 'hook says no' >&2\nexit 1");
@@ -1174,6 +1196,10 @@ test("git subcommands: init --archive and the full path run only allowed command
       const dashC = [];
       while (args[i] === "-c") { dashC.push(args[i + 1]); i += 2; }
       assert.deepEqual([...new Set(dashC)], ["core.quotePath=false"], args.join(" "));
+      if (args[i] === "--no-literal-pathspecs") {
+        assert.deepEqual(args.slice(i), ["--no-literal-pathspecs", "ls-files", "--unmerged", "-z", "--", ":/"]);
+        i++;
+      }
       const sub = args[i];
       seen.add(sub);
       assert.ok(allowed.includes(sub), `subcommand ${sub}`);

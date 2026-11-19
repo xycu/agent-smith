@@ -11,6 +11,7 @@ import {
   ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
 } from "./pr-common.mjs";
 import { readIsolationPolicy, isolationEnabled, runBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
+import { gitOperationProblem } from "./git-operation.mjs";
 
 const USAGE = "usage: node open-pr.mjs <change-id> [--chain 10x|openspec] [--report <path>] [--remote <name>] [--base <branch>] [--draft] [--timeout-ms <n>]";
 const REMOTE_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
@@ -273,6 +274,8 @@ function unstage(paths) {
 
 // Commits what the worktree holds after the router's last write. On failure it unstages only what its own add staged.
 function commitLeftovers(id) {
+  const operation = gitOperationProblem(runGit);
+  if (operation) return { committed: false, error: operation };
   const status = runGit(["status", "--porcelain", "-z", "--untracked-files=all"]);
   if (status.status !== 0) return { committed: false, error: gitError(status, "git status") };
   if (status.stdout === "") return { committed: null };
