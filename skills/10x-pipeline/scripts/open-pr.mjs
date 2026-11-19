@@ -93,8 +93,8 @@ function parseArgs(argv) {
   return opts;
 }
 
-function runGit(args, timeoutMs = GIT_TIMEOUT_MS, input = undefined) {
-  return spawn("git", args, timeoutMs, { ...process.env, GIT_TERMINAL_PROMPT: "0" }, input);
+function runGit(args, { input, encoding } = {}) {
+  return spawn("git", args, GIT_TIMEOUT_MS, { ...process.env, GIT_TERMINAL_PROMPT: "0" }, input, encoding);
 }
 
 const gitOut = (args) => {
@@ -269,12 +269,12 @@ export function pathsToStage(porcelainZ) {
 function unstage(paths) {
   if (paths.length === 0) return;
   const input = paths.map((p) => `:(top,literal)${p}`).join("\0");
-  runGit(["reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"], GIT_TIMEOUT_MS, input);
+  runGit(["reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"], { input });
 }
 
 // Commits what the worktree holds after the router's last write. On failure it unstages only what its own add staged.
 function commitLeftovers(id) {
-  const operation = gitOperationProblem(runGit);
+  const operation = gitOperationProblem((args) => runGit(args, { encoding: "buffer" }));
   if (operation) return { committed: false, error: operation };
   const status = runGit(["status", "--porcelain", "-z", "--untracked-files=all"]);
   if (status.status !== 0) return { committed: false, error: gitError(status, "git status") };

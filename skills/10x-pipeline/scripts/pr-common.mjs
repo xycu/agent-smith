@@ -18,9 +18,9 @@ export function firstLine(text, max = 200) {
 }
 
 // Runs a command without a shell. Never throws. timedOut and missing are set instead.
-export function spawn(cmd, args, timeoutMs, env, input) {
+export function spawn(cmd, args, timeoutMs, env, input, encoding = "utf8") {
   const res = spawnSync(cmd, args, {
-    encoding: "utf8",
+    encoding,
     timeout: timeoutMs,
     input,
     stdio: [input === undefined ? "ignore" : "pipe", "pipe", "pipe"],

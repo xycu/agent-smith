@@ -40,6 +40,10 @@ const GIT_SHIM = (real) => `#!/bin/sh
 printf '%s\\037' "$@" >> "$GIT_LOG"
 printf '\\n' >> "$GIT_LOG"
 if [ "$*" = "$GIT_FAIL_PROBE" ]; then exit 1; fi
+if [ -n "$GIT_PROBE_ROOT" ] && [ "$*" = "rev-parse --path-format=absolute --git-path MERGE_HEAD" ]; then
+  printf '%s/metadata-\\377/MERGE_HEAD\\n' "$GIT_PROBE_ROOT"
+  exit 0
+fi
 exec "${real}" "$@"
 `;
 
@@ -563,6 +567,13 @@ for (const [probe, diagnostic] of [
     assertGuardedPublication(w, diagnostic, { GIT_FAIL_PROBE: probe });
   });
 }
+
+test("a successful Git probe with an unusable marker path blocks the leftover commit", { skip }, () => {
+  const w = world();
+  fs.mkdirSync(path.join(w.base, "metadata-\uFFFD"));
+  fs.writeFileSync(path.join(w.wt, "README.md"), "unstaged changes\n");
+  assertGuardedPublication(w, /Cannot inspect MERGE_HEAD/, { GIT_PROBE_ROOT: w.base });
+});
 
 test("swept names the code a leftover commit holds outside the change folder", { skip }, () => {
   const w = world();

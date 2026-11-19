@@ -249,7 +249,7 @@ function gitSafety(g, timeout, { id = null, emptyIndex = true, need, chain = "10
     if (ignoredProbes.length) return `git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`;
   }
   if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) return "HEAD is detached; check out a branch first.";
-  const operation = gitOperationProblem(g);
+  const operation = gitOperationProblem((args) => runGit(args, { timeout, encoding: "buffer" }));
   if (operation) return operation;
   if (emptyIndex) {
     const staged = g(["diff", "--cached", "--quiet"]);
