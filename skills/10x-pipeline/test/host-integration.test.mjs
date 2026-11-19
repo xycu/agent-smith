@@ -18,11 +18,11 @@ const BROWSER = "Browser navigation displays the saved result";
 const REASON = "Browser unavailable (OpenAI runner has no Claude-in-Chrome integration), no covering proof";
 const plan = (manual) => buildPlan([{ auto: AUTO, manual }]);
 
-function manualProject(host = "codex", flags = []) {
+function manualProject(host = "codex", flags = [], mode = "codex") {
   const project = makeProject({ plan: plan([BROWSER]), policy: { ...PRESET, manualVerify: { minRigor: "lean" } } });
   writeReview(project, "plan-review", { verdict: "SOUND" });
   writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
-  const action = init(project, "fix typo", ["--host", host, ...flags]).json;
+  const action = init(project, "fix typo", ["--host", host, "--provider-mode", mode, ...flags]).json;
   assert.equal(action.step, "manual-verify", JSON.stringify(action));
   return { project, action };
 }
@@ -47,6 +47,34 @@ for (const host of ["claude", "codex"]) {
     const off = manualProject(host, ["--chrome", "false"]);
     assert.equal(readLogEntries(off.project).at(-1).template, "manual-verify-nochrome");
     assert.match(off.action.prompt, /Chrome: off \(--chrome false\)/);
+  });
+}
+
+test("headless Claude records local browser capability and replays the exact pending task", () => {
+  for (const off of [false, true]) {
+    const { project, action } = manualProject("codex", off ? ["--chrome=false"] : [], "claude");
+    const pending = readLogEntries(project).at(-1);
+    assert.equal(pending.browserEvidence, "local");
+    assert.equal(pending.template, off ? "manual-verify-nochrome" : "manual-verify-headless");
+    const reason = off ? "Chrome off (--chrome false)" : "Browser unavailable (headless Claude runner has no Claude-in-Chrome integration), no covering proof";
+    assert.ok(action.prompt.includes(reason));
+    writeResult(project, { status: "orchestrator-error" });
+    assert.equal(next(project).json.prompt, action.prompt);
+    evidence(project, "unproven.md", `- 1.2 — ${reason}\n`);
+    writeResult(project, { status: "done" });
+    next(project);
+    assert.equal(readLogEntries(project).find((e) => e.n === action.n).reasons["1.2"], reason);
+  }
+});
+
+for (const kind of ["test", "browser"]) {
+  test(`headless Claude browser rows check ${kind} evidence against the saved capability`, () => {
+    const { project, action } = manualProject("codex", [], "claude");
+    evidence(project, `${kind}-claim.txt`, "local fixture");
+    writePlan(project, plan([{ text: `${BROWSER} — evidence: evidence/${kind}-claim.txt`, done: true }]));
+    writeResult(project, { status: "done" });
+    next(project);
+    assert.equal(readLogEntries(project).find((e) => e.n === action.n).ok, kind === "test");
   });
 }
 

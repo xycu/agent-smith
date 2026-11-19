@@ -168,6 +168,19 @@ test("ladder: a plain-goal first plan after one failed attempt skips opus/medium
 
 // ---- phase-count bumps ----------------------------------------------------------------
 
+test("split host fix carries the other provider's last code tier through its own clamp", () => {
+  const p = staged({ phases: 1, done: 1, policy: { steps: { fix: { maxTier: 5 } } },
+    log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", { tier: 7, provider: "openai" }), entry(4, "impl-review")],
+    implReview: { verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings" },
+  });
+  const action = init(p, GOAL, ["--provider-mode=split", "--rigor=standard"]).json;
+  assert.equal(action.step, "fix");
+  assert.equal(action.provider, "claude");
+  const fix = readLogEntries(p).at(-1);
+  assert.equal(fix.tier, 5);
+  assert.match(fix.tierWhy, /floor at last code tier 7.*clamped to 5/);
+});
+
 test("ladder: implement and fix with 3 phases run opus/medium", () => {
   const impl = start(staged({ phases: 3, log: [entry(1, "plan"), entry(2, "plan-review")] }), GOAL, "standard");
   assert.equal(impl.json.step, "implement");
@@ -437,14 +450,15 @@ test("fable: the published override preserves default pins and selectively merge
   assert.equal(Object.hasOwn(baseline, "steps"), false);
 });
 
-test("fable: a Codex host refuses the published Claude ladder before creating run state", () => {
+test("fable: a legacy Codex host refuses the published Claude ladder without changing run state", () => {
   const project = makeProject({ policy: FABLE });
-  assert.equal(fs.existsSync(project.agentDir), false);
+  const meta = { id: project.id, host: "codex" };
+  writeMetaFile(project, meta);
   const res = init(project, GOAL, ["--host", "codex"]);
   assert.equal(res.status, 1, res.stdout);
   assert.equal(res.json.action, "halt");
   assert.match(res.json.reason, /OpenAI-only ladder/);
-  assert.equal(fs.existsSync(project.agentDir), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(project.agentDir, "meta.json"))), meta);
 });
 
 test("fable: real RETHINK revisions dispatch opus/max then fable/high and retain the revision cap", () => {

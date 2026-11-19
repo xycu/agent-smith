@@ -169,10 +169,13 @@ test("every os- step has a template, and every os- template resolves to existing
 
 const readPolicy = (dir) => JSON.parse(fs.readFileSync(path.join(dir, "policy.json"), "utf8"));
 
-test("the OpenSpec policy fragment holds only os- steps and prompts, and shares no key with the 10x policy", () => {
+test("the OpenSpec policy fragment owns its steps, prompts and split assignments", () => {
   const tenxPolicy = readPolicy(SKILL_DIR);
   const fragment = readPolicy(OS_SKILL_DIR);
-  assert.deepEqual(Object.keys(fragment).sort(), ["prompts", "steps"]);
+  assert.deepEqual(Object.keys(fragment).sort(), ["prompts", "splitProviders", "steps"]);
+  assert.deepEqual(fragment.splitProviders, {
+    openspec: { otherSteps: ["os-propose", "os-apply"], hostTemplates: { "os-apply-fix": "os-apply" } },
+  });
   for (const block of ["steps", "prompts"]) {
     assert.ok(Object.keys(fragment[block]).every((k) => k.startsWith("os-")), block);
     assert.deepEqual(Object.keys(fragment[block]).filter((k) => Object.hasOwn(tenxPolicy[block], k)), [], block);

@@ -23,7 +23,7 @@ const BASELINE = readJson(path.join(SKILL_DIR, "baseline-policy.json"));
 const PLUGIN = readJson(path.join(REPO, ".claude-plugin/plugin.json"));
 const HEX16 = /^[0-9a-f]{16}$/;
 // chrome is the effective setting: on unless the run stored --chrome false.
-const NO_FLAGS = { archive: false, chrome: true, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
+const NO_FLAGS = { providerMode: "claude", archive: false, chrome: true, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
 
 const copies = [];
 after(() => {
@@ -114,7 +114,7 @@ test("1.1 flags read the stored meta values and the merged policy, and a missing
   const on = makeProject({ policy: { score: { minRigor: "thorough" }, agents: { restricted: true }, advisor: { enabled: true } } });
   assert.equal(init(on, "fix typo", ["--chrome"]).status, 0);
   assert.deepEqual(readMetaFile(on).provenance.flags, {
-    archive: false, chrome: true, "score.minRigor": "thorough", "agents.restricted": true, "advisor.enabled": true,
+    providerMode: "claude", archive: false, chrome: true, "score.minRigor": "thorough", "agents.restricted": true, "advisor.enabled": true,
   });
   assert.match(readMetaFile(on).provenance.sections.agents, HEX16);
   assert.match(readMetaFile(on).provenance.sections.advisor, HEX16);
@@ -125,12 +125,29 @@ test("1.1 flags read the stored meta values and the merged policy, and a missing
   assert.equal(shipped.flags["score.minRigor"], DEFAULT.score.minRigor);
 });
 
+test("changing a shipped fallback rung is visible as split-run ladder drift", () => {
+  const copy = pluginCopy();
+  const project = makeProject();
+  const first = runCopy(copy, project, ["init", project.id, "--goal", "fix typo", "--provider-mode", "split"]);
+  assert.equal(first.json.action, "run", first.stdout);
+  const file = path.join(copy.skill, "codex-policy.json");
+  const preset = readJson(file);
+  preset.ladder[2].model = "changed-model";
+  fs.writeFileSync(file, JSON.stringify(preset));
+  writeResult(project, { status: "failed", note: "fixture" });
+  const retry = runCopy(copy, project, ["next", project.id]);
+  assert.equal(retry.json.action, "run", retry.stdout);
+  assert.deepEqual(readMetaFile(project).provenance.drift, ["ladder"]);
+});
+
 test("1.1 a run with no executed step and no record gets one at init", () => {
   const project = makeProject();
   writeMetaFile(project, { id: project.id, goal: "fix typo" });
   const res = init(project, "fix typo");
   assert.equal(res.status, 0, res.stdout);
-  assert.deepEqual(readMetaFile(project).provenance, freshRecord());
+  const record = readMetaFile(project).provenance;
+  assert.equal(record.flags.providerMode, undefined);
+  assert.match(record.sections.ladder, HEX16);
 });
 
 test("1.1 computing the record never halts: a bad prompt reference records prompts null and checkPrompts halts as before", () => {

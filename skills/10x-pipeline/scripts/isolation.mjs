@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, writeFileAtomic, isFailure, isObject, SHA_RE, runGit,
-  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget, stateTempFiles,
+  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget, stepPolicy, providersByStep, stateTempFiles,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
@@ -98,11 +98,20 @@ function pluginVersion() {
 }
 
 // One hash per section of the merged policy except the ignored ones, plus agentFiles, ruleFiles and hookFiles, sorted by name.
-function provenanceSections(policy) {
+function provenanceSections(policy, meta) {
   const ignore = new Set(provenanceConfig(policy).ignore);
   const sections = {};
   for (const key of Object.keys(policy)) {
     if (!ignore.has(key)) sections[key] = key === "prompts" ? promptsHash(policy) : hash16(canonicalJson(policy[key]));
+  }
+  if (meta.providerMode && !ignore.has("ladder")) {
+    const assignments = providersByStep(policy, meta);
+    const ladders = {};
+    for (const [template, provider] of Object.entries(assignments)) {
+      const step = policy.splitProviders[meta.chain ?? "10x"].hostTemplates[template] ?? template;
+      if (!Object.hasOwn(ladders, provider)) ladders[provider] = stepPolicy(policy, meta, step, template).ladder;
+    }
+    sections.ladder = hash16(canonicalJson(ladders));
   }
   sections.agentFiles = agentFilesHash();
   sections.ruleFiles = ruleFilesHash();
@@ -116,6 +125,7 @@ function provenanceSections(policy) {
 function provenanceFlags(policy, meta) {
   const minRigor = isObject(policy.score) ? policy.score.minRigor : null;
   return {
+    ...(meta.providerMode ? { providerMode: meta.providerMode } : {}),
     archive: meta.archive === true,
     chrome: meta.chrome !== false,
     "score.minRigor": typeof minRigor === "string" ? minRigor : null,
@@ -129,7 +139,7 @@ function provenanceFlags(policy, meta) {
 // The record init stores. null only if something unexpected throws: a run then has no record and reads as unknown.
 export function provenanceRecord(policy, meta) {
   try {
-    return { schemaVersion: 1, plugin: pluginVersion(), sections: provenanceSections(policy), flags: provenanceFlags(policy, meta) };
+    return { schemaVersion: 1, plugin: pluginVersion(), sections: provenanceSections(policy, meta), flags: provenanceFlags(policy, meta) };
   } catch { return null; }
 }
 
@@ -141,7 +151,7 @@ export function recordDrift(meta, policy) {
   if (!isObject(rec) || !isObject(rec.sections)) return false;
   try {
     const ignore = new Set(provenanceConfig(policy).ignore);
-    const now = provenanceSections(policy);
+    const now = provenanceSections(policy, meta);
     const had = Array.isArray(rec.drift) ? rec.drift.filter((s) => typeof s === "string") : [];
     const changed = [...new Set([...Object.keys(rec.sections), ...Object.keys(now)])]
       .filter((name) => !ignore.has(name) && rec.sections[name] !== now[name]);
@@ -811,12 +821,16 @@ const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone
 export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.level) {
   const openspec = p.chain === "openspec";
   const step = openspec ? "os-archive" : "archive";
-  const settled = tierFor({ step }, executed(log), policy, readPlan(p.plan), meta, level);
-  const target = dispatchTarget(policy, settled.tier);
+  const selected = stepPolicy(policy, meta, step);
+  const settled = tierFor({ step }, executed(log), selected, readPlan(p.plan), meta, level);
+  const target = dispatchTarget(selected, settled.tier);
   const created = openspec ? null : createdValue(path.join(p.change, "change.md"));
-  if (!openspec && (created === null || !CREATED_RE.test(created))) throw new Error("change.md has no valid archive creation date.");
+  if (!openspec && (created === null || !CREATED_RE.test(created))) throw new Error(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
   const archivePath = openspec ? openspecArchivePath(id) : `context/archive/${created}-${id}`;
-  return { ...target, archivePath, tier: settled.tier, tierWhy: settled.tierWhy };
+  const agent = dispatchAgent(policy, target, step);
+  const body = render(promptText(policy, step), { id });
+  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + ruleTail(policy, { chain: p.chain ?? "10x", step, vars: { id } });
+  return { ...target, ...(agent ? { agent } : {}), prompt, archivePath, tier: settled.tier, tierWhy: settled.tierWhy };
 }
 
 // The done branch of a run with --archive. Pre-checks, final report, commit, post-commit checks, then the archive action.
@@ -824,7 +838,7 @@ export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.
 // written as done, a halt only prints (out): rewriting meta.json or report.md would dirty the committed folder.
 // An OpenSpec run (ADR-013 D5) commits openspec/changes/<id>/, needs no created: line, halts on an open task row,
 // names the folder `openspec archive` will create and returns the os-archive prompt at the tier of steps["os-archive"].
-export function archiveDone(p, id, meta, log, policy, level, d) {
+export function archiveDone(p, id, meta, log, policy, level, d, visibility = {}) {
   const openspec = p.chain === "openspec";
   const rel = changeRel(p, id);
   const ran = executed(log);
@@ -853,25 +867,21 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   };
   const unsafe = gitSafety(g, timeout, { id, chain: openspec ? "openspec" : "10x" });
   if (unsafe) precheck(unsafe);
-  let archivePath;
+  let settled;
+  try {
+    settled = archiveDescriptor(p, id, meta, log, policy, level);
+  } catch (e) {
+    precheck(e instanceof Error ? e.message : String(e));
+  }
   if (openspec) {
     const tasks = readOpenspec(p).tasks;
     if (tasks.open > 0) {
       precheck(`${rel}/tasks.md has ${tasks.open} open task row(s) of ${tasks.total}; an OpenSpec change is archived only with every task ticked. Needs a human.`);
     }
-    archivePath = openspecArchivePath(id);
-    if (fs.existsSync(path.join(ROOT, archivePath))) {
-      precheck(`Archive destination ${archivePath} already exists; openspec archive would refuse it (archive_target_exists). Needs a human.`);
-    }
-  } else {
-    const created = createdValue(path.join(p.change, "change.md"));
-    if (created === null || !CREATED_RE.test(created)) {
-      precheck(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
-    }
-    archivePath = `context/archive/${created}-${id}`;
-    if (fs.existsSync(path.join(ROOT, archivePath))) {
-      precheck(`Archive destination ${archivePath} already exists; a reused id on the same date needs a human.`);
-    }
+  }
+  if (fs.existsSync(path.join(ROOT, settled.archivePath))) {
+    const reason = openspec ? "openspec archive would refuse it (archive_target_exists). Needs a human." : "a reused id on the same date needs a human.";
+    precheck(`Archive destination ${settled.archivePath} already exists; ${reason}`);
   }
   const manualPending = Array.isArray(d.manualPending) ? d.manualPending : [];
   if (policy.archive?.haltOnManualPending === true && manualPending.length) {
@@ -885,19 +895,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   if (!message) precheck("policy.archive.commitMessage renders to a blank message.");
   const badCoAuthor = coAuthorProblem(policy);
   if (badCoAuthor) precheck(badCoAuthor);
-  let settled;
-  try {
-    settled = archiveDescriptor(p, id, meta, log, policy, level);
-  } catch (e) {
-    precheck(`Cannot pick the archive tier: ${e instanceof Error ? e.message : String(e)}`);
-  }
-  const target = policy.ladder[settled.tier];
-  if (!isObject(target) || typeof target.model !== "string" || typeof target.effort !== "string") {
-    precheck(`policy.ladder has no entry for tier ${settled.tier}, which the archive step is pinned to.`);
-  }
-  const dispatch = dispatchTarget(policy, settled.tier);
   const archiveStep = openspec ? "os-archive" : "archive";
-  const unsupported = dispatchProblem(policy, dispatch, archiveStep, archiveStep);
+  const unsupported = dispatchProblem(policy, settled, archiveStep, archiveStep);
   if (unsupported) precheck(unsupported);
 
   // 3. Ignored files are reported, never a halt.
@@ -929,22 +928,16 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
   // "HEAD" stands for a commit this call made whose hash could not be read; null means no commit was made.
   const commit = res.made ? (res.commit ? res.commit.slice(0, 7) : "HEAD") : null;
-  const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(promptText(policy, "archive"), { id });
-  // The rule tail of ADR-023, as at the run site; the archive site fills only {id}.
-  const tail = ruleTail(policy, { chain: openspec ? "openspec" : "10x", step: openspec ? "os-archive" : "archive", vars: { id } });
-  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + tail;
-  const agent = dispatchAgent(policy, dispatch, archiveStep);
+  const { tier, tierWhy, ...dispatch } = settled;
   return out({
     action: "archive",
-    ...(agent ? { agent } : {}),
+    ...visibility,
     change: id, root: ROOT, chain: p.chain ?? "10x",
     host: hostOf(meta),
     ...dispatch,
-    reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${settled.tier} (${settled.tierWhy})`,
-    prompt,
+    reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${tier} (${tierWhy})`,
     summary: { reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length },
     report: done.report,
-    archivePath,
     commit,
     ignored,
     ...pr,

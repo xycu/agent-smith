@@ -77,6 +77,9 @@ function mergedPolicy(onError = halt) {
     const kind = override === null ? "null" : Array.isArray(override) ? "an array" : `a ${typeof override}`;
     onError(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
   }
+  if (Object.hasOwn(override, "splitProviders")) {
+    onError(`${file} cannot replace the chain's splitProviders roles. Remove that key and select a run with --provider-mode. Nothing was written.`);
+  }
   return deepMerge(base, override);
 }
 
@@ -93,6 +96,61 @@ export function loadPolicy(onError = halt) {
 // Missing provider/host fields belong to runs and overrides made before OpenAI support.
 export const providerOf = (target) => target?.provider === undefined ? "claude" : target.provider;
 export const hostOf = (meta) => meta?.host === undefined ? "claude" : meta.host;
+
+const providerForHost = (host) => host === "codex" ? "openai" : "claude";
+
+function assignedProvider(policy, meta, step, template) {
+  if (meta.providerMode !== "split") return providerForHost(meta.providerMode);
+  const rules = policy.splitProviders[meta.chain ?? "10x"];
+  const other = rules.otherSteps.includes(step) && rules.hostTemplates[template] !== step;
+  const host = providerForHost(hostOf(meta));
+  return other ? (host === "claude" ? "openai" : "claude") : host;
+}
+
+export function providersByStep(policy, meta) {
+  const chain = meta.chain ?? "10x";
+  const rules = policy.splitProviders[chain];
+  const entries = Object.keys(policy.steps).filter((s) => s.startsWith("os-") === (chain === "openspec")).map((s) => [s, s]);
+  const legacy = [...new Set(policy.ladder.map(providerOf))];
+  return Object.fromEntries([...entries, ...Object.entries(rules.hostTemplates)].map(([template, step]) =>
+    [template, meta.providerMode ? assignedProvider(policy, meta, step, template) : legacy]));
+}
+
+// The override retains its ordinal positions. Only a homogeneous override replaces a provider's whole ladder.
+function providerLadder(policy, provider) {
+  const custom = policy.ladder;
+  if (custom.every((r) => providerOf(r) === provider)) return custom;
+  const file = provider === "openai" ? "codex-policy.json" : "policy.json";
+  const shipped = readJson(path.join(SKILL_DIR, file), null)?.ladder;
+  if (!Array.isArray(shipped) || !shipped.length || shipped.some((r) => !r || providerOf(r) !== provider)) {
+    throw new Error(`Invalid shipped ${provider} ladder in ${file}`);
+  }
+  const ladder = [...shipped];
+  custom.forEach((r, index) => { if (providerOf(r) === provider) ladder[index] = r; });
+  return ladder;
+}
+
+export function stepPolicy(policy, meta, step, template = step) {
+  if (!meta.providerMode) return policy;
+  return { ...policy, ladder: providerLadder(policy, assignedProvider(policy, meta, step, template)) };
+}
+
+export function selectionProblem(policy, meta, checkBounds = true) {
+  const host = hostOf(meta);
+  if (meta.providerMode === undefined) return policyProblems(policy) ?? hostProblem(policy, host);
+  if (!["claude", "codex", "split"].includes(meta.providerMode)) return "Invalid stored providerMode. Nothing was written.";
+  if (!["claude", "codex"].includes(host)) return "Invalid stored host. Nothing was written.";
+  if (!checkBounds) return null;
+  const rules = policy.splitProviders[meta.chain ?? "10x"];
+  const ladders = new Map();
+  for (const [template, provider] of Object.entries(providersByStep(policy, meta))) {
+    const step = rules.hostTemplates[template] ?? template;
+    if (!ladders.has(provider)) ladders.set(provider, providerLadder(policy, provider));
+    const problem = policyProblems({ ...policy, ladder: ladders.get(provider), steps: { [step]: policy.steps[step] } });
+    if (problem) return `Step ${template} uses ${provider}. Supply contiguous provider tiers or adjust the assigned step bounds. ${problem}`;
+  }
+  return null;
+}
 
 export function dispatchTarget(policy, tier) {
   const rung = policy.ladder[tier];
@@ -153,7 +211,7 @@ export function coAuthorProblem(policy) {
 // The first fault in the keys that cap the spend of a run, as text that names the key and the override file, or null.
 // Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder (model, effort in rigor.effortOrder), steps. Never throws and never halts;
 // main() halts for init, next and usage and status reports it. A baseTier outside [minTier, maxTier] is allowed (tierFor clamps it).
-export function policyProblems(policy) {
+export function policyProblems(policy, checkBounds = true) {
   const bad = (key, rule, v) => `policy.${key} must be ${rule} (got ${v === undefined ? "undefined" : JSON.stringify(v)}). Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`;
   const p = policy ?? {};
   if (Object.hasOwn(p.prompts ?? {}, "byFile") && typeof p.prompts.byFile !== "boolean") {
@@ -194,7 +252,7 @@ export function policyProblems(policy) {
   for (const [name, step] of Object.entries(p.steps)) {
     if (!isObject(step)) return bad(`steps.${name}`, "an object", step);
     for (const field of ["baseTier", "minTier", "maxTier"]) {
-      if (!int(step[field], 0) || step[field] > top) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
+      if (!int(step[field], 0) || (checkBounds && step[field] > top)) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
     }
     if (step.minTier > step.maxTier) return bad(`steps.${name}.minTier`, `at most maxTier ${step.maxTier}`, step.minTier);
   }

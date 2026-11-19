@@ -7,7 +7,7 @@ import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import {
   ROOT, acquireRunLock, archiveDirs, paths, readMeta, readLog, executed, hostOf, providerOf,
-  loadPolicy, policyProblems, parseFlags, isObject, guardedStat,
+  loadPolicy, policyProblems, selectionProblem, parseFlags, isObject, guardedStat,
 } from "./state.mjs";
 import { dispatchProblem, promptFilePath } from "./flow.mjs";
 import { archiveDescriptor } from "./isolation.mjs";
@@ -43,6 +43,8 @@ function validateAction(action, id, chain, policy) {
   if (!meta || meta.id !== id || (meta.chain ?? "10x") !== chain || hostOf(meta) !== action.host) {
     refuse("Action does not match the stored run identity and host.");
   }
+  const invalid = selectionProblem(policy, meta, action.action === "archive");
+  if (invalid) refuse(invalid);
   if (typeof action.prompt !== "string" || !action.prompt.trim() || action.prompt.includes("\0")) refuse("Action has no usable prompt.");
   if (!["model", "effort"].every((key) => typeof action[key] === "string" && action[key].trim() && !/[\0\r\n]/.test(action[key]))) {
     refuse("Action has an invalid model or effort.");
@@ -77,7 +79,7 @@ function validateAction(action, id, chain, policy) {
       refuse("Archive action requires an ended archive run and no result destination.");
     }
     const expected = archiveDescriptor(p, id, meta, log, policy);
-    for (const key of ["provider", "model", "effort", "profile", "archivePath"]) {
+    for (const key of ["provider", "model", "effort", "profile", "archivePath", "prompt", "agent"]) {
       if (action[key] !== expected[key]) refuse(`Archive action has a stale ${key}. Resume the router for a current action.`);
     }
     if (fs.existsSync(path.join(ROOT, expected.archivePath))) refuse("The archive destination already exists.");
@@ -323,7 +325,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     if (!/^[a-z0-9][a-z0-9-]*$/.test(id ?? "") || !["10x", "openspec"].includes(chain)) refuse("Invalid change ID or chain.");
     lock = acquireRunLock(id, chain, refuse);
     const policy = loadPolicy(refuse);
-    const bad = policyProblems(policy);
+    const bad = policyProblems(policy, false);
     if (bad) refuse(bad);
     validateAction(action, id, chain, policy);
     const tempRoot = fs.realpathSync(os.tmpdir());
