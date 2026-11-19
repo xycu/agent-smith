@@ -143,6 +143,8 @@ Include Start step 3's branch, worktree, retained-path, cleanup and uncommitted-
 
 ## Late usage (before every end)
 
+A step with recorded usage evidence requires `--usage-file` so the router can verify that the measurement matches the recorded invocation.
+
 Before terminal status and publication, and before archive step 3, collect an already-arrived complete measurement under Loop step 4 once. Only for the same recorded native invocation with missing tokens, create an exclusively owned unique transient run-root file outside the change folder containing `{change,chain,n,step,usage:{totalTokens},usageEvidence}`, then run `cd "<run root>" && node $ROUTER usage <change-name> <n> --usage-file <usage-file> --chain openspec` once, as a call of its own. Include no raw source paths or records in that payload. Unlink the owned payload in a finally step before terminal handoff, including on refusal. Never wait or poll.
 
 Recover `<n>` from the earlier launch matched by rule 6. Confirm its full router `change`, `n` and `step` identity against the recorded description; the printed `Step <n>` line is corroborating context, never a guess from the latest step or a repeated step name. Leave unmatched or ambiguous figures unattached. No verified total or no recorded invocation: omit the call. Recorded numbers remain immutable; only missing tokens can be enriched with identical source/version/invocation evidence. Archive-agent usage belongs only in the final message, including its coverage limitation.
