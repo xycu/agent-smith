@@ -41,7 +41,7 @@ const rootId = mode.threadId ?? "root-fixture";
 const rootTurnId = mode.rootTurnId ?? "turn-" + rootId;
 const archivedIds = new Set(Object.values(mode.pages?.true ?? {}).flatMap(page => (page.data ?? []).map(item => item.id)));
 const sourcePath = id => path.join(process.env.CODEX_HOME, archivedIds.has(id) ? "archived_sessions" : "sessions", id + ".jsonl");
-if (args[0] === "app-server") {
+if (args.includes("app-server")) {
   const readline = require("node:readline");
   let archivedLists = 0;
   readline.createInterface({ input: process.stdin }).on("line", line => {
@@ -54,6 +54,9 @@ if (args[0] === "app-server") {
     }
     if (mode.usageMetadataHang && request.method === "thread/read") return;
     let result = {};
+    if (request.method === "skills/list") {
+      result = { data: [{ cwd: process.cwd(), skills: [{ name: mode.discoveredSkill, enabled: true, path: path.join(fixture, "SKILL.md") }] }] };
+    }
     if (request.method === "thread/list") {
       const pages = mode.pages?.[String(request.params.archived)];
       result = pages?.[request.params.cursor ?? "first"] ?? { data: [], nextCursor: null };
@@ -99,6 +102,13 @@ process.stdin.on("end", async () => {
   fs.appendFileSync(path.join(fixture, "calls.jsonl"), JSON.stringify({ args, input, cwd: process.cwd(), pid: process.pid }) + "\\n");
   if (args[0] === "sandbox") {
     if (mode.preflightFailure || args.includes("missing-profile")) { process.exitCode = 1; return; }
+    if (mode.checkToolkit) {
+      const index = args.indexOf("--");
+      const proof = require("node:child_process").spawnSync(args[index + 1], args.slice(index + 2), { timeout: 20000, encoding: "utf8" });
+      process.stdout.write(proof.stdout ?? "");
+      process.exitCode = proof.status ?? 1;
+      return;
+    }
     if (mode.removeExecutableAfterPreflight) fs.unlinkSync(process.argv[1]);
     process.stdout.write(JSON.stringify({ gitDir: "/fixture/git", commonDir: "/fixture/common", commit: "a".repeat(40) }) + "\\n");
     return;

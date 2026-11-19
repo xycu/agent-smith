@@ -515,7 +515,7 @@ test("1.3 a run with an override that sets prices records no prices section, and
   assert.ok(!res.json.warnings.some((w) => w.includes("prices")));
 });
 
-for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "agents/step.md", "skills/10x-pipeline/rules/steps/plan.md"]) {
+for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs", "agents/step.md", "skills/10x-pipeline/rules/steps/plan.md"]) {
   test(name + " changes only its independent provenance section and records immutable drift", () => {
     const copy = pluginCopy();
     const project = makeProject();
@@ -534,7 +534,7 @@ for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.
 }
 
 test("missing or unreadable hook inputs yield a null hook hash", () => {
-  for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs"]) {
+  for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs"]) {
     const copy = pluginCopy();
     const file = path.join(copy.root, name);
     fs.unlinkSync(file);

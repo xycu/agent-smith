@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // shortcut: literal shell words and separators only, rely on host permissions for dynamic programs.
+
 const MAX_INPUT_BYTES = 64 * 1024;
 const MAX_JSON_DEPTH = 64;
 const STEP_AGENT_TYPE = "agent-smith:step";
@@ -499,8 +500,14 @@ function isGuarded(agentType, hasAgentId) {
 
 function eventProblem(event) {
   if (!event || typeof event !== "object" || Array.isArray(event)) throw new Error("Expected a hook event object.");
-  if (!isGuarded(event.agent_type, event.agent_id !== undefined)) return null;
-  if (typeof event.agent_id !== "string" || !event.agent_id.trim() ||
+  const session = process.env.AGENT_SMITH_CLAUDE_SESSION;
+  if (session) {
+    const expected = event.agent_id === undefined ? process.env.AGENT_SMITH_CLAUDE_AGENT : STEP_AGENT_TYPE;
+    if (event.session_id !== session || event.agent_type !== expected || expected !== STEP_AGENT_TYPE) {
+      return "Headless Bash guard identity mismatch or restricted agent.";
+    }
+  } else if (!isGuarded(event.agent_type, event.agent_id !== undefined)) return null;
+  if ((event.agent_id !== undefined && (typeof event.agent_id !== "string" || !event.agent_id.trim())) ||
       event.hook_event_name !== "PreToolUse" || event.tool_name !== "Bash" ||
       !event.tool_input || typeof event.tool_input.command !== "string" || !event.tool_input.command.trim()) {
     return "Malformed guarded Bash event. Retry with a valid PreToolUse command payload.";
@@ -513,6 +520,10 @@ function eventProblem(event) {
     throw error;
   }
   for (const words of commands(command)) {
+    if (session && basename(words[0]) === "git" && ["add", "commit"].includes(gitOptions(words).sub)
+        && (event.agent_id !== undefined || process.env.AGENT_SMITH_CLAUDE_COMMIT !== "1")) {
+      return "This step or leaf has no staging or commit permission.";
+    }
     const problem = commandProblem(words);
     if (problem) return problem;
   }
@@ -703,12 +714,22 @@ async function readEventProblem() {
     chunk.copy(prefix, size, 0, retained);
     size += retained;
     if (retained === chunk.length) continue;
+    if (process.env.AGENT_SMITH_CLAUDE_SESSION) throw new Error("Headless Bash hook input exceeds 64 KiB.");
     overflow = overflowIdentity();
     overflow.write(prefix);
     prefix = null;
     overflow.write(chunk.subarray(retained));
   }
-  if (!overflow) return eventProblem(JSON.parse(prefix.toString("utf8", 0, size)));
+  if (!overflow) {
+    const event = JSON.parse(prefix.toString("utf8", 0, size));
+    const problem = eventProblem(event);
+    if (process.env.AGENT_SMITH_CLAUDE_SESSION && typeof event?.tool_input?.command === "string") {
+      const bytes = await crypto.subtle.digest("SHA-256", Buffer.from(event.tool_input.command));
+      const hash = Buffer.from(bytes).toString("hex");
+      process.stderr.write(`agent-smith-bash ${process.env.AGENT_SMITH_CLAUDE_SESSION} ${hash}\n`);
+    }
+    return problem;
+  }
   if (overflow.guardedAtEnd()) throw new Error("Hook input exceeds 64 KiB.");
   return null;
 }

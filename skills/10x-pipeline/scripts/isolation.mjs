@@ -84,11 +84,18 @@ function ruleFilesHash() {
 function hookFilesHash() {
   try {
     const files = {};
-    for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs"]) {
+    for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs"]) {
       files[name] = fs.readFileSync(path.join(PLUGIN_ROOT, name), "utf8");
     }
     return hash16(canonicalJson(files));
   } catch { return null; }
+}
+
+// A headless launch needs its guard and agent definitions from the revision that routed the run.
+export function matchesHeadlessGuard(meta) {
+  const sections = meta.provenance?.sections;
+  return typeof sections?.agentFiles === "string" && sections.agentFiles === agentFilesHash()
+    && typeof sections.hookFiles === "string" && sections.hookFiles === hookFilesHash();
 }
 
 // The version of the plugin manifest, only read (release-please owns it). null when the file is unreadable.

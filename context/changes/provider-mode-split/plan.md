@@ -58,6 +58,7 @@ Deliver three phases. Provider selection first makes policy and stored-mode beha
 - The flag is the only mode input. Existing per-run host handling provides the precedent for fixing a run's selection at init. Keep project ladder settings available for model and effort tuning.
 - The phrase “only plan and implement” is the role boundary. Review apply prompts still belong to reviewers. OpenSpec's `os-apply-fix` is repair even though it shares the `os-apply` step ID. The frame and [OpenSpec flow](../../../skills/openspec-pipeline/scripts/openspec.mjs#L159) supply the equivalent roles.
 - Both directions ship together because [change.md](change.md) specifies both and the frame verified a headless Claude launch. Guard and settlement are the main delivery risks. If supported CLI events cannot prove required protection or closure, the external dispatch stops with a precise capability or reconciliation diagnostic.
+- **Decision (owner, 2026-11-19): trusted Claude startup imports may read task bytes before the guard handshake.** Do not redesign pending-task storage. The task text is already exposed in `prompt.md` and `run.jsonl`, and Claude's `InstructionsLoaded` hook cannot veto an import, so the handshake guards tool use and lifecycle evidence, not startup file reads. Implement the by-file dispatch on that basis and state the limit in the runner's documentation and its capability diagnostic. Do not halt on this point again.
 - Preview assignments at init and the actual dispatch at launch. Future model and effort remain conditional on the router's normal evidence, rigor and retries.
 
 ## Phase 1: Resolve and persist provider mode
@@ -244,8 +245,8 @@ Existing router-owned `meta.json` and `run.jsonl` require no rewrite. Resume mod
 
 #### Automated
 
-- [ ] 2.1 Fake Claude and Codex runner fixtures prove exact inline, by-file and archive dispatch validation, fresh-session guard binding, restricted capability refusal and normalized result handling.
-- [ ] 2.2 Fake Claude runner and hook fixtures prove cancellation and uncertain closure suspend the run, settled failures release ownership, unrelated or child results are ignored, and unverified tokens stay unavailable.
+- [x] 2.1 Fake Claude and Codex runner fixtures prove exact inline, by-file and archive dispatch validation, fresh-session guard binding, restricted capability refusal and normalized result handling.
+- [x] 2.2 Fake Claude runner and hook fixtures prove cancellation and uncertain closure suspend the run, settled failures release ownership, unrelated or child results are ignored, and unverified tokens stay unavailable.
 
 ### Phase 3: Wire and document both pipeline skills
 

@@ -48,13 +48,14 @@ function failedClosed(input, reason = /failed closed/) {
 }
 
 test("shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling", () => {
-  assert.deepEqual(hooks, { hooks: { PreToolUse: [{
-    matcher: "Bash", hooks: [{
-      type: "command", command: "node",
-      args: [pluginPlaceholder + "/skills/10x-pipeline/scripts/step-guard.mjs"],
-      timeout: 5, async: false, onFailure: "block",
-    }],
-  }] } });
+  const command = (file) => ({ type: "command", command: "node",
+    args: [pluginPlaceholder + "/skills/10x-pipeline/scripts/" + file], timeout: 5, async: false, onFailure: "block" });
+  const lifecycle = [{ hooks: [command("claude-hook.mjs")] }];
+  assert.deepEqual(hooks.hooks, {
+    PreToolUse: [{ matcher: "Bash", hooks: [command("step-guard.mjs")] }],
+    SessionStart: [{ matcher: "startup", hooks: [command("claude-hook.mjs")] }],
+    SubagentStart: lifecycle, SubagentStop: lifecycle, Stop: lifecycle,
+  });
 });
 
 test("direct Git discard, hook bypass, unique-ref deletion and publication forms are denied", () => {
@@ -411,4 +412,18 @@ test("guarded leaf identities retain denials without broadening the orchestrator
     neutral(payload("git diff", { agent_id }));
   }
   neutral(payload("node /plugin/open-pr.mjs demo", { agent_id: undefined, agent_type: undefined }));
+});
+
+test("headless Bash binds main and leaf identities, including oversized and missing identity events", () => {
+  const env = { ...process.env, AGENT_SMITH_CLAUDE_SESSION: "fixture", AGENT_SMITH_CLAUDE_AGENT: "agent-smith:step", AGENT_SMITH_CLAUDE_COMMIT: "1" };
+  const runHook = (command, extra = {}) => invoke(payload(command, { session_id: "fixture", agent_id: undefined, ...extra }), script, { env });
+  assert.equal(runHook("git status").decision, null);
+  assert.equal(runHook("git add -- proof.txt").decision, null);
+  assert.equal(runHook("git push").decision.permissionDecision, "deny");
+  assert.equal(runHook("git commit -m test", { agent_id: "leaf" }).decision.permissionDecision, "deny");
+  for (const extra of [{ session_id: "foreign" }, { agent_type: "unmapped" }, { agent_type: undefined }]) {
+    assert.equal(runHook("git status", extra).decision.permissionDecision, "deny");
+    assert.equal(runHook("x".repeat(70000), extra).status, 2);
+  }
+  assert.equal(runHook("x".repeat(70000)).status, 2);
 });

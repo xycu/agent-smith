@@ -1129,8 +1129,8 @@ function pidAlive(pid) {
 // then linked to the lock name, so a second caller never reads an empty lock as stale.
 export function acquireRunLock(id, chain, onBusy = halt) {
   const lock = runLockPath(paths(id, null, chain).dir);
-  const nativeSuspension = (threadId) =>
-    `Execution suspended: native ownership unresolved (lock file ${lock}, thread ${threadId ?? "unknown"}). `
+  const nativeSuspension = (threadId, claudeSession) =>
+    `Execution suspended: native ownership unresolved (lock file ${lock}, ${claudeSession ? "Claude session " + claudeSession : "thread " + (threadId ?? "unknown")}). `
     + "Keep the enabling revision and TMPDIR. Await an active runner through its existing handle. "
     + "If it has exited, the authorized owner must inspect the recorded thread and its descendants, prove settlement and arrange router-owned recovery before mutation, relaunch or publication. "
     + "Automatic recovery for a retained native lock is unavailable.";
@@ -1163,7 +1163,7 @@ export function acquireRunLock(id, chain, onBusy = halt) {
         const pid = isObject(owner) ? owner.pid : Number(contents);
         if (isObject(owner) && Object.hasOwn(owner, "native")) {
           release();
-          onBusy(`${nativeSuspension(owner.native?.threadId)} Nothing was written.`);
+          onBusy(`${nativeSuspension(owner.native?.threadId, owner.native?.claudeSessionId)} Nothing was written.`);
         }
         if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
           release();
@@ -1197,13 +1197,13 @@ export function acquireRunLock(id, chain, onBusy = halt) {
     release,
     retainedReason() {
       return execution?.native
-        ? nativeSuspension(execution.native.threadId)
+        ? nativeSuspension(execution.native.threadId, execution.native.claudeSessionId)
         : execution ? `Execution suspended: process ownership unresolved (lock file ${lock}). Confirm execution closure before router-owned recovery.` : null;
     },
-    setChild(pid, native = false) {
+    setChild(pid, native = false, claudeSessionId = null) {
       // null protects the spawn-to-PID-recording window after a supervisor crash.
       execution = { pid: process.pid, childPid: pid, processGroup: process.platform !== "win32",
-        ...(native ? { native: execution?.native ?? { threadId: null } } : {}) };
+        ...(native ? { native: execution?.native ?? (claudeSessionId ? { host: "claude", claudeSessionId } : { threadId: null }) } : {}) };
       replace(JSON.stringify(execution));
     },
     setThread(threadId) {

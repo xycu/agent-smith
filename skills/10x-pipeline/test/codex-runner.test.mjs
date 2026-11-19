@@ -435,7 +435,7 @@ for (const chain of ["10x", "openspec"]) {
     const oldHead = git(p, ["rev-parse", "HEAD"]);
     const moved = path.join(p.root, archive.archivePath);
     fs.mkdirSync(path.dirname(moved), { recursive: true });
-    for (const field of ["archivePath", "profile"]) {
+    for (const field of ["archivePath", "profile", "prompt", "agent"]) {
       const bad = execute(w, { ...archive, [field]: field === "profile" ? "other" : "context/archive/wrong" });
       assert.equal(bad.json.launched, false);
     }
@@ -657,3 +657,35 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(runnerLeftovers(w), []);
   });
 }
+
+test("Codex discovers the retained executor skill and required OpenSpec CLI inside its sandbox before exec", () => {
+  for (const chain of ["10x", "openspec"]) {
+    const w = codexFixture(chain);
+    const required = chain === "10x" ? "10x-e2e" : "openspec-propose";
+    const action = { ...w.action };
+    if (chain === "10x") {
+      const log = readLogEntries(w.project);
+      Object.assign(log.at(-1), { step: "implement", template: "implement-e2e", skill: required });
+      writeLog(w.project, log);
+      action.step = "implement";
+    }
+    gitInit(w.project);
+    commitFiles(w.project, ["README.md"]);
+    fs.writeFileSync(path.join(w.fixture, "SKILL.md"), "# Fixture skill");
+    const cli = path.join(w.fixture, "bin/openspec");
+    fs.writeFileSync(cli, "#!/bin/sh\necho 2.0.0\n", { mode: 0o755 });
+    setMode(w, { checkToolkit: true, discoveredSkill: "wrong" });
+    const missing = execute(w, action);
+    assert.equal(missing.json.launched, false);
+    assert.match(missing.json.reason, new RegExp(required));
+    setMode(w, { checkToolkit: true, discoveredSkill: required });
+    if (chain === "openspec") {
+      fs.writeFileSync(cli, "#!/bin/sh\necho 1.0.0\n");
+      assert.equal(execute(w, action).json.launched, false);
+      fs.writeFileSync(cli, "#!/bin/sh\necho 2.0.0\n");
+    }
+    const ok = execute(w, action);
+    assert.equal(ok.json.completed, true, ok.json.reason);
+    assert.equal(calls(w.fixture).filter(c => c.args[0] === "exec").length, 1);
+  }
+});

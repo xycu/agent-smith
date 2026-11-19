@@ -6,11 +6,10 @@ import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import {
-  ROOT, acquireRunLock, archiveDirs, paths, readMeta, readLog, executed, hostOf, providerOf,
-  loadPolicy, policyProblems, selectionProblem, parseFlags, isObject, guardedStat,
+  ROOT, acquireRunLock, loadPolicy, policyProblems, parseFlags, isObject,
 } from "./state.mjs";
-import { dispatchProblem, promptFilePath } from "./flow.mjs";
-import { archiveDescriptor } from "./isolation.mjs";
+import { validateAction, readResult } from "./runner-dispatch.mjs";
+import { PERMISSION_PROBE } from "./permission-probe.mjs";
 import { removeTree } from "./remove-tree.mjs";
 import { collectCodexUsage, CODEX_USAGE_LIMITS } from "./codex-usage.mjs";
 
@@ -22,110 +21,6 @@ function failureReason(error) {
   const message = error instanceof Error ? error.message : "Codex runner failed.";
   return message.slice(0, 2048);
 }
-
-function validateAction(action, id, chain, policy) {
-  if (!isObject(action) || !["run", "archive"].includes(action.action) || action.provider !== "openai") {
-    refuse("Expected an OpenAI run or archive action from the router.");
-  }
-  if (action.change !== id || action.chain !== chain || typeof action.root !== "string"
-    || fs.realpathSync(action.root) !== fs.realpathSync(ROOT)) refuse("Action belongs to another change, chain or run root.");
-  const p = paths(id, policy, chain);
-  // Inspect only the selected chain. An archived name in the other chain cannot claim this live run.
-  if (!fs.existsSync(p.change)) {
-    refuse(archiveDirs(id, chain).length ? "This change has already moved to its archive." : "The run's change folder is missing.");
-  }
-  if (fs.realpathSync(p.change) !== path.join(fs.realpathSync(ROOT), path.relative(ROOT, p.change))) {
-    refuse("The change folder must belong to the run root without symlink redirects.");
-  }
-  if (fs.realpathSync(p.dir) !== path.join(fs.realpathSync(p.change), "agent-smith")
-    || !guardedStat(p.meta, p.change) || !guardedStat(p.log, p.change)) refuse("Run state must be regular files inside this change.");
-  const meta = readMeta(p.meta, null);
-  if (!meta || meta.id !== id || (meta.chain ?? "10x") !== chain || hostOf(meta) !== action.host) {
-    refuse("Action does not match the stored run identity and host.");
-  }
-  const invalid = selectionProblem(policy, meta, action.action === "archive");
-  if (invalid) refuse(invalid);
-  if (typeof action.prompt !== "string" || !action.prompt.trim() || action.prompt.includes("\0")) refuse("Action has no usable prompt.");
-  if (!["model", "effort"].every((key) => typeof action[key] === "string" && action[key].trim() && !/[\0\r\n]/.test(action[key]))) {
-    refuse("Action has an invalid model or effort.");
-  }
-  if (action.profile !== null && (typeof action.profile !== "string" || !action.profile.trim() || /[\0\r\n]/.test(action.profile))) {
-    refuse("Action profile must be null or an existing configuration profile name.");
-  }
-  const { entries: log } = readLog(p.log);
-  if (action.action === "run") {
-    const entry = executed(log).at(-1);
-    if (meta.outcome || !entry || entry.result !== undefined || fs.existsSync(p.result)
-      || !Number.isSafeInteger(action.n) || action.n < 1 || entry.n !== action.n || entry.step !== action.step
-      || providerOf(entry) !== "openai" || entry.model !== action.model || entry.effort !== action.effort
-      || entry.profile !== action.profile
-      || action.resultFile !== path.relative(ROOT, p.result) || action.agent !== entry.agent) {
-      refuse("Run action is stale, already consumed, or differs from the exact pending dispatch.");
-    }
-    if (entry.pendingHandoff) {
-      const file = promptFilePath(p);
-      if (entry.pendingHandoff.promptFile !== path.relative(ROOT, file)
-        || action.promptFile !== entry.pendingHandoff.promptFile || action.prompt !== entry.pendingHandoff.prompt
-        || !guardedStat(file, p.dir) || !fs.readFileSync(file).equals(Buffer.from(entry.pendingPrompt))) {
-        refuse("File handoff differs from the exact pending dispatch or task bytes.");
-      }
-    } else if (Object.hasOwn(action, "promptFile") || entry.pendingPrompt !== action.prompt) {
-      refuse("Run action differs from the exact inline pending dispatch.");
-    }
-    const unsupported = dispatchProblem(policy, entry, entry.step, entry.template ?? entry.step);
-    if (unsupported) refuse(unsupported);
-  } else {
-    if (meta.archive !== true || meta.outcome?.action !== "done" || Object.hasOwn(action, "resultFile") || Object.hasOwn(action, "promptFile") || Object.hasOwn(action, "pendingHandoff")) {
-      refuse("Archive action requires an ended archive run and no result destination.");
-    }
-    const expected = archiveDescriptor(p, id, meta, log, policy);
-    for (const key of ["provider", "model", "effort", "profile", "archivePath", "prompt", "agent"]) {
-      if (action[key] !== expected[key]) refuse(`Archive action has a stale ${key}. Resume the router for a current action.`);
-    }
-    if (fs.existsSync(path.join(ROOT, expected.archivePath))) refuse("The archive destination already exists.");
-    const step = chain === "openspec" ? "os-archive" : "archive";
-    const unsupported = dispatchProblem(policy, expected, step, step);
-    if (unsupported) refuse(unsupported);
-  }
-  return p;
-}
-
-// Native sandbox uses the same config selection and cwd. Legacy sandbox_mode can be forced read-only, so failure
-// cannot establish exec's effective permissions. Exec retains its hooks and execpolicy, which this filesystem proof
-// does not exercise. Probe files have invalid ref names and are removed immediately. Commit proof uses an unrelated repo.
-const PERMISSION_PROBE = `
-import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { removeTree } from ${JSON.stringify(new URL("./remove-tree.mjs", import.meta.url).href)};
-const [root, scratch] = process.argv.slice(2);
-const git = (args, cwd = root) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-const gitDir = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-dir"]));
-const common = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]));
-const dirs = [...new Set([gitDir, common, path.join(common, "objects"), path.join(common, "refs"), path.join(common, "refs/heads")])];
-for (const dir of dirs) {
-  const file = path.join(fs.realpathSync(dir), ".agent-smith-probe-" + crypto.randomUUID());
-  let fd;
-  try { fd = fs.openSync(file, "wx", 0o600); fs.writeSync(fd, "permission probe"); }
-  finally { if (fd !== undefined) { fs.closeSync(fd); fs.unlinkSync(file); } }
-}
-const fixture = path.join(scratch, "git-proof");
-fs.mkdirSync(fixture);
-try {
-  git(["init", "--quiet", "--initial-branch=main", fixture]);
-  const identity = ["-c", "user.name=Agent Smith permission probe", "-c", "user.email=agent-smith@example.invalid"];
-  git([...identity, "commit", "--quiet", "--allow-empty", "-m", "chore: initialize permission proof"], fixture);
-  const linked = path.join(fixture, "linked");
-  git(["worktree", "add", "--quiet", "--detach", linked, "HEAD"], fixture);
-  fs.writeFileSync(path.join(linked, "proof.txt"), "child-owned commit proof\\n");
-  git(["add", "--", "proof.txt"], linked);
-  git([...identity, "commit", "--quiet", "-m", "test: prove child commit permissions", "-m", "Co-Authored-By: Agent Smith <agent-smith@example.invalid>"], linked);
-  if (git(["log", "-1", "--format=%s"], linked) !== "test: prove child commit permissions") throw new Error("Commit proof was not retained");
-  if (git(["status", "--porcelain"], linked)) throw new Error("Commit proof left uncommitted changes");
-  process.stdout.write(JSON.stringify({ gitDir, commonDir: common, commit: git(["rev-parse", "HEAD"], linked) }) + "\\n");
-} finally { removeTree(fixture); }
-`;
 
 function configArgs(action) {
   return ["-C", ROOT, ...(action.profile === null ? [] : ["-p", action.profile]),
@@ -252,17 +147,6 @@ async function settledDescendants(threadId, rejectedResult, onSettled) {
   }
 }
 
-function readResult(message) {
-  const lines = message.split(/\r?\n/).filter((line) => /^RESULT:/.test(line));
-  if (!lines.length) refuse("The final assistant message has no RESULT line.");
-  let result;
-  try { result = JSON.parse(lines.at(-1).slice("RESULT:".length).trim()); }
-  catch { refuse("The last RESULT line is invalid JSON."); }
-  if (!isObject(result) || typeof result.status !== "string" || !result.status.trim()) refuse("RESULT must be an object with a status.");
-  if (result.status === "orchestrator-error") result.status = "unknown";
-  return result;
-}
-
 export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } = {}) {
   const envelope = { action: "codex-result", launched: false, completed: false, result: null };
   let lock;
@@ -327,7 +211,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     const policy = loadPolicy(refuse);
     const bad = policyProblems(policy, false);
     if (bad) refuse(bad);
-    validateAction(action, id, chain, policy);
+    const required = validateAction(action, id, chain, policy, "openai");
     const tempRoot = fs.realpathSync(os.tmpdir());
     const relativeTemp = path.relative(fs.realpathSync(ROOT), tempRoot);
     if (relativeTemp === "" || (!relativeTemp.startsWith(".." + path.sep) && relativeTemp !== ".." && !path.isAbsolute(relativeTemp))) {
@@ -335,7 +219,11 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     }
     temp = fs.mkdtempSync(path.join(tempRoot, "agent-smith-codex-"));
     const probe = path.join(temp, "permission-probe.mjs");
-    fs.writeFileSync(probe, PERMISSION_PROBE, { mode: 0o600 });
+    fs.writeFileSync(probe, `import { proveCodexToolkit } from ${JSON.stringify(new URL("./runner-toolkit.mjs", import.meta.url).href)};
+`
+      + `try { await proveCodexToolkit(${JSON.stringify({ skill: required.skill ?? null, openspec: required.openspec, profile: action.profile })}); } catch { process.stdout.write(JSON.stringify({ toolkitUnavailable: true })); process.exit(1); }
+`
+      + PERMISSION_PROBE, { mode: 0o600 });
     let proofText = "";
     let preflightExpired = false;
     const preflightTimer = setTimeout(() => { preflightExpired = true; terminate("SIGTERM"); }, 30000);
@@ -346,6 +234,9 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     } finally { clearTimeout(preflightTimer); }
     if (preflightExpired) refuse("Codex permission preflight timed out. Resolve pending Git hooks, signing or approvals before retrying. No model launched.");
     if (cancelled) refuse(`Execution cancelled by ${cancelled} during permission preflight.`);
+    if (preflight.code !== 0 && proofText.trim() === '{"toolkitUnavailable":true}') {
+      refuse(`Codex cannot verify ${required.skill ?? "the required toolkit"} for ${required.template}${required.openspec ? " and OpenSpec CLI 2.0.0" : ""} inside its sandbox. No model launched.`);
+    }
     if (preflight.error || preflight.streamError || preflight.code !== 0) {
       refuse("Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox support. The native sandbox can force legacy sandbox_mode configuration to read-only, preventing proof of permission parity with exec. Resolve the unavailable or inconsistent preflight before retrying. No model launched.");
     }
@@ -354,7 +245,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     if (!isObject(proof) || !/^[a-f0-9]{40,64}$/.test(proof.commit ?? "")) refuse("Codex permission proof is incomplete.");
     envelope.preflight = proof;
     // Recheck after preflight without releasing the shared lock.
-    validateAction(action, id, chain, policy);
+    validateAction(action, id, chain, policy, "openai");
     const finalFile = path.join(temp, "final.txt");
     const transcript = fs.openSync(path.join(temp, "events.jsonl"), "wx", 0o600);
     let fragments = [];

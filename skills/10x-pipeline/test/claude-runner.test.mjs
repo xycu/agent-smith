@@ -1,0 +1,207 @@
+import test, { after } from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawn, spawnSync } from "node:child_process";
+import { once } from "node:events";
+import {
+  cleanupAll, makeProject, run, writeResult, readLogEntries, writeLog, entry, readMetaFile, writeMetaFile,
+  writePlan, planText, writeReview, readReportFile, gitEnv, gitInit, commitFiles,
+} from "./helpers.mjs";
+import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
+import { waitForFile } from "./codex-helpers.mjs";
+
+after(cleanupAll);
+const runner = fileURLToPath(new URL("../scripts/run-claude.mjs", import.meta.url));
+const peer = fileURLToPath(new URL("fake-claude.mjs", import.meta.url));
+const shell = path => "'" + path.replaceAll("'", "'\\''") + "'";
+
+function fixture(chain = "10x", policy = {}, mode = {}) {
+  const p = chain === "10x" ? makeProject({ policy }) : makeOpenspecProject({ policy });
+  gitInit(p);
+  commitFiles(p, ["README.md"]);
+  const dir = makeProject().root;
+  const tmp = path.join(dir, "tmp");
+  fs.mkdirSync(tmp);
+  fs.writeFileSync(path.join(dir, "claude"), "#!/bin/sh\nexec " + shell(process.execPath) + " " + shell(peer) + ' "$@"\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(dir, "openspec"), '#!/bin/sh\n[ "$1" = "--version" ] && echo 2.0.0\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(dir, "SKILL.md"), "# Fixture skill");
+  const env = { ...gitEnv(p), CLAUDE_FIXTURE_DIR: dir, TMPDIR: tmp, PATH: dir + path.delimiter + process.env.PATH };
+  const call = args => run(p, [...args, "--chain", chain], { env });
+  const action = call(["init", p.id, "--goal", "fix typo", "--host", "codex", "--provider-mode", "claude", "--rigor", "standard"]).json;
+  assert.equal(action.action, "run", JSON.stringify(action));
+  assert.equal(action.provider, "claude");
+  const setMode = value => fs.writeFileSync(path.join(dir, "mode.json"), JSON.stringify({ chain, ...value }));
+  setMode(mode);
+  const execute = (input = action) => {
+    const result = spawnSync(process.execPath, [runner, p.id, "--chain", chain], { cwd: p.root, env,
+      encoding: "utf8", input: JSON.stringify(input), timeout: 15000 });
+    assert.equal(result.error, undefined, result.error?.message);
+    return JSON.parse(result.stdout);
+  };
+  return { p, action, execute, env, call, dir, tmp, setMode };
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const byFile of [false, true]) test(`${chain}: headless Claude exact ${byFile ? "file" : "inline"} action, foreground leaves and unavailable accounting`, () => {
+    const w = fixture(chain, { prompts: { byFile } }, { leaf: true });
+    for (const field of ["root","change","chain","host","model","effort","agent","n","resultFile","prompt","provider"]) {
+      assert.equal(w.execute({ ...w.action, [field]: "wrong" }).launched, false, field);
+    }
+    if (byFile) assert.equal(w.execute({ ...w.action, promptFile: "wrong" }).launched, false);
+    const result = w.execute();
+    assert.equal(result.completed, true, result.reason);
+    assert.equal(result.launched, true);
+    assert.equal(fs.readFileSync(path.join(w.dir, "work.txt"), "utf8"), w.action.prompt);
+    const args = JSON.parse(fs.readFileSync(path.join(w.dir, "args.json")));
+    for (const key of ["model","effort","agent"]) assert.equal(args[args.indexOf("--" + key) + 1], w.action[key]);
+    assert.equal(result.usageEvidence.status, "unavailable");
+    assert.equal(result.usageEvidence.invocation, undefined);
+    assert.equal(result.result.usage.totalTokens, undefined);
+    assert.ok(result.result.usage.durationMs >= 0);
+    assert.deepEqual(fs.readdirSync(w.tmp), []);
+    writeResult(w.p, result.result);
+    w.call(["next", w.p.id]);
+    const status = w.call(["status", w.p.id, "--report"]).json;
+    assert.equal(status.usageCoverage.unavailable, 1);
+    assert.equal(status.tokens.stepsWithFigures, 0);
+    assert.match(readReportFile(w.p), /incomplete-capture/);
+    const pair = w.call(["compare", w.p.id, "--baseline", w.p.root, "--routed", w.p.root, "--unpinned"]).json;
+    assert.equal(pair.routed.usageCoverage.unavailable, 1);
+    assert.doesNotMatch(JSON.stringify(pair), /987654/);
+  });
+
+  test(`${chain}: archive validates exact prompt, agent and target before moving with the original lock`, () => {
+    const w = fixture(chain);
+    const { p } = w;
+    if (chain === "10x") {
+      writePlan(p, planText({ done: 1 }));
+      fs.writeFileSync(path.join(p.changeDir, "change.md"), "---\nchange_id: demo\nstatus: impl_reviewed\ncreated: 2026-01-01\n---\n");
+      writeReview(p, "plan-review", { verdict: "SOUND" });
+      writeReview(p, "impl-review", { verdict: "APPROVED" });
+    } else {
+      writeArtifacts(p, { proposal: true, design: true, specs: 1, tasks: { done: 1 }, verify: "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n" });
+    }
+    writeLog(p, [entry(1, chain === "10x" ? "implement" : "os-apply"), entry(2, chain === "10x" ? "impl-review" : "os-verify")]);
+    writeMetaFile(p, { ...readMetaFile(p), archive: true });
+    const archive = w.call(["next", p.id]).json;
+    assert.equal(archive.action, "archive", JSON.stringify(archive));
+    for (const key of ["agent","prompt","archivePath"]) {
+      const invalid = w.execute({ ...archive, [key]: "other" });
+      assert.equal(invalid.launched, false);
+      assert.match(invalid.reason, new RegExp(key));
+    }
+    const moveTo = path.join(p.root, archive.archivePath);
+    fs.mkdirSync(path.dirname(moveTo), { recursive: true });
+    w.setMode({ skill: chain === "10x" ? "10x-archive" : null, moveFrom: p.changeDir, moveTo });
+    const result = w.execute(archive);
+    assert.equal(result.completed, true, result.reason);
+    assert.match(result.reply, /^RESULT:/);
+    assert.equal(fs.existsSync(p.changeDir), false);
+    assert.deepEqual(fs.readdirSync(w.tmp), []);
+  });
+}
+
+test("incompatible handshake, toolkit, privilege set or changed handoff refuses before work and allows retry", () => {
+  const w = fixture("10x", { prompts: { byFile: true } });
+  for (const mode of [{ missingHandshake: true }, { badHandshake: true }, { foreignAgent: true }, { missingSkill: true }, { disabledHooks: true },
+    { changeHandoff: path.join(w.p.root, w.action.promptFile) }]) {
+    w.setMode(mode);
+    const refused = w.execute();
+    assert.equal(refused.launched, false, JSON.stringify(mode));
+    assert.equal(refused.completed, false);
+    assert.match(refused.reason, /startup imports/i);
+    assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
+    assert.deepEqual(fs.readdirSync(w.tmp), []);
+  }
+  const meta = readMetaFile(w.p);
+  meta.provenance.sections.hookFiles = "different-revision";
+  writeMetaFile(w.p, meta);
+  assert.match(w.execute().reason, /revision differs/);
+});
+
+test("scorer gets its four effective tools and rejects a broader pool, custom mappings or a native advisor", () => {
+  const restricted = { score: { minRigor: "standard" }, agents: { restricted: true } };
+  const w = fixture("10x", restricted, { scorerCall: true });
+  assert.equal(w.action.agent, "agent-smith:score");
+  assert.equal(w.execute().completed, true);
+  w.setMode({ extraTool: true });
+  assert.equal(w.execute().launched, false);
+  for (const policy of [{ agents: { restricted: true, steps: { plan: "custom:step" } } },
+    { advisor: { enabled: true, templates: ["plan"] } }]) {
+    const other = fixture("10x", policy);
+    assert.match(other.execute().reason, /agent mapping or native advisor/);
+    assert.equal(fs.existsSync(path.join(other.dir, "args.json")), false);
+  }
+});
+
+test("executor preflight requires the skill stored with the actual pending template", () => {
+  for (const executor of ["tdd","e2e"]) {
+    const w = fixture();
+    const log = readLogEntries(w.p);
+    const pending = log.at(-1);
+    Object.assign(pending, { step: "implement", template: "implement-" + executor, skill: "10x-" + executor });
+    writeLog(w.p, log);
+    const action = { ...w.action, step: "implement" };
+    const mismatch = w.execute(action);
+    assert.equal(mismatch.launched, false);
+    assert.match(mismatch.reason, new RegExp("10x-" + executor));
+    w.setMode({ skill: pending.skill });
+    const ok = w.execute(action);
+    assert.equal(ok.completed, true, ok.reason);
+  }
+});
+
+test("verified unsuccessful results and settled malformed replies release ownership", () => {
+  for (const status of ["failed","blocked","unknown"]) {
+    const reply = status === "unknown" ? "No enclosing result" : "RESULT: " + JSON.stringify({ status });
+    const w = fixture("10x", {}, { reply });
+    const result = w.execute();
+    assert.equal(result.launched, true);
+    assert.equal(result.completed, status !== "unknown");
+    if (result.completed) assert.equal(result.result.status, status);
+    assert.deepEqual(fs.readdirSync(w.tmp), []);
+  }
+});
+
+test("unmatched lifecycle before work, missing leaf collection and conflicting output retain native ownership", () => {
+  for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { mismatch: true }]) {
+    const w = fixture("10x", {}, mode);
+    const result = w.execute();
+    assert.equal(result.completed, false);
+    assert.equal(result.launched, !mode.earlyLeaf);
+    assert.match(result.reason, /^Execution suspended: native ownership unresolved .*Claude session/);
+    const file = path.join(w.tmp, fs.readdirSync(w.tmp).find(name => name.endsWith(".lock")));
+    const owner = JSON.parse(fs.readFileSync(file));
+    assert.equal(owner.native.host, "claude");
+    assert.match(owner.native.claudeSessionId, /^[a-f\d-]{36}$/);
+    // The preceding reader checks the presence of "native" before PID/group liveness.
+    assert.ok(Object.hasOwn(owner, "native"));
+    fs.writeFileSync(file, JSON.stringify({ ...owner, pid: 2147483000, childPid: 2147483001 }));
+    assert.match(w.call(["next", w.p.id]).json.reason, /native ownership unresolved/);
+    assert.equal(w.execute().launched, false);
+  }
+});
+
+test("cancelling guarded work suspends before intake or relaunch", async () => {
+  const w = fixture("10x", {}, { hold: true });
+  const child = spawn(process.execPath, [runner, w.p.id], { cwd: w.p.root, env: w.env, stdio: ["pipe","pipe","pipe"] });
+  const closed = once(child, "close");
+  let stdout = "";
+  child.stdout.on("data", chunk => stdout += chunk);
+  child.stderr.resume();
+  child.stdin.end(JSON.stringify(w.action));
+  try {
+    await waitForFile(path.join(w.dir, "work.txt"));
+    child.kill("SIGTERM");
+    await closed;
+    const result = JSON.parse(stdout);
+    assert.match(result.reason, /Execution suspended.*cancelled/);
+    assert.equal(result.result, null);
+    assert.match(w.call(["next", w.p.id]).json.reason, /native ownership unresolved/);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+    await closed;
+  }
+});

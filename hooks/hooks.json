@@ -16,6 +16,71 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/10x-pipeline/scripts/claude-hook.mjs"
+            ],
+            "timeout": 5,
+            "async": false,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/10x-pipeline/scripts/claude-hook.mjs"
+            ],
+            "timeout": 5,
+            "async": false,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/10x-pipeline/scripts/claude-hook.mjs"
+            ],
+            "timeout": 5,
+            "async": false,
+            "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/10x-pipeline/scripts/claude-hook.mjs"
+            ],
+            "timeout": 5,
+            "async": false,
+            "onFailure": "block"
+          }
+        ]
+      }
     ]
   }
 }
