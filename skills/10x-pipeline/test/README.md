@@ -29,7 +29,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `preplan.test.mjs` | pre-plan gates and prompt wiring |
-| `loops-existing.test.mjs` | the characterized RETHINK/REVISE loop. Never edit it; the one exception is the two tier literals renumbered by ADR-010's ladder change |
+| `loops-existing.test.mjs` | the characterized RETHINK/REVISE loop. Keep it stable. ADR-010 renumbered two tier literals, and verdict validation changes the partial-implementation RETHINK fixture to expect a halt |
 | `loops.test.mjs` | the new loops and the budget reference paths |
 | `score.test.mjs` | complexity score step (ADR-007): policy data, gate, file validation, failure skip, tier shift, report and status. Turn on with `score: { minRigor: "standard" }` |
 | `advisor.test.mjs` | opt-in advisor (ADR-009): no advisor text by default, its place in the listed prompts, the `advisor` log flag, malformed `advisor` blocks, the prompt file, the provenance link, and the pin that the indexes describe the advisor flag. Turn on with `advisor: { enabled: true }` |

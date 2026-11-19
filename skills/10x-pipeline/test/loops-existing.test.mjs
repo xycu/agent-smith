@@ -1,6 +1,6 @@
 // Characterization of the RETHINK/REVISE loop the router has today.
 // Black-box through the CLI. Every project starts at an explicit `--rigor standard` (one case at `lean`).
-// This file is committed before any router change and is never edited afterwards.
+// Keep the characterization stable. The test index records the tier and verdict exceptions.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -117,13 +117,13 @@ test("existing loop: a failed plan-revise entry counts as a revision", () => {
   assert.match(res.json.reason, /Plan still REVISE after 2 revisions/);
 });
 
-test("existing loop: RETHINK with a checked Automated row does not re-plan", () => {
+test("existing loop: RETHINK halts partial implementation without dispatching a re-plan", () => {
   const plan = planText({ rowsPerPhase: 2, done: 1 });
   const project = reviewed("RETHINK", "2 critical, 0 warnings", { plan });
   const res = init(project, GOAL, ["--rigor", "standard"]);
-  assert.equal(res.json.action, "run");
-  assert.equal(res.json.step, "implement");
-  assert.equal(readLogEntries(project).some((e) => e.template === "plan-revise"), false);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /^Plan review RETHINK blocks remaining implementation work after implementation started\./);
+  assert.deepEqual(stepsOf(project), ["plan", "plan-review"]);
 });
 
 test("existing loop: a second REVISE after a good re-plan returns plan-revise with no research step", () => {

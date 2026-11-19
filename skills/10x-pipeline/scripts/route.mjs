@@ -95,7 +95,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
   // any other case returns here and goes on as before.
   neutralRetry(p, id, meta, log, policy);
-  attachResult(p, log, policy);
+  const justFailedReview = attachResult(p, log, policy);
   cleanupHandoff(p, log);
   // An isolated run commits what a successful step left before risk, rigor and decide read the files.
   stepCommit(p, id, meta, log, policy);
@@ -142,7 +142,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   let d;
   for (;;) {
     // The OpenSpec chain has its own order (ADR-013 D4) and no score, pre-plan, executor or manual-verify step.
-    d = openspec ? decideOpenspec(p, log, policy, meta) : decide(p, log, policy, meta, { level, risk });
+    d = openspec ? decideOpenspec(p, log, policy, meta) : decide(p, log, policy, meta, { level, risk, justFailedReview });
     if (!d.skip) break;
     if (skippedNow.has(d.skip.step)) {
       return end({ action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
@@ -171,6 +171,8 @@ function next(id, policy, chain = "10x", validatedLog = null) {
       : { action: "halt", reason: d.halt, steps: ran.length });
   }
 
+  const reviewDiagnostic = d.reviewFailure ? " " + d.reviewFailure : "";
+
   // The budget halts only a run that still has a step to run; done and decide's own halts win (issue #87).
   if (budgetSteps(log) >= budget) {
     // This halt decides nothing: the skips logged above are dropped, so the resumed run decides them again from the
@@ -179,7 +181,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
       log.length = loggedBefore;
       writeLog(p.log, log);
     }
-    return end({ action: "halt", reason: `Step budget ${budget} spent.` });
+    return end({ action: "halt", reason: `Step budget ${budget} spent.${reviewDiagnostic}` });
   }
 
   // An OpenSpec run has no plan (p.plan is null), so tierFor gets the empty summary: no phase bump, no simple discount.
@@ -188,7 +190,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   const riskClear = riskMeasured(risk) && risk.hits.length === 0;
   const { tier, fails, simple, cheap, tierWhy, scoreShift: shifted } = tierFor(d, ran, policy, plan, meta, level, { summary: scoreSummary(log), riskClear });
   if (fails >= policy.escalation.maxAttemptsPerStep) {
-    return end({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}` });
+    return end({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}${reviewDiagnostic ? "." + reviewDiagnostic : ""}` });
   }
 
   // A continued run must not keep the outcome of an earlier end.
@@ -246,9 +248,9 @@ function next(id, policy, chain = "10x", validatedLog = null) {
       return end({ action: "halt", reason: `Cannot read the start commit of step ${entry.n} (${d.step}) of an isolated run: ${why}. Fix git in the run worktree, then run next again.`, steps: ran.length });
     }
     entry.startSha = startSha;
-    // The file times decide compares, so a rollback can set them back after the reset (0 when a file is absent).
-    entry.before.mtimes = fileTimes(p);
   }
+  // Rollback restores these times. Review verification also uses them to detect an untouched artifact.
+  if (meta.isolated === true || d.step === "plan-review" || d.step === "impl-review") entry.before.mtimes = fileTimes(p);
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
   if (agent) entry.agent = agent; // the selected Claude agent type, retained for exact neutral replay

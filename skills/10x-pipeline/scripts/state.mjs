@@ -329,21 +329,43 @@ function readFindings(text) {
   return findings;
 }
 
+function readReviewVerdict(text) {
+  let header = null;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^[ \t]*(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,})/.test(line)) break;
+    const label = /^ {0,3}(?:[-+*][ \t]+)?\*\*Verdict(?:\*\*:|:\*\*)(.*)$/.exec(line);
+    if (!label) continue;
+    if (header !== null) return null;
+    header = label[1];
+  }
+  if (header === null) return null;
+  let value = header.trim().replace(/^(?:(?:\p{RGI_Emoji}|\p{Extended_Pictographic})\s*)+/v, "");
+  const annotation = /\s+(?:-(?=\s+\S)|\()/.exec(value);
+  if (annotation) {
+    const tail = value.slice(annotation.index).trim().replace(/\.$/, "");
+    if (tail.startsWith("-") || completeParenthetical(tail)) value = value.slice(0, annotation.index);
+  }
+  value = value.replace(/\.$/, "");
+  if (/^\[[^[\]]+\]$/.test(value)) value = value.slice(1, -1).trim();
+  return /\p{L}/u.test(value) ? value.toUpperCase() : null;
+}
+
+function completeParenthetical(text) {
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    if (text[i] === ")" && --depth === 0) return i === text.length - 1;
+  }
+  return false;
+}
+
 export function readReview(file) {
   const res = { exists: false, verdict: null, critical: 0, warnings: 0, findings: [], mtime: 0 };
   if (!fs.existsSync(file)) return res;
   res.exists = true;
   res.mtime = mtime(file);
   const text = fs.readFileSync(file, "utf8");
-  // Header lines read both label forms ("**Verdict**:" and "**Verdict:**") like readFindings. The verdict is the leading
-  // upper-case words after the label (emoji, "[" and text after them ignored), else the first run of letters, upper-cased.
-  const v = text.match(/\*\*Verdict(?:\*\*:|:\*\*)[^A-Za-z\n]*([A-Za-z]+(?: [A-Za-z]+)*)/);
-  if (v) {
-    const words = v[1].split(" ");
-    const lead = [];
-    for (const w of words) { if (w !== w.toUpperCase()) break; lead.push(w); }
-    res.verdict = (lead.length ? lead : words).join(" ").toUpperCase();
-  }
+  res.verdict = readReviewVerdict(text);
   const f = text.match(/\*\*Findings(?:\*\*:|:\*\*)[^\n]*/);
   if (f) {
     res.critical = Number((f[0].match(/(\d+)\s*critical/i) || [0, 0])[1]);
