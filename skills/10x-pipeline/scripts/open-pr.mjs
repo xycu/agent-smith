@@ -11,6 +11,7 @@ import {
   ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
 } from "./pr-common.mjs";
 import { readIsolationPolicy, isolationEnabled, runBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
+import { gitOperationProblem } from "./git-operation.mjs";
 
 const USAGE = "usage: node open-pr.mjs <change-id> [--chain 10x|openspec] [--report <path>] [--remote <name>] [--base <branch>] [--draft] [--timeout-ms <n>]";
 const REMOTE_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
@@ -92,8 +93,8 @@ function parseArgs(argv) {
   return opts;
 }
 
-function runGit(args, timeoutMs = GIT_TIMEOUT_MS, input = undefined) {
-  return spawn("git", args, timeoutMs, { ...process.env, GIT_TERMINAL_PROMPT: "0" }, input);
+function runGit(args, { input, encoding } = {}) {
+  return spawn("git", args, GIT_TIMEOUT_MS, { ...process.env, GIT_TERMINAL_PROMPT: "0" }, input, encoding);
 }
 
 const gitOut = (args) => {
@@ -268,11 +269,13 @@ export function pathsToStage(porcelainZ) {
 function unstage(paths) {
   if (paths.length === 0) return;
   const input = paths.map((p) => `:(top,literal)${p}`).join("\0");
-  runGit(["reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"], GIT_TIMEOUT_MS, input);
+  runGit(["reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"], { input });
 }
 
 // Commits what the worktree holds after the router's last write. On failure it unstages only what its own add staged.
 function commitLeftovers(id) {
+  const operation = gitOperationProblem((args) => runGit(args, { encoding: "buffer" }));
+  if (operation) return { committed: false, error: operation };
   const status = runGit(["status", "--porcelain", "-z", "--untracked-files=all"]);
   if (status.status !== 0) return { committed: false, error: gitError(status, "git status") };
   if (status.stdout === "") return { committed: null };

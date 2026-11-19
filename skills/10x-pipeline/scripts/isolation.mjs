@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { validateRunBranch, validateRunIdentity } from "./run-identity.mjs";
+import { gitOperationProblem } from "./git-operation.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -190,7 +191,6 @@ export function authorityLine(p, policy, template) {
 // ---- archive adapter ------------------------------------------------------
 
 const CREATED_RE = /^\d{4}-\d{2}-\d{2}$/;
-const IN_PROGRESS = ["MERGE_HEAD", "REVERT_HEAD", "CHERRY_PICK_HEAD", "rebase-merge", "rebase-apply"];
 const SKIP_COMMITTED = "skipped: pre-archive commit exists; run not archived";
 const SKIP_FAILED = "skipped: pre-archive commit failed";
 
@@ -239,8 +239,8 @@ export function notWorkTree(inside, timeout, need = "--archive needs") {
 }
 
 // The git safety checks shared by the pre-archive commit, the start and step commits of an isolated run and the
-// rollback, all reads: a work tree, git ignoring a router file (only with `id`), a symbolic HEAD, no merge, rebase,
-// cherry-pick or revert in progress and, unless `emptyIndex` is false, an empty index. Returns null or the reason.
+// rollback, all reads: a work tree, git ignoring a router file (only with `id`), a symbolic HEAD, no unfinished
+// operation or unmerged entries and, unless `emptyIndex` is false, no staged changes. Returns null or the reason.
 // `chain` picks the router files probed with `id` (ignoredProbePaths).
 function gitSafety(g, timeout, { id = null, emptyIndex = true, need, chain = "10x" } = {}) {
   const inside = g(["rev-parse", "--is-inside-work-tree"]);
@@ -250,12 +250,8 @@ function gitSafety(g, timeout, { id = null, emptyIndex = true, need, chain = "10
     if (ignoredProbes.length) return `git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`;
   }
   if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) return "HEAD is detached; check out a branch first.";
-  for (const name of IN_PROGRESS) {
-    const where = g(["rev-parse", "--git-path", name]);
-    if (where.status === 0 && fs.existsSync(path.resolve(ROOT, where.stdout.trim()))) {
-      return `A merge, rebase, cherry-pick or revert is in progress (${name} exists); finish or abort it first.`;
-    }
-  }
+  const operation = gitOperationProblem((args) => runGit(args, { timeout, encoding: "buffer" }));
+  if (operation) return operation;
   if (emptyIndex) {
     const staged = g(["diff", "--cached", "--quiet"]);
     if (staged.status === 1) {

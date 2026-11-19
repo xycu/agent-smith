@@ -39,6 +39,11 @@ function tmpDir(prefix) {
 const GIT_SHIM = (real) => `#!/bin/sh
 printf '%s\\037' "$@" >> "$GIT_LOG"
 printf '\\n' >> "$GIT_LOG"
+if [ "$*" = "$GIT_FAIL_PROBE" ]; then exit 1; fi
+if [ -n "$GIT_PROBE_ROOT" ] && [ "$*" = "rev-parse --path-format=absolute --git-path MERGE_HEAD" ]; then
+  printf '%s/metadata-\\377/MERGE_HEAD\\n' "$GIT_PROBE_ROOT"
+  exit 0
+fi
 exec "${real}" "$@"
 `;
 
@@ -158,7 +163,7 @@ function setAnswers(w, answers) {
   }
 }
 
-function runScript(w, args = [w.id], { cwd = w.root, onlyBin = false } = {}) {
+function runScript(w, args = [w.id], { cwd = w.root, onlyBin = false, env = {} } = {}) {
   const res = spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd,
     encoding: "utf8",
@@ -167,6 +172,7 @@ function runScript(w, args = [w.id], { cwd = w.root, onlyBin = false } = {}) {
       PATH: onlyBin ? w.bin : `${w.bin}${path.delimiter}${process.env.PATH}`,
       GIT_LOG: w.gitLog,
       FAKE_GH_DIR: w.fake,
+      ...env,
     },
   });
   let json = null;
@@ -395,7 +401,14 @@ test("main checkout, detached HEAD, wrong branch prefix and no git skip before a
 
   const detached = world();
   g(detached, detached.wt, ["checkout", "-q", "--detach"]);
-  assert.match(runScript(detached).json.reason, /^run is not isolated: HEAD is detached$/);
+  writeOperationFile(detached, "rebase-merge/head-name", `refs/heads/${detached.branch}\n`);
+  const detachedResult = refuseWithoutWrites(detached);
+  assert.match(detachedResult.reason, /^run is not isolated: HEAD is detached$/);
+  assert.equal(detachedResult.committed, null);
+  assert.equal(detachedResult.commit, null);
+  assert.equal(detachedResult.commitError, null);
+  assert.equal(detachedResult.swept, null);
+  assert.ok(gitCalls(detached).every((args) => !args.includes("--git-path") && !args.includes("--unmerged")));
 
   const other = world();
   assert.match(runScript(other, ["other"]).json.reason, /^run is not isolated: HEAD is on agent-smith\/demo, not agent-smith\/other$/);
@@ -460,6 +473,106 @@ test("leftover edits are committed once as the final run state and pushed", { sk
   assert.equal(none.committed, null);
   assert.equal(none.swept, null);
   assert.equal(g(w, w.wt, ["log", "--format=%s"]).split("\n").filter((s) => s === "chore(demo): final run state").length, 1);
+});
+
+function gitPath(w, name) {
+  return g(w, w.wt, ["rev-parse", "--path-format=absolute", "--git-path", name]);
+}
+
+function writeOperationFile(w, name, content) {
+  const file = gitPath(w, name);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, content);
+}
+
+function unsafePublicationSnapshot(w) {
+  const read = (file) => fs.existsSync(file) ? fs.readFileSync(file) : null;
+  const markers = ["MERGE_HEAD", "MERGE_MODE", "MERGE_MSG", "AUTO_MERGE", "REVERT_HEAD", "CHERRY_PICK_HEAD",
+    "rebase-merge/head-name", "rebase-apply/head-name", "sequencer/todo"];
+  return {
+    head: head(w),
+    index: fs.readFileSync(gitPath(w, "index")),
+    file: fs.readFileSync(path.join(w.wt, "README.md")),
+    operations: markers.map((name) => read(gitPath(w, name))),
+  };
+}
+
+function assertGuardedPublication(w, diagnostic, env) {
+  const before = unsafePublicationSnapshot(w);
+  const res = runScript(w, [w.id], { env });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.committed, false, res.stdout);
+  assert.equal(res.json.commit, null);
+  assert.equal(res.json.swept, null);
+  assert.match(res.json.commitError, diagnostic);
+  assert.deepEqual(unsafePublicationSnapshot(w), before);
+  assert.equal(res.json.pushed, true, res.stdout);
+  assert.equal(remoteRef(w), before.head);
+  assert.equal(res.json.pr.action, "created");
+  assert.deepEqual(ghCalls(w).map((args) => args.slice(0, 2)), [["pr", "list"], ["pr", "create"]]);
+  const ref = `refs/heads/${w.branch}`;
+  assert.deepEqual(writeCalls(w), [["push", "origin", `${ref}:${ref}`]]);
+  assert.ok(gitCalls(w).every((args) => args[0] !== "status"));
+}
+
+for (const [operation, marker] of [
+  ["merge", "MERGE_HEAD"], ["cherry-pick", "CHERRY_PICK_HEAD"], ["revert", "REVERT_HEAD"], ["stash", null],
+]) {
+  test(`an unfinished ${operation} preserves the conflict and publishes only existing commits`, { skip }, () => {
+    const w = world({ nest: marker === null ? "apps/widget" : null });
+    let args;
+    if (marker === null) {
+      fs.writeFileSync(path.join(w.wt, "README.md"), "stashed changes\n");
+      g(w, w.wt, ["stash", "push", "--", "README.md"]);
+      args = ["stash", "apply"];
+    } else {
+      commitFile(w, w.repo, "README.md", "upstream changes\n", "fix: upstream edit");
+      args = [operation, ...(operation === "revert" ? ["--no-edit"] : []), g(w, w.repo, ["rev-parse", "HEAD"])];
+    }
+    commitFile(w, w.wt, "README.md", "run changes\n", "fix: run edit");
+    const failed = spawnSync(REAL_GIT, args, { cwd: w.wt, encoding: "utf8", env: envFor(w) });
+    assert.equal(failed.status, 1, failed.stdout + failed.stderr);
+    assert.match(g(w, w.wt, ["ls-files", "--unmerged"]), /README\.md/);
+    if (marker !== null) assert.ok(fs.existsSync(gitPath(w, marker)));
+    assertGuardedPublication(w, marker === null ? /index holds unmerged entries/ : new RegExp(marker),
+      marker === null ? { GIT_LITERAL_PATHSPECS: "1" } : {});
+    assert.equal(g(w, w.wt, ["--git-dir", w.bare, "show", `refs/heads/${w.branch}:README.md`]), "run changes");
+  });
+}
+
+for (const [marker, file] of [
+  ["MERGE_HEAD", "MERGE_HEAD"], ["rebase-merge", "rebase-merge/head-name"],
+  ["rebase-apply", "rebase-apply/head-name"], ["sequencer", "sequencer/todo"],
+]) {
+  test(`${marker} blocks the leftover check even with a resolved or clean index`, { skip }, () => {
+    const w = world();
+    writeOperationFile(w, file, `${head(w)}\n`);
+    if (marker === "MERGE_HEAD") {
+      fs.writeFileSync(path.join(w.wt, "README.md"), "resolved work\n");
+      g(w, w.wt, ["add", "README.md"]);
+    }
+    assert.equal(g(w, w.wt, ["ls-files", "--unmerged"]), "");
+    assertGuardedPublication(w, new RegExp(marker));
+    assert.ok(gitCalls(w).every((args) => !args.includes("--unmerged")));
+  });
+}
+
+for (const [probe, diagnostic] of [
+  ["rev-parse --path-format=absolute --git-path MERGE_HEAD", /Cannot verify MERGE_HEAD with git rev-parse/],
+  ["--no-literal-pathspecs ls-files --unmerged -z -- :/", /Cannot verify the index with git ls-files --unmerged/],
+]) {
+  test(`failure of ${probe} preserves local state and publishes existing commits`, { skip }, () => {
+    const w = world();
+    fs.writeFileSync(path.join(w.wt, "README.md"), "unstaged changes\n");
+    assertGuardedPublication(w, diagnostic, { GIT_FAIL_PROBE: probe });
+  });
+}
+
+test("a successful Git probe with an unusable marker path blocks the leftover commit", { skip }, () => {
+  const w = world();
+  fs.mkdirSync(path.join(w.base, "metadata-\uFFFD"));
+  fs.writeFileSync(path.join(w.wt, "README.md"), "unstaged changes\n");
+  assertGuardedPublication(w, /Cannot inspect MERGE_HEAD/, { GIT_PROBE_ROOT: w.base });
 });
 
 test("swept names the code a leftover commit holds outside the change folder", { skip }, () => {
@@ -685,7 +798,7 @@ test("usage errors exit 2 with no JSON on stdout", { skip }, () => {
 // ---- guards -----------------------------------------------------------------------------
 
 test("guard: the router modules spawn no gh and make no git push (ADR-017)", () => {
-  for (const file of ["route.mjs", "state.mjs", "preplan.mjs", "steps.mjs", "../../openspec-pipeline/scripts/openspec.mjs", "flow.mjs", "isolation.mjs"]) {
+  for (const file of ["route.mjs", "state.mjs", "preplan.mjs", "steps.mjs", "../../openspec-pipeline/scripts/openspec.mjs", "flow.mjs", "isolation.mjs", "git-operation.mjs"]) {
     const source = fs.readFileSync(path.join(SCRIPTS, file), "utf8");
     assert.equal(/["'`]gh["'`]/.test(source), false, `${file} must not call gh`);
     assert.equal(/["'`]push["'`]/.test(source), false, `${file} must not call git push`);

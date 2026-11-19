@@ -38,7 +38,7 @@ A run in progress gets no report. A refused call leaves the change folder byte-i
 
 **GIVEN** the run ended in `done`, started with `--archive`, and its folder is committed for the archive **WHEN** a figure is attached **THEN** the router **MUST** commit the change folder again before it answers.
 
-The command checks first, before the first write: a non-blank `archive.usageMessage`, the git safety checks of the archive commit (nothing staged, a symbolic HEAD, no merge, rebase, cherry-pick or revert in progress), the run branch of an isolated run and a clean change folder. It then writes the log and the report and commits the folder as `chore(<id>): add late usage figure of step <n>` (`archive.usageMessage`), with the folder-only checks of the archive commit. This is its only git write. Hooks and signing apply, nothing is pushed, and no `--no-verify` is used. The commit adds one record to the git writes listed next to ADR-010 in `AGENTS.md`.
+Before the first write, the command checks for a non-blank `archive.usageMessage`, the run branch of an isolated run, a clean change folder and the Git safety checks of the archive commit. Those checks require an attached HEAD, successful operation and index probes and a clean index. It then writes the log and the report and commits the folder as `chore(<id>): add late usage figure of step <n>` (`archive.usageMessage`), with the folder-only checks of the archive commit. This is its only git write. Hooks and signing apply. The commit adds one record to the git writes listed next to ADR-010 in `AGENTS.md`.
 
 **GIVEN** the commit does not exist after a failure **WHEN** the command answers **THEN** it **MUST** put the old bytes of `run.jsonl` and `report.md` back, so the change folder is as committed.
 
@@ -52,7 +52,7 @@ Both skills call the command first in the `done` and `halt` branches, before `st
 
 ### Rollback (D6)
 
-The rollback of an isolated run and its undo on halt write the in-memory log back. A figure attached before `next` therefore survives both. The command itself makes no commit in a run outside the archive state: the next step commit, or the leftover commit of the pull request step for an ended run, holds the figure.
+The rollback of an isolated run and its undo on halt write the in-memory log back. A figure attached before `next` therefore survives both. Outside the archive state, the next step commit or a successful leftover commit of the pull request step records the figure. If the publication guard skips the leftover commit, late usage remains in the uncommitted run artifacts in the worktree. See ADR-017 for recovery and publication behavior.
 
 ## Assumptions
 

@@ -837,7 +837,7 @@ export const SHA_RE = /^[0-9a-f]{40,64}$/;
 export function runGit(args, opts = {}) {
   try {
     const stdout = execFileSync("git", ["-c", "core.quotePath=false", ...args], {
-      cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
+      cwd: ROOT, encoding: opts.encoding ?? "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
       ...(Number.isInteger(opts.timeout) && opts.timeout > 0 ? { timeout: opts.timeout } : {}),
     });
     return { status: 0, stdout, stderr: "", timedOut: false };

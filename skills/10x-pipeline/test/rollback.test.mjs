@@ -163,6 +163,32 @@ test("4.1 a failed step that left a staged file is snapshotted with it", { skip 
   gw(wt, ["diff", "--cached", "--quiet"]);
 });
 
+test("rollback refuses markerless unmerged entries before creating a snapshot", { skip }, () => {
+  const { wt } = freshRun();
+  const file = path.join(wt.top, "conflict.txt");
+  const content = "conflicting version\n";
+  fs.writeFileSync(file, content);
+  const ours = gw(wt, ["rev-parse", `HEAD:${CHANGE}/change.md`]);
+  const theirs = gw(wt, ["hash-object", "-w", file]);
+  const conflict = spawnSync("git", ["update-index", "--index-info"], {
+    cwd: wt.top, env: gitEnv(wt), encoding: "utf8",
+    input: `100644 ${ours} 2\tconflict.txt\n100644 ${theirs} 3\tconflict.txt\n`,
+  });
+  assert.equal(conflict.status, 0, conflict.stderr);
+  const index = gw(wt, ["rev-parse", "--path-format=absolute", "--git-path", "index"]);
+  const before = fs.readFileSync(index);
+  const start = head(wt);
+  const refs = gw(wt, ["for-each-ref", "refs/agent-smith/"]);
+  writeResult(wt, { status: "failed", note: "left an unmerged index" });
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "halt", res.stdout);
+  assert.match(res.json.reason, /Rollback of step 1 \(plan\): The index holds unmerged entries/);
+  assert.deepEqual(fs.readFileSync(index), before);
+  assert.equal(head(wt), start);
+  assert.equal(fs.readFileSync(file, "utf8"), content);
+  assert.equal(gw(wt, ["for-each-ref", "refs/agent-smith/"]), refs);
+});
+
 test("rollback retry retains an interrupted index snapshot in the recovery ancestry", { skip }, () => {
   const { wt } = freshRun();
   fs.writeFileSync(path.join(wt.top, "staged.txt"), "original staged bytes\n");
