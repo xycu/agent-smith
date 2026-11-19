@@ -42,14 +42,14 @@ The owner wants to start an authorized workflow and let it finish without repeat
 
 The north star is the first complete user flow that provides direct evidence the milestone's intended behavior works.
 
-**S-12: First unattended plan-based delivery** remains the first full end-to-end outcome: a Claude-only run reaching a reviewable pull request. Under MS-02, **S-14: Pipeline steps can delegate to child subagents** is delivered first as the only change in Wave 0. S-14 establishes focused delegation proof; S-12 then exercises the complete delivery flow and fresh-host guard delivery.
+**S-12: First unattended plan-based delivery** requires a fresh Claude-only run reaching a reviewable pull request. S-14 delivered the delegation implementation. The first S-12 attempt left all three Manual delivery checks open. The owner decision on PR #214 blocks delivery. [Wave decision](../changes/WAVES.md#decision-track)
 
 ## At a glance
 
 | ID | Change ID | Outcome (user can …) | Prerequisites | PRD refs | Status |
 | --- | --- | --- | --- | --- | --- |
 | S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | done |
-| S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | ready |
+| S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | blocked |
 | S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | done |
 | S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-12, S-13, S-14 | US-04, FR-013 | proposed |
 | S-16 | resumable-unattended-runs | user can resume an interrupted run with preserved work, consistent progress and results matched to the correct invocation. | S-15 | US-05, FR-008, FR-014 | proposed |
@@ -97,13 +97,13 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 - **Change ID:** first-unattended-delivery
 - **PRD refs:** US-03, FR-001, FR-003, FR-007, FR-011, FR-012
 - **Prerequisites:** S-14
-- **Parallel with:** — in WAVES v2; scheduled alone in Wave 3.
-- **Blockers:** Authenticated host/model access, project trust and review-remote credentials are needed for live execution. Owner readiness is checked early in this slice.
+- **Schedule:** Wave 3 of WAVES v3 reserves a fresh headless Claude-only run on the Wave 2 release, alongside state and setup fixes. [Wave 3](../changes/WAVES.md#wave-3)
+- **Blockers:** The run on PR #214 archived the change with zero of Manual rows 3.1–3.3 proved. The owner must choose proof on the Wave 2 release or explicitly defer those rows to S-20. The proof requires authenticated host/model access, project trust and review-remote credentials. [PR #214](https://github.com/xycu/agent-smith/pull/214) · [Owner decision track](../changes/WAVES.md#decision-track)
 - **Unknowns:**
   - Which eligible change and exact host configuration provide the first representative run? — Owner: maintainer with the user. Block: no, select during planning.
   - Which fresh-session discovery or guard-delivery problems appear on the normal path? — Owner: maintainer. Block: no, establish through the first live proof.
 - **Risk:** Fresh-host setup can invalidate a normal workflow despite passing automated contracts, so this flow exposes that dependency first.
-- **Status:** ready
+- **Status:** blocked
 
 ### S-13: Complete the specification-based workflow on OpenSpec 2.0.0
 
@@ -212,7 +212,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 - **Outcome:** user can inspect exact tested-version support backed by all 18 normal runs across the six agreed configurations and their recovery and owner-decision evidence.
 - **Change ID:** supported-host-acceptance
 - **PRD refs:** US-03, FR-012, FR-016
-- **Prerequisites:** S-17, S-19
+- **Prerequisites:** S-17, S-19. WAVES v3 schedules S-20 in Wave 11 on the combined candidate. Each of six host/provider and chain configurations needs three successful normal runs covering both interactive and headless launches, plus interruption/resume and owner-decision evidence. [Wave map](../changes/WAVES.md#wave-map) · [Acceptance scope](prd.md#agreed-reliability-acceptance-scope)
 - **Parallel with:** —
 - **Blockers:** All agreed host/model accounts, trusted acceptance projects, review remotes and owner-required decisions must be available for live execution.
 - **Unknowns:**
@@ -227,16 +227,16 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 | Roadmap ID | Change ID | Suggested issue title | Ready for `/10x-plan` | Notes |
 | --- | --- | --- | --- | --- |
 | S-14 | nested-step-delegation | Pipeline steps can delegate to child subagents | yes | MS-01/MS-02: the only Wave 0 change. Establish its focused flat/delegated baseline and host proof inside the change. |
-| S-12 | first-unattended-delivery | First unattended plan-based delivery | yes | First full delivery after S-14. Extend Wave 0's evidence convention to the complete flow. |
+| S-12 | first-unattended-delivery | First unattended plan-based delivery | yes | Planning can proceed. Delivery awaits the owner’s decision on the three open proof rows on PR #214. [Decision track](../changes/WAVES.md#decision-track) |
 | S-13 | openspec-2-upgrade | Complete the specification-based workflow on OpenSpec 2.0.0 | yes | Separate agreed upgrade, scheduled after Wave 0 and the audit fixes, before S-12. |
 | S-15 | actionable-run-prerequisites | Actionable prerequisite and permission failures | no | Uses the upgraded specification workflow and child-delegation capability as concrete setup cases. |
 | S-16 | resumable-unattended-runs | Resume an interrupted unattended run | no | Reuses the delivered recovery implementation and existing regression evidence. |
 | S-17 | reviewable-run-handoff | Reviewable completion, archive and report handoff | no | Covers the owner's default-workflow, archive and requested-comment acceptance scope. |
 | S-18 | verified-step-protection | Effective step protection in the supported environment | no | Verifies effective provider-specific protection, including child delegation. |
 | S-19 | truthful-owner-decision-halts | Truthful verification and owner-decision halts | no | Includes accepted alternative proof when browser tools are unavailable and clear headless halt guidance. |
-| S-20 | supported-host-acceptance | Recorded support across all agreed configurations | no | Three normal completions per combination. Include child-delegation capability evidence and retain attempts, failures, interventions and coverage. |
+| S-20 | supported-host-acceptance | Recorded support across all agreed configurations | no | Qualify the combined candidate after S-17 and S-19. Carry the deferred S-13/S-14 checks into the 18 normal runs, with recovery and owner decisions for each configuration. [Milestone completion](../changes/WAVES.md#milestone-completion) |
 
-Readiness here means per-change planning can proceed. The owner-controlled access listed under Blockers must be available for the corresponding live execution. S-14 probes access needed for its focused delegation proof first; S-12 later exercises complete-flow readiness. Existing implementations and contract evidence are reused while each slice resolves its observed live gaps.
+Readiness here means per-change planning can proceed. The owner-controlled access listed under Blockers must be available for the corresponding live execution. S-12 remains ready for planning while its delivery evidence awaits the owner’s decision. Existing implementations and contract evidence are reused while each slice resolves its observed live gaps.
 
 ## Open Roadmap Questions
 

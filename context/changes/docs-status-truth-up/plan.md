@@ -223,7 +223,7 @@ For the Wave 1 handoff, the maintainer takes in current `main` with a merge comm
 
 #### Automated
 
-- [x] 2.1 Check the ADR inventory in Testing Strategy for current status lines and one top-level Rule in force summary per qualifying record.
+- [x] 2.1 Check the ADR inventory in Testing Strategy for current status lines and one top-level Rule in force summary per qualifying record. — c667bd7a
 
 #### Manual
 
@@ -233,9 +233,9 @@ For the Wave 1 handoff, the maintainer takes in current `main` with a merge comm
 
 #### Automated
 
-- [ ] 3.1 Verify matching S-12 and S-20 table and body statuses and the separate archive-decision change with the checks in Testing Strategy.
-- [ ] 3.2 Run the complete Node 24+ suite from the worktree and record its pass, fail and skip counts.
-- [ ] 3.3 Rerun the local link check after the final edits and run `git diff --check`.
+- [x] 3.1 Verify matching S-12 and S-20 table and body statuses and the separate archive-decision change with the checks in Testing Strategy.
+- [x] 3.2 Run the complete Node 24+ suite from the worktree and record its pass, fail and skip counts.
+- [x] 3.3 Rerun the local link check after the final edits and run `git diff --check`.
 
 #### Manual
 

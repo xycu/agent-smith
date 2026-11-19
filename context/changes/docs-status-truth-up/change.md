@@ -52,3 +52,19 @@ The targets now live under `context/archive/2026-11-12-nested-subagent-hard-stop
 - The roadmap states of S-12 and S-20 match the code.
 - The decision about unchecked rows in archived plans is recorded, with a change id if one was opened.
 - The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+
+## Archive decision, 2026-11-19
+
+The audit of 92 archived 10x plans found 35 with open rows. All 58 open rows were Manual. Preserve the historical checkboxes, their evidence and their commit references. [Audit](plan.md#current-state-analysis)
+
+Keep the existing 10x gates. When `autoPending` is positive, the router sends recognized unfinished Automated work to implementation before archive. Malformed or empty fresh Progress has its own change. The optional `archive.haltOnManualPending` precheck can stop archive earlier. Once the router offers archive, the orchestrator requires explicit approval if any of `manualPending`, `manualUnproven` or `uncommittedTicks` contains entries. After the move, `verify-archive` reads the filesystem to confirm the move and archived status stamp. [Routing](../../../skills/10x-pipeline/scripts/flow.mjs) · [Malformed Progress](../plan-zero-rows-skips-implement/change.md) · [Precheck](../../../skills/10x-pipeline/scripts/isolation.mjs) · [Manual gate](../../../skills/10x-pipeline/SKILL.md) · [Move verification](../../../skills/10x-pipeline/scripts/route.mjs)
+
+OpenSpec gates archive on task completion and verifies the move from files. Its archive summary has empty Manual lists, so the mirrored Manual prompt stays dormant. S-13 shows how an owner recorded a live-qualification deferral separately from task completion. S-14 recorded the outstanding row IDs and their destination at closeout. [Task precheck](../../../skills/10x-pipeline/scripts/isolation.mjs) · [File-only verification](../../../skills/10x-pipeline/scripts/route.mjs) · [OpenSpec archive instructions](../../../skills/openspec-pipeline/SKILL.md) · [S-13 decision](../../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision) · [S-14 closeout](../../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
+
+Open a documentation follow-up to record affirmative exceptions before future 10x archive moves. S-19 owns owner-decision halts. [`record-archive-manual-decision`](../record-archive-manual-decision/change.md) · [S-19](../../foundation/roadmap.md#s-19-truthful-verification-and-owner-decision-halts)
+
+## Implementation verification, 2026-11-19
+
+The implementation started at `7e9738b7`. The rendered README and documentation check reproduced six missing targets before implementation and found zero after the repairs. The ADR inventory and the roadmap and follow-up assertions passed. The final check of newly cited files and section anchors resolved all 144 local references in the changed prose.
+
+Each phase passed the complete suite on Node 24.19.0 with OpenSpec 2.0.0. The final run exited 0 with 1,920 passed, zero failed and three skipped. Two live GitHub tests require `GH_LIVE=1` and an authenticated client. This run used `GH_LIVE=0`. The optional import check skipped because the repository has no root `CLAUDE.md`. Manual rows 2.2 and 3.4 remain open.
