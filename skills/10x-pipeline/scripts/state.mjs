@@ -330,9 +330,19 @@ function readFindings(text) {
 }
 
 function readReviewVerdict(text) {
+  const lines = text.split(/\r?\n/);
   let header = null;
-  for (const line of text.split(/\r?\n/)) {
-    if (/^[ \t]*(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,})/.test(line)) break;
+  let inComment = false;
+  for (const [i, line] of lines.entries()) {
+    const skip = inComment || line.trimStart().startsWith("<!--");
+    const commentOpen = line.lastIndexOf("<!--");
+    const commentClose = line.lastIndexOf("-->");
+    if (commentOpen >= 0 || commentClose >= 0) inComment = commentOpen > commentClose;
+    if (skip) continue;
+    if (/^[ \t]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,})/.test(line)) break;
+    // A hyphen underline turns the preceding paragraph into an H2, even if it looks like a verdict line.
+    if (/^ {0,3}-+[ \t]*$/.test(lines[i + 1] ?? "") && /^ {0,3}\S/.test(line)
+      && !/^ {0,3}(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)|(?:[-*_][ \t]*){3,}$)/.test(line)) break;
     const label = /^ {0,3}(?:[-+*][ \t]+)?\*\*Verdict(?:\*\*:|:\*\*)(.*)$/.exec(line);
     if (!label) continue;
     if (header !== null) return null;
@@ -340,10 +350,10 @@ function readReviewVerdict(text) {
   }
   if (header === null) return null;
   let value = header.trim().replace(/^(?:(?:\p{RGI_Emoji}|\p{Extended_Pictographic})\s*)+/v, "");
-  const annotation = /\s+(?:-(?=\s+\S)|\()/.exec(value);
+  const annotation = /\s(?:-(?=\s+\S)|\()/.exec(value);
   if (annotation) {
     const tail = value.slice(annotation.index).trim().replace(/\.$/, "");
-    if (tail.startsWith("-") || completeParenthetical(tail)) value = value.slice(0, annotation.index);
+    if (tail.startsWith("-") || completeParenthetical(tail)) value = value.slice(0, annotation.index).trimEnd();
   }
   value = value.replace(/\.$/, "");
   if (/^\[[^[\]]+\]$/.test(value)) value = value.slice(1, -1).trim();

@@ -814,7 +814,10 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
       const confirmation = run(wt, ["next", "demo"], { env });
       assert.equal(lastEntry(wt).template, "plan-review-confirm", confirmation.stdout);
       const invalidText = reviewText({ verdict: "NEEDS REVISION" });
-      if (edited) writeReviewFile(wt, "plan-review", invalidText);
+      if (edited) {
+        writeReviewFile(wt, "plan-review", invalidText);
+        writePlan(wt, "# Plan without Progress\n");
+      }
       writeResult(wt, { status: "done", note: "confirmed" });
 
       const result = run(wt, ["next", "demo"], { env });
@@ -1316,6 +1319,10 @@ describe("verdict validation before advancing", () => {
     ["a plain Markdown heading", "## Verdict: REJECTED"],
     ["body prose with a quoted label", "## Findings\nThe example **Verdict**: REJECTED illustrates a possible outcome."],
     ["a code fence", "```md\n**Verdict**: REJECTED\n```"],
+    ["a code fence in a list item", "- ```md\n  **Verdict**: APPROVED\n  ```"],
+    ["a Setext level-two heading", "Findings\n--------\n**Verdict**: APPROVED"],
+    ["a verdict formatted as a Setext heading", "**Verdict**: APPROVED\n--------"],
+    ["an HTML comment", "<!--\n**Verdict**: APPROVED\n-->"],
     ["a quoted label", "> **Verdict**: REJECTED"],
     ["duplicate labels", "**Verdict**: APPROVED\n- **Verdict:** REJECTED"],
   ];
@@ -1364,6 +1371,38 @@ describe("verdict validation before advancing", () => {
       assert.equal(status.json.steps.find((e) => e.n === failed.n).invalid, failed.invalid);
     });
   }
+
+  test("an implementation confirmation failure blocks implementation scheduling until corrected", () => {
+    const { project, res } = confirmImpl(APPLIED_IMPL);
+    assert.equal(lastEntry(project).template, "impl-review-confirm", res.stdout);
+    writePlan(project, planText());
+    writeReviewFile(project, "impl-review", reviewText({ verdict: "CHANGES REQUESTED" }));
+    writeResult(project, { status: "done", note: "confirmed" });
+
+    for (const outcome of [next(project), init(project, GOAL, ["--rigor", "standard"])]) {
+      assert.equal(outcome.json.action, "halt", outcome.stdout);
+      assert.match(outcome.json.reason, /Unknown review verdict "CHANGES REQUESTED"/);
+    }
+    assert.equal(lastEntry(project).ok, false);
+
+    writeReviewFile(project, "impl-review", reviewText({ verdict: "APPROVED" }));
+    assert.equal(next(project).json.step, "implement");
+  });
+
+  test("an ordinary implementation review retry keeps the bump for prior code failures", () => {
+    const project = makeProject({ plan: planText({ done: 1 }) });
+    writeReview(project, "plan-review", { verdict: "SOUND" });
+    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", FAILED), entry(4, "implement")]);
+    const first = init(project, GOAL, ["--rigor", "standard"]);
+    assert.equal(first.json.step, "impl-review", first.stdout);
+    assert.match(lastEntry(project).tierWhy, /\+1 from results/);
+
+    writeReviewFile(project, "impl-review", reviewText({ verdict: "CHANGES REQUESTED" }));
+    writeResult(project, { status: "done", note: "fixture" });
+    const retry = next(project);
+    assert.equal(retry.json.step, "impl-review", retry.stdout);
+    assert.match(lastEntry(project).tierWhy, /\+1 from results/);
+  });
 
   const singleAttempt = { escalation: { maxAttemptsPerStep: 1 } };
 

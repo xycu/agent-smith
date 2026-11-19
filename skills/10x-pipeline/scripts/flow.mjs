@@ -714,9 +714,19 @@ function reviewRecovery(step, file, read, log, sourceAt, justFailed) {
   if (problem === null) return { recovered: true };
   const reason = problem === attempt.invalid ? problem : `${attempt.invalid} Current artifact: ${problem}`;
   return {
-    next: attempt.template === `${step}-confirm`
-      ? { halt: reason }
-      : { step, bump: 0, reason, reviewFailure: reason },
+    problem: reason,
+    confirmation: attempt.template === `${step}-confirm`,
+  };
+}
+
+function implReviewNext(log, plan, policy, reviewFailure) {
+  const struggled = log.some((e) => e.step === "fix" || (e.step === "implement" && !e.ok && !e.fallback));
+  return {
+    step: "impl-review",
+    ...reviewWarning(log, plan, policy),
+    bump: struggled ? policy.escalation.hardChangeReviewerBump : 0,
+    reason: reviewFailure ?? (struggled ? "implementation needed retries or fixes" : "implementation complete"),
+    ...(reviewFailure ? { reviewFailure } : {}),
   };
 }
 
@@ -732,6 +742,19 @@ export function decide(p, fullLog, policy, meta, ctx) {
   if (!fs.existsSync(path.join(p.change, "change.md"))) {
     return { halt: `No change folder. Run /10x-new ${meta.id} first.` };
   }
+
+  // A review can also have edited Progress. Resolve outstanding failures before scheduling from those edits.
+  const lp = lastIdx(log, ["plan"]);
+  const lcode = lastIdx(log, ["implement", "fix"]);
+  const planRecovery = reviewRecovery("plan-review", p.planReview, pr, log, lp, ctx.justFailedReview);
+  const implRecovery = reviewRecovery("impl-review", p.implReview, ir, log, lcode, ctx.justFailedReview);
+  if (planRecovery?.confirmation) return { halt: planRecovery.problem };
+  if (implRecovery?.confirmation) return { halt: implRecovery.problem };
+  if (planRecovery?.problem) {
+    return { step: "plan-review", bump: 0, reason: planRecovery.problem, reviewFailure: planRecovery.problem };
+  }
+  if (implRecovery?.problem) return implReviewNext(log, plan, policy, implRecovery.problem);
+
   if (!plan.exists || !plan.hasProgress) {
     const pre = preplanNext(p, fullLog, policy, meta, ctx);
     if (pre) return pre;
@@ -752,9 +775,6 @@ export function decide(p, fullLog, policy, meta, ctx) {
   const workStarted = codeRan || plan.autoDone > 0;
 
   // Plan review is fresh if it ran after the last successful plan step.
-  const lp = lastIdx(log, ["plan"]);
-  const planRecovery = reviewRecovery("plan-review", p.planReview, pr, log, lp, ctx.justFailedReview);
-  if (planRecovery?.next) return planRecovery.next;
   const lpr = lastIdx(log, ["plan-review"]);
   const prFresh = planRecovery?.recovered || (lp >= 0 || lpr >= 0
     ? pr.exists && lpr > lp
@@ -836,9 +856,6 @@ export function decide(p, fullLog, policy, meta, ctx) {
   }
 
   // All automated rows done. Review is stale if code moved after the last review.
-  const lcode = lastIdx(log, ["implement", "fix"]);
-  const implRecovery = reviewRecovery("impl-review", p.implReview, ir, log, lcode, ctx.justFailedReview);
-  if (implRecovery?.next) return implRecovery.next;
   const lir = lastIdx(log, ["impl-review"]);
   const irFresh = implRecovery?.recovered || (lir >= 0 || lcode >= 0
     ? ir.exists && lir > lcode
@@ -846,13 +863,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
   if (!irFresh) {
     const verify = manualVerifyNext(plan, log, policy, ctx, meta);
     if (verify) return verify;
-    const struggled = log.some((e) => (e.step === "implement" || e.step === "fix") && !e.ok && !e.fallback) || count("fix") > 0;
-    return {
-      step: "impl-review",
-      ...reviewWarning(log, plan, policy),
-      bump: struggled ? E.hardChangeReviewerBump : 0,
-      reason: struggled ? "implementation needed retries or fixes" : "implementation complete",
-    };
+    return implReviewNext(log, plan, policy);
   }
 
   const problem = reviewProblem("impl-review", p.implReview, ir);
