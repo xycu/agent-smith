@@ -6,6 +6,8 @@ Require a recognized 10x review verdict before the router verifies a review or u
 
 ## Current State Analysis
 
+Phase 1 landed in `636a5398`. The implementation review rejected that revision and applied five fixes in `49f6c36e`. The original reproductions below explain Phase 1. Phase 2 addresses the remaining interruption case, F6. [Implementation review](reviews/impl-review.md)
+
 `readReview` cuts the header at the first character outside its letter-and-space pattern. `attachResult` accepts every non-null verdict from a fresh artifact. `decide` handles selected negative verdicts and then falls through, including an `APPROVED` default for an unreadable implementation review. The CLI reproduces `done` for `NEEDS_ATTENTION`, `NEEDS-ATTENTION`, `NOT APPROVED` and `CHANGES REQUESTED`, `done` labeled `APPROVED` for `APPROVED-WITH-CHANGES` and for a pre-existing `## Verdict: REJECTED` without a log, and `implement` for `NEEDS REVISION`. [Reader](../../../skills/10x-pipeline/scripts/state.mjs#L332) · [Intake](../../../skills/10x-pipeline/scripts/flow.mjs#L573) · [Routing](../../../skills/10x-pipeline/scripts/flow.mjs#L681)
 
 ### Key Discoveries:
@@ -20,13 +22,15 @@ Plan review accepts `SOUND`, `REVISE` and `RETHINK`. Implementation review accep
 
 ## Scope
 
-The change covers 10x review parsing, result intake, review-driven routing, CLI regression tests and the routing reference. Existing finding counts, review policy, tier calculations and archive formats remain the compatibility baseline.
+The change covers 10x review parsing, result intake, review-driven routing, local CLI tests and the routing reference. Phase 2 also covers timestamp restoration in the shared isolated-run rollback. Existing finding counts, review policy, tier calculations and archive formats remain the compatibility baseline.
 
 ## Implementation Approach
 
-Define the two vocabularies once in the shared 10x router code. Use the same validation and diagnostic in result intake and when `decide` consumes a review from disk. Keep the parser responsible for extracting the whole verdict and keep retry, halt and success decisions with the router. One phase keeps these entry points and their local proof together.
+Phase 1 uses the same verdict validation and diagnostic at result intake and on resume. Phase 2 keeps recovery of file timestamps with the rollback code, before either chain makes a routing decision.
 
 ### Planning assumptions
+
+- Treat F1–F5 as applied. The review records their fixes and local verification against `49f6c36e`. Include F6 in this change because an interrupted rollback can still advance the run on an earlier verdict. Use the failed step's existing log entry and recovery ref as the checkpoint. ADR-010 already requires timestamp restoration before routing and forbids repeating a completed reset. [Findings and verification](reviews/impl-review.md) · [ADR-010](../../../docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md)
 
 - Use the canonical space-separated spelling and reject underscore and hyphen aliases. The requested vocabularies are explicit, and the historical header fix supports formatting around a verdict. Use a standalone verdict line in the opening review header, with the explicit formatting forms in Phase 1. [Change](change.md) · [Header compatibility plan](../../archive/2026-11-11-review-verdict-labels/plan.md)
 - A malformed confirmation halts immediately after it fails verification. The existing cap counts failed confirmations, and the normal halt path restores the failed attempt for inspection. An ordinary malformed attempt can use the review step's existing bounded retry. [Confirmation cap](../../../skills/10x-pipeline/scripts/flow.mjs#L635) · [Halt recovery](../../../skills/10x-pipeline/scripts/route.mjs#L101)
@@ -96,6 +100,46 @@ Enforce the same review vocabularies at both router entry points, demonstrate th
 
 The phase's acceptance checks run locally before publication.
 
+## Phase 2: Resume timestamp restoration after an interrupted rollback
+
+### Overview
+
+The reset checks out the earlier review, then `writeState` saves the failed result and its `rolledBack` ref before `setTimes` restores dispatch-time timestamps. If the process stops there, the next call skips rollback and can accept the checkout timestamp as evidence of a correction. The failed result and snapshot must survive a timestamp error, and a new router process must finish recovery before using the review. [Rollback ordering](../../../skills/10x-pipeline/scripts/isolation.mjs#L619) · [Verdict freshness check](../../../skills/10x-pipeline/scripts/flow.mjs#L550)
+
+### Changes Required:
+
+#### 1. Record which timestamps still need restoration
+
+**Files** `skills/10x-pipeline/scripts/isolation.mjs`, `skills/10x-pipeline/scripts/route.mjs`, `skills/10x-pipeline/scripts/flow.mjs`, `docs/REFERENCE.md`
+
+**Intent** Preserve both facts across a restart. The Git reset has finished, and the files it checked out can still have checkout timestamps.
+
+**Contract** Alongside the existing `rolledBack` ref, persist a pending timestamp checkpoint on the failed log entry when writing back post-reset state. Restore the applicable times from `before.mtimes`, then mark the checkpoint complete only after restoration succeeds. An absent checkpoint identifies a legacy entry. Apply the same rule where undo-on-halt writes `kept` before setting the times the failed step left. In that direction the target times currently live only in `rb.left`, so save them while the checkpoint is pending. Preserve the existing same-call undo, status fields, failed result and recovery ref ancestry. [Timestamp paths and state writer](../../../skills/10x-pipeline/scripts/isolation.mjs#L527) · [Undo on halt](../../../skills/10x-pipeline/scripts/route.mjs#L51)
+
+On either `init` resume or `next`, finish a pending timestamp restoration before routing. On retry, repeat only the timestamp work. Use the expected restored contents (`startSha` for rollback, the failed snapshot for `kept`) to distinguish a checkout from a subsequent edit. Restore the time of an unchanged file. Preserve a changed file and its timestamp so a genuine fresh correction can pass the existing verdict and findings checks. Treat a timestamp-only change during this window as ambiguous. If the expected state cannot be verified or a time cannot be restored, halt with the step, path/ref and retry instructions, retaining the checkpoint. Document this recovery boundary in the routing reference. [Shared resume path](../../../skills/10x-pipeline/scripts/route.mjs#L1132) · [Existing failure gates](../../../skills/10x-pipeline/scripts/flow.mjs#L745)
+
+#### 2. Exercise the interruption and the owner's correction separately
+
+**Files** `skills/10x-pipeline/test/rollback.test.mjs`, `skills/10x-pipeline/test/openfindings.test.mjs`
+
+**Intent** Demonstrate what a fresh router process sees after a partial restore, including when someone corrects the review before resuming.
+
+**Contract** In real scratch worktrees, begin with a valid review, fail its confirmation and deterministically interrupt timestamp restoration after the post-reset state write. Use a test-local filesystem fault or process exit, with fixed file times. Cover interruption before the first timestamp and after a partial restore, including the corresponding `kept` boundary. Exercise both review kinds and both resume commands across the cases. With no correction, the failed confirmation must still halt with its recorded diagnostic on repeated resumes. Verify the failed log entry, snapshot object ID, staged-only version and working-copy version survive without another reset or snapshot. In a separate case, save a different valid review during interruption and prove its bytes and mtime survive recovery and its findings control routing. Include an unreadable recovery target, a completed legacy entry, and the existing OpenSpec rollback fixtures for the shared timestamp code. [Rollback fixtures](../../../skills/10x-pipeline/test/rollback.test.mjs#L98) · [Confirmation fixtures](../../../skills/10x-pipeline/test/openfindings.test.mjs#L809)
+
+**Applied findings to retain.** F1 gives failed confirmations priority over edits to Progress. F2 excludes Setext headings, list fences and HTML comments from the verdict header. F3 retains the prior code-failure tier bump on retry. F4 preserves an unsupported suffix after a long whitespace gap without repeatedly scanning the gap. F5 limits re-planning to the documented conditions and report rows to stored review records. Use the fixes and evidence in `49f6c36e` as the regression baseline. [Review decisions F1–F5](reviews/impl-review.md#findings)
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- Interrupted timestamp restoration resumes idempotently, preserves the failed snapshot and log, and halts safely on restoration errors in `node --test skills/10x-pipeline/test/rollback.test.mjs`.
+- Both resume commands reject a restored confirmation and preserve a genuine correction through the findings gates in `node --test skills/10x-pipeline/test/openfindings.test.mjs`.
+- Shared rollback and existing verdict regressions pass the full local suite with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+
+#### Manual Verification:
+
+All Phase 2 checks use local scratch worktrees and run before publication.
+
 ## Testing Strategy
 
 Use `observe` and the existing CLI helpers for pending steps and explicit `init` fixtures for seeded or no-log resumes. Exercise format compatibility and case normalization alongside the rejected spellings. Keep legacy log entries intact and use the real router in an isolated scratch worktree for the rollback regression. The OpenSpec suite in the full gate covers its independent validation path. [Review tests](../../../skills/10x-pipeline/test/openfindings.test.mjs) · [Isolation tests](../../../skills/10x-pipeline/test/rollback.test.mjs)
@@ -106,7 +150,9 @@ Validation adds a set membership check to the existing file reads.
 
 ## Migration Notes
 
-Review skills and users write Markdown. The router reads it during result intake and routing, and owns the run log and outcome. Keep stored logs and review files intact and reuse the existing optional `invalid` field for new failed entries. The change takes effect when the updated router evaluates a live review. For a halted live artifact, resolve the review findings, save a fresh review with the correct canonical verdict and resume. In an isolated run, commit the edit in the run worktree before resuming so a later failed step's rollback preserves the correction. Reverting the router commit requires no data conversion. [Rollback and resume](../../../docs/REFERENCE.md#L140)
+Review skills and users write Markdown. The router reads it during result intake and routing, and owns the run log and outcome. Keep stored logs and review files intact and reuse the existing optional `invalid` field for new failed entries. For a halted live artifact, resolve the review findings, save a fresh review with the correct canonical verdict and resume. In an isolated run, commit the edit in the run worktree before resuming so a later failed step's rollback preserves the correction. [Rollback and resume](../../../docs/REFERENCE.md#L140)
+
+Phase 2 adds a checkpoint only when the updated router restores timestamps. Historical entries and archives require no rewrite. When a legacy isolated review failure still governs routing, compare its review to the corresponding restored version (`startSha` for `rolledBack`, the failed snapshot for `kept`). A newer mtime on identical bytes cannot establish whether the old router finished restoring times. Keep the ordinary retry or confirmation halt until a distinguishable fresh correction is saved. Finish any pending checkpoint with the updated router before downgrading, since the earlier router skips entries marked `rolledBack` or `kept`. After completion the existing markers and recovery refs suffice. [Rollback eligibility](../../../skills/10x-pipeline/scripts/isolation.mjs#L569)
 
 The planning scan ran `readReview` over all 190 files matched by `context/archive/*/reviews/*.md`. Of those, 183 review files use the step's accepted vocabulary, four use historical out-of-set values, and three auxiliary files have no verdict. The historical values are plan `APPROVED` and `APPROVED WITH CHANGES`, and implementation `PASS` and `PASS WITH NOTES`. Preserve their parsed values for historical readability. Run this comparison command on the same archive tree before and after the code edits and compare both outputs. The planning snapshot on this worktree is `9b8d0af620d7dd8e4bf6929403e96aac1a2e3661e91b33779e9ee95f5c75b635`.
 
@@ -146,3 +192,11 @@ NODE
 - [x] 1.1 Verdict regressions and existing review routing pass with `node --test skills/10x-pipeline/test/openfindings.test.mjs`. — 636a5398
 - [x] 1.2 The read-only archive reader comparison returns identical path, verdict, critical and warning tuples before and after the change. — 636a5398
 - [x] 1.3 The full suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 636a5398
+
+### Phase 2: Resume timestamp restoration after an interrupted rollback
+
+#### Automated
+
+- [ ] 2.1 Interrupted timestamp restoration resumes idempotently, preserves the failed snapshot and log, and halts safely on restoration errors in `node --test skills/10x-pipeline/test/rollback.test.mjs`.
+- [ ] 2.2 Both resume commands reject a restored confirmation and preserve a genuine correction through the findings gates in `node --test skills/10x-pipeline/test/openfindings.test.mjs`.
+- [ ] 2.3 Shared rollback and existing verdict regressions pass the full local suite with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
