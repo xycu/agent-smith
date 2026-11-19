@@ -1,8 +1,9 @@
 # Run report: open-pr-unfinished-merge-commit
 
-Goal: Implement context/changes/open-pr-unfinished-merge-commit/change.md: open-pr.mjs must not commit or push an unfinished merge, cherry-pick, revert or unmerged entries; still push existing commits, report committed false with commitError; reuse the router's check; tests, docs/REFERENCE.md and ADR-017 updated, full suite green.
+Goal: Protect unfinished Git operations during run publication
 Rigor: thorough (hot paths skills/10x-pipeline/scripts/isolation.mjs, skills/10x-pipeline/scripts/open-pr.mjs, skills/10x-pipeline/test/archive.test.mjs +1)
 Outcome: done - impl review NEEDS ATTENTION
+Archive: requested - runs after this report was written; see the commit "chore(archive): close open-pr-unfinished-merge-commit"
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

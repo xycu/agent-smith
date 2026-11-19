@@ -1,6 +1,6 @@
 {
   "id": "open-pr-unfinished-merge-commit",
-  "goal": "Implement context/changes/open-pr-unfinished-merge-commit/change.md: open-pr.mjs must not commit or push an unfinished merge, cherry-pick, revert or unmerged entries; still push existing commits, report committed false with commitError; reuse the router's check; tests, docs/REFERENCE.md and ADR-017 updated, full suite green.",
+  "goal": "Protect unfinished Git operations during run publication",
   "host": "claude",
   "prComment": true,
   "isolated": true,
@@ -52,5 +52,6 @@
     "action": "done",
     "reason": "impl review NEEDS ATTENTION",
     "manualPending": []
-  }
+  },
+  "archive": true
 }
