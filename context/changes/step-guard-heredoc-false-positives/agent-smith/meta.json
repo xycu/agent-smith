@@ -47,5 +47,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "2.3 In a fresh Claude Code `agent-smith:step` subagent with the updated plugin installed, both reported `cat` heredocs run, the reported quoted heredoc commit message works in a scratch Git repository, and the hook denies `gh --version` before it runs."
+    ],
+    "manualNotProved": [
+      "2.3 In a fresh Claude Code `agent-smith:step` subagent with the updated plugin installed, both reported `cat` heredocs run, the reported quoted heredoc commit message works in a scratch Git repository, and the hook denies `gh --version` before it runs. — not proved: The runner has no native Claude Code child tool, and verification cannot delegate a scratch commit. The focused tests and local probes passed for the hook decisions and both cat outputs. The quoted co"
+    ]
   }
 }
