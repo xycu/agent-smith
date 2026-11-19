@@ -1,9 +1,13 @@
 # ADR-018: A step subagent starts no subagent; the orchestrator ignores a foreign hand-back
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (implemented by unattended runs), as amended through observed step-tree accounting. The S-14 closeout carries final host qualification into S-20. [Owner closeout](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
 - **Date:** 2026-11-10
 - **Deciders:** the repository owner (the request in `change.md`, 2026-11-09); unattended implementation run of change `no-nested-subagents` for the readings marked A1 to A6 below
 - **Origin:** change `no-nested-subagents` (`context/changes/no-nested-subagents/change.md` and `plan.md`); lesson "Never let a subagent spawn its own subagent" in `context/foundation/lessons.md`
+
+## Rule in force
+
+An enclosing step may start one guarded, awaited layer of native children. Leaves inherit the step restrictions and own only their assigned paths. The enclosing step collects every child before verification, Progress updates, commits or reporting. Result intake must match the awaited invocation and wait for descendant settlement. Count a verified total for the step and its descendants once, or report the coverage gap. The flat ban and depth-one setup below record earlier policy. [Shared rules](../../skills/10x-pipeline/rules/top.md) · [Native delegation](#amendment-3--bounded-native-children) · [Observed accounting](../REFERENCE.md#observed-token-accounting)
 
 ## Context
 
@@ -114,4 +118,4 @@ Codex 0.169.0 response records are attributed by real thread and causal root ses
 
 Reports/status expose verified, unavailable and legacy coverage with bounded reasons. Legacy-only comparisons keep their calculation with a warning; any verified/legacy mixture refuses a savings verdict. Model/provider/tier groups describe the enclosing dispatch, and cost is labelled a routing-rate approximation when children may use other models. Archive usage stays outside numbered totals. Structured late enrichment follows ADR-019’s amendment.
 
-Activate all four phases as one candidate after Automated producer-to-reader gates pass; retain one revision through settlement and intake. There is no ledger migration or backfill. Rollback preserves logs and evidence in normal follow-up commits after settlement; older readers cannot substantiate new/mixed scope. [Capture contract and limits](../REFERENCE.md#observed-token-accounting) · [Fixture and acceptance evidence](../../context/archive/2026-11-18-delegated-token-accounting/evidence/accounting.md). Deterministic documented-shape fixtures do not qualify the final interactive/headless host paths; Manual rows 4.3 and 4.4 remain pending.
+All four phases shipped together in v1.14.0 after the Automated producer-to-reader gates passed. Keep one execution revision through settlement and intake. [Release](../../CHANGELOG.md#1140-2026-11-18) There is no ledger migration or backfill. Rollback preserves logs and evidence in normal follow-up commits after settlement; older readers cannot substantiate new/mixed scope. [Capture contract and limits](../REFERENCE.md#observed-token-accounting) · [Fixture and acceptance evidence](../../context/archive/2026-11-18-delegated-token-accounting/evidence/accounting.md). Deterministic documented-shape fixtures do not qualify the final interactive/headless host paths; Manual rows 4.3 and 4.4 remain pending.

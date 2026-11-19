@@ -1,6 +1,6 @@
 # ADR-014: The orchestrator asks before it archives a run that has Manual checks pending
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (implemented by the unattended `archive-manual-gate` run). Both orchestrators carry the approval gate. OpenSpec supplies empty Manual lists. [10x loop](../../skills/10x-pipeline/SKILL.md) · [OpenSpec loop](../../skills/openspec-pipeline/SKILL.md)
 - **Date:** 2026-11-09
 - **Deciders:** the repository owner (goal of change `archive-manual-gate`); unattended implementation run for the readings marked A1 to A5 below
 - **Origin:** change `archive-manual-gate` (`context/changes/archive-manual-gate/change.md` and `plan.md`). It builds on ADR-010 (isolated run, pre-archive commit), ADR-011 (halt on open owner decisions), ADR-012 (Manual rows) and ADR-013 (OpenSpec archive).

@@ -217,13 +217,13 @@ For the Wave 1 handoff, the maintainer takes in current `main` with a merge comm
 
 #### Automated
 
-- [x] 1.1 Run the local link check in Testing Strategy and confirm zero missing targets across the README and docs.
+- [x] 1.1 Run the local link check in Testing Strategy and confirm zero missing targets across the README and docs. — 40ac2308
 
 ### Phase 2: Reconcile architecture decisions
 
 #### Automated
 
-- [ ] 2.1 Check the ADR inventory in Testing Strategy for current status lines and one top-level Rule in force summary per qualifying record.
+- [x] 2.1 Check the ADR inventory in Testing Strategy for current status lines and one top-level Rule in force summary per qualifying record.
 
 #### Manual
 

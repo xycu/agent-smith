@@ -5,6 +5,10 @@
 - **Deciders:** repository owner
 - **Origin:** the `release-packaging` change. Change folder: `context/changes/release-packaging/change.md`. The mechanics are copied from xycu/hegel-skill, with the differences below.
 
+## Rule in force
+
+Release-please runs after green push CI while `main` still points at that commit. The squash PR title supplies the Conventional Commit subject that determines the release. The manifest, plugin version and marketplace metadata share one SemVer value. The marketplace plugin entry omits `version`. [Release workflow](../../.github/workflows/release.yml) · [Version check](../../tools/version-check.mjs)
+
 ## Context
 
 - The plugin had a hand-written version (`0.1.0` in `.claude-plugin/plugin.json`), no tag, no release and no CI.
@@ -77,7 +81,7 @@ Rules, written as scenarios (the form of ADR-004):
 - The release PR no longer updates on a red `main`, and it lags a push by the CI duration.
 - The tag and GitHub Release follow the CI run of the release-PR merge commit.
 - GitHub-hosted minutes are unchanged (`release.yml` stays hosted); the TrueNAS runner serialises more CI runs because pushes to `main` are no longer cancelled.
-- The `concurrency` block of `release.yml` moved from the workflow to the job, so a run whose job the `if` skips does not take the pending slot of the group. This and the rerun behaviour are unverified until the live check (rows 3.5 and 3.6 of the plan).
+- The `concurrency` block of `release.yml` moved from the workflow to the job, so a run whose job the `if` skips does not take the pending slot of the group. On 2026-11-15, a green CI rerun triggered release and a skipped job left the queued valid release intact (rows 3.5 and 3.6). [Release acceptance](../../context/archive/2026-11-12-release-after-green-ci/evidence/acceptance-2026-11-15.md)
 - `release-please-action` runs no checked-out code, so the write token never meets code from a pull request. The `event == 'push'` condition keeps a pull request from a fork branch named `main` out.
 
 ### Alternatives considered

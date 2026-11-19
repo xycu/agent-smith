@@ -1,6 +1,6 @@
 # ADR-012: Verify every Manual row in a dedicated subagent, at every rigor level, outside the extra-step pool, with Chrome on by default
 
-- **Status:** Proposed (unattended reading, owner confirmation pending); amended 2026-11-10 (Amendment 1)
+- **Status:** Accepted (implemented by the unattended `automate-manual-checks` run), as amended for browser evidence. [Router](../../skills/10x-pipeline/scripts/flow.mjs) · [Evidence tests](../../skills/10x-pipeline/test/manualverify.test.mjs) · [Amendment 1](#amendment-1-browser-rows-need-browser-grade-proof-change-browser-row-proof-issue-37)
 - **Date:** 2026-11-05
 - **Deciders:** the repository owner (decisions 1 to 7 in `change.md`, 2026-11-05); unattended implementation run of change `automate-manual-checks` for the readings marked A1 to A8 below
 - **Origin:** change `automate-manual-checks` (`context/changes/automate-manual-checks/change.md` and `plan.md`). It supersedes the "Manual verification", `--chrome` and manual-verify budget parts of ADR-003 ("Phase executors and manual verification"). The rest of ADR-003 is unchanged.
@@ -138,7 +138,7 @@ The router never reads evidence content, never judges whether a judgment is soun
 
 ## Unverified assumptions
 
-- No live run has used the new prompt, the retry tier or the reasons file. The router side is covered by tests; the subagent's behaviour is not.
+- The archived `proper-structure-of-rules` run records Manual verification and its higher-tier retry in steps 5 and 6. The rate at which a retry is needed remains unmeasured. [Run log](../../context/archive/2026-11-13-proper-structure-of-rules/agent-smith/run.jsonl)
 - No Chrome call from a subagent had been tested when this ADR was written; Amendment 1 records the first live check (the tools load and `tabs_context_mcp` answers; a page load and an exported page text are still unseen).
 - Whether `sonnet/medium` proves enough rows on the first attempt to make the retry rare is not measured.
 - The figure of about 100 unticked archived rows is the owner's count in `change.md`, not one this ADR re-derived.
@@ -175,4 +175,4 @@ The router never reads evidence content, never judges whether a judgment is soun
 
 ### Live check (2026-11-10)
 
-- The plan step of this change ran in a general-purpose subagent without the `Agent` tool. It loaded `mcp__claude-in-chrome__tabs_context_mcp` through `ToolSearch select:` and called it once. The call returned a normal tool result, not an error: "This session has no tab group of its own ... Use createIfEmpty: true to create this session's group." A step subagent can therefore load and call the Chrome tools, and a call needs `createIfEmpty: true`. Not yet seen: that call with `createIfEmpty: true`, a page load and an exported page text. Manual row 4.6 of the plan repeats the check inside a real `manual-verify` step.
+- The plan step of this change ran in a general-purpose subagent without the `Agent` tool. It loaded `mcp__claude-in-chrome__tabs_context_mcp` through `ToolSearch select:` and called it once. The call returned a normal tool result, not an error: "This session has no tab group of its own ... Use createIfEmpty: true to create this session's group." A step subagent can therefore load and call the Chrome tools, and a call needs `createIfEmpty: true`. Not yet seen: that call with `createIfEmpty: true`, a page load and an exported page text. Manual row 4.6 repeated the tab-context call inside a real `manual-verify` step on 2026-11-10. The recorded check ended before page navigation or text export. [Browser evidence](../../context/archive/2026-11-10-browser-row-proof/evidence/browser-tabs-context.md) · [S-19 browser evidence](../../context/foundation/roadmap.md#s-19-truthful-verification-and-owner-decision-halts)
