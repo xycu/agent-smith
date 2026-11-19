@@ -76,13 +76,17 @@ Resolve intended providers in the shared router for both chains, then settle tie
 
 **Contract** Only the values `claude`, `codex` and `split` are accepted by the init flag. Resolve assignment first, then use the effective provider's ladder in tier settlement and dispatch. Use the existing shipped Claude ladder and Codex preset as the fallbacks. A homogeneous project ladder replaces the ladder for its declared provider only. A mixed project ladder overrides matching entries at their existing indices with fallback to that provider's shipped rung at other indices. Validate selected ladders and step bounds before dispatch or state writes, including holes and tiers outside the resulting ladder. Report how to correct a custom override with unsupported tier ranges. Never translate model names or infer provider from them. Existing mode-less state retains the original ladder and host validation.
 
+Separate input-shape validation from effective ladder validation. For explicit-mode runs, check the selected chain's step and template assignments against each assigned provider's effective ladder, including both forms of OpenSpec apply in split mode. Validate under the run lock before mutating init or advancing `next`. A short override for one provider affects only roles assigned to it, and diagnostics name the affected step and provider. On neutral replay and late `usage`, keep general policy validation and use the recorded dispatch without looking up its tier in the current provider ladder. Keep legacy validation on the original merged policy. Tier indices are shared ordinal positions. A 10x host-side `fix` carries the last code tier as a numeric floor, bounded by the receiving provider's normal tier clamp. OpenSpec keeps its existing same-step failure count when the apply template changes provider.
+
 #### 2. State, dispatch and visibility
 
-**Files** `skills/10x-pipeline/scripts/route.mjs`, `skills/10x-pipeline/scripts/flow.mjs`, `skills/10x-pipeline/scripts/isolation.mjs`, `skills/10x-pipeline/scripts/run-codex.mjs`
+**Files** `skills/10x-pipeline/scripts/route.mjs`, `skills/10x-pipeline/scripts/flow.mjs`, `skills/10x-pipeline/scripts/steps.mjs`, `skills/10x-pipeline/scripts/isolation.mjs`, `skills/10x-pipeline/scripts/run-codex.mjs`
 
 **Intent** Keep mode immutable and use one provider decision for ordinary steps, archive and runner validation.
 
 **Contract** Validate the flag before writes and recheck mode and host with the authoritative metadata under the init lock. Store `providerMode` at fresh init, including the host-derived default. Existing metadata without the field stays ladder-driven and refuses a flag that would change its mode. Conflicts halt without advancing state. New attempts use the stored mode. Neutral retries use the saved provider, model, effort, profile, agent and prompt handoff. Preserve capability checks such as restricted agents, advisor options and Chrome evidence rules for the effective dispatch. Share the mode-aware archive descriptor for pre-commit checks, terminal action and runner validation. Add `providerMode` and `providersByStep` to init visibility and show mode in status/report and initial provenance. Include used default ladder data in provenance so edits are observable. Historical reports and comparisons remain readable with their original evidence semantics.
+
+Use the saved step/template identity for the OpenSpec preview exception. Both `archive` and `os-archive` derive their exact agent and rendered prompt from the same read-only descriptor as their target and path. Resolve and validate those fields before the pre-archive commit. Persist the browser evidence capability for new `manual-verify` dispatches. Both external transports select a truthful local-evidence fallback when Chrome is unavailable, with a distinct reason for explicit `--chrome false`. The router accepts only covering test, command or script evidence for browser rows under that fallback. Older entries retain their existing verification behavior.
 
 #### 3. Router fixtures
 
@@ -91,6 +95,8 @@ Resolve intended providers in the shared router for both chains, then settle tie
 **Intent** Drive the real route CLI with local artifacts and cover the provider decision independently of CLI launch.
 
 **Contract** Cover both chains, all six host/mode combinations, explicit and implicit selection, mixed and homogeneous overrides, provider-specific effort floors, custom tier gaps, the split role boundaries, exact retries, archive descriptors, legacy metadata and no-write halts. Exercise legacy mixed and Codex-only fixtures with existing run state rather than treating a fresh host-native default as legacy.
+
+Exercise a provider-specific short ladder on both a relevant and an unrelated role, a cross-provider `fix` floor, and both OpenSpec apply templates. Change valid ladder settings before replay and late accounting to prove those paths use the saved dispatch. Cover rejected `browser-` evidence, accepted covering local proof and the pending reason for a headless Claude manual-verification entry, including `--chrome false` and neutral replay.
 
 ### Success Criteria
 
@@ -113,13 +119,17 @@ Supply the missing Codex-to-Claude execution boundary. Share exact validation wi
 
 #### 1. Runner dispatch and permissions
 
-**Files** `skills/10x-pipeline/scripts/run-claude.mjs`, `run-codex.mjs` and a shared dispatch validator in the same directory, `step-guard.mjs`, `agents/step.md`
+**Files** `skills/10x-pipeline/scripts/run-claude.mjs`, `run-codex.mjs` and a shared dispatch validator in the same directory, `step-guard.mjs`, `hooks/hooks.json`, `agents/step.md`, `agents/score.md` for the restricted scorer contract
 
 **Intent** Require the precise pending action and a guarded fresh Claude session. Reuse existing action and archive validation rather than introducing another interpretation of router state.
 
 **Contract** Accept the unchanged action on stdin from the run root for a Codex-hosted Claude `run` or `archive` action. Check root, change, chain, host, step identity, provider, model, effort, routed agent, archive descriptor or exact pending prompt and result path under the shared lock. Check handoff path and task bytes as in the Codex runner, including revalidation after external preflight. Launch Claude via an argument array with the exact routed agent, model and effort and a runner-owned session UUID. Resolve plugin and other required skill locations from the fresh child. Use existing trust, authentication and permissions without approval prompts or elevated allowances. Reject unsupported exact agent mappings and native advisor requirements with a diagnostic. Prove required CLI/agent/toolkit/guard and step-specific permissions before sending the work prompt. Keep local preflight deterministic in fake CLI tests.
 
+For both runners, compare the archive agent and exact prompt bytes with the shared descriptor, together with the existing target and path checks. Fixture cases alter the prompt and agent independently and require refusal before launch. Check toolkit discovery against the saved effective skill and template, including TDD/E2E executor overrides and each chain's archive skill or CLI requirement. Bind the Claude plugin's agent and hook files to the trusted plugin revision used to route the step. A parent catalog or version response supplies no proof of fresh-child discovery.
+
 **Guard contract** Bind a fail-closed Bash guard to the runner's exact headless session and use the existing parser for its direct-command checks. Keep ordinary main sessions and native `agent-smith:step` calls under their existing rules. A missing, mismatched or failed guard must stop dispatch. Scope the same guard to the supported descendant chain. Require a verified hook-load and identity signal from the configured session, and qualify the effective allow/deny behavior on a fresh installation. Existing host restrictions still apply to other tool paths. Preserve archive-only commit permissions and the prohibition on step publication.
+
+Use `hooks/hooks.json` to wire the startup and tool/lifecycle evidence the runner relies on. Require a handshake from the actual guarded session with its expected UUID, agent and hook configuration before it receives the work prompt or can read a by-file handoff. Apply the same headless identity check to normal and oversized Bash events. Require the supported Agent call path to enforce foreground `agent-smith:step` leaves, inherited restrictions and no further delegation. Fixture cases cover missing and mismatched handshakes, oversized guarded events, a foreground leaf and a refused background launch. Cover the default agent and the restricted scorer's effective tool boundary, with a prelaunch refusal where the exact restrictions cannot be proved. A separate probe session and terminal usage counts cannot substitute for runtime guard or per-leaf collection evidence.
 
 #### 2. Result, ownership and usage
 
@@ -128,6 +138,8 @@ Supply the missing Codex-to-Claude execution boundary. Share exact validation wi
 **Intent** Accept enclosing results only after the execution tree settles and keep partial or unverifiable evidence observable.
 
 **Contract** Reuse awaited foreground launch and the shared run lock, recording launch ownership before spawn and the exact session identity. Use bounded CLI output and the same normalized result envelope fields as the existing runner. Validate the enclosing reply's final `RESULT:` line only after a matched terminal event, validated output, process-group closure, and complete matched lifecycle and foreground collection of each allowed native leaf. Block detached/background launches and unmatched children. Preserve valid `failed` and `blocked` results. A verified prelaunch refusal permits a neutral retry. A settled launched failure uses existing unknown-result handling. Cancellation or uncertain settlement retains the lock and triggers suspension before result writes, rollback, relaunch, archive, or publication. Retained headless ownership must fail closed for any supported reader. Treat the CLI aggregate token summary as unavailable for observed step-tree tokens and carry supported elapsed duration with a bounded coverage reason. Keep optional native Claude usage and existing Codex accounting paths intact.
+
+Write the existing `native` presence marker before spawn so the preceding reader also refuses stale cleanup. Record the Claude session UUID as typed identity alongside that marker. Only clear ownership after verified settlement or definitive proof that the work never launched and all preflight processes closed. Cover an absent owner PID and process group with unresolved leaf ownership, including the preceding reader's classification. Replace all step-authored accounting with runner-measured duration and structured unavailable `usageEvidence` from the shared helper. A headless session UUID alone supplies no native `agentId` or `runId`. Feed a result with its own token claim through intake and verify that status, reports and comparisons still show unavailable token coverage.
 
 ### Success Criteria
 
@@ -150,11 +162,13 @@ Use the host/provider pairing to select the transport and show its effective sel
 
 #### 1. Orchestrator loops and acceptance evidence
 
-**Files** `skills/10x-pipeline/SKILL.md`, `skills/openspec-pipeline/SKILL.md`, shared rule carriers and integration fixtures
+**Files** `skills/10x-pipeline/SKILL.md`, `skills/openspec-pipeline/SKILL.md`, shared rule carriers, `skills/10x-pipeline/scripts/{open-pr,pr-comment}.mjs`, and host integration and publication fixtures
 
 **Intent** Keep both loops consistent and preserve their existing stop, retry, archive and publication behavior.
 
 **Contract** Forward the explicit flag only when supplied, derive the host from the session, and show the init assignment and actual step provider. Send all OpenAI actions to the Codex runner and Codex-hosted Claude actions to the headless runner. Keep native Claude actions on Agent. Apply the same envelope handling, lock-first suspend checks and archive validation to both runner paths. Keep headless Claude browser evidence unavailable unless proved by the existing supported capability, with locally executable covering test evidence or a pending reason. Archive gates and comment authorization retain their host-owned protocols. Keep shared anti-stall text identical.
+
+Update both argument hints and consume either mode flag form before deriving the goal or preparing a worktree. Omit the flag on resume unless explicitly supplied. Resolve the headless runner from the loaded skill location. Check skill and tool prerequisites in the transport that executes the routed action, including discovery in a fresh CLI child for external steps. The host still owns orchestration prerequisites. Have the terminal publication scripts hold the same run lock through their side effects, using the original run identity even when the report has moved to an archive. Share the lock primitive with the runners without importing the router entrypoint into publication scripts. Exercise open/close ownership and retained-lock refusal in both chains using local fake Git and GitHub clients. Direct read-only inspection remains available during suspension.
 
 #### 2. User and architecture documentation
 
@@ -175,6 +189,8 @@ Use the host/provider pairing to select the transport and show its effective sel
 - Qualify both skills on fresh Claude Code and Codex sessions in both split directions and exercise each full mode, including headless Claude's exact guard allow/deny behavior, toolkit discovery, implementation child collection, safe cancellation and archive.
 - After orchestrator publication, verify the run branch, open PR and PR CI on its head, and verify report comment behavior only if the owner elected it.
 
+The owner or an authorized top-level session performs fresh-host qualification on the final candidate across all six host/mode combinations for each chain. Leave 3.2 and 3.3 pending during unattended in-run verification. Surface any pending rows through the existing archive gate. Claims of live support require recorded qualification evidence for the relevant combination.
+
 ## Testing Strategy
 
 ### Unit Tests
@@ -183,7 +199,7 @@ Test provider selection, rung validation, step/template exceptions, malformed fl
 
 ### Integration Tests
 
-Use fresh repo fixtures and real router CLI init/next/status/archive transitions for both chains. Test a known valid change in scratch with isolation disabled and assert init dispatches `action: "run"`. Extend the existing host integration and archive tests to verify the transport-facing output. Run the focused gates for phases 1 and 2 as their fixtures land, then run the full required gate in phase 3.
+Use fresh repo fixtures and real router CLI init/next/status/archive transitions for both chains. Test a known valid change in scratch with isolation disabled and assert init dispatches `action: "run"`. Extend the existing host integration and archive tests to verify the transport-facing output. Use the focused gates for diagnosis, then run the repository's full required gate before closing each code-changing phase. Make Git and the real OpenSpec CLI 2.0.0 available via `PATH` or `OPENSPEC_BIN` for the full gate. Check skipped test identities against the documented conditions and keep `GH_LIVE` disabled for unattended verification.
 
 ```sh
 node --test --test-concurrency=2 skills/10x-pipeline/test/{providers,ladder,host-integration,route,archive,provenance}.test.mjs skills/openspec-pipeline/test/{openspec-steps,openspec-archive}.test.mjs
