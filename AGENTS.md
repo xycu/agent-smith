@@ -23,7 +23,7 @@ Router: `node skills/10x-pipeline/scripts/route.mjs <command>`. Every command ta
 - `next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `status <id> [--report]` — the per-step model and effort log.
 - `risk <id>` — churn hot paths, plan hits and diff hits; writes nothing.
-- `usage <id> <n> --tokens N [--tool-uses N] [--duration-ms N]` — attach a late usage figure to step `<n>` (ADR-019).
+- `usage <id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])` — attach a late usage figure to step `<n>`, using numeric flags only for steps without recorded usage evidence (ADR-019).
 - `verify-archive <id> [--path <p>]` — read-only; prints whether the change is archived.
 - `compare <id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]` — read-only; routed run against a baseline run.
 

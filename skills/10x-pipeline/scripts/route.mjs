@@ -791,7 +791,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   // Arguments first, before anything is read. <n> directly follows the change id; a flag there is no step number.
   const rawN = rest[0];
   if (typeof rawN !== "string" || !/^[1-9]\d*$/.test(rawN) || !Number.isSafeInteger(Number(rawN))) {
-    refuse("Usage: route.mjs usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] [--chain 10x|openspec]; <n> is the step number, a positive integer that directly follows the change id.");
+    refuse("Usage: route.mjs usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) [--chain 10x|openspec]; <n> is the step number, a positive integer that directly follows the change id.");
   }
   const n = Number(rawN);
   const structured = flags["usage-file"] !== undefined;
@@ -967,7 +967,7 @@ const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "pr-c
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest, ["goal"]);
   // --chain is checked before anything is read.

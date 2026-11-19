@@ -105,6 +105,6 @@ In the OpenSpec summary, place the usage entry after the â€œRead-only commandsâ€
 
 #### Automated
 
-- [ ] 1.1 The focused CLI regression test passes for both late usage messages.
-- [ ] 1.2 The documentation scan finds a `--usage-file` synopsis in all three command references and flags zero numeric-only synopses.
-- [ ] 1.3 The full Node test suite passes and `git diff --check` exits zero.
+- [x] 1.1 The focused CLI regression test passes for both late usage messages.
+- [x] 1.2 The documentation scan finds a `--usage-file` synopsis in all three command references and flags zero numeric-only synopses.
+- [x] 1.3 The full Node test suite passes and `git diff --check` exits zero.

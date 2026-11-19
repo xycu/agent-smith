@@ -87,6 +87,25 @@ test("1.1 a bad step number, no flag, a flag without a value and a bad value exi
   assert.deepEqual(snapshot(project.changeDir), before);
 });
 
+test("1.1 usage help advertises --usage-file", () => {
+  const project = makeProject();
+  const synopsis = "usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])";
+
+  const refused = usage(project, null, []);
+  assert.equal(refused.status, 1, refused.stdout);
+  assert.equal(refused.json.action, "usage");
+  assert.equal(refused.json.attached, false);
+  assert.equal(refused.json.n, null);
+  assert.ok(refused.json.reason.startsWith(`Usage: route.mjs ${synopsis} [--chain 10x|openspec]; <n> is the step number`), refused.stdout);
+
+  const halted = run(project, []);
+  assert.equal(halted.status, 1, halted.stdout);
+  assert.equal(halted.json.action, "halt");
+  assert.ok(halted.json.reason.startsWith("Usage: route.mjs init|next|status|risk "), halted.stdout);
+  assert.ok(halted.json.reason.includes(` | ${synopsis} | verify-archive `), halted.stdout);
+  assert.ok(halted.json.reason.endsWith("; every command takes [--chain 10x|openspec]"), halted.stdout);
+});
+
 // ---- 1.2 refusals -----------------------------------------------------------------------------
 
 test("1.2 a step that is not logged, a pending step and no run log are refused and write nothing", () => {

@@ -1,7 +1,7 @@
 ---
 change_id: usage-file-docs-drift
 title: Document --usage-file in the router usage text and AGENTS.md
-status: planned
+status: implementing
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
