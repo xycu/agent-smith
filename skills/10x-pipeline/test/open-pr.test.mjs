@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { buildBody, markerFor, parseRepo, pathsToStage, prTitleFor, titleFor } from "../scripts/open-pr.mjs";
 import { TYPES, lintSubject } from "../../../tools/commit-lint.mjs";
 import { cleanEnv } from "./helpers.mjs";
+import { runLockPath } from "../scripts/run-lock.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/open-pr.mjs");
@@ -37,6 +38,7 @@ function tmpDir(prefix) {
 }
 
 const GIT_SHIM = (real) => `#!/bin/sh
+if [ -n "$EXPECTED_RUN_LOCK" ] && [ ! -s "$EXPECTED_RUN_LOCK" ]; then exit 91; fi
 printf '%s\\037' "$@" >> "$GIT_LOG"
 printf '\\n' >> "$GIT_LOG"
 if [ "$*" = "$GIT_FAIL_PROBE" ]; then exit 1; fi
@@ -49,6 +51,7 @@ exec "${real}" "$@"
 
 // Kinds: pr-list, pr-create, repo-view. Files <FAKE_GH_DIR>/<kind>.{out,err,code}. The --body-file is copied to body-<n>.txt.
 const GH_SHIM = `#!/bin/sh
+if [ -n "$EXPECTED_RUN_LOCK" ] && [ ! -s "$EXPECTED_RUN_LOCK" ]; then exit 91; fi
 D="$FAKE_GH_DIR"
 n=$(( $(cat "$D/count" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$D/count"
@@ -1011,3 +1014,31 @@ test("configured recovery commands preserve literal argv for Git-valid shell met
     }
   }
 });
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: publication holds the original run lock through push and PR creation after archive`, { skip }, () => {
+    const w = world({ chain, identity: true });
+    const archive = path.join(w.root, chain === "10x" ? "context/archive" : "openspec/changes/archive", "2026-11-19-demo");
+    fs.mkdirSync(path.dirname(archive), { recursive: true });
+    fs.renameSync(w.changeDir, archive);
+    const lock = path.join(w.fake, path.basename(runLockPath(path.join(w.changeDir, "agent-smith"))));
+    const env = { TMPDIR: w.fake, EXPECTED_RUN_LOCK: lock };
+    const args = [w.id, "--chain", chain, "--report", path.join(archive, "agent-smith/report.md")];
+    const owner = JSON.stringify({ pid: process.pid, native: { threadId: "pending" } });
+    fs.writeFileSync(lock, owner);
+    const refused = runScript(w, args, { env }).json;
+    assert.match(refused.reason, /^Execution suspended:/);
+    assert.ok(refused.reason.includes(lock));
+    assert.equal(refused.manual, null);
+    assert.deepEqual(gitCalls(w), []);
+    assert.deepEqual(ghCalls(w), []);
+    assert.deepEqual(fs.readdirSync(w.fake).filter(f => f.endsWith(".lock")), [path.basename(lock)]);
+    assert.equal(fs.readFileSync(lock, "utf8"), owner);
+
+    fs.unlinkSync(lock); // Fixture owner releases its lock.
+    const published = runScript(w, args, { env }).json;
+    assert.equal(published.pr.action, "created", JSON.stringify(published));
+    assert.equal(published.pushed, true);
+    assert.deepEqual(fs.readdirSync(w.fake).filter(f => f.endsWith(".lock")), []);
+  });
+}

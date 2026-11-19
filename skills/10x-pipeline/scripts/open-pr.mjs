@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
+  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint, withPublicationLock, PublicationSuspended,
 } from "./pr-common.mjs";
 import { readIsolationPolicy, isolationEnabled, runBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
 import { gitOperationProblem } from "./git-operation.mjs";
@@ -476,10 +476,11 @@ function main() {
   }
   let out;
   try {
-    out = run(opts);
+    out = withPublicationLock(opts.id, () => run(opts));
   } catch (e) {
-    const reason = `internal error: ${firstLine(e?.message) || "unknown"}`;
-    out = result({ reason, pr: prSkip(reason), manual: "run the script by hand from the run root" });
+    const suspended = e instanceof PublicationSuspended;
+    const reason = suspended ? e.message : `internal error: ${firstLine(e?.message) || "unknown"}`;
+    out = result({ reason, pr: prSkip(reason), manual: suspended ? null : "run the script by hand from the run root" });
   }
   process.stdout.write(`${JSON.stringify(out)}\n`);
 }

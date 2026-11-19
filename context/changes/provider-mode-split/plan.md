@@ -245,14 +245,14 @@ Existing router-owned `meta.json` and `run.jsonl` require no rewrite. Resume mod
 
 #### Automated
 
-- [x] 2.1 Fake Claude and Codex runner fixtures prove exact inline, by-file and archive dispatch validation, fresh-session guard binding, restricted capability refusal and normalized result handling.
-- [x] 2.2 Fake Claude runner and hook fixtures prove cancellation and uncertain closure suspend the run, settled failures release ownership, unrelated or child results are ignored, and unverified tokens stay unavailable.
+- [x] 2.1 Fake Claude and Codex runner fixtures prove exact inline, by-file and archive dispatch validation, fresh-session guard binding, restricted capability refusal and normalized result handling. — e2b409a2
+- [x] 2.2 Fake Claude runner and hook fixtures prove cancellation and uncertain closure suspend the run, settled failures release ownership, unrelated or child results are ignored, and unverified tokens stay unavailable. — e2b409a2
 
 ### Phase 3: Wire and document both pipeline skills
 
 #### Automated
 
-- [ ] 3.1 Both skill loop contracts and the full Node 24 repository suite pass locally using scratch fixtures and fake provider and GitHub clients.
+- [x] 3.1 Both skill loop contracts and the full Node 24 repository suite pass locally using scratch fixtures and fake provider and GitHub clients.
 
 #### Manual
 

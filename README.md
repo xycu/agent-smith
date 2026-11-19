@@ -33,15 +33,22 @@ The scoped Bash guard requires Claude Code 2.1.295+ for fail-closed hook handlin
 
 Fable compatibility checked 2026-11-14. Fable 5.2 requires Claude Code 2.1.321+. With `ANTHROPIC_DEFAULT_FABLE_MODEL` unset, `fable` resolves to Fable 5 in Claude apps gateway sessions and Fable 5.2 elsewhere. Before opting in, check the version requirement for the resolved model, environment/provider mapping, exposed Agent model alias and effort parameters, and account access. The router performs no version or capability detection. [Model configuration](https://code.claude.com/docs/en/model-config) · [Subagents](https://code.claude.com/docs/en/sub-agents)
 
-### Codex and OpenAI steps
+### Choose the provider for a run
 
-The shared `10x-pipeline` and `openspec-pipeline` skills also support Codex hosting OpenAI steps, and Claude Code hosting a mixed Claude/OpenAI ladder. Codex CLI 0.169.0 is the verified runner contract. Node.js 24+, authenticated model access, project trust and separately installed upstream toolkit skills are required. Confirm that a fresh CLI child can discover those skills from the run worktree.
+Both pipelines default to their host’s provider for a fresh run. Add `--provider-mode claude` for Claude throughout, `--provider-mode codex` for OpenAI throughout or `--provider-mode split` to send 10x plan and implement, or OpenSpec propose and ordinary apply, to the other provider. Reviews, repairs and archive stay on the host provider in split mode. Init shows the assignment before launch. Each step shows the actual provider, model and effort.
+
+```text
+/agent-smith:10x-pipeline <change-id> "what you want built" --provider-mode split
+/agent-smith:openspec-pipeline <change-name> "what you want built" --provider-mode=split
+```
+
+Omit the flag to resume a run on its original host and mode. Historical mode-less runs retain their recorded ladder-driven semantics. Install the current router and both skills together.
 
 Use the existing compatibility package for a Claude-plugin archive import into OpenAI, then select the installed pipeline skill through Codex's skill picker. Clean installation and live execution on both hosts remain acceptance checks. [Compatibility import guide](https://developers.openai.com/plugins/guides/submit-claude-plugin.md)
 
-Merge `skills/10x-pipeline/codex-policy.json` into `context/foundation/agent-smith-policy.json` for the opt-in GPT ladder. Existing overrides need a deliberate merge because arrays replace whole. The preset preserves tier positions and supplies an initial capability ordering. A Claude-hosted mixed ladder tags each OpenAI rung with `"provider": "openai"`. A Codex host needs an OpenAI-only ladder.
+The shipped Claude policy and Codex preset provide the two default ladders automatically. A single-provider project ladder tunes that provider alone. In a mixed override, each rung tunes its declared provider at its original position. The other provider keeps its shipped rung there. The router validates the effective bounds for each routed role. [Custom ladders and split assignments](docs/REFERENCE.md#codex-and-provider-dispatch)
 
-Existing Codex configuration is the default. Optional `codex.profile` selects an existing named configuration. The runner checks Git filesystem capability before launching a model and respects managed requirements and outer host restrictions. Native sandbox can force legacy `sandbox_mode` settings read-only and prevent verification. Execpolicy and hook behavior still need live acceptance. See the reference for the execution protocol and limits. [Codex execution](docs/REFERENCE.md#codex-and-provider-dispatch)
+Both hosts need Node.js 24+ and Git. Each executing provider needs authenticated access, project trust and discovery of the routed toolkit skill from the run worktree. OpenAI uses the Codex CLI 0.169.0 contract and existing configuration, optionally an existing `codex.profile`. Native Claude uses Agent on Claude Code. On Codex, Claude uses a guarded POSIX Claude Code print session that verifies capabilities before task handoff. This path records elapsed time with unavailable token coverage. Fresh authenticated execution for all six host/mode combinations on each chain remains a Manual check. [Execution, permission limits and recovery](docs/REFERENCE.md#codex-and-provider-dispatch)
 
 ## 🏁 Quick start
 
@@ -108,12 +115,13 @@ These compatibility statements follow Anthropic documentation reviewed on 2026-1
 | --- | --- |
 | `--archive` | Archive the change when the run is done; asks first when Manual checks are pending or unproved. |
 | `--rigor lean\|standard\|thorough` | Start at a rigor level. Default: picked from the goal. |
+| `--provider-mode claude\|codex\|split` | Choose the run provider or split planning and implementation across providers. Omit it to use the host provider on a fresh run. |
 | `--chrome false` | Keep the manual-check step off the Chrome browser tools. |
 | `--pr-comment` | Post the run report to the open pull request. Stored with the run, so a resume keeps it; `--pr-comment false` turns it off. Needs `gh`. See “PR comment (opt-in)” in [the reference](docs/REFERENCE.md) for manual posting and recovery. |
 
 ## ⚙️ Configure
 
-Override any policy key per project in `context/foundation/agent-smith-policy.json`. Defaults live in `skills/10x-pipeline/policy.json`; the OpenSpec chain's steps and prompts live in `skills/openspec-pipeline/policy.json`, which the router merges with it. The always-true step rules live in `skills/10x-pipeline/rules/` and `skills/openspec-pipeline/rules/`; no override reaches them (ADR-023, `skills/10x-pipeline/rules/README.md`).
+Override project-tunable policy keys in `context/foundation/agent-smith-policy.json`. Defaults live in `skills/10x-pipeline/policy.json`; the OpenSpec chain's steps and prompts live in `skills/openspec-pipeline/policy.json`, which the router merges with it. The always-true step rules live in `skills/10x-pipeline/rules/` and `skills/openspec-pipeline/rules/`; no override reaches them (ADR-023, `skills/10x-pipeline/rules/README.md`).
 
 ```json
 { "prices": { "usdPerMillionTokens": { "opus": 30, "sonnet": 6, "haiku": 2, "fable": 12 } } }
@@ -121,7 +129,7 @@ Override any policy key per project in `context/foundation/agent-smith-policy.js
 
 All numbers above are illustrative user-supplied blended rates. Supply current rates for your deployment. Pricing is a separate opt-in, with `prices: null` as the default. The estimate uses `totalTokens * rate / 1e6`, with one rate per model key across providers and efforts and no input/output/cache split. Omit unknown prices, since `0` is a real zero rate. With verified subtree usage the estimate is labelled a routing-rate approximation: child models may differ, and all child usage is priced at the enclosing dispatch rate. Estimates carry no billing or savings guarantee.
 
-Eligible Claude hosts can merge the complete opt-in fable ladder and four selected ceilings into their project override. Arrays replace whole, so preserve unrelated keys deliberately. The shipped rigor floors remain supported. A custom `xhigh` floor skips the high rung and can exceed a lower ceiling, while a custom `max` floor exhausts this extension at xhigh. A Codex host requires an OpenAI-only ladder. Combining this example with the GPT overlay requires a deliberate provider and ladder redesign. [Opt-in fable ladder](docs/REFERENCE.md#opt-in-fable-ladder)
+Eligible Claude hosts can merge the complete opt-in fable ladder and four selected ceilings into their project override. Arrays replace whole, so preserve unrelated keys deliberately. The shipped rigor floors remain supported. A custom `xhigh` floor skips the high rung and can exceed a lower ceiling, while a custom `max` floor exhausts this extension at xhigh. In split mode, every step assigned to OpenAI must fit its effective ladder. Adjust any shared step ceilings that exceed it. [Opt-in fable ladder](docs/REFERENCE.md#opt-in-fable-ladder)
 
 With a price table missing fable, status gives its step cost as `null`, the report cell is `-` and the summary names `no price for: fable`. Compare adds `cost-incomplete:routed` while preserving the token verdict. All-unpriced status totals are `null`. With prices off, status/report omit costs and compare side costs stay `null`.
 

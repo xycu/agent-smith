@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
+  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint, withPublicationLock, PublicationSuspended,
 } from "./pr-common.mjs";
 
 const USAGE = "usage: node pr-comment.mjs <change-id> [--report <path>] [--pr <url>] [--timeout-ms <n>]";
@@ -194,9 +194,9 @@ function main() {
   }
   let out;
   try {
-    out = run(opts);
+    out = withPublicationLock(opts.id, () => run(opts));
   } catch (e) {
-    out = skip(`internal error: ${firstLine(e?.message) || "unknown"}`);
+    out = skip(e instanceof PublicationSuspended ? e.message : `internal error: ${firstLine(e?.message) || "unknown"}`);
   }
   process.stdout.write(`${JSON.stringify(out)}\n`);
 }

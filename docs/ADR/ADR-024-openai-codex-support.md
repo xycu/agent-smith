@@ -4,7 +4,7 @@ Status accepted. Approved plan dated 2026-11-13, implementation started on that 
 
 ## Rule in force
 
-Each ladder rung selects its provider, and the host stays fixed for the run. The standalone Codex runner uses existing permissions and verifies Git capability before launch. Claude’s scoped Bash hook and the Codex execution boundary have different coverage. Native delegation permits one awaited layer of restricted leaves. After settlement the runner attributes observed usage to the matched step and descendants, or records why the total is unavailable. [Provider limits](#limits-and-verification) · [Settlement and accounting](../REFERENCE.md#observed-token-accounting)
+New runs bind the actual host and provider mode at init. Role selects the provider before tier settlement. OpenAI dispatch uses the Codex runner. Claude uses native Agent on Claude Code and a guarded headless session on Codex. Legacy mode-less runs retain rung-based routing. [Provider modes and transport limits](../REFERENCE.md#codex-and-provider-dispatch)
 
 ## Context
 
@@ -64,3 +64,11 @@ For an eligible rejected result, the root's latest turn may be `completed` or `f
 Once the lock is released, the runner returns the original bounded failure reason, null result and measured exec duration with CLI exit 1. It skips optional usage metadata reads. Both chain hosts write `unknown` with the reason and duration after runner close. The router records a failed attempt and retries according to its existing policy.
 
 An unresolved attempt retains the lock. `Execution suspended:` identifies the exact lock, the recorded thread or `unknown`, and the closure problem when available. Keep the enabling revision and TMPDIR. Await an active runner through its existing handle. After it exits, the authorized owner must inspect the recorded thread and its descendants, prove settlement and arrange router-owned recovery before mutation, relaunch or publication. Automatic recovery for a retained native lock is unavailable. [Codex runner and lock behavior](../REFERENCE.md#codex-and-provider-dispatch)
+
+## Amendment — Fixed provider modes and headless Claude (2026-11-19)
+
+A fresh run defaults to its host provider. Both skills accept an explicit `claude`, `codex` or `split` mode and show assignments before launch. Split assigns 10x planning and implementation, or OpenSpec propose and ordinary apply, to the other provider. The host provider handles reviews, repairs and archive. Homogeneous overrides tune one provider. Mixed overrides tune matching tier positions with shipped fallback. Stored dispatch stays authoritative on replay. Original host and mode-less ladder behavior remain available to historical runs.
+
+The headless Claude transport binds dispatch, agent/plugin identity, tool permissions, toolkit discovery and settlement to one POSIX session. Trusted startup imports may read pending task bytes before the guard handshake. An unverified guard or restriction refuses the task. Completion requires the enclosing terminal reply, settled foreground leaves and process-group closure. Uncertain ownership retains the original run lock through authorized reconciliation. Terminal publication holds both original live chain locks for the change ID, including after an archive move. Headless accounting returns duration and unavailable token evidence. Native Agent and Codex accounting retain their separate evidence contracts.
+
+Claude Code 2.1.311 startup discovery was observed locally. Fresh authenticated acceptance for each host, mode and chain and post-publication verification remain pending. Keep this revision and TMPDIR through reconciliation, finish the run on the enabling revision and start a separate compatible run after downgrade. [Provider implementation plan](../../context/changes/provider-mode-split/plan.md) · [Transport and recovery](../REFERENCE.md#codex-and-provider-dispatch)

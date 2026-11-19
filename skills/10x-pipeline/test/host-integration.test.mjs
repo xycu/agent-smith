@@ -160,12 +160,29 @@ test("both shared skills bind the actual host, runner lifetime, archive and comm
   for (const text of texts) {
     assert.match(text, /absolute SKILL\.md path/);
     assert.match(text, /--host <host> --pr-comment <true\|false>/);
-    assert.match(text, /For `provider: "claude"`, require host `claude`/);
-    assert.match(text, /For `provider: "openai"`/);
+    const start = text.split("## Start")[1].split("## Loop")[0];
+    const parse = start.split("\n2. ")[0];
+    assert.match(parse, /consume `--provider-mode <mode>` or `--provider-mode=<mode>` before deriving goal text or preparing isolation/i);
+    assert.match(parse, /Require `claude`, `codex` or `split`/);
+    assert.match(start, /Append `--provider-mode <mode>` only when explicitly supplied, including on resume/);
+    assert.match(start, /Show init `providerMode` and `providersByStep` before dispatch/);
+    assert.match(text, /^argument-hint:.*\[--provider-mode <mode>\]/m);
+    assert.match(text, /RUN_CLAUDE` \(`scripts\/run-claude\.mjs`\).*absolute SKILL\.md path/);
+    const run = text.split("- **`run`**")[1].split("- **`done`**")[0];
+    assert.match(run, /For `provider: "claude"` on host `claude`, use native Agent/);
+    assert.match(run, /For `provider: "openai"` on either host, run [^`]*`[^\n]*"\$RUN_CODEX"/);
+    assert.match(run, /For `provider: "claude"` on host `codex`, run [^`]*`[^\n]*"\$RUN_CLAUDE"/);
+    for (const role of ["Step <n>: <step>", "Archive:"]) {
+      assert.ok(text.split("\n").some(line => line.includes(role) && line.includes("<provider>/<model>/<effort>")));
+    }
+    for (const owner of ["PR comment (opt-in)", "Pull request (always)"]) {
+      const section = text.split("## " + owner)[1].split("\n## ")[0];
+      assert.match(section, /Check the suspension STOP before handling its JSON/);
+    }
     assert.match(text, /entire router action JSON on stdin/);
     assert.match(text, /write only `envelope\.result` unchanged/);
     assert.match(text, /Only an envelope with `launched: false` permits an `orchestrator-error`/);
-    assert.match(text, /shared runner command from `run` step 2/);
+    assert.match(text, /entire archive action unchanged to its runner command from `run` step 2/);
     assert.match(text, /no question tool/);
     assert.match(text, /Legacy or missing intent reads false/);
     assert.doesNotMatch(text, /TaskList|TaskCreate/);
@@ -173,5 +190,5 @@ test("both shared skills bind the actual host, runner lifetime, archive and comm
   }
   assert.equal(sections[0], sections[1]);
   assert.match(texts[1], /sibling `\.\.\/10x-pipeline\/` directory/);
-  assert.match(texts[1], /node "\$RUN_CODEX" <change-name> --chain openspec/);
+  for (const runner of ["RUN_CODEX", "RUN_CLAUDE"]) assert.ok(texts[1].includes(`node "$${runner}" <change-name> --chain openspec`));
 });

@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import os from "node:os";
+import { liveRunDirectory, lockRunDirectory } from "./run-lock.mjs";
 import path from "node:path";
-import crypto from "node:crypto";
+export { runLockPath } from "./run-lock.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { accountingFor } from "./usage.mjs";
@@ -610,8 +610,8 @@ export function guardArchived(p, id, chain = p.chain ?? "10x") {
 // The OpenSpec chain keeps its run state in openspec/changes/<id>/agent-smith/ and has no plan, reviews or score file.
 export function paths(id, policy = null, chain = "10x") {
   if (chain === "openspec") return openspecPaths(id);
-  const change = path.join(ROOT, "context/changes", id);
-  const dir = path.join(change, "agent-smith");
+  const dir = liveRunDirectory(ROOT, id, chain);
+  const change = path.dirname(dir);
   const score = policy ? scoreConfig(policy) : null;
   return {
     change,
@@ -629,8 +629,8 @@ export function paths(id, policy = null, chain = "10x") {
 
 // The paths of an OpenSpec run. `chain` marks the object, so helpers that take `p` can tell the chains apart.
 function openspecPaths(id) {
-  const change = path.join(ROOT, "openspec/changes", id);
-  const dir = path.join(change, "agent-smith");
+  const dir = liveRunDirectory(ROOT, id, "openspec");
+  const change = path.dirname(dir);
   return {
     chain: "openspec",
     change,
@@ -1114,113 +1114,7 @@ export function halt(reason) {
   out({ action: "halt", reason }, 1);
 }
 
-// ---- run lock -------------------------------------------------------------
-
-// The lock lives in the OS temp directory, outside the change folder, so no step commit or archive-state check sees it.
-export function runLockPath(dir) {
-  return path.join(os.tmpdir(), `agent-smith-${crypto.createHash("sha256").update(dir).digest("hex").slice(0, 16)}.lock`);
-}
-
-function pidAlive(pid) {
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; }
-}
-
-// Takes the lock of the run or halts. The pid is in the file from the moment it exists: written to a private temp file,
-// then linked to the lock name, so a second caller never reads an empty lock as stale.
+// Router callers halt on contention. External runners supply their own envelope failure callback.
 export function acquireRunLock(id, chain, onBusy = halt) {
-  const lock = runLockPath(paths(id, null, chain).dir);
-  const nativeSuspension = (threadId, claudeSession) =>
-    `Execution suspended: native ownership unresolved (lock file ${lock}, ${claudeSession ? "Claude session " + claudeSession : "thread " + (threadId ?? "unknown")}). `
-    + "Keep the enabling revision and TMPDIR. Await an active runner through its existing handle. "
-    + "If it has exited, the authorized owner must inspect the recorded thread and its descendants, prove settlement and arrange router-owned recovery before mutation, relaunch or publication. "
-    + "Automatic recovery for a retained native lock is unavailable.";
-  const tmp = `${lock}.${process.pid}.tmp`;
-  let own = String(process.pid);
-  let execution = null;
-  fs.writeFileSync(tmp, own);
-  const unlinkQuiet = (file) => { try { fs.unlinkSync(file); } catch { /* already gone */ } };
-  // The temp file is always this process's. The lock is removed only while it still holds this pid, so a lock
-  // another process holds, or took over, is never touched.
-  const release = () => {
-    unlinkQuiet(tmp);
-    // An abrupt exit must leave child ownership available to the next caller.
-    if (execution) return;
-    let holder = null;
-    try { holder = fs.readFileSync(lock, "utf8"); } catch { /* already gone */ }
-    if (holder === own) unlinkQuiet(lock);
-  };
-  try {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        fs.linkSync(tmp, lock);
-        break;
-      } catch (e) {
-        if (e.code !== "EEXIST") throw e;
-        let contents = "";
-        try { contents = fs.readFileSync(lock, "utf8").trim(); } catch { /* vanished: retry */ }
-        let owner;
-        try { owner = JSON.parse(contents); } catch { /* legacy malformed locks are stale */ }
-        const pid = isObject(owner) ? owner.pid : Number(contents);
-        if (isObject(owner) && Object.hasOwn(owner, "native")) {
-          release();
-          onBusy(`${nativeSuspension(owner.native?.threadId, owner.native?.claudeSessionId)} Nothing was written.`);
-        }
-        if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
-          release();
-          onBusy(`Another init, next or usage of change ${id} is running, or execution/status --report holds its lock (lock file ${lock}, pid ${pid}). Run calls one at a time. Nothing was written.`);
-        }
-        if (isObject(owner) || contents.startsWith("{")) {
-          const groupGone = Number.isSafeInteger(pid) && pid > 0
-            && owner?.processGroup === true && Number.isSafeInteger(owner.childPid)
-            && owner.childPid > 0 && !pidAlive(-owner.childPid);
-          if (!groupGone) {
-            release();
-            onBusy(`Codex execution lock remains for change ${id} (lock file ${lock}, runner ${pid}, child ${owner?.childPid ?? "unknown"}). The child process group is alive or its termination is uncertain. Inspect the execution and confirm its process tree has stopped before removing this lock. Nothing was written.`);
-          }
-        }
-        if (attempt > 0) throw e;
-        unlinkQuiet(lock); // stale: remove it and try once more; another caller may have removed it already
-      }
-    }
-  } catch (e) {
-    release();
-    throw e;
-  }
-  unlinkQuiet(tmp);
-  process.on("exit", release);
-  const replace = (contents) => {
-    fs.writeFileSync(tmp, contents);
-    fs.renameSync(tmp, lock);
-    own = contents;
-  };
-  return {
-    release,
-    retainedReason() {
-      return execution?.native
-        ? nativeSuspension(execution.native.threadId, execution.native.claudeSessionId)
-        : execution ? `Execution suspended: process ownership unresolved (lock file ${lock}). Confirm execution closure before router-owned recovery.` : null;
-    },
-    setChild(pid, native = false, claudeSessionId = null) {
-      // null protects the spawn-to-PID-recording window after a supervisor crash.
-      execution = { pid: process.pid, childPid: pid, processGroup: process.platform !== "win32",
-        ...(native ? { native: execution?.native ?? (claudeSessionId ? { host: "claude", claudeSessionId } : { threadId: null }) } : {}) };
-      replace(JSON.stringify(execution));
-    },
-    setThread(threadId) {
-      if (!execution?.native || (execution.native.threadId && execution.native.threadId !== threadId)) {
-        throw new Error("Native execution identity changed.");
-      }
-      const updated = { ...execution, native: { ...execution.native, threadId } };
-      replace(JSON.stringify(updated));
-      execution = updated;
-    },
-    clearChild(settled = false) {
-      if (execution?.native && !settled) throw new Error(this.retainedReason());
-      if (execution?.processGroup && execution.childPid && pidAlive(-execution.childPid)) {
-        throw new Error(`Codex child process group ${execution.childPid} is still alive. Execution lock retained at ${lock}.`);
-      }
-      replace(String(process.pid));
-      execution = null;
-    },
-  };
+  return lockRunDirectory(id, liveRunDirectory(ROOT, id, chain), onBusy);
 }

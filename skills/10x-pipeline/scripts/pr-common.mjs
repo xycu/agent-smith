@@ -1,10 +1,11 @@
 // Helpers shared by open-pr.mjs and pr-comment.mjs (issue #95). Neither the router nor any router module imports it.
-// Plain node: built-ins and remove-tree.mjs only.
+// Standalone Node.js helpers.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { liveRunDirectory, lockRunDirectory } from "./run-lock.mjs";
 import { removeTree } from "./remove-tree.mjs";
 
 export const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
@@ -90,5 +91,24 @@ export function isEntryPoint(metaUrl) {
     return fs.realpathSync(process.argv[1]) === fs.realpathSync(fileURLToPath(metaUrl));
   } catch {
     return false;
+  }
+}
+
+// Publication works on a branch and may receive any valid archived report path. Protect both
+// live chain identities in a stable order, including when an archive has moved the report.
+export class PublicationSuspended extends Error {}
+
+export function withPublicationLock(id, publish) {
+  const held = [];
+  const suspend = (reason) => {
+    throw new PublicationSuspended(reason.startsWith("Execution suspended:") ? reason : `Execution suspended: ${reason}`);
+  };
+  try {
+    for (const chain of ["10x", "openspec"]) {
+      held.push(lockRunDirectory(id, liveRunDirectory(process.cwd(), id, chain), suspend));
+    }
+    return publish();
+  } finally {
+    for (const lock of held.reverse()) lock.release();
   }
 }

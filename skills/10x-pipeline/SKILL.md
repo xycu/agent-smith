@@ -5,7 +5,7 @@ description: >
   Plan, review, implement and fix in separate subagents, with a bundled router
   selecting each step, model and effort from earlier results.
 disable-model-invocation: true
-argument-hint: <change-id> [goal text] [--archive] [--chrome false] [--rigor <level>] [--pr-comment]
+argument-hint: <change-id> [goal text] [--archive] [--chrome false] [--rigor <level>] [--provider-mode <mode>] [--pr-comment]
 allowed-tools:
   - Agent
   - AskUserQuestion
@@ -16,24 +16,25 @@ allowed-tools:
 
 # 10x Pipeline
 
-Execute router actions. Delegate planning, implementation and review. The router owns step, model and effort selection.
+Execute each router action.
 
-Router: `ROUTER="${CLAUDE_SKILL_DIR}/scripts/route.mjs"`. Use `node` from the run root (Start step 3), with the path shell-quoted.
-PR comment script: `PR_COMMENT="${CLAUDE_SKILL_DIR}/scripts/pr-comment.mjs"`. Use only in "PR comment (opt-in)".
-Pull request script: `OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"`. Use only in "Pull request (always)".
+Router: `ROUTER="${CLAUDE_SKILL_DIR}/scripts/route.mjs"`. Use `node` from the run root. Quote the path.
+PR comment script: `PR_COMMENT="${CLAUDE_SKILL_DIR}/scripts/pr-comment.mjs"`.
+Pull request script: `OPEN_PR="${CLAUDE_SKILL_DIR}/scripts/open-pr.mjs"`.
 Bash timeout: run every `route.mjs`, `open-pr.mjs` and `pr-comment.mjs` call with the Bash tool's `timeout: 600000`, its maximum. The default can kill a slow router commit.
 
-Codex runner: `RUN_CODEX="${CLAUDE_SKILL_DIR}/scripts/run-codex.mjs"` under Claude. Under Codex, resolve `scripts/route.mjs`, `scripts/run-codex.mjs`, `scripts/pr-comment.mjs`, `scripts/open-pr.mjs` and `policy.json` relative to the loaded absolute SKILL.md path. Keep every script path absolute and quoted.
+Under Claude, set `RUN_CODEX="${CLAUDE_SKILL_DIR}/scripts/run-codex.mjs"`. Under Codex, resolve `RUN_CODEX`, `RUN_CLAUDE` (`scripts/run-claude.mjs`) and the other script paths from the loaded absolute SKILL.md path. Keep every script path absolute and quoted.
 
-Claude accounting: `CLAUDE_USAGE="${CLAUDE_SKILL_DIR}/scripts/claude-usage.mjs"`. Use the same reader for immediate, late and archive measurements.
+Native Claude accounting uses `CLAUDE_USAGE="${CLAUDE_SKILL_DIR}/scripts/claude-usage.mjs"`.
 
-Set `--host <host>` from the actual session (`claude` or `codex`). Only Claude Code dispatches router-selected `claude` actions through Agent. Both hosts run `openai` actions through the shared runner with existing Codex configuration, or the action's optional profile.
+Set `--host <host>` from the actual session (`claude` or `codex`).
 
 ## Start
 
 1. Parse the arguments. Require kebab-case `<change-id>` and optional goal text. Parse `--archive`, `--chrome` and `--pr-comment` with optional following `true` or `false`. Remove flags and values from goal text. Forward supplied flags to `init`. Every explicit invocation forwards `--pr-comment true` when requested, otherwise `--pr-comment false` to reset authorization.
+   Consume `--provider-mode <mode>` or `--provider-mode=<mode>` before deriving goal text or preparing isolation. Require `claude`, `codex` or `split` for a supplied value.
    Parse `--rigor` with a following `lean`, `standard` or `thorough` (`--rigor=<level>` too), remove it from goal text and forward only when supplied.
-2. Require `10x-plan`, `10x-plan-review`, `10x-goal-implement` and `10x-impl-review`. If unavailable, request 10x toolkit installation and STOP.
+2. Check host Node.js and Git. Require the routed 10x toolkit skill in its executing provider.
 3. Prepare run isolation before init. `<root>` is this session's original project root. Under Claude, define `PREPARE_RUN="${CLAUDE_SKILL_DIR}/scripts/prepare-run.mjs"`. Under Codex, resolve `scripts/prepare-run.mjs` from the absolute SKILL.md path. Keep `PREPARE_RUN` absolute and quoted.
    - Run `cd "<root>" && node "$PREPARE_RUN" <change-id>` with the Bash tool's `timeout: 600000`.
    - Parse exactly one JSON object and validate `root`, `runRoot`, `worktree`, `branch`, `case`, `copied`, `excludeAdded`, `notInRun`, `left` and `reason`. Require `reason: null`, absolute `root` and `runRoot`, and an array of path strings in `notInRun`. On nonzero exit, missing/malformed JSON, invalid fields or non-null `reason`, show diagnostics and STOP before `init`.
@@ -48,18 +49,18 @@ Set `--host <host>` from the actual session (`claude` or `codex`). Only Claude C
    - Save original setup JSON verbatim, independently of cleanup. For saved `case: created`, `copied: true`, `reason: null`, after step 4 returns `action: run`, `done` or `archive`, send saved setup JSON verbatim on stdin to `cd "<root>" && node "$PREPARE_RUN" <change-id> --cleanup` with the Bash tool and `timeout: 600000`. Cleanup runs once before run launch, done reporting/PR handling or archive dispatch. Resumes and halted initialization skip cleanup.
    - Parse exactly one cleanup JSON object with the same field validation and an array of path strings in `left`. Report nonempty `left` as retained original paths. On diagnostics, nonzero exit, missing/malformed JSON or invalid fields, show the error and original change path. Keep the initialized run root and continue the init action even on `runRoot: null`.
    - When isolated, name the branch from saved setup `branch` and run root, retained original paths from `left` and cleanup diagnostics in the final message. For `done` without archive, if publication reports `committed: false`, reported `pushed: false` without `committed: true`, or no JSON object, report `report.md`, the last `run.jsonl` entry and `meta.json` are uncommitted in the worktree. Commit them before the merge and before removing the worktree.
-4. Run `cd "<run root>" && node $ROUTER init <change-id> --goal "<goal text>" --host <host> --pr-comment <true|false>`. Shell-quote the goal safely. An existing log resumes from disk. Forward `--rigor <level>` only from user flags or plain words. Never choose it. Resume only raises it. Forward `--archive` and `--chrome` only when supplied. Resume keeps stored values. Explicit `--archive false` or `--chrome false` disables each. Chrome defaults on.
-5. Before OpenAI launch, check `codex --version` against the documented CLI contract. Prove fresh-child toolkit SKILL.md discovery from the run root via active config and installed user/project/plugin locations. Parent-session listing alone proves no child discovery. Missing CLI, toolkit or discovery evidence stops the launch with a diagnostic. Existing Codex and host controls own authentication, trust and Git permissions. The runner probes Git permissions without creating profiles or granting trust.
+4. Run `cd "<run root>" && node $ROUTER init <change-id> --goal "<goal text>" --host <host> --pr-comment <true|false>`. Append `--provider-mode <mode>` only when explicitly supplied, including on resume. Quote the goal. Show init `providerMode` and `providersByStep` before dispatch. Forward `--rigor <level>` only from user flags or plain words. Never choose it. Resume only raises it. Forward `--archive` and `--chrome` only when supplied. Resume keeps stored values. Explicit `--archive false` or `--chrome false` disables each. Chrome defaults on.
+5. Use the native Agent’s installed skills. For either external runner, require fresh-child toolkit SKILL.md discovery from the run root. Parent-session listing alone proves no child discovery. Check `codex --version` on OpenAI actions. For headless Claude, require the guarded same-session discovery and permission preflight. Existing controls own authentication, trust and Git permissions without creating profiles or granting trust. Handle refusals under Loop step 2.
 
 ## Loop
 
-Read the router JSON and follow `action`.
+Follow `action`.
 
 Suspension STOP: a live or unresolved execution lock suspends the run and archive paths before result writes, `next`, late `usage`, archive verification/dispatch, commit/rollback and terminal publication/comment procedures. Preserve the pending dispatch, saved prompt and existing result bytes. Permit read-only status and execution inspection. Return an actionable blocked report naming the lock path and reconciliation prerequisite with `signals.needsHuman`, then STOP even if the foreground process has closed. Keep the enabling revision and the same TMPDIR; never remove a production lock yourself or change TMPDIR to bypass exclusion. The owner must prove settlement and arrange router-owned recovery. This STOP takes precedence over ordinary incomplete-envelope, halt and publication handling.
 
-- **`run`** (ignore skipped steps, which the router logs with reasons)
-  1. Print one line: `Step <n>: <step> on <model>/<effort>. <reason>`. With `neutralRetry`, append `Neutral rerun <count> of <cap>.`
-  2. For `provider: "claude"`, require host `claude`. Inspect the exposed Agent schema before calling: when it declares `run_in_background`, set it to `false`; otherwise omit `run_in_background`. Call the Agent tool with `subagent_type` set to the router's `agent` when the output has one, else `general-purpose`, `model: <model>`, `effort: <effort>`, `description: "agent-smith <change-id> step <n> <step>"`, and `prompt` set to the router's `prompt`, copied verbatim.
+- **`run`**
+  1. Print one line: `Step <n>: <step> on <provider>/<model>/<effort>. <reason>`. With `neutralRetry`, append `Neutral rerun <count> of <cap>.`
+  2. For `provider: "claude"` on host `claude`, use native Agent. Inspect the exposed Agent schema before calling: when it declares `run_in_background`, set it to `false`; otherwise omit `run_in_background`. Call the Agent tool with `subagent_type` set to the router's `agent` when the output has one, else `general-purpose`, `model: <model>`, `effort: <effort>`, `description: "agent-smith <change-id> step <n> <step>"`, and `prompt` set to the router's `prompt`, copied verbatim.
 
      For archive step 3, override the description with `agent-smith <change-id> archive`.
 
@@ -75,13 +76,11 @@ Suspension STOP: a live or unresolved execution lock suspends the run and archiv
 
      For other call failures, including an unresolved router `agent`, do not call it again with another type. Continue at step 3 as `unknown`.
 
+     For file handoffs, when `promptFile` exists, forward the router's short `prompt` verbatim. Do not read, expand, edit or delete the task file; the child reads it and the router owns cleanup.
 
-     For either provider, when `promptFile` exists, forward the router's short `prompt` verbatim. Do not read, expand, edit or delete the task file; the child reads it and the router owns cleanup.
+     For `provider: "openai"` on either host, run `cd "<run root>" && node "$RUN_CODEX" <change-id>`. For `provider: "claude"` on host `codex`, run `cd "<run root>" && node "$RUN_CLAUDE" <change-id>`. Send the entire router action JSON on stdin. Pass its exact prompt and dispatch unchanged. Wait through the host terminal completion facility, retaining the process handle. A foreground timeout never permits relaunch.
 
-
-     For `provider: "openai"`, run `cd "<run root>" && node "$RUN_CODEX" <change-id>` with the entire router action JSON on stdin. Pass its exact prompt and dispatch unchanged. Wait through the host terminal completion facility, retaining the process handle. A foreground timeout never permits relaunch.
-
-     Before any result handling, check for `Execution suspended:` or any live/unresolved execution-lock diagnostic, including `launched: false` and lock-related router halts. Apply the suspension STOP below before the ordinary incomplete-envelope branch.
+     Before any result handling, check for `Execution suspended:` or any live/unresolved execution-lock diagnostic, including `launched: false` and lock-related router halts. Apply the suspension STOP first.
 
      When the envelope has `completed: true`, write only `envelope.result` unchanged to `<run root>/<resultFile>` then step 5, bypassing steps 3–4. Preserve child `failed` or `blocked` results.
 
@@ -108,8 +107,8 @@ Suspension STOP: a live or unresolved execution lock suspends the run and archiv
      On a no, launch no subagent and run no `verify-archive`. Print `Archive: skipped, <n> Manual check(s) pending or unproved.`. Count distinct ids across those three lists for `<n>`.
 
      Then do the first bullet of step 5 with the default report path, without running `verify-archive`, and STOP with a final message. Say the change was not archived and its folder is committed on the run branch (`commit`, or already committed). Repeat the summary checklist and reasons. `/10x-archive <change-id>` archives it later. Running `/agent-smith:10x-pipeline <change-id>` asks again. Include Start step 3 worktree notes. Identify stale `Archive: requested` in the report.
-  2. Print one line: `Archive: /10x-archive on <model>/<effort>.`
-  3. Call the Agent tool with the same parameters as for `run` only for a `claude` action on the Claude host, with `prompt` set to the router's `prompt`, copied verbatim. For an `openai` action, feed the entire archive action to the shared runner command from `run` step 2 and wait for its process and child to close. Check the suspension STOP before archive verification or publication. For Claude, apply Loop step 4's collector too. Keep the returned `reply`, normalized result and measured usage/evidence only for the final message. Inspect an uncertain process before proceeding and never relaunch it.
+  2. Print one line: `Archive: /10x-archive on <provider>/<model>/<effort>.`
+  3. Call the Agent tool with the same parameters as for `run` only for a `claude` action on the Claude host. For either external transport, feed the entire archive action unchanged to its runner command from `run` step 2 and wait for process and child closure. Check the suspension STOP before archive verification or publication. Only for native Agent, apply Loop step 4's collector. Keep the returned `reply`, normalized result and measured usage/evidence only for the final message. Inspect an uncertain process before proceeding and never relaunch it.
   4. Write no result file and do not call `next`. Archive has no `resultFile`. Write nothing into the moving folder.
   5. Run `cd "<run root>" && node $ROUTER verify-archive <change-id> --path <archivePath>` with the saved action's `archivePath`.
      - First, whatever `archived` says, do the pull request step, to publish the archive commit. On `archived: true` both steps get `--report "<archivePath>/agent-smith/report.md"`, for the moved report. on `archived: false` both use the default report path.
@@ -121,9 +120,9 @@ Suspension STOP: a live or unresolved execution lock suspends the run and archiv
 
 ## Anti-stall rules
 
-Rules 1, 2, 3 and 6 hold for every `run` step. Rules 4 and 5 hold for the whole run, also while its `done`, `archive` or `halt` branch is being worked through. Rules 1 and 6 also hold for the archive subagent: when its own final report arrives, continue at step 4 of the `archive` branch. Rules 2 and 3 do not apply to it, because the `archive` action has no result file and no `next` call. A usage figure it reports goes only into the final message. OpenAI execution waits for its existing runner process through the host terminal completion facility, and uses the returned normalized result and measured usage. A run has ended when the orchestrator has finished every step of its `done`, `archive` or `halt` branch.
+Rules 1, 2, 3 and 6 hold for every `run` step. Rules 4 and 5 hold for the whole run, also while its `done`, `archive` or `halt` branch is being worked through. Rules 1 and 6 also hold for the archive subagent: when its own final report arrives, continue at step 4 of the `archive` branch. Rules 2 and 3 do not apply to it, because the `archive` action has no result file and no `next` call. A usage figure it reports goes only into the final message. External execution waits for its existing runner process through the host terminal completion facility, and uses the returned normalized result and measured usage. A run has ended when the orchestrator has finished every step of its `done`, `archive` or `halt` branch.
 
-- **GIVEN** a `run` step **WHEN** the Agent tool returns a launch notice instead of a final report **THEN** the orchestrator **MUST** end its turn and continue the Loop at step 3 when the subagent's final report arrives, without starting another step or polling, while a running OpenAI runner is waited on through its existing process handle until it closes, without relaunching it.
+- **GIVEN** a `run` step **WHEN** the Agent tool returns a launch notice instead of a final report **THEN** the orchestrator **MUST** end its turn and continue the Loop at step 3 when the subagent's final report arrives, without starting another step or polling, while a running external runner is waited on through its existing process handle until it closes, without relaunching it.
 - **GIVEN** the final report of a `run` step holds its `RESULT:` line **WHEN** no usage figure has arrived **THEN** the orchestrator **MUST** write the result file without `usage` and run `next` in the same turn.
 - **GIVEN** `next` ran for a `run` step **WHEN** a usage figure for that step arrives later **THEN** the orchestrator **MUST** attach it with one call of the router's `usage` command of its own, never alongside another router call, before the pull request step or the archive subagent starts, instead of rewriting the result file or calling `next` again, and drop a figure that arrives after that point.
 - **GIVEN** the run has not ended in `done`, `archive` or `halt` and no STOP instruction of the Start or Loop sections applies (for example the suspension STOP for unresolved native ownership or `archived: false` in the `archive` branch) **WHEN** the orchestrator would end its turn **THEN** it **MUST NOT** end it unless a launched subagent or runner process is still running.
@@ -152,19 +151,19 @@ A refusal exits 1 with `attached: false`; it is no fault of yours, so write no `
 
 Run only when the terminal router action has `prComment: true`. Keep that action's intent across status and archive verification calls. Legacy or missing intent reads false. A missing field or any other value authorizes no comment. Execute once, in order.
 
-1. Run `cd "<run root>" && node $PR_COMMENT <change-id>` from the run root, after the pull request step. Forward the pull request step's `pr.url` with `--pr <url>` when present. In `archive` on `archived: true`, append `--report "<archivePath>/agent-smith/report.md"`. Quote the script path and the change id for the shell, and the url and the report path too. Parse its one JSON object. It posts `report.md` on the selected PR (current branch by default), or edits its earlier comment.
+1. Run `cd "<run root>" && node $PR_COMMENT <change-id>` from the run root, after the pull request step. Forward the pull request step's `pr.url` with `--pr <url>` when present. In `archive` on `archived: true`, append `--report "<archivePath>/agent-smith/report.md"`. Quote the script path and the change id for the shell, and the url and the report path too. Check the suspension STOP before handling its JSON. It posts `report.md` on the selected PR (current branch by default), or edits its earlier comment.
 2. Print one line: `PR comment: <action>, <url or reason> (PR <pr url or none>)`, from the `action`, `url`, `reason` and `pr` of that object.
 
 - In `archive` the step runs in step 5, after the pull request step, so after the move.
 - A `halt` without a `report` posts nothing: print `PR comment: skipped, no report`.
 - If the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error`.
-- A skip leaves the run outcome intact. Never retry or write this result into the change folder. Include it only in the final message.
+- A skip leaves the run outcome intact. Never retry or write this result into the change folder.
 
 ## Pull request (always)
 
 For `done`, `archive` and `halt`, execute once before any STOP, with or without `--pr-comment` (ADR-017). Publication precedes comments. Follow these steps.
 
-1. Run `cd "<run root>" && node $OPEN_PR <change-id>`. In `archive` on `archived: true`, append `--report "<archivePath>/agent-smith/report.md"`. Shell-quote script, change id and report path. It prints one JSON object. With commits beyond base, it commits leftovers as `chore(<change-id>): final run state`, pushes its validated branch without force and opens or updates its PR. It never merges.
+1. Run `cd "<run root>" && node $OPEN_PR <change-id>`. In `archive` on `archived: true`, append `--report "<archivePath>/agent-smith/report.md"`. Shell-quote script, change id and report path. Check the suspension STOP before handling its JSON or invoking the comment script. With commits beyond base, it commits leftovers as `chore(<change-id>): final run state`, pushes its validated branch without force and opens or updates its PR. It never merges.
 2. Use publication `branch`, else saved setup `branch`, else `unavailable` as `<branch>`. Print `Pull request: <action>, <url or reason> (branch <branch>, pushed <true|false>)` from `pr` and `pushed`. For nonempty `swept`, print `Pull request: the final run state commit holds code under chore: <paths>`, using comma-joined paths.
 3. For `pushed: false`, print `Pull request: NOT pushed, <reason>. Branch <branch> is local only: <manual>`. On nonzero exit or no JSON object, print `Pull request: NOT pushed, script error. Branch <branch> is local only: run the script by hand from the run root` instead of both lines.
 4. Keep `pr.url` and do the PR comment step under "PR comment (opt-in)". Its saved terminal intent applies even when publication skips or fails.
@@ -185,10 +184,8 @@ For `done`, `archive` and `halt`, execute once before any STOP, with or without 
 
 ## Tuning
 
-The router and policy own routing.
-
 - `${CLAUDE_SKILL_DIR}/policy.json` holds the defaults for routing, retry caps and prompt templates.
-- A project can override any key in `context/foundation/agent-smith-policy.json`. The router deep-merges it over the defaults. Arrays such as `ladder` are replaced whole.
+- The router deep-merges `context/foundation/agent-smith-policy.json` over defaults. Arrays are replaced whole. Split role membership belongs to the chain policy.
 - The always-true step rules live in `${CLAUDE_SKILL_DIR}/rules/` (`top.md` for every step of both chains, `steps/<step>.md` for one step; ADR-023); the router reads them by fixed path, and no override reaches them.
 
 - Routing behavior and policy thresholds are in the plugin's `docs/REFERENCE.md`, section `/agent-smith:10x-pipeline`.

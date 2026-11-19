@@ -391,11 +391,14 @@ for (const [chain, source] of [
   ["10x", skill],
   ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8")],
 ]) {
-  test(`${chain}: Anti-stall baseline is immutable apart from the required suspension STOP`, () => {
+  test(`${chain}: Anti-stall baseline retains the suspension STOP and covers both external transports`, () => {
     const start = source.indexOf(HEADING);
     const end = source.indexOf("\n## ", start + HEADING.length);
     assert.ok(start >= 0 && end > start);
-    const digest = createHash("sha256").update(source.slice(start, end + 1).replace("the suspension STOP for unresolved native ownership or ", "")).digest("hex");
+    const digest = createHash("sha256").update(source.slice(start, end + 1)
+      .replace("External execution waits", "OpenAI execution waits")
+      .replace("a running external runner", "a running OpenAI runner")
+      .replace("the suspension STOP for unresolved native ownership or ", "")).digest("hex");
     assert.equal(digest, "9d262e57b558c87ce54b3a258c9454b3eec2eb35b44cc3539a0d1047077b1d44");
   });
   test(`${chain}: routing literals stay in policy and reference`, () => {
@@ -456,7 +459,7 @@ for (const [chain, source] of [
     for (const text of ["invalid fields", "array of path strings in `notInRun`", "array of path strings in `left`",
       "committed: false", "pushed: false", "without `committed: true`", "or no JSON object",
       "report.md", "run.jsonl", "meta.json", "before the merge and before removing the worktree",
-      "Before OpenAI launch", "fresh-child toolkit SKILL.md discovery", "Parent-session listing alone proves no child discovery",
+      "For either external runner", "fresh-child toolkit SKILL.md discovery", "Parent-session listing alone proves no child discovery",
       "authentication, trust and Git permissions", "without creating profiles or granting trust"]) {
       assert.ok(start.includes(text), text);
     }
@@ -521,7 +524,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.match(late, /Never wait or poll/);
     assert.match(late, /Archive-agent usage belongs only in the final message, including its coverage limitation/);
     assert.doesNotMatch(late, /node \$ROUTER next|--tokens N/);
-    assert.match(branch("archive", source.split("\n")), /For Claude, apply Loop step 4.s collector too/);
+    assert.match(branch("archive", source.split("\n")), /Only for native Agent, apply Loop step 4.s collector/);
   });
 }
 
