@@ -137,7 +137,7 @@ The hook consumes the same Claude Code JSON and emits the same decision formats.
 
 #### Automated
 
-- [ ] 1.1 The focused hook suite passes with paired heredoc cases and all legacy direct denials using `node --test skills/10x-pipeline/test/step-guard.test.mjs`.
+- [x] 1.1 The focused hook suite passes with paired heredoc cases and all legacy direct denials using `node --test skills/10x-pipeline/test/step-guard.test.mjs`.
 
 ### Phase 2: Apply the byte cap to guarded steps
 

@@ -22,18 +22,20 @@ function invoke(input, executable = script, options = {}) {
   assert.equal(result.error, undefined, result.error?.message);
   return { ...result, decision: result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : null };
 }
-function denied(command) {
+function denied(command, reason = /orchestrator|preserv|forbidden/i) {
   const result = invoke(payload(command));
   assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
   assert.deepEqual(Object.keys(result.decision).sort(), ["hookEventName", "permissionDecision", "permissionDecisionReason"]);
   assert.equal(result.decision.hookEventName, "PreToolUse");
   assert.equal(result.decision.permissionDecision, "deny", command);
-  assert.match(result.decision.permissionDecisionReason, /orchestrator|preserv|forbidden/i);
+  assert.match(result.decision.permissionDecisionReason, reason);
 }
 function neutral(input) {
   const result = invoke(input);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "", "pass-through never grants permission");
+  assert.equal(result.stderr, "");
 }
 
 test("shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling", () => {
@@ -112,6 +114,92 @@ test("literal quotes, escapes and supported shell separators retain command posi
     'echo "node /plugin/open-pr.mjs demo"', "cat open-pr.mjs", "git diff -- --no-verify",
     'cd "run root" && git status && git commit -m "fix: safe"', "echo safe # git push",
   ]) neutral(payload(command));
+});
+
+const heredocGuidance = /Heredoc.*Write tool/i;
+
+test("heredocs distinguish literal text routes from executable or unresolved recipients", () => {
+  const prose = 'it doesn\'t matter if a "quote remains open\nrm -rf build';
+  for (const command of [
+    "cat<<EOF\n" + prose + "\nEOF",
+    "cat << 'EOF' >notes.txt\n" + prose + "\nEOF\n",
+    "1>notes.txt cat 0<<EOF\n" + prose + "\nEOF\n",
+    'cat <<"EOF" >>"more notes.txt" # a comment\n' + prose + "\nEOF\n",
+    "cat <<EOF | tee -a notes.txt\n" + prose + "\nEOF\n",
+    "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\ntee notes.txt",
+    "cat <<A | tee <<B notes.txt\nfirst\nA\nsecond\nB\n",
+  ]) neutral(payload(command));
+  for (const command of [
+    "bash <<'EOF'\n" + prose + "\nEOF",
+    "node <<'EOF'\n" + prose + "\nEOF",
+    "cat <<EOF | tee notes.txt | sh\n" + prose + "\nEOF",
+    "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\nsh",
+    'cat <<EOF >"$destination"\n' + prose + "\nEOF",
+    "cat <<EOF 2>&1\n" + prose + "\nEOF",
+    "cat 3<<EOF\n" + prose + "\nEOF",
+    "cat <<EOF > >(tee notes.txt)\n" + prose + "\nEOF",
+    "if true; then\ncat <<EOF\n" + prose + "\nEOF\nfi",
+  ]) denied(command, heredocGuidance);
+  denied("cat <<EOF\n" + prose + "\nEOF\ngit push");
+  denied("git push; cat <<EOF\n" + prose + "\nEOF");
+});
+
+test("heredoc delimiters and body escapes follow their lexical context", () => {
+  for (const command of [
+    "cat <<-EOF\n\tfirst\n\tEOF\n",
+    "cat <<-'EOF'\n\tEOF \n\tmore text\n\tEOF\n",
+    "cat <<EOF\nEOF \n\tEOF\nmore text\nEOF",
+    "cat <<EOF\nfirst\nEO\\\nF\n",
+    "cat <\\\n<EO\\\nF\\\n >notes.txt\nfirst\nEOF\n",
+    'cat << "EO\\\nF"\\\n # trailing comment\nfirst\nEOF',
+    "cat <<EOF\nliteral \\$(echo hi) \\$HOME \\\x60echo hi\\\x60 and $.\nEOF",
+    "cat <<EOF\nliteral \\$\\\n(name)\nEOF",
+    "cat <<'EOF'\n$(echo hi) $((1+2)) $HOME \x60echo hi\x60\nEOF",
+    'echo "<<EOF" \'<<EOF\' \\<\\<EOF # <<IGNORED',
+    'echo "$(printf \'<<EOF\')"',
+    'echo "\x60printf \'<<EOF\'\x60"',
+    "echo $((1<<2)); ((1<<2))",
+    "cat <<< 'literal <<EOF'",
+  ]) neutral(payload(command));
+  for (const body of ["$(echo hi)", "$HOME", "\x60echo hi\x60", "$((1+2))", "$\\\n(echo hi)", "\\\\$(echo hi)"]) {
+    denied("cat <<EOF\n" + body + "\nEOF", /active expansion.*quote.*Write tool/i);
+  }
+  for (const command of [
+    "cat <<EOF\nmissing terminator",
+    "cat <<-EOF\n EOF\n",
+    "cat <<EOF\nEOF \n",
+    "cat <<EOF\nEO\\\\\nF\n",
+    "cat <<EOF\nfirst\n",
+    'cat <<E"OF"\nfirst\nEOF\n',
+  ]) {
+    const result = invoke(payload(command));
+    assert.equal(result.status, 2, command);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /heredoc.*Write tool/i);
+  }
+});
+
+test("only an entire separate git commit message operand can capture a literal heredoc", () => {
+  const capture = (body) => '"$(cat <<\'EOF\'\n' + body + "EOF\n)\"";
+  const message = capture('fix: an apostrophe isn\'t a "quote\ngit push\n');
+  for (const command of [
+    "git commit -m " + message,
+    "git commit -m " + capture(""),
+    "git commit -m " + capture("--no-verify\n"),
+    "git commit -a -m " + message + " -- tracked-file",
+  ]) neutral(payload(command));
+  denied("git commit --no-verify -m " + message);
+  denied("git commit -m " + capture("") + " --no-verify");
+  denied("git commit -m " + message + " && gh --version");
+  for (const command of [
+    "echo " + message,
+    "git commit --trailer -m " + message,
+    "git commit -- -m " + message,
+    "git commit -m" + message,
+    "git commit -m " + message + "suffix",
+    'git commit -m "$(cat <<\'EOF\'\nmessage\nEOF\necho extra\n)"',
+    "echo $(cat <<'EOF'\nmessage\nEOF\n)",
+  ]) denied(command, heredocGuidance);
 });
 
 test("orchestrator and unrelated agents pass through, including publication script calls", () => {
