@@ -7,7 +7,7 @@
 
 ## Rule in force
 
-The router records plugin, flags and hashes for policy and shipped inputs, including agents, rules and hooks. It excludes `compare`, `provenance`, `prices` and `coAuthor` from policy hashes. New Claude steps default to guarded `agent-smith:step`. Normal steps can opt into supported restricted mappings, and archive uses the fixed guarded identity. The advisor flag adds consult guidance for selected templates and the host setting selects the advisor. OpenAI and custom Claude identities use their own permission controls and the shared rules. [Provenance rules](#what-each-feature-covers) · [Guard coverage](#amendment-1--guarded-claude-dispatch-2026-11-15)
+The router records plugin, flags and hashes for policy and shipped inputs, including agents, rules and hooks. By default, `provenance.ignore` excludes `compare`, `provenance`, `prices` and `coAuthor` from policy hashes. A project can replace that list. New Claude steps default to guarded `agent-smith:step`. Normal steps can opt into supported restricted mappings, and archive uses the fixed guarded identity. The advisor flag adds consult guidance for selected templates and the host setting selects the advisor. OpenAI and custom Claude identities use their own permission controls and the shared rules. [Provenance rules](#what-each-feature-covers) · [Guard coverage](#amendment-1--guarded-claude-dispatch-2026-11-15)
 
 ## Context
 

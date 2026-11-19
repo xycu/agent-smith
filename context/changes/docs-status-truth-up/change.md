@@ -1,7 +1,7 @@
 ---
 change_id: docs-status-truth-up
 title: Bring ADR statuses, WAVES.md, dead links and pending notes up to date
-status: implemented
+status: impl_reviewed
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
@@ -59,7 +59,7 @@ The audit of 92 archived 10x plans found 35 with open rows. All 58 open rows wer
 
 Keep the existing 10x gates. When `autoPending` is positive, the router sends recognized unfinished Automated work to implementation before archive. Malformed or empty fresh Progress has its own change. The optional `archive.haltOnManualPending` precheck can stop archive earlier. Once the router offers archive, the orchestrator requires explicit approval if any of `manualPending`, `manualUnproven` or `uncommittedTicks` contains entries. After the move, `verify-archive` reads the filesystem to confirm the move and archived status stamp. [Routing](../../../skills/10x-pipeline/scripts/flow.mjs) · [Malformed Progress](../plan-zero-rows-skips-implement/change.md) · [Precheck](../../../skills/10x-pipeline/scripts/isolation.mjs) · [Manual gate](../../../skills/10x-pipeline/SKILL.md) · [Move verification](../../../skills/10x-pipeline/scripts/route.mjs)
 
-OpenSpec gates archive on task completion and verifies the move from files. Its archive summary has empty Manual lists, so the mirrored Manual prompt stays dormant. S-13 shows how an owner recorded a live-qualification deferral separately from task completion. S-14 recorded the outstanding row IDs and their destination at closeout. [Task precheck](../../../skills/10x-pipeline/scripts/isolation.mjs) · [File-only verification](../../../skills/10x-pipeline/scripts/route.mjs) · [OpenSpec archive instructions](../../../skills/openspec-pipeline/SKILL.md) · [S-13 decision](../../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision) · [S-14 closeout](../../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
+OpenSpec gates archive on task completion and verifies the move from files. Its archive summary returns `manualPending: []` and omits `manualUnproven` and `uncommittedTicks`, so the mirrored Manual prompt stays dormant. S-13 shows how an owner recorded a live-qualification deferral separately from task completion. S-14 recorded the outstanding row IDs and their destination at closeout. [Task precheck](../../../skills/10x-pipeline/scripts/isolation.mjs) · [File-only verification](../../../skills/10x-pipeline/scripts/route.mjs) · [OpenSpec archive instructions](../../../skills/openspec-pipeline/SKILL.md) · [S-13 decision](../../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision) · [S-14 closeout](../../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
 
 Open a documentation follow-up to record affirmative exceptions before future 10x archive moves. S-19 owns owner-decision halts. [`record-archive-manual-decision`](../record-archive-manual-decision/change.md) · [S-19](../../foundation/roadmap.md#s-19-truthful-verification-and-owner-decision-halts)
 
@@ -67,4 +67,4 @@ Open a documentation follow-up to record affirmative exceptions before future 10
 
 The implementation started at `7e9738b7`. The rendered README and documentation check reproduced six missing targets before implementation and found zero after the repairs. The ADR inventory and the roadmap and follow-up assertions passed. The final check of newly cited files and section anchors resolved all 144 local references in the changed prose.
 
-Each phase passed the complete suite on Node 24.19.0 with OpenSpec 2.0.0. The final run exited 0 with 1,920 passed, zero failed and three skipped. Two live GitHub tests require `GH_LIVE=1` and an authenticated client. This run used `GH_LIVE=0`. The optional import check skipped because the repository has no root `CLAUDE.md`. Manual rows 2.2 and 3.4 remain open.
+Each phase passed the complete suite on Node 24.19.0 with OpenSpec 2.0.0. The final run exited 0 with 1,920 passed, zero failed and three skipped. Two live GitHub tests require `GH_LIVE=1` and an authenticated client. This run used `GH_LIVE=0`. The optional import check skipped because the repository has no root `CLAUDE.md`. The subsequent Manual verification closed [row 2.2 on the ADR evidence](evidence/judgment-adr-trace.md) and [row 3.4 on the README, roadmap and archive decision](evidence/judgment-readme-roadmap-archive.md).
