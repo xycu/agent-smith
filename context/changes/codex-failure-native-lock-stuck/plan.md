@@ -137,4 +137,4 @@ The runner and the router continue to use the existing lock record, dispatch and
 
 #### Manual
 
-- [ ] 1.5 A real Codex step fails once with provable closure in a scratch run, records `unknown`, and continues through a successful retry.
+- [x] 1.5 A real Codex step fails once with provable closure in a scratch run, records `unknown`, and continues through a successful retry. — evidence: evidence/script-real-codex-retry.log
