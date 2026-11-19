@@ -133,7 +133,10 @@ test("heredocs distinguish literal text routes from executable or unresolved rec
     "cat<<EOF\n" + prose + "\nEOF",
     "cat << 'EOF' >notes.txt\n" + prose + "\nEOF\n",
     "1>notes.txt cat 0<<EOF\n" + prose + "\nEOF\n",
+    "cat <<EOF >/dev/null\n" + prose + "\nEOF\n",
     'cat <<"EOF" >>"more notes.txt" # a comment\n' + prose + "\nEOF\n",
+    'cat <<EOF >\\\n>"more notes.txt"\n' + prose + "\nEOF\n",
+    "false |\\\n| cat <<EOF\n" + prose + "\nEOF\n",
     "cat <<EOF | tee -a notes.txt\n" + prose + "\nEOF\n",
     "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\ntee notes.txt",
     "cat <<A | tee <<B notes.txt\nfirst\nA\nsecond\nB\n",
@@ -146,8 +149,16 @@ test("heredocs distinguish literal text routes from executable or unresolved rec
     'cat <<EOF >"$destination"\n' + prose + "\nEOF",
     "cat <<EOF 2>&1\n" + prose + "\nEOF",
     "cat 3<<EOF\n" + prose + "\nEOF",
+    "cat <<EOF >/dev/fd/1\nliteral text\nEOF\n",
+    "cat <<EOF >/dev/stdout\nliteral text\nEOF\n",
+    "cat <<EOF >/dev/tcp/example.invalid/1\nliteral text\nEOF\n",
     "cat <<EOF > >(tee notes.txt)\n" + prose + "\nEOF",
     "if true; then\ncat <<EOF\n" + prose + "\nEOF\nfi",
+    "time -p {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "! {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "coproc WRITER {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "if true; then if true; then true; fi\ncat <<'EOF'\nliteral text\nEOF\nfi",
+    "((cat <<'EOF'\nliteral text\nEOF\n) )",
   ]) denied(command, heredocGuidance);
   denied("cat <<EOF\n" + prose + "\nEOF\ngit push");
   denied("git push; cat <<EOF\n" + prose + "\nEOF");
@@ -159,6 +170,7 @@ test("heredoc delimiters and body escapes follow their lexical context", () => {
     "cat <<-'EOF'\n\tEOF \n\tmore text\n\tEOF\n",
     "cat <<EOF\nEOF \n\tEOF\nmore text\nEOF",
     "cat <<EOF\nfirst\nEO\\\nF\n",
+    "cat <<EOF\nfirst\nEOF\\\n",
     "cat <\\\n<EO\\\nF\\\n >notes.txt\nfirst\nEOF\n",
     'cat << "EO\\\nF"\\\n # trailing comment\nfirst\nEOF',
     "cat <<EOF\nliteral \\$(echo hi) \\$HOME \\\x60echo hi\\\x60 and $.\nEOF",
@@ -178,6 +190,7 @@ test("heredoc delimiters and body escapes follow their lexical context", () => {
     "cat <<-EOF\n EOF\n",
     "cat <<EOF\nEOF \n",
     "cat <<EOF\nEO\\\\\nF\n",
+    "cat <<EOF\nEO\\\n",
     "cat <<EOF\nfirst\n",
     'cat <<E"OF"\nfirst\nEOF\n',
   ]) {
@@ -193,6 +206,7 @@ test("only an entire separate git commit message operand can capture a literal h
   const message = capture('fix: an apostrophe isn\'t a "quote\ngit push\n');
   for (const command of [
     "git commit -m " + message,
+    "git commit -m " + message.replace("$(", "$\\\n("),
     "git commit -m " + capture(""),
     "git commit -m " + capture("--no-verify\n"),
     "git commit -a -m " + message + " -- tracked-file",
@@ -202,6 +216,8 @@ test("only an entire separate git commit message operand can capture a literal h
   denied("git commit -m " + message + " && gh --version");
   for (const command of [
     "echo " + message,
+    "echo " + capture("literal text\n").replace("$(", "$\\\n("),
+    'echo "$((cat <<\'EOF\'\nliteral text\nEOF\n) )"',
     "git commit --trailer -m " + message,
     "git commit -- -m " + message,
     "git commit -m" + message,

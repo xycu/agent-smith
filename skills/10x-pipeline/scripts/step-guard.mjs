@@ -14,16 +14,24 @@ const shellSpace = (c) => c === " " || c === "\t";
 const shellBoundary = (c) => c === undefined || shellSpace(c) || "\n;&|<>()".includes(c);
 const continuedAt = (text, at) => text[at] === "\\" && text[at + 1] === "\n";
 
+function afterContinuations(text, at) {
+  while (continuedAt(text, at)) at += 2;
+  return at;
+}
+
+const operatorSuffixes = { "&": "&>", "|": "&|", "<": "<>&", ">": ">|&", "<<": "<-", "&>": ">" };
+
 function shellOperator(text, at) {
-  const here = /<(?:\\\n)*<(?:\\\n)*[<-]?/y;
-  const other = /&>>|&>|\|&|\|\||&&|>>|>\||>&|<&|<>|[;&|<>()]/y;
-  for (const pattern of [here, other]) {
-    pattern.lastIndex = at;
-    if (pattern.test(text)) {
-      return { operator: text.slice(at, pattern.lastIndex).replaceAll("\\\n", ""), end: pattern.lastIndex };
-    }
+  let operator = text[at];
+  if (!operator || !";&|<>()".includes(operator)) return null;
+  let end = at + 1;
+  while (operatorSuffixes[operator]) {
+    const next = afterContinuations(text, end);
+    if (!text[next] || !operatorSuffixes[operator].includes(text[next])) break;
+    operator += text[next];
+    end = next + 1;
   }
-  return null;
+  return { operator, end };
 }
 
 const isHeredoc = (operator) => operator === "<<" || operator === "<<-";
@@ -69,7 +77,7 @@ function heredocBody(text, at, doc) {
     const continued = (end - trailing) % 2 === 1;
     parts.push(text.slice(at, continued ? end - 1 : end));
     at = newline === -1 ? text.length : newline + 1;
-    if (continued) continue;
+    if (continued && at < text.length) continue;
     const line = parts.join("");
     if (line === doc.delimiter || doc.stripTabs && line.replace(/^\t+/, "") === doc.delimiter) {
       return { end: at, expansion };
@@ -93,6 +101,7 @@ function shellWord(text, at, depth = 0, closing = null) {
   while (at < text.length) {
     const c = text[at];
     const next = text[at + 1];
+    const opening = c === "$" && quote !== "'" ? afterContinuations(text, at + 1) : at;
     if (!quote && (shellBoundary(c) || c === closing)) break;
     if (c === "\\" && quote !== "'") {
       if (next === undefined) throw new Error("Unterminated shell escape.");
@@ -101,8 +110,8 @@ function shellWord(text, at, depth = 0, closing = null) {
     }
     if (c === quote) quote = null;
     else if (!quote && (c === "'" || c === '"')) { quote = c; bare = false; }
-    else if (quote !== "'" && (c === "\x60" || (c === "$" && next && "({[".includes(next)))) {
-      at = shellExpansionEnd(text, at, depth + 1);
+    else if (quote !== "'" && (c === "\x60" || c === "$" && text[opening] && "({[".includes(text[opening]))) {
+      at = shellExpansionEnd(text, opening, depth + 1);
       literal = false;
       continue;
     } else {
@@ -117,21 +126,33 @@ function shellWord(text, at, depth = 0, closing = null) {
   return { end: at, value, literal, bare };
 }
 
-function shellExpansionEnd(text, start, depth, arithmetic = false) {
+function shellExpansionEnd(text, opening, depth) {
   if (depth > 64) throw new Error("Unsupported nesting in heredoc context. Use the Write tool.");
-  const backtick = text[start] === "\x60";
-  const opening = start + Number(!arithmetic && !backtick);
   const open = text[opening];
   const close = { "(": ")", "{": "}", "[": "]", "\x60": "\x60" }[open];
   let nested = 0;
   let cases = 0;
   let firstWord = true;
-  const command = backtick || open === "(" && text[opening + 1] !== "(";
+  const command = open === "\x60" || open === "(" && text[afterContinuations(text, opening + 1)] !== "(";
+  let possibleShift = false;
+  let pairedClose = false;
   for (let at = opening + 1; at < text.length;) {
     const c = text[at];
-    if (c === close && nested === 0 && cases === 0) return at + 1;
+    if (c === close && nested === 0 && cases === 0) {
+      // Without a closing arithmetic pair, Bash can parse the construct as nested shell commands.
+      if (possibleShift && !pairedClose) {
+        throw new HeredocDenial("Ambiguous heredoc in a shell or arithmetic group." + HEREDOC_ALTERNATIVE);
+      }
+      return at + 1;
+    }
     if (c === open) { nested++; at++; continue; }
-    if (c === close) { nested = Math.max(0, nested - 1); firstWord = true; at++; continue; }
+    if (c === close) {
+      nested = Math.max(0, nested - 1);
+      if (!command && open === "(" && nested === 0) pairedClose = text[afterContinuations(text, at + 1)] === close;
+      firstWord = true;
+      at++;
+      continue;
+    }
     if (continuedAt(text, at)) { at += 2; continue; }
     if (command && c === "#") {
       at = text.indexOf("\n", at);
@@ -139,7 +160,10 @@ function shellExpansionEnd(text, start, depth, arithmetic = false) {
     }
     const op = shellOperator(text, at);
     if (op) {
-      if (command && isHeredoc(op.operator)) unexpectedHeredoc();
+      if (isHeredoc(op.operator)) {
+        if (command) unexpectedHeredoc();
+        possibleShift ||= open === "(";
+      }
       if (";&|".includes(op.operator[0])) firstWord = true;
       at = op.end;
     } else if (shellSpace(text[at]) || text[at] === "\n") {
@@ -159,7 +183,7 @@ function shellExpansionEnd(text, start, depth, arithmetic = false) {
 }
 
 function literalMessage(text, at) {
-  const start = /"\$\((?:[ \t]|\\\n)*cat(?:[ \t]|\\\n)*/y;
+  const start = /"\$(?:\\\n)*\((?:[ \t]|\\\n)*cat(?:[ \t]|\\\n)*/y;
   start.lastIndex = at;
   if (!start.test(text)) return null;
   const op = shellOperator(text, start.lastIndex);
@@ -190,11 +214,22 @@ function textHeredocStage(tokens) {
     }
     const literalFile = ["<", ">", ">>"].includes(token.operator) &&
       (token.descriptor === undefined || (token.operator === "<" ? /^0+$/ : /^0*[12]$/).test(token.descriptor));
-    if (!literalFile || !tokens[++i]?.literal || tokens[i].capture) {
+    const target = tokens[i + 1];
+    if (!literalFile || !target?.literal || target.capture ||
+        /^\/dev\/(?:(?:fd|tcp|udp)\/|std(?:in|out|err)$)/.test(target.value)) {
       return false;
     }
+    i++;
   }
   return command === "cat" || command === "tee";
+}
+
+function afterCompoundPrefix(position, { bare, value }) {
+  if (!position || !bare || position === "named-coproc") return null;
+  if (position === "coproc") return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value) ? "named-coproc" : null;
+  if (value === "time" || value === "coproc") return value;
+  if (["!", "if", "while", "until", "then", "elif", "else", "do"].includes(value)) return "command";
+  return position === "time" && ["-p", "--"].includes(value) ? position : null;
 }
 
 function withoutHeredocData(text) {
@@ -206,6 +241,11 @@ function withoutHeredocData(text) {
     keptFrom = end;
   };
   let tokens = [];
+  let compoundPosition = "command";
+  const addToken = (token) => {
+    tokens.push(token);
+    compoundPosition = afterCompoundPrefix(compoundPosition, token);
+  };
   let pending = [];
   let pipelineSafe = true;
   let pipelineHeredoc = false;
@@ -227,6 +267,7 @@ function withoutHeredocData(text) {
     }
     pipelineSafe &&= textHeredocStage(tokens);
     tokens = [];
+    compoundPosition = "command";
   };
   const finishPipeline = () => {
     finishStage();
@@ -245,9 +286,9 @@ function withoutHeredocData(text) {
       if (at === -1) break;
       continue;
     }
-    if (text.startsWith("((", at)) {
-      at = shellExpansionEnd(text, at, 1, true);
-      tokens.push({ literal: false });
+    if (c === "(" && text[afterContinuations(text, at + 1)] === "(") {
+      at = shellExpansionEnd(text, at, 1);
+      addToken({ literal: false });
       awaitingStage = false;
       continue;
     }
@@ -275,7 +316,7 @@ function withoutHeredocData(text) {
         if (groups || compounds || descriptor !== undefined && !/^0+$/.test(descriptor)) pipelineSafe = false;
         pipelineHeredoc = true;
         pending.push(doc);
-        tokens.push({ heredoc: true, operator });
+        addToken({ heredoc: true, operator });
         awaitingStage = false;
         at = doc.end;
         continue;
@@ -290,7 +331,7 @@ function withoutHeredocData(text) {
       } else {
         if (operator === "(") groups++;
         if (operator === ")") groups = Math.max(0, groups - 1);
-        tokens.push({ ...op, descriptor });
+        addToken({ ...op, descriptor });
         awaitingStage = false;
       }
       at = end;
@@ -299,12 +340,14 @@ function withoutHeredocData(text) {
     const message = c === '"' ? literalMessage(text, at) : null;
     const word = message ?? shellWord(text, at);
     if (message) cut(at, message.end, '""');
-    if (word.bare && tokens.length === 0) {
-      if (["if", "case", "for", "while", "until", "select", "{"].includes(word.value)) compounds++;
-      if (["fi", "esac", "done", "}"].includes(word.value)) compounds = Math.max(0, compounds - 1);
-    } else if (word.bare && word.value === "{" &&
-               (tokens.at(-1)?.operator === ")" || tokens[0]?.value === "function")) compounds++;
-    tokens.push(word);
+    const functionBody = word.value === "{" &&
+      (tokens.at(-1)?.operator === ")" || tokens[0]?.bare && tokens[0].value === "function");
+    if (word.bare && ["if", "case", "for", "while", "until", "select", "{"].includes(word.value) &&
+        (functionBody || compoundPosition)) compounds++;
+    if (word.bare && ["fi", "esac", "done", "}"].includes(word.value) && compoundPosition) {
+      compounds = Math.max(0, compounds - 1);
+    }
+    addToken(word);
     awaitingStage = false;
     at = word.end;
   }
