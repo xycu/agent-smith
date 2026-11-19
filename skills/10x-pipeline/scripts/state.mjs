@@ -329,21 +329,121 @@ function readFindings(text) {
   return findings;
 }
 
+const REVIEW_BODY = /^[ \t]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,}|<(?:pre|code|script|style|textarea)(?=[\s/>]|$))/i;
+const REVIEW_QUOTE = /^ {0,3}>[ \t]?/;
+const REVIEW_TITLE = /^ {0,3}#(?:[ \t]|$)/;
+const REVIEW_BULLET = /^ {0,3}[-+*][ \t]+\S/;
+
+// Index inline delimiters within a paragraph so multiline spans need no repeated lookahead.
+function reviewInlineSpans(lines) {
+  const codeEnds = new Map();
+  const inlineComments = new Set();
+  const nextRun = new Map();
+  let commentCloses = false;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line.trim() || REVIEW_BODY.test(line) || REVIEW_QUOTE.test(line) || REVIEW_TITLE.test(line)) {
+      nextRun.clear();
+      commentCloses = false;
+      continue;
+    }
+    for (const token of [...line.matchAll(/\x60+|<!--|-->/g)].reverse()) {
+      const position = `${i}:${token.index}`;
+      if (token[0] === "-->") commentCloses = true;
+      else if (token[0] === "<!--") {
+        if (commentCloses) inlineComments.add(position);
+      } else {
+        const size = token[0].length;
+        const end = nextRun.get(size);
+        if (end) codeEnds.set(position, end);
+        nextRun.set(size, { line: i, column: token.index + size });
+      }
+    }
+    // A nonempty bullet starts a new paragraph. Its continuation lines can still close spans it opens.
+    if (REVIEW_BULLET.test(line)) {
+      nextRun.clear();
+      commentCloses = false;
+    }
+  }
+  return { codeEnds, inlineComments };
+}
+
+function readReviewVerdict(text) {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const { codeEnds, inlineComments } = reviewInlineSpans(lines);
+  let header = null;
+  let inComment = false;
+  let quoted = false;
+  let codeEnd = null;
+  for (const [i, line] of lines.entries()) {
+    if (!inComment && !(codeEnd?.line >= i)) {
+      if (REVIEW_BODY.test(line)) break;
+      const quote = REVIEW_QUOTE.exec(line);
+      if (quote) {
+        const content = line.slice(quote[0].length);
+        quoted = Boolean(content.trim()) && !REVIEW_BODY.test(content) && !REVIEW_TITLE.test(content);
+        continue;
+      }
+      if (REVIEW_TITLE.test(line)) {
+        quoted = false;
+        continue;
+      }
+      if (!line.trim() || /^ {0,3}[-+*][ \t]+/.test(line)) quoted = false;
+      if (quoted) continue;
+    }
+    const blockComment = /^ {0,3}<!--/.test(line) ? line.indexOf("<") : -1;
+    const skip = inComment || codeEnd?.line >= i || blockComment >= 0;
+    for (const token of line.matchAll(/\\[\\<\x60]|\x60+|<!--|-->/g)) {
+      if (codeEnd && (codeEnd.line > i || (codeEnd.line === i && token.index < codeEnd.column))) continue;
+      if (inComment) inComment = token[0] !== "-->";
+      else if (token[0] === "<!--") inComment = token.index === blockComment || inlineComments.has(`${i}:${token.index}`);
+      else codeEnd = codeEnds.get(`${i}:${token.index}`);
+    }
+    if (skip) continue;
+    // A hyphen underline turns the preceding paragraph into an H2, even if it looks like a verdict line.
+    if (/^ {0,3}-+[ \t]*$/.test(lines[i + 1] ?? "") && /^ {0,3}\S/.test(line)
+      && !/^ {0,3}(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)|(?:[-*_][ \t]*){3,}$)/.test(line)) break;
+    const label = /^ {0,3}(?:[-+*][ \t]+)?\*\*Verdict(?:\*\*:|:\*\*)(.*)$/.exec(line);
+    if (!label) continue;
+    if (header !== null) return null;
+    header = label[1];
+  }
+  if (header === null) return null;
+  let value = header.trim().replace(/^(?:(?:\p{RGI_Emoji}|\p{Extended_Pictographic})\s*)+/v, "");
+  const annotation = /\s(?:-(?=\s+\S)|\()/.exec(value);
+  if (annotation) {
+    const tail = value.slice(annotation.index).trim().replace(/\.$/, "");
+    if (tail.startsWith("-") || completeParenthetical(tail)) value = value.slice(0, annotation.index).trimEnd();
+  }
+  value = value.replace(/\.$/, "");
+  if (/^\[[^[\]]+\]$/.test(value)) value = value.slice(1, -1).trim();
+  return /\p{L}/u.test(value) ? value.toUpperCase() : null;
+}
+
+function completeParenthetical(text) {
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    if (text[i] === ")" && --depth === 0) return i === text.length - 1;
+  }
+  return false;
+}
+
 export function readReview(file) {
   const res = { exists: false, verdict: null, critical: 0, warnings: 0, findings: [], mtime: 0 };
-  if (!fs.existsSync(file)) return res;
-  res.exists = true;
-  res.mtime = mtime(file);
-  const text = fs.readFileSync(file, "utf8");
-  // Header lines read both label forms ("**Verdict**:" and "**Verdict:**") like readFindings. The verdict is the leading
-  // upper-case words after the label (emoji, "[" and text after them ignored), else the first run of letters, upper-cased.
-  const v = text.match(/\*\*Verdict(?:\*\*:|:\*\*)[^A-Za-z\n]*([A-Za-z]+(?: [A-Za-z]+)*)/);
-  if (v) {
-    const words = v[1].split(" ");
-    const lead = [];
-    for (const w of words) { if (w !== w.toUpperCase()) break; lead.push(w); }
-    res.verdict = (lead.length ? lead : words).join(" ").toUpperCase();
+  let text;
+  try {
+    const stat = fs.statSync(file, { throwIfNoEntry: false });
+    if (!stat) return res;
+    res.exists = true;
+    res.mtime = stat.mtimeMs;
+    if (!stat.isFile()) return { ...res, error: "expected a regular file" };
+    text = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return { ...res, exists: false, mtime: 0 };
+    return { ...res, exists: true, error: error.code ?? error.message };
   }
+  res.verdict = readReviewVerdict(text);
   const f = text.match(/\*\*Findings(?:\*\*:|:\*\*)[^\n]*/);
   if (f) {
     res.critical = Number((f[0].match(/(\d+)\s*critical/i) || [0, 0])[1]);

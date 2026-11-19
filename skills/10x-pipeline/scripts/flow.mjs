@@ -542,6 +542,31 @@ function reviewRecord(read, policy) {
   return rec;
 }
 
+const REVIEW_VERDICTS = {
+  "plan-review": new Set(["SOUND", "REVISE", "RETHINK"]),
+  "impl-review": new Set(["APPROVED", "NEEDS ATTENTION", "REJECTED"]),
+};
+
+function reviewProblem(step, file, read, attempt) {
+  const rel = path.relative(ROOT, file);
+  const expected = `Expected ${joinWords([...REVIEW_VERDICTS[step]])}.`;
+  if (!read.exists) return `Missing review artifact ${rel}. ${expected}`;
+  if (read.error) return `Cannot read review artifact ${rel}: ${read.error}. ${expected}`;
+  if (read.verdict === null) return `Missing review verdict in ${rel}. ${expected}`;
+  if (!REVIEW_VERDICTS[step].has(read.verdict)) {
+    return `Unknown review verdict ${JSON.stringify(read.verdict)} in ${rel}. ${expected}`;
+  }
+  if (attempt) {
+    const timeKey = step === "plan-review" ? "planReview" : "implReview";
+    // A rollback restores the dispatch timestamp, with possible sub-millisecond rounding by the filesystem.
+    const unchanged = Math.round(read.mtime) === Math.round(attempt.before?.mtimes?.[timeKey]);
+    if (unchanged || read.mtime <= attempt.startedAt) {
+      return `Stale review artifact ${rel} for step ${attempt.n} (${step}). Save a fresh review.`;
+    }
+  }
+  return null;
+}
+
 function removeResult(p) {
   try { fs.unlinkSync(p.result); } catch (error) { if (error.code !== "ENOENT") throw error; }
 }
@@ -574,8 +599,10 @@ export function attachResult(p, log, policy) {
     case "impl-review": {
       const file = last.step === "plan-review" ? p.planReview : p.implReview;
       const read = readReview(file);
-      verified = mtime(file) > last.startedAt && read.verdict !== null;
+      const problem = reviewProblem(last.step, file, read, last);
+      verified = problem === null;
       if (verified) last.review = reviewRecord(read, policy);
+      else last.invalid = problem;
       break;
     }
     case "research": {
@@ -624,6 +651,7 @@ export function attachResult(p, log, policy) {
   // Persist before deleting: a router error later in `next` must not lose the result.
   writeLog(p.log, log);
   removeResult(p);
+  return Object.hasOwn(REVIEW_VERDICTS, last.step) && last.invalid ? last : null;
 }
 
 // The open findings of an aware review are over the line when one is critical or the open warnings exceed the shared
@@ -678,6 +706,34 @@ function openFindingsHalt(label, skillName, file, oc, policy, meta) {
   return { halt: text };
 }
 
+// An invalid intake remains authoritative until a later review, a new plan or code state, or a fresh valid artifact.
+function reviewRecovery(step, file, read, log, sourceAt, ctx) {
+  const i = lastIdx(log, [step], false);
+  const attempt = log[i];
+  if (i <= sourceAt || attempt?.ok !== false || attempt.verified !== false) return null;
+  let problem = attempt === ctx.justFailedReview ? attempt.invalid : reviewProblem(step, file, read, attempt);
+  if (problem === null && !Object.hasOwn(attempt, "timestamps") && (attempt.rolledBack || attempt.kept)) {
+    problem = ctx.legacyReviewCheck?.(file, attempt) ?? null;
+  }
+  if (problem === null) return { recovered: true };
+  const reason = attempt.invalid && problem !== attempt.invalid ? `${attempt.invalid} Current artifact: ${problem}` : problem;
+  return {
+    problem: reason,
+    confirmation: attempt.template === `${step}-confirm`,
+  };
+}
+
+function implReviewNext(log, plan, policy, reviewFailure) {
+  const struggled = log.some((e) => e.step === "fix" || (e.step === "implement" && !e.ok && !e.fallback));
+  return {
+    step: "impl-review",
+    ...reviewWarning(log, plan, policy),
+    bump: struggled ? policy.escalation.hardChangeReviewerBump : 0,
+    reason: reviewFailure ?? (struggled ? "implementation needed retries or fixes" : "implementation complete"),
+    ...(reviewFailure ? { reviewFailure } : {}),
+  };
+}
+
 export function decide(p, fullLog, policy, meta, ctx) {
   const E = policy.escalation;
   const L = policy.limits;
@@ -690,6 +746,19 @@ export function decide(p, fullLog, policy, meta, ctx) {
   if (!fs.existsSync(path.join(p.change, "change.md"))) {
     return { halt: `No change folder. Run /10x-new ${meta.id} first.` };
   }
+
+  // A review can also have edited Progress. Resolve outstanding failures before scheduling from those edits.
+  const lp = lastIdx(log, ["plan"]);
+  const lcode = lastIdx(log, ["implement", "fix"]);
+  const planRecovery = reviewRecovery("plan-review", p.planReview, pr, log, lp, ctx);
+  const implRecovery = reviewRecovery("impl-review", p.implReview, ir, log, lcode, ctx);
+  if (planRecovery?.confirmation) return { halt: planRecovery.problem };
+  if (implRecovery?.confirmation) return { halt: implRecovery.problem };
+  if (planRecovery?.problem) {
+    return { step: "plan-review", bump: 0, reason: planRecovery.problem, reviewFailure: planRecovery.problem };
+  }
+  if (implRecovery?.problem) return implReviewNext(log, plan, policy, implRecovery.problem);
+
   if (!plan.exists || !plan.hasProgress) {
     const pre = preplanNext(p, fullLog, policy, meta, ctx);
     if (pre) return pre;
@@ -706,19 +775,20 @@ export function decide(p, fullLog, policy, meta, ctx) {
     };
   }
 
+  const codeRan = log.some((e) => e.step === "implement" || e.step === "fix");
+  const workStarted = codeRan || plan.autoDone > 0;
+
   // Plan review is fresh if it ran after the last successful plan step.
-  const lp = lastIdx(log, ["plan"]);
   const lpr = lastIdx(log, ["plan-review"]);
-  const prFresh = lp >= 0 || lpr >= 0
+  const prFresh = planRecovery?.recovered || (lp >= 0 || lpr >= 0
     ? pr.exists && lpr > lp
-    : pr.exists && (plan.autoDone > 0 || pr.mtime >= plan.mtime);
+    : pr.exists && (plan.autoDone > 0 || pr.mtime >= plan.mtime));
   if (!prFresh) {
     // A plan-review skip written after the last successful plan step counts as handled.
     // It holds while the level can still skip, and for good once implement or fix has run.
     const skipAt = fullLog.map((e, i) => (e.skipped && e.step === "plan-review" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     const planAt = fullLog.map((e, i) => (!e.skipped && e.step === "plan" && e.ok ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     const skippable = (policy.rigor.skipPlanReviewAt ?? []).includes(ctx.level);
-    const codeRan = log.some((e) => e.step === "implement" || e.step === "fix");
     if (skipAt > planAt && (skippable || codeRan)) {
       pr = { exists: false, verdict: null, critical: 0, warnings: 0, mtime: 0 }; // absent after a skip
     } else {
@@ -738,6 +808,9 @@ export function decide(p, fullLog, policy, meta, ctx) {
       const why = skippable && !measured ? `plan changed since last review; risk not measured (${source}, ${planPathCount} plan paths${unclassified ? `, ${unclassified} unclassified` : ""})` : "plan changed since last review";
       return { step: "plan-review", bump: 0, reason: why };
     }
+  } else {
+    const problem = reviewProblem("plan-review", p.planReview, pr);
+    if (problem) return { halt: problem };
   }
 
   // A REVISE with Decision lines routes on its open findings: nothing open (within the tolerance) goes on, anything else
@@ -750,7 +823,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
     (pr.verdict === "REVISE" && (prAware
       ? openOverTolerance(prOpen, policy)
       : pr.critical > 0 || pr.warnings > policy.review.reviseToleranceWarnings));
-  if (needsReplan && plan.autoDone === 0) {
+  if (needsReplan && !workStarted) {
     if (prAware) {
       if (openFindingsConfig(policy).onOpen !== "retry") {
         return openFindingsHalt("Plan review REVISE", "10x-plan-review", p.planReview, prOpen, policy, meta);
@@ -760,7 +833,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
     return replanNext(log, pr, policy, ctx.level);
   }
   // Nothing open after a REVISE that applied fixes: with review.confirmRounds above 0, a confirmation review first.
-  if (prAware && plan.autoDone === 0 && prOpen.applied > 0 && prOpen.openCritical === 0 && prOpen.openWarnings === 0) {
+  if (prAware && !workStarted && prOpen.applied > 0 && prOpen.openCritical === 0 && prOpen.openWarnings === 0) {
     const confirm = confirmNext("plan", `plan review ${pr.verdict}`, log, policy, ctx.level, prOpen);
     if (confirm) return confirm;
   }
@@ -771,6 +844,9 @@ export function decide(p, fullLog, policy, meta, ctx) {
   }
   const reopen = retryRows(log, plan, policy);
   if (plan.autoPending > 0 || reopen.length) {
+    if (needsReplan) {
+      return { halt: `Plan review ${pr.verdict} blocks remaining implementation work after implementation started. Needs a human.` };
+    }
     const replan = codeReplanNext("failure", log, policy, ctx);
     if (replan) return replan;
     let bump = 0;
@@ -785,21 +861,17 @@ export function decide(p, fullLog, policy, meta, ctx) {
 
   // All automated rows done. Review is stale if code moved after the last review.
   const lir = lastIdx(log, ["impl-review"]);
-  const lcode = lastIdx(log, ["implement", "fix"]);
-  const irFresh = lir >= 0 || lcode >= 0
+  const irFresh = implRecovery?.recovered || (lir >= 0 || lcode >= 0
     ? ir.exists && lir > lcode
-    : ir.exists && ir.mtime >= plan.mtime;
+    : ir.exists && ir.mtime >= plan.mtime);
   if (!irFresh) {
     const verify = manualVerifyNext(plan, log, policy, ctx, meta);
     if (verify) return verify;
-    const struggled = log.some((e) => (e.step === "implement" || e.step === "fix") && !e.ok && !e.fallback) || count("fix") > 0;
-    return {
-      step: "impl-review",
-      ...reviewWarning(log, plan, policy),
-      bump: struggled ? E.hardChangeReviewerBump : 0,
-      reason: struggled ? "implementation needed retries or fixes" : "implementation complete",
-    };
+    return implReviewNext(log, plan, policy);
   }
+
+  const problem = reviewProblem("impl-review", p.implReview, ir);
+  if (problem) return { halt: problem };
 
   // A NEEDS ATTENTION with Decision lines routes on its open findings: nothing open (within the tolerance) is done, anything
   // else halts, or runs fix under onOpen "retry". review.fixOnNeedsAttention applies only to a review without Decision
@@ -838,7 +910,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
 
   return {
     done: true,
-    reason: `impl review ${ir.verdict ?? "APPROVED"}`,
+    reason: `impl review ${ir.verdict}`,
     manualPending: plan.manualPending,
     ...doneNotes({
       uncommittedTicks: unprovenTicks(log, plan, policy),

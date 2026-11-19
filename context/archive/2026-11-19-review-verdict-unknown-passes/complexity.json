@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 0,
+      "evidence": "change.md lists the exact accepted verdict sets, failure behavior, reproduced cases, and done conditions."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "context/archive/2026-11-11-review-verdict-labels/plan.md establishes the existing readReview parser and routing pattern."
+    },
+    "coupling": {
+      "score": 2,
+      "evidence": "The goal spans shared readers and routing in skills/10x-pipeline/scripts/state.mjs and flow.mjs, their callers, tests, and docs."
+    },
+    "discovery": {
+      "score": 1,
+      "evidence": "change.md names state.mjs, flow.mjs, docs/REFERENCE.md and OpenSpec's openspec.mjs for the bounded search."
+    },
+    "volume": {
+      "score": 1,
+      "evidence": "The goal calls for a few focused edits in 2 or 3 implementation/test/doc areas; likely tests can share existing files."
+    },
+    "verification": {
+      "score": 1,
+      "evidence": "change.md requires reproduced-case router tests and the existing full Node test suite."
+    }
+  },
+  "unknowns": [
+    "The exact test files and number of edits are left to the plan; this does not change the bounded scope."
+  ],
+  "confidence": "medium"
+}

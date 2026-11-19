@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { validateRunBranch, validateRunIdentity } from "./run-identity.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -532,20 +533,187 @@ const timedFiles = (p) => Object.fromEntries(Object.entries({
 }).filter(([, file]) => typeof file === "string"));
 export const fileTimes = (p) => Object.fromEntries(Object.entries(timedFiles(p)).map(([key, file]) => [key, mtime(file)]));
 
-// Sets each file that exists and has a recorded time above 0 back to that time (fs.utimesSync, no git).
-export function setTimes(p, times) {
-  if (!isObject(times)) return;
-  for (const [key, file] of Object.entries(timedFiles(p))) {
-    const t = times[key];
-    if (typeof t === "number" && Number.isFinite(t) && t > 0 && fs.existsSync(file)) fs.utimesSync(file, t / 1000, t / 1000);
+// Work with a regular file descriptor so a redirected name cannot redirect the timestamp write.
+function timedFile(file, use) {
+  const rel = path.relative(ROOT, file);
+  if (!rel || rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    throw new Error("path is outside the run worktree");
+  }
+  let checked = fs.realpathSync(ROOT);
+  const parts = rel.split(path.sep);
+  let fd;
+  try {
+    for (const [i, part] of parts.entries()) {
+      checked = path.join(checked, part);
+      const stat = fs.lstatSync(checked);
+      if (i === parts.length - 1 ? !stat.isFile() : !stat.isDirectory()) {
+        throw new Error("expected a regular file with no symlink in its path");
+      }
+    }
+    fd = fs.openSync(checked, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    if (!fs.fstatSync(fd).isFile() || fs.realpathSync(checked) !== checked) {
+      throw new Error("expected a regular file with no symlink in its path");
+    }
+    return use(fd);
+  } finally {
+    fs.closeSync(fd);
   }
 }
 
-// run.jsonl and meta.json as next holds them in memory, written back after a reset changed them on disk.
-export function writeState(p, meta, log) {
-  fs.mkdirSync(p.dir, { recursive: true });
+const fingerprint = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
+
+// An empty successful tree lookup proves absence. A Git error is distinct from an absent path.
+function checkoutFile(file, commit, timeout) {
+  if (typeof commit !== "string" || !SHA_RE.test(commit)) throw new Error("missing checkout commit");
+  const git = (args) => {
+    const result = runGit(args, { timeout });
+    if (result.status !== 0) throw new Error(`git ${args[0]} failed: ${gitMessage(result)}`);
+    return result.stdout;
+  };
+  const gitRoot = git(["rev-parse", "--show-toplevel"]).replace(/\r?\n$/, "");
+  const gitPath = git(["rev-parse", "--show-prefix"]).replace(/\r?\n$/, "") +
+    path.relative(ROOT, file).split(path.sep).join("/");
+  const entry = git(["--literal-pathspecs", "ls-tree", "-z", "--full-tree", commit, "--", gitPath]);
+  if (!entry) return null;
+  const match = /^100(?:644|755) blob ([0-9a-f]{40,64})\t/.exec(entry);
+  if (!match || entry.slice(match[0].length) !== gitPath + "\0") {
+    throw new Error("checkout source is not a regular file");
+  }
+  return { gitRoot, gitPath, blob: match[1] };
+}
+
+// Compare without writing the index or checking out the pinned commit. Custom filter output is unproved.
+function matchesCheckout(file, bytes, commit, timeout) {
+  const source = checkoutFile(file, commit, timeout);
+  if (!source) return false;
+  const { gitRoot, gitPath, blob } = source;
+  const filterWords = ["unspecified", "unset", "set"];
+  const attributes = (source) => {
+    const result = runGit(["-C", gitRoot, "check-attr", ...source, "-z",
+      "filter", "ident", "working-tree-encoding", "--", gitPath], { timeout });
+    if (result.status !== 0) throw new Error(`git check-attr failed: ${gitMessage(result)}`);
+    const [, , filter, , , ident, , , encoding] = result.stdout.split("\0");
+    if (!filterWords.includes(filter)) {
+      throw new Error("checkout bytes cannot be verified with a custom Git filter");
+    }
+    return ident === "set" || (encoding !== "unspecified" && encoding !== "unset");
+  };
+  const currentConversion = attributes([]);
+  const indexedConversion = attributes(["--cached"]);
+  const pinnedConversion = attributes([`--source=${commit}`]);
+  // A driver can literally be named after one of check-attr's reserved result words.
+  const config = runGit(["-C", gitRoot, "config", "--list", "--name-only", "--null"], { timeout });
+  if (config.status !== 0) throw new Error(`git config failed: ${gitMessage(config)}`);
+  if (config.stdout.split("\0").some((key) => /^filter\.(unspecified|unset|set)\.(smudge|process|required)$/.test(key))) {
+    throw new Error("checkout bytes cannot be verified with a custom Git filter");
+  }
+  const cat = (args) => execFileSync("git", args, {
+    cwd: gitRoot, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
+    ...(Number.isInteger(timeout) && timeout > 0 ? { timeout } : {}),
+  });
+  const normalizeEol = (buffer) => buffer.toString("latin1").replaceAll("\r\n", "\n");
+  const normalized = normalizeEol(bytes);
+  const matches = (candidate) => candidate.equals(bytes) || normalizeEol(candidate) === normalized;
+  const filters = ["cat-file", "--filters", `--path=${gitPath}`, blob];
+  return matches(cat(["cat-file", "blob", blob])) ||
+    ((currentConversion || indexedConversion) && matches(cat(filters))) ||
+    (pinnedConversion && matches(cat([`--attr-source=${commit}`, ...filters])));
+}
+
+// Only authoritative legacy failures reach this comparison, after verdict and timestamp validation.
+export function legacyReviewProblem(file, attempt, policy) {
+  const timeout = policy.isolation?.gitTimeoutMs;
+  const rel = path.relative(ROOT, file);
+  const ref = attempt.kept ?? attempt.rolledBack;
+  try {
+    let commit = attempt.startSha;
+    if (attempt.kept) {
+      if (!ref.startsWith("refs/agent-smith/")) throw new Error("invalid snapshot ref");
+      const result = runGit(["rev-parse", "--verify", `${ref}^{commit}`], { timeout });
+      if (result.status !== 0) throw new Error(`cannot read snapshot: ${gitMessage(result)}`);
+      commit = result.stdout.trim();
+    }
+    const same = timedFile(file, (fd) => matchesCheckout(file, fs.readFileSync(fd), commit, timeout));
+    if (same === false) return null;
+    return `Unproved review freshness in ${rel} for step ${attempt.n} (${attempt.step}): the review matches the checkout for ${ref} or is absent. Save a fresh review with corrected contents.`;
+  } catch (error) {
+    return `Unproved review freshness in ${rel} for step ${attempt.n} (${attempt.step}) at ${ref}: ${error.message}. Fix the cause and retry.`;
+  }
+}
+
+const timestampProblem = (last, file, reason) =>
+  `Timestamp restoration for step ${last.n} (${last.step}) at ${path.relative(ROOT, file)} from ${last.kept ?? last.rolledBack}: ${reason}. Fix the cause and retry next.`;
+
+function restoreTimes(p, meta, log, last, g, timeout) {
+  const where = runBranchReason(g, meta);
+  if (where) return timestampProblem(last, p.change, where);
+  const { commit, files } = last.timestamps;
+  for (const [key, file] of Object.entries(timedFiles(p))) {
+    const target = files[key];
+    if (!target || target.absent) continue;
+    try {
+      timedFile(file, (fd) => {
+        const bytes = fs.readFileSync(fd);
+        const matches = target.sha256
+          ? fingerprint(bytes) === target.sha256
+          : matchesCheckout(file, bytes, commit, timeout);
+        if (matches) {
+          if (fs.fstatSync(fd).nlink !== 1) throw new Error("cannot change the time of a hard-linked file");
+          fs.futimesSync(fd, target.time / 1000, target.time / 1000);
+        }
+      });
+    } catch (error) {
+      return timestampProblem(last, file, error.message);
+    }
+  }
+  last.timestamps = "completed";
   writeLog(p.log, log);
+  return null;
+}
+
+// Publish metadata and the pending log before restoring a timestamp. Capture the bytes Git actually checked out,
+// so a subsequent config change cannot turn an unchanged file into an apparent correction.
+function checkpointTimes(p, meta, log, last, g, timeout, commit, times) {
+  const files = {};
+  let problem = null;
+  for (const [key, file] of Object.entries(timedFiles(p))) {
+    const recorded = times?.[key];
+    const missingReview = last.rolledBack && last.verified === false && recorded === 0 &&
+      last.step === (key === "planReview" ? "plan-review" : key === "implReview" ? "impl-review" : null);
+    const time = missingReview ? last.startedAt : recorded;
+    if (!Number.isFinite(time) || time <= 0) continue;
+    const target = files[key] = { time };
+    try {
+      const hash = timedFile(file, (fd) => {
+        if (missingReview && !checkoutFile(file, commit, timeout)) return null;
+        return fingerprint(fs.readFileSync(fd));
+      });
+      if (hash === null) target.absent = true;
+      else target.sha256 = hash;
+    } catch (error) {
+      problem ??= timestampProblem(last, file, error.message);
+    }
+  }
+  last.timestamps = { commit, files };
+  fs.mkdirSync(p.dir, { recursive: true });
   writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  writeLog(p.log, log);
+  return problem ?? restoreTimes(p, meta, log, last, g, timeout);
+}
+
+export function resumeTimes(p, id, meta, log, policy) {
+  if (meta.isolated !== true) return;
+  const ran = executed(log);
+  const last = ran.at(-1);
+  if (!isObject(last?.timestamps)) return;
+  const timeout = policy.isolation?.gitTimeoutMs;
+  const reason = restoreTimes(p, meta, log, last, (args) => runGit(args, { timeout }), timeout);
+  if (reason) endRun(p, id, meta, log, { action: "halt", reason, steps: ran.length });
 }
 
 // The run token of the side ref ({run} in policy.isolation.rollback.ref): the first RUN_TOKEN_LENGTH hex characters
@@ -620,9 +788,23 @@ export function rollback(p, id, meta, log, policy) {
   // The reset replaced run.jsonl and meta.json with their startSha versions: write the state back first, so a failure
   // while setting the file times cannot lose the log.
   last.rolledBack = ref;
-  writeState(p, meta, log);
-  setTimes(p, last.before?.mtimes);
-  return { ref, left, last, g };
+  const problem = checkpointTimes(p, meta, log, last, g, timeout, last.startSha, last.before?.mtimes);
+  if (problem) endRun(p, id, meta, log, { action: "halt", reason: problem, steps: ran.length });
+  return { ref, left, last, g, timeout, snapshot };
+}
+
+// A same-call halt restores the failed snapshot. A later process only resumes its checkpoint.
+export function undoRollback(p, meta, log, rb) {
+  const hard = rb.g(["reset", "-q", "--hard", rb.snapshot]);
+  if (hard.status !== 0) return `git reset --hard ${rb.ref} failed: ${gitMessage(hard)}.`;
+  const mixed = rb.g(["reset", "-q", `${rb.snapshot}^`]);
+  if (mixed.status !== 0) {
+    return `git reset ${rb.ref}^ failed: ${gitMessage(mixed)}. The run branch now points at the snapshot commit of ${rb.ref}; ` +
+      `run git reset -q ${rb.ref}^ in the run worktree before resuming.`;
+  }
+  delete rb.last.rolledBack;
+  rb.last.kept = rb.ref;
+  return checkpointTimes(p, meta, log, rb.last, rb.g, rb.timeout, rb.snapshot, rb.left);
 }
 
 const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone by the router. A resume makes no commit, " +
