@@ -143,6 +143,6 @@ NODE
 
 #### Automated
 
-- [x] 1.1 Verdict regressions and existing review routing pass with `node --test skills/10x-pipeline/test/openfindings.test.mjs`.
-- [x] 1.2 The read-only archive reader comparison returns identical path, verdict, critical and warning tuples before and after the change.
-- [x] 1.3 The full suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 1.1 Verdict regressions and existing review routing pass with `node --test skills/10x-pipeline/test/openfindings.test.mjs`. — 636a5398
+- [x] 1.2 The read-only archive reader comparison returns identical path, verdict, critical and warning tuples before and after the change. — 636a5398
+- [x] 1.3 The full suite passes with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 636a5398
