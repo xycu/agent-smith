@@ -1,8 +1,9 @@
 # Run report: usage-file-docs-drift
 
-Goal: Implement context/changes/usage-file-docs-drift/change.md: make both usage messages in route.mjs, the AGENTS.md usage row, docs/REFERENCE.md and the OpenSpec SKILL.md show the --usage-file form; text only, add a test that the usage message names --usage-file, full suite green.
+Goal: Document --usage-file in the router usage text and AGENTS.md
 Rigor: standard (goal plain)
 Outcome: done - impl review APPROVED
+Archive: requested - runs after this report was written; see the commit "chore(archive): close usage-file-docs-drift"
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

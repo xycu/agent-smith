@@ -1,6 +1,6 @@
 {
   "id": "usage-file-docs-drift",
-  "goal": "Implement context/changes/usage-file-docs-drift/change.md: make both usage messages in route.mjs, the AGENTS.md usage row, docs/REFERENCE.md and the OpenSpec SKILL.md show the --usage-file form; text only, add a test that the usage message names --usage-file, full suite green.",
+  "goal": "Document --usage-file in the router usage text and AGENTS.md",
   "host": "claude",
   "prComment": true,
   "isolated": true,
@@ -52,5 +52,6 @@
     "action": "done",
     "reason": "impl review APPROVED",
     "manualPending": []
-  }
+  },
+  "archive": true
 }
