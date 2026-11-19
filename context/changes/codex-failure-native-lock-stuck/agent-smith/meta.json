@@ -1,6 +1,6 @@
 {
   "id": "codex-failure-native-lock-stuck",
-  "goal": "Implement context/changes/codex-failure-native-lock-stuck/change.md: release the native run lock after ordinary Codex failures (non-zero exit, turn.failed, missing RESULT line) when thread-tree closure is proved, so next records unknown and retries; keep the lock when closure is unproved with a recovery message; tests with fake codex, SIGTERM-grace timer test, ADR-024 and docs/REFERENCE.md updated, full suite green.",
+  "goal": "Release the native lock after an ordinary Codex failure so the run can retry",
   "host": "claude",
   "prComment": true,
   "isolated": true,
@@ -52,5 +52,6 @@
     "action": "done",
     "reason": "impl review NEEDS ATTENTION",
     "manualPending": []
-  }
+  },
+  "archive": true
 }

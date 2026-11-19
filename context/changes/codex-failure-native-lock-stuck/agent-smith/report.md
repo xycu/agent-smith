@@ -1,8 +1,9 @@
 # Run report: codex-failure-native-lock-stuck
 
-Goal: Implement context/changes/codex-failure-native-lock-stuck/change.md: release the native run lock after ordinary Codex failures (non-zero exit, turn.failed, missing RESULT line) when thread-tree closure is proved, so next records unknown and retries; keep the lock when closure is unproved with a recovery message; tests with fake codex, SIGTERM-grace timer test, ADR-024 and docs/REFERENCE.md updated, full suite green.
+Goal: Release the native lock after an ordinary Codex failure so the run can retry
 Rigor: thorough (hot paths skills/10x-pipeline/scripts/run-codex.mjs, skills/10x-pipeline/scripts/state.mjs, skills/10x-pipeline/test/codex-helpers.mjs +1)
 Outcome: done - impl review NEEDS ATTENTION
+Archive: requested - runs after this report was written; see the commit "chore(archive): close codex-failure-native-lock-stuck"
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
