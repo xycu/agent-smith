@@ -5,84 +5,66 @@
 - **Mode**: Deep
 - **Date**: 2026-11-19
 - **Verdict**: REVISE
-- **Findings**: 1 critical, 3 warnings, 1 observation
+- **Findings**: 0 critical, 2 warnings, 2 observations
 
-The verdict and counts describe the submitted plan. The decisions record the edits applied during triage.
+The verdict and counts describe the submitted plan at `91377f0a`. Each decision records the triage outcome.
 
 ## Verdicts
 
 | Dimension | Verdict |
 | --- | --- |
-| End-State Alignment | FAIL |
+| End-State Alignment | WARNING |
 | Lean Execution | PASS |
-| Architectural Fitness | WARNING |
+| Architectural Fitness | PASS |
 | Blind Spots | WARNING |
 | Plan Completeness | WARNING |
 
 ## Grounding
 
-Verified all three implementation paths, four supporting paths, and five guard symbols (`commands`, `commandProblem`, `gitProblem`, `eventProblem`, and `MAX_INPUT_BYTES`). The brief matched the submitted phases and scope. Both phase headings and all four Success Criteria matched canonical Progress. Automated acceptance required local tests. The manual scratch-repository check required no publication. [Guard](../../../../skills/10x-pipeline/scripts/step-guard.mjs) · [Guard tests](../../../../skills/10x-pipeline/test/step-guard.test.mjs) · [Reference](../../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
+Verified all three implementation paths and the supporting hook registration, provenance reader, change request and local evidence. The verification traced `withoutHeredocData`, `literalMessage`, `isGuarded`, `overflowIdentity` and `readEventProblem`. The existing hook owns Bash event handling, and provenance hashes its standalone entry point. The overflow implementation matches the plan's scope, UTF-8 handoff and depth limit. [Hook](../../../../hooks/hooks.json#L11) · [Heredoc scanner](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L235) · [Overflow reader](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L528) · [Provenance](../../../../skills/10x-pipeline/scripts/isolation.mjs#L85)
 
-The hook registration and provenance hash both name the standalone script. Keeping the parser there preserves the existing entry point and provenance coverage. The documentation sweep found the active byte-cap contract in the implementation plan's named reference section. [Hook registration](../../../../hooks/hooks.json) · [Provenance reader](../../../../skills/10x-pipeline/scripts/isolation.mjs#L82) · [Provenance tests](../../../../skills/10x-pipeline/test/provenance.test.mjs#L501) · [Follow-on change](../../step-guard-bypass-forms/change.md) · [Project lesson](../../../foundation/lessons.md#grep-every-doc-for-the-old-behavior-when-a-scripts-output-changes)
+Both phases and all six Success Criteria match canonical Progress. The brief matches the submitted phase scope. Automated criteria use local tests, including the full suite's fake Git/GitHub clients. The scratch-repository check is Manual. [Plan and Progress](../plan.md#progress) · [Plan brief](../plan-brief.md) · [Pre-publication acceptance](../../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
 
-The read-only codebase verification included a Bash syntax check and a Node decoding check. Verified token usage for that pass is unknown.
+On Node 24.19.0, the row 1.2 selector ran two named tests and the row 1.3 selector ran one. The read-only verification also ran four byte-cap and overflow tests. All passed on the submitted tree. The new UDP regression and fresh Claude Code acceptance are pending. The verification child reported unknown token coverage. [Hook tests](../../../../skills/10x-pipeline/test/step-guard.test.mjs) · [Live verification evidence](../evidence/unproven.md)
 
 ## Findings
 
-### F1 — Prove the complete heredoc route before allowing it
+### F1 — A green selector can miss the required regression
 
-- **Severity**: ❌ CRITICAL
-- **Impact**: 🔎 MEDIUM — real tradeoff that needs a design decision
+- **Severity**: ⚠️ WARNING
+- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: End-State Alignment
-- **Location**: Phase 1, Heredoc recognition and data routing
-- **Detail**: The plan asked for the recipient to be classified before the body was skipped. Bash can resume a pipeline after the body terminator, so the opener alone may omit a downstream consumer. The existing scanner flattens separators and consumes the newline following a comment. Reusing that behavior at the opener could hide a pipeline stage or place the body at the wrong boundary. A syntax-only Bash check confirmed the continuation using a harmless text pipeline. [Existing scanner](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L19) · [POSIX heredoc processing](https://pubs.opengroup.org/onlinepubs/9799919799/utilities/V3_chap02.html#tag_19_07_04)
-- **Fix**: Preserve local pipe, redirection and newline context, then classify the whole route before deciding. Add paired continued-pipeline cases and cover trailing comments and unresolved redirections.
-  - **Strength**: Keeps body recognition and permission decisions separate while preserving the bounded literal-command scope.
-  - **Tradeoff**: The scanner must retain context until the pipeline ends.
-  - **Confidence**: HIGH. The Bash syntax check and scanner structure show where the decision needs to move.
-  - **Blind spot**: Host-specific behavior still has its planned manual check.
-- **Decision**: APPLIED in Implementation Approach and Phase 1, Heredoc recognition and data routing and Paired heredoc regression tests, with matching plan brief updates.
+- **Location**: Phase 1, Verify the fixes from implementation review and rows 1.2 and 1.3
+- **Detail**: Row 1.3's selector passed on the submitted tree, where the denial table covers descriptor and TCP destinations and the UDP assertion is still pending. A separate Node run with a deliberately unmatched selector also exited successfully and reported the file as passing. A green status alone cannot prove the named tests ran or that the selected route test included the UDP case. [Route test](../../../../skills/10x-pipeline/test/step-guard.test.mjs#L130) · [Guard route diagnostic](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L356)
+- **Fix**: Confirm both named tests pass for 1.2. For 1.3, put the UDP assertion in the selected route test, check the route-specific denial and confirm the test is listed by name as passing.
+- **Decision**: APPLIED in Phase 1, Verify the fixes from implementation review, and the plan brief's Success Criteria summary.
 
-### F2 — Preserve the Git message operand and surrounding flags
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Architectural Fitness
-- **Location**: Phase 1, Git message capture
-- **Detail**: The plan restored quote context but left the scanner's output contract implicit. The current Git checker advances by one word for a separate `-m` operand. Dropping the capture's word could cause it to consume the following flag. Feeding the captured prose back to the scanner would also lose the distinction between one quoted operand and executable tokens. [Git option scanner](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L61)
-- **Fix**: Allow the exact capture in the proved `git commit -m` operand, emit one opaque word, and test empty and flag-shaped messages alongside genuine denied flags before and after it.
-- **Decision**: APPLIED in Phase 1, Heredoc recognition and data routing and Paired heredoc regression tests, with a matching Key Decisions entry in the brief.
-
-### F3 — Define how unquoted expansion is classified
+### F2 — The live check needs evidence from the child's actual shell
 
 - **Severity**: ⚠️ WARNING
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: Blind Spots
-- **Location**: Phase 1, Unquoted heredoc handling
-- **Detail**: Detecting the listed command, backtick and arithmetic forms alone leaves parameter expansion and uncertain interpolation underspecified. Bash applies heredoc-specific escapes and folds backslash-newline before matching the closing line, so isolated physical-line checks can miss an active expansion or reject a literal marker. [Bash heredoc rules](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Here-Documents) · [Bash parameter expansion](https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html)
-- **Fix**: Apply the heredoc escape and continuation rules before checking for active expansions. Deny ambiguous interpolation with the existing literal-text guidance and pin escaped, quoted and joined markers in the regressions.
-- **Decision**: APPLIED in Phase 1, Heredoc recognition and data routing and Paired heredoc regression tests, with a matching Key Decisions entry in the brief.
+- **Location**: Testing Strategy, Manual row 2.3
+- **Detail**: The procedure names the two text commands and asks for the scratch commit to be inspected. It leaves the exact commit input and the evidence to capture implicit. The recorded local Bash 3.2 syntax failure and zsh stand-in show that neutral hook output does not establish that the child's shell can run the original form. [Local probe output](../evidence/script-step-guard-local.txt) · [Ticket examples](../change.md)
+- **Fix**: Use the original quoted commit command in a fresh guarded child with a staged scratch fixture. Record the Claude Code, plugin and shell versions, the literal outputs, the actual commit message and the hook's pre-execution denial. Leave 2.3 pending if any check fails and record whether the shell or hook stopped it.
+- **Decision**: APPLIED in Testing Strategy and the plan brief's Success Criteria summary.
 
-### F4 — Define the overflow reader's compatibility boundary
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🔎 MEDIUM — real tradeoff that needs a design decision
-- **Dimension**: Blind Spots
-- **Location**: Desired End State and Phase 2, Bounded event identity reader
-- **Detail**: The original contract promised passthrough for valid larger events while leaving the depth cutoff, UTF-8 behavior and allocation for unusually long keys and type values unspecified. The existing path decodes bytes before `JSON.parse`; a local Node check showed that a default streaming `TextDecoder` drops the leading BOM rejected by the current path. The existing scope check returns before guarded-field validation for unrelated objects. [Current scope and decoder](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L121) · [Host timeout](../../../../hooks/hooks.json#L13)
-- **Fix**: Preserve byte and decoding semantics at the overflow transition, keep identity comparisons bounded, and validate the grammar through EOF. Document the 64-open-container limit and timeout, and verify both sides of those boundaries where local fixtures can give deterministic results.
-  - **Strength**: Preserves classification for the normal Bash envelope and prevents retained data from growing with irrelevant strings or excessive nesting.
-  - **Tradeoff**: A syntactically valid oversized object outside those resource limits fails closed.
-  - **Confidence**: HIGH for decoding and scope compatibility. The depth of 64 is a review assumption sized for the documented shallow envelope with room for nested metadata.
-  - **Blind spot**: The implementation's throughput within the five-second budget remains to be verified. [Claude Code hook input](https://code.claude.com/docs/en/hooks#common-input-fields)
-- **Decision**: APPLIED in Desired End State and Phase 2, Bounded event identity reader, Byte cap regression tests and Hook behavior reference, with matching plan brief updates.
-
-### F5 — Keep the full-suite command local under inherited environments
+### F3 — Full-suite evidence predates the last planned regression
 
 - **Severity**: ℹ️ OBSERVATION
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: Plan Completeness
-- **Location**: Testing Strategy and Phase 2, full-suite criterion
-- **Detail**: The repository command works locally with its default environment. An inherited `GH_LIVE=1` opts into real GitHub calls, even though the phase only requires pre-publication evidence. [Opt-in live tests](../../../../skills/10x-pipeline/test/pr-comment.test.mjs#L844) · [Pre-publication acceptance](../../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
-- **Fix**: Specify `GH_LIVE` unset in the testing procedure and brief. Retain the existing full-suite criterion and local fake-client tests.
+- **Location**: Testing Strategy and the plan brief's Success Criteria summary
+- **Detail**: Row 2.2 already records a completed full-suite run. The revision introduces a pending test edit in phase 1. The existing instruction to run the full suite “after both changes” leaves it unclear whether the full-suite result must cover that edit. [Canonical Progress](../plan.md#progress) · [Implementation review's test evidence](impl-review.md#automated-verification)
+- **Fix**: Explicitly rerun the existing full-suite command on the tree that includes the UDP regression with `GH_LIVE` unset, then record the result with the pending phase 1 checks.
 - **Decision**: APPLIED in Testing Strategy and the plan brief's Success Criteria summary.
+
+### F4 — Byte-cap source links point into heredoc code
+
+- **Severity**: ℹ️ OBSERVATION
+- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
+- **Dimension**: Plan Completeness
+- **Location**: Key Discoveries, Implementation Approach and Phase 2, Bounded event identity reader
+- **Detail**: The submitted guard links point into the heredoc word scanner. The limit-test link points to the heredoc guidance constant. The current scope predicate, byte handoff and byte-cap test are at different locations. [Scope predicate](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L484) · [Byte handoff](../../../../skills/10x-pipeline/scripts/step-guard.mjs#L682) · [Byte-cap test](../../../../skills/10x-pipeline/test/step-guard.test.mjs#L260)
+- **Fix**: Link to the current scope predicate, byte handoff and byte-cap test. Describe a present invalid ID as keeping the event in scope, with its response governed by the in-limit or overflow path.
+- **Decision**: APPLIED in Key Discoveries, Implementation Approach and Phase 2, Bounded event identity reader.

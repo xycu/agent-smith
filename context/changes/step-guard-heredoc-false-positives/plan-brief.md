@@ -51,9 +51,9 @@ Track heredoc boundaries and data flow in the existing command scanner, then app
 ## Success Criteria (Summary)
 
 - The focused hook tests pass with paired heredoc and size-limit cases, including every existing direct denial.
-- Rows 1.2 and 1.3 verify message capture and arithmetic boundaries, delimiters at EOF, compound routes, continued operators, and descriptor and socket redirects with inert CLI inputs.
-- The full repository test suite passes locally with `GH_LIVE` unset. The fake-client tests run and the opt-in live GitHub tests stay disabled.
-- Manual row 2.3 (F6) remains pending until a fresh Claude Code `agent-smith:step` runs both `cat` heredocs, produces the expected scratch commit message and denies `gh --version` before execution. [Local evidence](evidence/unproven.md)
+- Rows 1.2 and 1.3 verify message capture and arithmetic boundaries, delimiters at EOF, compound routes, continued operators, and descriptor and socket redirects with inert CLI inputs. Confirm the intended tests appear by name in the output and the selected route test includes the new UDP denial.
+- Rerun the full repository suite locally after adding the UDP regression with `GH_LIVE` unset so the final run includes the new fixture.
+- Manual row 2.3 (F6) remains pending until a fresh Claude Code `agent-smith:step` runs both `cat` heredocs, produces the expected scratch commit message and denies `gh --version` before execution. Record the host, plugin and shell versions and distinguish shell syntax errors from hook denials. [Local evidence](evidence/unproven.md)
 
 ## References
 
