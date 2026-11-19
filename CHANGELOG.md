@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.14.1](https://github.com/xycu/agent-smith/compare/v1.14.0...v1.14.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **codex-failure-native-lock-stuck:** Release the native lock after an ordinary Codex failure so the run can retry ([#225](https://github.com/xycu/agent-smith/issues/225)) ([d35e5f0](https://github.com/xycu/agent-smith/commit/d35e5f04662035481e6707b80f0f6685051355f5))
+* **open-pr-unfinished-merge-commit:** Keep open-pr from committing and pushing an unfinished merge ([#224](https://github.com/xycu/agent-smith/issues/224)) ([6539688](https://github.com/xycu/agent-smith/commit/6539688dcaf168c2f5f876431a02abd8a64bcd2b))
+* **review-verdict-unknown-passes:** Halt on an unknown or missing review verdict instead of ending the run as done ([#227](https://github.com/xycu/agent-smith/issues/227)) ([a41ae39](https://github.com/xycu/agent-smith/commit/a41ae39e4ef7be6e67ad35aadc2f9a6089be1e98))
+* **usage-file-docs-drift:** Document --usage-file in the router usage text and AGENTS.md ([#223](https://github.com/xycu/agent-smith/issues/223)) ([238e81c](https://github.com/xycu/agent-smith/commit/238e81cb1221252f2bd1c99192689d8cdd707181))
+
 ## [1.14.0](https://github.com/xycu/agent-smith/compare/v1.13.1...v1.14.0) (2026-11-18)
 
 
