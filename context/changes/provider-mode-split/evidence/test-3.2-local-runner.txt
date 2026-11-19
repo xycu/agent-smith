@@ -1,0 +1,20 @@
+skills/10x-pipeline/test/claude-runner.test.mjs — headless Claude exact inline action, foreground leaves and unavailable accounting (10x and OpenSpec); archive validates exact prompt, agent and target before moving with the original lock (10x and OpenSpec); incompatible handshake, toolkit, privilege set or changed handoff refuses before work and allows retry; cancelling guarded work suspends before intake or relaunch
+
+node --test --test-concurrency=2 --test-name-pattern="incompatible handshake, toolkit|headless Claude exact inline|cancelling guarded work|archive validates exact prompt" skills/10x-pipeline/test/claude-runner.test.mjs
+
+✔ 10x: headless Claude exact inline action, foreground leaves and unavailable accounting (2119.439916ms)
+✔ 10x: archive validates exact prompt, agent and target before moving with the original lock (1652.403375ms)
+✔ openspec: headless Claude exact inline action, foreground leaves and unavailable accounting (2037.215625ms)
+✔ openspec: archive validates exact prompt, agent and target before moving with the original lock (1663.664458ms)
+✔ incompatible handshake, toolkit, privilege set or changed handoff refuses before work and allows retry (1549.915ms)
+✔ cancelling guarded work suspends before intake or relaunch (731.800334ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9871.547583
+
+These tests use a fake Claude CLI. Row 3.2 requires fresh authenticated top-level runs through both skills on both hosts, across all modes.
