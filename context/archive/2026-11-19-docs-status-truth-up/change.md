@@ -1,10 +1,10 @@
 ---
 change_id: docs-status-truth-up
 title: Bring ADR statuses, WAVES.md, dead links and pending notes up to date
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-19
-archived_at: null
+archived_at: 2026-11-19T17:03:09Z
 ---
 
 ## Notes
