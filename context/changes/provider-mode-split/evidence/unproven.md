@@ -1,0 +1,2 @@
+- 3.2 — Requires authorized fresh top-level Claude Code and Codex sessions for all six host/mode combinations on each chain. The local startup probe and fake runner fixtures do not prove live guard behavior, toolkit discovery, leaf collection, cancellation, or archive through both normal skill entrypoints.
+- 3.3 — Read-only remote verification found the published branch at 22b0d01c while this run branch was at 54ba2ed6. The current run must reach orchestrator publication before its open PR, head CI, and any opted-in report comment can be verified.
