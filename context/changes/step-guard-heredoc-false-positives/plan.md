@@ -162,4 +162,4 @@ The hook consumes the same Claude Code JSON and emits the same decision formats.
 
 #### Manual
 
-- [ ] 2.3 In a fresh Claude Code `agent-smith:step` subagent with the updated plugin installed, both reported `cat` heredocs run, the reported quoted heredoc commit message works in a scratch Git repository, and the hook denies `gh --version` before it runs.
+- [x] 2.3 In a fresh Claude Code `agent-smith:step` subagent with the updated plugin installed, both reported `cat` heredocs run, the reported quoted heredoc commit message works in a scratch Git repository, and the hook denies `gh --version` before it runs. — bbcaaa5
