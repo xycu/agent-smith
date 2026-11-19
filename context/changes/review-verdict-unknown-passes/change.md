@@ -1,7 +1,7 @@
 ---
 change_id: review-verdict-unknown-passes
 title: Halt on an unknown or missing review verdict instead of ending the run as done
-status: implemented
+status: impl_reviewed
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
