@@ -4,11 +4,11 @@
 
 ## What & Why
 
-The Claude Code Bash hook can reject ordinary heredoc text and the quoted heredoc pattern used for commit messages. Its current 64 KiB input limit also blocks unrelated sessions. The fix makes the guard recognize literal text and restricts the byte cap to guarded step subagents. [Change request](change.md)
+The Claude Code Bash hook rejected ordinary heredoc text and quoted commit messages. Its 64 KiB input limit also blocked unrelated sessions. Phases 1 and 2 added literal heredoc handling and scoped the byte cap to guarded step subagents. [Change request](change.md)
 
 ## Starting Point
 
-The standalone hook reads the event from stdin. It caps the full input before reading the agent identity, then splits guarded commands into shell words. Its CLI tests already assert exact separation between neutral output, JSON denial, and exit-2 failure. [Hook implementation](../../../skills/10x-pipeline/scripts/step-guard.mjs) · [CLI tests](../../../skills/10x-pipeline/test/step-guard.test.mjs)
+The review records five heredoc fixes in `462d1d5e`. Two pending phase 1 checks cover those fixes using the stdin-only hook, including a UDP redirect case to add alongside the existing TCP case. The follow-on ticket's byte-cap wording (F7) is for its owner to reconcile with the runtime reference. [Implementation review](reviews/impl-review.md) · [Runtime reference](../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
 
 ## What Success Looks Like
 
@@ -51,8 +51,9 @@ Track heredoc boundaries and data flow in the existing command scanner, then app
 ## Success Criteria (Summary)
 
 - The focused hook tests pass with paired heredoc and size-limit cases, including every existing direct denial.
+- Rows 1.2 and 1.3 verify message capture and arithmetic boundaries, delimiters at EOF, compound routes, continued operators, and descriptor and socket redirects with inert CLI inputs.
 - The full repository test suite passes locally with `GH_LIVE` unset. The fake-client tests run and the opt-in live GitHub tests stay disabled.
-- Manual verification in a fresh `agent-smith:step` subagent confirms that both `cat` heredocs and the quoted scratch commit work and that the hook denies `gh --version` before it runs.
+- Manual row 2.3 (F6) remains pending until a fresh Claude Code `agent-smith:step` runs both `cat` heredocs, produces the expected scratch commit message and denies `gh --version` before execution. [Local evidence](evidence/unproven.md)
 
 ## References
 

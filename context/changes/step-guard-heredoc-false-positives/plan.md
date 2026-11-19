@@ -6,9 +6,9 @@ Update the Claude Code Bash hook so literal heredoc data reaches its intended de
 
 ## Current State Analysis
 
-`hooks/hooks.json` invokes `step-guard.mjs` as a synchronous `PreToolUse` hook for Bash with a five-second timeout and `onFailure: "block"`. The hook's word scanner treats heredoc body lines as ordinary shell input, and its stdin reader throws at 64 KiB before the top-level `agent_type` and `agent_id` are known. The standalone hook reads stdin and emits a decision without executing the command or accessing files, the network, or router state. [Hook registration](../../../hooks/hooks.json) · [Word scanner](../../../skills/10x-pipeline/scripts/step-guard.mjs#L8) · [Event reader](../../../skills/10x-pipeline/scripts/step-guard.mjs#L121)
+`hooks/hooks.json` invokes `step-guard.mjs` as a synchronous `PreToolUse` hook for Bash with a five-second timeout and `onFailure: "block"`. Before phases 1 and 2, the word scanner treated heredoc body lines as ordinary shell input, and the stdin reader threw at 64 KiB before the top-level `agent_type` and `agent_id` were known. The standalone hook reads stdin and emits a decision without executing the command or accessing files, the network, or router state. [Hook registration](../../../hooks/hooks.json) · [Hook implementation](../../../skills/10x-pipeline/scripts/step-guard.mjs)
 
-Inert CLI payloads reproduced the three heredoc false positives and the cap failure for a 70 KiB command from the main session. All 12 existing focused tests passed, so the regressions need new cases alongside the current allow and deny fixtures. [Existing CLI tests](../../../skills/10x-pipeline/test/step-guard.test.mjs)
+The original 12 focused tests passed despite the three heredoc false positives and the cap failure for a 70 KiB main-session command. The implementation review records fixes for F1–F5 in `462d1d5e` and passing focused and full suites after triage. Rows 1.2 and 1.3 verify those fixes on the current branch. [Implementation review](reviews/impl-review.md) · [CLI tests](../../../skills/10x-pipeline/test/step-guard.test.mjs)
 
 ## Desired End State
 
@@ -23,6 +23,8 @@ Common literal text heredocs and Claude Code's quoted commit-message idiom get n
 ## Scope Boundary
 
 This change covers heredoc-aware Bash classification and the hook's input budget. General shell wrapper and alias coverage belongs to the follow-on change. Hook wiring, agent mapping, routing and persisted run state continue to use their existing contracts. [Follow-on change](../step-guard-bypass-forms/change.md) · [Current runtime scope](../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
+
+For F7, use the runtime reference for current byte-cap behavior. The follow-on ticket describes the pre-change cap. Its owner can label that passage as historical or update it before implementing that change. [Review finding F7](reviews/impl-review.md#f7--the-follow-on-ticket-still-summarizes-the-original-byte-cap) · [Runtime reference](../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
 
 ## Implementation Approach
 
@@ -60,11 +62,19 @@ Quoted body text is literal. In an unquoted body, apply Bash's heredoc escape an
 
 **Contract** Put allow and deny cases together and assert actual status and output. Pair simple text pipelines with unsafe downstream stages, including a pipeline continued after the body. Cover a trailing comment on the opener and an unresolved output route. Pair literal apostrophes, quotes and command-shaped prose with direct shell and interpreter recipients. Pair inert quoted or escaped expansion markers with active expansions in an unquoted body, including a parameter expansion. Cover a continuation that forms a delimiter and one that joins an active expansion marker. Pair the requested Git capture with an empty or flag-shaped message, a real denied flag before or after the message, a capture outside the message position and an additional executable command inside the capture. Pair harmless text with a real denied command after the delimiter. Cover all four opener forms, FIFO bodies, exact delimiter matching including trailing spaces and tab indentation, quoted and escaped operator text, a supported here-string, and an unterminated body whose diagnostic mentions heredocs. Submit denied strings as inert hook input.
 
+#### 3. Verify the fixes from implementation review
+
+Use inert input with the existing CLI tests. For F1, check that a continued substitution opener preserves the Git message operand boundary, a valid arithmetic shift stays neutral, and an ambiguous arithmetic group receives a denial. For F4, check both outcomes at EOF after a continuation. A complete delimiter yields neutral output and a partial delimiter exits 2 with a heredoc diagnostic. [Review findings](reviews/impl-review.md) · [CLI tests](../../../skills/10x-pipeline/test/step-guard.test.mjs)
+
+For F2, verify that prefixed groups and nested clauses retain the enclosing compound denial. For F3, verify that a continued append operator and a continued logical OR preserve the allowed text route. For F5, pair neutral ordinary file redirects with denied shell-special descriptor and socket destinations. The fixtures cover descriptor and TCP paths. Add the UDP counterpart to the same denial table and pass it only to the hook on stdin. [CLI tests](../../../skills/10x-pipeline/test/step-guard.test.mjs) · [Documented redirect boundary](../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
+
 ### Success Criteria:
 
 #### Automated Verification:
 
 - The focused hook suite passes with paired heredoc cases and all legacy direct denials using `node --test skills/10x-pipeline/test/step-guard.test.mjs`.
+- `node --test --test-name-pattern='only an entire separate|heredoc delimiters' skills/10x-pipeline/test/step-guard.test.mjs` passes the message capture, arithmetic shift and end-of-input delimiter cases.
+- `node --test --test-name-pattern='heredocs distinguish' skills/10x-pipeline/test/step-guard.test.mjs` passes the compound, continued operator and redirect cases, including descriptor, TCP and UDP destinations.
 
 ## Phase 2: Apply the byte cap to guarded steps
 
@@ -113,6 +123,8 @@ Match decoded top-level key names and the exact `agent_type` value with bounded 
 
 ## Testing Strategy
 
+Review finding F6 stays on Manual row 2.3. Local probes verified the two text outputs and passed the message to a stand-in under zsh. Closing 2.3 requires a fresh guarded Claude Code child, inspection of the actual scratch commit message, and confirmation that the hook denied the command before execution. [Recorded evidence](evidence/unproven.md) · [Implementation review](reviews/impl-review.md)
+
 Use the existing CLI harness for both phases so the tests exercise registration assumptions, process status, decision output and the absence of permission grants. Use inert payloads for denied commands and run the full Node 24+ suite after both changes with `GH_LIVE` unset. The fake-client tests run locally and the opt-in live GitHub tests stay disabled. For the live check, start a fresh Claude Code 2.1.295+ session that has loaded the updated plugin and launch the step agent. Run the apostrophe and recursive-delete-as-text examples from the ticket. Check the resulting scratch commit message for the intended quote characters and confirm the hook blocks `gh --version`. [Ticket examples](change.md) · [Hook harness](../../../skills/10x-pipeline/test/step-guard.test.mjs#L14) · [Live GitHub test switch](../../../skills/10x-pipeline/test/pr-comment.test.mjs#L844)
 
 ## Performance Considerations
@@ -138,6 +150,8 @@ The hook consumes the same Claude Code JSON and emits the same decision formats.
 #### Automated
 
 - [x] 1.1 The focused hook suite passes with paired heredoc cases and all legacy direct denials using `node --test skills/10x-pipeline/test/step-guard.test.mjs`. — 2c0cecae
+- [ ] 1.2 `node --test --test-name-pattern='only an entire separate|heredoc delimiters' skills/10x-pipeline/test/step-guard.test.mjs` passes the message capture, arithmetic shift and end-of-input delimiter cases.
+- [ ] 1.3 `node --test --test-name-pattern='heredocs distinguish' skills/10x-pipeline/test/step-guard.test.mjs` passes the compound, continued operator and redirect cases, including descriptor, TCP and UDP destinations.
 
 ### Phase 2: Apply the byte cap to guarded steps
 
