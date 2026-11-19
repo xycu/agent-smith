@@ -217,7 +217,7 @@ For the Wave 1 handoff, the maintainer takes in current `main` with a merge comm
 
 #### Automated
 
-- [ ] 1.1 Run the local link check in Testing Strategy and confirm zero missing targets across the README and docs.
+- [x] 1.1 Run the local link check in Testing Strategy and confirm zero missing targets across the README and docs.
 
 ### Phase 2: Reconcile architecture decisions
 
