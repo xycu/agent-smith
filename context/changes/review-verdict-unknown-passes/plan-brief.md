@@ -19,9 +19,9 @@ A new review with an invalid or missing verdict fails verification. An existing 
 | Decision | Choice | Rationale |
 | --- | --- | --- |
 | Vocabulary | Plan accepts `SOUND`, `REVISE`, `RETHINK`. Implementation accepts `APPROVED`, `NEEDS ATTENTION`, `REJECTED`. | One set per review kind governs both intake and routing. |
-| Header format | Preserve both bold-label forms and explicitly delimited annotations. Reject `_` and `-` spellings and treat undelimited words as part of the verdict. | Keeps supported formatting while preventing a truncated verdict from passing. |
-| Recovery | Retry an ordinary malformed result within the existing limits. Halt on a malformed confirmation or an existing invalid review used for routing. | An isolated rollback can restore the earlier review after a confirmation fails. |
-| Partial implementation | Halt if a recognized blocking plan verdict leaves further implementation work pending. | Preserves existing work and requires a plan review that authorizes continuing. |
+| Header format | Read one standalone bold Verdict label in the review header. Preserve the supported annotation delimiters and check the whole candidate. | Inline prose and an unsupported suffix cannot supply a passing verdict. |
+| Recovery | Retry an ordinary malformed result within the existing limits. Halt on a malformed confirmation or an existing invalid review used for routing. Reuse the recorded diagnostic across resume until a fresh correction can route. | An isolated rollback can restore the earlier review after a confirmation fails. |
+| Partial implementation | Halt on a blocking plan verdict when a prior code attempt or automated tick exists and unchecked or reopened rows still need implementation. | The same gate covers plain implementation, executor dispatch and retries. |
 
 ## Scope
 
@@ -48,7 +48,7 @@ The artifact reader extracts the complete verdict. Shared validation in the rout
 
 ## Success Criteria (Summary)
 
-- The focused CLI tests prove every reproduced false success now retries or halts.
+- The focused CLI tests cover false successes, retry and confirmation halts, corrected resumes and blocking verdicts when implementation work remains.
 - The read-only archive comparison preserves every parsed verdict and header count.
 - The full local suite passes.
 
