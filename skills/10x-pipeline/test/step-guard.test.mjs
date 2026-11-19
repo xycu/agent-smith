@@ -17,7 +17,8 @@ const payload = (command, extra = {}) => ({
 });
 function invoke(input, executable = script, options = {}) {
   const result = spawnSync(process.execPath, [executable], {
-    input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8", timeout: 5000, ...options,
+    input: typeof input === "string" || Buffer.isBuffer(input) ? input : JSON.stringify(input),
+    encoding: "utf8", timeout: 5000, ...options,
   });
   assert.equal(result.error, undefined, result.error?.message);
   return { ...result, decision: result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : null };
@@ -36,6 +37,14 @@ function neutral(input) {
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "", "pass-through never grants permission");
   assert.equal(result.stderr, "");
+}
+
+function failedClosed(input, reason = /failed closed/) {
+  const result = invoke(input);
+  assert.equal(result.status, 2, result.stdout);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /failed closed/);
+  assert.match(result.stderr, reason);
 }
 
 test("shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling", () => {
@@ -221,12 +230,90 @@ test("malformed guarded events deny and malformed JSON, oversized input and quot
   for (const input of [
     "{", "null", "[]", JSON.stringify(payload("x".repeat(65536))),
     JSON.stringify(payload("git 'unterminated")), JSON.stringify(payload("git \\")),
-  ]) {
-    const result = invoke(input);
-    assert.equal(result.status, 2, result.stdout);
-    assert.match(result.stderr, /failed closed/);
-    assert.equal(result.stdout, "");
+  ]) failedClosed(input);
+});
+
+const hookByteCap = 64 * 1024;
+const oversizedCommand = "x".repeat(hookByteCap);
+const oversizedCommandField = '"tool_input":' + JSON.stringify({ command: oversizedCommand });
+const oversized = (...members) => "{" + [oversizedCommandField, ...members].join(",") + "}";
+const stepType = '"agent_type":"agent-smith:step"';
+const stepId = '"agent_id":"step"';
+const sizeDiagnostic = /exceeds 64 KiB/;
+
+test("hook byte cap applies only to guarded steps even with a present invalid ID", () => {
+  for (const extra of [
+    { agent_id: undefined, agent_type: undefined },
+    { agent_id: undefined },
+    { agent_type: "general-purpose" },
+  ]) neutral(payload(oversizedCommand, extra));
+  for (const extra of [{}, { agent_id: null }]) {
+    failedClosed(payload(oversizedCommand, extra), sizeDiagnostic);
   }
+
+  const guarded = JSON.stringify(payload("git push"));
+  const atLimit = guarded + " ".repeat(hookByteCap - Buffer.byteLength(guarded));
+  assert.equal(Buffer.byteLength(atLimit), hookByteCap);
+  const result = invoke(atLimit);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.equal(result.decision?.permissionDecision, "deny");
+  assert.match(result.decision.permissionDecisionReason, /orchestrator/i);
+  failedClosed(atLimit + " ", sizeDiagnostic);
+});
+
+test("hook overflow uses decoded top-level identity and the last supplied type", () => {
+  failedClosed(oversized(stepType, stepId), sizeDiagnostic);
+  neutral(oversized(
+    '"nested":{' + stepType + "," + stepId + "}",
+    '"text":' + JSON.stringify("{" + stepType + "," + stepId + "}")
+  ));
+  neutral(oversized(stepType, stepId, '"agent_type":"general-purpose"'));
+  neutral(oversized(stepType, stepId, '"agent_type":{"value":"agent-smith:step"}'));
+  failedClosed(oversized('"agent_type":"general-purpose"', stepId, stepType), sizeDiagnostic);
+
+  const longKey = JSON.stringify("agent_type" + oversizedCommand);
+  const longType = JSON.stringify("agent-smith:step" + oversizedCommand);
+  neutral(oversized(longKey + ':"agent-smith:step"', stepId));
+  neutral(oversized('"agent_type":' + longType, stepId));
+  failedClosed(oversized('"agent_type":' + longType, stepId, stepType), sizeDiagnostic);
+});
+
+test("hook overflow handoff preserves UTF-8 and decoded key escapes at 64 KiB", () => {
+  const commandStart = '{"tool_input":{"command":"';
+  const padding = (beforeSplit) => "x".repeat(hookByteCap - Buffer.byteLength(commandStart + beforeSplit));
+  const multibyte = commandStart + padding("x") + '€"},' + stepType + "," + stepId + "}";
+  assert.equal(Buffer.from(multibyte)[hookByteCap - 1], 0xe2);
+  failedClosed(multibyte, sizeDiagnostic);
+
+  const keyStart = '"},"agent_\\u00';
+  const escaped = commandStart + padding(keyStart) + keyStart + '74ype":"agent-smith:\\u0073tep","agent_\\u0069d":"step"}';
+  assert.equal(escaped.slice(hookByteCap, hookByteCap + 2), "74");
+  failedClosed(escaped, sizeDiagnostic);
+
+  // An invalid continuation inside this command becomes replacement text, as on the Buffer path.
+  const invalidUtf8 = Buffer.from(multibyte);
+  invalidUtf8[hookByteCap] = 0x78;
+  failedClosed(invalidUtf8, sizeDiagnostic);
+});
+
+test("hook overflow validates ignored values, trailing bytes, and 64 open containers", () => {
+  const nonStep = oversized('"agent_type":"general-purpose"', stepId);
+  neutral(nonStep);
+  neutral(oversized('"metadata":[null,true,false,0,-0,12,-1.25e+42,3E-9,{}]'));
+  for (const input of [
+    nonStep + "false", "\uFEFF" + nonStep, nonStep.slice(0, -3),
+    nonStep.slice(0, -1) + ',"bad":[true,]}',
+    nonStep.slice(0, -1) + ',"bad":01}',
+    nonStep.slice(0, -1) + ',"bad":1.e2}',
+    nonStep.slice(0, -1) + ',"bad":"\\u00ZZ"}',
+    nonStep.slice(0, -1) + ',"bad":"\\v"}',
+    "[" + nonStep + "]",
+  ]) failedClosed(input, /Invalid JSON/);
+
+  const nested = (arrayDepth) => oversized('"metadata":' + "[".repeat(arrayDepth) + "{}" + "]".repeat(arrayDepth));
+  neutral(nested(62));
+  failedClosed(nested(63), /64 nested JSON containers/);
 });
 
 test("hook argument vector preserves plugin paths containing spaces and shell metacharacters", () => {

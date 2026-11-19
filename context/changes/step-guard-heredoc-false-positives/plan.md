@@ -137,14 +137,14 @@ The hook consumes the same Claude Code JSON and emits the same decision formats.
 
 #### Automated
 
-- [x] 1.1 The focused hook suite passes with paired heredoc cases and all legacy direct denials using `node --test skills/10x-pipeline/test/step-guard.test.mjs`.
+- [x] 1.1 The focused hook suite passes with paired heredoc cases and all legacy direct denials using `node --test skills/10x-pipeline/test/step-guard.test.mjs`. — 2c0cecae
 
 ### Phase 2: Apply the byte cap to guarded steps
 
 #### Automated
 
-- [ ] 2.1 The focused hook suite passes the paired byte-cap, identity and malformed-envelope cases using `node --test skills/10x-pipeline/test/step-guard.test.mjs`.
-- [ ] 2.2 The full repository suite passes using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.1 The focused hook suite passes the paired byte-cap, identity and malformed-envelope cases using `node --test skills/10x-pipeline/test/step-guard.test.mjs`.
+- [x] 2.2 The full repository suite passes using `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 #### Manual
 

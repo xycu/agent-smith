@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 // shortcut: literal shell words and separators only, rely on host permissions for dynamic programs.
 const MAX_INPUT_BYTES = 64 * 1024;
+const MAX_JSON_DEPTH = 64;
+const STEP_AGENT_TYPE = "agent-smith:step";
 const PUBLICATION = "Step publication belongs to the orchestrator. Leave push, GitHub calls and publication scripts to its terminal actions.";
 const PRESERVATION = "This stateless guard cannot prove preservation. Preserve working-copy, staged-only and uniquely reachable commits in a commit or ref, and leave run rollback to the router.";
 const DELETION = "Recursive deletion is forbidden. List and inspect files, unlink them one by one, then rmdir empty directories deepest first. Repository code uses removeTree.";
@@ -436,10 +438,14 @@ function commandProblem(words) {
   return null;
 }
 
+function isGuarded(agentType, hasAgentId) {
+  // agent_type alone can describe the main session's --agent selection.
+  return agentType === STEP_AGENT_TYPE && hasAgentId;
+}
+
 function eventProblem(event) {
   if (!event || typeof event !== "object" || Array.isArray(event)) throw new Error("Expected a hook event object.");
-  // agent_type alone can describe the main session's --agent selection.
-  if (event.agent_type !== "agent-smith:step" || event.agent_id === undefined) return null;
+  if (!isGuarded(event.agent_type, event.agent_id !== undefined)) return null;
   if (typeof event.agent_id !== "string" || !event.agent_id.trim() ||
       event.hook_event_name !== "PreToolUse" || event.tool_name !== "Bash" ||
       !event.tool_input || typeof event.tool_input.command !== "string" || !event.tool_input.command.trim()) {
@@ -459,15 +465,202 @@ function eventProblem(event) {
   return null;
 }
 
-try {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of process.stdin) {
-    size += chunk.length;
-    if (size > MAX_INPUT_BYTES) throw new Error("Hook input exceeds 64 KiB.");
-    chunks.push(chunk);
+const jsonEscapes = { '"': '"', "\\": "\\", "/": "/", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t" };
+const numberEnds = ["zero", "integer", "fraction", "exponent-digits"];
+
+function nextNumberPart(part, c) {
+  if (c >= "0" && c <= "9") {
+    if (part === "minus") return c === "0" ? "zero" : "integer";
+    if (part === "point") return "fraction";
+    if (part === "exponent" || part === "exponent-sign") return "exponent-digits";
+    return part === "zero" ? null : part;
   }
-  const problem = eventProblem(JSON.parse(Buffer.concat(chunks).toString("utf8")));
+  if (c === "." && (part === "zero" || part === "integer")) return "point";
+  if ((c === "e" || c === "E") && (part === "zero" || part === "integer" || part === "fraction")) return "exponent";
+  if ((c === "+" || c === "-") && part === "exponent") return "exponent-sign";
+  return null;
+}
+
+// Validate the whole oversized object while retaining only its top-level identity.
+function overflowIdentity() {
+  const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
+  const stack = [];
+  const textLimit = Math.max("agent_type".length, "agent_id".length, STEP_AGENT_TYPE.length);
+  let started = false;
+  let topKey = null;
+  let agentType = null;
+  let hasAgentId = false;
+  let numberPart = null;
+  let keyword = "";
+  let stringKind = null;
+  let captured = null;
+  let escaped = false;
+  let hexRemaining = 0;
+  let code = 0;
+
+  function malformed() {
+    throw new Error("Invalid JSON in oversized hook input.");
+  }
+
+  function open(state) {
+    if (stack.length === MAX_JSON_DEPTH) throw new Error("Oversized hook input exceeds 64 nested JSON containers.");
+    stack.push(state);
+  }
+
+  function startString(kind) {
+    stringKind = kind;
+    captured = kind === "skip" ? null : "";
+  }
+
+  function capture(c) {
+    if (captured !== null) captured = captured.length < textLimit ? captured + c : null;
+  }
+
+  function stringChar(c) {
+    if (hexRemaining) {
+      if (!/^[0-9a-fA-F]$/.test(c)) malformed();
+      code = 16 * code + Number.parseInt(c, 16);
+      if (--hexRemaining === 0) capture(String.fromCharCode(code));
+    } else if (escaped) {
+      escaped = false;
+      if (c === "u") {
+        hexRemaining = 4;
+        code = 0;
+      } else {
+        const decoded = jsonEscapes[c];
+        if (decoded === undefined) malformed();
+        capture(decoded);
+      }
+    } else if (c === "\\") {
+      escaped = true;
+    } else if (c === '"') {
+      if (stringKind === "key") topKey = captured === "agent_type" || captured === "agent_id" ? captured : null;
+      if (stringKind === "type") agentType = captured === STEP_AGENT_TYPE ? STEP_AGENT_TYPE : null;
+      stringKind = null;
+    } else {
+      if (c < " ") malformed();
+      capture(c);
+    }
+  }
+
+  function startValue(c) {
+    const key = stack.length === 1 ? topKey : null;
+    if (key === "agent_id") hasAgentId = true;
+    if (key === "agent_type") agentType = null;
+    if (c === '"') startString(key === "agent_type" ? "type" : "skip");
+    else if (c === "{") open("key-or-end");
+    else if (c === "[") open("item-or-end");
+    else if (c === "t") keyword = "rue";
+    else if (c === "f") keyword = "alse";
+    else if (c === "n") keyword = "ull";
+    else if (c === "-") numberPart = "minus";
+    else if (c === "0") numberPart = "zero";
+    else if (c >= "1" && c <= "9") numberPart = "integer";
+    else malformed();
+  }
+
+  function scan(text) {
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (stringKind) {
+        stringChar(c);
+        continue;
+      }
+      if (keyword) {
+        if (c !== keyword[0]) malformed();
+        keyword = keyword.slice(1);
+        continue;
+      }
+      if (numberPart) {
+        const next = nextNumberPart(numberPart, c);
+        if (next) {
+          numberPart = next;
+          continue;
+        }
+        if (!numberEnds.includes(numberPart)) malformed();
+        numberPart = null;
+      }
+      if (" \t\n\r".includes(c)) continue;
+      if (stack.length === 0) {
+        if (started || c !== "{") malformed();
+        started = true;
+        open("key-or-end");
+        continue;
+      }
+      const top = stack.length - 1;
+      switch (stack[top]) {
+        case "key-or-end":
+          if (c === "}") { stack.pop(); break; }
+          // Falls through for the first member.
+        case "key":
+          if (c !== '"') malformed();
+          stack[top] = "colon";
+          startString(top === 0 ? "key" : "skip");
+          break;
+        case "colon":
+          if (c !== ":") malformed();
+          stack[top] = "member";
+          break;
+        case "member":
+          stack[top] = "object-after";
+          startValue(c);
+          break;
+        case "object-after":
+          if (c === "}") stack.pop();
+          else if (c === ",") stack[top] = "key";
+          else malformed();
+          break;
+        case "item-or-end":
+          if (c === "]") { stack.pop(); break; }
+          // Falls through for the first item.
+        case "item":
+          stack[top] = "array-after";
+          startValue(c);
+          break;
+        case "array-after":
+          if (c === "]") stack.pop();
+          else if (c === ",") stack[top] = "item";
+          else malformed();
+          break;
+      }
+    }
+  }
+
+  return {
+    write(bytes) { scan(decoder.decode(bytes, { stream: true })); },
+    guardedAtEnd() {
+      scan(decoder.decode());
+      if (!started || stack.length) malformed();
+      return isGuarded(agentType, hasAgentId);
+    },
+  };
+}
+
+async function readEventProblem() {
+  let prefix = Buffer.allocUnsafe(MAX_INPUT_BYTES);
+  let size = 0;
+  let overflow = null;
+  for await (const chunk of process.stdin) {
+    if (overflow) {
+      overflow.write(chunk);
+      continue;
+    }
+    const retained = Math.min(MAX_INPUT_BYTES - size, chunk.length);
+    chunk.copy(prefix, size, 0, retained);
+    size += retained;
+    if (retained === chunk.length) continue;
+    overflow = overflowIdentity();
+    overflow.write(prefix);
+    prefix = null;
+    overflow.write(chunk.subarray(retained));
+  }
+  if (!overflow) return eventProblem(JSON.parse(prefix.toString("utf8", 0, size)));
+  if (overflow.guardedAtEnd()) throw new Error("Hook input exceeds 64 KiB.");
+  return null;
+}
+
+try {
+  const problem = await readEventProblem();
   if (problem) {
     process.stdout.write(JSON.stringify({
       hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: problem },
