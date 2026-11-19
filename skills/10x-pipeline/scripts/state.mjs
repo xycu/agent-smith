@@ -1071,6 +1071,11 @@ function pidAlive(pid) {
 // then linked to the lock name, so a second caller never reads an empty lock as stale.
 export function acquireRunLock(id, chain, onBusy = halt) {
   const lock = runLockPath(paths(id, null, chain).dir);
+  const nativeSuspension = (threadId) =>
+    `Execution suspended: native ownership unresolved (lock file ${lock}, thread ${threadId ?? "unknown"}). `
+    + "Keep the enabling revision and TMPDIR. Await an active runner through its existing handle. "
+    + "If it has exited, the authorized owner must inspect the recorded thread and its descendants, prove settlement and arrange router-owned recovery before mutation, relaunch or publication. "
+    + "Automatic recovery for a retained native lock is unavailable.";
   const tmp = `${lock}.${process.pid}.tmp`;
   let own = String(process.pid);
   let execution = null;
@@ -1100,7 +1105,7 @@ export function acquireRunLock(id, chain, onBusy = halt) {
         const pid = isObject(owner) ? owner.pid : Number(contents);
         if (isObject(owner) && Object.hasOwn(owner, "native")) {
           release();
-          onBusy(`Execution suspended: native ownership unresolved (lock file ${lock}, thread ${owner.native?.threadId ?? "unknown"}). Keep the enabling revision and TMPDIR; the authorized owner must establish descendant settlement and router-owned recovery before mutation, relaunch or publication. Nothing was written.`);
+          onBusy(`${nativeSuspension(owner.native?.threadId)} Nothing was written.`);
         }
         if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
           release();
@@ -1134,7 +1139,7 @@ export function acquireRunLock(id, chain, onBusy = halt) {
     release,
     retainedReason() {
       return execution?.native
-        ? `Execution suspended: native ownership unresolved (lock file ${lock}, thread ${execution.native.threadId ?? "unknown"}). Keep the enabling revision and TMPDIR; the authorized owner must establish descendant settlement and router-owned recovery before mutation, relaunch or publication.`
+        ? nativeSuspension(execution.native.threadId)
         : execution ? `Execution suspended: process ownership unresolved (lock file ${lock}). Confirm execution closure before router-owned recovery.` : null;
     },
     setChild(pid, native = false) {
@@ -1147,8 +1152,9 @@ export function acquireRunLock(id, chain, onBusy = halt) {
       if (!execution?.native || (execution.native.threadId && execution.native.threadId !== threadId)) {
         throw new Error("Native execution identity changed.");
       }
-      execution.native.threadId = threadId;
-      replace(JSON.stringify(execution));
+      const updated = { ...execution, native: { ...execution.native, threadId } };
+      replace(JSON.stringify(updated));
+      execution = updated;
     },
     clearChild(settled = false) {
       if (execution?.native && !settled) throw new Error(this.retainedReason());

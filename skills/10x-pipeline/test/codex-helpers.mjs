@@ -43,6 +43,7 @@ const archivedIds = new Set(Object.values(mode.pages?.true ?? {}).flatMap(page =
 const sourcePath = id => path.join(process.env.CODEX_HOME, archivedIds.has(id) ? "archived_sessions" : "sessions", id + ".jsonl");
 if (args[0] === "app-server") {
   const readline = require("node:readline");
+  let archivedLists = 0;
   readline.createInterface({ input: process.stdin }).on("line", line => {
     const request = JSON.parse(line);
     fs.appendFileSync(path.join(fixture, "metadata-calls.jsonl"), JSON.stringify(request) + "\\n");
@@ -66,7 +67,9 @@ if (args[0] === "app-server") {
       result = { thread: { id, path: sourcePath(id), cliVersion: mode.hostVersion ?? "0.169.0", sessionId: id,
         parentThreadId: id === rootId ? null : rootId, forkedFromId: null, ...mode.threadMetadata?.[id] } };
     }
-    process.stdout.write(JSON.stringify({ id: mode.mismatchedResponse ? request.id + 1 : request.id, result }) + "\\n");
+    const badTrailer = mode.malformedFinalMetadata && request.method === "thread/list" && request.params.archived && ++archivedLists === 2;
+    process.stdout.write(JSON.stringify({ id: mode.mismatchedResponse ? request.id + 1 : request.id, result }) + "\\n"
+      + (badTrailer ? "not-json\\n" : ""));
   });
   return;
 }
@@ -84,6 +87,11 @@ if (args[0] === "--fixture-descendant") {
   }, 10);
   return;
 }
+if (args[0] === "exec" && mode.rejectInput) {
+  process.stdin.destroy();
+  process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: rootId }) + "\\n", () => process.exit(1));
+  return;
+}
 let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", chunk => input += chunk);
@@ -96,7 +104,12 @@ process.stdin.on("end", async () => {
     return;
   }
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
-  if (!mode.noThread) process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: mode.threadId ?? "root-fixture" }) + "\\n");
+  if (!mode.noThread) {
+    const started = JSON.stringify({ type: "thread.started", thread_id: rootId }) + "\\n";
+    process.stdout.write(mode.invalidUtf8
+      ? Buffer.concat([Buffer.from(started), Buffer.from('{"type":"error","message":"\\xff"}\\n', "latin1")])
+      : started);
+  }
   if (mode.commitPaths) {
     const { execFileSync } = require("node:child_process");
     execFileSync("git", ["add", "--", ...mode.commitPaths], { cwd: process.cwd() });
@@ -169,6 +182,7 @@ process.stdin.on("end", async () => {
     process.stdout.write(bytes.subarray(i, i + fragment));
     await new Promise(resolve => setImmediate(resolve));
   }
+  if (mode.exitSignal) process.kill(process.pid, mode.exitSignal);
   process.exitCode = mode.code ?? 0;
 });
 `;
@@ -195,6 +209,11 @@ export function calls(fixture) {
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : [];
 }
 
+export function metadataCalls(fixture) {
+  const file = path.join(fixture, "metadata-calls.jsonl");
+  return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : [];
+}
+
 // Git/toolchain helpers can leave their own files in TMPDIR. Keep cleanup assertions scoped to our runner.
 export function runnerLeftovers(w) {
   return fs.readdirSync(w.tmp).filter(name => name.startsWith("agent-smith-"));
@@ -211,8 +230,18 @@ export function execute(w, action = w.action) {
   return { ...result, json: JSON.parse(result.stdout) };
 }
 
-export function startRunner(w) {
-  const child = spawn(process.execPath, [RUNNER, w.project.id, "--chain", w.chain], {
+export function startRunner(w, { terminationGraceMs } = {}) {
+  const args = terminationGraceMs === undefined ? [RUNNER, w.project.id, "--chain", w.chain] : [
+    "--input-type=module", "-e", `
+      import { text } from "node:stream/consumers";
+      import { runCodex } from ${JSON.stringify(new URL("../scripts/run-codex.mjs", import.meta.url).href)};
+      const [id, chain, grace] = process.argv.slice(1);
+      const result = await runCodex(id, chain, JSON.parse(await text(process.stdin)), { terminationGraceMs: Number(grace) });
+      process.stdout.write(JSON.stringify(result));
+      process.exitCode = result.completed ? 0 : 1;
+    `, w.project.id, w.chain, String(terminationGraceMs),
+  ];
+  const child = spawn(process.execPath, args, {
     cwd: w.project.root, env: w.env, stdio: ["pipe", "pipe", "pipe"],
   });
   let stdout = "";
