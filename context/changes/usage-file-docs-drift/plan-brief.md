@@ -36,7 +36,7 @@ Use the router header for syntax and `usageCommand` for the eligibility rules. L
 | --- | --- | --- |
 | 1. Align late usage help and documentation | The file form appears consistently, and both CLI messages have regression coverage. | Numeric flags could still read as a valid fallback for a step with recorded evidence. |
 
-**Prerequisites** Node 24+ and local Git.
+**Prerequisites** Node 24+ and local Git. The optional local OpenSpec CLI contract fixtures use OpenSpec 2.0.0.
 
 **Estimated effort** One small implementation phase.
 
@@ -47,8 +47,8 @@ Use the router header for syntax and `usageCommand` for the eligibility rules. L
 ## Success Criteria (Summary)
 
 - The focused CLI regression passes for both help messages.
-- The documentation scan finds the structured synopsis in all three requested references and flags zero numeric-only synopses.
-- The full Node test suite and whitespace check pass locally.
+- The documentation scan checks the shared and OpenSpec reference entries separately and flags zero numeric-only synopses across the three requested files.
+- The full Node test suite and whitespace check pass locally with the live GitHub tests opted out. Expected local skips are recorded.
 
 ## References
 

@@ -54,7 +54,9 @@ Bring the help messages and command references into agreement and guard the CLI 
 
 **Intent** Give readers the form that applies to their step and keep the numeric fallback discoverable.
 
-**Contract** Update the single Commands row in `AGENTS.md` to show both forms and say that numeric flags apply only to steps without recorded evidence. In the reference, introduce the two-form synopsis in “Late usage figure”, keep the rules for numeric values in the legacy explanation, and lead with the full structured command in the OpenSpec summary. In the OpenSpec skill's “Late usage (before every end)” section, clarify why the existing chain-qualified `--usage-file` call is required for recorded evidence. Keep the exact call and its timing and cleanup instructions.
+**Contract** Update the single Commands row in `AGENTS.md` to show both forms and say that numeric flags apply only to steps without recorded evidence. In the reference, introduce the two-form synopsis in “Late usage figure”. In the legacy explanation, clarify that any one or more of `--tokens`, `--tool-uses`, and `--duration-ms` suffice and that each supplied value must be a non-negative safe integer. Invalid numeric input is refused before the usage log is read.
+
+In the OpenSpec summary, place the usage entry after the “Read-only commands” list under a “Late usage” label. Lead with `usage <change-name> <n> --usage-file <path> --chain openspec` and describe the numeric fallback in prose with a link to the shared late-usage rules. In the OpenSpec skill's “Late usage (before every end)” section, clarify in prose why the existing chain-qualified `--usage-file` call is required for recorded evidence. Keep the exact call and its timing and cleanup instructions.
 
 #### 3. CLI regression test
 
@@ -75,8 +77,18 @@ Bring the help messages and command references into agreement and guard the CLI 
 ## Testing Strategy
 
 - Run the focused regression with `node --test --test-name-pattern='usage help advertises --usage-file' skills/10x-pipeline/test/late-usage.test.mjs`. Confirm it fails against the original message text and passes with the correction.
-- Run `rg -l -- 'usage[[:space:]]+<[^>]+>[[:space:]]+<n>.*--usage-file' AGENTS.md docs/REFERENCE.md skills/openspec-pipeline/SKILL.md` and expect each of the three paths. Run `rg -n -- 'usage[[:space:]]+<[^>]+>[[:space:]]+<n>' AGENTS.md docs/REFERENCE.md skills/openspec-pipeline/SKILL.md | rg -v -- '--usage-file'` and expect no matches. The full suite includes the existing OpenSpec checks for the structured call.
-- Run `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` and `git diff --check`.
+- Require a match from each of the first four commands below. Check that the matches are in the Commands row, the reference's “Late usage figure” and OpenSpec summary, and the OpenSpec skill's late-usage procedure, respectively. The last command checks each invocation separately and should produce no lines (`rg -v` exits 1).
+
+  ```sh
+  rg -nF -- 'usage <id> <n> (--usage-file <path> | --tokens N' AGENTS.md
+  rg -nF -- 'route.mjs usage <change-id> <n> (--usage-file <path> | --tokens N' docs/REFERENCE.md
+  rg -nF -- 'usage <change-name> <n> --usage-file <path> --chain openspec' docs/REFERENCE.md
+  rg -nF -- 'node $ROUTER usage <change-name> <n> --usage-file <usage-file> --chain openspec' skills/openspec-pipeline/SKILL.md
+  rg -no -- 'usage[[:space:]]+<[^>]+>[[:space:]]+<n>[^`]*' \
+    AGENTS.md docs/REFERENCE.md skills/openspec-pipeline/SKILL.md | rg -v -- '--usage-file'
+  ```
+
+- Run `GH_LIVE=0 node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` and `git diff --check`. Leave the live GitHub tests opted out. Note any expected local skips. The OpenSpec CLI contract fixtures run with OpenSpec 2.0.0 and can skip locally if the CLI is unavailable.
 
 ## References
 
