@@ -84,7 +84,7 @@ Suspension STOP: a live or unresolved execution lock suspends the run and archiv
 
      When the envelope has `completed: true`, write only `envelope.result` unchanged to `<run root>/<resultFile>` then step 5, bypassing steps 3–4. Preserve child `failed` or `blocked` results.
 
-     With `completed: false` and `launched: true`, write status `unknown`, its bounded reason as `note` and any measured `usage`, then continue at step 5. Only an envelope with `launched: false` permits an `orchestrator-error` result.
+     With `completed: false` and `launched: true`, write status `unknown`, its bounded reason as `note` and the runner's `usage` and `usageEvidence` when present, then continue at step 5. Only an envelope with `launched: false` permits an `orchestrator-error` result.
 
      For absent/uncertain envelopes, inspect and wait on the existing process before result/router mutation. Runner and child must close before `next`, rollback or another launch.
 

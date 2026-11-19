@@ -3,14 +3,17 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   ROOT, archiveDirs, paths, readMeta, readLog, executed, hostOf, providerOf,
-  selectionProblem, isObject, guardedStat,
+  selectionProblem, isObject, guardedStat, loadPolicy, policyProblems,
 } from "./state.mjs";
 import { advisorOn, dispatchProblem, promptFilePath } from "./flow.mjs";
 import { archiveDescriptor, matchesHeadlessGuard } from "./isolation.mjs";
 
 const refuse = (message) => { throw new Error(message); };
 
-export function validateAction(action, id, chain, policy, provider) {
+export function validateAction(action, id, chain, provider, preflight) {
+  const policy = loadPolicy(refuse);
+  const problem = policyProblems(policy, false);
+  if (problem) refuse(problem);
   if (!isObject(action) || !["run", "archive"].includes(action.action) || action.provider !== provider) {
     refuse(`Expected ${provider === "openai" ? "an OpenAI" : "a Claude"} run or archive action from the router.`);
   }
@@ -79,8 +82,12 @@ export function validateAction(action, id, chain, policy, provider) {
     const unsupported = dispatchProblem(policy, expected, step, step);
     if (unsupported) refuse(unsupported);
   }
-  return { paths: p, step: dispatch.step, template: dispatch.template ?? dispatch.step,
+  const required = { paths: p, step: dispatch.step, template: dispatch.template ?? dispatch.step,
     skill: dispatch.skill, advisor: dispatch.advisor === true, openspec: chain === "openspec" };
+  if (preflight && ["skill", "template", "advisor"].some(key => required[key] !== preflight[key])) {
+    refuse("Pending dispatch requirements changed during preflight.");
+  }
+  return required;
 }
 
 export function readResult(message) {

@@ -60,6 +60,15 @@ function ruleProblem(policy) {
   }
 }
 
+// A logged run's host and mode cannot be recovered from a damaged metadata file.
+function mutationMeta(p) {
+  const meta = readMeta(p.meta, null);
+  if (!meta && fs.existsSync(p.meta) && fs.existsSync(p.log)) {
+    halt(`Cannot read an object from ${p.meta} for the existing run. Recover its metadata before continuing. Nothing was written.`);
+  }
+  return meta;
+}
+
 function next(id, policy, chain = "10x", validatedLog = null) {
   const p = paths(id, policy, chain);
   const openspec = chain === "openspec";
@@ -67,7 +76,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   // The router never creates an OpenSpec change (D3), so a missing folder halts before agent-smith/ is made.
   if (openspec && !fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
   if (!openspec) haltNoChangeMd(p, id);
-  const meta = readMeta(p.meta, { id, goal: "" });
+  const meta = mutationMeta(p) ?? { id, goal: "" };
   const log = validatedLog ?? readLog(p.log).entries;
   const visibility = { providerMode: meta.providerMode ?? "legacy", providersByStep: providersByStep(policy, meta) };
   const bad = selectionProblem(policy, meta, !neutralPending(p, log, policy));
@@ -778,7 +787,7 @@ function status(id, flags, chain = "10x", policy = null) {
     if (chain === "openspec") {
       if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
     } else haltNoChangeMd(p, id);
-    const meta = readMeta(p.meta, { id, goal: "" });
+    const meta = mutationMeta(p) ?? { id, goal: "" };
     cleanupStateTemps(p.dir);
     res.report = writeReport(p, id, meta, log);
   }
@@ -792,7 +801,7 @@ const USAGE_FLAGS = [["tokens", "totalTokens"], ["tool-uses", "toolUses"], ["dur
 
 // Attaches a usage figure that reached the orchestrator after `next` ran to executed step <n>. A refusal prints
 // { action: "usage", attached: false, n, reason }, exits 1 and writes nothing. A figure is never overwritten.
-function usageCommand(id, rest, flags, policy, chain = "10x") {
+function usageCommand(id, rest, flags, policy, chain, meta) {
   const refuse = (reason, n = null) => out({ action: "usage", attached: false, n, reason }, 1);
   // Arguments first, before anything is read. <n> directly follows the change id; a flag there is no step number.
   const rawN = rest[0];
@@ -874,7 +883,6 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
     }
   }
   const base = { action: "usage", attached: true, n, step: entry.step, usage, ...(evidence ? { usageEvidence: evidence } : {}) };
-  const meta = readMeta(p.meta, { id, goal: "" });
   const ended = isObject(meta.outcome);
   // The archive state: the run is done, started with --archive, and the folder is committed for /10x-archive. Everything
   // is checked before the first write, because the write dirties the folder and only a commit cleans it again.
@@ -973,7 +981,7 @@ const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "prov
 function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--host claude|codex] [--provider-mode claude|codex|split] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest, ["goal"]);
   // --chain is checked before anything is read.
@@ -1059,9 +1067,10 @@ function main() {
     }
     if (chain !== "openspec") haltNoChangeMd(p, id);
     const { entries: log } = readLog(p.log);
-    const prev = readMeta(p.meta, {});
+    const stored = mutationMeta(p);
+    const prev = stored ?? {};
     const host = flags.host ?? hostOf(prev);
-    const existing = fs.existsSync(p.meta);
+    const existing = stored !== null;
     if (existing && host !== hostOf(prev)) {
       halt(`Run host is ${hostOf(prev)}; --host ${host} cannot resume it. Use the original host or a new change. Nothing was written.`);
     }
@@ -1130,10 +1139,10 @@ function main() {
   } else if (cmd === "risk") {
     riskCommand(id, policy, chain);
   } else if (cmd === "usage") {
-    const stored = readMeta(paths(id, policy, chain).meta, {});
+    const stored = mutationMeta(paths(id, policy, chain)) ?? { id, goal: "" };
     const bad = selectionProblem(policy, stored, false);
     if (bad) halt(bad);
-    usageCommand(id, rest, flags, policy, chain);
+    usageCommand(id, rest, flags, policy, chain, stored);
   } else if (cmd === "verify-archive") {
     verifyArchive(id, flags, chain);
   } else if (cmd === "compare") {

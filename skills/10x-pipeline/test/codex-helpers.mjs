@@ -55,6 +55,10 @@ if (args.includes("app-server")) {
     if (mode.usageMetadataHang && request.method === "thread/read") return;
     let result = {};
     if (request.method === "skills/list") {
+      if (mode.oversizedDiscovery) {
+        process.stdout.write(" ".repeat(4 * 1024 * 1024 + 1));
+        return;
+      }
       result = { data: [{ cwd: process.cwd(), skills: [{ name: mode.discoveredSkill, enabled: true, path: path.join(fixture, "SKILL.md") }] }] };
     }
     if (request.method === "thread/list") {
@@ -109,6 +113,7 @@ process.stdin.on("end", async () => {
       process.exitCode = proof.status ?? 1;
       return;
     }
+    if (mode.changeAfterPreflight) fs.writeFileSync(mode.changeAfterPreflight.file, mode.changeAfterPreflight.content);
     if (mode.removeExecutableAfterPreflight) fs.unlinkSync(process.argv[1]);
     process.stdout.write(JSON.stringify({ gitDir: "/fixture/git", commonDir: "/fixture/common", commit: "a".repeat(40) }) + "\\n");
     return;

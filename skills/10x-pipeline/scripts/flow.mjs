@@ -1097,14 +1097,15 @@ export function advisorOn(policy, template) {
   if (!isObject(c) || c.enabled !== true) return false;
   const list = c.templates;
   if (!Array.isArray(list) || !list.every((t) => typeof t === "string")) return false;
-  return list.includes(template);
+  return list.includes(template)
+    || (["manual-verify-openai", "manual-verify-headless"].includes(template) && list.includes("manual-verify"));
 }
 
 // Native Claude capabilities cannot be honored by an OpenAI child; never silently drop the opt-in.
 export function dispatchProblem(policy, target, step, template) {
   if (providerOf(target) !== "openai") return null;
   if (stepAgent(policy, step)) return `OpenAI step ${step} cannot use the configured restricted agent. Disable agents.restricted or route this step to Claude.`;
-  if (advisorOn(policy, template) || (template === "manual-verify-openai" && advisorOn(policy, "manual-verify"))) {
+  if (advisorOn(policy, template)) {
     return `OpenAI step ${step} cannot use the native Claude advisor. Disable advisor.enabled or route this step to Claude.`;
   }
   return null;

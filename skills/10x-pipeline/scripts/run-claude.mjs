@@ -4,7 +4,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { ROOT, ID_RE, acquireRunLock, isObject, loadPolicy, parseFlags, policyProblems } from "./state.mjs";
+import { ROOT, ID_RE, acquireRunLock, isObject, parseFlags } from "./state.mjs";
 import { validateAction, readResult } from "./runner-dispatch.mjs";
 import { digest, guardRevision, pluginRoot } from "./claude-hook.mjs";
 import { PERMISSION_PROBE } from "./permission-probe.mjs";
@@ -16,6 +16,7 @@ const fail = message => { throw new Error(message); };
 const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
 const startupLimit = "Trusted startup imports can read pending task files before the tool guard handshake.";
 const scoreTools = ["Glob", "Grep", "Read", "Write"];
+const terminalErrors = new Set(["error_during_execution", "error_max_turns", "error_max_budget_usd", "error_max_structured_output_retries"]);
 const mayCommit = new Set(["implement", "fix", "impl-review", "archive", "os-apply", "os-archive"]);
 const otherLaunch = new Set(["SendMessage", "Monitor", "CronCreate", "ScheduleWakeup", "RemoteTrigger", "Workflow", "EnterWorktree", "PowerShell"]);
 const denied = reason => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
@@ -87,13 +88,7 @@ export async function runClaude(id, chain, action) {
     if (process.platform === "win32") fail("Headless Claude requires verifiable POSIX process-group closure.");
     if (!ID_RE.test(id ?? "") || !["10x", "openspec"].includes(chain)) fail("Invalid change ID or chain.");
     lock = acquireRunLock(id, chain, fail);
-    const validate = () => {
-      const policy = loadPolicy(fail);
-      const invalid = policyProblems(policy, false);
-      if (invalid) fail(invalid);
-      return validateAction(action, id, chain, policy, "claude");
-    };
-    const required = validate();
+    const required = validateAction(action, id, chain, "claude");
     const scorer = action.agent === "agent-smith:score" && required.step === "score";
     if (!(scorer || action.agent === "agent-smith:step") || required.advisor) {
       fail("Headless Claude cannot prove this exact agent mapping or native advisor requirement.");
@@ -256,12 +251,13 @@ export async function runClaude(id, chain, action) {
         if (!models?.has(e.model) || (e.effort != null && e.effort !== action.effort) || !Array.isArray(e.tools) || e.cwd !== ROOT || e.permissionMode === "bypassPermissions"
             || e.plugin_errors?.length || !e.plugins?.some(p => p.name === "agent-smith" && fs.realpathSync(p.path) === pluginRoot)
             || (scorer ? JSON.stringify([...e.tools].sort()) !== JSON.stringify(scoreTools) : !["Bash","Read","Write"].every(t => e.tools.includes(t)))
-            || (required.skill && !e.skills?.includes(required.skill)) || (required.step === "implement" && !e.tools.some(t => t === "Task" || t === "Agent"))) {
+            || (required.skill && (!e.skills?.includes(required.skill) || !e.tools.includes("Skill"))) || (required.step === "implement" && !e.tools.some(t => t === "Task" || t === "Agent"))) {
           fail("Claude did not expose the required effective tools, skill, or trusted plugin in the execution session.");
         }
         effortProven ||= e.effort === action.effort;
         initTools = true;
       } else if (e.type === "assistant" && envelope.launched && e.message?.role === "assistant") {
+        if (finished) fail("Claude emitted enclosing assistant output after its terminal event.");
         const content = e.message.content;
         if (Array.isArray(content)) finalText = content.filter(c => c.type === "text").map(c => c.text).join("\n");
       } else if (e.type === "result") {
@@ -274,9 +270,8 @@ export async function runClaude(id, chain, action) {
           }
           removeTree(probe.scratch);
           probe = null;
-          const latest = validate();
-          if (latest.skill !== required.skill || latest.template !== required.template || latest.advisor !== required.advisor
-              || guardRevision(pluginRoot, action.agent) !== revision) fail("Pending dispatch or trusted plugin changed during preflight.");
+          validateAction(action, id, chain, "claude", required);
+          if (guardRevision(pluginRoot, action.agent) !== revision) fail("Trusted plugin changed during preflight.");
           stop = null;
           clearTimeout(timer);
           envelope.preflight = { agent: action.agent, sessionId: session, skill: required.skill ?? null };
@@ -284,7 +279,9 @@ export async function runClaude(id, chain, action) {
           envelope.launched = true;
           user(work, action.prompt);
         } else {
-          if (!stop || (e.subtype === "success" && (typeof finalText !== "string" || e.result !== finalText || stop !== digest(finalText)))) {
+          const success = e.subtype === "success" && e.is_error === false;
+          const failure = terminalErrors.has(e.subtype) && e.is_error === true;
+          if (!stop || !(success || failure) || (success && (typeof finalText !== "string" || e.result !== finalText || stop !== digest(finalText)))) {
             fail("Claude terminal output was not verified against the enclosing assistant and stop event.");
           }
           terminal = e;
@@ -347,15 +344,16 @@ export async function runClaude(id, chain, action) {
     if (error || signal || !finished || !terminal) fail(error ?? "Claude closed without a verified enclosing terminal event.");
     if ((code !== 0 || terminal.is_error || terminal.subtype !== "success") && action.action === "archive") fail("Claude archive did not complete.");
     if (action.action !== "archive") lock.clearChild(true);
-    if (code !== 0 || terminal.is_error || terminal.subtype !== "success") fail("Claude exited unsuccessfully after confirmed settlement.");
-    if (!/^RESULT:/.test(finalText.trimEnd().split(/\r?\n/).at(-1))) fail("Enclosing Claude reply has no final RESULT line.");
-    const result = readResult(finalText);
-    if (action.action === "archive") lock.clearChild(true);
     envelope.usage = { durationMs: Number((process.hrtime.bigint() - start) / 1000000n) };
     envelope.usageEvidence = unavailableEvidence("incomplete-capture", { source: "claude-native", hostVersion: version });
+    if (code !== 0 || terminal.is_error || terminal.subtype !== "success") fail("Claude exited unsuccessfully after confirmed settlement.");
+    const reply = terminal.result;
+    if (!/^RESULT:/.test(reply.trimEnd().split(/\r?\n/).at(-1))) fail("Enclosing Claude reply has no final RESULT line.");
+    const result = readResult(reply);
+    if (action.action === "archive") lock.clearChild(true);
     envelope.result = { ...result, usage: envelope.usage, usageEvidence: envelope.usageEvidence };
     envelope.completed = true;
-    if (action.action === "archive") envelope.reply = finalText;
+    if (action.action === "archive") envelope.reply = reply;
   } catch (cause) {
     envelope.reason = String(cause.message).slice(0, 2048);
     if (!launchedCli && !child && lock?.retainedReason()) lock.clearChild(true);

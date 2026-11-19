@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import {
-  ROOT, acquireRunLock, loadPolicy, policyProblems, parseFlags, isObject,
+  ROOT, acquireRunLock, parseFlags, isObject,
 } from "./state.mjs";
 import { validateAction, readResult } from "./runner-dispatch.mjs";
 import { PERMISSION_PROBE } from "./permission-probe.mjs";
@@ -208,10 +208,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
   try {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(id ?? "") || !["10x", "openspec"].includes(chain)) refuse("Invalid change ID or chain.");
     lock = acquireRunLock(id, chain, refuse);
-    const policy = loadPolicy(refuse);
-    const bad = policyProblems(policy, false);
-    if (bad) refuse(bad);
-    const required = validateAction(action, id, chain, policy, "openai");
+    const required = validateAction(action, id, chain, "openai");
     const tempRoot = fs.realpathSync(os.tmpdir());
     const relativeTemp = path.relative(fs.realpathSync(ROOT), tempRoot);
     if (relativeTemp === "" || (!relativeTemp.startsWith(".." + path.sep) && relativeTemp !== ".." && !path.isAbsolute(relativeTemp))) {
@@ -245,7 +242,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     if (!isObject(proof) || !/^[a-f0-9]{40,64}$/.test(proof.commit ?? "")) refuse("Codex permission proof is incomplete.");
     envelope.preflight = proof;
     // Recheck after preflight without releasing the shared lock.
-    validateAction(action, id, chain, policy, "openai");
+    validateAction(action, id, chain, "openai", required);
     const finalFile = path.join(temp, "final.txt");
     const transcript = fs.openSync(path.join(temp, "events.jsonl"), "wx", 0o600);
     let fragments = [];

@@ -3,6 +3,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 import {
   cleanupAll, run, writeOverride, writeResult, readLogEntries, writeLog, writeMetaFile, entry,
@@ -658,6 +659,21 @@ for (const chain of ["10x", "openspec"]) {
   });
 }
 
+test("Codex rechecks policy and proven skill after preflight", () => {
+  for (const drift of ["policy", "skill"]) {
+    const w = codexFixture();
+    const changeAfterPreflight = drift === "policy"
+      ? { file: path.join(w.project.root, "context/foundation/agent-smith-policy.json"), content: "[]" }
+      : { file: path.join(w.project.agentDir, "run.jsonl"),
+          content: readLogEntries(w.project).map(e => JSON.stringify({ ...e, skill: "different-skill" })).join("\n") + "\n" };
+    setMode(w, { changeAfterPreflight });
+    const res = execute(w);
+    assert.equal(res.json.launched, false, res.stdout);
+    assert.match(res.json.reason, drift === "policy" ? /policy keys/ : /changed during preflight/);
+    assert.equal(calls(w.fixture).some(c => c.args[0] === "exec"), false);
+  }
+});
+
 test("Codex discovers the retained executor skill and required OpenSpec CLI inside its sandbox before exec", () => {
   for (const chain of ["10x", "openspec"]) {
     const w = codexFixture(chain);
@@ -678,6 +694,15 @@ test("Codex discovers the retained executor skill and required OpenSpec CLI insi
     const missing = execute(w, action);
     assert.equal(missing.json.launched, false);
     assert.match(missing.json.reason, new RegExp(required));
+    if (chain === "10x") {
+      setMode(w, { oversizedDiscovery: true });
+      const module = new URL("../scripts/runner-toolkit.mjs", import.meta.url);
+      const probe = spawnSync(process.execPath, ["--input-type=module", "-e",
+        `import { proveCodexToolkit } from ${JSON.stringify(module.href)}; await proveCodexToolkit({ skill: "10x-e2e" });`],
+      { cwd: w.project.root, env: w.env, encoding: "utf8", timeout: 10000 });
+      assert.equal(probe.status, 1, probe.error?.message);
+      assert.match(probe.stderr, /discovery exceeded its output limit/);
+    }
     setMode(w, { checkToolkit: true, discoveredSkill: required });
     if (chain === "openspec") {
       fs.writeFileSync(cli, "#!/bin/sh\necho 1.0.0\n");

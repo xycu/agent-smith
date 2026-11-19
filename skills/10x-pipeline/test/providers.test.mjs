@@ -51,6 +51,21 @@ for (const chain of ["10x", "openspec"]) {
   const make = (policy) => chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
   const start = (project, extra = []) => init(project, "fix typo", [...extra, "--chain", chain]);
 
+  test(`${chain}: damaged metadata cannot change a logged run's provider mode`, () => {
+    const p = make({});
+    assert.equal(start(p, ["--host=codex", "--provider-mode=split"]).json.action, "run");
+    for (const damaged of ["not JSON", "[]"]) {
+      writeMetaFile(p, damaged);
+      const before = snapshot(p.changeDir);
+      for (const args of [["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens=1"], ["status", p.id, "--report"]]) {
+        const response = run(p, [...args, "--chain", chain]);
+        assert.match(response.json.reason, /Recover its metadata/);
+        assert.deepEqual(snapshot(p.changeDir), before);
+      }
+      assert.equal(run(p, ["status", p.id, "--chain", chain]).status, 0);
+    }
+  });
+
   for (const host of ["claude", "codex"]) {
     for (const mode of ["claude", "codex", "split", undefined]) {
       test(`${chain} ${host} host, ${mode ?? "implicit"} mode resolves all roles`, () => {

@@ -105,7 +105,7 @@ for (const chain of ["10x", "openspec"]) {
 
 test("incompatible handshake, toolkit, privilege set or changed handoff refuses before work and allows retry", () => {
   const w = fixture("10x", { prompts: { byFile: true } });
-  for (const mode of [{ missingHandshake: true }, { badHandshake: true }, { foreignAgent: true }, { missingSkill: true }, { disabledHooks: true },
+  for (const mode of [{ missingHandshake: true }, { badHandshake: true }, { foreignAgent: true }, { missingSkill: true }, { missingTool: "Skill" }, { disabledHooks: true },
     { changeHandoff: path.join(w.p.root, w.action.promptFile) }]) {
     w.setMode(mode);
     const refused = w.execute();
@@ -154,19 +154,30 @@ test("executor preflight requires the skill stored with the actual pending templ
 });
 
 test("verified unsuccessful results and settled malformed replies release ownership", () => {
-  for (const status of ["failed","blocked","unknown"]) {
+  for (const status of ["failed","blocked","unknown","error"]) {
     const reply = status === "unknown" ? "No enclosing result" : "RESULT: " + JSON.stringify({ status });
-    const w = fixture("10x", {}, { reply });
+    const terminal = status === "error" ? { subtype: "error_max_turns", is_error: true } : undefined;
+    const w = fixture("10x", {}, { reply, terminal });
     const result = w.execute();
     assert.equal(result.launched, true);
-    assert.equal(result.completed, status !== "unknown");
+    assert.equal(result.completed, ["failed", "blocked"].includes(status));
     if (result.completed) assert.equal(result.result.status, status);
+    else {
+      writeResult(w.p, { status: "unknown", note: result.reason, usage: result.usage, usageEvidence: result.usageEvidence });
+      w.call(["next", w.p.id]);
+      const row = readLogEntries(w.p)[0];
+      assert.ok(row.usage.durationMs >= 0);
+      assert.equal(row.usageEvidence.status, "unavailable");
+      assert.equal(w.call(["usage", w.p.id, "1", "--tokens", "1"]).json.attached, false);
+    }
     assert.deepEqual(fs.readdirSync(w.tmp), []);
   }
 });
 
 test("unmatched lifecycle before work, missing leaf collection and conflicting output retain native ownership", () => {
-  for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { mismatch: true }]) {
+  for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { mismatch: true },
+    { trailingAssistant: true }, { terminal: {} }, { terminal: { subtype: "success", is_error: "false" } },
+    { terminal: { subtype: "interrupted", is_error: true } }]) {
     const w = fixture("10x", {}, mode);
     const result = w.execute();
     assert.equal(result.completed, false);

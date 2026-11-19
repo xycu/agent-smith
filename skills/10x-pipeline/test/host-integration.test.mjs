@@ -129,6 +129,19 @@ test("OpenAI browser fallback preserves native advisor refusals under either tem
   }
 });
 
+test("headless browser fallback retains an advisor requirement under either template spelling", () => {
+  for (const template of ["manual-verify", "manual-verify-headless"]) {
+    const project = makeProject({ plan: plan([BROWSER]), policy: {
+      manualVerify: { minRigor: "lean" }, advisor: { enabled: true, templates: [template] },
+    } });
+    writeReview(project, "plan-review", { verdict: "SOUND" });
+    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+    const action = init(project, "fix typo", ["--host=codex", "--provider-mode=claude"]).json;
+    assert.equal(action.step, "manual-verify");
+    assert.equal(readLogEntries(project).at(-1).advisor, true);
+  }
+});
+
 test("shared wired prompts explain named skills and bound delegation to collected leaves", () => {
   for (const template of Object.keys(POLICY.prompts).filter((key) => key !== "byFile")) {
     const text = promptText(POLICY, template);
@@ -169,6 +182,7 @@ test("both shared skills bind the actual host, runner lifetime, archive and comm
     assert.match(text, /^argument-hint:.*\[--provider-mode <mode>\]/m);
     assert.match(text, /RUN_CLAUDE` \(`scripts\/run-claude\.mjs`\).*absolute SKILL\.md path/);
     const run = text.split("- **`run`**")[1].split("- **`done`**")[0];
+    assert.match(run, /With `completed: false` and `launched: true`[^\n]*`usage` and `usageEvidence`/);
     assert.match(run, /For `provider: "claude"` on host `claude`, use native Agent/);
     assert.match(run, /For `provider: "openai"` on either host, run [^`]*`[^\n]*"\$RUN_CODEX"/);
     assert.match(run, /For `provider: "claude"` on host `codex`, run [^`]*`[^\n]*"\$RUN_CLAUDE"/);

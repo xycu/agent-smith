@@ -35,9 +35,9 @@ async function callback(name, tool, input, key, extra = {}) {
     input: { session_id: session, agent_type: agent, hook_event_name: name, tool_use_id: key, tool_name: tool, tool_input: input, ...extra } } });
   return await response;
 }
-function result(uuid, reply) {
+function result(uuid, reply, terminal = { subtype: "success", is_error: false }) {
   hook("Stop", { last_assistant_message: reply, background_tasks: [], session_crons: [] });
-  event({ type: "result", subtype: "success", result: reply, is_error: false, user_message_uuid: uuid, usage: { totalTokens: 998 } });
+  event({ type: "result", result: reply, user_message_uuid: uuid, usage: { totalTokens: 998 }, ...terminal });
 }
 let first = true;
 async function handle(message) {
@@ -67,7 +67,7 @@ async function handle(message) {
   if (first) {
     first = false;
     const tools = agent.endsWith(":score") ? ["Read","Write","Glob","Grep", ...mode.extraTool ? ["Bash"] : []] : ["Read","Write","Bash","Agent","Skill","Edit"];
-    event({ type: "system", subtype: "init", plugins: [{ name: "agent-smith", path: root }], tools, skills: [skill],
+    event({ type: "system", subtype: "init", plugins: [{ name: "agent-smith", path: root }], tools: tools.filter(t => t !== mode.missingTool), skills: [skill],
       model: arg("--model"), effort: arg("--effort"), permissionMode: "dontAsk", cwd: process.cwd() });
     const trials = JSON.parse(message.message.content.split("\n").at(-1));
     for (const [tool, input] of trials) {
@@ -119,7 +119,8 @@ async function handle(message) {
   const reply = mode.reply ?? 'RESULT: {"status":"done","usage":{"totalTokens":987654},"usageEvidence":{"status":"verified"}}';
   event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }] } });
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
-  result(message.uuid, mode.mismatch ? reply + "mismatch" : reply);
+  result(message.uuid, mode.mismatch ? reply + "mismatch" : reply, mode.terminal);
+  if (mode.trailingAssistant) event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "late output" }] } });
 }
 lines.on("line", line => { handle(JSON.parse(line)).catch(e => { process.stderr.write(e.message); process.exit(1); }); });
 await once(lines, "close");
