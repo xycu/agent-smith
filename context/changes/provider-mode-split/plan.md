@@ -237,8 +237,8 @@ Existing router-owned `meta.json` and `run.jsonl` require no rewrite. Resume mod
 
 #### Automated
 
-- [x] 1.1 The provider and ladder CLI fixtures prove the six host/mode combinations, host-native defaults, validated overrides and role-aware dispatch on both chains.
-- [x] 1.2 Resume, neutral retry, archive and provenance fixtures prove immutable selection, exact pending dispatch and continued compatibility with mode-less runs.
+- [x] 1.1 The provider and ladder CLI fixtures prove the six host/mode combinations, host-native defaults, validated overrides and role-aware dispatch on both chains. — 379418a
+- [x] 1.2 Resume, neutral retry, archive and provenance fixtures prove immutable selection, exact pending dispatch and continued compatibility with mode-less runs. — 379418a
 
 ### Phase 2: Add the guarded headless Claude runner
 
