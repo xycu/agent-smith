@@ -293,7 +293,10 @@ for (const chain of ["10x", "openspec"]) {
     ["timestamped failed descendant", { ...failedTurn, pages: { true: { first: { data: [{ id: "child" }], nextCursor: null } } },
       turns: { ...failedTurn.turns, child: { data: [failedRoot] } } },
       /exited unsuccessfully.*Native settlement failed:.*completed latest turn/, true],
+    ["malformed metadata after the last response", { ...failedTurn, malformedFinalMetadata: true },
+      /exited unsuccessfully.*Native settlement failed:.*response is malformed or mismatched/, true],
     ["malformed JSONL", { ...failedTurn, malformedJson: true }, /malformed JSONL/, false],
+    ["malformed UTF-8 JSONL", { ...failedTurn, invalidUtf8: true }, /invalid UTF-8 JSONL/, false],
     ["explicit root interruption before a later error", { ...failedTurn, events: [{ type: "turn.interrupted", thread_id: "root-fixture" }, { type: "error" }] },
       /root turn was interrupted/, false],
     ["signalled child exit", { ...failedTurn, exitSignal: "SIGTERM" }, /exited on signal SIGTERM/, false],
@@ -332,6 +335,22 @@ for (const chain of ["10x", "openspec"]) {
   }
 }
 
+test("an exec input stream fault prevents ordinary failure settlement", () => {
+  const w = codexFixture("openspec", { mode: { ...failedTurn, rejectInput: true } });
+  // Overflow the pipe so exiting without reading reports a write fault.
+  const prompt = w.action.prompt + "\n" + "x".repeat(512 * 1024);
+  const entries = readLogEntries(w.project);
+  entries.at(-1).pendingPrompt = prompt;
+  writeLog(w.project, entries);
+  const result = execute(w, { ...w.action, prompt });
+  assert.equal(result.status, 1, result.stdout);
+  assert.equal(result.json.launched, true);
+  assert.equal(result.json.exitCode, 1);
+  assert.match(result.json.reason, /Codex input could not be sent/);
+  assertNativeSuspension(w, result.json.reason);
+  assert.deepEqual(metadataCalls(w.fixture), []);
+});
+
 for (const [label, mode, ok, retainsLock, tokens] of [
   ["latest cumulative snapshot", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 50, output_tokens: 5 } }, { type: "turn.completed", usage: { input_tokens: 100, output_tokens: 10 } }] }, true, false, 110],
   ["missing usage", { reply, events: [agent, { type: "turn.completed" }] }, true, false],
@@ -348,6 +367,10 @@ for (const [label, mode, ok, retainsLock, tokens] of [
   ["later failed turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.failed" }] }, false, false],
   ["later interrupted turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.interrupted" }] }, false, true],
   ["later unfinished turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.started" }] }, false, true],
+  ["reply from an earlier turn", { reply: "No result", events: [
+    { type: "item.completed", item: { type: "agent_message", text: "No result" } },
+    { type: "turn.completed" }, { type: "turn.started" }, { type: "turn.completed" },
+  ] }, false, true],
   ["different final file", { fileReply: reply + "\nRESULT: {}" }, false, true],
   ["valid unsuccessful child result", { reply: 'RESULT: {"status":"failed","note":"check failed","signals":{"needsHuman":"review"}}' }, true, false, 110],
 ]) {

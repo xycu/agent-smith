@@ -14,6 +14,7 @@ import path from "node:path";
 
 const [source, scratchArg, realCodex, authSource] = process.argv.slice(2);
 const scratch = fs.realpathSync(scratchArg);
+assert.equal(fs.readdirSync(scratch).length, 0, "Scratch directory must be empty.");
 const home = path.join(scratch, "codex-home");
 const tmp = path.join(scratch, "tmp");
 const bin = path.join(scratch, "bin");
@@ -25,7 +26,7 @@ const change = path.join(root, changeRel);
 const state = path.join(change, "agent-smith");
 const auth = path.join(home, "auth.json");
 const scripts = path.join(source, "skills/10x-pipeline/scripts");
-for (const dir of [home, tmp, bin]) fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+for (const dir of [home, tmp, bin]) fs.mkdirSync(dir, { mode: 0o700 });
 const env = { ...process.env, CODEX_HOME: home, TMPDIR: tmp, LIVE_TRACE: scratch, REAL_CODEX: realCodex,
   PATH: bin + path.delimiter + process.env.PATH, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1",
   GIT_AUTHOR_NAME: "Agent Smith Fixture", GIT_AUTHOR_EMAIL: "fixture@example.invalid",

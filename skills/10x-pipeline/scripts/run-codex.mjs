@@ -222,6 +222,7 @@ async function settledDescendants(threadId, rejectedResult, onSettled) {
     if (finalDescendants.size !== descendants.size || [...finalDescendants].some(id => !descendants.has(id))) {
       refuse("Native descendant membership changed during reconciliation.");
     }
+    if (failure) throw failure;
     onSettled();
     if (rejectedResult) return;
     // Closure is already proved. Optional accounting metadata cannot retain native execution ownership.
@@ -304,15 +305,17 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
       try { onStdout(chunk); }
       catch { streamError = "Codex output could not be captured."; terminate("SIGTERM"); }
     });
+    child.stdout.on("error", () => { streamError ??= "Codex output could not be captured."; });
+    child.stderr.on("error", () => { streamError ??= "Codex error output could not be drained."; });
     child.stderr.resume();
-    child.stdin.on("error", () => { /* close carries early exit and broken-pipe failures */ });
+    child.stdin.on("error", () => { streamError ??= "Codex input could not be sent."; });
     child.on("close", (code, signal) => {
       child = null;
       clearTimeout(killTimer);
       killTimer = null;
       try { if (!model || !envelope.launched) lock.clearChild(true); }
       catch (cause) { error = failureReason(cause); }
-      resolve({ code, signal, error: error ?? streamError });
+      resolve({ code, signal, error, streamError });
     });
     child.stdin.end(input);
   });
@@ -341,7 +344,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     } finally { clearTimeout(preflightTimer); }
     if (preflightExpired) refuse("Codex permission preflight timed out. Resolve pending Git hooks, signing or approvals before retrying. No model launched.");
     if (cancelled) refuse(`Execution cancelled by ${cancelled} during permission preflight.`);
-    if (preflight.error || preflight.code !== 0) {
+    if (preflight.error || preflight.streamError || preflight.code !== 0) {
       refuse("Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox support. The native sandbox can force legacy sandbox_mode configuration to read-only, preventing proof of permission parity with exec. Resolve the unavailable or inconsistent preflight before retrying. No model launched.");
     }
     let proof;
@@ -352,8 +355,9 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     validateAction(action, id, chain, policy);
     const finalFile = path.join(temp, "final.txt");
     const transcript = fs.openSync(path.join(temp, "events.jsonl"), "wx", 0o600);
-    let pending = "";
-    const decoder = new StringDecoder("utf8");
+    let fragments = [];
+    let pendingBytes = 0;
+    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
     let protocolError;
     let terminal;
     let interrupted = false;
@@ -361,9 +365,14 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     let finalMessage;
     let delegated = false;
     let rootThread;
-    const event = (line) => {
-      if (!line.trim() || protocolError) return;
-      if (Buffer.byteLength(line) > MAX_EVENT) { protocolError = "Codex emitted an oversized event."; return; }
+    const finishEvent = () => {
+      const bytes = Buffer.concat(fragments, pendingBytes);
+      fragments = [];
+      pendingBytes = 0;
+      let line;
+      try { line = decoder.decode(bytes); }
+      catch { protocolError = "Codex emitted invalid UTF-8 JSONL."; return; }
+      if (!line.trim()) return;
       try {
         const e = JSON.parse(line);
         if (!isObject(e)) throw new Error();
@@ -375,7 +384,10 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
         }
         if (e.thread_id !== undefined && e.thread_id !== rootThread) return;
         if (e.type === "turn.interrupted") interrupted = true;
-        if (e.type === "turn.started") terminal = "started";
+        if (e.type === "turn.started") {
+          terminal = "started";
+          finalMessage = undefined;
+        }
         if (["turn.completed", "turn.failed", "turn.interrupted", "error"].includes(e.type)) terminal = e.type;
         if (e.type === "turn.completed") latestUsage = e.usage;
         if (e.type === "item.completed" && e.item?.type === "agent_message") finalMessage = e.item.text;
@@ -386,21 +398,25 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     try {
       completion = await launch(["exec", ...configArgs(action), "-m", action.model, "--json", "-o", finalFile, "-"], action.prompt, (chunk) => {
         fs.writeSync(transcript, chunk);
-        if (protocolError) return;
-        pending += decoder.write(chunk);
-        const lines = pending.split("\n");
-        pending = lines.pop();
-        for (const line of lines) event(line);
-        if (Buffer.byteLength(pending) > MAX_EVENT) { protocolError = "Codex emitted an oversized event."; pending = ""; }
+        for (let start = 0; start < chunk.length && !protocolError;) {
+          const newline = chunk.indexOf(0x0a, start);
+          const end = newline < 0 ? chunk.length : newline;
+          pendingBytes += end - start;
+          if (pendingBytes > MAX_EVENT) { protocolError = "Codex emitted an oversized event."; break; }
+          fragments.push(chunk.subarray(start, end));
+          if (newline < 0) break;
+          finishEvent();
+          start = newline + 1;
+        }
       }, true);
     } finally { fs.closeSync(transcript); }
     envelope.usage = { durationMs: Number((process.hrtime.bigint() - start) / 1000000n) };
     envelope.exitCode = completion.code;
     envelope.signal = completion.signal;
-    pending += decoder.end();
-    if (pending) event(pending);
+    if (!protocolError && pendingBytes) finishEvent();
     if (cancelled) refuse(`Execution cancelled by ${cancelled}. Native settlement is unverified.`);
     if (completion.error) refuse(`Codex launch failed (${completion.error}).`);
+    if (completion.streamError) refuse(completion.streamError);
     if (completion.signal) refuse(`Codex exited on signal ${completion.signal}. The child result was not accepted.`);
     if (protocolError) refuse(protocolError);
     if (interrupted && action.action === "run") refuse("The Codex root turn was interrupted.");

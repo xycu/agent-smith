@@ -43,6 +43,7 @@ const archivedIds = new Set(Object.values(mode.pages?.true ?? {}).flatMap(page =
 const sourcePath = id => path.join(process.env.CODEX_HOME, archivedIds.has(id) ? "archived_sessions" : "sessions", id + ".jsonl");
 if (args[0] === "app-server") {
   const readline = require("node:readline");
+  let archivedLists = 0;
   readline.createInterface({ input: process.stdin }).on("line", line => {
     const request = JSON.parse(line);
     fs.appendFileSync(path.join(fixture, "metadata-calls.jsonl"), JSON.stringify(request) + "\\n");
@@ -66,7 +67,9 @@ if (args[0] === "app-server") {
       result = { thread: { id, path: sourcePath(id), cliVersion: mode.hostVersion ?? "0.169.0", sessionId: id,
         parentThreadId: id === rootId ? null : rootId, forkedFromId: null, ...mode.threadMetadata?.[id] } };
     }
-    process.stdout.write(JSON.stringify({ id: mode.mismatchedResponse ? request.id + 1 : request.id, result }) + "\\n");
+    const badTrailer = mode.malformedFinalMetadata && request.method === "thread/list" && request.params.archived && ++archivedLists === 2;
+    process.stdout.write(JSON.stringify({ id: mode.mismatchedResponse ? request.id + 1 : request.id, result }) + "\\n"
+      + (badTrailer ? "not-json\\n" : ""));
   });
   return;
 }
@@ -84,6 +87,11 @@ if (args[0] === "--fixture-descendant") {
   }, 10);
   return;
 }
+if (args[0] === "exec" && mode.rejectInput) {
+  process.stdin.destroy();
+  process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: rootId }) + "\\n", () => process.exit(1));
+  return;
+}
 let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", chunk => input += chunk);
@@ -96,7 +104,12 @@ process.stdin.on("end", async () => {
     return;
   }
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
-  if (!mode.noThread) process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: mode.threadId ?? "root-fixture" }) + "\\n");
+  if (!mode.noThread) {
+    const started = JSON.stringify({ type: "thread.started", thread_id: rootId }) + "\\n";
+    process.stdout.write(mode.invalidUtf8
+      ? Buffer.concat([Buffer.from(started), Buffer.from('{"type":"error","message":"\\xff"}\\n', "latin1")])
+      : started);
+  }
   if (mode.commitPaths) {
     const { execFileSync } = require("node:child_process");
     execFileSync("git", ["add", "--", ...mode.commitPaths], { cwd: process.cwd() });
