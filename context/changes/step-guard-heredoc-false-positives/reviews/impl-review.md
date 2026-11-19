@@ -1,20 +1,20 @@
 <!-- IMPL-REVIEW-REPORT -->
-# Implementation Review: Step guard heredocs and input limits
+# Implementation Review — Step guard heredocs and input limits
 
 - **Plan**: [plan.md](../plan.md)
 - **Scope**: Full plan
 - **Reviewed phases**: 1, 2
 - **Date**: 2026-11-19
 - **Verdict**: REJECTED
-- **Findings**: 2 critical, 3 warnings, 2 observations
+- **Findings**: 1 critical, 4 warnings, 2 observations
 
-The verdict, counts and finding locations describe the implementation at `2a5fd7a5` before triage. Each decision records the current state of its finding.
+The verdict, counts, and finding locations describe the implementation at `305dad43` before this review's fixes. The plan's references to the earlier F1–F5 refer to the review saved in `8c924bd7`. Its fixes are in `462d1d5e`, and `6d87094c` added the UDP assertion.
 
 ## Verdicts
 
 | Dimension | Verdict |
 | --- | --- |
-| Plan Adherence | FAIL |
+| Plan Adherence | WARNING |
 | Scope Discipline | PASS |
 | Safety & Quality | FAIL |
 | Architecture | PASS |
@@ -23,65 +23,67 @@ The verdict, counts and finding locations describe the implementation at `2a5fd7
 
 ## Scope and evidence
 
-The implementation commits for phases 1 and 2 are `2c0cecae` and `2e33763f`. Phase 1 provides the planned literal routes, opaque Git message operand and paired CLI fixtures, with the lexical gaps listed below. Phase 2 implements the exact byte handoff, bounded JSON syntax validation, and top-level identity projection with one decoder. Its tests exercise the required boundaries, and a read-only cross-check agreed with `JSON.parse` and the scope predicate on 5,000 deterministic valid and mutated inputs across varied byte splits. The standalone stdin-only entry point and synchronous five-second hook registration match the plan. [Guard](../../../../skills/10x-pipeline/scripts/step-guard.mjs) · [CLI tests](../../../../skills/10x-pipeline/test/step-guard.test.mjs) · [Hook registration](../../../../hooks/hooks.json) · [Reference](../../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
+Phase 1 added scoped heredoc classification and the opaque Git message operand. The phase commits and earlier triage cover the requested delimiter forms, FIFO consumption, lexical context, continued pipeline routing, expansion checks, denied redirects and preservation of direct-command checks. This review found additional gaps in the same scanner and verified the earlier named regression cases, including the UDP assertion. [Guard](../../../../skills/10x-pipeline/scripts/step-guard.mjs) · [CLI tests](../../../../skills/10x-pipeline/test/step-guard.test.mjs)
 
-Both review workers returned read-only findings. The host supplied no verified child-inclusive token total. The full review covers phase 2 even though its live acceptance row remains open, as requested.
+Phase 2 matches the planned exact byte handoff, incremental UTF-8 decoding, 64-container cap, full JSON validation and top-level identity matching. The tests cover duplicate type keys, decoys, long values, invalid ID presence, byte-boundary splits and malformed envelopes. The standalone stdin-only entry point, five-second hook and user reference match the plan. [Hook registration](../../../../hooks/hooks.json) · [Runtime reference](../../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
+
+Two native read-only reviewers checked plan drift and safety. The host supplied no verified child-inclusive token total. Both implementation phases were reviewed because the plan has five completed automated rows and the full review was requested. Manual row 2.3 remains open.
 
 ## Findings
 
-### F1 — Substitution and arithmetic syntax could hide heredocs
+### F1 — Compound syntax loses the enclosing heredoc route
 
 - **Severity**: ❌ CRITICAL
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
+- **Impact**: 🔎 MEDIUM — real tradeoff that needs review of the enclosing route
 - **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:88–110`
-- **Detail**: The shell lexer compared raw adjacent characters when it classified a substitution opener. An escaped newline can join the opener in Bash, and an inert out-of-position heredoc capture received neutral output. The scanner also treated a double opening parenthesis as arithmetic without checking its closing pair. Bash can parse the unmatched form as nested shell commands, and inert captures in that form received neutral output. These paths conflict with phase 1's restriction to the proved Git message operand and its fail-closed routing contract.
-- **Fix**: Recognize substitution openers across escaped newlines, pass the actual opening delimiter into the expansion scanner, and apply the same rule to the allowed message capture. Require an arithmetic closing pair before interpreting a possible heredoc operator as a shift.
-- **Decision**: APPLIED in `462d1d5e`.
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:314`, `:332`, `:343` at `305dad43`
+- **Detail**: The hook returned neutral for benign heredocs inside a function with an `if` body, a brace group after a nested brace group, and a subshell after a `case` arm. Bash syntax checks accepted the fixtures. The scanner missed compound openings after a function signature or a brace, and a case pattern's parenthesis could close the tracked enclosing subshell. Phase 1 requires a denial for compound routes.
+- **Fix**: Track the matching closer per compound and keep command position after group boundaries so each opener is classified. Cover the three forms and a simple heredoc after a completed compound.
+  - **Strength** — Keeps the change in the existing heredoc scanner and preserves the enclosing route through nested constructs.
+  - **Tradeoff** — The guard tracks the existing supported compound forms using one stack.
+  - **Confidence** — HIGH for the covered forms. The guard decisions and Bash syntax were checked independently.
+  - **Blind spot** — The live Claude Code case remains pending.
+- **Decision**: APPLIED in `b609ef88`.
 
-### F2 — Reserved command prefixes hid compound routing
-
-- **Severity**: ❌ CRITICAL
-- **Impact**: 🔎 MEDIUM — needs careful review of the heredoc route
-- **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:273–306`
-- **Detail**: Compound depth missed brace groups after Bash timing or negation prefixes. Inert heredocs inside those groups received neutral output even though the enclosing compound can route the output. The same position check could lose outer depth when a nested compound begins after a clause keyword.
-- **Fix**: Track compound command positions through reserved prefixes and clause keywords in one pass. Pin prefixed and nested groups with literal-text payloads.
-  - **Strength** — Keeps compound routes fail-closed inside the existing heredoc classifier.
-  - **Tradeoff** — The classifier tracks the supported reserved prefixes and leaves general shell coverage to the follow-on change.
-  - **Confidence** — HIGH for the covered cases. The previous neutral output reproduced with inert CLI input.
-  - **Blind spot** — Fresh-host integration remains pending.
-- **Decision**: APPLIED in `462d1d5e`.
-
-### F3 — Continued redirection and control operators split into separate tokens
+### F2 — A quoted heredoc marker causes a parse failure in a case condition
 
 - **Severity**: ⚠️ WARNING
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:17–25`
-- **Detail**: The heredoc operator recognized escaped newlines, while the other operator rules required physical adjacency. A literal append target and a logical OR next to a harmless heredoc each received a route denial when their operators crossed a continued line.
-- **Fix**: Match the longest supported operator after folding escaped newlines and add regressions for both legal routes.
-- **Decision**: APPLIED in `462d1d5e`.
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:135`, `:173` at `305dad43`
+- **Detail**: Inside a command substitution, an `if case` condition lost command position after `if`. The case pattern's closing parenthesis then appeared to close the substitution. A quoted `<<EOF` was subsequently treated as an unsupported delimiter. That Bash-valid non-heredoc input had neutral output before the change.
+- **Fix**: Share command-prefix tracking with the substitution scanner and keep the enclosing parenthesis depth while recognizing case patterns.
+- **Decision**: APPLIED in `b609ef88`.
 
-### F4 — A valid closing delimiter at EOF was treated as unterminated
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:59–80`
-- **Detail**: When the last physical line ended in an escaped newline, the loop reached EOF before comparing the accumulated logical line to the delimiter. Bash accepted the complete delimiter in a benign text probe, while the hook exited 2.
-- **Fix**: Compare the final logical line even when the continuation reaches EOF, and keep rejecting partial delimiters.
-- **Decision**: APPLIED in `462d1d5e`.
-
-### F5 — Shell-special redirect destinations passed the file check
+### F3 — An unsupported Git message capture reports an internal error
 
 - **Severity**: ⚠️ WARNING
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:191–195`
-- **Detail**: The route classifier accepted any literal redirect target. Bash gives descriptor and socket paths special treatment, outside the plan's ordinary file route. [Bash redirections](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Redirections)
-- **Fix**: Reject the Bash-special path families in heredoc redirections, retain ordinary literal targets, and document the boundary.
-- **Decision**: APPLIED in `462d1d5e`.
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:257` at `305dad43`
+- **Detail**: With a redirect before the Git subcommand, an operator token had no word value and reached the Git options parser. The hook exited 2 with a JavaScript TypeError. Phase 1 requires an actionable JSON denial for recognized unsupported capture forms.
+- **Fix**: Validate the capture's command and word shape before parsing Git options.
+- **Decision**: APPLIED in `b609ef88`.
+
+### F4 — A literal dollar in a destination is treated as a computed filename
+
+- **Severity**: ⚠️ WARNING
+- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
+- **Dimension**: Plan Adherence
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:118` at `305dad43`
+- **Detail**: The guard denied a text heredoc redirected to the double-quoted filename `"notes$"` because it classified every unescaped dollar as expansion syntax. Bash treats the terminal dollar as literal.
+- **Fix**: Check for an expansion introducer after folding escaped newlines. Pair the literal filename with the existing computed-destination denial.
+- **Decision**: APPLIED in `b609ef88`.
+
+### F5 — Escaped newlines split the recognized Git message capture
+
+- **Severity**: ⚠️ WARNING
+- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
+- **Dimension**: Plan Adherence
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:185`, `:200` at `305dad43`
+- **Detail**: An escaped newline inside the literal `cat` word or before the outer closing quote caused a denial. Bash removes those continuations, leaving the same separate message operand.
+- **Fix**: Recognize continuations in the capture's fixed command word and closing syntax, then keep checking the complete operand boundary.
+- **Decision**: APPLIED in `b609ef88`.
 
 ### F6 — Fresh Claude Code acceptance lacks host evidence
 
@@ -89,8 +91,8 @@ Both review workers returned read-only findings. The host supplied no verified c
 - **Impact**: 🏃 LOW — the owner needs one live acceptance check
 - **Dimension**: Success Criteria
 - **Location**: [Progress row 2.3](../plan.md#progress)
-- **Detail**: Progress records 3 of 4 criteria complete. The existing evidence verifies the local hook decisions and the two text outputs. It records a zsh stand-in for the message and a Bash 3.2 syntax failure. The live guarded child, actual scratch commit and pre-execution denial remain unverified. [Manual evidence](../evidence/unproven.md)
-- **Decision**: PENDING because the available host evidence is limited to local probes. The owner must verify the listed cases in a fresh Claude Code step with the updated plugin before closing row 2.3.
+- **Detail**: Local evidence covers the hook decisions and both text outputs. It records the message passed to a zsh stand-in and the reported message syntax failing under Bash 3.2. The live guarded child, actual scratch commit and pre-execution hook denial lack evidence. [Manual evidence](../evidence/unproven.md)
+- **Decision**: PENDING because this full review had local CLI and Bash evidence only. The owner must decide when to run fresh Claude Code acceptance with the updated plugin and record all four outcomes before closing row 2.3.
 
 ### F7 — The follow-on ticket still summarizes the original byte cap
 
@@ -98,16 +100,18 @@ Both review workers returned read-only findings. The host supplied no verified c
 - **Impact**: 🏃 LOW — the owner can update the follow-on baseline
 - **Dimension**: Scope Discipline
 - **Location**: [Follow-on change](../../step-guard-bypass-forms/change.md)
-- **Detail**: The follow-on ticket's description of exit 2 still lists input over 64 KiB without the session scope. The current runtime reference describes the scoped cap and oversized JSON validation.
-- **Decision**: PENDING because the description belongs to the follow-on change. Its owner should decide whether to label it as the original audit baseline or update it before implementation.
+- **Detail**: The follow-on ticket lists input over 64 KiB as an exit-2 condition. The runtime reference records the scoped cap and oversized JSON validation.
+- **Decision**: PENDING because the description belongs to the follow-on change. Its owner must decide whether to label it as the original audit baseline or update it before implementation.
 
 ## Automated verification
 
-All checks used Node.js 24.19.0.
+The focused suites passed on the original fixtures. With the added fixtures and before the fixes, all three selected heredoc tests failed. Separate inert probes reproduced the compound-route acceptance and the internal Git diagnostic. Five benign syntax fixtures also passed `/bin/bash -n`.
 
-| Progress | Command | Result |
+| Progress | Command | Result after fixes |
 | --- | --- | --- |
-| 1.1, 2.1 | `node --test skills/10x-pipeline/test/step-guard.test.mjs` | 19 passed after the fixes |
+| 1.1, 2.1 | `node --test skills/10x-pipeline/test/step-guard.test.mjs` | 19 passed |
+| 1.2 | `node --test --test-name-pattern='only an entire separate\|heredoc delimiters' skills/10x-pipeline/test/step-guard.test.mjs` | Both the message operand and delimiter/body escape tests passed |
+| 1.3 | `node --test --test-name-pattern='heredocs distinguish' skills/10x-pipeline/test/step-guard.test.mjs` | The named route test passed, including the descriptor, TCP and UDP assertions |
 | 2.2 | `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` | 1,927 passed, 3 expected skips, 0 failures |
 
-The full suite ran with `GH_LIVE` unset. A near-limit inert compound payload also produced a denial in 58 ms locally after prefix tracking moved to a single pass. The additional regression payloads are inert hook input. The focused suite passed before triage, and the new positive regressions exposed the original parser failures before the fixes.
+The full suite ran with Node.js 24.19.0 and `GH_LIVE` unset. The review read the existing manual evidence and preserved the plan's Progress section.
