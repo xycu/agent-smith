@@ -205,6 +205,6 @@ NODE
 
 #### Automated
 
-- [x] 2.1 Interrupted timestamp restoration resumes idempotently, preserves the failed snapshot and log, and halts safely on restoration errors in `node --test skills/10x-pipeline/test/rollback.test.mjs`.
-- [x] 2.2 Both resume commands reject a restored confirmation and preserve a genuine correction through the findings gates in `node --test skills/10x-pipeline/test/openfindings.test.mjs`.
-- [x] 2.3 Shared rollback and existing verdict regressions pass the full local suite with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.1 Interrupted timestamp restoration resumes idempotently, preserves the failed snapshot and log, and halts safely on restoration errors in `node --test skills/10x-pipeline/test/rollback.test.mjs`. — 29db3c19
+- [x] 2.2 Both resume commands reject a restored confirmation and preserve a genuine correction through the findings gates in `node --test skills/10x-pipeline/test/openfindings.test.mjs`. — 29db3c19
+- [x] 2.3 Shared rollback and existing verdict regressions pass the full local suite with `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`. — 29db3c19
