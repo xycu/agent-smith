@@ -1,117 +1,89 @@
 <!-- IMPL-REVIEW-REPORT -->
-# Implementation Review — Step guard heredocs and input limits
+# Implementation review — Step guard heredocs and input limits
 
-- **Plan**: [plan.md](../plan.md)
+- **Plan**: [Step guard heredocs and input limits](../plan.md)
 - **Scope**: Full plan
 - **Reviewed phases**: 1, 2
 - **Date**: 2026-11-19
-- **Verdict**: REJECTED
-- **Findings**: 1 critical, 4 warnings, 2 observations
+- **Verdict**: NEEDS ATTENTION
+- **Findings**: 0 critical, 3 warnings, 2 observations
 
-The verdict, counts, and finding locations describe the implementation at `305dad43` before this review's fixes. The plan's references to the earlier F1–F5 refer to the review saved in `8c924bd7`. Its fixes are in `462d1d5e`, and `6d87094c` added the UDP assertion.
+The verdict and counts describe `5cbd6d36`, the commit reviewed before triage. The plan refers to earlier findings in the reports saved at `8c924bd7` and `1b00e212`.
 
 ## Verdicts
 
-| Dimension | Verdict |
-| --- | --- |
-| Plan Adherence | WARNING |
-| Scope Discipline | PASS |
-| Safety & Quality | FAIL |
-| Architecture | PASS |
-| Pattern Consistency | PASS |
-| Success Criteria | WARNING |
-
-## Scope and evidence
-
-Phase 1 added scoped heredoc classification and the opaque Git message operand. The phase commits and earlier triage cover the requested delimiter forms, FIFO consumption, lexical context, continued pipeline routing, expansion checks, denied redirects and preservation of direct-command checks. This review found additional gaps in the same scanner and verified the earlier named regression cases, including the UDP assertion. [Guard](../../../../skills/10x-pipeline/scripts/step-guard.mjs) · [CLI tests](../../../../skills/10x-pipeline/test/step-guard.test.mjs)
-
-Phase 2 matches the planned exact byte handoff, incremental UTF-8 decoding, 64-container cap, full JSON validation and top-level identity matching. The tests cover duplicate type keys, decoys, long values, invalid ID presence, byte-boundary splits and malformed envelopes. The standalone stdin-only entry point, five-second hook and user reference match the plan. [Hook registration](../../../../hooks/hooks.json) · [Runtime reference](../../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
-
-Two native read-only reviewers checked plan drift and safety. The host supplied no verified child-inclusive token total. Both implementation phases were reviewed because the plan has five completed automated rows and the full review was requested. Manual row 2.3 remains open.
+| Dimension | Verdict | Evidence |
+| --- | --- | --- |
+| Plan Adherence | WARNING | F1 and F2 affect Phase 1 route classification. Phase 2 implements the planned byte and nesting limits. |
+| Scope Discipline | PASS | Product changes are confined to the standalone hook, its CLI tests and the runtime reference. F5 belongs to a follow-on change. |
+| Safety & Quality | WARNING | F1 concerns the output destination. F3 concerns the cost of validating repeated message operands. |
+| Architecture | PASS | The existing Bash hook owns both classifications. It reads stdin and uses no external dependency. |
+| Pattern Consistency | PASS | Regression assertions use the existing CLI harness and exercise the shipped hook. |
+| Success Criteria | WARNING | Five automated rows have local evidence. Manual row 2.3 remains open. |
 
 ## Findings
 
-### F1 — Compound syntax loses the enclosing heredoc route
+### F1 — Output descriptor validation misses tee file operands
 
-- **Severity**: ❌ CRITICAL
-- **Impact**: 🔎 MEDIUM — real tradeoff that needs review of the enclosing route
+- **Severity**: ⚠️ WARNING
+- **Impact**: 🏃 LOW — the existing descriptor check covers the required paths
+- **Dimension**: Plan Adherence
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:215` at `5cbd6d36`
+- **Detail**: The route classifier checks descriptor paths used in shell redirects. It accepts every literal argument to `tee`, which also opens its output paths. The plan requires ordinary literal destinations throughout the pipeline.
+- **Fix**: Share the descriptor-path check between the two output forms. Keep Bash socket-path handling in the shell redirect branch. Pair an ordinary append destination with a descriptor operand in the CLI test.
+- **Decision**: APPLIED in `7f2a72f3`.
+
+### F2 — An expanded word can be mistaken for a shell keyword
+
+- **Severity**: ⚠️ WARNING
+- **Impact**: 🏃 LOW — the lexer already records whether a word is bare
+- **Dimension**: Plan Adherence
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:114` at `5cbd6d36`
+- **Detail**: When the lexer skips a substitution, the remaining characters can spell a reserved word. The compound tracker then opens a clause and denies a literal heredoc on a subsequent line. The added CLI fixture received this denial before triage.
+- **Fix**: Mark the word as non-bare when consuming the substitution. Check the later plain heredoc alongside the existing real-compound denial.
+- **Decision**: APPLIED in `7f2a72f3`.
+
+### F3 — Each captured Git message rescans earlier arguments
+
+- **Severity**: ⚠️ WARNING
+- **Impact**: 🏃 LOW — validation can reuse the existing operand indexes
 - **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:314`, `:332`, `:343` at `305dad43`
-- **Detail**: The hook returned neutral for benign heredocs inside a function with an `if` body, a brace group after a nested brace group, and a subshell after a `case` arm. Bash syntax checks accepted the fixtures. The scanner missed compound openings after a function signature or a brace, and a case pattern's parenthesis could close the tracked enclosing subshell. Phase 1 requires a denial for compound routes.
-- **Fix**: Track the matching closer per compound and keep command position after group boundaries so each opener is classified. Cover the three forms and a simple heredoc after a completed compound.
-  - **Strength** — Keeps the change in the existing heredoc scanner and preserves the enclosing route through nested constructs.
-  - **Tradeoff** — The guard tracks the existing supported compound forms using one stack.
-  - **Confidence** — HIGH for the covered forms. The guard decisions and Bash syntax were checked independently.
-  - **Blind spot** — The live Claude Code case remains pending.
-- **Decision**: APPLIED in `b609ef88`.
+- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:270` at `5cbd6d36`
+- **Detail**: Each capture searches the list of valid operands, copies its token prefix, then scans that prefix. Repeated message arguments make validation quadratic within the guarded event size limit.
+- **Fix**: Index the valid message positions in a set and scan the stage once against the final capture position. Test two literal messages and the denial for a computed argument between captures.
+- **Decision**: APPLIED in `7f2a72f3`.
 
-### F2 — A quoted heredoc marker causes a parse failure in a case condition
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:135`, `:173` at `305dad43`
-- **Detail**: Inside a command substitution, an `if case` condition lost command position after `if`. The case pattern's closing parenthesis then appeared to close the substitution. A quoted `<<EOF` was subsequently treated as an unsupported delimiter. That Bash-valid non-heredoc input had neutral output before the change.
-- **Fix**: Share command-prefix tracking with the substitution scanner and keep the enclosing parenthesis depth while recognizing case patterns.
-- **Decision**: APPLIED in `b609ef88`.
-
-### F3 — An unsupported Git message capture reports an internal error
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:257` at `305dad43`
-- **Detail**: With a redirect before the Git subcommand, an operator token had no word value and reached the Git options parser. The hook exited 2 with a JavaScript TypeError. Phase 1 requires an actionable JSON denial for recognized unsupported capture forms.
-- **Fix**: Validate the capture's command and word shape before parsing Git options.
-- **Decision**: APPLIED in `b609ef88`.
-
-### F4 — A literal dollar in a destination is treated as a computed filename
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:118` at `305dad43`
-- **Detail**: The guard denied a text heredoc redirected to the double-quoted filename `"notes$"` because it classified every unescaped dollar as expansion syntax. Bash treats the terminal dollar as literal.
-- **Fix**: Check for an expansion introducer after folding escaped newlines. Pair the literal filename with the existing computed-destination denial.
-- **Decision**: APPLIED in `b609ef88`.
-
-### F5 — Escaped newlines split the recognized Git message capture
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/step-guard.mjs:185`, `:200` at `305dad43`
-- **Detail**: An escaped newline inside the literal `cat` word or before the outer closing quote caused a denial. Bash removes those continuations, leaving the same separate message operand.
-- **Fix**: Recognize continuations in the capture's fixed command word and closing syntax, then keep checking the complete operand boundary.
-- **Decision**: APPLIED in `b609ef88`.
-
-### F6 — Fresh Claude Code acceptance lacks host evidence
+### F4 — Fresh Claude Code acceptance still needs host evidence
 
 - **Severity**: ℹ️ OBSERVATION
-- **Impact**: 🏃 LOW — the owner needs one live acceptance check
+- **Impact**: 🏃 LOW — one live acceptance row remains
 - **Dimension**: Success Criteria
 - **Location**: [Progress row 2.3](../plan.md#progress)
-- **Detail**: Local evidence covers the hook decisions and both text outputs. It records the message passed to a zsh stand-in and the reported message syntax failing under Bash 3.2. The live guarded child, actual scratch commit and pre-execution hook denial lack evidence. [Manual evidence](../evidence/unproven.md)
-- **Decision**: PENDING because this full review had local CLI and Bash evidence only. The owner must decide when to run fresh Claude Code acceptance with the updated plugin and record all four outcomes before closing row 2.3.
+- **Detail**: Local probes observed both literal text outputs and the hook decisions. Bash 3.2 rejected the commit-message syntax, while zsh passed one argument to a stand-in. Evidence for the actual scratch commit and the pre-execution denial in a fresh guarded Claude Code child is still missing. [Recorded evidence](../evidence/unproven.md)
+- **Decision**: PENDING because the available host evidence covers local probes. The owner must decide when to run and record row 2.3 in a fresh Claude Code session with the updated plugin.
 
-### F7 — The follow-on ticket still summarizes the original byte cap
+<a id="f7--the-follow-on-ticket-still-summarizes-the-original-byte-cap"></a>
+
+### F5 — The follow-on ticket describes the original byte cap
 
 - **Severity**: ℹ️ OBSERVATION
-- **Impact**: 🏃 LOW — the owner can update the follow-on baseline
+- **Impact**: 🏃 LOW — the follow-on owner controls the ticket wording
 - **Dimension**: Scope Discipline
 - **Location**: [Follow-on change](../../step-guard-bypass-forms/change.md)
-- **Detail**: The follow-on ticket lists input over 64 KiB as an exit-2 condition. The runtime reference records the scoped cap and oversized JSON validation.
-- **Decision**: PENDING because the description belongs to the follow-on change. Its owner must decide whether to label it as the original audit baseline or update it before implementation.
+- **Detail**: The follow-on ticket describes the original cap as an unconditional exit 2. Phase 2 and the current reference scope that outcome to oversized guarded events when the envelope is valid. [Runtime reference](../../../../docs/REFERENCE.md#step-safety-and-pre-publication-acceptance)
+- **Decision**: PENDING because the plan assigns that ticket to the follow-on change. Its owner must decide whether to label the old behavior as historical or update the baseline.
 
-## Automated verification
+## Verification
 
-The focused suites passed on the original fixtures. With the added fixtures and before the fixes, all three selected heredoc tests failed. Separate inert probes reproduced the compound-route acceptance and the internal Git diagnostic. Five benign syntax fixtures also passed `/bin/bash -n`.
-
-| Progress | Command | Result after fixes |
+| Progress | Command | Result after triage |
 | --- | --- | --- |
-| 1.1, 2.1 | `node --test skills/10x-pipeline/test/step-guard.test.mjs` | 19 passed |
-| 1.2 | `node --test --test-name-pattern='only an entire separate\|heredoc delimiters' skills/10x-pipeline/test/step-guard.test.mjs` | Both the message operand and delimiter/body escape tests passed |
-| 1.3 | `node --test --test-name-pattern='heredocs distinguish' skills/10x-pipeline/test/step-guard.test.mjs` | The named route test passed, including the descriptor, TCP and UDP assertions |
-| 2.2 | `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` | 1,927 passed, 3 expected skips, 0 failures |
+| 1.1, 2.1 | `node --test skills/10x-pipeline/test/step-guard.test.mjs` | 19 passed, including direct-command denials, delimiter handling, exact byte boundaries, decoded identity, malformed envelopes and the 64-container limit. |
+| 1.2 | `node --test --test-name-pattern='only an entire separate\|heredoc delimiters' skills/10x-pipeline/test/step-guard.test.mjs` | Both the delimiter/body escapes test and the separate message operand test passed. |
+| 1.3 | `node --test --test-name-pattern='heredocs distinguish' skills/10x-pipeline/test/step-guard.test.mjs` | The named route test passed, including the descriptor, TCP and UDP fixtures. |
+| 2.2 | `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` | 1,927 passed, 0 failed, 3 skipped (two live GitHub checks and the conditional CLAUDE.md check). |
 
-The full suite ran with Node.js 24.19.0 and `GH_LIVE` unset. The review read the existing manual evidence and preserved the plan's Progress section.
+Verification used Node.js 24.19.0 with `GH_LIVE` unset. Before triage, all 19 original focused tests passed. The new expanded-word fixture failed on the original implementation. The repeat-capture finding follows from the loop structure. The regression checks verify its decisions without a machine-dependent time threshold.
+
+The first full-suite attempt was interrupted after three executor fixtures discovered the enclosing worktree's Git HEAD. The three fixtures passed with Git discovery stopped at the scratch parent. The full command then passed under the same isolation.
+
+The explicit full-plan request includes Phase 2 with its manual row open. Native read-only reviews `/root/drift` and `/root/quality` checked plan coverage and safety respectively. The host supplied no verified child-inclusive token total.
