@@ -1,6 +1,6 @@
 {
   "id": "review-verdict-unknown-passes",
-  "goal": "Implement context/changes/review-verdict-unknown-passes/change.md: unknown or missing plan/impl review verdicts must halt or fail the step instead of ending done; define known verdict sets once, add tests for each reproduced case, update docs/REFERENCE.md, full suite green.",
+  "goal": "Halt on an unknown or missing review verdict instead of ending the run as done",
   "host": "claude",
   "prComment": true,
   "isolated": true,
@@ -51,5 +51,6 @@
   "outcome": {
     "action": "halt",
     "reason": "Implementation still REJECTED after 2 fix loops. Needs a human."
-  }
+  },
+  "archive": true
 }

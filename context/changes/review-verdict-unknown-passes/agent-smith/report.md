@@ -1,8 +1,9 @@
 # Run report: review-verdict-unknown-passes
 
-Goal: Implement context/changes/review-verdict-unknown-passes/change.md: unknown or missing plan/impl review verdicts must halt or fail the step instead of ending done; define known verdict sets once, add tests for each reproduced case, update docs/REFERENCE.md, full suite green.
+Goal: Halt on an unknown or missing review verdict instead of ending the run as done
 Rigor: thorough (hot paths skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/scripts/state.mjs)
 Outcome: halt - Implementation still REJECTED after 2 fix loops. Needs a human.
+Archive: not run (run halted)
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
