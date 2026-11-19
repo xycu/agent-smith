@@ -12,12 +12,14 @@ The publisher’s final commit can stage conflict markers and conclude a Git ope
 
 ## Desired End State
 
-For a validated run branch ahead of its base, an in-progress merge, rebase, cherry-pick, revert or unmerged index blocks the leftover commit before staging. The result contains `committed: false`, `commit: null`, `swept: null` and a `commitError` naming the marker or unmerged index. The worktree, index, operation markers and local HEAD stay intact. The publisher still attempts the ordinary non-force push and follows its usual PR handling with the existing commits.
+With HEAD attached to a validated run branch ahead of its base, an operation marker, unmerged index or failed safety probe blocks the leftover commit before staging. The result contains `committed: false`, `commit: null`, `swept: null` and a `commitError` naming the state or failed probe. The guard leaves the worktree, index, operation markers and local HEAD intact. The publisher still attempts the ordinary non-force push and follows its usual PR handling with the existing commits.
+
+A rebase with detached HEAD still takes the earlier isolation refusal. It skips the leftover check, push and PR handling, and reports the detached-HEAD reason with the default null commit fields. [Publisher identity gate](../../../skills/10x-pipeline/scripts/open-pr.mjs#L129) · [Publisher gate order](../../../skills/10x-pipeline/scripts/open-pr.mjs#L418)
 
 ### Key Discoveries
 
 - Git locates operation state per linked worktree through `rev-parse --git-path`. A marker can outlive all unmerged entries, including a resolved operation waiting for a commit. [Git rev-parse](https://git-scm.com/docs/git-rev-parse) · [Git cherry-pick](https://git-scm.com/docs/git-cherry-pick#_sequencer_subcommands)
-- `git ls-files --unmerged -z -- :/` reads the entire index for unmerged entries, including paths outside the invoking subdirectory. The root pathspec was checked from `skills/10x-pipeline` on Git 2.54. [Git ls-files](https://git-scm.com/docs/git-ls-files) · [Git pathspec glossary](https://git-scm.com/docs/gitglossary)
+- The `:/` pathspec can silently match zero paths when a caller inherits `GIT_LITERAL_PATHSPECS=1`. On Git 2.54 the nested invocation’s tracked-path count went from 0 to the repository-wide 1,317 with `git --no-literal-pathspecs ls-files -z -- :/`. Use the same root scope for `--unmerged` without changing the caller’s working directory. [Git global options](https://git-scm.com/docs/git) · [Git ls-files](https://git-scm.com/docs/git-ls-files)
 
 ## Scope and Follow-ups
 
@@ -32,6 +34,7 @@ Use one phase because the shared guard and both callers form one testable safety
 - Low complexity and one implementation phase suit the existing CLI and JSON contract. The principal work is sharing an existing check and proving both paths against local fixtures. [complexity.json](complexity.json) · [change.md](change.md)
 - Include the router’s five existing markers and Git’s `sequencer` directory. A multi-commit cherry-pick or revert can depend on the sequencer even when no individual operation marker is present. [isolation.mjs:192](../../../skills/10x-pipeline/scripts/isolation.mjs#L192) · [Git cherry-pick](https://git-scm.com/docs/git-cherry-pick#_sequencer_subcommands) · [Git revert](https://git-scm.com/docs/git-revert)
 - A failed safety probe prevents staging and uses the same commit-error path. The publisher already sends Git status failures down that path while attempting publication of the existing commits. [open-pr.mjs:275](../../../skills/10x-pipeline/scripts/open-pr.mjs#L275) · [open-pr.mjs:445](../../../skills/10x-pipeline/scripts/open-pr.mjs#L445)
+- Publication runs after step execution has settled. The preflight observes the worktree before staging and assumes no concurrent external Git writer on that worktree during publication. The ordinary push retains Git’s existing hook behavior. [10x pipeline publication](../../../skills/10x-pipeline/SKILL.md#L165) · [ADR-017 push rules](../../../docs/ADR/ADR-017-run-branch-always-pushed-for-review.md#what-the-script-does)
 
 ## Phase 1: Share the unfinished-operation guard
 
@@ -47,7 +50,11 @@ Share the guard across the router and publisher, prove the publisher sends only 
 
 **Intent** Move the marker check into a dependency-free leaf module and recognize unmerged index entries in the same check. Preserve the router’s marker diagnostic and other safety checks.
 
-**Contract** The helper takes a caller-supplied Git runner and returns `null` for a safe state or a diagnostic for operation state, unmerged entries or a failed probe. Resolve `MERGE_HEAD`, `REVERT_HEAD`, `CHERRY_PICK_HEAD`, `rebase-merge`, `rebase-apply` and `sequencer` with worktree-local Git paths. Probe the entire index using Git’s unmerged entries and keep marker diagnostics first. Both callers keep their Git execution and timeout settings. The shared module depends only on Node built-ins and makes read-only probes.
+**Contract** The helper takes a caller-supplied Git runner and returns `null` for a safe state or a diagnostic for operation state, unmerged entries or a failed probe. Resolve each of `MERGE_HEAD`, `REVERT_HEAD`, `CHERRY_PICK_HEAD`, `rebase-merge`, `rebase-apply` and `sequencer` with `git rev-parse --path-format=absolute --git-path <marker>`. Require a successful response and a usable absolute path. Use `lstatSync` to distinguish a missing path (`ENOENT`) from other filesystem errors that prevent verification. Retain the existing marker diagnostic and check markers before querying the index.
+
+Query the whole index with `git --no-literal-pathspecs ls-files --unmerged -z -- :/` through the same runner and working directory. Check its exit status before interpreting empty output as safe. A failed probe returns a bounded diagnostic naming the command or the marker that could not be verified. Both callers keep their Git execution and timeout settings. The shared module depends only on Node built-ins and makes read-only probes.
+
+Replace the marker loop in `gitSafety` with the shared check before its existing staged-diff check. Run the shared check even with `emptyIndex: false`. That option exempts normal staged entries for rollback snapshots. An unmerged index halts rollback before it creates a snapshot or stages files. [Rollback preflight](../../../skills/10x-pipeline/scripts/isolation.mjs#L586) · [Snapshot behavior](../../../docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md#amendment-3--preserve-distinct-staged-versions-during-rollback-2026-11-16)
 
 #### 2. Leftover publication commit
 
@@ -59,19 +66,23 @@ Share the guard across the router and publisher, prove the publisher sends only 
 
 #### 3. Regression coverage
 
-**Files** `skills/10x-pipeline/test/open-pr.test.mjs` and `skills/10x-pipeline/test/archive.test.mjs`.
+**Files** `skills/10x-pipeline/test/open-pr.test.mjs`, `skills/10x-pipeline/test/archive.test.mjs` and `skills/10x-pipeline/test/rollback.test.mjs`.
 
 **Intent** Reproduce the unsafe states in local Git and check state preservation as well as the result fields.
 
-**Contract** Use real conflicted merge, cherry-pick and revert fixtures in linked worktrees. Use a markerless unmerged fixture with the conflict outside the publisher’s current subdirectory. Cover operation markers with a resolved or clean index, including rebase and sequencer markers, using small deterministic fixtures. Simulate a failed safety probe with the Git shim. Check the diagnostic, local HEAD, saved index and working-copy content, and expected operation metadata. For the conflict cases, confirm the bare-remote run ref equals the original HEAD, inspect the formerly conflicted path at that ref, and confirm the shim recorded a push and normal fake PR handling with no staging, commit or reset. Extend router archive coverage to include a markerless unmerged index, retaining its existing merge halt and staged-only tests.
+**Contract** Use real conflicted merge, cherry-pick and revert fixtures in linked worktrees. Run the markerless fixture from a nested publisher root with the conflict outside it and `GIT_LITERAL_PATHSPECS=1`. Cover operation markers with a resolved or clean index, including rebase and sequencer markers on attached HEAD, using small deterministic fixtures. Give the existing detached-HEAD fixture a rebase marker and assert the identity refusal, null commit fields and absence of writes or fake PR calls. Inject failures separately for marker-path resolution and the unmerged-index query using the Git shim.
+
+For each refusal from the new publisher guard, assert the diagnostic and null `commit` and `swept` fields with `committed: false`. Compare local HEAD, raw index, affected file contents and operation metadata before and after the publisher, taking the final index snapshot before any status command that could refresh it. Confirm the bare-remote run ref equals the original HEAD and fake PR handling proceeds. For each conflict fixture, inspect the affected file at the bare-remote tip. Assert the shim recorded the ordinary push and no staging, commit or reset.
+
+Extend router archive coverage to include a markerless unmerged index, retaining its merge halt and staged-only tests. In the archive command-log test, admit the new global option only for the exact read-only `ls-files` probe. Include the shared leaf in the existing router no-push and no-`gh` source guard. Add a markerless unmerged rollback fixture that halts with the index diagnostic and proves HEAD, index, working files and snapshot refs stay intact. Retain the existing rollback tests for ordinary staged entries and distinct staged and worktree versions. Router state and report writes follow the existing halt path. [Archive Git command assertions](../../../skills/10x-pipeline/test/archive.test.mjs#L1172) · [Publisher source guard](../../../skills/10x-pipeline/test/open-pr.test.mjs#L687) · [Existing rollback coverage](../../../skills/10x-pipeline/test/rollback.test.mjs#L154)
 
 #### 4. Publication documentation
 
-**Files** `docs/REFERENCE.md` and `docs/ADR/ADR-017-run-branch-always-pushed-for-review.md`.
+**Files** `docs/REFERENCE.md`, `docs/ADR/ADR-017-run-branch-always-pushed-for-review.md` and `docs/ADR/ADR-019-late-usage-figure.md`.
 
 **Intent** Describe how the operation guard affects final run state and publication.
 
-**Contract** Update the reference’s publication and resume guidance. Record the safety rule in ADR-017 and qualify statements about kept edits and clean worktrees. Document `committed: false`, the state in `commitError` and the continued publication attempt of existing commits. Scan live documentation for the old behavior. Both pipeline skills already delegate to the same CLI and the result shape supports their current handling. [10x pipeline](../../../skills/10x-pipeline/SKILL.md#L167) · [OpenSpec pipeline](../../../skills/openspec-pipeline/SKILL.md#L170)
+**Contract** Update the reference’s publication, resume and late-usage guidance. Record the safety rule in ADR-017 and qualify statements about kept edits, clean worktrees and which HEAD the run resumes from. Explain that a skipped commit leaves uncommitted run artifacts in the worktree, including late usage, and qualify the same claim in ADR-019. Document `committed: false`, the reason in the CLI JSON’s `commitError` and the continued publication attempt of existing commits. Document the earlier detached-HEAD refusal and describe the local resolution needed before retrying or removing the worktree. Scan live documentation for the old behavior. Both pipeline skills keep their current invocation and reporting under the change brief’s JSON compatibility constraint. The reference and ADR-017 describe the conditions on the leftover-commit step summarized by the skills. [Change brief](change.md#notes) · [10x pipeline](../../../skills/10x-pipeline/SKILL.md#L167) · [OpenSpec pipeline](../../../skills/openspec-pipeline/SKILL.md#L170) · [ADR-019](../../../docs/ADR/ADR-019-late-usage-figure.md#L55)
 
 ### Success Criteria
 
@@ -84,7 +95,7 @@ Share the guard across the router and publisher, prove the publisher sends only 
 
 ## Testing Strategy
 
-Run the focused regression tests against the previous behavior to establish the failure, then run both affected test files and the full suite after the fix. Reuse the fixture’s local push URL and fake `gh`. The ordinary clean and dirty worktree, pre-staged entries, failing hook and PR regression cases continue to exercise the normal path. Any live PR or CI follow-up belongs to the orchestrator’s publication flow under ADR-017 Amendment 2.
+Run the new regression cases against the previous behavior, then run the focused publisher, archive and rollback files and the full suite after the fix. The rollback regression is part of the full-suite gate. Reuse the fixture’s local push URL and fake `gh`. The ordinary clean and dirty worktree, pre-staged entries, failing hook and PR regression cases continue to exercise the normal path. Live PR or CI follow-up belongs to the orchestrator’s publication flow under ADR-017 Amendment 2.
 
 ## Performance Considerations
 
