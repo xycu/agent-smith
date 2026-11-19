@@ -12,15 +12,15 @@ The standalone hook reads the event from stdin. It caps the full input before re
 
 ## What Success Looks Like
 
-A step can use a heredoc to write a note or compose a commit message. The hook still blocks heredoc input that could execute code, a missing delimiter, and any existing forbidden command that follows the body. A large valid Bash event from an unrelated session passes through with neutral output.
+A step can use a heredoc to write a note or compose a commit message. The hook still blocks heredoc input that could execute code, a missing delimiter, and any existing forbidden command that follows the body. A large valid Bash event from an unrelated session passes through with neutral output when it validates within the overflow nesting bound and host timeout.
 
 ## Key Decisions Made
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Heredoc recipient | Allow common literal `cat` and `tee` text routes and the quoted Git message capture. Deny interpreter input and ambiguous routes. | The current guard classifies a bounded set of literal shell forms. The ticket permits an actionable denial for code-bearing and unclear forms. |
-| Heredoc expansion | Treat quoted bodies as literal. Deny executable expansions in unquoted bodies. | Bash can run substitutions even when the recipient only copies text. |
-| Oversized events | Stream identity from the complete envelope once the buffer reaches its limit. Keep exit 2 for guarded events above 64 KiB and neutral output for valid non-step envelopes. | The current scope depends on both top-level identity fields and the current guarded path already has a bounded failure mode. |
+| Heredoc recipient | Prove the complete literal `cat` or `tee` route, including continued pipeline stages and redirections. Keep the quoted Git capture in one `-m` operand so the flag checker receives the surrounding tokens. | Terminators can precede downstream commands, and the Git checker expects one word for the message. |
+| Heredoc expansion | Treat quoted bodies as literal. Apply Bash escape and continuation rules to unquoted bodies and deny active or ambiguous expansion. | Bash expands unquoted bodies even when the recipient only copies text. |
+| Oversized events | Stream the full envelope through EOF once input exceeds 64 KiB, keeping the existing UTF-8 semantics and only the effective top-level type match and ID presence. Limit overflow parsing to 64 open containers, including the root. | A bounded projection retains the current scope rules and fails closed when it cannot validate the envelope. |
 
 [Change request](change.md) · [Bash redirections](https://www.gnu.org/software/bash/manual/html_node/Redirections.html#Here-Documents) · [Claude Code hook identity](https://code.claude.com/docs/en/hooks#common-input-fields)
 
@@ -46,12 +46,12 @@ Track heredoc boundaries and data flow in the existing command scanner, then app
 ## Open Risks & Assumptions
 
 - The supported data recipient list starts with the common literal forms above. Commands with ambiguous input routing receive guidance to use the Write tool for text data.
-- The oversized reader assumes the standard shallow Bash hook envelope. Payload string length does not consume parser nesting capacity.
+- The 64-container overflow bound leaves room for the documented shallow Bash event and nested metadata. Input exceeding the structural bound or the five-second host timeout fails closed. Long command strings consume no parser nesting capacity.
 
 ## Success Criteria (Summary)
 
 - The focused hook tests pass with paired heredoc and size-limit cases, including every existing direct denial.
-- The full repository test suite passes locally.
+- The full repository test suite passes locally with `GH_LIVE` unset. The fake-client tests run and the opt-in live GitHub tests stay disabled.
 - Manual verification in a fresh `agent-smith:step` subagent confirms that both `cat` heredocs and the quoted scratch commit work and that the hook denies `gh --version` before it runs.
 
 ## References
