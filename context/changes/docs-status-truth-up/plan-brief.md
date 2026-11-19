@@ -22,7 +22,7 @@ A reader can follow every local file link, find the effective rule at the top of
 | ADR status | State the shipped portion, later supersessions and outstanding evidence separately. | ADR-022 gives a precedent for documenting unattended implementation. |
 | Amendment count | Include distinct inline and unnumbered amendments. | ADR-013 carries two dated changes outside its numbered amendment heading. |
 | S-12 and S-20 | Mark S-12 blocked on proof or owner deferral. Retain S-20 as proposed. | WAVES v3 records PR #214 and the final 18-run acceptance contract. |
-| Archive exceptions | Retain the Automated routing gate and read-only move verification. Track durable affirmative Manual decisions in a new change named `record-archive-manual-decision`. | The existing gate asks for consent. S-13 and S-14 show how to preserve that decision alongside open rows. |
+| Archive exceptions | Retain the 10x Automated routing gate and read-only move verification. Track durable affirmative decisions at the 10x Manual gate in `record-archive-manual-decision`. | The 10x gate asks for consent. S-13 and S-14 show how to preserve that decision alongside unresolved proof. |
 
 ## Scope
 
@@ -36,8 +36,8 @@ Use archived evidence for observed behavior and the implementation and tests for
 
 | Phase | Deliverable | Main review point |
 | --- | --- | --- |
-| 1. Repair links | Correct six destinations in the reference and ADRs 018 and 019. | Resolve each from its source document. |
-| 2. Reconcile decisions | Correct status and evidence claims, update the ADR index, add current-rule summaries to ADRs 003, 008, 009, 010, 013, 017, 018 and 024. | Preserve historical rules, observations and test-backed wording. |
+| 1. Repair links | Correct six destinations in the reference and ADRs 018 and 019. Record the accounting release in the reference. | Resolve each link from its source. Keep the v1.14.0 release and live accounting qualification distinct. |
+| 2. Reconcile decisions | Correct status and evidence claims, update the ADR index, add current-rule summaries to ADRs 003, 005, 008, 009, 010, 013, 017, 018 and 024. | Preserve historical rules, observations and test-backed wording. ADR-019 has observed legacy attachment and open structured-use qualification. |
 | 3. Resolve outstanding work | Update README and roadmap, record archive decisions, open the separate follow-up, then run the full suite. | S-12 has zero of three live rows proved. S-20 still owns qualification across six configurations. |
 
 **Prerequisites.** Local checkout, Node 24+, Python 3 and the installed Pandoc GFM reader.
@@ -49,9 +49,10 @@ Use archived evidence for observed behavior and the implementation and tests for
 - The S-12 owner decision is still open in the planning snapshot. Recheck the local evidence before editing. A published artifact alone does not prove the missing live rows.
 - The Manual deferral examples justify recording future affirmative exceptions. Historical checkboxes stay as recorded.
 - Local tests establish documented contracts. The broader Claude, Codex and accounting qualification remains tracked in its own changes.
+- The maintainer takes in current `main` with a merge commit, checks the overlapping reference edits and reruns the link scan before merging this change last in Wave 1.
 
 ## Success Criteria (Summary)
 
 - The local link scan finds zero missing files, and each ADR summary and README disposition cites the appropriate evidence or open work.
 - Both copies of each roadmap status agree. A dated archive decision names its separate follow-up.
-- The full Node suite passes locally and the implementation records its skip counts and reasons. The documentation review checks historical and live-evidence boundaries.
+- The full Node suite passes locally with live GitHub tests disabled, and the implementation records its skip counts and reasons. The link and whitespace checks cover the final candidate, including the committed docs. The documentation review checks historical and live-evidence boundaries.

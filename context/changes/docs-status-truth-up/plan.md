@@ -38,6 +38,8 @@ First repair the evidence links, then use those sources to reconcile ADRs and us
 
 **Contract.** Resolve local destinations relative to the referring Markdown file. Check all of `docs/**/*.md` and the root README, including the HTML header image. The local check below already reproduces exactly the six failures. Use it again after editing. Omit the optional permanent test because the docs-only change can use the installed renderer without introducing a Markdown parser or CI dependency.
 
+In the same `docs/REFERENCE.md` accounting paragraph as the repaired link, identify the four-phase activation gate as work completed for v1.14.0. Cite the changelog and the archived accounting evidence. Keep the requirement to hold one execution revision through settlement and intake, the rollback guidance and the open live qualification and output checks in rows 4.3 and 4.4. Use the same distinction in the README and annotate the corresponding historical rollout notes in ADR-018 and ADR-019 during Phase 2.
+
 ### Success Criteria
 
 #### Automated Verification
@@ -58,6 +60,7 @@ First repair the evidence links, then use those sources to reconcile ADRs and us
 | 009 | Preserve Accepted. Live checks 1 and 2 have results. The advisor P0 and the flag experiments have separate evidence requirements. Link the original check/experiment record and the FR-017 deferral where applicable. |
 | 010 | Preserve Accepted. Archived `2026-11-03-worktree-step-commits/plan.md` rows 2.5, 3.5 and 4.4 cover isolated edits, per-step commits and scratch rollback at their recorded revisions. Identify the still-unproved permission prompt and the unmeasured first-attempt experiment, tracked by `first-attempt-drop-unmeasured`. |
 | 017 | Preserve Accepted and the owner's isolation opt-out decision. Distinguish actual published run evidence (S-14 acceptance row 3.5) from the original throwaway-repo, idempotence and terminal-path scenarios in `2026-11-09-worktree-pr-only/evidence/unproven.md` rows 1.5 and 2.4. Name the surviving proof obligations. |
+| 019 | Preserve Accepted. Update the header and qualify the original live-use assumption with the legacy attachment in `proper-structure-of-rules` step 7 (`6f8a5a56` and the archived `usageLate` entry). That evidence establishes attachment, with the notification source unrecorded. Track current structured late-use qualification with accounting rows 4.3 and 4.4. |
 
 **Contract.** Scan all ADR metadata, inline amendments and outstanding verification notes, including accepted records. Keep historical scenarios and amendment order intact. Where later evidence resolves an old note, annotate it with the dated outcome. For example, the 2026-11-15 release acceptance resolves ADR-008's queue/rerun checks. An unresolved claim gets a named check and a working link to its specific Manual row, evidence register or roadmap/change ID. Preserve operational uses such as a pending dispatch or a pending Manual row.
 
@@ -66,6 +69,7 @@ First repair the evidence links, then use those sources to reconcile ADRs and us
 | ADR | What the current summary must tell the reader |
 | --- | --- |
 | 003 | Rigor and measured risk drive optional steps. Apply current Manual verification, isolated commits and terminal publication rules, including persisted PR-comment intent. |
+| 005 | Read-only comparison uses a separate pinned baseline and requires comparable usage coverage. Include the baseline ladder amendment, provenance warnings, optional routing-rate estimates, and current scope handling for legacy-only and verified/legacy figures. Label the original Claude notification observation as historical and link the current accounting contract. |
 | 008 | A green push CI result still at the main tip gates release-please. Squash titles drive Conventional Commits. One SemVer value occupies three fields, with the plugin entry version omitted. |
 | 009 | Run provenance and its current exclusions, opt-in restricted mappings and advisor behavior, guarded default Claude dispatch, and provider-specific limits. Count the independent pricing and co-author revisions at line 68 and guarded dispatch at line 128. |
 | 010 | Shared setup and configured branch identity, verified step commits and swept-path reporting, and preservation of working and distinct staged versions before rollback. Include the isolation opt-out. |
@@ -74,7 +78,7 @@ First repair the evidence links, then use those sources to reconcile ADRs and us
 | 018 | One guarded, awaited native child layer with leaf restrictions and enclosing-step ownership. Include settled-child/result identity and attributable step-tree usage. The earlier flat ban and depth-one setup are historical. |
 | 024 | Per-rung provider and fixed host, standalone Codex execution, provider-specific safety, bounded native delegation and observed usage after settlement. Cover the unnumbered accounting amendment. |
 
-**Contract.** Update the affected index summaries, especially ADR-018. Use prose for summaries so the original normative scenarios and anchors remain available. Existing tests read these documents, including `nested-subagents.test.mjs:207`, which checks the historical ADR-018 Manual-row wording. Preserve test-backed historical text and explain its scope in the new summary.
+**Contract.** Update the affected index summaries, especially ADR-018. Use prose for summaries so the original normative scenarios and anchors remain available. Preserve the historical ADR-018 Manual-row wording pinned by `nested-subagents.test.mjs` and the ADR-009 check rows, headings and A/B result prefix pinned by `advisor.test.mjs`. Add evidence and tracker links in adjacent prose. Preserve the ADR-003 historical PR-comment rules pinned by `pr-comment.test.mjs`.
 
 ### Success Criteria
 
@@ -96,14 +100,16 @@ First repair the evidence links, then use those sources to reconcile ADRs and us
 | --- | --- |
 | 32 | The scoped Claude guard ships. State its version, enabled-hook and identity prerequisites. Track first fresh Claude delivery in S-12 `first-unattended-delivery` and effective protection across hosts in S-18 `verified-step-protection`. The original guard plan records the unverified host checks. |
 | 103 | The documented print-mode invocation and frontmatter are available. Preserve the historical status of the early-exit prediction. Live invocation/non-selection and complete headless delivery need actual observations. Use the `skills-disable-model-invocation` archive evidence and S-12/S-20 for follow-through. |
-| 142 | Claude Code 2.1.311 headless showed native collection. The interactive attempt hit quota. S-14 rows 1.3 and 3.4 explicitly carry final-candidate qualification into S-20 `supported-host-acceptance`. The full Claude pipeline check is also named in `claude-token-figures-default`. |
+| 142 | Claude Code 2.1.311 headless showed native collection. The interactive attempt hit quota. S-14 rows 1.3 and 3.4 explicitly carry final-candidate qualification into S-20 `supported-host-acceptance`. The full Claude pipeline check is also named in `claude-token-figures-default`. Keep the tested project-setting instructions, fresh-session guidance and existing reference link from `nested-subagents.test.mjs`. |
 | 148 | Token accounting shipped in v1.14.0 with fixture-backed checks. Name the unqualified interactive/headless host matrix and immediate, late and archive output checks (accounting rows 4.3/4.4). Track final support in S-20 and Claude default-capture choices in `claude-token-figures-default`. |
 
 **Contract.** Update `context/foundation/roadmap.md` table and matching slice bodies together. Set S-12 to `blocked` for delivery while PR #214 awaits the owner's proof-or-deferral decision. Its historical run proved zero of Manual rows 3.1–3.3. WAVES v3 lines 96, 136 and 141 schedule proof against the Wave 2 release or an explicit deferral. Update stale scheduling and handoff descriptions of these two slices as needed. Preserve the distinction between planning readiness and delivery. Keep S-20 `proposed` with the S-17/S-19 dependencies, S-13/S-14 carryovers, and three normal runs per each of six configurations covering both launch modes, recovery and owner decisions. Record the check with links to the evidence. An S-12 deferral requires an owner decision.
 
-**Intent.** Record the archived-row policy in this change's `change.md` under a dated decision. Cite the 35-plan tally, both archive gates and the S-13/S-14 owner closeouts. Preserve every historical checkbox and its provenance.
+**Intent.** Record the archived-row policy in this change's `change.md` under a dated decision. Cite the tally of 92 archived 10x plans, 35 with open rows, both archive gates and the S-13/S-14 owner closeouts. Preserve every historical checkbox and its provenance.
 
-**Contract.** Keep recognized open Automated work in implementation before archive (`flow.mjs` checks `autoPending`). Keep `verify-archive` a read-only check of the completed move and stamp. The audit found zero open Automated rows in the archive. Malformed fresh Progress belongs to `plan-zero-rows-skips-implement`. Keep the existing explicit fail-closed Manual choice in the orchestrator. Record an affirmative exception and the affected unresolved row IDs before a future move, with a reason and follow-up destination when deferred. The current loop asks for the decision but does not require its persistence. During implementation, open **only a separate documentation change seed** at `context/changes/record-archive-manual-decision/change.md` for that gap, referencing S-19 `truthful-owner-decision-halts` and the S-13/S-14 examples. Specify acceptance for a clean run, explicit approval and refusal/unavailable answer. Link the ID from the dated decision. Gate implementation and historical backfill are outside this change.
+**Contract.** Keep recognized open 10x Automated work in implementation before archive (`flow.mjs` checks `autoPending`). The 10x `verify-archive` remains a read-only check of the completed move and status stamp. The audit found zero open Automated rows. Malformed fresh Progress belongs to `plan-zero-rows-skips-implement`. Retain the optional `archive.haltOnManualPending` precheck. When the router offers archive, the 10x orchestrator already requires explicit approval if `manualPending`, `manualUnproven` or `uncommittedTicks` is nonempty. OpenSpec has its own task-completion gate and file-only move verification. Its mirrored Manual prompt stays dormant because those lists are empty. Treat the S-13 OpenSpec deferral as an example of recording an owner decision outside task completion.
+
+During implementation, open **only a separate documentation change seed** at `context/changes/record-archive-manual-decision/change.md` for durable records of affirmative exceptions at the existing 10x Manual gate. Reference S-19 `truthful-owner-decision-halts` and the S-13/S-14 examples. Specify acceptance for a clean run, explicit approval, and refusal or an unavailable answer. The approval case records the distinct unresolved row IDs before the move, with a reason and follow-up destination when deferred. Link the ID from the dated decision. Gate implementation and historical backfill are outside this change.
 
 ### Success Criteria
 
@@ -156,7 +162,7 @@ def adr(n):
 for n in [3, 5, 12, 14, 15, 16, 18]:
     status = re.search(r"^- \*\*Status:\*\* (.+)$", adr(n), re.M)
     assert status and not status[1].lower().startswith("proposed"), n
-for n in [3, 8, 9, 10, 13, 17, 18, 24]:
+for n in [3, 5, 8, 9, 10, 13, 17, 18, 24]:
     sections = re.findall(r"^## (.+)$", adr(n), re.M)
     assert sections[0] == "Rule in force" and sections.count("Rule in force") == 1, n
 PY
@@ -181,17 +187,21 @@ assert f"change_id: {followup}" in Path(f"context/changes/{followup}/change.md")
 PY
 ```
 
-Run the exact project gate after the final substantive edits:
+Run the full project gate after the final substantive edits. Disable the opt-in live GitHub tests explicitly so an inherited `GH_LIVE=1` cannot turn the local gate into a live client call. The existing fake-client tests still run.
 
 ```sh
-node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+GH_LIVE=0 node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
 ```
 
-Record actual skip reasons alongside the exit status. The suite and rendered links are pre-publication checks. They do not establish host qualification. Manual review uses local sources and dated evidence. This change has no new external acceptance prerequisite.
+Record actual skip reasons alongside the exit status. OpenSpec contract fixtures require exactly OpenSpec 2.0.0 when the selected executable returns a version. An unavailable executable skips locally with `CI` unset or empty and fails in CI. The suite and rendered links check local contracts before publication. Manual review uses local sources and dated evidence for host claims.
+
+For the final whitespace check, record the starting implementation commit. Run `git diff --check` on the working diff and `git diff --cached --check` on the scoped staged docs, including the new change seed once staged. After the documentation commits, run `git diff --check <implementation-base> HEAD` with the recorded commit as the base so the check covers every committed phase.
 
 ## Migration Notes
 
 Only documentation readers see these changes. Preserve filenames, decision history and link anchors for existing readers. Roll back a mistaken disposition with a correcting docs commit. No run data migration is needed.
+
+For the Wave 1 handoff, the maintainer takes in current `main` with a merge commit and merges this change last, as required by WAVES v3. Reconcile the nearby `docs/REFERENCE.md` edits using link destinations and section anchors, then rerun the rendered-link check and inspect the overlapping hunks on the integrated candidate. This handoff is separate from the local implementation criteria.
 
 ## References
 
