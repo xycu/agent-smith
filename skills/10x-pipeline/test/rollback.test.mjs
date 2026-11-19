@@ -621,25 +621,33 @@ for (const { direction, fault, command } of [
   });
 }
 
-test("timestamp recovery refuses a symlink introduced after checkpoint publication", { skip: skip || process.platform === "win32" }, () => {
-  const { wt, files, before } = confirmationFixture();
-  const halted = injectTimestampFault(wt, "rolledBack", "before");
-  assert.equal(halted.status, 86, halted.stdout + halted.stderr);
-  const pending = readLogEntries(wt).at(-1);
-  const target = path.join(wt.top, "owner.md");
-  fs.writeFileSync(target, "owner file\n");
-  const time = Date.parse("2026-04-01T10:00:00Z");
-  touch(target, time);
-  const original = files[1] + ".original";
-  fs.renameSync(files[1], original);
-  fs.symlinkSync(target, files[1]);
-  const refused = nextIn(wt);
-  assert.match(refused.json.reason, /Timestamp restoration .*plan-review\.md.*no symlink/);
-  assert.ok(near(at(target), time));
-  assert.deepEqual(readLogEntries(wt).at(-1), pending);
-  fs.unlinkSync(files[1]);
-  fs.renameSync(original, files[1]);
-  assert.match(nextIn(wt).json.reason, /Unknown review verdict "BROKEN"/);
-  assert.ok(near(at(files[1]), before[1]));
-  assert.equal(readLogEntries(wt).at(-1).timestamps, "completed");
-});
+for (const [link, diagnostic] of [["symlink", "no symlink"], ["hardlink", "hard-linked file"]]) {
+  test(`timestamp recovery refuses a ${link} introduced after checkpoint publication`, { skip: skip || process.platform === "win32" }, () => {
+    const { wt, files, before } = confirmationFixture();
+    const halted = injectTimestampFault(wt, "rolledBack", "before");
+    assert.equal(halted.status, 86, halted.stdout + halted.stderr);
+    const pending = readLogEntries(wt).at(-1);
+    const original = files[1] + ".original";
+    fs.renameSync(files[1], original);
+    const target = path.join(wt.base, "owner.md");
+    if (link === "symlink") {
+      fs.copyFileSync(original, target);
+      fs.symlinkSync(target, files[1]);
+    } else {
+      fs.linkSync(original, target);
+      fs.linkSync(target, files[1]);
+    }
+    const time = Date.parse("2026-04-01T10:00:00Z");
+    touch(target, time);
+    const refused = nextIn(wt);
+    assert.match(refused.json.reason, new RegExp(`Timestamp restoration .*plan-review\\.md.*${diagnostic}`));
+    assert.ok(near(at(target), time));
+    assert.deepEqual(readLogEntries(wt).at(-1), pending);
+    fs.unlinkSync(files[1]);
+    fs.unlinkSync(target);
+    fs.renameSync(original, files[1]);
+    assert.match(nextIn(wt).json.reason, /Unknown review verdict "BROKEN"/);
+    assert.ok(near(at(files[1]), before[1]));
+    assert.equal(readLogEntries(wt).at(-1).timestamps, "completed");
+  });
+}

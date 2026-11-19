@@ -578,7 +578,7 @@ function checkoutFile(file, commit, timeout) {
   const gitRoot = git(["rev-parse", "--show-toplevel"]).replace(/\r?\n$/, "");
   const gitPath = git(["rev-parse", "--show-prefix"]).replace(/\r?\n$/, "") +
     path.relative(ROOT, file).split(path.sep).join("/");
-  const entry = git(["ls-tree", "-z", "--full-tree", commit, "--", `:(literal)${gitPath}`]);
+  const entry = git(["--literal-pathspecs", "ls-tree", "-z", "--full-tree", commit, "--", gitPath]);
   if (!entry) return null;
   const match = /^100(?:644|755) blob ([0-9a-f]{40,64})\t/.exec(entry);
   if (!match || entry.slice(match[0].length) !== gitPath + "\0") {
@@ -593,13 +593,19 @@ function matchesCheckout(file, bytes, commit, timeout) {
   if (!source) return false;
   const { gitRoot, gitPath, blob } = source;
   const filterWords = ["unspecified", "unset", "set"];
-  for (const source of [[], ["--cached"], [`--source=${commit}`]]) {
-    const result = runGit(["-C", gitRoot, "check-attr", ...source, "-z", "filter", "--", gitPath], { timeout });
+  const attributes = (source) => {
+    const result = runGit(["-C", gitRoot, "check-attr", ...source, "-z",
+      "filter", "ident", "working-tree-encoding", "--", gitPath], { timeout });
     if (result.status !== 0) throw new Error(`git check-attr failed: ${gitMessage(result)}`);
-    if (!filterWords.includes(result.stdout.split("\0")[2])) {
+    const [, , filter, , , ident, , , encoding] = result.stdout.split("\0");
+    if (!filterWords.includes(filter)) {
       throw new Error("checkout bytes cannot be verified with a custom Git filter");
     }
-  }
+    return ident === "set" || (encoding !== "unspecified" && encoding !== "unset");
+  };
+  const currentConversion = attributes([]);
+  const indexedConversion = attributes(["--cached"]);
+  const pinnedConversion = attributes([`--source=${commit}`]);
   // A driver can literally be named after one of check-attr's reserved result words.
   const config = runGit(["-C", gitRoot, "config", "--list", "--name-only", "--null"], { timeout });
   if (config.status !== 0) throw new Error(`git config failed: ${gitMessage(config)}`);
@@ -610,11 +616,13 @@ function matchesCheckout(file, bytes, commit, timeout) {
     cwd: gitRoot, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
     ...(Number.isInteger(timeout) && timeout > 0 ? { timeout } : {}),
   });
-  const raw = cat(["cat-file", "blob", blob]);
   const normalizeEol = (buffer) => buffer.toString("latin1").replaceAll("\r\n", "\n");
-  if (raw.equals(bytes) || normalizeEol(raw) === normalizeEol(bytes)) return true;
-  const converted = cat(["cat-file", "--filters", `--path=${gitPath}`, blob]);
-  return converted.equals(bytes) || normalizeEol(converted) === normalizeEol(bytes);
+  const normalized = normalizeEol(bytes);
+  const matches = (candidate) => candidate.equals(bytes) || normalizeEol(candidate) === normalized;
+  const filters = ["cat-file", "--filters", `--path=${gitPath}`, blob];
+  return matches(cat(["cat-file", "blob", blob])) ||
+    ((currentConversion || indexedConversion) && matches(cat(filters))) ||
+    (pinnedConversion && matches(cat([`--attr-source=${commit}`, ...filters])));
 }
 
 // Only authoritative legacy failures reach this comparison, after verdict and timestamp validation.
@@ -654,7 +662,10 @@ function restoreTimes(p, meta, log, last, g, timeout) {
         const matches = target.sha256
           ? fingerprint(bytes) === target.sha256
           : matchesCheckout(file, bytes, commit, timeout);
-        if (matches) fs.futimesSync(fd, target.time / 1000, target.time / 1000);
+        if (matches) {
+          if (fs.fstatSync(fd).nlink !== 1) throw new Error("cannot change the time of a hard-linked file");
+          fs.futimesSync(fd, target.time / 1000, target.time / 1000);
+        }
       });
     } catch (error) {
       return timestampProblem(last, file, error.message);

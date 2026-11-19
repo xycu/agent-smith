@@ -551,6 +551,7 @@ function reviewProblem(step, file, read, attempt) {
   const rel = path.relative(ROOT, file);
   const expected = `Expected ${joinWords([...REVIEW_VERDICTS[step]])}.`;
   if (!read.exists) return `Missing review artifact ${rel}. ${expected}`;
+  if (read.error) return `Cannot read review artifact ${rel}: ${read.error}. ${expected}`;
   if (read.verdict === null) return `Missing review verdict in ${rel}. ${expected}`;
   if (!REVIEW_VERDICTS[step].has(read.verdict)) {
     return `Unknown review verdict ${JSON.stringify(read.verdict)} in ${rel}. ${expected}`;

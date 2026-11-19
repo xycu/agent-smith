@@ -776,10 +776,11 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
   const ON = { isolation: { require: true } };
 
   // A real linked worktree on agent-smith/demo, a first init and a plan step answered as done, so the next call asks for the plan review.
-  function isolatedRun(policy = {}, { nest = null, crlf = false } = {}) {
+  function isolatedRun(policy = {}, { nest = null, crlf = false, ident = false } = {}) {
     const main = makeProject({ policy: { ...ON, ...policy }, nest });
     gitInit(main);
     if (crlf) git(main, ["config", "core.autocrlf", "true"]);
+    if (ident) fs.writeFileSync(path.join(main.base, ".gitattributes"), "plan-review.md ident\n");
     git(main, ["add", "-A"]);
     git(main, ["commit", "-q", "-m", "chore: project"]);
     const top = path.join(main.base, ".claude/worktrees", "agent-smith-demo");
@@ -843,7 +844,7 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
   function confirmationRun(step, options) {
     const fixture = isolatedRun(CONFIRM_ON(1), options);
     const { wt, env } = fixture;
-    const route = (command = "next") => run(wt, [command, wt.id], { env });
+    const route = (command = "next", extraEnv) => run(wt, [command, wt.id], { env: { ...env, ...extraEnv } });
     if (step === "impl-review") {
       writeReview(wt, "plan-review", { verdict: "SOUND" });
       writeResult(wt, { status: "done", note: "reviewed" });
@@ -853,7 +854,7 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
       const dispatched = route();
       assert.equal(dispatched.json?.step, step, dispatched.stdout + dispatched.stderr);
     }
-    const applied = step === "plan-review" ? APPLIED_PLAN : APPLIED_IMPL;
+    const applied = (step === "plan-review" ? APPLIED_PLAN : APPLIED_IMPL) + (options?.ident ? "\n$Id$\n" : "");
     writeReviewFile(wt, step, applied);
     writeResult(wt, { status: "done", note: "reviewed" });
     const result = route();
@@ -946,7 +947,7 @@ fs.renameSync = (from, to) => {
       writeLog(wt, entries);
       assert.equal(fs.readFileSync(file, "utf8"), applied.replaceAll("\n", "\r\n"));
       stampAhead(file);
-      const resumed = route();
+      const resumed = route("next", { GIT_LITERAL_PATHSPECS: "1" });
       assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
       assert.match(resumed.json.reason, unresolved ? /Stale review artifact/ : /Unproved review freshness .*matches the checkout/);
       assert.ok(lastEntry(wt).rolledBack);
@@ -956,6 +957,21 @@ fs.renameSync = (from, to) => {
       assert.match(correctedRoute.json?.reason, /Plan review REVISE left 1 open critical/, correctedRoute.stdout + correctedRoute.stderr);
     });
   }
+
+  test("legacy review comparison recognizes the pinned checkout after an ident attribute change", () => {
+    const { wt, env, top, route, file } = confirmationRun("plan-review", { ident: true });
+    writeReviewFile(wt, "plan-review", reviewText({ verdict: "BROKEN" }));
+    interruptConfirmation(wt, env);
+    assert.match(fs.readFileSync(file, "utf8"), /\$Id: [a-f0-9]+ \$/);
+    const entries = readLogEntries(wt);
+    delete entries.at(-1).timestamps;
+    writeLog(wt, entries);
+    fs.writeFileSync(path.join(top, ".gitattributes"), "plan-review.md -ident\n");
+    stampAhead(file);
+    const resumed = route();
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Unproved review freshness .*matches the checkout/);
+  });
 
 });
 
@@ -1375,6 +1391,7 @@ describe("readReview header label forms", () => {
     ["- **Verdict**: REVISE", "- **Findings**: 1 critical, 1 warnings", "REVISE", 1, 1],
     ["* **Verdict:**  ✅ [nEeDs aTtEnTiOn].  ", "**Findings**: 0 critical, 0 warnings", "NEEDS ATTENTION", 0, 0],
     ["**Verdict**: sound (after fixes (F1)).", "**Findings**: 0 critical, 0 warnings", "SOUND", 0, 0],
+    ["> # Context\n**Verdict**: APPROVED", "**Findings**: 0 critical, 0 warnings", "APPROVED", 0, 0],
   ];
   for (const [v, f, verdict, critical, warnings] of cases) {
     test(`${v} / ${f}`, () => {
@@ -1435,6 +1452,20 @@ describe("verdict validation before advancing", () => {
     assertInvalidIntake({ res, entry: readLogEntries(project)[0] }, "NEEDS REVISION", "plan-review");
   });
 
+  test("a directory at the review path is recorded as a failed intake and retried", () => {
+    const project = makeProject({ plan: planText() });
+    assert.equal(init(project, GOAL, ["--rigor", "standard"]).json.step, "plan-review");
+    fs.mkdirSync(path.join(project.changeDir, "reviews", "plan-review.md"), { recursive: true });
+    writeResult(project, { status: "done", note: "fixture" });
+    const res = next(project);
+    const failed = readLogEntries(project)[0];
+    assert.equal(failed.verified, false);
+    assert.equal(failed.ok, false);
+    assert.equal(failed.review, undefined);
+    assert.match(failed.invalid, /Cannot read review artifact .*reviews\/plan-review\.md: expected a regular file/);
+    assert.equal(res.json?.step, "plan-review", res.stdout + res.stderr);
+  });
+
   const noVerdictHeaders = [
     ["a plain Markdown heading", "## Verdict: REJECTED"],
     ["body prose with a quoted label", "## Findings\nThe example **Verdict**: REJECTED illustrates a possible outcome."],
@@ -1443,8 +1474,15 @@ describe("verdict validation before advancing", () => {
     ["a Setext level-two heading", "Findings\n--------\n**Verdict**: APPROVED"],
     ["a verdict formatted as a Setext heading", "**Verdict**: APPROVED\n--------"],
     ["an HTML comment", "<!--\n**Verdict**: APPROVED\n-->"],
+    ["a multiline inline HTML comment", "Example: <!--\n**Verdict**: APPROVED\n-->"],
+    ["an HTML preformatted block", "<pre>\n**Verdict**: APPROVED\n</pre>"],
+    ["a multiline code span", "Example: `\n**Verdict**: APPROVED\n`"],
     ["a quoted label", "> **Verdict**: REJECTED"],
+    ["a lazy blockquote continuation", "> Example:\n**Verdict**: APPROVED"],
     ["duplicate labels", "**Verdict**: APPROVED\n- **Verdict:** REJECTED"],
+    ["duplicate labels around a literal comment opener", "**Verdict**: APPROVED\nThe literal `<!--` starts a comment.\n**Verdict**: REJECTED"],
+    ["duplicate labels around an escaped comment opener", "**Verdict**: APPROVED\nThe literal \\<!-- starts a comment.\n**Verdict**: REJECTED"],
+    ["duplicate labels around an unclosed inline comment opener", "**Verdict**: APPROVED\nThe literal <!-- starts a comment.\n**Verdict**: REJECTED"],
   ];
   for (const [label, header] of noVerdictHeaders) {
     test(`no-log init halts for ${label}`, () => {

@@ -329,17 +329,71 @@ function readFindings(text) {
   return findings;
 }
 
+const REVIEW_BODY = /^[ \t]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,}|<(?:pre|code|script|style|textarea)(?=[\s/>]|$))/i;
+const REVIEW_QUOTE = /^ {0,3}>[ \t]?/;
+const REVIEW_TITLE = /^ {0,3}#(?:[ \t]|$)/;
+
+// Index inline delimiters within a paragraph so multiline spans need no repeated lookahead.
+function reviewInlineSpans(lines) {
+  const codeEnds = new Map();
+  const inlineComments = new Set();
+  const nextRun = new Map();
+  let commentCloses = false;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line.trim() || REVIEW_BODY.test(line) || REVIEW_QUOTE.test(line) || REVIEW_TITLE.test(line)) {
+      nextRun.clear();
+      commentCloses = false;
+      continue;
+    }
+    for (const token of [...line.matchAll(/\x60+|<!--|-->/g)].reverse()) {
+      const position = `${i}:${token.index}`;
+      if (token[0] === "-->") commentCloses = true;
+      else if (token[0] === "<!--") {
+        if (commentCloses) inlineComments.add(position);
+      } else {
+        const size = token[0].length;
+        const end = nextRun.get(size);
+        if (end) codeEnds.set(position, end);
+        nextRun.set(size, { line: i, column: token.index + size });
+      }
+    }
+  }
+  return { codeEnds, inlineComments };
+}
+
 function readReviewVerdict(text) {
   const lines = text.split(/\r?\n/);
+  const { codeEnds, inlineComments } = reviewInlineSpans(lines);
   let header = null;
   let inComment = false;
+  let quoted = false;
+  let codeEnd = null;
   for (const [i, line] of lines.entries()) {
-    const skip = inComment || line.trimStart().startsWith("<!--");
-    const commentOpen = line.lastIndexOf("<!--");
-    const commentClose = line.lastIndexOf("-->");
-    if (commentOpen >= 0 || commentClose >= 0) inComment = commentOpen > commentClose;
+    if (!inComment && !(codeEnd?.line >= i)) {
+      if (REVIEW_BODY.test(line)) break;
+      const quote = REVIEW_QUOTE.exec(line);
+      if (quote) {
+        const content = line.slice(quote[0].length);
+        quoted = Boolean(content.trim()) && !REVIEW_BODY.test(content) && !REVIEW_TITLE.test(content);
+        continue;
+      }
+      if (REVIEW_TITLE.test(line)) {
+        quoted = false;
+        continue;
+      }
+      if (!line.trim() || /^ {0,3}[-+*][ \t]+/.test(line)) quoted = false;
+      if (quoted) continue;
+    }
+    const blockComment = /^ {0,3}<!--/.test(line) ? line.indexOf("<") : -1;
+    const skip = inComment || codeEnd?.line >= i || blockComment >= 0;
+    for (const token of line.matchAll(/\\[\\<\x60]|\x60+|<!--|-->/g)) {
+      if (codeEnd && (codeEnd.line > i || (codeEnd.line === i && token.index < codeEnd.column))) continue;
+      if (inComment) inComment = token[0] !== "-->";
+      else if (token[0] === "<!--") inComment = token.index === blockComment || inlineComments.has(`${i}:${token.index}`);
+      else codeEnd = codeEnds.get(`${i}:${token.index}`);
+    }
     if (skip) continue;
-    if (/^[ \t]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,})/.test(line)) break;
     // A hyphen underline turns the preceding paragraph into an H2, even if it looks like a verdict line.
     if (/^ {0,3}-+[ \t]*$/.test(lines[i + 1] ?? "") && /^ {0,3}\S/.test(line)
       && !/^ {0,3}(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)|(?:[-*_][ \t]*){3,}$)/.test(line)) break;
@@ -371,10 +425,18 @@ function completeParenthetical(text) {
 
 export function readReview(file) {
   const res = { exists: false, verdict: null, critical: 0, warnings: 0, findings: [], mtime: 0 };
-  if (!fs.existsSync(file)) return res;
-  res.exists = true;
-  res.mtime = mtime(file);
-  const text = fs.readFileSync(file, "utf8");
+  let text;
+  try {
+    const stat = fs.statSync(file, { throwIfNoEntry: false });
+    if (!stat) return res;
+    res.exists = true;
+    res.mtime = stat.mtimeMs;
+    if (!stat.isFile()) return { ...res, error: "expected a regular file" };
+    text = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return { ...res, exists: false, mtime: 0 };
+    return { ...res, exists: true, error: error.code ?? error.message };
+  }
   res.verdict = readReviewVerdict(text);
   const f = text.match(/\*\*Findings(?:\*\*:|:\*\*)[^\n]*/);
   if (f) {
