@@ -150,8 +150,8 @@ The hook consumes the same Claude Code JSON and emits the same decision formats.
 #### Automated
 
 - [x] 1.1 The focused hook suite passes with paired heredoc cases and all legacy direct denials using `node --test skills/10x-pipeline/test/step-guard.test.mjs`. — 2c0cecae
-- [x] 1.2 `node --test --test-name-pattern='only an entire separate|heredoc delimiters' skills/10x-pipeline/test/step-guard.test.mjs` passes the message capture, arithmetic shift and end-of-input delimiter cases.
-- [x] 1.3 `node --test --test-name-pattern='heredocs distinguish' skills/10x-pipeline/test/step-guard.test.mjs` passes the compound, continued operator and redirect cases, including descriptor, TCP and UDP destinations.
+- [x] 1.2 `node --test --test-name-pattern='only an entire separate|heredoc delimiters' skills/10x-pipeline/test/step-guard.test.mjs` passes the message capture, arithmetic shift and end-of-input delimiter cases. — 6d87094c
+- [x] 1.3 `node --test --test-name-pattern='heredocs distinguish' skills/10x-pipeline/test/step-guard.test.mjs` passes the compound, continued operator and redirect cases, including descriptor, TCP and UDP destinations. — 6d87094c
 
 ### Phase 2: Apply the byte cap to guarded steps
 

@@ -1,7 +1,7 @@
 ---
 change_id: step-guard-heredoc-false-positives
 title: Stop the step guard blocking heredocs and oversized commands it should allow
-status: impl_reviewed
+status: implemented
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
