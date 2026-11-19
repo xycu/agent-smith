@@ -1,7 +1,7 @@
 ---
 change_id: codex-failure-native-lock-stuck
 title: Release the native lock after an ordinary Codex failure so the run can retry
-status: planned
+status: implementing
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null

@@ -131,8 +131,7 @@ function configArgs(action) {
 }
 
 // Model-free, bounded metadata reads: inactive labels and reconstructed interrupted turns prove no closure.
-async function settledDescendants(threadId, onSettled) {
-  if (typeof threadId !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(threadId)) refuse("Missing native parent identity.");
+async function settledDescendants(threadId, rejectedResult, onSettled) {
   const server = spawn("codex", ["app-server", "--stdio"], { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] });
   let sequence = 0;
   let waiting;
@@ -178,17 +177,19 @@ async function settledDescendants(threadId, onSettled) {
   try {
     await request("initialize", { clientInfo: { name: "agent-smith", version: "1" }, capabilities: { experimentalApi: true } });
     server.stdin.write(JSON.stringify({ method: "initialized", params: {} }) + "\n");
-    const completed = async (id) => {
+    const settledTurn = async (id, allowFailed) => {
       const page = await request("thread/turns/list", { threadId: id, limit: 1, sortDirection: "desc", itemsView: "notLoaded" });
       const turn = page.data?.[0];
-      if (!Array.isArray(page.data) || page.data.length !== 1 || turn?.status !== "completed"
+      const terminal = turn?.status === "completed" || (allowFailed && turn?.status === "failed");
+      if (!Array.isArray(page.data) || page.data.length !== 1 || !terminal
         || !Number.isSafeInteger(turn.completedAt) || turn.completedAt <= 0
         || (turn.startedAt != null && (!Number.isSafeInteger(turn.startedAt) || turn.startedAt > turn.completedAt))) {
-        refuse("Native parent or descendant has no proven completed latest turn.");
+        refuse(allowFailed ? "Native parent has no proven terminal latest turn."
+          : "Native parent or descendant has no proven completed latest turn.");
       }
       return { id, turn };
     };
-    const threads = [await completed(threadId)];
+    const threads = [await settledTurn(threadId, rejectedResult)];
     const enumerate = async () => {
       const descendants = new Set();
       for (const archived of [false, true]) {
@@ -215,13 +216,14 @@ async function settledDescendants(threadId, onSettled) {
       return descendants;
     };
     const descendants = await enumerate();
-    for (const id of descendants) threads.push(await completed(id));
+    for (const id of descendants) threads.push(await settledTurn(id, false));
     // A child may have spawned another child while its first metadata read was in flight.
     const finalDescendants = await enumerate();
     if (finalDescendants.size !== descendants.size || [...finalDescendants].some(id => !descendants.has(id))) {
       refuse("Native descendant membership changed during reconciliation.");
     }
     onSettled();
+    if (rejectedResult) return;
     // Closure is already proved. Optional accounting metadata cannot retain native execution ownership.
     clearTimeout(timer);
     const deadline = Date.now() + CODEX_USAGE_LIMITS.readMs;
@@ -258,7 +260,7 @@ function readResult(message) {
   return result;
 }
 
-export async function runCodex(id, chain, action) {
+export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } = {}) {
   const envelope = { action: "codex-result", launched: false, completed: false, result: null };
   let lock;
   let temp;
@@ -273,7 +275,7 @@ export async function runCodex(id, chain, action) {
       catch (error) { if (error.code !== "ESRCH") throw error; }
     };
     kill(signal);
-    killTimer ??= setTimeout(() => kill("SIGKILL"), 5000);
+    killTimer ??= setTimeout(() => kill("SIGKILL"), terminationGraceMs);
   };
   const onInt = () => terminate("SIGINT");
   const onTerm = () => terminate("SIGTERM");
@@ -354,6 +356,7 @@ export async function runCodex(id, chain, action) {
     const decoder = new StringDecoder("utf8");
     let protocolError;
     let terminal;
+    let interrupted = false;
     let latestUsage;
     let finalMessage;
     let delegated = false;
@@ -367,10 +370,11 @@ export async function runCodex(id, chain, action) {
         if (e.item?.type === "collab_tool_call") delegated = true;
         if (e.type === "thread.started" && rootThread === undefined) {
           if (typeof e.thread_id !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(e.thread_id)) throw new Error();
+          lock.setThread(e.thread_id);
           rootThread = e.thread_id;
-          lock.setThread(rootThread);
         }
         if (e.thread_id !== undefined && e.thread_id !== rootThread) return;
+        if (e.type === "turn.interrupted") interrupted = true;
         if (e.type === "turn.started") terminal = "started";
         if (["turn.completed", "turn.failed", "turn.interrupted", "error"].includes(e.type)) terminal = e.type;
         if (e.type === "turn.completed") latestUsage = e.usage;
@@ -397,18 +401,42 @@ export async function runCodex(id, chain, action) {
     if (pending) event(pending);
     if (cancelled) refuse(`Execution cancelled by ${cancelled}. Native settlement is unverified.`);
     if (completion.error) refuse(`Codex launch failed (${completion.error}).`);
-    if (completion.code !== 0) refuse("Codex exited unsuccessfully. The child result was not accepted.");
+    if (completion.signal) refuse(`Codex exited on signal ${completion.signal}. The child result was not accepted.`);
     if (protocolError) refuse(protocolError);
-    if (terminal !== "turn.completed") refuse("Codex has no final successful completed turn.");
-    const stat = fs.lstatSync(finalFile);
-    if (!stat.isFile() || stat.size > MAX_MESSAGE) refuse("Codex final message file is missing or oversized.");
-    const reply = fs.readFileSync(finalFile, "utf8");
-    if (typeof finalMessage !== "string" || finalMessage !== reply) refuse("Codex final file does not match the final assistant message.");
-    const result = readResult(reply);
-    const settled = await settledDescendants(rootThread, () => {
-      if (cancelled) refuse(`Execution cancelled by ${cancelled} during native reconciliation.`);
-      lock.clearChild(true);
-    });
+    if (interrupted && action.action === "run") refuse("The Codex root turn was interrupted.");
+    if (!rootThread) refuse("Missing native parent identity.");
+    const canSettleFailure = envelope.launched && action.action === "run";
+    let rejection;
+    let result;
+    let reply;
+    if (completion.code !== 0) {
+      rejection = "Codex exited unsuccessfully. The child result was not accepted.";
+      if (!canSettleFailure || !Number.isInteger(completion.code)) refuse(rejection);
+    } else if (canSettleFailure && terminal === "turn.failed") {
+      rejection = "Codex has no final successful completed turn.";
+    } else {
+      if (terminal !== "turn.completed") refuse("Codex has no final successful completed turn.");
+      const stat = fs.lstatSync(finalFile);
+      if (!stat.isFile() || stat.size > MAX_MESSAGE) refuse("Codex final message file is missing or oversized.");
+      reply = fs.readFileSync(finalFile, "utf8");
+      if (typeof finalMessage !== "string" || finalMessage !== reply) refuse("Codex final file does not match the final assistant message.");
+      try { result = readResult(reply); }
+      catch (error) {
+        if (!canSettleFailure) throw error;
+        rejection = failureReason(error);
+      }
+    }
+    let settled;
+    try {
+      settled = await settledDescendants(rootThread, Boolean(rejection), () => {
+        if (cancelled) refuse(`Execution cancelled by ${cancelled} during native reconciliation.`);
+        lock.clearChild(true);
+      });
+    } catch (error) {
+      if (rejection) refuse(`${rejection} Native settlement failed: ${failureReason(error)}`);
+      throw error;
+    }
+    if (rejection) refuse(rejection);
     const accounting = collectCodexUsage({ rootThreadId: rootThread, ...settled, delegated, execUsage: latestUsage });
     Object.assign(envelope.usage, accounting.usage);
     envelope.usageEvidence = accounting.usageEvidence;
@@ -427,7 +455,10 @@ export async function runCodex(id, chain, action) {
     clearTimeout(killTimer);
     if (temp) {
       try { removeTree(temp); }
-      catch { envelope.completed = false; envelope.reason = "Codex temporary-file cleanup failed."; }
+      catch {
+        envelope.completed = false;
+        envelope.reason = [envelope.reason, "Codex temporary-file cleanup failed."].filter(Boolean).join(" ").slice(0, 2048);
+      }
     }
     const retained = lock?.retainedReason();
     if (retained) {

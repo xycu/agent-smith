@@ -169,6 +169,7 @@ process.stdin.on("end", async () => {
     process.stdout.write(bytes.subarray(i, i + fragment));
     await new Promise(resolve => setImmediate(resolve));
   }
+  if (mode.exitSignal) process.kill(process.pid, mode.exitSignal);
   process.exitCode = mode.code ?? 0;
 });
 `;
@@ -195,6 +196,11 @@ export function calls(fixture) {
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : [];
 }
 
+export function metadataCalls(fixture) {
+  const file = path.join(fixture, "metadata-calls.jsonl");
+  return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : [];
+}
+
 // Git/toolchain helpers can leave their own files in TMPDIR. Keep cleanup assertions scoped to our runner.
 export function runnerLeftovers(w) {
   return fs.readdirSync(w.tmp).filter(name => name.startsWith("agent-smith-"));
@@ -211,8 +217,18 @@ export function execute(w, action = w.action) {
   return { ...result, json: JSON.parse(result.stdout) };
 }
 
-export function startRunner(w) {
-  const child = spawn(process.execPath, [RUNNER, w.project.id, "--chain", w.chain], {
+export function startRunner(w, { terminationGraceMs } = {}) {
+  const args = terminationGraceMs === undefined ? [RUNNER, w.project.id, "--chain", w.chain] : [
+    "--input-type=module", "-e", `
+      import { text } from "node:stream/consumers";
+      import { runCodex } from ${JSON.stringify(new URL("../scripts/run-codex.mjs", import.meta.url).href)};
+      const [id, chain, grace] = process.argv.slice(1);
+      const result = await runCodex(id, chain, JSON.parse(await text(process.stdin)), { terminationGraceMs: Number(grace) });
+      process.stdout.write(JSON.stringify(result));
+      process.exitCode = result.completed ? 0 : 1;
+    `, w.project.id, w.chain, String(terminationGraceMs),
+  ];
+  const child = spawn(process.execPath, args, {
     cwd: w.project.root, env: w.env, stdio: ["pipe", "pipe", "pipe"],
   });
   let stdout = "";

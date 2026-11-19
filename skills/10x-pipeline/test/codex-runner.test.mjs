@@ -3,13 +3,14 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { setTimeout } from "node:timers/promises";
 import {
   cleanupAll, run, writeOverride, writeResult, readLogEntries, writeLog, writeMetaFile, entry,
   planText, gitInit, commitFiles, git,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
-import { codexFixture, execute, calls, setMode, startRunner, waitForFile, runnerLeftovers } from "./codex-helpers.mjs";
+import { codexFixture, execute, calls, metadataCalls, setMode, startRunner, waitForFile, runnerLeftovers } from "./codex-helpers.mjs";
 
 after(cleanupAll);
 const PRESET = JSON.parse(fs.readFileSync(new URL("../codex-policy.json", import.meta.url), "utf8"));
@@ -17,6 +18,20 @@ const PRESET = JSON.parse(fs.readFileSync(new URL("../codex-policy.json", import
 function snapshot(dir) {
   return Object.fromEntries(fs.readdirSync(dir, { recursive: true }).sort().filter(file => fs.statSync(path.join(dir, file)).isFile())
     .map(file => [file, fs.readFileSync(path.join(dir, file), "base64")]));
+}
+
+function assertNativeSuspension(w, reason) {
+  const leftovers = runnerLeftovers(w);
+  assert.equal(leftovers.length, 1, "only native ownership remains");
+  const lock = path.join(w.tmp, leftovers[0]);
+  assert.match(lock, /\.lock$/);
+  assert.ok(reason.startsWith(`Execution suspended: native ownership unresolved (lock file ${lock}, thread root-fixture).`), reason);
+  assert.ok(reason.length <= 2048);
+  assert.match(reason, /Keep the enabling revision and TMPDIR/);
+  assert.match(reason, /Await an active runner through its existing handle/);
+  assert.match(reason, /authorized owner must inspect the recorded thread and its descendants, prove settlement and arrange router-owned recovery before mutation, relaunch or publication/);
+  assert.match(reason, /Automatic recovery for a retained native lock is unavailable/);
+  return lock;
 }
 
 for (const chain of ["10x", "openspec"]) {
@@ -216,24 +231,125 @@ for (const chain of ["10x", "openspec"]) {
 
 const reply = 'RESULT: {"status":"done"}';
 const agent = { type: "item.completed", item: { type: "agent_message", text: reply } };
-for (const [label, mode, ok, tokens] of [
-  ["latest cumulative snapshot", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 50, output_tokens: 5 } }, { type: "turn.completed", usage: { input_tokens: 100, output_tokens: 10 } }] }, true, 110],
-  ["missing usage", { reply, events: [agent, { type: "turn.completed" }] }, true, undefined],
-  ["negative usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: -1, output_tokens: 2 } }] }, true, undefined],
-  ["unsafe usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 9007199254740992, output_tokens: 2 } }] }, true, undefined],
-  ["overflowing total", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: Number.MAX_SAFE_INTEGER, output_tokens: 2 } }] }, true, undefined],
-  ["last malformed RESULT", { reply: reply + "\nRESULT: broken" }, false],
-  ["missing RESULT", { reply: "No result" }, false],
-  ["model-authored accounting is replaced", { reply: 'RESULT: {"status":"done","usage":{"totalTokens":1,"toolUses":999},"usageEvidence":{"status":"verified","path":"/private-source"}}' }, true, 110],
-  ["RESULT array", { reply: "RESULT: []" }, false],
-  ["child self-declared orchestration fault", { reply: 'RESULT: {"status":"orchestrator-error"}' }, true, 110],
-  ["nonzero exit after plausible result", { code: 1 }, false],
-  ["missing completed turn", { reply, events: [agent] }, false],
-  ["later failed turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.failed" }] }, false],
-  ["later interrupted turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.interrupted" }] }, false],
-  ["later unfinished turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.started" }] }, false],
-  ["different final file", { fileReply: reply + "\nRESULT: {}" }, false],
-  ["valid unsuccessful child result", { reply: 'RESULT: {"status":"failed","note":"check failed","signals":{"needsHuman":"review"}}' }, true, 110],
+const failedRoot = { status: "failed", startedAt: 10, completedAt: 20 };
+const failedTurn = { fileReply: "", events: [{ type: "turn.failed" }], turns: { "root-fixture": { data: [failedRoot] } } };
+const unsuccessfulExit = /Codex exited unsuccessfully\. The child result was not accepted\./;
+
+for (const chain of ["10x", "openspec"]) {
+  for (const [label, mode, reason] of [
+    ["nonzero exit after valid completion", { code: 1 }, unsuccessfulExit],
+    ["nonzero exit with a failed turn and no assistant message", { ...failedTurn, code: 1 }, unsuccessfulExit],
+    ["zero exit with a failed turn", failedTurn, /no final successful completed turn/],
+    ["matching reply without a RESULT", { reply: "No result" }, /no RESULT line/],
+    ["matching reply with an invalid last RESULT", { reply: reply + "\nRESULT: broken" }, /last RESULT line is invalid/],
+  ]) {
+    test(`${chain}: settled failed attempt allows retry after ${label}`, () => {
+      const w = codexFixture(chain, { mode });
+      const before = snapshot(w.project.agentDir);
+      const result = execute(w);
+      assert.equal(result.status, 1, result.stdout);
+      const { launched, completed, result: report, usage, usageEvidence, reason: note } = result.json;
+      assert.equal(launched, true);
+      assert.equal(completed, false);
+      assert.equal(report, null);
+      assert.equal(result.json.exitCode, mode.code ?? 0);
+      assert.equal(result.json.signal, null);
+      assert.match(note, reason);
+      assert.doesNotMatch(note, /Execution suspended:/);
+      assert.ok(Number.isSafeInteger(usage.durationMs) && usage.durationMs >= 0);
+      assert.deepEqual(usage, { durationMs: usage.durationMs });
+      assert.equal(usageEvidence, undefined);
+      assert.deepEqual(runnerLeftovers(w), []);
+      assert.deepEqual(snapshot(w.project.agentDir), before);
+      const requests = metadataCalls(w.fixture);
+      assert.deepEqual(requests.filter(call => call.method === "thread/turns/list").map(call => call.params.threadId), ["root-fixture"]);
+      assert.deepEqual(requests.filter(call => call.method === "thread/list").map(call => call.params.archived), [false, true, false, true]);
+      assert.equal(requests.some(call => call.method === "thread/read"), false);
+
+      writeResult(w.project, { status: "unknown", note, usage });
+      const retry = run(w.project, ["next", w.project.id, "--chain", chain], { env: w.env });
+      const failed = readLogEntries(w.project).find(entry => entry.n === w.action.n);
+      assert.equal(failed.result.status, "unknown");
+      assert.equal(failed.result.note, note);
+      assert.equal(failed.ok, false);
+      assert.equal(failed.usage.durationMs, usage.durationMs);
+      assert.equal(failed.result.usage.durationMs, usage.durationMs);
+      assert.equal(retry.json.action, "run", retry.stdout);
+      assert.equal(retry.json.step, w.action.step);
+      assert.ok(retry.json.n > w.action.n);
+      setMode(w, {});
+      const retried = execute(w, retry.json);
+      assert.equal(retried.status, 0, retried.stdout);
+      assert.equal(retried.json.completed, true, retried.stdout);
+      assert.deepEqual(runnerLeftovers(w), []);
+    });
+  }
+
+  for (const [label, mode, reason, reconciles] of [
+    ["untimestamped failed root", { ...failedTurn, turns: { "root-fixture": { data: [{ status: "failed", startedAt: 10 }] } } },
+      /exited unsuccessfully.*Native settlement failed:.*terminal latest turn/, true],
+    ["interrupted root in metadata only", { ...failedTurn, turns: { "root-fixture": { data: [{ ...failedRoot, status: "interrupted" }] } } },
+      /exited unsuccessfully.*Native settlement failed:.*terminal latest turn/, true],
+    ["timestamped failed descendant", { ...failedTurn, pages: { true: { first: { data: [{ id: "child" }], nextCursor: null } } },
+      turns: { ...failedTurn.turns, child: { data: [failedRoot] } } },
+      /exited unsuccessfully.*Native settlement failed:.*completed latest turn/, true],
+    ["malformed JSONL", { ...failedTurn, malformedJson: true }, /malformed JSONL/, false],
+    ["explicit root interruption before a later error", { ...failedTurn, events: [{ type: "turn.interrupted", thread_id: "root-fixture" }, { type: "error" }] },
+      /root turn was interrupted/, false],
+    ["signalled child exit", { ...failedTurn, exitSignal: "SIGTERM" }, /exited on signal SIGTERM/, false],
+  ]) {
+    test(`${chain}: failed attempt retains native ownership after ${label}`, () => {
+      const w = codexFixture(chain, { mode: { ...mode, code: 1 } });
+      const before = snapshot(w.project.agentDir);
+      const result = execute(w);
+      assert.equal(result.status, 1, result.stdout);
+      assert.equal(result.json.launched, true);
+      assert.equal(result.json.completed, false);
+      assert.equal(result.json.result, null);
+      assert.equal(result.json.signal, mode.exitSignal ?? null);
+      assert.match(result.json.reason, reason);
+      const lock = assertNativeSuspension(w, result.json.reason);
+      const ownership = fs.readFileSync(lock, "utf8");
+      assert.deepEqual(snapshot(w.project.agentDir), before);
+      const requests = metadataCalls(w.fixture);
+      assert.equal(requests.some(call => call.method === "thread/turns/list"), reconciles);
+      assert.equal(requests.some(call => call.method === "thread/read"), false);
+      assert.equal(run(w.project, ["status", w.project.id, "--chain", chain], { env: w.env }).status, 0);
+
+      writeResult(w.project, { status: "unknown", note: "must remain untouched" });
+      const pending = snapshot(w.project.agentDir);
+      const next = run(w.project, ["next", w.project.id, "--chain", chain], { env: w.env });
+      assert.equal(next.json.action, "halt", next.stdout);
+      assertNativeSuspension(w, next.json.reason);
+      const beforeRelaunch = calls(w.fixture);
+      const relaunch = execute(w);
+      assert.equal(relaunch.json.launched, false);
+      assertNativeSuspension(w, relaunch.json.reason);
+      assert.deepEqual(calls(w.fixture), beforeRelaunch);
+      assert.equal(fs.readFileSync(lock, "utf8"), ownership);
+      assert.deepEqual(snapshot(w.project.agentDir), pending);
+    });
+  }
+}
+
+for (const [label, mode, ok, retainsLock, tokens] of [
+  ["latest cumulative snapshot", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 50, output_tokens: 5 } }, { type: "turn.completed", usage: { input_tokens: 100, output_tokens: 10 } }] }, true, false, 110],
+  ["missing usage", { reply, events: [agent, { type: "turn.completed" }] }, true, false],
+  ["negative usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: -1, output_tokens: 2 } }] }, true, false],
+  ["unsafe usage", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: 9007199254740992, output_tokens: 2 } }] }, true, false],
+  ["overflowing total", { reply, events: [agent, { type: "turn.completed", usage: { input_tokens: Number.MAX_SAFE_INTEGER, output_tokens: 2 } }] }, true, false],
+  ["last malformed RESULT", { reply: reply + "\nRESULT: broken" }, false, false],
+  ["missing RESULT", { reply: "No result" }, false, false],
+  ["model-authored accounting is replaced", { reply: 'RESULT: {"status":"done","usage":{"totalTokens":1,"toolUses":999},"usageEvidence":{"status":"verified","path":"/private-source"}}' }, true, false, 110],
+  ["RESULT array", { reply: "RESULT: []" }, false, false],
+  ["child self-declared orchestration fault", { reply: 'RESULT: {"status":"orchestrator-error"}' }, true, false, 110],
+  ["nonzero exit after plausible result", { code: 1 }, false, false],
+  ["missing completed turn", { reply, events: [agent] }, false, true],
+  ["later failed turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.failed" }] }, false, false],
+  ["later interrupted turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.interrupted" }] }, false, true],
+  ["later unfinished turn", { reply, events: [agent, { type: "turn.completed" }, { type: "turn.started" }] }, false, true],
+  ["different final file", { fileReply: reply + "\nRESULT: {}" }, false, true],
+  ["valid unsuccessful child result", { reply: 'RESULT: {"status":"failed","note":"check failed","signals":{"needsHuman":"review"}}' }, true, false, 110],
 ]) {
   test(`completion boundary accepts ${label} only when evidence is valid`, () => {
     const w = codexFixture("10x", { mode });
@@ -251,7 +367,7 @@ for (const [label, mode, ok, tokens] of [
     if (label === "child self-declared orchestration fault") assert.equal(result.json.result.status, "unknown");
     if (label === "valid unsuccessful child result") assert.equal(result.json.result.status, "failed");
     if (!ok) assert.equal(result.json.result, null);
-    assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, ok ? 0 : 1);
+    assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, retainsLock ? 1 : 0);
   });
 }
 
@@ -266,32 +382,38 @@ test("an oversized completed JSONL record is refused with bounded diagnostics", 
   assert.equal(runnerLeftovers(w).filter(name => name.endsWith(".lock")).length, 1);
 });
 
+function archiveFixture(chain) {
+  const w = codexFixture(chain);
+  const p = w.project;
+  if (chain === "10x") {
+    writePlan(p, planText({ done: 1 }));
+    fs.writeFileSync(path.join(p.changeDir, "change.md"), "---\nchange_id: demo\nstatus: impl_reviewed\ncreated: 2026-01-01\n---\n");
+    writeReview(p, "plan-review", { verdict: "SOUND" });
+    writeReview(p, "impl-review", { verdict: "APPROVED" });
+  } else {
+    writeArtifacts(p, { proposal: true, design: true, specs: 1, tasks: { done: 1 }, verify: "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n" });
+  }
+  writeLog(p, [entry(1, chain === "10x" ? "implement" : "os-apply", { provider: "openai", profile: null }),
+    entry(2, chain === "10x" ? "impl-review" : "os-verify", { provider: "openai", profile: null })]);
+  writeMetaFile(p, { id: p.id, host: "codex", goal: "fixture", archive: true, ...(chain === "openspec" ? { chain } : {}) });
+  gitInit(p);
+  commitFiles(p, ["README.md"]);
+  const archive = run(p, ["next", p.id, "--chain", chain], { env: w.env });
+  assert.equal(archive.json.action, "archive", archive.stdout);
+  w.action = archive.json;
+  return w;
+}
+
 for (const chain of ["10x", "openspec"]) {
   test(`${chain}: archive returns reply after folder move without recreating run state`, () => {
-    const w = codexFixture(chain);
-    const p = w.project;
-    if (chain === "10x") {
-      writePlan(p, planText({ done: 1 }));
-      fs.writeFileSync(path.join(p.changeDir, "change.md"), "---\nchange_id: demo\nstatus: impl_reviewed\ncreated: 2026-01-01\n---\n");
-      writeReview(p, "plan-review", { verdict: "SOUND" });
-      writeReview(p, "impl-review", { verdict: "APPROVED" });
-    } else {
-      writeArtifacts(p, { proposal: true, design: true, specs: 1, tasks: { done: 1 }, verify: "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n" });
-    }
-    writeLog(p, [entry(1, chain === "10x" ? "implement" : "os-apply", { provider: "openai", profile: null }),
-      entry(2, chain === "10x" ? "impl-review" : "os-verify", { provider: "openai", profile: null })]);
-    writeMetaFile(p, { id: p.id, host: "codex", goal: "fixture", archive: true, ...(chain === "openspec" ? { chain } : {}) });
-    gitInit(p);
-    commitFiles(p, ["README.md"]);
-    const archive = run(p, ["next", p.id, "--chain", chain], { env: w.env });
-    assert.equal(archive.json.action, "archive", archive.stdout);
-    w.action = archive.json;
+    const w = archiveFixture(chain);
+    const { project: p, action: archive } = w;
     const before = snapshot(p.agentDir);
     const oldHead = git(p, ["rev-parse", "HEAD"]);
-    const moved = path.join(p.root, archive.json.archivePath);
+    const moved = path.join(p.root, archive.archivePath);
     fs.mkdirSync(path.dirname(moved), { recursive: true });
     for (const field of ["archivePath", "profile"]) {
-      const bad = execute(w, { ...archive.json, [field]: field === "profile" ? "other" : "context/archive/wrong" });
+      const bad = execute(w, { ...archive, [field]: field === "profile" ? "other" : "context/archive/wrong" });
       assert.equal(bad.json.launched, false);
     }
     setMode(w, { moveFrom: p.changeDir, moveTo: moved });
@@ -304,6 +426,21 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(git(p, ["rev-parse", "HEAD"]), oldHead, "runner does not commit or sweep child work");
     assert.equal(execute(w).json.launched, false, "moved archive cannot run twice");
     assert.deepEqual(runnerLeftovers(w), []);
+  });
+
+  test(`${chain}: archive failure retains native ownership despite a timestamped failed root`, () => {
+    const w = archiveFixture(chain);
+    setMode(w, { ...failedTurn, code: 1 });
+    const before = snapshot(w.project.agentDir);
+    const result = execute(w);
+    assert.equal(result.status, 1, result.stdout);
+    assert.equal(result.json.launched, true);
+    assert.equal(result.json.completed, false);
+    assert.equal(result.json.result, null);
+    assert.match(result.json.reason, unsuccessfulExit);
+    assertNativeSuspension(w, result.json.reason);
+    assert.deepEqual(metadataCalls(w.fixture), []);
+    assert.deepEqual(snapshot(w.project.agentDir), before);
   });
 }
 
@@ -333,6 +470,45 @@ test("fake child readiness guarantees immediate cancellation can be handled", as
   assert.match(result.json.reason, /Execution suspended:/);
 });
 
+test("SIGTERM grace expires while the fake child is held and awaits SIGKILL close", async (t) => {
+  const w = codexFixture("10x", { mode: { hold: true, holdUntilRelease: true } });
+  const running = startRunner(w, { terminationGraceMs: 750 });
+  let childCollected = false;
+  t.after(() => {
+    if (childCollected) return;
+    const model = calls(w.fixture).find(call => call.args[0] === "exec");
+    if (model) {
+      try { process.kill(model.pid, "SIGKILL"); }
+      catch (error) { if (error.code !== "ESRCH") throw error; }
+    }
+    if (running.child.exitCode === null && running.child.signalCode === null) running.child.kill("SIGKILL");
+    return Promise.race([running.closed, setTimeout(2000, null, { ref: false })]);
+  });
+  const ready = path.join(w.fixture, "ready");
+  await waitForFile(ready);
+  const pid = Number(fs.readFileSync(ready, "utf8"));
+  const args = calls(w.fixture).find(call => call.args[0] === "exec").args;
+  const temp = path.dirname(args[args.indexOf("-o") + 1]);
+  assert.equal(fs.existsSync(temp), true);
+  const start = performance.now();
+  assert.equal(running.child.kill("SIGTERM"), true);
+  const result = await Promise.race([running.closed, setTimeout(4000, null, { ref: false })]);
+  assert.ok(result && performance.now() - start < 4000, "runner must close within the shortened grace deadline");
+  assert.throws(() => process.kill(pid, 0), { code: "ESRCH" });
+  childCollected = true;
+  assert.equal(fs.readFileSync(path.join(w.fixture, "terminating"), "utf8"), "yes");
+  assert.equal(result.code, 1, result.stdout + result.stderr);
+  assert.equal(result.signal, null);
+  assert.equal(result.json.launched, true);
+  assert.equal(result.json.completed, false);
+  assert.equal(result.json.result, null);
+  assert.equal(result.json.exitCode, null);
+  assert.equal(result.json.signal, "SIGKILL");
+  assert.match(result.json.reason, /Execution cancelled by SIGTERM/);
+  assertNativeSuspension(w, result.json.reason);
+  assert.equal(fs.existsSync(temp), false);
+});
+
 for (const chain of ["10x", "openspec"]) {
   test(`${chain}: recursive paginated metadata accounts for settled archived children once`, () => {
     const w = codexFixture(chain, { mode: {
@@ -348,7 +524,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(result.json.usageEvidence.sessionCount, 4);
     assert.equal(result.json.usageEvidence.requestCount, 4);
     assert.deepEqual(runnerLeftovers(w), []);
-    const requests = fs.readFileSync(path.join(w.fixture, "metadata-calls.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+    const requests = metadataCalls(w.fixture);
     const turns = requests.filter(r => r.method === "thread/turns/list");
     assert.deepEqual(turns.map(r => r.params.threadId), ["root-fixture", "child-one", "child-two", "archived-child"]);
     for (const r of turns) assert.deepEqual(r.params, { threadId: r.params.threadId, limit: 1, sortDirection: "desc", itemsView: "notLoaded" });
@@ -367,6 +543,7 @@ for (const chain of ["10x", "openspec"]) {
     ["mismatched response", { mismatchedResponse: true }],
     ["unfinished parent", { turns: { "root-fixture": { data: [{ status: "interrupted", completedAt: null }] } } }],
     ["missing timestamp", { turns: { "root-fixture": { data: [{ status: "completed" }] } } }],
+    ["failed parent after successful report", { turns: failedTurn.turns }],
     ["malformed enumeration", { pages: { false: { first: { data: [] } } } }],
     ["parent returned as child", { pages: { false: { first: { data: [{ id: "root-fixture" }], nextCursor: null } } } }],
     ["cursor cycle", { pages: { false: { first: { data: [], nextCursor: "first" } } } }],
@@ -427,7 +604,7 @@ for (const chain of ["10x", "openspec"]) {
       assert.deepEqual(snapshot(w.project.agentDir), before);
       assert.deepEqual(runnerLeftovers(w), []);
       assert.equal(calls(w.fixture).filter(call => call.args[0] === "exec").length, 1);
-      const requests = fs.readFileSync(path.join(w.fixture, "metadata-calls.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+      const requests = metadataCalls(w.fixture);
       assert.equal(requests.some(request => /resume|turn\/start/.test(request.method)), false);
       assert.equal(run(w.project, ["status", w.project.id, "--report", "--chain", chain], { env: w.env }).status, 0);
     });

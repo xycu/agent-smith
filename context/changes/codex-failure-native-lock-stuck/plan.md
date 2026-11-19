@@ -130,10 +130,10 @@ The runner and the router continue to use the existing lock record, dispatch and
 
 #### Automated
 
-- [ ] 1.1 Fake Codex proves nonzero exit, failed turn and missing or invalid RESULT handling, including both-chain `unknown` intake and an executable retry.
-- [ ] 1.2 Fake Codex proves unproved closure retains the lock, preserves pending state, blocks mutation and relaunch, and identifies the owner recovery prerequisite.
-- [ ] 1.3 The injected SIGTERM grace test observes SIGKILL, awaited close, temporary-file cleanup and retained native ownership.
-- [ ] 1.4 The focused runner and lock tests and the required full Node test suite pass locally.
+- [x] 1.1 Fake Codex proves nonzero exit, failed turn and missing or invalid RESULT handling, including both-chain `unknown` intake and an executable retry.
+- [x] 1.2 Fake Codex proves unproved closure retains the lock, preserves pending state, blocks mutation and relaunch, and identifies the owner recovery prerequisite.
+- [x] 1.3 The injected SIGTERM grace test observes SIGKILL, awaited close, temporary-file cleanup and retained native ownership.
+- [x] 1.4 The focused runner and lock tests and the required full Node test suite pass locally.
 
 #### Manual
 
