@@ -50,7 +50,7 @@ The change covers dispatch, compatible ladder selection, headless Claude settlem
 
 ## Implementation Approach
 
-Deliver three phases. Provider selection first makes policy and stored-mode behavior testable without a provider process. The second phase qualifies a guarded runner against fake CLI fixtures. The third phase connects both orchestrators and documents the live acceptance cases. Continue through Automated checks unattended and record Manual rows in canonical Progress for later verification.
+The first three phases cover provider selection, the guarded runner and both orchestrators. Phase 4 verifies the fixes from implementation review on the current candidate. Its checks run locally. Authenticated host qualification and post-publication acceptance stay in Manual rows 3.2 and 3.3.
 
 ## Open Risks & Assumptions
 
@@ -192,6 +192,57 @@ Update both argument hints and consume either mode flag form before deriving the
 
 The owner or an authorized top-level session performs fresh-host qualification on the final candidate across all six host/mode combinations for each chain. Leave 3.2 and 3.3 pending during unattended in-run verification. Surface any pending rows through the existing archive gate. Claims of live support require recorded qualification evidence for the relevant combination.
 
+## Phase 4: Verify the implementation review fixes
+
+### Overview
+
+**Assumption.** The REJECTED verdict describes candidate `ff22d32f`. The reviewer recorded F1–F8 as applied in `84205bf02744`, which is on the run branch. Verify each fix against the current candidate using the existing fixtures first. If a fixture misses the reported case, add the missing assertion. If it fails, correct the behavior at the source named below and rerun it. [Implementation review](reviews/impl-review.md)
+
+### Changes Required:
+
+#### 1. Verify Claude settlement and accounting (F1, F4)
+
+**Intent** Keep ownership until the enclosing session has demonstrably finished. Preserve the cost evidence for work that ran, including attempts that yield no usable RESULT.
+
+**Contract** In `run-claude.mjs`, success requires a matching Stop, terminal reply and boolean `is_error: false`. A supported failure subtype requires `is_error: true`. A missing or invalid flag, unknown subtype, mismatched reply or subsequent enclosing assistant output suspends execution and retains the native lock. Parse only the verified terminal reply. For an ordinary step with verified closure, preserve valid failed or blocked RESULTs. For a supported CLI failure or malformed RESULT, verify lock release and follow the runner’s measured duration and unavailable `usageEvidence` through both skill loops’ unknown-result path. Assert that late numeric token attachment is refused.
+
+#### 2. Verify metadata recovery and capability checks (F2, F3, F5, F6, F7)
+
+**Intent** Preserve saved provider choices and require the executing session to have the capabilities the pending action needs.
+
+**Contract**
+
+- **F2.** In a scratch run with a log, exercise `route.mjs` with malformed JSON and a non-object metadata value. Snapshot the change directory before `init`, `next`, `usage` and `status --report`. Each must halt for recovery with identical file bytes. Plain `status` stays readable. Use both chains and retain the existing cases for fresh init and valid mode-less metadata.
+- **F3, F6.** Trace `advisorOn` in `flow.mjs` through headless manual verification. Opting in under either `manual-verify` or `manual-verify-headless` must reach the runner’s native-advisor refusal. Independently, list the required skill in the fake Claude catalog but omit `Skill` from the session’s tools. Both refusals must precede work dispatch.
+- **F5.** Exercise `run-codex.mjs` through the shared `runner-dispatch.mjs` checks before and after preflight. An invalidated policy or change to the proved skill, template or advisor must prevent model launch. With matching requirements the saved model, effort and prompt still govern the pending action.
+- **F7.** Feed `runner-toolkit.mjs` a fake discovery response that exceeds its 4 MiB byte limit without a newline. Assert the size-limit diagnostic before the probe timeout. Keep the successful discovery fixture as the control.
+
+#### 3. Compare CLI help and the transport reference with local behavior (F8)
+
+**Intent** Give operators accurate flag, evidence and guard rules for the installed revision.
+
+**Contract** Use local CLI assertions to check that the no-argument usage hint lists both host and provider mode and that the unknown-init-flag diagnostic matches the flag list in `docs/REFERENCE.md`. Check the reference against fixtures that reject `browser-` evidence on new no-Chrome dispatches and preserve historical Claude evidence rules when capability is absent. Guard fixtures must confirm the documented identity checks and oversized Bash rejection for the headless main step and its leaves.
+
+### Success Criteria
+
+#### Automated Verification:
+
+- F1 and F4. Claude fixtures prove that ambiguous completion retains the lock and that settled failures preserve duration and unavailable token evidence through intake in both skill loops.
+- F2. Both chain fixtures prove that damaged metadata on a logged run prevents writes and leaves plain status available, while fresh and valid legacy runs retain their routing.
+- F3 and F6. Headless Claude refuses work when the manual verification template requires a native advisor or a listed skill lacks its invocation tool.
+- F5 and F7. Codex fixtures prove that dispatch drift prevents launch after preflight and that oversized, unterminated toolkit output hits the discovery byte limit.
+- F8. Local CLI output and transport fixtures agree with the reference on init flags, no-Chrome evidence and headless Bash guard scope.
+
+Run the focused Node 24 gate below from the repository root with local fake providers. Run the full gate in Testing Strategy after any implementation change.
+
+```sh
+node --test --test-concurrency=2 skills/10x-pipeline/test/{claude-runner,codex-runner,providers,host-integration,route,manualverify,step-guard}.test.mjs
+```
+
+#### Manual Verification:
+
+Fresh-host and publication evidence belong to the existing rows 3.2 and 3.3.
+
 ## Testing Strategy
 
 ### Unit Tests
@@ -258,3 +309,13 @@ Existing router-owned `meta.json` and `run.jsonl` require no rewrite. Resume mod
 
 - [ ] 3.2 Qualify both skills on fresh Claude Code and Codex sessions in both split directions and exercise each full mode, including headless Claude's exact guard allow/deny behavior, toolkit discovery, implementation child collection, safe cancellation and archive.
 - [ ] 3.3 After orchestrator publication, verify the run branch, open PR and PR CI on its head, and verify report comment behavior only if the owner elected it.
+
+### Phase 4: Verify the implementation review fixes
+
+#### Automated
+
+- [ ] 4.1 F1 and F4. Claude fixtures prove that ambiguous completion retains the lock and that settled failures preserve duration and unavailable token evidence through intake in both skill loops.
+- [ ] 4.2 F2. Both chain fixtures prove that damaged metadata on a logged run prevents writes and leaves plain status available, while fresh and valid legacy runs retain their routing.
+- [ ] 4.3 F3 and F6. Headless Claude refuses work when the manual verification template requires a native advisor or a listed skill lacks its invocation tool.
+- [ ] 4.4 F5 and F7. Codex fixtures prove that dispatch drift prevents launch after preflight and that oversized, unterminated toolkit output hits the discovery byte limit.
+- [ ] 4.5 F8. Local CLI output and transport fixtures agree with the reference on init flags, no-Chrome evidence and headless Bash guard scope.

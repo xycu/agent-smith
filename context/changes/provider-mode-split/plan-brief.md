@@ -41,10 +41,11 @@ The router selects a provider for the step, then settles the tier on that provid
 | 1. Resolve and persist provider mode | Shared routing and legacy-compatible state with a visible provider assignment. | Alternate ladders must honor tier and effort bounds. |
 | 2. Add the guarded headless Claude runner | Exact dispatch, guard identity, settlement and truthful usage evidence. | Fresh headless behavior must preserve required permissions and child ownership. |
 | 3. Wire and document both pipeline skills | Both host loops, local integration gates and the Manual acceptance protocol. | Installed CLIs and skills may expose different capabilities. |
+| 4. Verify the implementation review fixes | Recheck F1–F8 on the current candidate with local fake providers, scratch runs and CLI help. | Ambiguous Claude completion could release the run lock and allow a retry while work is still active. |
 
 **Prerequisites** Node 24, Git, OpenSpec CLI 2.0.0 and scratch repositories for local tests. Authenticated supported CLIs and the upstream skills for each routed transport are required for live qualification.
 
-**Estimated effort** Three implementation phases plus a live qualification pass.
+**Estimated effort** Three implementation phases, one local review verification phase and a live qualification pass.
 
 ## Open Risks & Assumptions
 
@@ -55,6 +56,7 @@ The router selects a provider for the step, then settles the tier on that provid
 ## Success Criteria (Summary)
 
 - Local router fixtures prove all six host/mode combinations, both chains, exact retries and saved-run compatibility.
+- The review records all eight fixes in `84205bf02744`. Phase 4 verifies terminal ownership and failure accounting, metadata preservation, advisor and skill checks, Codex preflight and discovery bounds, and agreement between CLI help, transport behavior and documentation. [Implementation review](reviews/impl-review.md)
 - Fake CLI and guard fixtures prove dispatch identity, normalized results and suspension on uncertain closure. Fake Git and GitHub clients prove publication honors suspension. The full Node 24 suite runs locally before closing each code-changing phase.
 - During unattended verification, leave fresh-host qualification and post-publication checks pending. Qualify all six host/mode combinations per chain on the final candidate. After terminal publication, verify the branch, open PR and PR CI. Check report comments when the owner elected them.
 
