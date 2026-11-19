@@ -17,23 +17,34 @@ const payload = (command, extra = {}) => ({
 });
 function invoke(input, executable = script, options = {}) {
   const result = spawnSync(process.execPath, [executable], {
-    input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8", timeout: 5000, ...options,
+    input: typeof input === "string" || Buffer.isBuffer(input) ? input : JSON.stringify(input),
+    encoding: "utf8", timeout: 5000, ...options,
   });
   assert.equal(result.error, undefined, result.error?.message);
   return { ...result, decision: result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : null };
 }
-function denied(command) {
+function denied(command, reason = /orchestrator|preserv|forbidden/i) {
   const result = invoke(payload(command));
   assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
   assert.deepEqual(Object.keys(result.decision).sort(), ["hookEventName", "permissionDecision", "permissionDecisionReason"]);
   assert.equal(result.decision.hookEventName, "PreToolUse");
   assert.equal(result.decision.permissionDecision, "deny", command);
-  assert.match(result.decision.permissionDecisionReason, /orchestrator|preserv|forbidden/i);
+  assert.match(result.decision.permissionDecisionReason, reason);
 }
 function neutral(input) {
   const result = invoke(input);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "", "pass-through never grants permission");
+  assert.equal(result.stderr, "");
+}
+
+function failedClosed(input, reason = /failed closed/) {
+  const result = invoke(input);
+  assert.equal(result.status, 2, result.stdout);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /failed closed/);
+  assert.match(result.stderr, reason);
 }
 
 test("shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling", () => {
@@ -114,6 +125,120 @@ test("literal quotes, escapes and supported shell separators retain command posi
   ]) neutral(payload(command));
 });
 
+const heredocGuidance = /Heredoc.*Write tool/i;
+
+test("heredocs distinguish literal text routes from executable or unresolved recipients", () => {
+  const prose = 'it doesn\'t matter if a "quote remains open\nrm -rf build';
+  for (const command of [
+    "cat<<EOF\n" + prose + "\nEOF",
+    "cat << 'EOF' >notes.txt\n" + prose + "\nEOF\n",
+    "1>notes.txt cat 0<<EOF\n" + prose + "\nEOF\n",
+    "cat <<EOF >/dev/null\n" + prose + "\nEOF\n",
+    'cat <<EOF >"notes$"\n' + prose + "\nEOF\n",
+    'cat <<"EOF" >>"more notes.txt" # a comment\n' + prose + "\nEOF\n",
+    'cat <<EOF >\\\n>"more notes.txt"\n' + prose + "\nEOF\n",
+    "false |\\\n| cat <<EOF\n" + prose + "\nEOF\n",
+    "cat <<EOF | tee -a notes.txt\n" + prose + "\nEOF\n",
+    "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\ntee notes.txt",
+    "cat <<A | tee <<B notes.txt\nfirst\nA\nsecond\nB\n",
+    "note() if true; then :; fi\ncat <<'EOF'\nliteral text\nEOF\n",
+    "if${suffix}\ncat <<'EOF'\nliteral text\nEOF\n",
+  ]) neutral(payload(command));
+  for (const command of [
+    "bash <<'EOF'\n" + prose + "\nEOF",
+    "node <<'EOF'\n" + prose + "\nEOF",
+    "cat <<EOF | tee notes.txt | sh\n" + prose + "\nEOF",
+    "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\nsh",
+    'cat <<EOF >"$destination"\n' + prose + "\nEOF",
+    "cat <<EOF 2>&1\n" + prose + "\nEOF",
+    "cat 3<<EOF\n" + prose + "\nEOF",
+    "cat <<EOF > >(tee notes.txt)\n" + prose + "\nEOF",
+    "if true; then\ncat <<EOF\n" + prose + "\nEOF\nfi",
+    "time -p {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "! {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "coproc WRITER {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "if true; then if true; then true; fi\ncat <<'EOF'\nliteral text\nEOF\nfi",
+    "note() if true; then\ncat <<'EOF'\nliteral text\nEOF\nfi",
+    "{ { :; }; cat <<'EOF'\nliteral text\nEOF\n}",
+    "(case x in x) :;; esac; cat <<'EOF'\nliteral text\nEOF\n)",
+    "((cat <<'EOF'\nliteral text\nEOF\n) )",
+  ]) denied(command, heredocGuidance);
+  for (const destination of ["/dev/fd/1", "/dev/stdout", "/dev/tcp/example.invalid/1", "/dev/udp/example.invalid/1"]) {
+    denied(`cat <<EOF >${destination}\nliteral text\nEOF\n`, /Heredoc.*literal files.*Write tool/i);
+  }
+  denied("cat <<EOF | tee -a /dev/fd/1\nliteral text\nEOF", /Heredoc.*literal files.*Write tool/i);
+  denied("cat <<EOF\n" + prose + "\nEOF\ngit push");
+  denied("git push; cat <<EOF\n" + prose + "\nEOF");
+});
+
+test("heredoc delimiters and body escapes follow their lexical context", () => {
+  for (const command of [
+    "cat <<-EOF\n\tfirst\n\tEOF\n",
+    "cat <<-'EOF'\n\tEOF \n\tmore text\n\tEOF\n",
+    "cat <<EOF\nEOF \n\tEOF\nmore text\nEOF",
+    "cat <<EOF\nfirst\nEO\\\nF\n",
+    "cat <<EOF\nfirst\nEOF\\\n",
+    "cat <\\\n<EO\\\nF\\\n >notes.txt\nfirst\nEOF\n",
+    'cat << "EO\\\nF"\\\n # trailing comment\nfirst\nEOF',
+    "cat <<EOF\nliteral \\$(echo hi) \\$HOME \\\x60echo hi\\\x60 and $.\nEOF",
+    "cat <<EOF\nliteral \\$\\\n(name)\nEOF",
+    "cat <<'EOF'\n$(echo hi) $((1+2)) $HOME \x60echo hi\x60\nEOF",
+    'echo "<<EOF" \'<<EOF\' \\<\\<EOF # <<IGNORED',
+    'echo "$(printf \'<<EOF\')"',
+    'echo "$(if case x in x) printf %s "<<EOF";; esac; then :; fi)"',
+    'echo "\x60printf \'<<EOF\'\x60"',
+    "echo $((1<<2)); ((1<<2))",
+    "cat <<< 'literal <<EOF'",
+  ]) neutral(payload(command));
+  for (const body of ["$(echo hi)", "$HOME", "\x60echo hi\x60", "$((1+2))", "$\\\n(echo hi)", "\\\\$(echo hi)"]) {
+    denied("cat <<EOF\n" + body + "\nEOF", /active expansion.*quote.*Write tool/i);
+  }
+  for (const command of [
+    "cat <<EOF\nmissing terminator",
+    "cat <<-EOF\n EOF\n",
+    "cat <<EOF\nEOF \n",
+    "cat <<EOF\nEO\\\\\nF\n",
+    "cat <<EOF\nEO\\\n",
+    "cat <<EOF\nfirst\n",
+    'cat <<E"OF"\nfirst\nEOF\n',
+  ]) {
+    const result = invoke(payload(command));
+    assert.equal(result.status, 2, command);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /heredoc.*Write tool/i);
+  }
+});
+
+test("only an entire separate git commit message operand can capture a literal heredoc", () => {
+  const capture = (body) => '"$(cat <<\'EOF\'\n' + body + "EOF\n)\"";
+  const message = capture('fix: an apostrophe isn\'t a "quote\ngit push\n');
+  for (const command of [
+    "git commit -m " + message,
+    "git commit -m " + message.replace("$(", "$\\\n("),
+    "git commit -m " + message.replace("cat", "ca\\\nt").replace(')"', ')\\\n"'),
+    "git commit -m " + capture(""),
+    "git commit -m " + capture("--no-verify\n"),
+    "git commit -m " + message + " -m " + capture("second paragraph\n"),
+    "git commit -a -m " + message + " -- tracked-file",
+  ]) neutral(payload(command));
+  denied("git commit --no-verify -m " + message);
+  denied("git commit -m " + capture("") + " --no-verify");
+  denied("git commit -m " + message + " && gh --version");
+  for (const command of [
+    "echo " + message,
+    "echo " + capture("literal text\n").replace("$(", "$\\\n("),
+    'echo "$((cat <<\'EOF\'\nliteral text\nEOF\n) )"',
+    "git commit --trailer -m " + message,
+    "git commit -m " + message + ' --author "$author" -m ' + message,
+    "git >notes.txt commit -m " + message,
+    "git commit -- -m " + message,
+    "git commit -m" + message,
+    "git commit -m " + message + "suffix",
+    'git commit -m "$(cat <<\'EOF\'\nmessage\nEOF\necho extra\n)"',
+    "echo $(cat <<'EOF'\nmessage\nEOF\n)",
+  ]) denied(command, heredocGuidance);
+});
+
 test("orchestrator and unrelated agents pass through, including publication script calls", () => {
   for (const extra of [
     { agent_id: undefined, agent_type: undefined }, { agent_id: undefined },
@@ -133,12 +258,90 @@ test("malformed guarded events deny and malformed JSON, oversized input and quot
   for (const input of [
     "{", "null", "[]", JSON.stringify(payload("x".repeat(65536))),
     JSON.stringify(payload("git 'unterminated")), JSON.stringify(payload("git \\")),
-  ]) {
-    const result = invoke(input);
-    assert.equal(result.status, 2, result.stdout);
-    assert.match(result.stderr, /failed closed/);
-    assert.equal(result.stdout, "");
+  ]) failedClosed(input);
+});
+
+const hookByteCap = 64 * 1024;
+const oversizedCommand = "x".repeat(hookByteCap);
+const oversizedCommandField = '"tool_input":' + JSON.stringify({ command: oversizedCommand });
+const oversized = (...members) => "{" + [oversizedCommandField, ...members].join(",") + "}";
+const stepType = '"agent_type":"agent-smith:step"';
+const stepId = '"agent_id":"step"';
+const sizeDiagnostic = /exceeds 64 KiB/;
+
+test("hook byte cap applies only to guarded steps even with a present invalid ID", () => {
+  for (const extra of [
+    { agent_id: undefined, agent_type: undefined },
+    { agent_id: undefined },
+    { agent_type: "general-purpose" },
+  ]) neutral(payload(oversizedCommand, extra));
+  for (const extra of [{}, { agent_id: null }]) {
+    failedClosed(payload(oversizedCommand, extra), sizeDiagnostic);
   }
+
+  const guarded = JSON.stringify(payload("git push"));
+  const atLimit = guarded + " ".repeat(hookByteCap - Buffer.byteLength(guarded));
+  assert.equal(Buffer.byteLength(atLimit), hookByteCap);
+  const result = invoke(atLimit);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.equal(result.decision?.permissionDecision, "deny");
+  assert.match(result.decision.permissionDecisionReason, /orchestrator/i);
+  failedClosed(atLimit + " ", sizeDiagnostic);
+});
+
+test("hook overflow uses decoded top-level identity and the last supplied type", () => {
+  failedClosed(oversized(stepType, stepId), sizeDiagnostic);
+  neutral(oversized(
+    '"nested":{' + stepType + "," + stepId + "}",
+    '"text":' + JSON.stringify("{" + stepType + "," + stepId + "}")
+  ));
+  neutral(oversized(stepType, stepId, '"agent_type":"general-purpose"'));
+  neutral(oversized(stepType, stepId, '"agent_type":{"value":"agent-smith:step"}'));
+  failedClosed(oversized('"agent_type":"general-purpose"', stepId, stepType), sizeDiagnostic);
+
+  const longKey = JSON.stringify("agent_type" + oversizedCommand);
+  const longType = JSON.stringify("agent-smith:step" + oversizedCommand);
+  neutral(oversized(longKey + ':"agent-smith:step"', stepId));
+  neutral(oversized('"agent_type":' + longType, stepId));
+  failedClosed(oversized('"agent_type":' + longType, stepId, stepType), sizeDiagnostic);
+});
+
+test("hook overflow handoff preserves UTF-8 and decoded key escapes at 64 KiB", () => {
+  const commandStart = '{"tool_input":{"command":"';
+  const padding = (beforeSplit) => "x".repeat(hookByteCap - Buffer.byteLength(commandStart + beforeSplit));
+  const multibyte = commandStart + padding("x") + '€"},' + stepType + "," + stepId + "}";
+  assert.equal(Buffer.from(multibyte)[hookByteCap - 1], 0xe2);
+  failedClosed(multibyte, sizeDiagnostic);
+
+  const keyStart = '"},"agent_\\u00';
+  const escaped = commandStart + padding(keyStart) + keyStart + '74ype":"agent-smith:\\u0073tep","agent_\\u0069d":"step"}';
+  assert.equal(escaped.slice(hookByteCap, hookByteCap + 2), "74");
+  failedClosed(escaped, sizeDiagnostic);
+
+  // An invalid continuation inside this command becomes replacement text, as on the Buffer path.
+  const invalidUtf8 = Buffer.from(multibyte);
+  invalidUtf8[hookByteCap] = 0x78;
+  failedClosed(invalidUtf8, sizeDiagnostic);
+});
+
+test("hook overflow validates ignored values, trailing bytes, and 64 open containers", () => {
+  const nonStep = oversized('"agent_type":"general-purpose"', stepId);
+  neutral(nonStep);
+  neutral(oversized('"metadata":[null,true,false,0,-0,12,-1.25e+42,3E-9,{}]'));
+  for (const input of [
+    nonStep + "false", "\uFEFF" + nonStep, nonStep.slice(0, -3),
+    nonStep.slice(0, -1) + ',"bad":[true,]}',
+    nonStep.slice(0, -1) + ',"bad":01}',
+    nonStep.slice(0, -1) + ',"bad":1.e2}',
+    nonStep.slice(0, -1) + ',"bad":"\\u00ZZ"}',
+    nonStep.slice(0, -1) + ',"bad":"\\v"}',
+    "[" + nonStep + "]",
+  ]) failedClosed(input, /Invalid JSON/);
+
+  const nested = (arrayDepth) => oversized('"metadata":' + "[".repeat(arrayDepth) + "{}" + "]".repeat(arrayDepth));
+  neutral(nested(62));
+  failedClosed(nested(63), /64 nested JSON containers/);
 });
 
 test("hook argument vector preserves plugin paths containing spaces and shell metacharacters", () => {
