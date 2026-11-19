@@ -1,0 +1,3035 @@
+skills/10x-pipeline/test/advisor.test.mjs — 3.1 the cases reach every step template of the policy | skills/10x-pipeline/test/agents.test.mjs — 2.1 policy.json ships the agents block off, mapping only the score step | skills/10x-pipeline/test/provenance.test.mjs — 1.1 policy.json ships the provenance block | skills/10x-pipeline/test/prepare-run.test.mjs — 10x: six cases, precedence and immutable resumes | skills/10x-pipeline/test/stepcommit.test.mjs — 3.1 a fresh isolated init commits the copied change folder after baseSha; the first startSha is that commit | skills/10x-pipeline/test/rollback.test.mjs — 4.1 a failed step is snapshotted with untracked files and reset to startSha; router files stay intact | skills/10x-pipeline/test/open-pr.test.mjs — create: the branch lands on the bare remote and gh pr create gets --repo, --head, --base, --title and --body-file | skills/10x-pipeline/test/pr-comment.test.mjs — skip: gh is not installed | skills/10x-pipeline/test/pr-comment-intent.test.mjs — 10x: PR comment accepts both boolean flag forms and status exposes stored intent | skills/10x-pipeline/test/coauthor.test.mjs — the start commit carries the trailer after its subject | skills/10x-pipeline/test/no-recursive-delete.test.mjs — removeTree deletes a nested tree and reports the counts | skills/10x-pipeline/test/providers.test.mjs — the GPT overlay preserves all eight tier/effort positions without changing Claude defaults | skills/10x-pipeline/test/codex-runner.test.mjs — 10x: filesystem failures keep diagnostics bounded before launch | skills/10x-pipeline/test/late-usage.test.mjs — 1.1 a bad step number, no flag, a flag without a value and a bad value exit 1 and leave the folder byte-identical | skills/openspec-pipeline/test/openspec-contract.test.mjs — status --chain openspec matches openspec instructions apply: an empty change | tools/test/release-gate.test.mjs — release.yml has no push or pull_request trigger
+
+## skills/10x-pipeline/test/advisor.test.mjs — 3.1 the cases reach every step template of the policy
+Exit 0
+TAP version 13
+# Subtest: 3.1 the cases reach every step template of the policy
+ok 1 - 3.1 the cases reach every step template of the policy
+  ---
+  duration_ms: 1.919458
+  type: 'test'
+  ...
+# Subtest: 3.1 with the default policy no prompt contains the advisor text, for every template
+ok 2 - 3.1 with the default policy no prompt contains the advisor text, for every template
+  ---
+  duration_ms: 15288.24175
+  type: 'test'
+  ...
+# Subtest: 3.1 the shipped advisor block prints byte for byte what a policy without the block prints
+ok 3 - 3.1 the shipped advisor block prints byte for byte what a policy without the block prints
+  ---
+  duration_ms: 27009.471208
+  type: 'test'
+  ...
+# Subtest: 3.1 the archive prompt never carries the advisor text
+ok 4 - 3.1 the archive prompt never carries the advisor text
+  ---
+  duration_ms: 4006.107375
+  type: 'test'
+  ...
+# Subtest: 3.2 with advisor.enabled true the plan, implement and implement-segment prompts carry the advisor rules once, before the suffix
+ok 5 - 3.2 with advisor.enabled true the plan, implement and implement-segment prompts carry the advisor rules once, before the suffix
+  ---
+  duration_ms: 1063.700542
+  type: 'test'
+  ...
+# Subtest: 3.2 with advisor.enabled true every other template carries no advisor text and logs no advisor flag
+ok 6 - 3.2 with advisor.enabled true every other template carries no advisor text and logs no advisor flag
+  ---
+  duration_ms: 11351.172541
+  type: 'test'
+  ...
+# Subtest: 3.2 advisor.templates is matched against the template, not the step name
+ok 7 - 3.2 advisor.templates is matched against the template, not the step name
+  ---
+  duration_ms: 12998.022958
+  type: 'test'
+  ...
+# Subtest: 3.2 a whole standard run with the advisor on flags only the plan and implement entries
+ok 8 - 3.2 a whole standard run with the advisor on flags only the plan and implement entries
+  ---
+  duration_ms: 3609.17625
+  type: 'test'
+  ...
+# Subtest: 3.3 a malformed advisor block reads as off and never halts
+ok 9 - 3.3 a malformed advisor block reads as off and never halts
+  ---
+  duration_ms: 12046.122
+  type: 'test'
+  ...
+# Subtest: 3.4 policy.json ships the advisor block off and wires prompts.advisor to the file
+ok 10 - 3.4 policy.json ships the advisor block off and wires prompts.advisor to the file
+  ---
+  duration_ms: 0.507417
+  type: 'test'
+  ...
+# Subtest: 3.4 prompts/advisor.md follows the rule form, names no model and holds the rules of the plan
+ok 11 - 3.4 prompts/advisor.md follows the rule form, names no model and holds the rules of the plan
+  ---
+  duration_ms: 0.916666
+  type: 'test'
+  ...
+# Subtest: 3.4 prompts/README.md lists advisor.md in the wired table
+ok 12 - 3.4 prompts/README.md lists advisor.md in the wired table
+  ---
+  duration_ms: 0.787666
+  type: 'test'
+  ...
+# Subtest: 3.5 provenance records advisor.enabled in flags, and flipping it changes the advisor section only
+ok 13 - 3.5 provenance records advisor.enabled in flags, and flipping it changes the advisor section only
+  ---
+  duration_ms: 458.228959
+  type: 'test'
+  ...
+# Subtest: 3.5 compare warns when two arms differ in the advisor flag
+ok 14 - 3.5 compare warns when two arms differ in the advisor flag
+  ---
+  duration_ms: 5298.620334
+  type: 'test'
+  ...
+# Subtest: 3.6 ADR-009 rule lines follow the rule form and the decision rules are fixed before any run
+ok 15 - 3.6 ADR-009 rule lines follow the rule form and the decision rules are fixed before any run
+  ---
+  duration_ms: 3.678792
+  type: 'test'
+  ...
+# Subtest: 3.6 the reference and the indexes describe the advisor flag
+ok 16 - 3.6 the reference and the indexes describe the advisor flag
+  ---
+  duration_ms: 1.865459
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 94238.002042
+
+## skills/10x-pipeline/test/agents.test.mjs — 2.1 policy.json ships the agents block off, mapping only the score step
+Exit 0
+TAP version 13
+# Subtest: 2.1 policy.json ships the agents block off, mapping only the score step
+ok 1 - 2.1 policy.json ships the agents block off, mapping only the score step
+  ---
+  duration_ms: 1.0855
+  type: 'test'
+  ...
+# Subtest: 2.1 with the default policy every Claude run output, log entry and status row has the guarded agent
+ok 2 - 2.1 with the default policy every Claude run output, log entry and status row has the guarded agent
+  ---
+  duration_ms: 2217.047083
+  type: 'test'
+  ...
+# Subtest: 2.1 the default agents block prints byte for byte what a policy without the block prints
+ok 3 - 2.1 the default agents block prints byte for byte what a policy without the block prints
+  ---
+  duration_ms: 7122.188791
+  type: 'test'
+  ...
+# Subtest: 2.2 with agents.restricted true the score selects its restricted agent and all other steps keep the guarded default
+ok 4 - 2.2 with agents.restricted true the score selects its restricted agent and all other steps keep the guarded default
+  ---
+  duration_ms: 4921.586041
+  type: 'test'
+  ...
+# Subtest: 2.2 a failed score attempt is retried with the agent, and after 3 the step skips and the run goes on without a halt
+ok 5 - 2.2 a failed score attempt is retried with the agent, and after 3 the step skips and the run goes on without a halt
+  ---
+  duration_ms: 898.423666
+  type: 'test'
+  ...
+# Subtest: 2.2 a step the map names gets its own agent, and a step with no usable mapping gets the guarded default
+ok 6 - 2.2 a step the map names gets its own agent, and a step with no usable mapping gets the guarded default
+  ---
+  duration_ms: 439.578375
+  type: 'test'
+  ...
+# Subtest: 2.2 the archive action carries the guarded agent, also when the restricted map names archive
+ok 7 - 2.2 the archive action carries the guarded agent, also when the restricted map names archive
+  ---
+  duration_ms: 3598.914708
+  type: 'test'
+  ...
+# Subtest: 2.3 a malformed agents block reads as off and never halts
+ok 8 - 2.3 a malformed agents block reads as off and never halts
+  ---
+  duration_ms: 12288.24425
+  type: 'test'
+  ...
+# Subtest: 2.4 agents/score.md has name, description and tools exactly Read, Grep, Glob, Write, and no model or other banned key
+ok 9 - 2.4 agents/score.md has name, description and tools exactly Read, Grep, Glob, Write, and no model or other banned key
+  ---
+  duration_ms: 0.926709
+  type: 'test'
+  ...
+# Subtest: 2.4 every value of agents.steps is <plugin name>:<file> for an existing agents/<file>.md whose name is <file>
+ok 10 - 2.4 every value of agents.steps is <plugin name>:<file> for an existing agents/<file>.md whose name is <file>
+  ---
+  duration_ms: 0.3165
+  type: 'test'
+  ...
+# Subtest: 2.5 editing agents/score.md changes only the agentFiles hash
+ok 11 - 2.5 editing agents/score.md changes only the agentFiles hash
+  ---
+  duration_ms: 1203.32425
+  type: 'test'
+  ...
+# Subtest: 2.5 flipping agents.restricted changes the agents section and the agents.restricted flag only
+ok 12 - 2.5 flipping agents.restricted changes the agents section and the agents.restricted flag only
+  ---
+  duration_ms: 871.383584
+  type: 'test'
+  ...
+# Subtest: 2.6 SKILL.md dispatches with the router's agent when present, else general-purpose, and names no model alias
+ok 13 - 2.6 SKILL.md dispatches with the router's agent when present, else general-purpose, and names no model alias
+  ---
+  duration_ms: 0.537916
+  type: 'test'
+  ...
+# Subtest: agents/step.md inherits tools and routing parameters with no additional isolation
+ok 14 - agents/step.md inherits tools and routing parameters with no additional isolation
+  ---
+  duration_ms: 0.15975
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 33961.130917
+
+## skills/10x-pipeline/test/provenance.test.mjs — 1.1 policy.json ships the provenance block
+Exit 0
+TAP version 13
+# Subtest: 1.1 policy.json ships the provenance block
+ok 1 - 1.1 policy.json ships the provenance block
+  ---
+  duration_ms: 1.186042
+  type: 'test'
+  ...
+# Subtest: 1.1 a fresh init writes schemaVersion, plugin, a hash per section except the ignored ones, prompts, agentFiles, ruleFiles and flags
+ok 2 - 1.1 a fresh init writes schemaVersion, plugin, a hash per section except the ignored ones, prompts, agentFiles, ruleFiles and flags
+  ---
+  duration_ms: 285.310125
+  type: 'test'
+  ...
+# Subtest: 1.1 flags read the stored meta values and the merged policy, and a missing or malformed flag reads false
+ok 3 - 1.1 flags read the stored meta values and the merged policy, and a missing or malformed flag reads false
+  ---
+  duration_ms: 1185.171917
+  type: 'test'
+  ...
+# Subtest: 1.1 a run with no executed step and no record gets one at init
+ok 4 - 1.1 a run with no executed step and no record gets one at init
+  ---
+  duration_ms: 607.2605
+  type: 'test'
+  ...
+# Subtest: 1.1 computing the record never halts: a bad prompt reference records prompts null and checkPrompts halts as before
+ok 5 - 1.1 computing the record never halts: a bad prompt reference records prompts null and checkPrompts halts as before
+  ---
+  duration_ms: 697.421333
+  type: 'test'
+  ...
+# Subtest: 1.1 an unreadable plugin.json gives plugin null, and agentFiles hashes agents/*.md or is null without a readable folder
+ok 6 - 1.1 an unreadable plugin.json gives plugin null, and agentFiles hashes agents/*.md or is null without a readable folder
+  ---
+  duration_ms: 2200.028917
+  type: 'test'
+  ...
+# Subtest: 1.1 an unreadable OpenSpec policy fragment halts init and names the file (ADR-013 Amendment 1)
+ok 7 - 1.1 an unreadable OpenSpec policy fragment halts init and names the file (ADR-013 Amendment 1)
+  ---
+  duration_ms: 189.193
+  type: 'test'
+  ...
+# Subtest: 1.2 the hashes are stable across runs with identical inputs, and a copy of the plugin elsewhere records the same
+ok 8 - 1.2 the hashes are stable across runs with identical inputs, and a copy of the plugin elsewhere records the same
+  ---
+  duration_ms: 1182.865167
+  type: 'test'
+  ...
+# Subtest: 1.2 editing prompts/score.md changes only prompts
+ok 9 - 1.2 editing prompts/score.md changes only prompts
+  ---
+  duration_ms: 569.364709
+  type: 'test'
+  ...
+# Subtest: 1.2 changing compare.targetDropPercent or the provenance block changes nothing; another section changes only its own hash
+ok 10 - 1.2 changing compare.targetDropPercent or the provenance block changes nothing; another section changes only its own hash
+  ---
+  duration_ms: 2070.182334
+  type: 'test'
+  ...
+# Subtest: 1.3 a resume keeps the record, and a policy edit between steps adds its section to drift once and keeps the hashes
+ok 11 - 1.3 a resume keeps the record, and a policy edit between steps adds its section to drift once and keeps the hashes
+  ---
+  duration_ms: 1975.598875
+  type: 'test'
+  ...
+# Subtest: 1.3 next writes meta.json for drift only when the drift list changes
+ok 12 - 1.3 next writes meta.json for drift only when the drift list changes
+  ---
+  duration_ms: 1480.329958
+  type: 'test'
+  ...
+# Subtest: 1.4 a run whose log holds executed steps and has no record gets none, and nothing halts for it
+ok 13 - 1.4 a run whose log holds executed steps and has no record gets none, and nothing halts for it
+  ---
+  duration_ms: 1317.037875
+  type: 'test'
+  ...
+# Subtest: 1.4 a log with executed steps and no meta.json at all gets no record
+ok 14 - 1.4 a log with executed steps and no meta.json at all gets no record
+  ---
+  duration_ms: 246.353666
+  type: 'test'
+  ...
+# Subtest: 1.5 compare stays silent when both sides lack provenance and warns provenance-unknown when exactly one does
+ok 15 - 1.5 compare stays silent when both sides lack provenance and warns provenance-unknown when exactly one does
+  ---
+  duration_ms: 1277.510416
+  type: 'test'
+  ...
+# Subtest: 1.6 compare warns provenance-differs, flags-differ and provenance-drift outside the expected set of the mode
+ok 16 - 1.6 compare warns provenance-differs, flags-differ and provenance-drift outside the expected set of the mode
+  ---
+  duration_ms: 1123.809584
+  type: 'test'
+  ...
+# Subtest: 1.6 the expected set comes from the policy of the project that runs compare; a malformed set reads as the default
+ok 17 - 1.6 the expected set comes from the policy of the project that runs compare; a malformed set reads as the default
+  ---
+  duration_ms: 453.856125
+  type: 'test'
+  ...
+# Subtest: 1.6 provenance never changes comparable, reasons, dropPercent or the verdict
+ok 18 - 1.6 provenance never changes comparable, reasons, dropPercent or the verdict
+  ---
+  duration_ms: 3271.444708
+  type: 'test'
+  ...
+# Subtest: 1.6 records the real router writes: the pinned baseline file differs only where expected, a routing-only override is named
+ok 19 - 1.6 records the real router writes: the pinned baseline file differs only where expected, a routing-only override is named
+  ---
+  duration_ms: 2183.987292
+  type: 'test'
+  ...
+# Subtest: 1.3 a run with an override that sets prices records no prices section, and compare gives no provenance-differs:prices
+ok 20 - 1.3 a run with an override that sets prices records no prices section, and compare gives no provenance-differs:prices
+  ---
+  duration_ms: 1162.689542
+  type: 'test'
+  ...
+# Subtest: hooks/hooks.json changes only its independent provenance section and records immutable drift
+ok 21 - hooks/hooks.json changes only its independent provenance section and records immutable drift
+  ---
+  duration_ms: 733.815209
+  type: 'test'
+  ...
+# Subtest: skills/10x-pipeline/scripts/step-guard.mjs changes only its independent provenance section and records immutable drift
+ok 22 - skills/10x-pipeline/scripts/step-guard.mjs changes only its independent provenance section and records immutable drift
+  ---
+  duration_ms: 1132.697334
+  type: 'test'
+  ...
+# Subtest: agents/step.md changes only its independent provenance section and records immutable drift
+ok 23 - agents/step.md changes only its independent provenance section and records immutable drift
+  ---
+  duration_ms: 1143.314375
+  type: 'test'
+  ...
+# Subtest: skills/10x-pipeline/rules/steps/plan.md changes only its independent provenance section and records immutable drift
+ok 24 - skills/10x-pipeline/rules/steps/plan.md changes only its independent provenance section and records immutable drift
+  ---
+  duration_ms: 842.531
+  type: 'test'
+  ...
+# Subtest: missing or unreadable hook inputs yield a null hook hash
+ok 25 - missing or unreadable hook inputs yield a null hook hash
+  ---
+  duration_ms: 1495.940208
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29484.030709
+
+## skills/10x-pipeline/test/prepare-run.test.mjs — 10x: six cases, precedence and immutable resumes
+Exit 0
+TAP version 13
+# Subtest: 10x: six cases, precedence and immutable resumes
+ok 1 - 10x: six cases, precedence and immutable resumes
+  ---
+  duration_ms: 8404.373875
+  type: 'test'
+  ...
+# Subtest: 10x: fresh committed copy preserves times, mode, hidden files and symlinks
+ok 2 - 10x: fresh committed copy preserves times, mode, hidden files and symlinks
+  ---
+  duration_ms: 1743.040708
+  type: 'test'
+  ...
+# Subtest: 10x: registered custom worktree and unattached branch keep committed destination
+ok 3 - 10x: registered custom worktree and unattached branch keep committed destination
+  ---
+  duration_ms: 3055.127458
+  type: 'test'
+  ...
+# Subtest: 10x: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+ok 4 - 10x: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+  ---
+  duration_ms: 4915.5245
+  type: 'test'
+  ...
+# Subtest: 10x: prepare then real init runs from the isolated root; no-op router behavior survives
+ok 5 - 10x: prepare then real init runs from the isolated root; no-op router behavior survives
+  ---
+  duration_ms: 7823.976333
+  type: 'test'
+  ...
+# Subtest: 10x: prefix apps/widget in all four worktree paths
+ok 6 - 10x: prefix apps/widget in all four worktree paths
+  ---
+  duration_ms: 5506.74775
+  type: 'test'
+  ...
+# Subtest: 10x: prefix apps/żółć [a]*? \#! space in all four worktree paths
+ok 7 - 10x: prefix apps/żółć [a]*? \#! space in all four worktree paths
+  ---
+  duration_ms: 6747.960541
+  type: 'test'
+  ...
+# Subtest: openspec: six cases, precedence and immutable resumes
+ok 8 - openspec: six cases, precedence and immutable resumes
+  ---
+  duration_ms: 7830.6195
+  type: 'test'
+  ...
+# Subtest: openspec: fresh committed copy preserves times, mode, hidden files and symlinks
+ok 9 - openspec: fresh committed copy preserves times, mode, hidden files and symlinks
+  ---
+  duration_ms: 1413.013708
+  type: 'test'
+  ...
+# Subtest: openspec: registered custom worktree and unattached branch keep committed destination
+ok 10 - openspec: registered custom worktree and unattached branch keep committed destination
+  ---
+  duration_ms: 2991.606084
+  type: 'test'
+  ...
+# Subtest: openspec: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+ok 11 - openspec: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+  ---
+  duration_ms: 4975.688709
+  type: 'test'
+  ...
+# Subtest: openspec: prepare then real init runs from the isolated root; no-op router behavior survives
+ok 12 - openspec: prepare then real init runs from the isolated root; no-op router behavior survives
+  ---
+  duration_ms: 7900.681459
+  type: 'test'
+  ...
+# Subtest: openspec: prefix apps/widget in all four worktree paths
+ok 13 - openspec: prefix apps/widget in all four worktree paths
+  ---
+  duration_ms: 4975.582375
+  type: 'test'
+  ...
+# Subtest: openspec: prefix apps/żółć [a]*? \#! space in all four worktree paths
+ok 14 - openspec: prefix apps/żółć [a]*? \#! space in all four worktree paths
+  ---
+  duration_ms: 5044.115208
+  type: 'test'
+  ...
+# Subtest: opt-out without Git or a repository is read-only; bad argv never invokes Git
+ok 15 - opt-out without Git or a repository is read-only; bad argv never invokes Git
+  ---
+  duration_ms: 943.815083
+  type: 'test'
+  ...
+# Subtest: policy projection agrees with real loadPolicy/isolationOn for all supported JSON shapes
+ok 16 - policy projection agrees with real loadPolicy/isolationOn for all supported JSON shapes
+  ---
+  duration_ms: 10318.806583
+  type: 'test'
+  ...
+# Subtest: policy projection follows changed shipped defaults and OpenSpec fragments
+ok 17 - policy projection follows changed shipped defaults and OpenSpec fragments
+  ---
+  duration_ms: 2144.87775
+  type: 'test'
+  ...
+# Subtest: invalid and unreadable policy fail before any mutation, even with privileged tests
+ok 18 - invalid and unreadable policy fail before any mutation, even with privileged tests
+  ---
+  duration_ms: 3171.8595
+  type: 'test'
+  ...
+# Subtest: excludes preserve bytes and newline boundaries; existing ignores add nothing
+ok 19 - excludes preserve bytes and newline boundaries; existing ignores add nothing
+  ---
+  duration_ms: 3800.881958
+  type: 'test'
+  ...
+# Subtest: status reports staged, unstaged, untracked and rename paths with repository-relative raw spelling
+ok 20 - status reports staged, unstaged, untracked and rename paths with repository-relative raw spelling
+  ---
+  duration_ms: 1642.883125
+  type: 'test'
+  ...
+# Subtest: an untracked project prefix receives fresh change inputs; main branch registration is reused
+ok 21 - an untracked project prefix receives fresh change inputs; main branch registration is reused
+  ---
+  duration_ms: 2581.346041
+  type: 'test'
+  ...
+# Subtest: operational failures return honest JSON and leave created resources intact
+ok 22 - operational failures return honest JSON and leave created resources intact
+  ---
+  duration_ms: 19618.814708
+  type: 'test'
+  ...
+# Subtest: unavailable registered worktrees cannot select a replacement repository
+ok 23 - unavailable registered worktrees cannot select a replacement repository
+  ---
+  duration_ms: 2489.099916
+  type: 'test'
+  ...
+# Subtest: Git discovery preserves the source index when clean file timestamps changed
+ok 24 - Git discovery preserves the source index when clean file timestamps changed
+  ---
+  duration_ms: 1479.740917
+  type: 'test'
+  ...
+# Subtest: command allowlist and automatic tracking config remain unchanged
+ok 25 - command allowlist and automatic tracking config remain unchanged
+  ---
+  duration_ms: 6055.266291
+  type: 'test'
+  ...
+# Subtest: 10x: shared lock covers published worktree until copy finishes, across chains and prefixes
+ok 26 - 10x: shared lock covers published worktree until copy finishes, across chains and prefixes
+  ---
+  duration_ms: 6929.889208
+  type: 'test'
+  ...
+# Subtest: openspec: shared lock covers published worktree until copy finishes, across chains and prefixes
+ok 27 - openspec: shared lock covers published worktree until copy finishes, across chains and prefixes
+  ---
+  duration_ms: 7194.34475
+  type: 'test'
+  ...
+# Subtest: fresh copy replaces destination symlinks without writing through them
+ok 28 - fresh copy replaces destination symlinks without writing through them
+  ---
+  duration_ms: 4874.472666
+  type: 'test'
+  ...
+# Subtest: a preexisting setup lock is preserved for inspection
+ok 29 - a preexisting setup lock is preserved for inspection
+  ---
+  duration_ms: 942.265
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup retains exact blobs and permits source-absent resume (null)
+ok 30 - 10x: cleanup retains exact blobs and permits source-absent resume (null)
+  ---
+  duration_ms: 11754.53375
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup retains exact blobs and permits source-absent resume (apps/widget)
+ok 31 - 10x: cleanup retains exact blobs and permits source-absent resume (apps/widget)
+  ---
+  duration_ms: 11770.050458
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup retains exact blobs and permits source-absent resume (apps/żółć [a]*? \#! space)
+ok 32 - 10x: cleanup retains exact blobs and permits source-absent resume (apps/żółć [a]*? \#! space)
+  ---
+  duration_ms: 12510.381458
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup reports tracked, edited, additional, unretained and unsupported inputs
+ok 33 - 10x: cleanup reports tracked, edited, additional, unretained and unsupported inputs
+  ---
+  duration_ms: 6649.425833
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup skips every valid resume, opt-out and in-flight result
+ok 34 - 10x: cleanup skips every valid resume, opt-out and in-flight result
+  ---
+  duration_ms: 9035.553792
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup requires successful init and reachable isolated start-commit metadata
+ok 35 - 10x: cleanup requires successful init and reachable isolated start-commit metadata
+  ---
+  duration_ms: 15400.968333
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup rejects malformed input and wrong roots, prefix, branch and repository
+ok 36 - 10x: cleanup rejects malformed input and wrong roots, prefix, branch and repository
+  ---
+  duration_ms: 9311.229667
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup preserves sources behind symlinked ancestors
+ok 37 - 10x: cleanup preserves sources behind symlinked ancestors
+  ---
+  duration_ms: 4047.603791
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup rechecks edits made after candidate enumeration
+ok 38 - 10x: cleanup rechecks edits made after candidate enumeration
+  ---
+  duration_ms: 9258.456708
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup failures report survivors and retain every deleted byte
+ok 39 - 10x: cleanup failures report survivors and retain every deleted byte
+  ---
+  duration_ms: 28816.919041
+  type: 'test'
+  ...
+# Subtest: 10x: absent fresh inputs create no resources and keep archive diagnostics
+ok 40 - 10x: absent fresh inputs create no resources and keep archive diagnostics
+  ---
+  duration_ms: 1323.811584
+  type: 'test'
+  ...
+# Subtest: 10x: halted duplicate initialization preserves the original copy
+ok 41 - 10x: halted duplicate initialization preserves the original copy
+  ---
+  duration_ms: 3200.412667
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup retains exact blobs and permits source-absent resume (null)
+ok 42 - openspec: cleanup retains exact blobs and permits source-absent resume (null)
+  ---
+  duration_ms: 12509.365584
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup retains exact blobs and permits source-absent resume (apps/widget)
+ok 43 - openspec: cleanup retains exact blobs and permits source-absent resume (apps/widget)
+  ---
+  duration_ms: 11587.300041
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup retains exact blobs and permits source-absent resume (apps/żółć [a]*? \#! space)
+ok 44 - openspec: cleanup retains exact blobs and permits source-absent resume (apps/żółć [a]*? \#! space)
+  ---
+  duration_ms: 14295.902708
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup reports tracked, edited, additional, unretained and unsupported inputs
+ok 45 - openspec: cleanup reports tracked, edited, additional, unretained and unsupported inputs
+  ---
+  duration_ms: 7746.915459
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup skips every valid resume, opt-out and in-flight result
+ok 46 - openspec: cleanup skips every valid resume, opt-out and in-flight result
+  ---
+  duration_ms: 7806.726291
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup requires successful init and reachable isolated start-commit metadata
+ok 47 - openspec: cleanup requires successful init and reachable isolated start-commit metadata
+  ---
+  duration_ms: 13874.129
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup rejects malformed input and wrong roots, prefix, branch and repository
+ok 48 - openspec: cleanup rejects malformed input and wrong roots, prefix, branch and repository
+  ---
+  duration_ms: 12527.558458
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup preserves sources behind symlinked ancestors
+ok 49 - openspec: cleanup preserves sources behind symlinked ancestors
+  ---
+  duration_ms: 4832.666583
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup rechecks edits made after candidate enumeration
+ok 50 - openspec: cleanup rechecks edits made after candidate enumeration
+  ---
+  duration_ms: 11093.492542
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup failures report survivors and retain every deleted byte
+ok 51 - openspec: cleanup failures report survivors and retain every deleted byte
+  ---
+  duration_ms: 30899.072375
+  type: 'test'
+  ...
+# Subtest: openspec: absent fresh inputs create no resources and keep archive diagnostics
+ok 52 - openspec: absent fresh inputs create no resources and keep archive diagnostics
+  ---
+  duration_ms: 1554.076958
+  type: 'test'
+  ...
+# Subtest: openspec: halted duplicate initialization preserves the original copy
+ok 53 - openspec: halted duplicate initialization preserves the original copy
+  ---
+  duration_ms: 3409.862291
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup follows immediate done initialization
+ok 54 - 10x: cleanup follows immediate done initialization
+  ---
+  duration_ms: 5304.290459
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup follows immediate archive initialization
+ok 55 - 10x: cleanup follows immediate archive initialization
+  ---
+  duration_ms: 9186.455209
+  type: 'test'
+  ...
+# Subtest: 10x: configured prefix lifecycle initializes, cleans and resumes (null)
+ok 56 - 10x: configured prefix lifecycle initializes, cleans and resumes (null)
+  ---
+  duration_ms: 13302.988
+  type: 'test'
+  ...
+# Subtest: 10x: configured prefix lifecycle initializes, cleans and resumes (apps/widget)
+ok 57 - 10x: configured prefix lifecycle initializes, cleans and resumes (apps/widget)
+  ---
+  duration_ms: 11884.916875
+  type: 'test'
+  ...
+# Subtest: 10x: configured attachment, custom registration, literal prefix and branch lock
+ok 58 - 10x: configured attachment, custom registration, literal prefix and branch lock
+  ---
+  duration_ms: 6952.5575
+  type: 'test'
+  ...
+# Subtest: 10x: saved policy conflicts preserve source, run, index and refs before cleanup or replacement
+ok 59 - 10x: saved policy conflicts preserve source, run, index and refs before cleanup or replacement
+  ---
+  duration_ms: 12650.447417
+  type: 'test'
+  ...
+# Subtest: 10x: source-absent custom registered saved runs retain identity through prefix drift
+ok 60 - 10x: source-absent custom registered saved runs retain identity through prefix drift
+  ---
+  duration_ms: 3261.864167
+  type: 'test'
+  ...
+# Subtest: 10x: exact configured registration wins and ambiguous baseline fallback refuses in either registration order
+ok 61 - 10x: exact configured registration wins and ambiguous baseline fallback refuses in either registration order
+  ---
+  duration_ms: 11904.025334
+  type: 'test'
+  ...
+# Subtest: 10x: fallback selection separates nested projects and chain identities
+ok 62 - 10x: fallback selection separates nested projects and chain identities
+  ---
+  duration_ms: 9198.476625
+  type: 'test'
+  ...
+# Subtest: 10x: invocation and selected saved identity tampering refuses without mutation
+ok 63 - 10x: invocation and selected saved identity tampering refuses without mutation
+  ---
+  duration_ms: 8757.757084
+  type: 'test'
+  ...
+# Subtest: openspec: configured prefix lifecycle initializes, cleans and resumes (null)
+ok 64 - openspec: configured prefix lifecycle initializes, cleans and resumes (null)
+  ---
+  duration_ms: 9511.781417
+  type: 'test'
+  ...
+# Subtest: openspec: configured prefix lifecycle initializes, cleans and resumes (apps/widget)
+ok 65 - openspec: configured prefix lifecycle initializes, cleans and resumes (apps/widget)
+  ---
+  duration_ms: 10302.820416
+  type: 'test'
+  ...
+# Subtest: openspec: configured attachment, custom registration, literal prefix and branch lock
+ok 66 - openspec: configured attachment, custom registration, literal prefix and branch lock
+  ---
+  duration_ms: 6473.069167
+  type: 'test'
+  ...
+# Subtest: openspec: saved policy conflicts preserve source, run, index and refs before cleanup or replacement
+ok 67 - openspec: saved policy conflicts preserve source, run, index and refs before cleanup or replacement
+  ---
+  duration_ms: 13401.625834
+  type: 'test'
+  ...
+# Subtest: openspec: source-absent custom registered saved runs retain identity through prefix drift
+ok 68 - openspec: source-absent custom registered saved runs retain identity through prefix drift
+  ---
+  duration_ms: 3625.503
+  type: 'test'
+  ...
+# Subtest: openspec: exact configured registration wins and ambiguous baseline fallback refuses in either registration order
+ok 69 - openspec: exact configured registration wins and ambiguous baseline fallback refuses in either registration order
+  ---
+  duration_ms: 12412.682958
+  type: 'test'
+  ...
+# Subtest: openspec: fallback selection separates nested projects and chain identities
+ok 70 - openspec: fallback selection separates nested projects and chain identities
+  ---
+  duration_ms: 10080.0245
+  type: 'test'
+  ...
+# Subtest: openspec: invocation and selected saved identity tampering refuses without mutation
+ok 71 - openspec: invocation and selected saved identity tampering refuses without mutation
+  ---
+  duration_ms: 9504.291917
+  type: 'test'
+  ...
+# Subtest: active prefixes reject invalid values and default collisions before mutation; opt-out bypasses prefix validation
+ok 72 - active prefixes reject invalid values and default collisions before mutation; opt-out bypasses prefix validation
+  ---
+  duration_ms: 15487.80525
+  type: 'test'
+  ...
+# Subtest: 10x: a real nonisolated main run retains the in-flight setup case after isolation is enabled
+ok 73 - 10x: a real nonisolated main run retains the in-flight setup case after isolation is enabled
+  ---
+  duration_ms: 1855.44925
+  type: 'test'
+  ...
+# Subtest: openspec: a real nonisolated main run retains the in-flight setup case after isolation is enabled
+ok 74 - openspec: a real nonisolated main run retains the in-flight setup case after isolation is enabled
+  ---
+  duration_ms: 1947.479209
+  type: 'test'
+  ...
+# Subtest: 10x: invalid saved-prefix drift names the preserved branch through setup, init and cleanup
+ok 75 - 10x: invalid saved-prefix drift names the preserved branch through setup, init and cleanup
+  ---
+  duration_ms: 13462.189584
+  type: 'test'
+  ...
+# Subtest: 10x: invalid saved-prefix drift discovers a source-absent custom registration without mutation
+ok 76 - 10x: invalid saved-prefix drift discovers a source-absent custom registration without mutation
+  ---
+  duration_ms: 8774.361
+  type: 'test'
+  ...
+# Subtest: openspec: invalid saved-prefix drift names the preserved branch through setup, init and cleanup
+ok 77 - openspec: invalid saved-prefix drift names the preserved branch through setup, init and cleanup
+  ---
+  duration_ms: 10528.517792
+  type: 'test'
+  ...
+# Subtest: openspec: invalid saved-prefix drift discovers a source-absent custom registration without mutation
+ok 78 - openspec: invalid saved-prefix drift discovers a source-absent custom registration without mutation
+  ---
+  duration_ms: 7207.799792
+  type: 'test'
+  ...
+# Subtest: 10x: cleanup rejects symlinked run roots before reading foreign identity
+ok 79 - 10x: cleanup rejects symlinked run roots before reading foreign identity
+  ---
+  duration_ms: 8298.500459
+  type: 'test'
+  ...
+# Subtest: openspec: cleanup rejects symlinked run roots before reading foreign identity
+ok 80 - openspec: cleanup rejects symlinked run roots before reading foreign identity
+  ---
+  duration_ms: 8407.386958
+  type: 'test'
+  ...
+# Subtest: 10x: a safe saved suffix resumes when the canonical run name is a configured or remote default
+ok 81 - 10x: a safe saved suffix resumes when the canonical run name is a configured or remote default
+  ---
+  duration_ms: 11809.613875
+  type: 'test'
+  ...
+# Subtest: openspec: a safe saved suffix resumes when the canonical run name is a configured or remote default
+ok 82 - openspec: a safe saved suffix resumes when the canonical run name is a configured or remote default
+  ---
+  duration_ms: 11780.697917
+  type: 'test'
+  ...
+1..82
+# tests 82
+# suites 0
+# pass 82
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 674126.155958
+
+## skills/10x-pipeline/test/stepcommit.test.mjs — 3.1 a fresh isolated init commits the copied change folder after baseSha; the first startSha is that commit
+Exit 0
+TAP version 13
+# Subtest: 3.1 a fresh isolated init commits the copied change folder after baseSha; the first startSha is that commit
+ok 1 - 3.1 a fresh isolated init commits the copied change folder after baseSha; the first startSha is that commit
+  ---
+  duration_ms: 3161.780834
+  type: 'test'
+  ...
+# Subtest: 3.1 a resume makes no start commit
+ok 2 - 3.1 a resume makes no start commit
+  ---
+  duration_ms: 5156.273292
+  type: 'test'
+  ...
+# Subtest: 3.1 after a hook rejected the start commit, the next init makes it
+ok 3 - 3.1 after a hook rejected the start commit, the next init makes it
+  ---
+  duration_ms: 4452.43925
+  type: 'test'
+  ...
+# Subtest: 3.1 a commit whose hash cannot be read is recorded as made with commit null, never as the label HEAD
+ok 4 - 3.1 a commit whose hash cannot be read is recorded as made with commit null, never as the label HEAD
+  ---
+  duration_ms: 3300.203333
+  type: 'test'
+  ...
+# Subtest: 3.1 a start commit that made no commit and fails its folder check leaves the guard absent, so the next init retries
+ok 5 - 3.1 a start commit that made no commit and fails its folder check leaves the guard absent, so the next init retries
+  ---
+  duration_ms: 5639.139792
+  type: 'test'
+  ...
+# Subtest: 3.1 a successful step is committed; the entry records commit and the next entry starts there
+ok 6 - 3.1 a successful step is committed; the entry records commit and the next entry starts there
+  ---
+  duration_ms: 4254.845208
+  type: 'test'
+  ...
+# Subtest: 3.1 an ok entry whose state is already committed gets commit null and no empty commit
+ok 7 - 3.1 an ok entry whose state is already committed gets commit null and no empty commit
+  ---
+  duration_ms: 3300.974375
+  type: 'test'
+  ...
+# Subtest: 3.1 a failed step is not committed
+ok 8 - 3.1 a failed step is not committed
+  ---
+  duration_ms: 4095.000833
+  type: 'test'
+  ...
+# Subtest: 3.1 a hook failure halts and unstages; the resume commits
+ok 9 - 3.1 a hook failure halts and unstages; the resume commits
+  ---
+  duration_ms: 4852.703
+  type: 'test'
+  ...
+# Subtest: 3.1 staged files at the end of a step halt and are named; no commit key is set
+ok 10 - 3.1 staged files at the end of a step halt and are named; no commit key is set
+  ---
+  duration_ms: 3618.823584
+  type: 'test'
+  ...
+# Subtest: 3.1 HEAD off the run branch halts before any write
+ok 11 - 3.1 HEAD off the run branch halts before any write
+  ---
+  duration_ms: 2172.614417
+  type: 'test'
+  ...
+# Subtest: 3.1 require false makes no commit and logs no startSha
+ok 12 - 3.1 require false makes no commit and logs no startSha
+  ---
+  duration_ms: 1114.81225
+  type: 'test'
+  ...
+# Subtest: 3.1 an isolated --archive run whose report a step commit took reports committed false when the archive pre-check fails
+ok 13 - 3.1 an isolated --archive run whose report a step commit took reports committed false when the archive pre-check fails
+  ---
+  duration_ms: 2293.996709
+  type: 'test'
+  ...
+# Subtest: swept: a step commit records the paths outside the change folder it takes; status and report.md name them
+ok 14 - swept: a step commit records the paths outside the change folder it takes; status and report.md name them
+  ---
+  duration_ms: 6401.521958
+  type: 'test'
+  ...
+# Subtest: swept: a run with no path outside the change folder has no key, no header line and no section
+ok 15 - swept: a run with no path outside the change folder has no key, no header line and no section
+  ---
+  duration_ms: 3632.463208
+  type: 'test'
+  ...
+# Subtest: swept: a failed name read halts with nothing committed and no commit key; the resume commits and records swept
+ok 16 - swept: a failed name read halts with nothing committed and no commit key; the resume commits and records swept
+  ---
+  duration_ms: 7536.331166
+  type: 'test'
+  ...
+# Subtest: swept: an unreadable show-prefix records no swept paths and does not halt
+ok 17 - swept: an unreadable show-prefix records no swept paths and does not halt
+  ---
+  duration_ms: 6295.20875
+  type: 'test'
+  ...
+# Subtest: swept: a step commit with an unreadable hash names its paths without empty parentheses
+ok 18 - swept: a step commit with an unreadable hash names its paths without empty parentheses
+  ---
+  duration_ms: 7127.253833
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 79157.559625
+
+## skills/10x-pipeline/test/rollback.test.mjs — 4.1 a failed step is snapshotted with untracked files and reset to startSha; router files stay intact
+Exit 0
+TAP version 13
+# Subtest: 4.1 a failed step is snapshotted with untracked files and reset to startSha; router files stay intact
+ok 1 - 4.1 a failed step is snapshotted with untracked files and reset to startSha; router files stay intact
+  ---
+  duration_ms: 4250.980583
+  type: 'test'
+  ...
+# Subtest: 4.1 the side ref carries the run token: an earlier run's ref of the same id and step stays as it was
+ok 2 - 4.1 the side ref carries the run token: an earlier run's ref of the same id and step stays as it was
+  ---
+  duration_ms: 3397.145625
+  type: 'test'
+  ...
+# Subtest: 4.1 an isolated run that cannot read the start commit of a step halts before logging it
+ok 3 - 4.1 an isolated run that cannot read the start commit of a step halts before logging it
+  ---
+  duration_ms: 360.665041
+  type: 'test'
+  ...
+# Subtest: 4.1 a failed step that left a staged file is snapshotted with it
+ok 4 - 4.1 a failed step that left a staged file is snapshotted with it
+  ---
+  duration_ms: 3764.786125
+  type: 'test'
+  ...
+# Subtest: rollback retry retains an interrupted index snapshot in the recovery ancestry
+ok 5 - rollback retry retains an interrupted index snapshot in the recovery ancestry
+  ---
+  duration_ms: 3996.592042
+  type: 'test'
+  ...
+# Subtest: 4.1 a failed implement that ticked every row is followed by implement, from the restored plan
+ok 6 - 4.1 a failed implement that ticked every row is followed by implement, from the restored plan
+  ---
+  duration_ms: 5883.189125
+  type: 'test'
+  ...
+# Subtest: 4.1 commits the failed step made itself leave the branch and stay reachable from the side ref
+ok 7 - 4.1 commits the failed step made itself leave the branch and stay reachable from the side ref
+  ---
+  duration_ms: 6400.950208
+  type: 'test'
+  ...
+# Subtest: 4.1 a failed first step keeps the inputs the start commit holds
+ok 8 - 4.1 a failed first step keeps the inputs the start commit holds
+  ---
+  duration_ms: 3218.286375
+  type: 'test'
+  ...
+# Subtest: 4.1 a run that starts with a reviewed plan: a rolled-back implement keeps the review fresh
+ok 9 - 4.1 a run that starts with a reviewed plan: a rolled-back implement keeps the review fresh
+  ---
+  duration_ms: 3519.26525
+  type: 'test'
+  ...
+# Subtest: 4.1 a run that starts with a stale review: a rolled-back plan review that rewrote it runs again
+ok 10 - 4.1 a run that starts with a stale review: a rolled-back plan review that rewrote it runs again
+  ---
+  duration_ms: 3598.744833
+  type: 'test'
+  ...
+# Subtest: 4.1 a failed tdd entry with uncommitted rows is not reset; implement-retry sees its ticks
+ok 11 - 4.1 a failed tdd entry with uncommitted rows is not reset; implement-retry sees its ticks
+  ---
+  duration_ms: 2621.707542
+  type: 'test'
+  ...
+# Subtest: 4.1 a second implement failure followed by plan-replan is reset
+ok 12 - 4.1 a second implement failure followed by plan-replan is reset
+  ---
+  duration_ms: 7158.911
+  type: 'test'
+  ...
+# Subtest: 4.1 the failure that hits the attempt cap halts with its partial edits back, kept, and is not reset again
+ok 13 - 4.1 the failure that hits the attempt cap halts with its partial edits back, kept, and is not reset again
+  ---
+  duration_ms: 5864.956667
+  type: 'test'
+  ...
+# Subtest: 4.1 a router error after the rollback undoes it: partial edits back, entry kept
+ok 14 - 4.1 a router error after the rollback undoes it: partial edits back, entry kept
+  ---
+  duration_ms: 6222.578042
+  type: 'test'
+  ...
+# Subtest: 4.1 failed undo: attempt-cap, hard reset retains recovery text and snapshot
+ok 15 - 4.1 failed undo: attempt-cap, hard reset retains recovery text and snapshot
+  ---
+  duration_ms: 5743.277459
+  type: 'test'
+  ...
+# Subtest: 4.1 failed undo: attempt-cap, mixed reset retains recovery text and snapshot
+ok 16 - 4.1 failed undo: attempt-cap, mixed reset retains recovery text and snapshot
+  ---
+  duration_ms: 6284.080709
+  type: 'test'
+  ...
+# Subtest: 4.1 failed undo: router-error, hard reset retains recovery text and snapshot
+ok 17 - 4.1 failed undo: router-error, hard reset retains recovery text and snapshot
+  ---
+  duration_ms: 6308.56875
+  type: 'test'
+  ...
+# Subtest: 4.1 failed undo: router-error, mixed reset retains recovery text and snapshot
+ok 18 - 4.1 failed undo: router-error, mixed reset retains recovery text and snapshot
+  ---
+  duration_ms: 6798.532
+  type: 'test'
+  ...
+# Subtest: 4.1 a rollback ref outside refs/agent-smith/ halts before any git write
+ok 19 - 4.1 a rollback ref outside refs/agent-smith/ halts before any git write
+  ---
+  duration_ms: 3245.956042
+  type: 'test'
+  ...
+# Subtest: 4.1 the main checkout is refused: no reset there
+ok 20 - 4.1 the main checkout is refused: no reset there
+  ---
+  duration_ms: 782.859958
+  type: 'test'
+  ...
+# Subtest: 4.1 require false: no reset
+ok 21 - 4.1 require false: no reset
+  ---
+  duration_ms: 947.4285
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 91524.987709
+
+## skills/10x-pipeline/test/open-pr.test.mjs — create: the branch lands on the bare remote and gh pr create gets --repo, --head, --base, --title and --body-file
+Exit 0
+TAP version 13
+# Subtest: create: the branch lands on the bare remote and gh pr create gets --repo, --head, --base, --title and --body-file
+ok 1 - create: the branch lands on the bare remote and gh pr create gets --repo, --head, --base, --title and --body-file
+  ---
+  duration_ms: 1709.176834
+  type: 'test'
+  ...
+# Subtest: a second run creates nothing: the open pull request is existing and the push is a no-op
+ok 2 - a second run creates nothing: the open pull request is existing and the push is a no-op
+  ---
+  duration_ms: 2837.858708
+  type: 'test'
+  ...
+# Subtest: --draft adds --draft to gh pr create, and only then
+ok 3 - --draft adds --draft to gh pr create, and only then
+  ---
+  duration_ms: 1682.949333
+  type: 'test'
+  ...
+# Subtest: base: the pushed feature branch the run was branched from, unchanged on a second run
+ok 4 - base: the pushed feature branch the run was branched from, unchanged on a second run
+  ---
+  duration_ms: 2795.9735
+  type: 'test'
+  ...
+# Subtest: base: a tie goes to the branch origin/HEAD points to, and --base wins over the search
+ok 5 - base: a tie goes to the branch origin/HEAD points to, and --base wins over the search
+  ---
+  duration_ms: 3908.4585
+  type: 'test'
+  ...
+# Subtest: base: one for-each-ref call finds and counts the ancestors, with no git process per remote branch
+ok 6 - base: one for-each-ref call finds and counts the ancestors, with no git process per remote branch
+  ---
+  duration_ms: 2916.960333
+  type: 'test'
+  ...
+# Subtest: base: a git without %(ahead-behind) falls back to one rev-list per ancestor and picks the same base
+ok 7 - base: a git without %(ahead-behind) falls back to one rev-list per ancestor and picks the same base
+  ---
+  duration_ms: 4470.104916
+  type: 'test'
+  ...
+# Subtest: base: a remote branch the run does not descend from is never picked
+ok 8 - base: a remote branch the run does not descend from is never picked
+  ---
+  duration_ms: 2041.822334
+  type: 'test'
+  ...
+# Subtest: a remote url not on github.com skips the pull request and still pushes
+ok 9 - a remote url not on github.com skips the pull request and still pushes
+  ---
+  duration_ms: 2967.4975
+  type: 'test'
+  ...
+# Subtest: a MERGED or CLOSED pull request creates nothing, and the push happens
+ok 10 - a MERGED or CLOSED pull request creates nothing, and the push happens
+  ---
+  duration_ms: 3656.489167
+  type: 'test'
+  ...
+# Subtest: gh missing gives pushed: true and a pull request skip with the manual command
+ok 11 - gh missing gives pushed: true and a pull request skip with the manual command
+  ---
+  duration_ms: 1706.543042
+  type: 'test'
+  ...
+# Subtest: gh failures: not authenticated, a failed create and unexpected output are pull request skips
+ok 12 - gh failures: not authenticated, a failed create and unexpected output are pull request skips
+  ---
+  duration_ms: 7318.665833
+  type: 'test'
+  ...
+# Subtest: no commits ahead pushes nothing and commits nothing
+ok 13 - no commits ahead pushes nothing and commits nothing
+  ---
+  duration_ms: 1427.116542
+  type: 'test'
+  ...
+# Subtest: main checkout, detached HEAD, wrong branch prefix and no git skip before any write
+ok 14 - main checkout, detached HEAD, wrong branch prefix and no git skip before any write
+  ---
+  duration_ms: 4817.99225
+  type: 'test'
+  ...
+# Subtest: no remote of the given name is a skip that names it
+ok 15 - no remote of the given name is a skip that names it
+  ---
+  duration_ms: 1120.422541
+  type: 'test'
+  ...
+# Subtest: a diverged remote branch gives pushed: false with git's line, and no force
+ok 16 - a diverged remote branch gives pushed: false with git's line, and no force
+  ---
+  duration_ms: 1581.621833
+  type: 'test'
+  ...
+# Subtest: leftover edits are committed once as the final run state and pushed
+ok 17 - leftover edits are committed once as the final run state and pushed
+  ---
+  duration_ms: 2670.867667
+  type: 'test'
+  ...
+# Subtest: swept names the code a leftover commit holds outside the change folder
+ok 18 - swept names the code a leftover commit holds outside the change folder
+  ---
+  duration_ms: 1793.081
+  type: 'test'
+  ...
+# Subtest: swept leaves out both sides of a staged archive move of the change folder
+ok 19 - swept leaves out both sides of a staged archive move of the change folder
+  ---
+  duration_ms: 1678.395541
+  type: 'test'
+  ...
+# Subtest: the leftover commit carries the Agent Smith trailer by default, none with coAuthor null, none with a malformed value
+ok 20 - the leftover commit carries the Agent Smith trailer by default, none with coAuthor null, none with a malformed value
+  ---
+  duration_ms: 8600.53175
+  type: 'test'
+  ...
+# Subtest: a failing pre-commit hook gives committed: false, unstages its add, and the branch still pushes
+ok 21 - a failing pre-commit hook gives committed: false, unstages its add, and the branch still pushes
+  ---
+  duration_ms: 1876.80025
+  type: 'test'
+  ...
+# Subtest: a failed leftover commit unstages only its own add: an entry staged before the script stays staged
+ok 22 - a failed leftover commit unstages only its own add: an entry staged before the script stays staged
+  ---
+  duration_ms: 1817.396208
+  type: 'test'
+  ...
+# Subtest: pathsToStage: the worktree column decides, untracked and renamed entries included
+ok 23 - pathsToStage: the worktree column decides, untracked and renamed entries included
+  ---
+  duration_ms: 0.198166
+  type: 'test'
+  ...
+# Subtest: openspec chain: default report under openspec/changes and the id as title
+ok 24 - openspec chain: default report under openspec/changes and the id as title
+  ---
+  duration_ms: 1487.517833
+  type: 'test'
+  ...
+# Subtest: --report names the archived report and its change folder holds the title
+ok 25 - --report names the archived report and its change folder holds the title
+  ---
+  duration_ms: 2089.702333
+  type: 'test'
+  ...
+# Subtest: body: marker, header lines only, mentions neutralized, emails kept, missing report named
+ok 26 - body: marker, header lines only, mentions neutralized, emails kept, missing report named
+  ---
+  duration_ms: 0.497
+  type: 'test'
+  ...
+# Subtest: body: the cap keeps 60000 code units, names the omitted count and never splits a pair
+ok 27 - body: the cap keeps 60000 code units, names the omitted count and never splits a pair
+  ---
+  duration_ms: 0.99975
+  type: 'test'
+  ...
+# Subtest: title: frontmatter title, quotes stripped, else the id
+ok 28 - title: frontmatter title, quotes stripped, else the id
+  ---
+  duration_ms: 0.514083
+  type: 'test'
+  ...
+# Subtest: run PR title: the highest-ranked type of the run commits, bookkeeping only gives chore
+ok 29 - run PR title: the highest-ranked type of the run commits, bookkeeping only gives chore
+  ---
+  duration_ms: 1741.177875
+  type: 'test'
+  ...
+# Subtest: run PR title: if git log fails the title is the untyped titleFor result
+ok 30 - run PR title: if git log fails the title is the untyped titleFor result
+  ---
+  duration_ms: 1458.095875
+  type: 'test'
+  ...
+# Subtest: prTitleFor: rank, bang, ignored subjects, chore fallback, lint-valid results
+ok 31 - prTitleFor: rank, bang, ignored subjects, chore fallback, lint-valid results
+  ---
+  duration_ms: 0.602375
+  type: 'test'
+  ...
+# Subtest: prTitleFor: the type list is the one of tools/commit-lint.mjs
+ok 32 - prTitleFor: the type list is the one of tools/commit-lint.mjs
+  ---
+  duration_ms: 0.2685
+  type: 'test'
+  ...
+# Subtest: repo: https, ssh and scp forms of github.com parse; other hosts and garbage do not
+ok 33 - repo: https, ssh and scp forms of github.com parse; other hosts and garbage do not
+  ---
+  duration_ms: 0.367708
+  type: 'test'
+  ...
+# Subtest: usage errors exit 2 with no JSON on stdout
+ok 34 - usage errors exit 2 with no JSON on stdout
+  ---
+  duration_ms: 1297.992709
+  type: 'test'
+  ...
+# Subtest: guard: the router modules spawn no gh and make no git push (ADR-017)
+ok 35 - guard: the router modules spawn no gh and make no git push (ADR-017)
+  ---
+  duration_ms: 2.679166
+  type: 'test'
+  ...
+# Subtest: guard: the script source names no merge, review, delete or force operation
+ok 36 - guard: the script source names no merge, review, delete or force operation
+  ---
+  duration_ms: 0.344917
+  type: 'test'
+  ...
+# Subtest: 10x: configured publication carries the branch through push and repeated PR creation (null)
+ok 37 - 10x: configured publication carries the branch through push and repeated PR creation (null)
+  ---
+  duration_ms: 2613.6855
+  type: 'test'
+  ...
+# Subtest: 10x: configured publication carries the branch through push and repeated PR creation (apps/widget)
+ok 38 - 10x: configured publication carries the branch through push and repeated PR creation (apps/widget)
+  ---
+  duration_ms: 2315.555542
+  type: 'test'
+  ...
+# Subtest: 10x: saved suffix and archived report retain the original configured identity
+ok 39 - 10x: saved suffix and archived report retain the original configured identity
+  ---
+  duration_ms: 3858.766417
+  type: 'test'
+  ...
+# Subtest: 10x: saved invalid-prefix drift names the retained branch and restoration prerequisite
+ok 40 - 10x: saved invalid-prefix drift names the retained branch and restoration prerequisite
+  ---
+  duration_ms: 2072.80275
+  type: 'test'
+  ...
+# Subtest: 10x: malformed and contradictory recorded identities preserve working and staged contents
+ok 41 - 10x: malformed and contradictory recorded identities preserve working and staged contents
+  ---
+  duration_ms: 3670.957083
+  type: 'test'
+  ...
+# Subtest: openspec: configured publication carries the branch through push and repeated PR creation (null)
+ok 42 - openspec: configured publication carries the branch through push and repeated PR creation (null)
+  ---
+  duration_ms: 2290.446125
+  type: 'test'
+  ...
+# Subtest: openspec: configured publication carries the branch through push and repeated PR creation (apps/widget)
+ok 43 - openspec: configured publication carries the branch through push and repeated PR creation (apps/widget)
+  ---
+  duration_ms: 2323.899916
+  type: 'test'
+  ...
+# Subtest: openspec: saved suffix and archived report retain the original configured identity
+ok 44 - openspec: saved suffix and archived report retain the original configured identity
+  ---
+  duration_ms: 4102.195959
+  type: 'test'
+  ...
+# Subtest: openspec: saved invalid-prefix drift names the retained branch and restoration prerequisite
+ok 45 - openspec: saved invalid-prefix drift names the retained branch and restoration prerequisite
+  ---
+  duration_ms: 2596.641125
+  type: 'test'
+  ...
+# Subtest: openspec: malformed and contradictory recorded identities preserve working and staged contents
+ok 46 - openspec: malformed and contradictory recorded identities preserve working and staged contents
+  ---
+  duration_ms: 4439.816167
+  type: 'test'
+  ...
+# Subtest: configured publication preserves missing and empty legacy identity while requiring the exact generated branch
+ok 47 - configured publication preserves missing and empty legacy identity while requiring the exact generated branch
+  ---
+  duration_ms: 4519.763708
+  type: 'test'
+  ...
+# Subtest: configured publication validates active prefixes, policy parsing and default branches before writes
+ok 48 - configured publication validates active prefixes, policy parsing and default branches before writes
+  ---
+  duration_ms: 8355.243875
+  type: 'test'
+  ...
+# Subtest: configured base discovery excludes both run namespaces and keeps feature, tie and older-Git behavior
+ok 49 - configured base discovery excludes both run namespaces and keeps feature, tie and older-Git behavior
+  ---
+  duration_ms: 7595.011209
+  type: 'test'
+  ...
+# Subtest: configured automatic fallback bases validate names and exclude both run namespaces
+ok 50 - configured automatic fallback bases validate names and exclude both run namespaces
+  ---
+  duration_ms: 8581.595167
+  type: 'test'
+  ...
+# Subtest: configured recovery commands preserve literal argv for Git-valid shell metacharacters
+ok 51 - configured recovery commands preserve literal argv for Git-valid shell metacharacters
+  ---
+  duration_ms: 19840.106625
+  type: 'test'
+  ...
+1..51
+# tests 51
+# suites 0
+# pass 51
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 155834.265959
+
+## skills/10x-pipeline/test/pr-comment.test.mjs — skip: gh is not installed
+Exit 0
+TAP version 13
+# Subtest: skip: gh is not installed
+ok 1 - skip: gh is not installed
+  ---
+  duration_ms: 179.058958
+  type: 'test'
+  ...
+# Subtest: skip: gh exits 4 (not authenticated)
+ok 2 - skip: gh exits 4 (not authenticated)
+  ---
+  duration_ms: 281.260083
+  type: 'test'
+  ...
+# Subtest: skip: no pull request for this branch
+ok 3 - skip: no pull request for this branch
+  ---
+  duration_ms: 309.291333
+  type: 'test'
+  ...
+# Subtest: skip: not a git work tree
+ok 4 - skip: not a git work tree
+  ---
+  duration_ms: 252.202291
+  type: 'test'
+  ...
+# Subtest: skip: another gh pr view failure carries the first stderr line
+ok 5 - skip: another gh pr view failure carries the first stderr line
+  ---
+  duration_ms: 289.283334
+  type: 'test'
+  ...
+# Subtest: skip: invalid JSON on stdout is unexpected gh output
+ok 6 - skip: invalid JSON on stdout is unexpected gh output
+  ---
+  duration_ms: 271.008542
+  type: 'test'
+  ...
+# Subtest: skip: JSON without a url is unexpected gh output
+ok 7 - skip: JSON without a url is unexpected gh output
+  ---
+  duration_ms: 323.670417
+  type: 'test'
+  ...
+# Subtest: skip: a pull request that is not open
+ok 8 - skip: a pull request that is not open
+  ---
+  duration_ms: 609.34825
+  type: 'test'
+  ...
+# Subtest: skip: a host other than github.com is unsupported
+ok 9 - skip: a host other than github.com is unsupported
+  ---
+  duration_ms: 276.329958
+  type: 'test'
+  ...
+# Subtest: skip: gh pr view past the timeout is gh timed out
+ok 10 - skip: gh pr view past the timeout is gh timed out
+  ---
+  duration_ms: 299.533292
+  type: 'test'
+  ...
+# Subtest: skip: missing report carries the archive hint on the default path
+ok 11 - skip: missing report carries the archive hint on the default path
+  ---
+  duration_ms: 243.802583
+  type: 'test'
+  ...
+# Subtest: skip: empty report
+ok 12 - skip: empty report
+  ---
+  duration_ms: 114.462667
+  type: 'test'
+  ...
+# Subtest: skip: report that names another change id
+ok 13 - skip: report that names another change id
+  ---
+  duration_ms: 111.866792
+  type: 'test'
+  ...
+# Subtest: no gh call is logged when the report check fails
+ok 14 - no gh call is logged when the report check fails
+  ---
+  duration_ms: 410.669208
+  type: 'test'
+  ...
+# Subtest: the first gh call is pr view with the fixed field list
+ok 15 - the first gh call is pr view with the fixed field list
+  ---
+  duration_ms: 368.310167
+  type: 'test'
+  ...
+# Subtest: usage errors exit 2 with no JSON on stdout
+ok 16 - usage errors exit 2 with no JSON on stdout
+  ---
+  duration_ms: 1303.448667
+  type: 'test'
+  ...
+# Subtest: --report inside a directory named agent-smith is accepted
+ok 17 - --report inside a directory named agent-smith is accepted
+  ---
+  duration_ms: 279.763125
+  type: 'test'
+  ...
+# Subtest: --pr <url>: gh pr view is called with the url and the comment goes to that pull request
+ok 18 - --pr <url>: gh pr view is called with the url and the comment goes to that pull request
+  ---
+  duration_ms: 477.349416
+  type: 'test'
+  ...
+# Subtest: --pr <url>: a host other than github.com and a malformed value are usage errors
+ok 19 - --pr <url>: a host other than github.com and a malformed value are usage errors
+  ---
+  duration_ms: 633.839958
+  type: 'test'
+  ...
+# Subtest: every skip prints one parseable JSON object with the six keys and exits 0
+ok 20 - every skip prints one parseable JSON object with the six keys and exits 0
+  ---
+  duration_ms: 271.164583
+  type: 'test'
+  ...
+# Subtest: create: POST to the repo of the pull request url, marker first, report bytes after one blank line
+ok 21 - create: POST to the repo of the pull request url, marker first, report bytes after one blank line
+  ---
+  duration_ms: 319.346291
+  type: 'test'
+  ...
+# Subtest: create: a draft pull request is posted to
+ok 22 - create: a draft pull request is posted to
+  ---
+  duration_ms: 292.86425
+  type: 'test'
+  ...
+# Subtest: update: only the viewer's marker comment of this change is patched
+ok 23 - update: only the viewer's marker comment of this change is patched
+  ---
+  duration_ms: 3526.86675
+  type: 'test'
+  ...
+# Subtest: update: change ids a and ab do not patch each other
+ok 24 - update: change ids a and ab do not patch each other
+  ---
+  duration_ms: 678.108375
+  type: 'test'
+  ...
+# Subtest: viewer lookup fails closed: any /user failure is a skip with no comment call and no write
+ok 25 - viewer lookup fails closed: any /user failure is a skip with no comment call and no write
+  ---
+  duration_ms: 2383.384583
+  type: 'test'
+  ...
+# Subtest: failures: a timed-out POST or PATCH is a skip that names the timeout
+ok 26 - failures: a timed-out POST or PATCH is a skip that names the timeout
+  ---
+  duration_ms: 3573.179208
+  type: 'test'
+  ...
+# Subtest: lookup: output with no valid entry fails closed and posts nothing
+ok 27 - lookup: output with no valid entry fails closed and posts nothing
+  ---
+  duration_ms: 1949.561583
+  type: 'test'
+  ...
+# Subtest: lookup argv: the calls and their flags are exactly the planned ones
+ok 28 - lookup argv: the calls and their flags are exactly the planned ones
+  ---
+  duration_ms: 510.247167
+  type: 'test'
+  ...
+# Subtest: lookup: a comment on page 2 is found only because --paginate is passed
+ok 29 - lookup: a comment on page 2 is found only because --paginate is passed
+  ---
+  duration_ms: 267.94925
+  type: 'test'
+  ...
+# Subtest: lookup: the raw list that gh prints without --jq is unusable, so --jq COMMENT_JQ is required
+ok 30 - lookup: the raw list that gh prints without --jq is unusable, so --jq COMMENT_JQ is required
+  ---
+  duration_ms: 365.034625
+  type: 'test'
+  ...
+# Subtest: a viewer-matched PATCH failure is reported as is
+ok 31 - a viewer-matched PATCH failure is reported as is
+  ---
+  duration_ms: 339.251625
+  type: 'test'
+  ...
+# Subtest: internal error: an unwritable TMPDIR is a skip, not a crash
+ok 32 - internal error: an unwritable TMPDIR is a skip, not a crash
+  ---
+  duration_ms: 168.854833
+  type: 'test'
+  ...
+# Subtest: lookup: garbage lines and lines without a numeric id are ignored
+ok 33 - lookup: garbage lines and lines without a numeric id are ignored
+  ---
+  duration_ms: 259.334167
+  type: 'test'
+  ...
+# Subtest: failures: lookup, POST and empty URL are skips and a failed lookup posts nothing
+ok 34 - failures: lookup, POST and empty URL are skips and a failed lookup posts nothing
+  ---
+  duration_ms: 2493.20675
+  type: 'test'
+  ...
+# Subtest: body: mentions are neutralized, emails are not
+ok 35 - body: mentions are neutralized, emails are not
+  ---
+  duration_ms: 288.308167
+  type: 'test'
+  ...
+# Subtest: body: 70000 ASCII characters are cut to exactly 60000 code units with the omitted count
+ok 36 - body: 70000 ASCII characters are cut to exactly 60000 code units with the omitted count
+  ---
+  duration_ms: 305.787167
+  type: 'test'
+  ...
+# Subtest: body: the cut backs off one unit instead of splitting a surrogate pair
+ok 37 - body: the cut backs off one unit instead of splitting a surrogate pair
+  ---
+  duration_ms: 326.706416
+  type: 'test'
+  ...
+# Subtest: body: a cut on a pair boundary keeps the full 60000 units
+ok 38 - body: a cut on a pair boundary keeps the full 60000 units
+  ---
+  duration_ms: 313.082541
+  type: 'test'
+  ...
+# Subtest: audit: allowed argv only, body only as a file, four calls at most, temp dir removed, nothing written under the project
+ok 39 - audit: allowed argv only, body only as a file, four calls at most, temp dir removed, nothing written under the project
+  ---
+  duration_ms: 1213.892333
+  type: 'test'
+  ...
+# Subtest: mutation: without the author comparison a foreign marker comment would be patched
+ok 40 - mutation: without the author comparison a foreign marker comment would be patched
+  ---
+  duration_ms: 754.356416
+  type: 'test'
+  ...
+# Subtest: guard: router scripts never call gh and policy.json has no prComment key
+ok 41 - guard: router scripts never call gh and policy.json has no prComment key
+  ---
+  duration_ms: 3.541584
+  type: 'test'
+  ...
+# Subtest: COMMENT_JQ only projects and bounds
+ok 42 - COMMENT_JQ only projects and bounds
+  ---
+  duration_ms: 0.138083
+  type: 'test'
+  ...
+# Subtest: real gh without a login is not authenticated
+ok 43 - real gh without a login is not authenticated
+  ---
+  duration_ms: 396.771625
+  type: 'test'
+  ...
+# Subtest: SKILL.md: flag, script variable and the single node $PR_COMMENT call
+ok 44 - SKILL.md: flag, script variable and the single node $PR_COMMENT call
+  ---
+  duration_ms: 1.073625
+  type: 'test'
+  ...
+# Subtest: SKILL.md: explicit invocation forwards durable opt-in or reset to the router
+ok 45 - SKILL.md: explicit invocation forwards durable opt-in or reset to the router
+  ---
+  duration_ms: 0.236583
+  type: 'test'
+  ...
+# Subtest: SKILL.md: every terminal branch reaches the strict durable PR-comment owner through publication
+ok 46 - SKILL.md: every terminal branch reaches the strict durable PR-comment owner through publication
+  ---
+  duration_ms: 2.1685
+  type: 'test'
+  ...
+# Subtest: SKILL.md: PR comment section retains strict authorization and script-error fallbacks
+ok 47 - SKILL.md: PR comment section retains strict authorization and script-error fallbacks
+  ---
+  duration_ms: 2.637334
+  type: 'test'
+  ...
+# Subtest: public guidance documents both-chain init limits and legacy command access
+ok 48 - public guidance documents both-chain init limits and legacy command access
+  ---
+  duration_ms: 6.414125
+  type: 'test'
+  ...
+# Subtest: SKILL.md: lines about the PR comment name no model, effort or tier
+ok 49 - SKILL.md: lines about the PR comment name no model, effort or tier
+  ---
+  duration_ms: 0.594041
+  type: 'test'
+  ...
+# Subtest: README documents the flag, and the reference PR comment group lies after Limits: at the end
+ok 50 - README documents the flag, and the reference PR comment group lies after Limits: at the end
+  ---
+  duration_ms: 1.159667
+  type: 'test'
+  ...
+# Subtest: ADR-003 has a PR comment section with exactly seven rule lines, each once
+ok 51 - ADR-003 has a PR comment section with exactly seven rule lines, each once
+  ---
+  duration_ms: 1.496875
+  type: 'test'
+  ...
+# Subtest: AGENTS.md names the script in Hard Rules and Commands and the test index names the test file
+ok 52 - AGENTS.md names the script in Hard Rules and Commands and the test index names the test file
+  ---
+  duration_ms: 0.998875
+  type: 'test'
+  ...
+# Subtest: live: a branch with no pull request is skipped
+ok 53 - live: a branch with no pull request is skipped # SKIP set GH_LIVE=1 to run (needs network and an authenticated gh)
+  ---
+  duration_ms: 0.036209
+  type: 'test'
+  ...
+# Subtest: live: the real comment projection is one parseable object per line across pages
+ok 54 - live: the real comment projection is one parseable object per line across pages # SKIP set GH_LIVE=1 to run (needs network and an authenticated gh)
+  ---
+  duration_ms: 0.028542
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 52
+# fail 0
+# cancelled 0
+# skipped 2
+# todo 0
+# duration_ms 28903.899542
+
+## skills/10x-pipeline/test/pr-comment-intent.test.mjs — 10x: PR comment accepts both boolean flag forms and status exposes stored intent
+Exit 0
+TAP version 13
+# Subtest: 10x: PR comment accepts both boolean flag forms and status exposes stored intent
+ok 1 - 10x: PR comment accepts both boolean flag forms and status exposes stored intent
+  ---
+  duration_ms: 2705.506375
+  type: 'test'
+  ...
+# Subtest: 10x: direct resume keeps intent and explicit false resets it durably
+ok 2 - 10x: direct resume keeps intent and explicit false resets it durably
+  ---
+  duration_ms: 1314.212709
+  type: 'test'
+  ...
+# Subtest: 10x: malformed PR intent is refused before changing run state
+ok 3 - 10x: malformed PR intent is refused before changing run state
+  ---
+  duration_ms: 878.070083
+  type: 'test'
+  ...
+# Subtest: 10x: done, resumed done and legacy metadata preserve strict opt-in
+ok 4 - 10x: done, resumed done and legacy metadata preserve strict opt-in
+  ---
+  duration_ms: 3883.885458
+  type: 'test'
+  ...
+# Subtest: 10x: an ended needs-human halt carries authorized intent
+ok 5 - 10x: an ended needs-human halt carries authorized intent
+  ---
+  duration_ms: 244.1595
+  type: 'test'
+  ...
+# Subtest: 10x: archive and archive-precheck halt keep the terminal intent
+ok 6 - 10x: archive and archive-precheck halt keep the terminal intent
+  ---
+  duration_ms: 3092.932334
+  type: 'test'
+  ...
+# Subtest: openspec: PR comment accepts both boolean flag forms and status exposes stored intent
+ok 7 - openspec: PR comment accepts both boolean flag forms and status exposes stored intent
+  ---
+  duration_ms: 2679.580791
+  type: 'test'
+  ...
+# Subtest: openspec: direct resume keeps intent and explicit false resets it durably
+ok 8 - openspec: direct resume keeps intent and explicit false resets it durably
+  ---
+  duration_ms: 1214.487541
+  type: 'test'
+  ...
+# Subtest: openspec: malformed PR intent is refused before changing run state
+ok 9 - openspec: malformed PR intent is refused before changing run state
+  ---
+  duration_ms: 468.147083
+  type: 'test'
+  ...
+# Subtest: openspec: done, resumed done and legacy metadata preserve strict opt-in
+ok 10 - openspec: done, resumed done and legacy metadata preserve strict opt-in
+  ---
+  duration_ms: 2766.015625
+  type: 'test'
+  ...
+# Subtest: openspec: an ended needs-human halt carries authorized intent
+ok 11 - openspec: an ended needs-human halt carries authorized intent
+  ---
+  duration_ms: 357.153333
+  type: 'test'
+  ...
+# Subtest: openspec: archive and archive-precheck halt keep the terminal intent
+ok 12 - openspec: archive and archive-precheck halt keep the terminal intent
+  ---
+  duration_ms: 2865.303
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 22875.691125
+
+## skills/10x-pipeline/test/coauthor.test.mjs — the start commit carries the trailer after its subject
+Exit 0
+TAP version 13
+# Subtest: the start commit carries the trailer after its subject
+ok 1 - the start commit carries the trailer after its subject
+  ---
+  duration_ms: 3395.849375
+  type: 'test'
+  ...
+# Subtest: a step commit carries the trailer
+ok 2 - a step commit carries the trailer
+  ---
+  duration_ms: 5045.747041
+  type: 'test'
+  ...
+# Subtest: the rollback snapshot carries the trailer
+ok 3 - the rollback snapshot carries the trailer
+  ---
+  duration_ms: 4932.262625
+  type: 'test'
+  ...
+# Subtest: the pre-archive and the late-usage commits carry the trailer
+ok 4 - the pre-archive and the late-usage commits carry the trailer
+  ---
+  duration_ms: 3729.563041
+  type: 'test'
+  ...
+# Subtest: a malformed coAuthor halts the pre-archive commit and refuses the late-usage commit before staging
+ok 5 - a malformed coAuthor halts the pre-archive commit and refuses the late-usage commit before staging
+  ---
+  duration_ms: 3744.572166
+  type: 'test'
+  ...
+# Subtest: coAuthor null gives no trailer
+ok 6 - coAuthor null gives no trailer
+  ---
+  duration_ms: 2848.219833
+  type: 'test'
+  ...
+# Subtest: a malformed coAuthor halts the start commit at init with nothing staged; status still works
+ok 7 - a malformed coAuthor halts the start commit at init with nothing staged; status still works
+  ---
+  duration_ms: 6180.482167
+  type: 'test'
+  ...
+# Subtest: a malformed coAuthor halts a step commit at next with nothing staged
+ok 8 - a malformed coAuthor halts a step commit at next with nothing staged
+  ---
+  duration_ms: 10481.089375
+  type: 'test'
+  ...
+# Subtest: a malformed coAuthor halts the rollback before its snapshot
+ok 9 - a malformed coAuthor halts the rollback before its snapshot
+  ---
+  duration_ms: 2999.378292
+  type: 'test'
+  ...
+# Subtest: coAuthor does not change the provenance record
+ok 10 - coAuthor does not change the provenance record
+  ---
+  duration_ms: 819.530375
+  type: 'test'
+  ...
+# Subtest: coAuthorProblem and coAuthorTrailer
+ok 11 - coAuthorProblem and coAuthorTrailer
+  ---
+  duration_ms: 0.416584
+  type: 'test'
+  ...
+# Subtest: open-pr.mjs coAuthorLine gives the router's trailer, and null where the router reports a problem
+ok 12 - open-pr.mjs coAuthorLine gives the router's trailer, and null where the router reports a problem
+  ---
+  duration_ms: 3.037792
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 45198.710916
+
+## skills/10x-pipeline/test/no-recursive-delete.test.mjs — removeTree deletes a nested tree and reports the counts
+Exit 0
+TAP version 13
+# Subtest: removeTree deletes a nested tree and reports the counts
+ok 1 - removeTree deletes a nested tree and reports the counts
+  ---
+  duration_ms: 3.931292
+  type: 'test'
+  ...
+# Subtest: removeTree unlinks a symlink to an outside directory and leaves the target
+ok 2 - removeTree unlinks a symlink to an outside directory and leaves the target
+  ---
+  duration_ms: 1.186583
+  type: 'test'
+  ...
+# Subtest: removeTree on a missing path does nothing
+ok 3 - removeTree on a missing path does nothing
+  ---
+  duration_ms: 0.304459
+  type: 'test'
+  ...
+# Subtest: removeTree unlinks a plain file
+ok 4 - removeTree unlinks a plain file
+  ---
+  duration_ms: 0.559083
+  type: 'test'
+  ...
+# Subtest: removeTree deletes read-only files and a read-only directory
+ok 5 - removeTree deletes read-only files and a read-only directory
+  ---
+  duration_ms: 1.378333
+  type: 'test'
+  ...
+# Subtest: removeTree leaves the mode of a read-only parent outside the target alone
+ok 6 - removeTree leaves the mode of a read-only parent outside the target alone
+  ---
+  duration_ms: 1.16
+  type: 'test'
+  ...
+# Subtest: cleanupAll tries every scratch folder and throws one error that names the failures
+ok 7 - cleanupAll tries every scratch folder and throws one error that names the failures
+  ---
+  duration_ms: 18.648292
+  type: 'test'
+  ...
+# Subtest: removeTree refuses an empty path, the root, home, the cwd and their ancestors
+ok 8 - removeTree refuses an empty path, the root, home, the cwd and their ancestors
+  ---
+  duration_ms: 0.493792
+  type: 'test'
+  ...
+# Subtest: guard: the scanner catches every banned form and lets creation through
+ok 9 - guard: the scanner catches every banned form and lets creation through
+  ---
+  duration_ms: 126.463541
+  type: 'test'
+  ...
+# Subtest: guard: no scanned file uses a recursive or forced directory delete
+ok 10 - guard: no scanned file uses a recursive or forced directory delete
+  ---
+  duration_ms: 180.757875
+  type: 'test'
+  ...
+# Subtest: guard: the rule stays where agents read it
+ok 11 - guard: the rule stays where agents read it
+  ---
+  duration_ms: 1.371833
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 471.207375
+
+## skills/10x-pipeline/test/providers.test.mjs — the GPT overlay preserves all eight tier/effort positions without changing Claude defaults
+Exit 0
+TAP version 13
+# Subtest: the GPT overlay preserves all eight tier/effort positions without changing Claude defaults
+ok 1 - the GPT overlay preserves all eight tier/effort positions without changing Claude defaults
+  ---
+  duration_ms: 3.369667
+  type: 'test'
+  ...
+# Subtest: 10x: default and explicit Claude dispatch, host and legacy status/report
+ok 2 - 10x: default and explicit Claude dispatch, host and legacy status/report
+  ---
+  duration_ms: 783.853333
+  type: 'test'
+  ...
+# Subtest: 10x: OpenAI dispatch records exact profile and provider provenance
+ok 3 - 10x: OpenAI dispatch records exact profile and provider provenance
+  ---
+  duration_ms: 431.961
+  type: 'test'
+  ...
+# Subtest: 10x: OpenAI execution inherits default configuration when no profile is selected
+ok 4 - 10x: OpenAI execution inherits default configuration when no profile is selected
+  ---
+  duration_ms: 1194.916209
+  type: 'test'
+  ...
+# Subtest: 10x: invalid provider/profile and unsupported host combinations reject without state writes
+ok 5 - 10x: invalid provider/profile and unsupported host combinations reject without state writes
+  ---
+  duration_ms: 1239.30175
+  type: 'test'
+  ...
+# Subtest: 10x: run host is immutable and changed policy cannot bypass host validation
+ok 6 - 10x: run host is immutable and changed policy cannot bypass host validation
+  ---
+  duration_ms: 774.534209
+  type: 'test'
+  ...
+# Subtest: 10x: neutral rerun preserves provider/profile/model/effort/prompt after policy changes
+ok 7 - 10x: neutral rerun preserves provider/profile/model/effort/prompt after policy changes
+  ---
+  duration_ms: 540.031791
+  type: 'test'
+  ...
+# Subtest: 10x: restricted native agent and advisor refuse OpenAI dispatch instead of silently dropping opt-ins
+ok 8 - 10x: restricted native agent and advisor refuse OpenAI dispatch instead of silently dropping opt-ins
+  ---
+  duration_ms: 943.941292
+  type: 'test'
+  ...
+# Subtest: openspec: default and explicit Claude dispatch, host and legacy status/report
+ok 9 - openspec: default and explicit Claude dispatch, host and legacy status/report
+  ---
+  duration_ms: 989.717917
+  type: 'test'
+  ...
+# Subtest: openspec: OpenAI dispatch records exact profile and provider provenance
+ok 10 - openspec: OpenAI dispatch records exact profile and provider provenance
+  ---
+  duration_ms: 461.907042
+  type: 'test'
+  ...
+# Subtest: openspec: OpenAI execution inherits default configuration when no profile is selected
+ok 11 - openspec: OpenAI execution inherits default configuration when no profile is selected
+  ---
+  duration_ms: 1211.763375
+  type: 'test'
+  ...
+# Subtest: openspec: invalid provider/profile and unsupported host combinations reject without state writes
+ok 12 - openspec: invalid provider/profile and unsupported host combinations reject without state writes
+  ---
+  duration_ms: 1221.836083
+  type: 'test'
+  ...
+# Subtest: openspec: run host is immutable and changed policy cannot bypass host validation
+ok 13 - openspec: run host is immutable and changed policy cannot bypass host validation
+  ---
+  duration_ms: 623.83275
+  type: 'test'
+  ...
+# Subtest: openspec: neutral rerun preserves provider/profile/model/effort/prompt after policy changes
+ok 14 - openspec: neutral rerun preserves provider/profile/model/effort/prompt after policy changes
+  ---
+  duration_ms: 404.024375
+  type: 'test'
+  ...
+# Subtest: openspec: restricted native agent and advisor refuse OpenAI dispatch instead of silently dropping opt-ins
+ok 15 - openspec: restricted native agent and advisor refuse OpenAI dispatch instead of silently dropping opt-ins
+  ---
+  duration_ms: 560.341791
+  type: 'test'
+  ...
+# Subtest: a mixed ladder is supported under Claude without guessing providers from model names
+ok 16 - a mixed ladder is supported under Claude without guessing providers from model names
+  ---
+  duration_ms: 256.025458
+  type: 'test'
+  ...
+# Subtest: provider profile participates in provenance and drift tracking
+ok 17 - provider profile participates in provenance and drift tracking
+  ---
+  duration_ms: 513.225208
+  type: 'test'
+  ...
+# Subtest: 10x: archive dispatch carries provider/profile without a numbered archive entry
+ok 18 - 10x: archive dispatch carries provider/profile without a numbered archive entry
+  ---
+  duration_ms: 1866.177959
+  type: 'test'
+  ...
+# Subtest: 10x: unsupported archive capability refuses before committing
+ok 19 - 10x: unsupported archive capability refuses before committing
+  ---
+  duration_ms: 1671.363709
+  type: 'test'
+  ...
+# Subtest: openspec: archive dispatch carries provider/profile without a numbered archive entry
+ok 20 - openspec: archive dispatch carries provider/profile without a numbered archive entry
+  ---
+  duration_ms: 1693.706791
+  type: 'test'
+  ...
+# Subtest: openspec: unsupported archive capability refuses before committing
+ok 21 - openspec: unsupported archive capability refuses before committing
+  ---
+  duration_ms: 1274.653708
+  type: 'test'
+  ...
+# Subtest: comparison pins provider identity and adds provider aggregates without removing legacy keys
+ok 22 - comparison pins provider identity and adds provider aggregates without removing legacy keys
+  ---
+  duration_ms: 380.709041
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 19502.041334
+
+## skills/10x-pipeline/test/codex-runner.test.mjs — 10x: filesystem failures keep diagnostics bounded before launch
+Exit 0
+TAP version 13
+# Subtest: 10x: filesystem failures keep diagnostics bounded before launch
+ok 1 - 10x: filesystem failures keep diagnostics bounded before launch
+  ---
+  duration_ms: 375.066666
+  type: 'test'
+  ...
+# Subtest: 10x: exact model/effort/stdin/cwd, optional profile, observed accounting and read-only state
+ok 2 - 10x: exact model/effort/stdin/cwd, optional profile, observed accounting and read-only state
+  ---
+  duration_ms: 1830.256167
+  type: 'test'
+  ...
+# Subtest: 10x: neutral retry keeps the exact nullable profile after policy changes
+ok 3 - 10x: neutral retry keeps the exact nullable profile after policy changes
+  ---
+  duration_ms: 2018.634125
+  type: 'test'
+  ...
+# Subtest: 10x: stale or changed dispatch fields refuse before any CLI spawn
+ok 4 - 10x: stale or changed dispatch fields refuse before any CLI spawn
+  ---
+  duration_ms: 2125.740917
+  type: 'test'
+  ...
+# Subtest: 10x: malformed policy remains a structured pre-spawn failure
+ok 5 - 10x: malformed policy remains a structured pre-spawn failure
+  ---
+  duration_ms: 450.877584
+  type: 'test'
+  ...
+# Subtest: 10x: an archived name in another chain does not capture a live run
+ok 6 - 10x: an archived name in another chain does not capture a live run
+  ---
+  duration_ms: 942.101167
+  type: 'test'
+  ...
+# Subtest: 10x: preflight refusal and missing explicit profiles never launch a model
+ok 7 - 10x: preflight refusal and missing explicit profiles never launch a model
+  ---
+  duration_ms: 1257.51875
+  type: 'test'
+  ...
+# Subtest: 10x: missing CLI reports a pre-spawn orchestration failure
+ok 8 - 10x: missing CLI reports a pre-spawn orchestration failure
+  ---
+  duration_ms: 496.517375
+  type: 'test'
+  ...
+# Subtest: 10x: exec spawn errors remain pre-child failures after a successful preflight
+ok 9 - 10x: exec spawn errors remain pre-child failures after a successful preflight
+  ---
+  duration_ms: 794.40475
+  type: 'test'
+  ...
+# Subtest: 10x: fake parent collects its held descendant before publishing a reply
+ok 10 - 10x: fake parent collects its held descendant before publishing a reply
+  ---
+  duration_ms: 918.919292
+  type: 'test'
+  ...
+# Subtest: 10x: handled cancellation waits for child close and removes raw files
+ok 11 - 10x: handled cancellation waits for child close and removes raw files
+  ---
+  duration_ms: 666.347625
+  type: 'test'
+  ...
+# Subtest: openspec: filesystem failures keep diagnostics bounded before launch
+ok 12 - openspec: filesystem failures keep diagnostics bounded before launch
+  ---
+  duration_ms: 461.336958
+  type: 'test'
+  ...
+# Subtest: openspec: exact model/effort/stdin/cwd, optional profile, observed accounting and read-only state
+ok 13 - openspec: exact model/effort/stdin/cwd, optional profile, observed accounting and read-only state
+  ---
+  duration_ms: 1630.501125
+  type: 'test'
+  ...
+# Subtest: openspec: neutral retry keeps the exact nullable profile after policy changes
+ok 14 - openspec: neutral retry keeps the exact nullable profile after policy changes
+  ---
+  duration_ms: 2055.107
+  type: 'test'
+  ...
+# Subtest: openspec: stale or changed dispatch fields refuse before any CLI spawn
+ok 15 - openspec: stale or changed dispatch fields refuse before any CLI spawn
+  ---
+  duration_ms: 1937.786459
+  type: 'test'
+  ...
+# Subtest: openspec: malformed policy remains a structured pre-spawn failure
+ok 16 - openspec: malformed policy remains a structured pre-spawn failure
+  ---
+  duration_ms: 466.619958
+  type: 'test'
+  ...
+# Subtest: openspec: an archived name in another chain does not capture a live run
+ok 17 - openspec: an archived name in another chain does not capture a live run
+  ---
+  duration_ms: 825.844583
+  type: 'test'
+  ...
+# Subtest: openspec: preflight refusal and missing explicit profiles never launch a model
+ok 18 - openspec: preflight refusal and missing explicit profiles never launch a model
+  ---
+  duration_ms: 1406.925583
+  type: 'test'
+  ...
+# Subtest: openspec: missing CLI reports a pre-spawn orchestration failure
+ok 19 - openspec: missing CLI reports a pre-spawn orchestration failure
+  ---
+  duration_ms: 521.676041
+  type: 'test'
+  ...
+# Subtest: openspec: exec spawn errors remain pre-child failures after a successful preflight
+ok 20 - openspec: exec spawn errors remain pre-child failures after a successful preflight
+  ---
+  duration_ms: 637.057541
+  type: 'test'
+  ...
+# Subtest: openspec: fake parent collects its held descendant before publishing a reply
+ok 21 - openspec: fake parent collects its held descendant before publishing a reply
+  ---
+  duration_ms: 918.988833
+  type: 'test'
+  ...
+# Subtest: openspec: handled cancellation waits for child close and removes raw files
+ok 22 - openspec: handled cancellation waits for child close and removes raw files
+  ---
+  duration_ms: 646.74025
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts latest cumulative snapshot only when evidence is valid
+ok 23 - completion boundary accepts latest cumulative snapshot only when evidence is valid
+  ---
+  duration_ms: 723.246375
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts missing usage only when evidence is valid
+ok 24 - completion boundary accepts missing usage only when evidence is valid
+  ---
+  duration_ms: 673.387541
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts negative usage only when evidence is valid
+ok 25 - completion boundary accepts negative usage only when evidence is valid
+  ---
+  duration_ms: 829.484083
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts unsafe usage only when evidence is valid
+ok 26 - completion boundary accepts unsafe usage only when evidence is valid
+  ---
+  duration_ms: 915.318125
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts overflowing total only when evidence is valid
+ok 27 - completion boundary accepts overflowing total only when evidence is valid
+  ---
+  duration_ms: 716.121833
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts last malformed RESULT only when evidence is valid
+ok 28 - completion boundary accepts last malformed RESULT only when evidence is valid
+  ---
+  duration_ms: 539.919708
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts missing RESULT only when evidence is valid
+ok 29 - completion boundary accepts missing RESULT only when evidence is valid
+  ---
+  duration_ms: 724.468667
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts model-authored accounting is replaced only when evidence is valid
+ok 30 - completion boundary accepts model-authored accounting is replaced only when evidence is valid
+  ---
+  duration_ms: 962.555167
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts RESULT array only when evidence is valid
+ok 31 - completion boundary accepts RESULT array only when evidence is valid
+  ---
+  duration_ms: 698.736959
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts child self-declared orchestration fault only when evidence is valid
+ok 32 - completion boundary accepts child self-declared orchestration fault only when evidence is valid
+  ---
+  duration_ms: 1090.711042
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts nonzero exit after plausible result only when evidence is valid
+ok 33 - completion boundary accepts nonzero exit after plausible result only when evidence is valid
+  ---
+  duration_ms: 757.522875
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts missing completed turn only when evidence is valid
+ok 34 - completion boundary accepts missing completed turn only when evidence is valid
+  ---
+  duration_ms: 764.105125
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts later failed turn only when evidence is valid
+ok 35 - completion boundary accepts later failed turn only when evidence is valid
+  ---
+  duration_ms: 756.918084
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts later interrupted turn only when evidence is valid
+ok 36 - completion boundary accepts later interrupted turn only when evidence is valid
+  ---
+  duration_ms: 613.989792
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts later unfinished turn only when evidence is valid
+ok 37 - completion boundary accepts later unfinished turn only when evidence is valid
+  ---
+  duration_ms: 627.442417
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts different final file only when evidence is valid
+ok 38 - completion boundary accepts different final file only when evidence is valid
+  ---
+  duration_ms: 682.2635
+  type: 'test'
+  ...
+# Subtest: completion boundary accepts valid unsuccessful child result only when evidence is valid
+ok 39 - completion boundary accepts valid unsuccessful child result only when evidence is valid
+  ---
+  duration_ms: 1044.482125
+  type: 'test'
+  ...
+# Subtest: an oversized completed JSONL record is refused with bounded diagnostics
+ok 40 - an oversized completed JSONL record is refused with bounded diagnostics
+  ---
+  duration_ms: 2113.792833
+  type: 'test'
+  ...
+# Subtest: 10x: archive returns reply after folder move without recreating run state
+ok 41 - 10x: archive returns reply after folder move without recreating run state
+  ---
+  duration_ms: 3147.780042
+  type: 'test'
+  ...
+# Subtest: openspec: archive returns reply after folder move without recreating run state
+ok 42 - openspec: archive returns reply after folder move without recreating run state
+  ---
+  duration_ms: 3054.754209
+  type: 'test'
+  ...
+# Subtest: fake child readiness guarantees immediate cancellation can be handled
+ok 43 - fake child readiness guarantees immediate cancellation can be handled
+  ---
+  duration_ms: 1271.716291
+  type: 'test'
+  ...
+# Subtest: 10x: recursive paginated metadata accounts for settled archived children once
+ok 44 - 10x: recursive paginated metadata accounts for settled archived children once
+  ---
+  duration_ms: 1078.148417
+  type: 'test'
+  ...
+# Subtest: 10x: missing parent identity retains native ownership and rejects relaunch
+ok 45 - 10x: missing parent identity retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1036.451166
+  type: 'test'
+  ...
+# Subtest: 10x: invalid parent identity retains native ownership and rejects relaunch
+ok 46 - 10x: invalid parent identity retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1014.628083
+  type: 'test'
+  ...
+# Subtest: 10x: metadata error retains native ownership and rejects relaunch
+ok 47 - 10x: metadata error retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1062.552541
+  type: 'test'
+  ...
+# Subtest: 10x: mismatched response retains native ownership and rejects relaunch
+ok 48 - 10x: mismatched response retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1800.535208
+  type: 'test'
+  ...
+# Subtest: 10x: unfinished parent retains native ownership and rejects relaunch
+ok 49 - 10x: unfinished parent retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1116.871917
+  type: 'test'
+  ...
+# Subtest: 10x: missing timestamp retains native ownership and rejects relaunch
+ok 50 - 10x: missing timestamp retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1211.701292
+  type: 'test'
+  ...
+# Subtest: 10x: malformed enumeration retains native ownership and rejects relaunch
+ok 51 - 10x: malformed enumeration retains native ownership and rejects relaunch
+  ---
+  duration_ms: 895.648334
+  type: 'test'
+  ...
+# Subtest: 10x: parent returned as child retains native ownership and rejects relaunch
+ok 52 - 10x: parent returned as child retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1076.100792
+  type: 'test'
+  ...
+# Subtest: 10x: cursor cycle retains native ownership and rejects relaunch
+ok 53 - 10x: cursor cycle retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1398.101667
+  type: 'test'
+  ...
+# Subtest: 10x: held child retains native ownership and rejects relaunch
+ok 54 - 10x: held child retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1029.994208
+  type: 'test'
+  ...
+# Subtest: 10x: archived unfinished child retains native ownership and rejects relaunch
+ok 55 - 10x: archived unfinished child retains native ownership and rejects relaunch
+  ---
+  duration_ms: 893.81575
+  type: 'test'
+  ...
+# Subtest: 10x: child report and terminal events cannot replace the enclosing failed result
+ok 56 - 10x: child report and terminal events cannot replace the enclosing failed result
+  ---
+  duration_ms: 909.372
+  type: 'test'
+  ...
+# Subtest: openspec: recursive paginated metadata accounts for settled archived children once
+ok 57 - openspec: recursive paginated metadata accounts for settled archived children once
+  ---
+  duration_ms: 1048.606584
+  type: 'test'
+  ...
+# Subtest: openspec: missing parent identity retains native ownership and rejects relaunch
+ok 58 - openspec: missing parent identity retains native ownership and rejects relaunch
+  ---
+  duration_ms: 887.199959
+  type: 'test'
+  ...
+# Subtest: openspec: invalid parent identity retains native ownership and rejects relaunch
+ok 59 - openspec: invalid parent identity retains native ownership and rejects relaunch
+  ---
+  duration_ms: 914.269083
+  type: 'test'
+  ...
+# Subtest: openspec: metadata error retains native ownership and rejects relaunch
+ok 60 - openspec: metadata error retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1330.349083
+  type: 'test'
+  ...
+# Subtest: openspec: mismatched response retains native ownership and rejects relaunch
+ok 61 - openspec: mismatched response retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1405.391167
+  type: 'test'
+  ...
+# Subtest: openspec: unfinished parent retains native ownership and rejects relaunch
+ok 62 - openspec: unfinished parent retains native ownership and rejects relaunch
+  ---
+  duration_ms: 887.617084
+  type: 'test'
+  ...
+# Subtest: openspec: missing timestamp retains native ownership and rejects relaunch
+ok 63 - openspec: missing timestamp retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1399.096459
+  type: 'test'
+  ...
+# Subtest: openspec: malformed enumeration retains native ownership and rejects relaunch
+ok 64 - openspec: malformed enumeration retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1188.231625
+  type: 'test'
+  ...
+# Subtest: openspec: parent returned as child retains native ownership and rejects relaunch
+ok 65 - openspec: parent returned as child retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1070.0115
+  type: 'test'
+  ...
+# Subtest: openspec: cursor cycle retains native ownership and rejects relaunch
+ok 66 - openspec: cursor cycle retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1179.811708
+  type: 'test'
+  ...
+# Subtest: openspec: held child retains native ownership and rejects relaunch
+ok 67 - openspec: held child retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1234.651709
+  type: 'test'
+  ...
+# Subtest: openspec: archived unfinished child retains native ownership and rejects relaunch
+ok 68 - openspec: archived unfinished child retains native ownership and rejects relaunch
+  ---
+  duration_ms: 1200.240584
+  type: 'test'
+  ...
+# Subtest: openspec: child report and terminal events cannot replace the enclosing failed result
+ok 69 - openspec: child report and terminal events cannot replace the enclosing failed result
+  ---
+  duration_ms: 1019.367208
+  type: 'test'
+  ...
+# Subtest: 10x: optional native metadata error leaves completed execution accepted and releases its lock
+ok 70 - 10x: optional native metadata error leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 1188.4145
+  type: 'test'
+  ...
+# Subtest: 10x: optional native metadata timeout leaves completed execution accepted and releases its lock
+ok 71 - 10x: optional native metadata timeout leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 3237.491958
+  type: 'test'
+  ...
+# Subtest: 10x: unsupported host leaves completed execution accepted and releases its lock
+ok 72 - 10x: unsupported host leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 1072.225625
+  type: 'test'
+  ...
+# Subtest: 10x: missing source leaves completed execution accepted and releases its lock
+ok 73 - 10x: missing source leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 842.18925
+  type: 'test'
+  ...
+# Subtest: 10x: malformed execution JSON still suspends even when usage sources are complete
+ok 74 - 10x: malformed execution JSON still suspends even when usage sources are complete
+  ---
+  duration_ms: 726.958625
+  type: 'test'
+  ...
+# Subtest: 10x: settled duplicate child enumeration and multi-request usage count once
+ok 75 - 10x: settled duplicate child enumeration and multi-request usage count once
+  ---
+  duration_ms: 816.02175
+  type: 'test'
+  ...
+# Subtest: openspec: optional native metadata error leaves completed execution accepted and releases its lock
+ok 76 - openspec: optional native metadata error leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 855.852458
+  type: 'test'
+  ...
+# Subtest: openspec: optional native metadata timeout leaves completed execution accepted and releases its lock
+ok 77 - openspec: optional native metadata timeout leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 2806.957959
+  type: 'test'
+  ...
+# Subtest: openspec: unsupported host leaves completed execution accepted and releases its lock
+ok 78 - openspec: unsupported host leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 1227.543916
+  type: 'test'
+  ...
+# Subtest: openspec: missing source leaves completed execution accepted and releases its lock
+ok 79 - openspec: missing source leaves completed execution accepted and releases its lock
+  ---
+  duration_ms: 1230.08025
+  type: 'test'
+  ...
+# Subtest: openspec: malformed execution JSON still suspends even when usage sources are complete
+ok 80 - openspec: malformed execution JSON still suspends even when usage sources are complete
+  ---
+  duration_ms: 990.238166
+  type: 'test'
+  ...
+# Subtest: openspec: settled duplicate child enumeration and multi-request usage count once
+ok 81 - openspec: settled duplicate child enumeration and multi-request usage count once
+  ---
+  duration_ms: 1004.524708
+  type: 'test'
+  ...
+1..81
+# tests 81
+# suites 0
+# pass 81
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 92164.213208
+
+## skills/10x-pipeline/test/late-usage.test.mjs — 1.1 a bad step number, no flag, a flag without a value and a bad value exit 1 and leave the folder byte-identical
+Exit 0
+TAP version 13
+# Subtest: 1.1 a bad step number, no flag, a flag without a value and a bad value exit 1 and leave the folder byte-identical
+ok 1 - 1.1 a bad step number, no flag, a flag without a value and a bad value exit 1 and leave the folder byte-identical
+  ---
+  duration_ms: 2331.829375
+  type: 'test'
+  ...
+# Subtest: 1.2 a step that is not logged, a pending step and no run log are refused and write nothing
+ok 2 - 1.2 a step that is not logged, a pending step and no run log are refused and write nothing
+  ---
+  duration_ms: 326.690959
+  type: 'test'
+  ...
+# Subtest: 1.2 a skip entry is never matched
+ok 3 - 1.2 a skip entry is never matched
+  ---
+  duration_ms: 156.963916
+  type: 'test'
+  ...
+# Subtest: 1.2 a different figure over an existing one, a subset and a superset included, is refused and writes nothing
+ok 4 - 1.2 a different figure over an existing one, a subset and a superset included, is refused and writes nothing
+  ---
+  duration_ms: 562.592
+  type: 'test'
+  ...
+# Subtest: 1.3 a figure for step 1 while step 2 is pending: usage and usageLate set, pending entry untouched, status shows it, no report
+ok 5 - 1.3 a figure for step 1 while step 2 is pending: usage and usageLate set, pending entry untouched, status shows it, no report
+  ---
+  duration_ms: 265.525708
+  type: 'test'
+  ...
+# Subtest: 1.3 one flag is enough and only the given keys are stored
+ok 6 - 1.3 one flag is enough and only the given keys are stored
+  ---
+  duration_ms: 89.349334
+  type: 'test'
+  ...
+# Subtest: 1.3 the same figure again prints unchanged and leaves run.jsonl byte-identical
+ok 7 - 1.3 the same figure again prints unchanged and leaves run.jsonl byte-identical
+  ---
+  duration_ms: 198.936375
+  type: 'test'
+  ...
+# Subtest: 1.4 an ended done run: report.md shows the figure, the totals count it and the output names the report
+ok 8 - 1.4 an ended done run: report.md shows the figure, the totals count it and the output names the report
+  ---
+  duration_ms: 189.63925
+  type: 'test'
+  ...
+# Subtest: 1.4 an ended halt run rewrites the report too
+ok 9 - 1.4 an ended halt run rewrites the report too
+  ---
+  duration_ms: 250.205083
+  type: 'test'
+  ...
+# Subtest: 1.4 with prices set the Cost (est.) cell and the Cost (estimate) line include the late figure
+ok 10 - 1.4 with prices set the Cost (est.) cell and the Cost (estimate) line include the late figure
+  ---
+  duration_ms: 85.947625
+  type: 'test'
+  ...
+# Subtest: 1.5 compare reports usage-incomplete for the routed side before the command and not after it
+ok 11 - 1.5 compare reports usage-incomplete for the routed side before the command and not after it
+  ---
+  duration_ms: 349.499875
+  type: 'test'
+  ...
+# Subtest: 1.6 OpenSpec: attach with --chain openspec and without the flag on a running run
+ok 12 - 1.6 OpenSpec: attach with --chain openspec and without the flag on a running run
+  ---
+  duration_ms: 188.277708
+  type: 'test'
+  ...
+# Subtest: 1.6 OpenSpec: an ended run gets its report.md rewritten, with and without the flag
+ok 13 - 1.6 OpenSpec: an ended run gets its report.md rewritten, with and without the flag
+  ---
+  duration_ms: 465.373875
+  type: 'test'
+  ...
+# Subtest: 1.6 OpenSpec: a moved change halts as archived and writes nothing; a missing folder is refused
+ok 14 - 1.6 OpenSpec: a moved change halts as archived and writes nothing; a missing folder is refused
+  ---
+  duration_ms: 433.558583
+  type: 'test'
+  ...
+# Subtest: 1.7 a 10x change stamped archived with its folder in place, and a moved one, halt and write nothing
+ok 15 - 1.7 a 10x change stamped archived with its folder in place, and a moved one, halt and write nothing
+  ---
+  duration_ms: 273.147
+  type: 'test'
+  ...
+# Subtest: 1.8 isolated run: a figure attached while step 2 runs survives step 2's rollback and the next step commit holds it
+ok 16 - 1.8 isolated run: a figure attached while step 2 runs survives step 2's rollback and the next step commit holds it
+  ---
+  duration_ms: 6617.266375
+  type: 'test'
+  ...
+# Subtest: 1.8 isolated run: a failed step that hits the attempt cap halts with the kept state still holding the figure
+ok 17 - 1.8 isolated run: a failed step that hits the attempt cap halts with the kept state still holding the figure
+  ---
+  duration_ms: 8405.856375
+  type: 'test'
+  ...
+# Subtest: 2.1 10x --archive: after the archive action the figure commits the folder with archive.usageMessage
+ok 18 - 2.1 10x --archive: after the archive action the figure commits the folder with archive.usageMessage
+  ---
+  duration_ms: 4703.725167
+  type: 'test'
+  ...
+# Subtest: 2.1 a failing pre-commit hook: attached false, exit 1, the folder is as committed and the index is empty
+ok 19 - 2.1 a failing pre-commit hook: attached false, exit 1, the folder is as committed and the index is empty
+  ---
+  duration_ms: 4799.541958
+  type: 'test'
+  ...
+# Subtest: 2.1 a dirty change folder refuses before writing
+ok 20 - 2.1 a dirty change folder refuses before writing
+  ---
+  duration_ms: 3412.471584
+  type: 'test'
+  ...
+# Subtest: 2.1 an archive.usageMessage that is not a non-blank string refuses before writing
+ok 21 - 2.1 an archive.usageMessage that is not a non-blank string refuses before writing
+  ---
+  duration_ms: 11248.247958
+  type: 'test'
+  ...
+# Subtest: 2.1 staged changes refuse before writing
+ok 22 - 2.1 staged changes refuse before writing
+  ---
+  duration_ms: 2670.193708
+  type: 'test'
+  ...
+# Subtest: 2.1 a halted archive run keeps the Phase 1 behavior and makes no commit
+ok 23 - 2.1 a halted archive run keeps the Phase 1 behavior and makes no commit
+  ---
+  duration_ms: 597.926625
+  type: 'test'
+  ...
+# Subtest: 2.2 isolated --archive run: the commit lands on the run branch and a following next resumes with commit null
+ok 24 - 2.2 isolated --archive run: the commit lands on the run branch and a following next resumes with commit null
+  ---
+  duration_ms: 7294.124958
+  type: 'test'
+  ...
+# Subtest: 2.2 an isolated run in the main checkout is refused before writing
+ok 25 - 2.2 an isolated run in the main checkout is refused before writing
+  ---
+  duration_ms: 3047.885375
+  type: 'test'
+  ...
+# Subtest: 2.3 OpenSpec --archive: the commit holds only openspec/changes/demo/ and the committed report shows the figure
+ok 26 - 2.3 OpenSpec --archive: the commit holds only openspec/changes/demo/ and the committed report shows the figure
+  ---
+  duration_ms: 3231.596083
+  type: 'test'
+  ...
+# Subtest: 10x: structured late tokens fill duration-only usage once for the exact invocation
+ok 27 - 10x: structured late tokens fill duration-only usage once for the exact invocation
+  ---
+  duration_ms: 375.169709
+  type: 'test'
+  ...
+# Subtest: 10x: structured late refusals preserve every run file and legacy flags cannot bypass evidence
+ok 28 - 10x: structured late refusals preserve every run file and legacy flags cannot bypass evidence
+  ---
+  duration_ms: 3144.697333
+  type: 'test'
+  ...
+# Subtest: 10x: structured late input cannot upgrade legacy attribution or fill other missing counters
+ok 29 - 10x: structured late input cannot upgrade legacy attribution or fill other missing counters
+  ---
+  duration_ms: 278.344708
+  type: 'test'
+  ...
+# Subtest: 10x: verified zero can arrive late, but neither that total nor its evidence can be replaced
+ok 30 - 10x: verified zero can arrive late, but neither that total nor its evidence can be replaced
+  ---
+  duration_ms: 519.977959
+  type: 'test'
+  ...
+# Subtest: openspec: structured late tokens fill duration-only usage once for the exact invocation
+ok 31 - openspec: structured late tokens fill duration-only usage once for the exact invocation
+  ---
+  duration_ms: 304.870959
+  type: 'test'
+  ...
+# Subtest: openspec: structured late refusals preserve every run file and legacy flags cannot bypass evidence
+ok 32 - openspec: structured late refusals preserve every run file and legacy flags cannot bypass evidence
+  ---
+  duration_ms: 2493.977791
+  type: 'test'
+  ...
+# Subtest: openspec: structured late input cannot upgrade legacy attribution or fill other missing counters
+ok 33 - openspec: structured late input cannot upgrade legacy attribution or fill other missing counters
+  ---
+  duration_ms: 323.783958
+  type: 'test'
+  ...
+# Subtest: openspec: verified zero can arrive late, but neither that total nor its evidence can be replaced
+ok 34 - openspec: verified zero can arrive late, but neither that total nor its evidence can be replaced
+  ---
+  duration_ms: 461.686792
+  type: 'test'
+  ...
+# Subtest: 10x: structured file redirects and archived targets refuse without changing run files
+ok 35 - 10x: structured file redirects and archived targets refuse without changing run files
+  ---
+  duration_ms: 302.974667
+  type: 'test'
+  ...
+# Subtest: openspec: structured file redirects and archived targets refuse without changing run files
+ok 36 - openspec: structured file redirects and archived targets refuse without changing run files
+  ---
+  duration_ms: 333.275834
+  type: 'test'
+  ...
+1..36
+# tests 36
+# suites 0
+# pass 36
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 71631.432125
+
+## skills/openspec-pipeline/test/openspec-contract.test.mjs — status --chain openspec matches openspec instructions apply: an empty change
+Exit 0
+TAP version 13
+# Subtest: status --chain openspec matches openspec instructions apply: an empty change
+ok 1 - status --chain openspec matches openspec instructions apply: an empty change
+  ---
+  duration_ms: 745.898625
+  type: 'test'
+  ...
+# Subtest: status --chain openspec matches openspec instructions apply: a proposal only
+ok 2 - status --chain openspec matches openspec instructions apply: a proposal only
+  ---
+  duration_ms: 602.141959
+  type: 'test'
+  ...
+# Subtest: status --chain openspec matches openspec instructions apply: proposal, specs and tasks without design
+ok 3 - status --chain openspec matches openspec instructions apply: proposal, specs and tasks without design
+  ---
+  duration_ms: 1119.787584
+  type: 'test'
+  ...
+# Subtest: status --chain openspec matches openspec instructions apply: all four files with mixed ticks
+ok 4 - status --chain openspec matches openspec instructions apply: all four files with mixed ticks
+  ---
+  duration_ms: 670.804792
+  type: 'test'
+  ...
+# Subtest: status --chain openspec matches openspec instructions apply: rows in every list form and marker
+ok 5 - status --chain openspec matches openspec instructions apply: rows in every list form and marker
+  ---
+  duration_ms: 997.158875
+  type: 'test'
+  ...
+# Subtest: OpenSpec 2.0.0 custom setup supplies propose/apply/verify and core omits verify
+ok 6 - OpenSpec 2.0.0 custom setup supplies propose/apply/verify and core omits verify
+  ---
+  duration_ms: 3460.830375
+  type: 'test'
+  ...
+# Subtest: OpenSpec 2.0.0 upgrades twelve legacy workflows, preserves inputs and tracks fresh-checkout links
+ok 7 - OpenSpec 2.0.0 upgrades twelve legacy workflows, preserves inputs and tracks fresh-checkout links
+  ---
+  duration_ms: 8334.111625
+  type: 'test'
+  ...
+# Subtest: OpenSpec 2.0.0 validates artifacts and archives specs with the complete change directory
+ok 8 - OpenSpec 2.0.0 validates artifacts and archives specs with the complete change directory
+  ---
+  duration_ms: 3160.016083
+  type: 'test'
+  ...
+# Subtest: OpenSpec 2.0.0 validation and archive collision failures preserve inputs and expose diagnostics
+ok 9 - OpenSpec 2.0.0 validation and archive collision failures preserve inputs and expose diagnostics
+  ---
+  duration_ms: 2105.364958
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 21672.152458
+
+## tools/test/release-gate.test.mjs — release.yml has no push or pull_request trigger
+Exit 0
+TAP version 13
+# Subtest: release.yml has no push or pull_request trigger
+ok 1 - release.yml has no push or pull_request trigger
+  ---
+  duration_ms: 0.666208
+  type: 'test'
+  ...
+# Subtest: release.yml starts from a completed CI run of main
+ok 2 - release.yml starts from a completed CI run of main
+  ---
+  duration_ms: 0.873375
+  type: 'test'
+  ...
+# Subtest: the release-please job runs only for a green CI run of a push that is still the head of main
+ok 3 - the release-please job runs only for a green CI run of a push that is still the head of main
+  ---
+  duration_ms: 0.195292
+  type: 'test'
+  ...
+# Subtest: release.yml keeps its write permissions and a queueing concurrency group
+ok 4 - release.yml keeps its write permissions and a queueing concurrency group
+  ---
+  duration_ms: 0.167583
+  type: 'test'
+  ...
+# Subtest: ci.yml still runs on pull requests and on pushes to main
+ok 5 - ci.yml still runs on pull requests and on pushes to main
+  ---
+  duration_ms: 0.134917
+  type: 'test'
+  ...
+# Subtest: ci.yml cancels only superseded pull request runs and gives each push its own group
+ok 6 - ci.yml cancels only superseded pull request runs and gives each push its own group
+  ---
+  duration_ms: 0.211708
+  type: 'test'
+  ...
+# Subtest: the workflow name release.yml waits for is the name of ci.yml
+ok 7 - the workflow name release.yml waits for is the name of ci.yml
+  ---
+  duration_ms: 0.150416
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 176.752291

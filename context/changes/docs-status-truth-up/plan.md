@@ -227,7 +227,7 @@ For the Wave 1 handoff, the maintainer takes in current `main` with a merge comm
 
 #### Manual
 
-- [ ] 2.2 Trace each changed ADR status, summary and outstanding acceptance claim to its implementation, test, decision or dated evidence.
+- [x] 2.2 Trace each changed ADR status, summary and outstanding acceptance claim to its implementation, test, decision or dated evidence. — evidence: evidence/judgment-adr-trace.md
 
 ### Phase 3: Resolve user-facing status and archive decisions
 
@@ -239,4 +239,4 @@ For the Wave 1 handoff, the maintainer takes in current `main` with a merge comm
 
 #### Manual
 
-- [ ] 3.4 Read the four README dispositions and the roadmap and archive decisions against their cited evidence, including the limits of every live-host claim.
+- [x] 3.4 Read the four README dispositions and the roadmap and archive decisions against their cited evidence, including the limits of every live-host claim. — evidence: evidence/judgment-readme-roadmap-archive.md
