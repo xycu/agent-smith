@@ -45,7 +45,7 @@
   },
   "startCommit": "134154b97a97bc22c3a15f9b1b6bbc8ab694d895",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/scripts/run-codex.mjs, skills/10x-pipeline/scripts/state.mjs, skills/10x-pipeline/test/codex-helpers.mjs +1"
   }
 }

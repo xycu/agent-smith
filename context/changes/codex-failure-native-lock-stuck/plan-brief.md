@@ -19,6 +19,7 @@ When closure is proved, the runner releases the lock and returns an incomplete l
 | Decision | Choice | Why |
 | --- | --- | --- |
 | Where to release | Reconcile eligible failures in the runner that launched them | It already owns the lock and the trusted invocation identity. |
+| Which failures may reconcile | Classify trusted, unsignalled nonzero exits and final root failed turns without relying on assistant output. After successful transport, require a matching final reply for a rejected RESULT. | Codex can exit 1 without a final assistant message or an explicit interruption event. |
 | What proves a failed root closed | Require app-server `failed` with a valid completion timestamp, or the existing `completed` evidence | Codex can record a failed status before recording closure. |
 | What proves descendants closed | Require timestamped completed latest turns, complete pagination and stable re-enumeration | A surviving descendant can still write after its parent exits. |
 | What the host records | Use the existing `unknown` intake and retry rules | A settled failure is a counted attempt. |
@@ -27,7 +28,7 @@ When closure is proved, the runner releases the lock and returns an incomplete l
 
 ## Scope
 
-Both chains' pending run actions, shared runner and lock diagnostics, fake Codex tests, ADR-024 and the Codex reference. One live Codex retry goes in Manual.
+Both chains' pending run actions, shared runner and lock diagnostics, fake Codex tests, ADR-024, the Codex reference and the related ADR-018 settlement note. One live Codex retry goes in Manual.
 
 ## Architecture / Approach
 
@@ -50,9 +51,9 @@ After exec closes, the runner evaluates result transport and checks closure for 
 
 ## Success Criteria (Summary)
 
-- Fake Codex failures with proved closure reach `unknown` intake and an executable retry on both chains. Unproved closure still blocks mutation and relaunch with an actionable diagnostic.
-- The SIGTERM grace regression proves escalation and cleanup while retaining native ownership on cancellation. Focused tests and the full local suite pass.
-- The Manual check observes a real Codex failure followed by a successful retry in a scratch run.
+- Fake Codex failures with proved closure reach `unknown` intake and an executable retry on both chains. Malformed streams, interruption, and unproved closure still block mutation and relaunch with a recovery diagnostic. Rejected results with proved closure keep elapsed duration and skip optional usage reads.
+- The SIGTERM grace regression proves escalation inside the injected test window and cleanup while retaining native ownership on cancellation. Focused tests and the full local suite pass.
+- The Manual check observes a real Codex failure followed by a successful retry of the same step in an isolated scratch run.
 
 ## References
 
