@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.2](https://github.com/xycu/agent-smith/compare/v1.14.1...v1.14.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **step-guard-heredoc-false-positives:** Stop the step guard blocking heredocs and oversized commands it should allow ([#229](https://github.com/xycu/agent-smith/issues/229)) ([6834d2b](https://github.com/xycu/agent-smith/commit/6834d2b4f5bb833b8dfe331964e9f53bab701d74))
+
 ## [1.14.1](https://github.com/xycu/agent-smith/compare/v1.14.0...v1.14.1) (2026-11-19)
 
 
