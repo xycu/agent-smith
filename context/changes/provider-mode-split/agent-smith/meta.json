@@ -43,5 +43,10 @@
       "agents.restricted": false,
       "advisor.enabled": false
     }
+  },
+  "startCommit": "e3cc38b1d8c0266bbe4a9f6d1a181ac9daf197fd",
+  "rigor": {
+    "level": "lean",
+    "by": "goal short"
   }
 }

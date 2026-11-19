@@ -1,7 +1,7 @@
 ---
 change_id: provider-mode-split
 title: Select a Claude, Codex or split provider mode for a run
-status: preparing
+status: planned
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
