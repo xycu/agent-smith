@@ -32,37 +32,17 @@ import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
 import { readOpenspec, decideOpenspec, missingChangeReason } from "../../openspec-pipeline/scripts/openspec.mjs";
 import {
-  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, dispatchAgent,
+  writeReport, finishRun, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, dispatchAgent,
   advisorOn, neutralRetry, cleanUsage, dispatchProblem, ruleTail, checkRules, prepareHandoff, publishHandoff, cleanupHandoff,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
-  isolationOn, isolationCheck, worktreeLine, startCommit, stepCommit, fileTimes, setTimes, writeState, rollback,
+  isolationOn, isolationCheck, worktreeLine, startCommit, stepCommit, fileTimes, resumeTimes, rollback, undoRollback, legacyReviewProblem,
   archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
 
-// The undo on halt: the next call that rolled back ends in a halt, so the final failure keeps its partial edits for a
-// human. The branch goes back to the head the failed step left, the worktree holds the snapshot (files the step added
-// are untracked again, staged files come back unstaged), the router state and the file times the step left are
-// written back, and the entry says `kept`. Returns null or the git failure.
-// The undo of a rollback made by this call of next, for main's catch: set after the rollback, cleared by every halt
-// that runs the undo itself.
+// Only the call that made a rollback can undo it on halt. Recovery in a new process restores timestamps only.
 let undoOnError = null;
-
-function undoRollback(p, meta, log, rb) {
-  const hard = rb.g(["reset", "-q", "--hard", rb.ref]);
-  if (hard.status !== 0) return `git reset --hard ${rb.ref} failed: ${gitMessage(hard)}.`;
-  const mixed = rb.g(["reset", "-q", `${rb.ref}^`]);
-  if (mixed.status !== 0) {
-    return `git reset ${rb.ref}^ failed: ${gitMessage(mixed)}. The run branch now points at the snapshot commit of ${rb.ref}; ` +
-      `run git reset -q ${rb.ref}^ in the run worktree before resuming.`;
-  }
-  delete rb.last.rolledBack;
-  rb.last.kept = rb.ref;
-  writeState(p, meta, log);
-  setTimes(p, rb.left);
-  return null;
-}
 
 // A 10x run needs change.md (same text as decide in flow.mjs); halt before any write of init, next and status --report.
 function haltNoChangeMd(p, id) {
@@ -92,6 +72,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   checkPrompts(policy);
   cleanupStateTemps(p.dir);
   fs.mkdirSync(p.dir, { recursive: true });
+  resumeTimes(p, id, meta, log, policy);
   // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
   // any other case returns here and goes on as before.
   neutralRetry(p, id, meta, log, policy);
@@ -102,13 +83,25 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   // An isolated run rolls a failed step back before risk, rigor and decide read the files. When this call ends in a
   // halt instead of a next step, the rollback is undone first, so the partial edits stay for a human.
   const rb = rollback(p, id, meta, log, policy);
-  // A router error later in this call ends it in main's catch, which runs the same undo.
-  if (rb) undoOnError = () => undoRollback(p, meta, log, rb);
+  const undoFailure = () => {
+    const failure = undoRollback(p, meta, log, rb);
+    if (!failure || rb.last.kept) return failure;
+    return `The rollback was not undone: ${failure} The partial edits are kept under ${rb.ref}.`;
+  };
+  // A router error later in this call runs the same undo. Finalize any incomplete timestamp restoration.
+  if (rb) undoOnError = (reason) => {
+    const failure = undoFailure();
+    const updated = `${reason} ${failure ?? "The rollback of the failed step was undone; its partial edits are back in the worktree."}`;
+    if (isObject(rb.last.timestamps)) {
+      out(finishRun(p, id, meta, log, { action: "halt", reason: updated, steps: executed(log).length }), 1);
+    }
+    return updated;
+  };
   const end = (result) => {
     undoOnError = null;
     if (rb && result.action === "halt") {
-      const failed = undoRollback(p, meta, log, rb);
-      if (failed) result = { ...result, reason: `${result.reason} The rollback was not undone: ${failed} The partial edits are kept under ${rb.ref}.` };
+      const failure = undoFailure();
+      if (failure) result = { ...result, reason: `${result.reason} ${failure}` };
     }
     return endRun(p, id, meta, log, result);
   };
@@ -140,9 +133,10 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   const skippedNow = new Set();
   const loggedBefore = log.length;
   let d;
+  const legacyReviewCheck = meta.isolated === true ? (file, attempt) => legacyReviewProblem(file, attempt, policy) : null;
   for (;;) {
     // The OpenSpec chain has its own order (ADR-013 D4) and no score, pre-plan, executor or manual-verify step.
-    d = openspec ? decideOpenspec(p, log, policy, meta) : decide(p, log, policy, meta, { level, risk, justFailedReview });
+    d = openspec ? decideOpenspec(p, log, policy, meta) : decide(p, log, policy, meta, { level, risk, justFailedReview, legacyReviewCheck });
     if (!d.skip) break;
     if (skippedNow.has(d.skip.step)) {
       return end({ action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
@@ -1140,9 +1134,9 @@ try {
   if (undoOnError) {
     const undo = undoOnError;
     undoOnError = null;
-    let failed;
-    try { failed = undo(); } catch (u) { failed = u instanceof Error ? u.message : String(u); }
-    reason += failed ? ` The rollback was not undone: ${failed}` : " The rollback of the failed step was undone; its partial edits are back in the worktree.";
+    try { reason = undo(reason); } catch (u) {
+      reason += ` The rollback was not undone: ${u instanceof Error ? u.message : String(u)}`;
+    }
   }
   halt(reason);
 }

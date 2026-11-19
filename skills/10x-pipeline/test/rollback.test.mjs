@@ -387,11 +387,15 @@ function gitFailingUndo(wt, ref, start, reset) {
     `    "$UNDO_REAL_GIT" "$@" || exit $?`,
     `    printf "rollback %s\\n" "$("$UNDO_REAL_GIT" rev-parse HEAD)" >> "$UNDO_MARKER"`,
     "    exit 0;;",
-    `  *" $UNDO_RESET ")`,
+    "  *' reset -q '*)",
     `    snapshot=$("$UNDO_REAL_GIT" rev-parse --verify "$UNDO_REF") || exit $?`,
-    `    printf "undo %s\\n" "$snapshot" >> "$UNDO_MARKER"`,
-    `    echo "fatal: injected undo reset failure" >&2`,
-    "    exit 128;;",
+    '    if [ "$UNDO_RESET" = "hard" ]; then target="reset -q --hard $snapshot"; else target="reset -q $snapshot^"; fi',
+    '    case " $* " in',
+    '      *" $target ")',
+    `        printf "undo %s\\n" "$snapshot" >> "$UNDO_MARKER"`,
+    `        echo "fatal: injected undo reset failure" >&2`,
+    "        exit 128;;",
+    "    esac;;",
     "esac",
     `exec "$UNDO_REAL_GIT" "$@"`,
     "",
@@ -401,7 +405,7 @@ function gitFailingUndo(wt, ref, start, reset) {
     env: {
       ...gitEnv(wt), PATH: `${bin}${path.delimiter}${process.env.PATH}`,
       UNDO_REAL_GIT: real.stdout.trim(), UNDO_REF: ref, UNDO_START: start, UNDO_MARKER: marker,
-      UNDO_RESET: reset === "hard" ? `reset -q --hard ${ref}` : `reset -q ${ref}^`,
+      UNDO_RESET: reset,
     },
   };
 }
@@ -506,4 +510,136 @@ test("4.1 require false: no reset", { skip }, () => {
   assert.ok(fs.existsSync(path.join(main.root, "partial.txt")));
   assert.equal(Object.hasOwn(readLogEntries(main)[0], "rolledBack"), false);
   assert.equal(refExists(main, REF(main, 1)), false);
+});
+
+function confirmationFixture() {
+  const main = repo({ policy: { ...ON, review: { confirmRounds: { standard: 1 } } } });
+  const wt = worktree(main);
+  const before = [Date.parse("2026-01-01T10:00:00Z"), Date.parse("2026-01-01T11:00:00Z")];
+  const left = [Date.parse("2026-02-01T10:00:00Z"), Date.parse("2026-02-01T11:00:00Z")];
+  const files = [wt.planFile, PLAN_REVIEW(wt)];
+  writePlan(wt, planText({ phases: 1 }));
+  writeReview(wt, "plan-review", { verdict: "REVISE", findings: "1 critical, 0 warnings" });
+  fs.appendFileSync(files[1], "\n## Findings\n\n### F1 — Fixed\n\n- **Severity**: CRITICAL\n- **Decision**: APPLIED\n");
+  files.forEach((file, i) => touch(file, before[i]));
+  const first = initIn(wt, ["--rigor", "standard"]);
+  assert.equal(readLogEntries(wt).at(-1).template, "plan-review-confirm", first.stdout + first.stderr);
+  const start = head(wt);
+  writeReview(wt, "plan-review", { verdict: "BROKEN" });
+  fs.appendFileSync(files[0], "\nedit from failed confirmation\n");
+  files.forEach((file, i) => touch(file, left[i]));
+  const artifact = path.join(wt.top, "partial.txt");
+  fs.writeFileSync(artifact, "staged version\n");
+  gw(wt, ["add", "partial.txt"]);
+  fs.writeFileSync(artifact, "working version\n");
+  writeResult(wt, { status: "done", note: "bad confirmation" });
+  return { wt, start, files, before, left };
+}
+
+function injectTimestampFault(wt, direction, fault) {
+  const hook = path.join(wt.base, "timestamp-fault.mjs");
+  fs.writeFileSync(hook, `
+import fs from "node:fs";
+const log = ${JSON.stringify(path.join(wt.agentDir, "run.jsonl"))};
+const meta = ${JSON.stringify(path.join(wt.agentDir, "meta.json"))};
+const rename = fs.renameSync;
+let active = false;
+fs.renameSync = (from, to) => {
+  const result = rename(from, to);
+  if (to === log) {
+    const last = fs.readFileSync(log, "utf8").trimEnd().split("\\n").map(JSON.parse).at(-1);
+    if (last.${direction} && typeof last.timestamps === "object") {
+      if (JSON.parse(fs.readFileSync(meta)).branch !== "agent-smith/demo") process.exit(87);
+      active = true;
+      if (${fault === "before"}) process.exit(86);
+    }
+  }
+  return result;
+};
+const touch = fs.futimesSync;
+fs.futimesSync = (...args) => {
+  if (active && ${fault === "error"}) throw new Error("injected timestamp fault");
+  const result = touch(...args);
+  if (active && ${fault === "partial"}) process.exit(86);
+  return result;
+};
+`);
+  return run(wt, ["next", wt.id], { env: { ...gitEnv(wt), NODE_OPTIONS: "--import=" + hook } });
+}
+
+for (const { direction, fault, command } of [
+  { direction: "rolledBack", fault: "before", command: "init" },
+  { direction: "rolledBack", fault: "partial", command: "next" },
+  { direction: "rolledBack", fault: "error", command: "next" },
+  { direction: "kept", fault: "partial", command: "init" },
+  { direction: "kept", fault: "error", command: "next" },
+]) {
+  test(`timestamp checkpoint resumes ${direction} after ${fault} via ${command}`, { skip }, () => {
+    const { wt, start, files, before, left } = confirmationFixture();
+    const halted = injectTimestampFault(wt, direction, fault);
+    if (fault === "error") {
+      assert.equal(halted.json?.action, "halt", halted.stdout + halted.stderr);
+      assert.match(halted.json.reason, /Timestamp restoration .*plan\.md.*refs\/agent-smith\/.*injected timestamp fault.*retry next/);
+      assert.match(readReportFile(wt), /injected timestamp fault/);
+    } else {
+      assert.equal(halted.status, 86, halted.stdout + halted.stderr);
+    }
+
+    const pending = readLogEntries(wt).at(-1);
+    const ref = pending[direction];
+    const snapshot = gw(wt, ["rev-parse", ref]);
+    const expected = direction === "kept" ? left : before;
+    assert.equal(pending.timestamps.commit, direction === "kept" ? snapshot : start);
+    assert.equal(pending.timestamps.files.plan.time, expected[0]);
+    assert.equal(pending.timestamps.files.planReview.time, expected[1]);
+    assert.match(pending.timestamps.files.plan.sha256, /^[a-f0-9]{64}$/);
+    assert.equal(pending.result.note, "bad confirmation");
+    assert.equal(pending.ok, false);
+    if (fault === "partial") assert.ok(near(at(files[0]), expected[0]));
+    assert.ok(!near(at(files[1]), expected[1]), "confirmation review time still pending");
+
+    if (fault === "error") {
+      fs.writeFileSync(path.join(wt.top, "owner.txt"), "new head\n");
+      gw(wt, ["add", "owner.txt"]);
+      gw(wt, ["commit", "-m", "test(demo): advance head before resuming"]);
+      assert.notEqual(head(wt), start);
+    }
+    const expectedHead = head(wt);
+    for (let repeat = 0; repeat < 2; repeat++) {
+      const resumed = run(wt, [command, wt.id], { env: gitEnv(wt) });
+      assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+      assert.match(resumed.json.reason, /Unknown review verdict "BROKEN"/);
+      const completed = readLogEntries(wt).at(-1);
+      assert.deepEqual(completed, { ...pending, timestamps: "completed" });
+      files.forEach((file, i) => assert.ok(near(at(file), expected[i]), `${file} time was restored`));
+      assert.equal(completed[direction], ref);
+      assert.equal(head(wt), expectedHead);
+      assert.equal(gw(wt, ["rev-parse", ref]), snapshot);
+      assert.equal(showFile(wt, ref, "partial.txt"), "working version");
+      assert.equal(showFile(wt, `${ref}^2`, "partial.txt"), "staged version");
+    }
+  });
+}
+
+test("timestamp recovery refuses a symlink introduced after checkpoint publication", { skip: skip || process.platform === "win32" }, () => {
+  const { wt, files, before } = confirmationFixture();
+  const halted = injectTimestampFault(wt, "rolledBack", "before");
+  assert.equal(halted.status, 86, halted.stdout + halted.stderr);
+  const pending = readLogEntries(wt).at(-1);
+  const target = path.join(wt.top, "owner.md");
+  fs.writeFileSync(target, "owner file\n");
+  const time = Date.parse("2026-04-01T10:00:00Z");
+  touch(target, time);
+  const original = files[1] + ".original";
+  fs.renameSync(files[1], original);
+  fs.symlinkSync(target, files[1]);
+  const refused = nextIn(wt);
+  assert.match(refused.json.reason, /Timestamp restoration .*plan-review\.md.*no symlink/);
+  assert.ok(near(at(target), time));
+  assert.deepEqual(readLogEntries(wt).at(-1), pending);
+  fs.unlinkSync(files[1]);
+  fs.renameSync(original, files[1]);
+  assert.match(nextIn(wt).json.reason, /Unknown review verdict "BROKEN"/);
+  assert.ok(near(at(files[1]), before[1]));
+  assert.equal(readLogEntries(wt).at(-1).timestamps, "completed");
 });

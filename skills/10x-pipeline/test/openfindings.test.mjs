@@ -776,15 +776,17 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
   const ON = { isolation: { require: true } };
 
   // A real linked worktree on agent-smith/demo, a first init and a plan step answered as done, so the next call asks for the plan review.
-  function isolatedRun(policy = {}) {
-    const main = makeProject({ policy: { ...ON, ...policy } });
+  function isolatedRun(policy = {}, { nest = null, crlf = false } = {}) {
+    const main = makeProject({ policy: { ...ON, ...policy }, nest });
     gitInit(main);
+    if (crlf) git(main, ["config", "core.autocrlf", "true"]);
     git(main, ["add", "-A"]);
     git(main, ["commit", "-q", "-m", "chore: project"]);
     const top = path.join(main.base, ".claude/worktrees", "agent-smith-demo");
     git(main, ["worktree", "add", "-q", "-b", "agent-smith/demo", top]);
-    const changeDir = path.join(top, "context/changes/demo");
-    const wt = { id: "demo", base: main.base, root: top, changeDir, agentDir: path.join(changeDir, "agent-smith"), planFile: path.join(changeDir, "plan.md") };
+    const root = path.join(top, nest ?? "");
+    const changeDir = path.join(root, "context/changes/demo");
+    const wt = { id: "demo", base: main.base, root, changeDir, agentDir: path.join(changeDir, "agent-smith"), planFile: path.join(changeDir, "plan.md") };
     const env = gitEnv(main);
     const first = run(wt, ["init", "demo", "--goal", GOAL, "--rigor", "standard"], { env });
     assert.equal(first.status, 0, first.stdout + first.stderr);
@@ -792,7 +794,7 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
     writeResult(wt, { status: "done", note: "planned" });
     const review = run(wt, ["next", "demo"], { env });
     assert.equal(review.json.step, "plan-review", review.stdout + review.stderr);
-    return { wt, env };
+    return { wt, env, top };
   }
 
   test("the text ends with the commit sentence", () => {
@@ -837,6 +839,124 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
       assert.equal(lastEntry(wt).n, failed.n);
     });
   }
+
+  function confirmationRun(step, options) {
+    const fixture = isolatedRun(CONFIRM_ON(1), options);
+    const { wt, env } = fixture;
+    const route = (command = "next") => run(wt, [command, wt.id], { env });
+    if (step === "impl-review") {
+      writeReview(wt, "plan-review", { verdict: "SOUND" });
+      writeResult(wt, { status: "done", note: "reviewed" });
+      assert.equal(route().json?.step, "implement");
+      writePlan(wt, planText({ done: 1 }));
+      writeResult(wt, { status: "done", note: "implemented" });
+      const dispatched = route();
+      assert.equal(dispatched.json?.step, step, dispatched.stdout + dispatched.stderr);
+    }
+    const applied = step === "plan-review" ? APPLIED_PLAN : APPLIED_IMPL;
+    writeReviewFile(wt, step, applied);
+    writeResult(wt, { status: "done", note: "reviewed" });
+    const result = route();
+    const pending = lastEntry(wt);
+    assert.equal(pending.template, `${step}-confirm`, result.stdout + result.stderr);
+    return { ...fixture, route, applied, pending, file: path.join(wt.changeDir, "reviews", `${step}.md`) };
+  }
+
+  function interruptConfirmation(wt, env) {
+    const hook = path.join(wt.base, "review-reset-fault.mjs");
+    fs.writeFileSync(hook, String.raw`
+import fs from "node:fs";
+const log = ${JSON.stringify(path.join(wt.agentDir, "run.jsonl"))};
+const rename = fs.renameSync;
+fs.renameSync = (from, to) => {
+  const result = rename(from, to);
+  if (to === log) {
+    const last = fs.readFileSync(log, "utf8").trimEnd().split("\n").map(JSON.parse).at(-1);
+    if (last.rolledBack && typeof last.timestamps === "object") process.exit(86);
+  }
+  return result;
+};
+`);
+    writeResult(wt, { status: "done", note: "confirmation output" });
+    const result = run(wt, ["next", wt.id], { env: { ...env, NODE_OPTIONS: "--import=" + hook } });
+    assert.equal(result.status, 86, result.stdout + result.stderr);
+  }
+
+  test("a tracked review absent at dispatch stays stale after checkout and resume", () => {
+    const { wt, env, route, file, pending, applied } = confirmationRun("plan-review");
+    fs.unlinkSync(file);
+    // Seed the dispatch-time absence on a real pending confirmation whose saved HEAD still tracks the review.
+    const entries = readLogEntries(wt);
+    pending.before.mtimes.planReview = 0;
+    entries[entries.length - 1] = pending;
+    writeLog(wt, entries);
+    interruptConfirmation(wt, env);
+    assert.equal(fs.readFileSync(file, "utf8"), applied);
+    assert.equal(lastEntry(wt).timestamps.files.planReview.time, pending.startedAt);
+    const resumed = route("init");
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Missing review artifact .*Current artifact: Stale review artifact/);
+    assert.ok(Math.abs(fs.statSync(file).mtimeMs - pending.startedAt) < 1);
+    assert.equal(lastEntry(wt).timestamps, "completed");
+  });
+
+  test("a nested implementation confirmation keeps the checkout stale across a line-ending config change", () => {
+    const { wt, env, top, route, file, pending, applied } = confirmationRun("impl-review", { nest: "packages/widget", crlf: true });
+    writeReviewFile(wt, "impl-review", reviewText({ verdict: "BROKEN" }));
+    interruptConfirmation(wt, env);
+    assert.equal(fs.readFileSync(file, "utf8"), applied.replaceAll("\n", "\r\n"));
+    git(wt, ["-C", top, "config", "core.autocrlf", "false"]);
+    stampAhead(file);
+    const resumed = route();
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Unknown review verdict "BROKEN".*Current artifact: Stale review artifact/);
+    assert.ok(Math.abs(fs.statSync(file).mtimeMs - pending.before.mtimes.implReview) < 2);
+    assert.equal(lastEntry(wt).timestamps, "completed");
+  });
+
+  test("recovery preserves a corrected implementation review and routes on its open findings", () => {
+    const { wt, env, route, file } = confirmationRun("impl-review");
+    writeReviewFile(wt, "impl-review", reviewText({ verdict: "BROKEN" }));
+    interruptConfirmation(wt, env);
+    const corrected = reviewText({
+      verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "PENDING")],
+    });
+    writeReviewFile(wt, "impl-review", corrected);
+    const time = fs.statSync(file).mtimeMs;
+    const resumed = route("init");
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Implementation review NEEDS ATTENTION left 1 open critical/);
+    assert.equal(fs.readFileSync(file, "utf8"), corrected);
+    assert.equal(fs.statSync(file).mtimeMs, time);
+    assert.equal(lastEntry(wt).timestamps, "completed");
+    assert.ok(lastEntry(wt).rolledBack);
+    writeReviewFile(wt, "impl-review", reviewText({ verdict: "APPROVED" }));
+    assert.equal(route().json?.action, "done");
+  });
+
+  for (const unresolved of [false, true]) {
+    test(`a nested checkout comparison blocks an unchanged ${unresolved ? "unresolved" : "legacy"} plan review`, () => {
+      const { wt, env, route, file, applied } = confirmationRun("plan-review", { nest: "packages/widget", crlf: true });
+      writeReviewFile(wt, "plan-review", reviewText({ verdict: "BROKEN" }));
+      interruptConfirmation(wt, env);
+      const entries = readLogEntries(wt);
+      const failed = entries.at(-1);
+      if (unresolved) delete failed.timestamps.files.planReview.sha256;
+      else delete failed.timestamps;
+      writeLog(wt, entries);
+      assert.equal(fs.readFileSync(file, "utf8"), applied.replaceAll("\n", "\r\n"));
+      stampAhead(file);
+      const resumed = route();
+      assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+      assert.match(resumed.json.reason, unresolved ? /Stale review artifact/ : /Unproved review freshness .*matches the checkout/);
+      assert.ok(lastEntry(wt).rolledBack);
+      const corrected = reviewText({ findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "PENDING")] });
+      writeReviewFile(wt, "plan-review", corrected);
+      const correctedRoute = route("init");
+      assert.match(correctedRoute.json?.reason, /Plan review REVISE left 1 open critical/, correctedRoute.stdout + correctedRoute.stderr);
+    });
+  }
+
 });
 
 // ---- Phase 3: the confirmation round ---------------------------------------

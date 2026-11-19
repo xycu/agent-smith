@@ -706,11 +706,14 @@ function openFindingsHalt(label, skillName, file, oc, policy, meta) {
 }
 
 // An invalid intake remains authoritative until a later review, a new plan or code state, or a fresh valid artifact.
-function reviewRecovery(step, file, read, log, sourceAt, justFailed) {
+function reviewRecovery(step, file, read, log, sourceAt, ctx) {
   const i = lastIdx(log, [step], false);
   const attempt = log[i];
   if (i <= sourceAt || attempt?.ok !== false || !attempt.invalid) return null;
-  const problem = attempt === justFailed ? attempt.invalid : reviewProblem(step, file, read, attempt);
+  let problem = attempt === ctx.justFailedReview ? attempt.invalid : reviewProblem(step, file, read, attempt);
+  if (problem === null && !Object.hasOwn(attempt, "timestamps") && (attempt.rolledBack || attempt.kept)) {
+    problem = ctx.legacyReviewCheck?.(file, attempt) ?? null;
+  }
   if (problem === null) return { recovered: true };
   const reason = problem === attempt.invalid ? problem : `${attempt.invalid} Current artifact: ${problem}`;
   return {
@@ -746,8 +749,8 @@ export function decide(p, fullLog, policy, meta, ctx) {
   // A review can also have edited Progress. Resolve outstanding failures before scheduling from those edits.
   const lp = lastIdx(log, ["plan"]);
   const lcode = lastIdx(log, ["implement", "fix"]);
-  const planRecovery = reviewRecovery("plan-review", p.planReview, pr, log, lp, ctx.justFailedReview);
-  const implRecovery = reviewRecovery("impl-review", p.implReview, ir, log, lcode, ctx.justFailedReview);
+  const planRecovery = reviewRecovery("plan-review", p.planReview, pr, log, lp, ctx);
+  const implRecovery = reviewRecovery("impl-review", p.implReview, ir, log, lcode, ctx);
   if (planRecovery?.confirmation) return { halt: planRecovery.problem };
   if (implRecovery?.confirmation) return { halt: implRecovery.problem };
   if (planRecovery?.problem) {
