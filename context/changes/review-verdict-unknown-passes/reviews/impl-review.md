@@ -1,14 +1,14 @@
 <!-- IMPL-REVIEW-REPORT -->
-# Implementation Review — Review Verdict Validation Implementation Plan
+# Implementation Review — Review Verdict Validation
 
-- **Plan**: [plan.md](../plan.md)
+- **Plan**: [Review Verdict Validation Implementation Plan](../plan.md)
 - **Scope**: Full plan
 - **Reviewed phases**: 1, 2
 - **Date**: 2026-11-19
 - **Verdict**: REJECTED
-- **Findings**: 2 critical, 3 warnings, 0 observations
+- **Findings**: 2 critical, 1 warning, 0 observations
 
-The verdict and counts describe the implementation at `17dd0ea9` before this review's fixes. Each decision records the disposition.
+At `b88f0a1a`, a failed confirmation from an older router could dispatch implementation, and a review with conflicting verdicts could finish the run. The counts and verdict describe that revision. All three fixes are in `82a87d8c`.
 
 ## Verdicts
 
@@ -21,77 +21,46 @@ The verdict and counts describe the implementation at `17dd0ea9` before this rev
 | Pattern Consistency | PASS |
 | Success Criteria | PASS |
 
-## Review coverage
-
-Reviewed all six completed Automated rows and both phase contracts. The plan lists zero Manual rows. Two read-only reviewers checked plan adherence and safety and patterns. The enclosing review reconciled the evidence, applied fixes and ran the local gates. Child-inclusive token accounting was unavailable.
-
-Phase 1 gates result intake and existing artifacts on the step's accepted verdicts. The existing CLI coverage verifies ordinary retries, diagnostic propagation, confirmation halts and the post-start guard on unchecked and reopened rows. The old loop fixture was updated to match that guard. Phase 2 publishes the restored metadata before its checkpoint, resumes timestamp restoration before intake under the run lock and preserves the failed snapshot and Git direction. The local checks cover interrupted rollback and undo, staged and working versions, advances to HEAD, failed review corrections and OpenSpec routing times.
-
-The earlier Phase 1 review's F1–F5 were applied in `49f6c36e`. Those decisions covered confirmation ordering, Setext and fence boundaries, review retry tiers, annotation scanning and routing reference accuracy. Its F6 was scoped into Phase 2 and applied in `29db3c19`.
-
 ## Findings
 
-### F1 — Quoted Markdown could supply or conceal a verdict
+### F1 — A restored review could clear an older failed confirmation
 
 - **Severity**: CRITICAL
-- **Impact**: MEDIUM. The parser must keep the supported header forms and historical tuples.
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/state.mjs:332` at `17dd0ea9`
-- **Detail**: A bare label inside a multiline code span, a preformatted HTML block or a lazy blockquote continuation read as `APPROVED` and could end a no-log run. An escaped, code-quoted or unclosed inline comment opener could hide a later conflicting verdict, so duplicate headers could also pass.
-- **Fix**: Track code spans and real comments separately, skip quoted labels and stop the metadata scan at preformatted blocks. CLI cases exercise the incorrect passes and a valid header following a quoted heading. The archive digest checks historical compatibility.
-  - Strength: Keeps the existing header and verdict formats.
-  - Tradeoff: The reader indexes the inline delimiters before scanning metadata.
-  - Confidence: HIGH. The CLI regressions and archive comparison cover the changed behavior.
-  - Blind spot: The review covers the plan's opening metadata syntax.
-- **Decision**: APPLIED in `25ca44d0`.
+- **Impact**: LOW. Both readers already have the persisted verification flag.
+- **Dimension**: Safety & Quality
+- **Location**: `skills/10x-pipeline/scripts/flow.mjs:713` and `skills/10x-pipeline/scripts/isolation.mjs:686` at `b88f0a1a`
+- **Detail**: The previous writer persisted `verified: false` and `ok: false` when a review lacked a verdict. It omitted `invalid`. Both recovery eligibility and the timestamp rule for a review absent at dispatch depended on that optional diagnostic. In the legacy CLI fixture, the restored plan review dispatched `implement` after the failed confirmation.
+- **Fix**: Use the recorded verification failure in both checks. Read the diagnostic from the current artifact when the old entry lacks one. The regression uses the earlier writer's log shape, checks that unchanged checkout bytes halt the run, then checks that an edited review routes on its open critical finding.
+- **Decision**: APPLIED in `82a87d8c`.
 
-### F2 — Checkout fallback could mistake a restored review for a correction
+### F2 — Backticks in separate list items could conceal a conflicting verdict
 
 - **Severity**: CRITICAL
-- **Impact**: MEDIUM. The legacy and unresolved paths share the checkout comparison.
-- **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/isolation.mjs:581`, `:613` at `17dd0ea9`
-- **Detail**: `GIT_LITERAL_PATHSPECS=1` turned the explicit pathspec prefix into part of the filename and a successful lookup returned no entry for a tracked review. Separately, Git conversion used current attributes, so disabling `ident` let previously expanded checkout bytes appear edited. Either case could let an untouched review advance after a failed confirmation.
-- **Fix**: Look up the exact Git-root-relative path and compare against the pinned commit's built-in conversion when needed. Preserve the custom-filter guard. Nested CLI cases cover both recovery paths with literal pathspecs. A separate case changes the attributes after checkout.
-  - Strength: Both fallback callers use the same exact path and pinned conversion checks.
-  - Tradeoff: A fallback can need an extra Git invocation for pinned built-in conversion.
-  - Confidence: HIGH. The CLI tests use real linked worktrees and Git conversions.
-  - Blind spot: Runtime verification used Git 2.54.0.
-- **Decision**: APPLIED in `25ca44d0`.
-
-### F3 — Unreadable review artifacts bypassed failed-attempt recording
-
-- **Severity**: WARNING
-- **Impact**: LOW. The existing intake gate owns the diagnostic and retry.
-- **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/state.mjs:372`, `skills/10x-pipeline/scripts/flow.mjs:600` at `17dd0ea9`
-- **Detail**: A directory at the expected review path threw before the result was persisted. The generic router halt left the attempt pending and bypassed the plan's failure accounting.
-- **Fix**: Return a file-read diagnostic through `reviewProblem`. The CLI regression checks that the original result is recorded with `verified: false`, `ok: false`, no review record and a bounded retry.
-- **Decision**: APPLIED in `25ca44d0`.
-
-### F4 — Timestamp recovery could modify a hard-linked file outside the run worktree
-
-- **Severity**: WARNING
-- **Impact**: LOW. The file descriptor exposes the link count before the timestamp write.
-- **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/isolation.mjs:657` at `17dd0ea9`
-- **Detail**: A matching file with a hard link passed all regular-file and symlink checks. Restoring its timestamp also changed the outside path's timestamp.
-- **Fix**: Refuse a timestamp write to a file with multiple hard links. The CLI regression checks the outside file's time and verifies that the same pending checkpoint completes once the owner removes the redirection.
-- **Decision**: APPLIED in `25ca44d0`.
-
-### F5 — The reference omitted routing and Git recovery conditions
-
-- **Severity**: WARNING
-- **Impact**: LOW. The reference can state the conditions enforced by the router.
+- **Impact**: LOW. The delimiter index already tracks paragraph boundaries.
 - **Dimension**: Plan Adherence
-- **Location**: `docs/REFERENCE.md:111`, `:216`, `:245` and `skills/10x-pipeline/scripts/isolation.mjs:597` at `17dd0ea9`
-- **Detail**: The pre-plan loop guidance implied a `RETHINK` could re-plan after implementation had started. The legacy and unresolved checkout fallback also used pinned attribute lookup without documenting its Git version requirement.
-- **Fix**: Qualify the loop descriptions and document the Git versions needed for checkout comparison and pinned built-in conversion. The older-Git behavior was reviewed against Git's command documentation. [Git 2.40 attribute lookup](https://github.com/git/git/blob/v2.40.0/Documentation/git-check-attr.txt) · [Git 2.41 attribute source](https://github.com/git/git/blob/v2.41.0/Documentation/git.txt)
-- **Decision**: APPLIED in `25ca44d0`.
+- **Location**: `skills/10x-pipeline/scripts/state.mjs:337` at `b88f0a1a`
+- **Detail**: Unmatched backticks in two metadata list items paired across a separate `REJECTED` item. The reader skipped that verdict and accepted the following `APPROVED` item. A no-log `init` returned `done` for a review with two verdicts.
+- **Fix**: End inline delimiter matching at nonempty bullet boundaries. A no-log CLI fixture now halts on the duplicate, and a separate fixture keeps a numbered prose line inside its code span.
+- **Decision**: APPLIED in `82a87d8c`.
 
-## Verification after fixes
+### F3 — A UTF-8 byte-order mark hid the first Markdown boundary
 
-- `node --test skills/10x-pipeline/test/openfindings.test.mjs` passed all 185 tests.
-- `node --test skills/10x-pipeline/test/rollback.test.mjs` passed all 28 tests.
-- The archive comparison matched all 190 path, verdict, critical and warning tuples. The digest before and after the fixes matched the plan's baseline, `9b8d0af620d7dd8e4bf6929403e96aac1a2e3661e91b33779e9ee95f5c75b635`.
-- `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` passed 1,981 tests with zero failures and three expected skips. The skipped checks were the two opt-in GitHub tests and the test for an absent `CLAUDE.md`.
+- **Severity**: WARNING
+- **Impact**: LOW. Only the start of the review needs normalization.
+- **Dimension**: Plan Adherence
+- **Location**: `skills/10x-pipeline/scripts/state.mjs:366` at `b88f0a1a`
+- **Detail**: A file beginning with a byte-order mark and a canonical verdict failed intake. The same prefix on an opening `## Findings` heading let the reader continue into the body and treat an example as the verdict.
+- **Fix**: Strip one leading byte-order mark before scanning the header. Test both a first-line verdict and a first-line heading followed by a body example.
+- **Decision**: APPLIED in `82a87d8c`.
+
+## Coverage and verification
+
+Phase 1 covered both accepted vocabularies, result intake, existing artifacts, retry limits, confirmation halts, corrected reviews, and unchecked or reopened implementation rows. Phase 2 covered rollback and undo checkpoints, restart ordering, pinned checkouts, later commits, preservation of staged and working copies, and OpenSpec task and verification times. The six automated Progress rows cover both phases. The plan lists no manual rows.
+
+- `/root/drift` reviewed plan adherence. `/root/quality` reviewed recovery, safety and patterns. Both independently identified F1. The enclosing review reproduced all three findings against `b88f0a1a` and verified the fixes through the CLI. Child-inclusive token usage was unavailable.
+- Before fixes, the existing suites passed 185 verdict tests and 28 rollback tests. All three focused regressions failed against `b88f0a1a`.
+- After fixes, `node --test skills/10x-pipeline/test/openfindings.test.mjs` passed all 188 tests and `node --test skills/10x-pipeline/test/rollback.test.mjs` passed all 28.
+- The archive comparison matched all 190 tuples before and after the fixes. The SHA-256 digest matched the plan's baseline, `9b8d0af620d7dd8e4bf6929403e96aac1a2e3661e91b33779e9ee95f5c75b635`.
+- The full repository command passed 1,984 tests with three expected skips (two opt-in GitHub checks and the absent `CLAUDE.md` check). An earlier run had one failure at `run-lock.test.mjs:184` when a simulated native-runner crash left a temporary lock file. Both crash tests passed on immediate rerun. Two subsequent full runs each passed all 1,984 enabled tests.
+
+The previous full-plan review and its decisions are preserved at `61388093:context/changes/review-verdict-unknown-passes/reviews/impl-review.md`.
