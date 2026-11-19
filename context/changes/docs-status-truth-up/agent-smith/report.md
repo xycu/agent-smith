@@ -1,8 +1,9 @@
 # Run report: docs-status-truth-up
 
-Goal: Implement context/changes/docs-status-truth-up/change.md: fix the six dead links to archive paths, set ADR statuses to the truth, add Rule in force sections where an ADR has three or more amendments, resolve README pending notes, check roadmap S-12 and S-20, record the decision on unchecked archived rows; WAVES.md is already rewritten, so skip item 3; docs commits only, full suite green.
+Goal: Bring ADR statuses, WAVES.md, dead links and pending notes up to date
 Rigor: standard (goal hard)
 Outcome: done - impl review NEEDS ATTENTION
+Archive: requested - runs after this report was written; see the commit "chore(archive): close docs-status-truth-up"
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
