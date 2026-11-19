@@ -1,7 +1,7 @@
 {
   "name": "agent-smith",
   "displayName": "Agent Smith",
-  "version": "1.14.0",
+  "version": "1.14.1",
   "skills": "./skills/",
   "description": "Run 10xDevs and OpenSpec workflows through explicit slash commands, with each step in its own subagent and model and effort routing based on earlier results.",
   "author": {
