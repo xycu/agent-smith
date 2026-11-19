@@ -48,9 +48,5 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
-  },
-  "outcome": {
-    "action": "halt",
-    "reason": "Step 3 (implement) needs a human: Choose whether trusted Claude startup imports may read task bytes before the guard handshake, or authorize redesigning pending-task storage. The router already exposes the task in prompt.md and run.jsonl, and Claude's InstructionsLoaded hook cannot veto an import."
   }
 }
