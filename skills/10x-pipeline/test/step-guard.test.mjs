@@ -149,9 +149,6 @@ test("heredocs distinguish literal text routes from executable or unresolved rec
     'cat <<EOF >"$destination"\n' + prose + "\nEOF",
     "cat <<EOF 2>&1\n" + prose + "\nEOF",
     "cat 3<<EOF\n" + prose + "\nEOF",
-    "cat <<EOF >/dev/fd/1\nliteral text\nEOF\n",
-    "cat <<EOF >/dev/stdout\nliteral text\nEOF\n",
-    "cat <<EOF >/dev/tcp/example.invalid/1\nliteral text\nEOF\n",
     "cat <<EOF > >(tee notes.txt)\n" + prose + "\nEOF",
     "if true; then\ncat <<EOF\n" + prose + "\nEOF\nfi",
     "time -p {\ncat <<'EOF'\nliteral text\nEOF\n}",
@@ -160,6 +157,9 @@ test("heredocs distinguish literal text routes from executable or unresolved rec
     "if true; then if true; then true; fi\ncat <<'EOF'\nliteral text\nEOF\nfi",
     "((cat <<'EOF'\nliteral text\nEOF\n) )",
   ]) denied(command, heredocGuidance);
+  for (const destination of ["/dev/fd/1", "/dev/stdout", "/dev/tcp/example.invalid/1", "/dev/udp/example.invalid/1"]) {
+    denied(`cat <<EOF >${destination}\nliteral text\nEOF\n`, /Heredoc.*literal files.*Write tool/i);
+  }
   denied("cat <<EOF\n" + prose + "\nEOF\ngit push");
   denied("git push; cat <<EOF\n" + prose + "\nEOF");
 });
