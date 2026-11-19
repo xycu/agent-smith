@@ -1,7 +1,7 @@
 ---
 change_id: open-pr-unfinished-merge-commit
 title: Keep open-pr from committing and pushing an unfinished merge
-status: new
+status: planned
 created: 2026-11-19
 updated: 2026-11-19
 archived_at: null
