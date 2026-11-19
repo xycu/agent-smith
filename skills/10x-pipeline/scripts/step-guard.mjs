@@ -114,6 +114,7 @@ function shellWord(text, at, depth = 0, closing = null) {
     else if (quote !== "'" && (c === "\x60" || c === "$" && text[opening] && "({[".includes(text[opening]))) {
       at = shellExpansionEnd(text, opening, depth + 1);
       literal = false;
+      bare = false;
       continue;
     } else {
       if (quote !== "'" && c === "$") {
@@ -207,12 +208,15 @@ function literalMessage(text, at) {
   return { end: close.lastIndex, value: "", literal: true, capture: true };
 }
 
+const descriptorPath = /^\/dev\/(?:fd\/|std(?:in|out|err)$)/;
+
 function textHeredocStage(tokens) {
   let command;
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (token.heredoc) continue;
     if (token.literal && !token.capture) {
+      if (command === "tee" && descriptorPath.test(token.value)) return false;
       command ??= token.value;
       continue;
     }
@@ -220,7 +224,7 @@ function textHeredocStage(tokens) {
       (token.descriptor === undefined || (token.operator === "<" ? /^0+$/ : /^0*[12]$/).test(token.descriptor));
     const target = tokens[i + 1];
     if (!literalFile || !target?.literal || target.capture ||
-        /^\/dev\/(?:(?:fd|tcp|udp)\/|std(?:in|out|err)$)/.test(target.value)) {
+        descriptorPath.test(target.value) || /^\/dev\/(?:tcp|udp)\//.test(target.value)) {
       return false;
     }
     i++;
@@ -262,12 +266,12 @@ function withoutHeredocData(text) {
   let unsafeExpansion = false;
   const compounds = [];
   const finishStage = () => {
-    const messages = tokens.map((token, index) => token.capture ? index : -1).filter((i) => i !== -1);
-    if (messages.length) {
+    const lastCapture = tokens.findLastIndex((token) => token.capture);
+    if (lastCapture !== -1) {
       const words = tokens.map((token) => token.value);
       if (words[0] !== "git" || words[1] !== "commit" || words.includes(undefined)) unexpectedHeredoc();
       const operands = gitOptions(words).messageOperands;
-      if (messages.some((i) => !operands.includes(i) || tokens.slice(0, i).some((token) => !token.literal))) {
+      if (tokens.some((token, i) => (i < lastCapture && !token.literal) || (token.capture && !operands.has(i)))) {
         unexpectedHeredoc();
       }
     }
@@ -428,7 +432,7 @@ function gitOptions(words) {
   const sub = words[at];
   const args = words.slice(at + 1);
   const flags = [];
-  const messageOperands = [];
+  const messageOperands = new Set();
   const shortValues = sub === "commit" ? "mFcCtSu" : sub === "clean" ? "e" : "";
   const longValues = ["--message", "--file", "--author", "--date"];
   if (sub === "commit") longValues.push("--reuse-message", "--reedit-message", "--template", "--fixup", "--squash", "--cleanup", "--trailer", "--pathspec-from-file");
@@ -437,7 +441,7 @@ function gitOptions(words) {
     const arg = args[i];
     if (arg === "--") break;
     if (longValues.includes(arg) || ["-m", "-F"].includes(arg)) {
-      if (arg === "-m") messageOperands.push(at + i + 2);
+      if (arg === "-m") messageOperands.add(at + i + 2);
       i++;
       continue;
     }

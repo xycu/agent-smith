@@ -142,6 +142,7 @@ test("heredocs distinguish literal text routes from executable or unresolved rec
     "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\ntee notes.txt",
     "cat <<A | tee <<B notes.txt\nfirst\nA\nsecond\nB\n",
     "note() if true; then :; fi\ncat <<'EOF'\nliteral text\nEOF\n",
+    "if${suffix}\ncat <<'EOF'\nliteral text\nEOF\n",
   ]) neutral(payload(command));
   for (const command of [
     "bash <<'EOF'\n" + prose + "\nEOF",
@@ -165,6 +166,7 @@ test("heredocs distinguish literal text routes from executable or unresolved rec
   for (const destination of ["/dev/fd/1", "/dev/stdout", "/dev/tcp/example.invalid/1", "/dev/udp/example.invalid/1"]) {
     denied(`cat <<EOF >${destination}\nliteral text\nEOF\n`, /Heredoc.*literal files.*Write tool/i);
   }
+  denied("cat <<EOF | tee -a /dev/fd/1\nliteral text\nEOF", /Heredoc.*literal files.*Write tool/i);
   denied("cat <<EOF\n" + prose + "\nEOF\ngit push");
   denied("git push; cat <<EOF\n" + prose + "\nEOF");
 });
@@ -216,6 +218,7 @@ test("only an entire separate git commit message operand can capture a literal h
     "git commit -m " + message.replace("cat", "ca\\\nt").replace(')"', ')\\\n"'),
     "git commit -m " + capture(""),
     "git commit -m " + capture("--no-verify\n"),
+    "git commit -m " + message + " -m " + capture("second paragraph\n"),
     "git commit -a -m " + message + " -- tracked-file",
   ]) neutral(payload(command));
   denied("git commit --no-verify -m " + message);
@@ -226,6 +229,7 @@ test("only an entire separate git commit message operand can capture a literal h
     "echo " + capture("literal text\n").replace("$(", "$\\\n("),
     'echo "$((cat <<\'EOF\'\nliteral text\nEOF\n) )"',
     "git commit --trailer -m " + message,
+    "git commit -m " + message + ' --author "$author" -m ' + message,
     "git >notes.txt commit -m " + message,
     "git commit -- -m " + message,
     "git commit -m" + message,
