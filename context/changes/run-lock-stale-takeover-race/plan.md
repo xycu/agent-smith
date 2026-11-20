@@ -7,7 +7,7 @@ Two router processes that both find the same stale run lock can both take it, so
 ## Current State Analysis
 
 - The logic is not in `state.mjs:990-1021` (the `change.md` line numbers are stale). `acquireRunLock` in `skills/10x-pipeline/scripts/state.mjs:1118-1120` only forwards to `lockRunDirectory` in `skills/10x-pipeline/scripts/run-lock.mjs`. This plan calls the whole thing "the run lock".
-- `lockRunDirectory` writes the pid to a private temp file `${lock}.${pid}.tmp`, then `fs.linkSync(tmp, lock)` (exclusive). On `EEXIST` it reads the lock, classifies it, and for a stale lock does `unlinkQuiet(lock)` and goes round the loop once more (`run-lock.mjs:60-62`, the `attempt > 0` check).
+- `lockRunDirectory` writes the pid to a private temp file `${lock}.${pid}.tmp`, then `fs.linkSync(tmp, lock)` (exclusive). On `EEXIST` it reads the lock, classifies it, and for a stale lock does `unlinkQuiet(lock)` and goes round the loop once more (`run-lock.mjs:75-76`, the `attempt > 0` check).
 - Classification today, in order: a JSON owner with a `native` key halts; a live pid halts with "Another init, next or usage ..."; a structured execution owner whose child process group may be alive halts; everything else (dead pid, unparsable text) is stale.
 - The race: A and B both read the stale pid; A unlinks and links; B then unlinks A's fresh lock and links its own. Both return from `lockRunDirectory`. Reproduced in the audit: 8 of 200 rounds with 2 processes, 12 of 150 with 8.
 - Callers: `route.mjs` (`next`, `usage`, `status --report`, `init`), `run-claude.mjs`, `run-codex.mjs` through `acquireRunLock(id, chain, onBusy)`, and `pr-common.mjs` `withPublicationLock` through `lockRunDirectory` directly. Every `onBusy` halts, exits or throws; none returns.
@@ -25,7 +25,7 @@ Two router processes that both find the same stale run lock can both take it, so
 
 ### Key Discoveries:
 
-- `skills/10x-pipeline/scripts/run-lock.mjs:30-65` holds the whole acquire loop; `release` at `:38-46`; the live-pid message at `:55`.
+- `skills/10x-pipeline/scripts/run-lock.mjs:46-78` holds the whole acquire loop; `release` at `:38-45`; the live-pid message at `:64`.
 - The temp-file-plus-`linkSync` trick gives atomic creation with content; the guard reuses it with the same temp file (it holds this pid).
 - `os.tmpdir()` is read at call time, so a worker with `TMPDIR` set gets its own lock directory (existing `setup` in `run-lock.test.mjs:24-33` relies on it). The lock name is keyed by the run directory path, so one scratch root with ids `r0..rN` gives N independent locks.
 - `Atomics.wait` on a `SharedArrayBuffer` is the sync sleep already used in `test/prepare-run-helpers.mjs:77`.
@@ -45,7 +45,7 @@ Take the "second exclusive link" direction of `change.md`, not the "re-read afte
 ## Critical Implementation Details
 
 - **State sequencing.** Under the guard: re-read the lock; if it is gone, only retry the link; if it is now busy, halt with that reason; if still stale, `unlink` then `linkSync(tmp, lock)`. If that link fails with `EEXIST`, a caller that saw no lock (and so needs no guard) linked first: leave the guard and loop again so the new owner is classified, never overwritten. Release the guard in a `finally` and also in `release()`, because halts call `release()` before `onBusy`.
-- **Guard failure modes.** The guard is `${lock}.takeover`, linked from the same temp file, so it carries the owner pid. A live holder is waited for (poll about 20 ms, total budget about 1 s, then halt busy with the guard path). A holder pid that is dead means a crash inside a microsecond window; removing it would reopen the race, so halt with a message that names the guard file and says to remove it when no router runs. Exclusion is never traded for self-healing here.
+- **Guard failure modes.** The guard is `${lock}.takeover`, linked from the same temp file, so it carries the owner pid. A live holder is waited for (poll about 20 ms, total budget about 1 s, then halt busy with the guard path). A guard that vanishes between the failed link and its read, or cannot be read, is a normal release by its holder: retry the guard link at once, inside the same budget, never the dead-holder halt. A readable guard whose pid is not alive (or is not a pid) is the dead-holder case. A holder pid that is dead means a crash inside a microsecond window; removing it would reopen the race, so halt with a message that names the guard file and says to remove it when no router runs. Exclusion is never traded for self-healing here.
 
 ## Phase 1: Exclusive takeover, safe guard, clearer message
 
@@ -59,7 +59,7 @@ Fix `lockRunDirectory`, change the live-pid message, update the focused tests an
 
 **File**: `skills/10x-pipeline/scripts/run-lock.mjs`
 
-**Intent**: Make the stale branch exclusive. Extract the classification into one function reused before and under the guard, add the guard acquire/release, and bound the retry loop (about 10 attempts, then rethrow the `EEXIST` error as today).
+**Intent**: Make the stale branch exclusive. Extract the classification into one function reused before and under the guard, add the guard acquire/release, and bound the retry loop (about 10 attempts, then rethrow the `EEXIST` error as today). The guard wait sleeps synchronously, because `lockRunDirectory` is synchronous (`Atomics.wait` on a `SharedArrayBuffer`, as in `test/prepare-run-helpers.mjs:77`); its 1 s budget is separate from the 10-attempt bound, and a guard retry after a vanished guard does not use up an attempt.
 
 **Contract**: Same exported `lockRunDirectory(root, id, chain, onBusy)` and `runLockPath`, same returned object. New file `${lock}.takeover`, linked from `tmp`, removed only while it holds this pid, removed by `release()` as well as by the takeover `finally`. Native-key locks and execution locks with a possibly live group go to `onBusy` before any guard is taken, and again if seen under the guard. `onBusy` is called after `release()` as today.
 
@@ -67,7 +67,7 @@ Fix `lockRunDirectory`, change the live-pid message, update the focused tests an
 
 **File**: `skills/10x-pipeline/scripts/run-lock.mjs`
 
-**Intent**: Keep the existing opening sentence, `lock file <path>, pid <pid>` and "Nothing was written." and add, before "Nothing was written.", how to check that the pid is a router (for example `ps -p <pid> -o command=` shows `route.mjs`, `run-claude.mjs`, `run-codex.mjs`, `open-pr.mjs` or `pr-comment.mjs`) and that when it is another program and no router runs for this change, the owner removes the lock file and retries.
+**Intent**: Keep the existing opening sentence, `lock file <path>, pid <pid>` and "Nothing was written." and add, before "Nothing was written.", how to check that the pid is a router (for example `ps -p <pid> -o command=` on POSIX, or `tasklist /FI "PID eq <pid>"` on Windows, shows `route.mjs`, `run-claude.mjs`, `run-codex.mjs`, `open-pr.mjs` or `pr-comment.mjs`) and that when it is another program and no router runs for this change, the owner removes the lock file and retries.
 
 **Contract**: The reason still matches `/Another init, next or usage of change <id> is running/` and contains the lock path. The native and Codex execution messages are not changed.
 
@@ -93,7 +93,7 @@ Fix `lockRunDirectory`, change the live-pid message, update the focused tests an
 
 - Focused lock tests pass, including the single-caller stale recovery: `node --test --test-concurrency=2 skills/10x-pipeline/test/run-lock.test.mjs`
 - Other users of the lock still pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/run-state.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/claude-runner.test.mjs skills/10x-pipeline/test/open-pr.test.mjs skills/10x-pipeline/test/pr-comment.test.mjs`
-- Lock path and format are unchanged: `! git diff main -U0 -- skills/10x-pipeline/scripts/run-lock.mjs | grep -E '^[-+].*(agent-smith-|sha256|tmpdir|slice)'` prints nothing
+- Lock path and format are unchanged: `! git diff $(git merge-base HEAD main) -U0 -- skills/10x-pipeline/scripts/run-lock.mjs | grep -E '^[-+].*(agent-smith-|sha256|tmpdir|slice\(0, 16\))'` prints nothing
 - No stale statement of the old limit remains: `! grep -rn "can both take it" docs README.md skills AGENTS.md`
 - Router smoke check (scratch project, `{ "isolation": { "require": false } }`): `init <id> --goal "x"` returns `action: "run"`, then `status <id>` succeeds
 
@@ -109,15 +109,15 @@ Add a worker helper and one test that runs many processes against many stale loc
 
 **File**: `skills/10x-pipeline/test/run-lock-worker.mjs` (a helper, not a `*.test.mjs`, so the suite glob does not run it)
 
-**Intent**: One process that, for `R` rounds on a shared time grid, spins until the round's slot start, calls `lockRunDirectory` for the round's id, holds the lock for a fixed time, records the interval and releases. A busy halt is recorded as a loss, not an error. At the end it prints one JSON line with its intervals.
+**Intent**: One process that, for `R` rounds on a shared time grid, spins until the round's slot start, calls `lockRunDirectory` for the round's id, holds the lock for a fixed time, records the interval and releases. It takes `start` right after `lockRunDirectory` returns and `end` right before `release()`, so a recorded interval lies inside the true hold and never overlaps a neighbour by its own bookkeeping. A busy halt is recorded as a loss, not an error. At the end it prints one JSON line with its intervals.
 
-**Contract**: argv `<root> <idPrefix> <rounds> <startAtMs> <slotMs> <holdMs>`; env `TMPDIR` for the lock directory; optional env `LOCK_MODULE` (absolute path) replaces the imported `run-lock.mjs`, so the harness can be run against the pre-fix source. Time is `performance.timeOrigin + performance.now()` (fractional ms, comparable across processes). `onBusy` throws a local error that the worker catches.
+**Contract**: argv `<root> <idPrefix> <rounds> <startAtMs> <slotMs> <holdMs>`; env `TMPDIR` for the lock directory; optional env `LOCK_MODULE` (absolute path) replaces the imported `run-lock.mjs`, so the harness can be run against the pre-fix source. Time is `performance.timeOrigin + performance.now()` (fractional ms, comparable across processes). `onBusy` throws a local error that the worker catches. `root` exists and `TMPDIR` is a directory outside it (the lock code refuses a `TMPDIR` inside the root), both under `fs.realpathSync` like `setup` in `run-lock.test.mjs`; `LOCK_MODULE` is imported through `pathToFileURL`; the dead pid of each stale lock comes from the `deadPid()` helper already in `run-lock.test.mjs`.
 
 #### 2. The test
 
 **File**: `skills/10x-pipeline/test/run-lock.test.mjs`
 
-**Intent**: Create `R` (about 120, chosen in Phase 2 so the pre-fix run fails every time) stale locks, one per round id, each holding a dead pid; start about 6 worker processes with the same start time and a slot of about 40 ms and a hold of about 10 ms; wait for all; assert for every round that at least one worker held the lock (liveness), that the held intervals sorted by start never overlap, and that the scratch directory has no `.lock`, `.tmp` or `.takeover` leftovers. Remove the scratch directories with `removeTree`.
+**Intent**: Create `R` (about 120, chosen in Phase 2 so the pre-fix run fails every time) stale locks, one per round id, each holding a dead pid; start about 6 worker processes with the same start time and a slot of about 40 ms and a hold of about 10 ms; wait for all; assert for every round that at least one worker held the lock (liveness), that the held intervals sorted by start never overlap (an overlap under 2 ms counts as clock noise between processes; a pre-fix overlap is about the hold time, 10 ms), and that the scratch directory has no `.lock`, `.tmp` or `.takeover` leftovers. Remove the scratch directories with `removeTree`.
 
 **Contract**: Run on POSIX and Windows alike unless `link` semantics differ; skip only where an existing lock test already skips. The failure message names the round and the two overlapping intervals.
 
