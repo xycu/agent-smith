@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md 'Direction (for the plan to confirm)' and 'Scope that the reference sets today': the outcome is fixed (deny the listed forms), but the owner has not decided how far scope moves, and the fail-closed rule for unparseable forms has more than one reasonable answer." },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/scripts/step-guard.mjs (747 lines) already has a hand-written tokenizer with commands(), commandProblem() and an exact-match long-option check; the change adapts that pattern to separators, wrappers and prefix matching." },
+    "coupling": { "score": 1, "evidence": "change.md 'The defect' names one module, step-guard.mjs lines 8-55 and 94-119; its callers are the PreToolUse hook (hooks/hooks.json) and the test file skills/10x-pipeline/test/step-guard.test.mjs, with no other consumer of the parser." },
+    "discovery": { "score": 1, "evidence": "change.md names the locations (commands(), commandProblem(), lines 94-103) and the forms to cover; one search of step-guard.mjs and its tests settles where each form is handled." },
+    "volume": { "score": 2, "evidence": "change.md lists roughly 60 forms in 9 groups, each needing a deny test and an allow test in step-guard.test.mjs (431 lines today), plus parser edits in step-guard.mjs and updates to docs/REFERENCE.md and README.md, so 3 to 4 files with a moderate amount of new code." },
+    "verification": { "score": 2, "evidence": "change.md 'Done when': the existing node:test suite covers the guard and can take new cases, but the done-when list also requires a manual live check in an agent-smith:step subagent with the plugin installed, which the harness does not cover." }
+  },
+  "unknowns": [
+    "Owner decision on how far scope moves beyond direct forms (change.md 'Scope that the reference sets today').",
+    "Minimum prefix length for abbreviated long options, for example the 5-character floor in change.md, not yet confirmed against git's own prefix rules.",
+    "Whether the change-id depends on step-guard-heredoc-false-positives landing first (change.md 'Order'); its parser edits may shift line numbers and the baseline behavior."
+  ],
+  "confidence": "medium"
+}
