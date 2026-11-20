@@ -65,13 +65,17 @@ Add the guard in `route.mjs` and cover it with tests in the existing isolation t
 - `initIn(wt)` in a worktree, then a failed `writeResult`, then `nextIn(wt)`: `action` is `run`, the log has the entry that follows, and `meta.isolated` is still `true`.
 - `require: false` (default scratch policy via `repo({ policy: {} })`), no `meta.json`: `nextIn` returns `action: "run"` and writes `meta.json` without `isolated`, as today.
 
+**File**: `skills/openspec-pipeline/test/openspec-isolation.test.mjs`
+
+**Contract**: One test for the other chain, because the plan claims the one guard covers both: an OpenSpec change with the default isolation policy (`ON`), main checkout, no `meta.json`: `next <id> --chain openspec` halts with exit 1, names `init`, and `fs.existsSync` of `openspec/changes/<id>/agent-smith` is false. Use the helpers and the style of the neighbouring tests in that file.
+
 #### 3. Fix fixtures the guard breaks
 
 **File**: `skills/10x-pipeline/test/*.test.mjs`, `skills/openspec-pipeline/test/*.test.mjs` (only those that fail)
 
-**Intent**: A test that sets its own `isolation: { require: true }` block and then calls `next` without an `init` that recorded isolation now halts; give such a fixture `isolated: true` (and the `branch` it needs) in its `meta.json`, or switch its first call to `init`.
+**Intent**: A test that runs `next` with isolation on (its own `isolation: { require: true }` block, or the shipped default after its override file is removed) on a run that `init` did not record as isolated now halts; give such a fixture `isolated: true` (and the `branch` it needs) in its `meta.json`, switch its first call to `init` in a worktree, or keep isolation off for it.
 
-**Contract**: Find them by running the full suite once after the guard lands (files that name `isolation` are listed in the research notes: `rollback`, `stepcommit`, `late-usage`, `open-pr`, `neutral`, `firstattempt` and the openspec isolation tests are the likely ones). Change only fixtures, never an assertion about router behavior other than for this guard.
+**Contract**: A dry run of the guard against the full suite (2112 tests, scratch copy of this plan's guard) broke exactly one fixture: `skills/10x-pipeline/test/preplan.test.mjs`, test "a bad prompt reference halts before the subagent result is consumed" (line 202). It runs `init` with isolation off, then ends with `fs.rmSync(overrideFile)`, which restores the shipped `isolation.require: true`, so the final `next` halts. Replace that `fs.rmSync(overrideFile)` with `writeOverride(project, {})` (already imported there; it writes `isolation.require: false`, the state the run started in). The test files that name `isolation` (`rollback`, `stepcommit`, `late-usage`, `open-pr`, `neutral`, `firstattempt`, the openspec isolation tests) did not break, because they `init` in a worktree. Still run the full suite after the guard lands and fix any further failure the same way. Change only fixtures, never an assertion about router behavior other than for this guard.
 
 ### Success Criteria:
 
@@ -103,7 +107,7 @@ Add the one line under `next` in the reference doc and check that no other doc s
 
 **Intent**: Record that `next` refuses a run `init` would refuse for missing isolation.
 
-**Contract**: One bullet in the "Run isolation:" list, directly after the `init` bullets (after line 142): with `isolation.require` on and no `isolated: true` in `meta.json`, `next` halts, writes nothing and names `init`; with isolation off nothing changes, including `next` without `meta.json`. Both chains share it.
+**Contract**: One bullet in the "Run isolation:" list, directly after the `init` bullets (after line 142): with `isolation.require` on and no `isolated: true` in `meta.json`, `next` halts, writes nothing and names `init`; with isolation off nothing changes, including `next` without `meta.json`. Both chains share it. Write the bullet so it contains the literal text `next` halts, writes nothing (backticks around `next`): row 2.1's loose pattern `next. halts` already matches an older sentence (line 159, the staged-index note), so confirm the new bullet with `grep -n "next. halts, writes nothing" docs/REFERENCE.md`, which matches only the new bullet.
 
 #### 2. Grep the other docs
 

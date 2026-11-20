@@ -26,7 +26,7 @@ With `isolation.require` on and no `isolated: true` in `meta.json`, `next` halts
 
 ## Scope
 
-**In scope:** the guard in `route.mjs`; four tests in `isolation.test.mjs`; fixture fixes for tests the guard breaks; one REFERENCE bullet; a doc grep.
+**In scope:** the guard in `route.mjs`; four tests in `isolation.test.mjs` and one OpenSpec-chain test in `openspec-isolation.test.mjs`; fixture fixes for tests the guard breaks; one REFERENCE bullet; a doc grep.
 
 **Out of scope:** changes to `init`, `isolationCheck`, skills, prompts, policy keys and ADRs; re-running worktree and branch checks in `next`.
 
@@ -47,7 +47,7 @@ One early `halt()` in `next()`. Both chains share `next()` and `meta.isolated`, 
 ## Open Risks & Assumptions
 
 - Assumed: `next` without `meta.json` and isolation off keeps today's behavior (change.md left this to the plan).
-- Some existing tests with their own `isolation` block may need `isolated: true` in their `meta.json` fixture.
+- A dry run found one existing fixture the guard breaks: `preplan.test.mjs` (line 202), which removes its override file and so falls back to the shipped `isolation.require: true`; the fix is `writeOverride(project, {})` in place of the removal. Others may appear in the full run.
 - A legacy in-flight run (executed steps, not isolated) now halts at `next` as `init` already did.
 
 ## Success Criteria (Summary)
