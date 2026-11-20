@@ -1,0 +1,2 @@
+- 3.5 — needs a live Codex model step (real session, GH_TOKEN set) that attempts git push, gh pr create and gh auth token; no test or command here starts Codex with a model, and the attempts would risk publishing to an external service.
+- 3.6 — same live Codex step needed to observe bash -lc "git push"; execpolicy check is a static evaluator, not the live refusal the row asks for. docs/REFERENCE.md already states wrappers are not matched.
