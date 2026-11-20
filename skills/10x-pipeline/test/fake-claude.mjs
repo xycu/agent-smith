@@ -72,6 +72,7 @@ async function handle(message) {
     event({ type: "system", subtype: "init", plugins: [{ name: "agent-smith", path: root }], tools: tools.filter(t => t !== mode.missingTool), skills: [skill],
       model: arg("--model"), effort: arg("--effort"), permissionMode: "dontAsk", cwd: process.cwd() });
     const trials = JSON.parse(message.message.content.split("\n").at(-1));
+    if (mode.earlyProbeStop) stop("ready");
     for (const [tool, input] of trials) {
       const key = "probe-" + ++seq;
       const allowed = await callback("PreToolUse", tool, input, key);
@@ -91,7 +92,7 @@ async function handle(message) {
       await callback("PostToolUse", tool, input, key, { tool_response: output });
     }
     if (mode.changeHandoff) fs.appendFileSync(mode.changeHandoff, "altered");
-    stop("ready");
+    if (!mode.earlyProbeStop) stop("ready");
     result(message.uuid, "ready");
     return;
   }

@@ -158,6 +158,16 @@ test("incompatible handshake, toolkit, privilege set or changed handoff refuses 
   assert.match(w.execute().reason, /revision differs/);
 });
 
+test("preflight requires a fresh Stop after the last authorized probe", () => {
+  const w = fixture("10x", {}, { earlyProbeStop: true });
+  const refused = w.execute();
+  assert.equal(refused.launched, false, refused.reason);
+  assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
+  w.setMode({});
+  const retry = w.execute();
+  assert.equal(retry.completed, true, retry.reason);
+});
+
 test("scorer gets its four effective tools and rejects a broader pool, custom mappings or a native advisor", () => {
   const restricted = { score: { minRigor: "standard" }, agents: { restricted: true } };
   const w = fixture("10x", restricted, { scorerCall: true });

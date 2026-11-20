@@ -135,13 +135,10 @@ export async function runClaude(id, chain, action) {
           const trial = sentProbe && handshake && !leaf && initTools && probeInput(probe, tool, input);
           if (!trial || (scorer && tool === "Bash")) return denied("Only the exact capability probe is authorized before dispatch.");
           probeCalls.set(key, trial);
-          return {};
-        }
-        if (finished || (scorer && !scoreTools.includes(tool)) || otherLaunch.has(tool)
+        } else if (finished || (scorer && !scoreTools.includes(tool)) || otherLaunch.has(tool)
             || input.run_in_background === true || input.dangerouslyDisableSandbox === true) {
           return denied("Detached work, permission overrides and unsupported tools are unavailable in this session.");
-        }
-        if (tool === "Agent") {
+        } else if (tool === "Agent") {
           if (leaf || scorer || input.subagent_type !== "agent-smith:step"
               || typeof input.prompt !== "string" || !input.prompt.trim()
               || Object.keys(input).some(k => !["description", "prompt", "subagent_type", "run_in_background"].includes(k))
@@ -151,7 +148,7 @@ export async function runClaude(id, chain, action) {
           if (calls.has(key) || calls.size >= 512) fail("Duplicate or excessive native leaf calls.");
           calls.add(key);
         }
-        // A tool call after Stop needs a new idle receipt before the work can settle.
+        // Both preflight and work need a fresh idle receipt after the last authorized tool call.
         stop = null;
       } else if (req.callback_id === "PostToolUse") {
         if (!envelope.launched) {
