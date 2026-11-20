@@ -340,7 +340,7 @@ test("the tierWhy of the first os-propose starts with base 5", () => {
 
 test("with the score, manual-verify and thorough rigor on, an OpenSpec run never returns a dropped step or template", () => {
   const project = makeOpenspecProject({ policy: { score: { minRigor: "standard" }, manualVerify: { minRigor: "lean" } } });
-  const outputs = [initOpenspec(project, GOAL, ["--rigor", "thorough"])];
+  const outputs = [initOpenspec(project, GOAL, ["--rigor", "thorough", "--provider-mode=split"])];
   const steps = [
     () => writeArtifacts(project, PROPOSED),
     () => writeArtifacts(project, { tasks: { done: 2, open: 0 } }),
@@ -354,6 +354,7 @@ test("with the score, manual-verify and thorough rigor on, an OpenSpec run never
   assert.equal(readMetaFile(project).rigor.level, "thorough");
   const log = readLogEntries(project);
   assert.deepEqual(log.map((e) => e.template), ["os-propose", "os-apply", "os-verify", "os-apply-fix", "os-verify"]);
+  assert.deepEqual(log.map((e) => e.provider), ["openai", "openai", "claude", "claude", "claude"]);
   const dropped = ["score", "research", "domain-brief", "frame", "manual-verify", "implement-e2e", "implement-tdd", "implement-segment", "implement-retry"];
   for (const e of log) {
     assert.equal(dropped.includes(e.step), false, e.step);

@@ -1,7 +1,7 @@
 import fs from "node:fs";
-import os from "node:os";
+import { liveRunDirectory, lockRunDirectory } from "./run-lock.mjs";
 import path from "node:path";
-import crypto from "node:crypto";
+export { runLockPath } from "./run-lock.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { accountingFor } from "./usage.mjs";
@@ -77,6 +77,9 @@ function mergedPolicy(onError = halt) {
     const kind = override === null ? "null" : Array.isArray(override) ? "an array" : `a ${typeof override}`;
     onError(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
   }
+  if (Object.hasOwn(override, "splitProviders")) {
+    onError(`${file} cannot replace the chain's splitProviders roles. Remove that key and select a run with --provider-mode. Nothing was written.`);
+  }
   return deepMerge(base, override);
 }
 
@@ -93,6 +96,61 @@ export function loadPolicy(onError = halt) {
 // Missing provider/host fields belong to runs and overrides made before OpenAI support.
 export const providerOf = (target) => target?.provider === undefined ? "claude" : target.provider;
 export const hostOf = (meta) => meta?.host === undefined ? "claude" : meta.host;
+
+const providerForHost = (host) => host === "codex" ? "openai" : "claude";
+
+function assignedProvider(policy, meta, step, template) {
+  if (meta.providerMode !== "split") return providerForHost(meta.providerMode);
+  const rules = policy.splitProviders[meta.chain ?? "10x"];
+  const other = rules.otherSteps.includes(step) && rules.hostTemplates[template] !== step;
+  const host = providerForHost(hostOf(meta));
+  return other ? (host === "claude" ? "openai" : "claude") : host;
+}
+
+export function providersByStep(policy, meta) {
+  const chain = meta.chain ?? "10x";
+  const rules = policy.splitProviders[chain];
+  const entries = Object.keys(policy.steps).filter((s) => s.startsWith("os-") === (chain === "openspec")).map((s) => [s, s]);
+  const legacy = [...new Set(policy.ladder.map(providerOf))];
+  return Object.fromEntries([...entries, ...Object.entries(rules.hostTemplates)].map(([template, step]) =>
+    [template, meta.providerMode ? assignedProvider(policy, meta, step, template) : legacy]));
+}
+
+// The override retains its ordinal positions. Only a homogeneous override replaces a provider's whole ladder.
+function providerLadder(policy, provider) {
+  const custom = policy.ladder;
+  if (custom.every((r) => providerOf(r) === provider)) return custom;
+  const file = provider === "openai" ? "codex-policy.json" : "policy.json";
+  const shipped = readJson(path.join(SKILL_DIR, file), null)?.ladder;
+  if (!Array.isArray(shipped) || !shipped.length || shipped.some((r) => !r || providerOf(r) !== provider)) {
+    throw new Error(`Invalid shipped ${provider} ladder in ${file}`);
+  }
+  const ladder = [...shipped];
+  custom.forEach((r, index) => { if (providerOf(r) === provider) ladder[index] = r; });
+  return ladder;
+}
+
+export function stepPolicy(policy, meta, step, template = step) {
+  if (!meta.providerMode) return policy;
+  return { ...policy, ladder: providerLadder(policy, assignedProvider(policy, meta, step, template)) };
+}
+
+export function selectionProblem(policy, meta, checkBounds = true) {
+  const host = hostOf(meta);
+  if (meta.providerMode === undefined) return policyProblems(policy) ?? hostProblem(policy, host);
+  if (!["claude", "codex", "split"].includes(meta.providerMode)) return "Invalid stored providerMode. Nothing was written.";
+  if (!["claude", "codex"].includes(host)) return "Invalid stored host. Nothing was written.";
+  if (!checkBounds) return null;
+  const rules = policy.splitProviders[meta.chain ?? "10x"];
+  const ladders = new Map();
+  for (const [template, provider] of Object.entries(providersByStep(policy, meta))) {
+    const step = rules.hostTemplates[template] ?? template;
+    if (!ladders.has(provider)) ladders.set(provider, providerLadder(policy, provider));
+    const problem = policyProblems({ ...policy, ladder: ladders.get(provider), steps: { [step]: policy.steps[step] } });
+    if (problem) return `Step ${template} uses ${provider}. Supply contiguous provider tiers or adjust the assigned step bounds. ${problem}`;
+  }
+  return null;
+}
 
 export function dispatchTarget(policy, tier) {
   const rung = policy.ladder[tier];
@@ -153,7 +211,7 @@ export function coAuthorProblem(policy) {
 // The first fault in the keys that cap the spend of a run, as text that names the key and the override file, or null.
 // Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder (model, effort in rigor.effortOrder), steps. Never throws and never halts;
 // main() halts for init, next and usage and status reports it. A baseTier outside [minTier, maxTier] is allowed (tierFor clamps it).
-export function policyProblems(policy) {
+export function policyProblems(policy, checkBounds = true) {
   const bad = (key, rule, v) => `policy.${key} must be ${rule} (got ${v === undefined ? "undefined" : JSON.stringify(v)}). Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`;
   const p = policy ?? {};
   if (Object.hasOwn(p.prompts ?? {}, "byFile") && typeof p.prompts.byFile !== "boolean") {
@@ -194,7 +252,7 @@ export function policyProblems(policy) {
   for (const [name, step] of Object.entries(p.steps)) {
     if (!isObject(step)) return bad(`steps.${name}`, "an object", step);
     for (const field of ["baseTier", "minTier", "maxTier"]) {
-      if (!int(step[field], 0) || step[field] > top) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
+      if (!int(step[field], 0) || (checkBounds && step[field] > top)) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
     }
     if (step.minTier > step.maxTier) return bad(`steps.${name}.minTier`, `at most maxTier ${step.maxTier}`, step.minTier);
   }
@@ -552,8 +610,8 @@ export function guardArchived(p, id, chain = p.chain ?? "10x") {
 // The OpenSpec chain keeps its run state in openspec/changes/<id>/agent-smith/ and has no plan, reviews or score file.
 export function paths(id, policy = null, chain = "10x") {
   if (chain === "openspec") return openspecPaths(id);
-  const change = path.join(ROOT, "context/changes", id);
-  const dir = path.join(change, "agent-smith");
+  const dir = liveRunDirectory(ROOT, id, chain);
+  const change = path.dirname(dir);
   const score = policy ? scoreConfig(policy) : null;
   return {
     change,
@@ -571,8 +629,8 @@ export function paths(id, policy = null, chain = "10x") {
 
 // The paths of an OpenSpec run. `chain` marks the object, so helpers that take `p` can tell the chains apart.
 function openspecPaths(id) {
-  const change = path.join(ROOT, "openspec/changes", id);
-  const dir = path.join(change, "agent-smith");
+  const dir = liveRunDirectory(ROOT, id, "openspec");
+  const change = path.dirname(dir);
   return {
     chain: "openspec",
     change,
@@ -1056,113 +1114,7 @@ export function halt(reason) {
   out({ action: "halt", reason }, 1);
 }
 
-// ---- run lock -------------------------------------------------------------
-
-// The lock lives in the OS temp directory, outside the change folder, so no step commit or archive-state check sees it.
-export function runLockPath(dir) {
-  return path.join(os.tmpdir(), `agent-smith-${crypto.createHash("sha256").update(dir).digest("hex").slice(0, 16)}.lock`);
-}
-
-function pidAlive(pid) {
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; }
-}
-
-// Takes the lock of the run or halts. The pid is in the file from the moment it exists: written to a private temp file,
-// then linked to the lock name, so a second caller never reads an empty lock as stale.
+// Router callers halt on contention. External runners supply their own envelope failure callback.
 export function acquireRunLock(id, chain, onBusy = halt) {
-  const lock = runLockPath(paths(id, null, chain).dir);
-  const nativeSuspension = (threadId) =>
-    `Execution suspended: native ownership unresolved (lock file ${lock}, thread ${threadId ?? "unknown"}). `
-    + "Keep the enabling revision and TMPDIR. Await an active runner through its existing handle. "
-    + "If it has exited, the authorized owner must inspect the recorded thread and its descendants, prove settlement and arrange router-owned recovery before mutation, relaunch or publication. "
-    + "Automatic recovery for a retained native lock is unavailable.";
-  const tmp = `${lock}.${process.pid}.tmp`;
-  let own = String(process.pid);
-  let execution = null;
-  fs.writeFileSync(tmp, own);
-  const unlinkQuiet = (file) => { try { fs.unlinkSync(file); } catch { /* already gone */ } };
-  // The temp file is always this process's. The lock is removed only while it still holds this pid, so a lock
-  // another process holds, or took over, is never touched.
-  const release = () => {
-    unlinkQuiet(tmp);
-    // An abrupt exit must leave child ownership available to the next caller.
-    if (execution) return;
-    let holder = null;
-    try { holder = fs.readFileSync(lock, "utf8"); } catch { /* already gone */ }
-    if (holder === own) unlinkQuiet(lock);
-  };
-  try {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        fs.linkSync(tmp, lock);
-        break;
-      } catch (e) {
-        if (e.code !== "EEXIST") throw e;
-        let contents = "";
-        try { contents = fs.readFileSync(lock, "utf8").trim(); } catch { /* vanished: retry */ }
-        let owner;
-        try { owner = JSON.parse(contents); } catch { /* legacy malformed locks are stale */ }
-        const pid = isObject(owner) ? owner.pid : Number(contents);
-        if (isObject(owner) && Object.hasOwn(owner, "native")) {
-          release();
-          onBusy(`${nativeSuspension(owner.native?.threadId)} Nothing was written.`);
-        }
-        if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
-          release();
-          onBusy(`Another init, next or usage of change ${id} is running, or execution/status --report holds its lock (lock file ${lock}, pid ${pid}). Run calls one at a time. Nothing was written.`);
-        }
-        if (isObject(owner) || contents.startsWith("{")) {
-          const groupGone = Number.isSafeInteger(pid) && pid > 0
-            && owner?.processGroup === true && Number.isSafeInteger(owner.childPid)
-            && owner.childPid > 0 && !pidAlive(-owner.childPid);
-          if (!groupGone) {
-            release();
-            onBusy(`Codex execution lock remains for change ${id} (lock file ${lock}, runner ${pid}, child ${owner?.childPid ?? "unknown"}). The child process group is alive or its termination is uncertain. Inspect the execution and confirm its process tree has stopped before removing this lock. Nothing was written.`);
-          }
-        }
-        if (attempt > 0) throw e;
-        unlinkQuiet(lock); // stale: remove it and try once more; another caller may have removed it already
-      }
-    }
-  } catch (e) {
-    release();
-    throw e;
-  }
-  unlinkQuiet(tmp);
-  process.on("exit", release);
-  const replace = (contents) => {
-    fs.writeFileSync(tmp, contents);
-    fs.renameSync(tmp, lock);
-    own = contents;
-  };
-  return {
-    release,
-    retainedReason() {
-      return execution?.native
-        ? nativeSuspension(execution.native.threadId)
-        : execution ? `Execution suspended: process ownership unresolved (lock file ${lock}). Confirm execution closure before router-owned recovery.` : null;
-    },
-    setChild(pid, native = false) {
-      // null protects the spawn-to-PID-recording window after a supervisor crash.
-      execution = { pid: process.pid, childPid: pid, processGroup: process.platform !== "win32",
-        ...(native ? { native: execution?.native ?? { threadId: null } } : {}) };
-      replace(JSON.stringify(execution));
-    },
-    setThread(threadId) {
-      if (!execution?.native || (execution.native.threadId && execution.native.threadId !== threadId)) {
-        throw new Error("Native execution identity changed.");
-      }
-      const updated = { ...execution, native: { ...execution.native, threadId } };
-      replace(JSON.stringify(updated));
-      execution = updated;
-    },
-    clearChild(settled = false) {
-      if (execution?.native && !settled) throw new Error(this.retainedReason());
-      if (execution?.processGroup && execution.childPid && pidAlive(-execution.childPid)) {
-        throw new Error(`Codex child process group ${execution.childPid} is still alive. Execution lock retained at ${lock}.`);
-      }
-      replace(String(process.pid));
-      execution = null;
-    },
-  };
+  return lockRunDirectory(ROOT, id, chain, onBusy);
 }

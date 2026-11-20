@@ -1,0 +1,13 @@
+git rev-parse HEAD
+6e3c993f62d37863b66400cf6360a9206663761d
+
+GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=8 -o StrictHostKeyChecking=yes -o UpdateHostKeys=no" git ls-remote --exit-code origin refs/heads/agent-smith/provider-mode-split
+22b0d01cccaef2443b2bac9115ea91ef4a35aa3f	refs/heads/agent-smith/provider-mode-split
+
+GitHub pull-request-triggered workflow runs for local HEAD
+{"workflow_runs":[]}
+
+Recorded run setting
+{"prComment":true}
+
+The remote branch points to an earlier revision. Row 3.3 requires checking the open PR, head CI and opted-in report comment after the orchestrator publishes the current run.

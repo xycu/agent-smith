@@ -4,7 +4,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import {
-  cleanupAll, makeProject, planText, writeReview, init, writeLog, entry, readLogEntries,
+  cleanupAll, makeProject, planText, writeReview, init, seedRun, entry, readLogEntries,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -15,7 +15,7 @@ const GOAL = Array.from({ length: 30 }, (_, i) => `word${i}`).join(" ");
 function reviewed(verdict, findings, { log = null, plan = planText() } = {}) {
   const project = makeProject({ plan });
   writeReview(project, "plan-review", { verdict, findings });
-  writeLog(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
   return project;
 }
 

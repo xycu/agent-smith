@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog,
+  cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeResult, seedRun, writeLog,
   writeMetaFile, readLogEntries, readMetaFile, readReportFile, entry, planText
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
@@ -128,7 +128,7 @@ test("1.2 a step that is not logged, a pending step and no run log are refused a
 
 test("1.2 a skip entry is never matched", () => {
   const project = makeProject();
-  writeLog(project, [{ skipped: true, step: "research", reason: "fixture", rigor: "lean", afterN: 0, at: 1 }, entry(1, "plan")]);
+  seedRun(project, [{ skipped: true, step: "research", reason: "fixture", rigor: "lean", afterN: 0, at: 1 }, entry(1, "plan")]);
   const before = snapshot(project.changeDir);
   const res = usage(project, 2);
   assert.equal(res.status, 1, res.stdout);

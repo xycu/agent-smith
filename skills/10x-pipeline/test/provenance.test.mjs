@@ -23,7 +23,7 @@ const BASELINE = readJson(path.join(SKILL_DIR, "baseline-policy.json"));
 const PLUGIN = readJson(path.join(REPO, ".claude-plugin/plugin.json"));
 const HEX16 = /^[0-9a-f]{16}$/;
 // chrome is the effective setting: on unless the run stored --chrome false.
-const NO_FLAGS = { archive: false, chrome: true, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
+const NO_FLAGS = { providerMode: "claude", archive: false, chrome: true, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
 
 const copies = [];
 after(() => {
@@ -114,7 +114,7 @@ test("1.1 flags read the stored meta values and the merged policy, and a missing
   const on = makeProject({ policy: { score: { minRigor: "thorough" }, agents: { restricted: true }, advisor: { enabled: true } } });
   assert.equal(init(on, "fix typo", ["--chrome"]).status, 0);
   assert.deepEqual(readMetaFile(on).provenance.flags, {
-    archive: false, chrome: true, "score.minRigor": "thorough", "agents.restricted": true, "advisor.enabled": true,
+    providerMode: "claude", archive: false, chrome: true, "score.minRigor": "thorough", "agents.restricted": true, "advisor.enabled": true,
   });
   assert.match(readMetaFile(on).provenance.sections.agents, HEX16);
   assert.match(readMetaFile(on).provenance.sections.advisor, HEX16);
@@ -125,12 +125,29 @@ test("1.1 flags read the stored meta values and the merged policy, and a missing
   assert.equal(shipped.flags["score.minRigor"], DEFAULT.score.minRigor);
 });
 
+test("changing a shipped fallback rung is visible as split-run ladder drift", () => {
+  const copy = pluginCopy();
+  const project = makeProject();
+  const first = runCopy(copy, project, ["init", project.id, "--goal", "fix typo", "--provider-mode", "split"]);
+  assert.equal(first.json.action, "run", first.stdout);
+  const file = path.join(copy.skill, "codex-policy.json");
+  const preset = readJson(file);
+  preset.ladder[2].model = "changed-model";
+  fs.writeFileSync(file, JSON.stringify(preset));
+  writeResult(project, { status: "failed", note: "fixture" });
+  const retry = runCopy(copy, project, ["next", project.id]);
+  assert.equal(retry.json.action, "run", retry.stdout);
+  assert.deepEqual(readMetaFile(project).provenance.drift, ["ladder"]);
+});
+
 test("1.1 a run with no executed step and no record gets one at init", () => {
   const project = makeProject();
   writeMetaFile(project, { id: project.id, goal: "fix typo" });
   const res = init(project, "fix typo");
   assert.equal(res.status, 0, res.stdout);
-  assert.deepEqual(readMetaFile(project).provenance, freshRecord());
+  const record = readMetaFile(project).provenance;
+  assert.equal(record.flags.providerMode, undefined);
+  assert.match(record.sections.ladder, HEX16);
 });
 
 test("1.1 computing the record never halts: a bad prompt reference records prompts null and checkPrompts halts as before", () => {
@@ -326,15 +343,16 @@ test("1.4 a run whose log holds executed steps and has no record gets none, and 
   assert.ok(res.json.warnings.includes("provenance-unknown:routed"), res.json.warnings.join(","));
 });
 
-test("1.4 a log with executed steps and no meta.json at all gets no record", () => {
+test("1.4 a log with executed steps and no meta.json halts for recovery", () => {
   const project = makeProject();
   // A plan step that started and has no result yet: JSON drops the undefined fields.
   writeLog(project, [entry(1, "plan", { result: undefined, ok: undefined, verified: undefined, finishedAt: undefined })]);
   finishPlan(project);
   const res = init(project, "fix typo");
-  assert.equal(res.status, 0, res.stdout);
-  assert.equal(res.json.action, "run");
-  assert.equal(Object.hasOwn(readMetaFile(project), "provenance"), false);
+  assert.equal(res.status, 1, res.stdout);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /Recover its metadata/);
+  assert.equal(fs.existsSync(path.join(project.agentDir, "meta.json")), false);
 });
 
 // ---- 1.5 and 1.6 compare ---------------------------------------------------------------------
@@ -498,7 +516,7 @@ test("1.3 a run with an override that sets prices records no prices section, and
   assert.ok(!res.json.warnings.some((w) => w.includes("prices")));
 });
 
-for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "agents/step.md", "skills/10x-pipeline/rules/steps/plan.md"]) {
+for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs", "agents/step.md", "skills/10x-pipeline/rules/steps/plan.md"]) {
   test(name + " changes only its independent provenance section and records immutable drift", () => {
     const copy = pluginCopy();
     const project = makeProject();
@@ -517,7 +535,7 @@ for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.
 }
 
 test("missing or unreadable hook inputs yield a null hook hash", () => {
-  for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs"]) {
+  for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs"]) {
     const copy = pluginCopy();
     const file = path.join(copy.root, name);
     fs.unlinkSync(file);

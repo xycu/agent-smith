@@ -3,6 +3,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { setTimeout } from "node:timers/promises";
 import {
   cleanupAll, run, writeOverride, writeResult, readLogEntries, writeLog, writeMetaFile, entry,
@@ -435,7 +436,7 @@ for (const chain of ["10x", "openspec"]) {
     const oldHead = git(p, ["rev-parse", "HEAD"]);
     const moved = path.join(p.root, archive.archivePath);
     fs.mkdirSync(path.dirname(moved), { recursive: true });
-    for (const field of ["archivePath", "profile"]) {
+    for (const field of ["archivePath", "profile", "prompt", "agent"]) {
       const bad = execute(w, { ...archive, [field]: field === "profile" ? "other" : "context/archive/wrong" });
       assert.equal(bad.json.launched, false);
     }
@@ -464,6 +465,17 @@ for (const chain of ["10x", "openspec"]) {
     assertNativeSuspension(w, result.json.reason);
     assert.deepEqual(metadataCalls(w.fixture), []);
     assert.deepEqual(snapshot(w.project.agentDir), before);
+  });
+
+  test(`${chain}: an invalid final archive RESULT retains native ownership`, () => {
+    for (const reply of ['RESULT: {"status":"done"}\nmore output', 'RESULT: {"status":"unknown"}']) {
+      const w = archiveFixture(chain);
+      setMode(w, { reply });
+      const result = execute(w);
+      assert.equal(result.json.completed, false, result.stdout);
+      assert.equal(result.json.launched, true);
+      assertNativeSuspension(w, result.json.reason);
+    }
   });
 }
 
@@ -657,3 +669,63 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(runnerLeftovers(w), []);
   });
 }
+
+test("Codex rechecks policy, skill, template and advisor after preflight", () => {
+  for (const drift of ["policy", "skill", "template", "advisor"]) {
+    const w = codexFixture();
+    let changeAfterPreflight;
+    if (drift === "policy") {
+      changeAfterPreflight = { file: path.join(w.project.root, "context/foundation/agent-smith-policy.json"), content: "[]" };
+    } else {
+      const log = readLogEntries(w.project);
+      log.at(-1)[drift] = drift === "advisor" ? true : "changed-" + drift;
+      changeAfterPreflight = { file: path.join(w.project.agentDir, "run.jsonl"), content: log.map(e => JSON.stringify(e)).join("\n") + "\n" };
+    }
+    setMode(w, { changeAfterPreflight });
+    const res = execute(w);
+    assert.equal(res.json.launched, false, res.stdout);
+    assert.match(res.json.reason, drift === "policy" ? /policy keys/ : /changed during preflight/);
+    assert.equal(calls(w.fixture).some(c => c.args[0] === "exec"), false);
+  }
+});
+
+test("Codex discovers the retained executor skill and required OpenSpec CLI inside its sandbox before exec", () => {
+  for (const chain of ["10x", "openspec"]) {
+    const w = codexFixture(chain);
+    const required = chain === "10x" ? "10x-e2e" : "openspec-propose";
+    const action = { ...w.action };
+    if (chain === "10x") {
+      const log = readLogEntries(w.project);
+      Object.assign(log.at(-1), { step: "implement", template: "implement-e2e", skill: required });
+      writeLog(w.project, log);
+      action.step = "implement";
+    }
+    gitInit(w.project);
+    commitFiles(w.project, ["README.md"]);
+    fs.writeFileSync(path.join(w.fixture, "SKILL.md"), "# Fixture skill");
+    const cli = path.join(w.fixture, "bin/openspec");
+    fs.writeFileSync(cli, "#!/bin/sh\necho 2.0.0\n", { mode: 0o755 });
+    setMode(w, { checkToolkit: true, discoveredSkill: "wrong" });
+    const missing = execute(w, action);
+    assert.equal(missing.json.launched, false);
+    assert.match(missing.json.reason, new RegExp(required));
+    if (chain === "10x") {
+      setMode(w, { oversizedDiscovery: true });
+      const module = new URL("../scripts/runner-toolkit.mjs", import.meta.url);
+      const probe = spawnSync(process.execPath, ["--input-type=module", "-e",
+        `import { proveCodexToolkit } from ${JSON.stringify(module.href)}; await proveCodexToolkit({ skill: "10x-e2e" });`],
+      { cwd: w.project.root, env: w.env, encoding: "utf8", timeout: 10000 });
+      assert.equal(probe.status, 1, probe.error?.message);
+      assert.match(probe.stderr, /discovery exceeded its output limit/);
+    }
+    setMode(w, { checkToolkit: true, discoveredSkill: required });
+    if (chain === "openspec") {
+      fs.writeFileSync(cli, "#!/bin/sh\necho 1.0.0\n");
+      assert.equal(execute(w, action).json.launched, false);
+      fs.writeFileSync(cli, "#!/bin/sh\necho 2.0.0\n");
+    }
+    const ok = execute(w, action);
+    assert.equal(ok.json.completed, true, ok.json.reason);
+    assert.equal(calls(w.fixture).filter(c => c.args[0] === "exec").length, 1);
+  }
+});

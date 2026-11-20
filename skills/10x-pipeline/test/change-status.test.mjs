@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, writeReview, run, init, writeLog, entry, writeMetaFile, readMetaFile, readReportFile,
+  cleanupAll, makeProject, planText, writeReview, run, init, seedRun, writeLog, entry, writeMetaFile, readMetaFile, readReportFile,
   gitEnv, gitInit, commitFiles, gitAvailable,
 } from "./helpers.mjs";
 import { makeOpenspecProject, writeVerify } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -19,7 +19,7 @@ function finishedProject() {
   const project = makeProject({ plan: planText({ done: 1 }) });
   writeReview(project, "plan-review");
   writeReview(project, "impl-review", { verdict: "APPROVED" });
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
   return project;
 }
 const setChangeMd = (project, text) => fs.writeFileSync(path.join(project.changeDir, "change.md"), text);
@@ -58,7 +58,7 @@ test("the status is read at each call and stored nowhere", () => {
 
 test("a halt output carries no changeStatus", () => {
   const project = makeProject();
-  writeLog(project, Array.from({ length: 12 }, (_, i) => entry(i + 1, "plan")));
+  seedRun(project, Array.from({ length: 12 }, (_, i) => entry(i + 1, "plan")));
   const res = init(project, "fix typo");
   assert.equal(res.json.action, "halt", res.stdout);
   assert.equal("changeStatus" in res.json, false);

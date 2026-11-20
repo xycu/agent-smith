@@ -71,7 +71,7 @@ function ruleProblems(line) {
 test("frontmatter names the skill openspec-pipeline with its argument hint", () => {
   const fields = frontmatter();
   assert.equal(fields.name, "openspec-pipeline");
-  assert.equal(fields["argument-hint"], "<change-name> [goal text] [--archive] [--rigor <level>] [--pr-comment]");
+  assert.equal(fields["argument-hint"], "<change-name> [goal text] [--archive] [--rigor <level>] [--provider-mode <mode>] [--pr-comment]");
   assert.match(fields.description, /OpenSpec/);
   assert.match(fields.description, /explicit.*\/agent-smith:openspec-pipeline/);
 });
@@ -169,10 +169,13 @@ test("every os- step has a template, and every os- template resolves to existing
 
 const readPolicy = (dir) => JSON.parse(fs.readFileSync(path.join(dir, "policy.json"), "utf8"));
 
-test("the OpenSpec policy fragment holds only os- steps and prompts, and shares no key with the 10x policy", () => {
+test("the OpenSpec policy fragment owns its steps, prompts and split assignments", () => {
   const tenxPolicy = readPolicy(SKILL_DIR);
   const fragment = readPolicy(OS_SKILL_DIR);
-  assert.deepEqual(Object.keys(fragment).sort(), ["prompts", "steps"]);
+  assert.deepEqual(Object.keys(fragment).sort(), ["prompts", "splitProviders", "steps"]);
+  assert.deepEqual(fragment.splitProviders, {
+    openspec: { otherSteps: ["os-propose", "os-apply"], hostTemplates: { "os-apply-fix": "os-apply" } },
+  });
   for (const block of ["steps", "prompts"]) {
     assert.ok(Object.keys(fragment[block]).every((k) => k.startsWith("os-")), block);
     assert.deepEqual(Object.keys(fragment[block]).filter((k) => Object.hasOwn(tenxPolicy[block], k)), [], block);
@@ -297,7 +300,7 @@ test("native accounting shares the immediate, late and archive reader without fi
   assert.match(branch("run"), /node "\$CLAUDE_USAGE"/);
   assert.match(branch("run"), /never map it to `totalTokens`, even for a flat step/);
   assert.match(branch("run"), /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
-  assert.match(branch("archive"), /For Claude, apply Loop step 4.s collector too/);
+  assert.match(branch("archive"), /Only for native Agent, apply Loop step 4.s collector/);
   const late = section(lines, "## Late usage (before every end)").join("\n");
   assert.match(late, /--usage-file <usage-file> --chain openspec/);
   assert.match(late, /No verified total or no recorded invocation: omit the call/);

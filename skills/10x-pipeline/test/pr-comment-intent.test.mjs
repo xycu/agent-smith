@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, run, readMetaFile, writeMetaFile, writeLog, entry,
+  cleanupAll, makeProject, run, readMetaFile, writeMetaFile, seedRun, entry,
   planText, gitInit, gitEnv, commitFiles,
 } from "./helpers.mjs";
 import { writeReview } from "./ahead.mjs";
@@ -18,12 +18,12 @@ function projectFor(chain, complete = false) {
   if (!complete) return project;
   if (chain === "openspec") {
     writeArtifacts(project, { proposal: true, specs: 1, tasks: { done: 1 }, verify: PASS });
-    writeLog(project, [entry(1, "os-apply"), entry(2, "os-verify")]);
+    seedRun(project, [entry(1, "os-apply"), entry(2, "os-verify")], { chain });
   } else {
     fs.writeFileSync(path.join(project.changeDir, "change.md"), "---\nchange_id: demo\nstatus: impl_reviewed\ncreated: 2026-01-01\n---\n");
     writeReview(project, "plan-review", { verdict: "SOUND" });
     writeReview(project, "impl-review", { verdict: "APPROVED" });
-    writeLog(project, [entry(1, "implement"), entry(2, "impl-review")]);
+    seedRun(project, [entry(1, "implement"), entry(2, "impl-review")]);
   }
   return project;
 }
@@ -88,7 +88,7 @@ for (const chain of ["10x", "openspec"]) {
 
   test(`${chain}: an ended needs-human halt carries authorized intent`, () => {
     const project = projectFor(chain);
-    writeLog(project, [entry(1, chain === "openspec" ? "os-propose" : "plan", { signals: { needsHuman: "fixture decision" } })]);
+    seedRun(project, [entry(1, chain === "openspec" ? "os-propose" : "plan", { signals: { needsHuman: "fixture decision" } })], { chain });
     const result = start(project, ["--pr-comment"]);
     assert.equal(result.json.action, "halt");
     assert.match(result.json.reason, /needs a human/);

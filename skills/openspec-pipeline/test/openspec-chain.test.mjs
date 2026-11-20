@@ -103,7 +103,7 @@ test("a 10x meta.json has no chain key and its provenance flags no chain", () =>
   const meta = readMetaFile(project);
   assert.equal(Object.hasOwn(meta, "chain"), false);
   assert.equal(Object.hasOwn(meta.provenance.flags, "chain"), false);
-  assert.deepEqual(Object.keys(meta.provenance.flags), ["archive", "chrome", "score.minRigor", "agents.restricted", "advisor.enabled"]);
+  assert.deepEqual(Object.keys(meta.provenance.flags), ["providerMode", "archive", "chrome", "score.minRigor", "agents.restricted", "advisor.enabled"]);
 });
 
 test("next and status detect the chain without the flag", () => {

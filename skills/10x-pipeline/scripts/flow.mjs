@@ -137,6 +137,7 @@ function buildReport(id, meta, fullLog) {
     "",
     `Goal: ${oneLine(meta.goal) || "-"}`,
     ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
+    `Provider mode: ${meta.providerMode ?? "legacy (ladder-driven)"}`,
     `Outcome: ${outcome}`,
     ...archiveLines(id, meta, oneLine),
     ...sweptHeader(log),
@@ -414,14 +415,17 @@ export function maxNeutralRetries(policy) {
 // orchestrator-error, the same entry is returned again: same n, tier, prompt, startedAt, startSha and before, so no
 // failed attempt, tier bump, rigor rise, rollback or budget use follows. At the cap the run halts. Prints and exits in
 // those cases; returns (and changes nothing) in every other case, so the caller goes on as before.
-export function neutralRetry(p, id, meta, log, policy) {
+export function neutralPending(p, log, policy) {
+  const last = executed(log).at(-1);
+  return last && !last.result && maxNeutralRetries(policy) > 0 && readJson(p.result, null)?.status === ORCHESTRATOR_ERROR;
+}
+
+export function neutralRetry(p, id, meta, log, policy, visibility = {}) {
+  if (!neutralPending(p, log, policy)) return;
   const ran = executed(log);
-  const last = ran[ran.length - 1];
-  if (!last || last.result || !fs.existsSync(p.result)) return;
+  const last = ran.at(-1);
   const result = readJson(p.result, null);
-  if (!isObject(result) || result.status !== ORCHESTRATOR_ERROR) return;
   const cap = maxNeutralRetries(policy);
-  if (cap === 0) return;
   const resultFile = path.relative(ROOT, p.result);
   // An entry logged before this feature has no stored prompt; the file stays so the orchestrator can replace it.
   if (typeof last.pendingPrompt !== "string") {
@@ -440,6 +444,11 @@ export function neutralRetry(p, id, meta, log, policy) {
       steps: ran.length,
     });
   }
+  if (meta.providerMode && visibility.providersByStep) {
+    const templates = policy.splitProviders[meta.chain ?? "10x"].hostTemplates;
+    const role = templates[last.template] === last.step ? last.template : last.step;
+    visibility.providersByStep[role] = providerOf(last);
+  }
   const handoff = publishHandoff(p, last);
   const note = typeof result.note === "string" ? Array.from(result.note.replace(/\s+/g, " ").trim()).slice(0, NEUTRAL_NOTE_MAX).join("") : "";
   fs.rmSync(p.result);
@@ -453,6 +462,7 @@ export function neutralRetry(p, id, meta, log, policy) {
   out({
     action: "run",
     change: id, root: ROOT, chain: p.chain ?? "10x",
+    ...visibility,
     n: last.n,
     step: last.step,
     ...(typeof last.agent === "string" ? { agent: last.agent } : {}),
@@ -1087,14 +1097,15 @@ export function advisorOn(policy, template) {
   if (!isObject(c) || c.enabled !== true) return false;
   const list = c.templates;
   if (!Array.isArray(list) || !list.every((t) => typeof t === "string")) return false;
-  return list.includes(template);
+  return list.includes(template)
+    || (["manual-verify-openai", "manual-verify-headless"].includes(template) && list.includes("manual-verify"));
 }
 
 // Native Claude capabilities cannot be honored by an OpenAI child; never silently drop the opt-in.
 export function dispatchProblem(policy, target, step, template) {
   if (providerOf(target) !== "openai") return null;
   if (stepAgent(policy, step)) return `OpenAI step ${step} cannot use the configured restricted agent. Disable agents.restricted or route this step to Claude.`;
-  if (advisorOn(policy, template) || (template === "manual-verify-openai" && advisorOn(policy, "manual-verify"))) {
+  if (advisorOn(policy, template)) {
     return `OpenAI step ${step} cannot use the native Claude advisor. Disable advisor.enabled or route this step to Claude.`;
   }
   return null;

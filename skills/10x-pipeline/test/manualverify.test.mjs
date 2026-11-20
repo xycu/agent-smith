@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   cleanupAll, makeProject, init, next, run, writeResult, readLogEntries, readMetaFile, writeMetaFile,
-  readReportFile, entry, writeLog, gitInit, git, gitEnv, commitFiles, gitAvailable,
+  readReportFile, entry, seedRun, writeLog, gitInit, git, gitEnv, commitFiles, gitAvailable,
 } from "./helpers.mjs";
 import { writePlan, writeReview, stampAhead } from "./ahead.mjs";
 import { buildPlan, pendingEntry } from "./phase-helpers.mjs";
@@ -37,7 +37,7 @@ function mvProject({ manual = [A], log = null, policy = null, auto = AUTO } = {}
   const merged = { ...(policy ?? {}), manualVerify: { minRigor: "lean", ...(policy?.manualVerify ?? {}) } };
   const project = makeProject({ plan: planOf(manual, auto), policy: merged });
   writeReview(project, "plan-review", { verdict: "SOUND" });
-  writeLog(project, log ?? [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+  seedRun(project, log ?? [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
   return project;
 }
 
@@ -458,12 +458,13 @@ test("neither manual verify template is charged to the pool", () => {
 
 test("chrome flag value", () => {
   const project = mvProject();
+  const state = () => ["meta.json", "run.jsonl"].map(name => fs.readFileSync(path.join(project.agentDir, name)));
+  const before = state();
   const res = start(project, "standard", ["--chrome", "foo"]);
   assert.equal(res.status, 1);
   assert.equal(res.json.action, "halt");
   assert.match(res.json.reason, /Invalid --chrome foo\. Use --chrome, --chrome true or --chrome false\./);
-  assert.equal(fs.existsSync(path.join(project.agentDir, "meta.json")), false, "nothing was written");
-  assert.equal(readLogEntries(project).length, 3, "the log is untouched");
+  assert.deepEqual(state(), before, "invalid --chrome preserves metadata and log bytes");
 });
 
 test("manual verify prompts", () => {
@@ -674,6 +675,7 @@ test("browser row judgment tick is unproven", () => {
 test("browser row proved by browser test command or script", () => {
   for (const kind of ["browser", "test", "command", "script"]) {
     const { e } = tickWith([BR], `evidence/${kind}-1.2.md`);
+    assert.equal(e.browserEvidence, undefined, "historical Claude dispatch has no saved browser capability");
     assert.equal(e.ok, true, kind);
     assert.deepEqual(e.proved, [{ id: "1.2", kind, file: `evidence/${kind}-1.2.md` }], kind);
     assert.deepEqual(e.browserRows, ["1.2"], kind);

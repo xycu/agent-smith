@@ -45,6 +45,7 @@
     }
   ],
   "limits": {
-    "maxNeutralRetries": 3
+    "maxNeutralRetries": 3,
+    "maxFixLoops": 3
   }
 }

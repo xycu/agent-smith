@@ -181,7 +181,9 @@ for (const chain of ["10x", "openspec"]) {
     }
     assert.equal(run(p, statusArgs, { env: w.env }).status, 0);
     assert.deepEqual(fs.readFileSync(path.join(p.agentDir, "report.md")), before);
-    assert.deepEqual(fs.readdirSync(w.tmp).filter(name => name.endsWith(".tmp")), []);
+    // SIGKILL can interrupt the owner's atomic lock update before rename; refused callers must clean their own temps.
+    const crashTemp = path.basename(runLockPath(p.agentDir)) + "." + running.child.pid + ".tmp";
+    assert.deepEqual(fs.readdirSync(w.tmp).filter(name => name.endsWith(".tmp") && name !== crashTemp), []);
     await stopChild();
     assert.equal(run(p, [...statusArgs, "--report"], { env: w.env }).status, 1);
     assert.equal(execute(w).json.completed, false, "group exit alone cannot reconcile native children");

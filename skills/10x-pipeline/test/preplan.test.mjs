@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, writeReview, init, next, run, writeLog, entry, writeResult,
+  cleanupAll, makeProject, planText, writeReview, init, next, run, seedRun, entry, writeResult,
   readLogEntries, readMetaFile, readReportFile, writeOverride,
   ruleTail,
 } from "./helpers.mjs";
@@ -40,7 +40,7 @@ const touch = (project, file, text = "x\n") => {
 function replanProject(id = "demo") {
   const project = makeProject({ id, plan: planText() });
   writeReview(project, "plan-review", { verdict: "RETHINK", findings: "2 critical, 0 warnings" });
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
   return project;
 }
 
@@ -699,7 +699,7 @@ test("framing doubt by cause-shaped goal", () => {
 test("framing doubt by signals.rigor of an earlier step", () => {
   const project = makeProject();
   put(project, "research.md", RESEARCH);
-  writeLog(project, [entry(1, "research", { signals: { rigor: "thorough" } })]);
+  seedRun(project, [entry(1, "research", { signals: { rigor: "thorough" } })]);
   const out = start(project, "fix typo");
   assert.equal(out.step, "frame");
   assert.match(out.res.json.reason, /signals\.rigor of step 1 \(research\)/);
@@ -707,7 +707,7 @@ test("framing doubt by signals.rigor of an earlier step", () => {
   // Without the signal the same log goes on to plan.
   const quiet = makeProject();
   put(quiet, "research.md", RESEARCH);
-  writeLog(quiet, [entry(1, "research")]);
+  seedRun(quiet, [entry(1, "research")]);
   assert.equal(start(quiet, "fix typo").step, "plan");
 });
 
@@ -777,7 +777,7 @@ test("a budget halt logs no skip, and the resumed run decides the skips again", 
   const tight = { limits: { maxTotalSteps: 1 }, rigor: { budgetDelta: { thorough: 0 } } };
   const project = makeProject({ policy: tight });
   put(project, "research.md", RESEARCH);
-  writeLog(project, [entry(1, "research")]);
+  seedRun(project, [entry(1, "research")]);
   const halted = init(project, "fix typo", ["--rigor", "thorough"]);
   assert.equal(halted.json.action, "halt", halted.stdout);
   assert.match(halted.json.reason, /Step budget 1 spent/);
@@ -1107,7 +1107,7 @@ test("plan runs after the pre-plan steps with the artifacts listed", () => {
 
 test("a plan attempt closes the pre-plan phase", () => {
   const project = makeProject();
-  writeLog(project, [entry(1, "plan", { ok: false, verified: false, result: { status: "failed", note: "x" } })]);
+  seedRun(project, [entry(1, "plan", { ok: false, verified: false, result: { status: "failed", note: "x" } })]);
   const res = thorough(project, "fix typo");
   assert.equal(res.status, 0);
   assert.equal(res.json.step, "plan");
