@@ -223,11 +223,11 @@ The tracker is one pass over the lines of `plan.md` and of each review file; bot
 
 #### Automated
 
-- [ ] 1.1 Fenced and CRLF plans read the real rows: `node --test skills/10x-pipeline/test/plan-rows.test.mjs`
-- [ ] 1.2 Archived plans read the same as the old reader: the archive-equivalence case of `plan-rows.test.mjs` passes against all `context/archive/*/plan.md`
-- [ ] 1.3 Finding blocks survive fenced headings: the `readReview` cases of `plan-rows.test.mjs` pass
-- [ ] 1.4 Archived reviews read the same: a scratch script compares `readReview(...).findings` of the pre-change `state.mjs` and the new one over every `context/archive/*/reviews/*.md` and prints zero differences
-- [ ] 1.5 Existing reader tests still pass: `node --test skills/10x-pipeline/test/crlf-plan.test.mjs skills/10x-pipeline/test/run-state.test.mjs`
+- [x] 1.1 Fenced and CRLF plans read the real rows: `node --test skills/10x-pipeline/test/plan-rows.test.mjs`
+- [x] 1.2 Archived plans read the same as the old reader: the archive-equivalence case of `plan-rows.test.mjs` passes against all `context/archive/*/plan.md`
+- [x] 1.3 Finding blocks survive fenced headings: the `readReview` cases of `plan-rows.test.mjs` pass
+- [x] 1.4 Archived reviews read the same: a scratch script compares `readReview(...).findings` of the pre-change `state.mjs` and the new one over every `context/archive/*/reviews/*.md` and prints zero differences
+- [x] 1.5 Existing reader tests still pass: `node --test skills/10x-pipeline/test/crlf-plan.test.mjs skills/10x-pipeline/test/run-state.test.mjs`
 
 #### Manual
 
