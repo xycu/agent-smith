@@ -218,26 +218,26 @@ A user-level `~/.codex/rules` file or project override that allows `git push` ke
 
 #### Automated
 
-- [x] 1.1 Rule table and file-shape assertions pass: `node --test skills/10x-pipeline/test/codex-rules.test.mjs`
-- [x] 1.2 Rule file has no blanket gh allow: `! grep -nE 'pattern = \["gh"\], decision = "allow"' .codex/rules/project.rules`
-- [x] 1.3 Rule file refuses git push through the real evaluator, when Codex is installed: `codex execpolicy check --rules "$PWD/.codex/rules/project.rules" git push origin main --force` prints `"decision":"forbidden"`
+- [x] 1.1 Rule table and file-shape assertions pass: `node --test skills/10x-pipeline/test/codex-rules.test.mjs` — 41ce6574
+- [x] 1.2 Rule file has no blanket gh allow: `! grep -nE 'pattern = \["gh"\], decision = "allow"' .codex/rules/project.rules` — 41ce6574
+- [x] 1.3 Rule file refuses git push through the real evaluator, when Codex is installed: `codex execpolicy check --rules "$PWD/.codex/rules/project.rules" git push origin main --force` prints `"decision":"forbidden"` — 41ce6574
 
 ### Phase 2: Token-free environment for every codex child
 
 #### Automated
 
-- [x] 2.1 Runner tests pass, including the new environment tests: `node --test skills/10x-pipeline/test/codex-runner.test.mjs`
-- [x] 2.2 Other Codex suites using the helper pass: `node --test skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/codex-usage.test.mjs`
-- [x] 2.3 No recursive delete was introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 2.1 Runner tests pass, including the new environment tests: `node --test skills/10x-pipeline/test/codex-runner.test.mjs` — 591eb324
+- [x] 2.2 Other Codex suites using the helper pass: `node --test skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/codex-usage.test.mjs` — 591eb324
+- [x] 2.3 No recursive delete was introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — 591eb324
 
 ### Phase 3: Reference, decision record and live proof
 
 #### Automated
 
-- [x] 3.1 Full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 3.2 Reference names the guard: `grep -n "Codex publication guard" docs/REFERENCE.md`
-- [x] 3.3 Version fields still agree: `node tools/version-check.mjs`
-- [ ] 3.4 Commit subjects are Conventional Commits: `node tools/commit-lint.mjs main..HEAD`
+- [x] 3.1 Full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 3b17d00d
+- [x] 3.2 Reference names the guard: `grep -n "Codex publication guard" docs/REFERENCE.md` — 3b17d00d
+- [x] 3.3 Version fields still agree: `node tools/version-check.mjs` — 3b17d00d
+- [x] 3.4 Commit subjects are Conventional Commits: `node tools/commit-lint.mjs main..HEAD` — 3b17d00d
 
 #### Manual
 
