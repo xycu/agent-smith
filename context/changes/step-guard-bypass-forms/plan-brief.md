@@ -20,7 +20,7 @@ Every form from the change list is denied, each next to an allow case for a norm
 | --- | --- | --- |
 | Scope | All forms in the goal and `change.md` direction | The done-when list needs a deny test per form in scope |
 | Substitutions | Reuse `shellExpansionEnd`, recurse on the inner text | One matcher exists and is already depth-capped |
-| Unparseable forms | Unterminated substitution exits 2; `env -S`, `sudo -s` strings deny with guidance | Fail closed, as the constraints require |
+| Unparseable forms | Unterminated substitution exits 2; `env -S`, `sudo -s` strings and wrapper chains deeper than 8 deny with guidance | Fail closed, as the constraints require |
 | Option abbreviations | Any non-empty prefix of the denied name | Git rejects ambiguous prefixes, so a floor only leaves valid ones (`--ha`) open |
 | `--no-verify` scope | Only `commit merge pull am rebase cherry-pick revert` | Fixes the search-pattern false denial |
 | `update-ref` | Deny `--stdin`, delete, `refs/agent-smith/`; allow creating other refs | Steps must be able to preserve work in a ref |
