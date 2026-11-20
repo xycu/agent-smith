@@ -128,13 +128,13 @@ async function handle(message) {
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
   const reported = mode.mismatch ? reply + "mismatch" : reply;
   const input = { file_path: path.join(fixture, "work.txt") };
-  if (mode.toolFinishesAfterStop) await callback("PreToolUse", "Read", input, "late-read");
+  const finishRead = () => callback("PostToolUse", "Read", input, "late-read", { tool_response: { file: { filePath: input.file_path } } });
+  if (mode.readFinishesAfter) await callback("PreToolUse", "Read", input, "late-read");
   if (!mode.earlyStop) stop(reported);
   if (mode.toolAfterStop) await callback("PreToolUse", "Read", input, "late-read");
-  if (mode.toolAfterStop || mode.toolFinishesAfterStop) {
-    await callback("PostToolUse", "Read", input, "late-read");
-  }
+  if (mode.toolAfterStop || mode.readFinishesAfter === "stop") await finishRead();
   result(message.uuid, reported, mode.terminal);
+  if (mode.readFinishesAfter === "terminal") await finishRead();
   if (mode.trailingAssistant) event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "late output" }] } });
 }
 lines.on("line", line => { handle(JSON.parse(line)).catch(e => { process.stderr.write(e.message); process.exit(1); }); });

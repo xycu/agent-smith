@@ -282,7 +282,8 @@ for (const chain of ["10x", "openspec"]) {
 
 test("unmatched lifecycle before work, missing leaf collection and conflicting output retain native ownership", () => {
   for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { leaf: true, earlyStop: true }, { mismatch: true },
-    { toolAfterStop: true }, { toolFinishesAfterStop: true }, { trailingAssistant: true }, { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
+    { toolAfterStop: true }, { readFinishesAfter: "stop" }, { readFinishesAfter: "terminal" }, { trailingAssistant: true },
+    { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
     { terminal: { subtype: "error_max_turns", is_error: false } },
     { terminal: { subtype: "interrupted", is_error: true } }]) {
     const w = fixture("10x", {}, mode);
@@ -290,6 +291,7 @@ test("unmatched lifecycle before work, missing leaf collection and conflicting o
     assert.equal(result.completed, false);
     assert.equal(result.launched, !mode.earlyLeaf);
     assert.match(result.reason, /^Execution suspended: native ownership unresolved .*Claude session/);
+    if (mode.readFinishesAfter === "terminal") assert.match(result.reason, /tool completion after its terminal event/);
     const file = path.join(w.tmp, fs.readdirSync(w.tmp).find(name => name.endsWith(".lock")));
     const owner = JSON.parse(fs.readFileSync(file));
     assert.equal(owner.native.host, "claude");
