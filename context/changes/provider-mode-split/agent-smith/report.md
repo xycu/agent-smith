@@ -2,7 +2,7 @@
 
 Goal: Implement it automatically, without human interaction
 Rigor: thorough (signals)
-Outcome: halt - Step 16 (impl-review) needs a human: F3 remains pending. Confirm the concurrent, uncommitted change raising the by-file action ceiling to 1,536 bytes, or choose a more compact provider preview that preserves the 1,280-byte ceiling. The largest representative action measured 1,532 bytes after adjusting to a 100-byte root.
+Outcome: halt - Implementation still REJECTED after 3 fix loops. Needs a human.
 Archive: not run (run halted)
 Code under chore commits: 1 path(s) in 1 step commit(s); see "Code committed by the router"
 
@@ -24,12 +24,13 @@ Code under chore commits: 1 path(s) in 1 step commit(s); see "Code committed by 
 | 14 | impl-review | openai | gpt-6.2-astra | high | 5 | no | ok (c8819cf) | 16519258 |
 | 15 | fix | openai | gpt-6.2-astra | max | 7 | no | ok (720f0a4), 1 neutral rerun | 4159261 |
 | 16 | impl-review | openai | gpt-6.2-astra | high | 5 | no | failed | 17061065 |
+| 17 | impl-review | openai | gpt-6.2-astra | xhigh | 6 | no | ok (2a8c473) | 17751635 |
 
-Steps: 16 · Tokens: 185278445 (figures for 16 of 16 steps)
+Steps: 17 · Tokens: 203030080 (figures for 17 of 17 steps)
 
 ## Token coverage
 
-Verified observed host usage: 16 · Unavailable: 0 · Legacy/unverified scope: 0 · Missing figures: 0
+Verified observed host usage: 17 · Unavailable: 0 · Legacy/unverified scope: 0 · Missing figures: 0
 Provider, model and tier groups describe the enclosing dispatch.
 
 ## Code committed by the router
@@ -57,6 +58,7 @@ Counts as recorded when each review step ended; later edits of a review file are
 - step 12 impl-review: REJECTED, 1 critical, 2 warnings measured; 0 critical, 0 warnings open
 - step 14 impl-review: REJECTED, 1 critical, 3 warnings measured; 0 critical, 0 warnings open
 - step 16 impl-review: REJECTED, 1 critical, 2 warnings measured; 0 critical, 1 warnings open
+- step 17 impl-review: REJECTED, 1 critical, 2 warnings measured; 0 critical, 0 warnings open
 
 ## Manual checks
 
@@ -76,3 +78,4 @@ Candidates from the implementation review. Run a command yourself; the pipeline 
 - `/10x-lesson Always carry measured duration and token coverage through every settled outcome, including failed attempts.` (step 7)
 - `/10x-lesson Always bound streamed input by raw byte count and preserve UTF-8 characters across chunk boundaries before parsing or hashing text.` (step 12)
 - `/10x-lesson Always require fresh idle evidence after the last tool authorization or completion before accepting a terminal result and releasing execution ownership.` (step 14)
+- `/10x-lesson Always invalidate idle evidence when an enclosing session emits new output or tool activity, and require fresh evidence before releasing ownership.` (step 17)
