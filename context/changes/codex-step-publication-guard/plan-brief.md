@@ -12,15 +12,15 @@ A Codex step can run `git push`, `gh pr create` or `gh api`, and it sees the par
 
 ## Desired End State
 
-Under the project rules `git push` and the publishing `gh` forms are `forbidden`; no `codex` child the runner starts holds a GitHub token variable; `docs/REFERENCE.md` says what is enforced and which forms the rules cannot catch.
+Under the project rules `git push` and every `gh` command are `forbidden`; no `codex` child the runner starts holds a GitHub token variable; `docs/REFERENCE.md` says what is enforced and which forms the rules cannot catch.
 
 ## Key Decisions Made
 
 | Decision | Choice | Why | Source |
 | --- | --- | --- | --- |
 | Rule decision | `forbidden`, not `prompt` | `prompt` goes to the auto reviewer and `exec` has no terminal; `forbidden` refuses outright | Plan (checked with `codex execpolicy check`) |
-| Blanket allows | Drop `gh` allow; keep `git` allow | Step commits are local and expected (ADR-010); strictest rule wins, so `git push` forbidden holds | Plan |
-| gh forms | `pr api release repo` plus `issue auth workflow` | `gh auth token` reads the stored token; `issue` and `workflow` publish | Plan |
+| Blanket allows | Replace `gh` allow with a blanket `gh` `forbidden`; keep `git` allow | Step commits are local and expected (ADR-010); strictest rule wins, so `git push` forbidden holds | Plan |
+| gh forms | Every `gh` command, one blanket rule | No step needs `gh`; `gh auth token` reads the stored token; other families (`gist`, `secret`, `run`) mutate GitHub; the prefix also matches `gh -R <repo> …` | Plan review |
 | Env approach | Deny list by name pattern | Codex auth, proxy and custom provider keys vary; an allow list would break installs | Plan |
 | Scrub scope | All three spawns | The app-server and probe are also `codex` processes | Plan |
 | Tests | In-test rule evaluator, cross-checked with real `execpolicy check` when installed; fake CLI records env | Suite cannot start a model | Plan |
@@ -55,4 +55,4 @@ Rules refuse the direct commands; the env scrub removes the environment token so
 ## Success Criteria (Summary)
 
 - The rule table and env tests pass and the full suite stays green.
-- A live Codex step records refusal of `git push`, `gh pr create` and `gh auth token` with a token set in the shell.
+- A live Codex step records refusal of `git push`, `gh pr create` and `gh auth token` with a dummy token set in the shell and a local bare `origin`.

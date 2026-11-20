@@ -2,7 +2,7 @@
 
 ## Overview
 
-A Codex step can push, open or merge pull requests and read GitHub tokens, because `.codex/rules/project.rules` allows `git` and `gh` as a whole and `run-codex.mjs` hands the child the parent's full environment. This plan makes the Codex host refuse `git push` and the publishing `gh` forms through rules, removes GitHub tokens from the environment of every `codex` process the runner starts, tests both, and records in `docs/REFERENCE.md` what that enforces and what it cannot.
+A Codex step can push, open or merge pull requests and read GitHub tokens, because `.codex/rules/project.rules` allows `git` and `gh` as a whole and `run-codex.mjs` hands the child the parent's full environment. This plan makes the Codex host refuse `git push` and every `gh` command through rules, removes GitHub tokens from the environment of every `codex` process the runner starts, tests both, and records in `docs/REFERENCE.md` what that enforces and what it cannot.
 
 ## Current State Analysis
 
@@ -13,7 +13,7 @@ A Codex step can push, open or merge pull requests and read GitHub tokens, becau
 
 ## Desired End State
 
-- `git push` in any argument order after `push`, and every `gh pr`, `gh api`, `gh release`, `gh repo`, `gh issue`, `gh auth` and `gh workflow` form, evaluate to `forbidden` under the project rules. No blanket `gh` allow remains. `git` stays allowed otherwise, because step commits are local and the router expects them (ADR-010).
+- `git push` in any argument order after `push`, and every `gh` command whatever its arguments or flags (`gh pr`, `gh api`, `gh release`, `gh repo`, `gh issue`, `gh auth`, `gh workflow`, `gh run`, `gh gist`, `gh secret`, `gh -R <repo> pr …`), evaluate to `forbidden` under the project rules. No `gh` allow remains. `git` stays allowed otherwise, because step commits are local and the router expects them (ADR-010).
 - A child started by `run-codex.mjs` (probe, exec and app-server) has no variable named `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`, `GITHUB_ENTERPRISE_TOKEN`, and keeps everything else.
 - `docs/REFERENCE.md` lists what the Codex host enforces and the forms it cannot stop.
 - Verify: the new rule and env tests pass, and the full suite passes. One human live step, listed under Manual, proves the refusal in a real `codex exec`.
@@ -36,13 +36,13 @@ A Codex step can push, open or merge pull requests and read GitHub tokens, becau
 
 ## Implementation Approach
 
-Two independent mechanisms plus the documentation: rules refuse the direct publishing commands, the environment scrub removes the token so a push or API call that slips past the prefix match still lacks the HTTPS credential held in the environment. Rules and env scrub land as separate phases with their own tests; docs and the full suite close the change. Decisions taken without a human, each from evidence above: `forbidden` rather than `prompt`; deny list rather than allow list; scrub all three spawns; drop the blanket `gh` allow rather than keep it beside forbidden rules; add `gh issue`, `gh auth` and `gh workflow` to the four forms named in the goal because `gh auth token` reads the stored token and the other two publish.
+Two independent mechanisms plus the documentation: rules refuse the direct publishing commands, the environment scrub removes the token so a push or API call that slips past the prefix match still lacks the HTTPS credential held in the environment. Rules and env scrub land as separate phases with their own tests; docs and the full suite close the change. Decisions taken without a human, each from evidence above: `forbidden` rather than `prompt`; deny list rather than allow list; scrub all three spawns; replace the blanket `gh` allow with one blanket `gh` `forbidden` rule rather than a list of subcommands, because no step needs `gh` (see Current State Analysis), `gh auth token` reads the stored token, `gh gist`, `gh secret`, `gh run` and others mutate GitHub and a list would leave them to the approval path, and a blanket prefix also matches `gh -R <repo> pr …`.
 
 ## Phase 1: Publishing forms refused by rule
 
 ### Overview
 
-Take `git push` and the publishing `gh` forms out of the allow and test the rule file.
+Take `git push` and every `gh` command out of the allow and test the rule file.
 
 ### Changes Required:
 
@@ -50,9 +50,9 @@ Take `git push` and the publishing `gh` forms out of the allow and test the rule
 
 **File**: `.codex/rules/project.rules`
 
-**Intent**: Remove the blanket `gh` allow, add `forbidden` rules for `git push` and for the publishing `gh` subcommands, and say in the header comment that publication belongs to `open-pr.mjs` and `pr-comment.mjs`. Leave the blanket `git` allow, the `prompt` rules and the existing forbidden lines.
+**Intent**: Remove the blanket `gh` allow, add `forbidden` rules for `git push` and for `gh` as a whole, and say in the header comment that publication belongs to `open-pr.mjs` and `pr-comment.mjs`. Leave the blanket `git` allow, the `prompt` rules and the existing forbidden lines.
 
-**Contract**: `["git", "push"]` forbidden with a justification naming ADR-017; `["gh", ["pr", "api", "release", "repo", "issue", "auth", "workflow"]]` forbidden with a justification. No rule with pattern `["gh"]`. Other `gh` forms match no rule and fall to the host's approval path.
+**Contract**: `["git", "push"]` forbidden with a justification naming ADR-017; `["gh"]` forbidden with a justification (the existing `gh … delete` forbidden line stays). No rule allows `["gh"]`, so no `gh` form falls to the host's approval path.
 
 #### 2. Rule test
 
@@ -60,7 +60,7 @@ Take `git push` and the publishing `gh` forms out of the allow and test the rule
 
 **Intent**: Prove the rule file refuses the forms and still allows ordinary git. A small in-test evaluator reads the `prefix_rule(...)` lines, matches token prefixes (alternation lists supported) and applies strictest-wins (`forbidden` over `prompt` over `allow`). When `codex execpolicy check` runs on this machine, the same table is also checked against it with an absolute `--rules` path, so the evaluator cannot drift; without Codex that part is skipped.
 
-**Contract**: Table expects `forbidden` for `git push`, `git push origin main`, `git push origin main --force`, `gh pr create`, `gh pr merge 1`, `gh pr view 1`, `gh api repos/x/y`, `gh release create v1`, `gh repo create`, `gh issue comment 1`, `gh auth token`, `gh workflow run x`; `allow` for `git status`, `git add -A`, `git commit -m x`, `git log`. The file has no rule whose pattern is exactly `["gh"]` and none that allows `["git","push"]`.
+**Contract**: Table expects `forbidden` for `git push`, `git push origin main`, `git push origin main --force`, `gh pr create`, `gh pr merge 1`, `gh pr view 1`, `gh api repos/x/y`, `gh release create v1`, `gh repo create`, `gh issue comment 1`, `gh auth token`, `gh workflow run x`, `gh run list`, `gh gist create`, `gh secret set X`, `gh --version`, `gh -R a/b pr create`; `allow` for `git status`, `git add -A`, `git commit -m x`, `git log`. The file has no rule that allows `["gh"]` and none that allows `["git","push"]`.
 
 #### 3. Test index
 
@@ -80,7 +80,7 @@ Take `git push` and the publishing `gh` forms out of the allow and test the rule
 
 - None for this phase; the live refusal is Phase 3.
 
-**Implementation Note**: After completing this phase and all automated verification passes, continue to Phase 2 without a pause; both phases are independent and the manual check is in Phase 3.
+**Implementation Note**: After completing this phase and all automated verification passes, continue to Phase 2 without a pause; both phases are independent and the manual check is in Phase 3. On a machine without `codex` on `PATH` the third criterion cannot run: record it as skipped, not failed, because the cross-check inside the rule test covers it wherever Codex is installed.
 
 ---
 
@@ -112,7 +112,7 @@ Start all three `codex` processes of the runner with an environment that holds n
 
 **File**: `skills/10x-pipeline/test/codex-runner.test.mjs`
 
-**Intent**: Two tests. First, `codexChildEnv` on a plain object with the four names in upper and lower case plus `PATH`, `GH_HOST`, `OPENAI_API_KEY` and `CODEX_TEST_KEEP` drops exactly the four and leaves the input untouched. Second, for each chain, run the runner with the four tokens added to `w.env` and a metadata-reading mode: the sandbox probe call, the exec call and the app-server record show none of the four names and still show `CODEX_TEST_KEEP`; the result still completes.
+**Intent**: Two tests. First, `codexChildEnv` on a plain object with the four names in upper case and again in lower case (the pattern is case-insensitive, so all eight keys go) plus `PATH`, `GH_HOST`, `OPENAI_API_KEY` and `CODEX_TEST_KEEP` returns exactly the other four keys and leaves the input untouched. Second, for each chain, run the runner with the four tokens added to `w.env` and a metadata-reading mode: the sandbox probe call, the exec call and the app-server record show none of the four names and still show `CODEX_TEST_KEEP`; the result still completes.
 
 **Contract**: Reuse `codexFixture`, `execute`, `calls` from `codex-helpers.mjs`; the metadata-reading mode is the existing `pages`/`threadMetadata` fixture used by the settled-descendant tests near `codex-runner.test.mjs:548`.
 
@@ -152,7 +152,7 @@ Write down what the Codex host enforces and what it cannot, then run the full su
 
 **Intent**: Add one paragraph after the sandbox-probe paragraph (the one beginning "Before launching, a model-free native sandbox probe", line 35) under the Codex dispatch section, titled in bold "Codex publication guard".
 
-**Contract**: States, with only what was observed or is a plain consequence of the rules: **Enforced** — direct `git push` (any arguments) and `gh pr|api|release|repo|issue|auth|workflow` are `forbidden` by `.codex/rules/project.rules`, and the strictest matching rule wins; the child, its probe and the metadata server start without `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN` and `GITHUB_ENTERPRISE_TOKEN` (deny list; other variables, Codex's own key and proxy variables pass). **Cannot enforce** — prefix rules match the leading tokens only: `git -C <dir> push`, `git -c <k=v> push`, `gh -R <repo> pr …`, an absolute executable path, `env` or shell wrappers and API equivalents are not matched by this file; `git commit -m x --no-verify` and `-n` are not refused (only the direct `git commit --no-verify` is); the scrub removes only named environment variables, not stored `gh` credentials, git credential helpers or the SSH agent; rules load only when the project is trusted, and a user-level configuration or approval mode can still change what a step may run; no model-command hook exists on this host, so `step-guard.mjs` has no Codex equivalent. State that `forbidden` was chosen because `prompt` goes to the auto reviewer and a non-interactive `codex exec` has no terminal to answer, and that the live refusal of a real step is a recorded Manual check. Grep the docs for the old behaviour first (lessons: grep every doc when behaviour changes) and edit any statement that claims `git` or `gh` is allowed as a whole.
+**Contract**: States, with only what was observed or is a plain consequence of the rules: **Enforced** — direct `git push` (any arguments) and every direct `gh` command, including `gh -R <repo> …`, are `forbidden` by `.codex/rules/project.rules`, and the strictest matching rule wins; the child, its probe and the metadata server start without `GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN` and `GITHUB_ENTERPRISE_TOKEN` (deny list; other variables, Codex's own key and proxy variables pass). **Cannot enforce** — prefix rules match the leading tokens only: `git -C <dir> push`, `git -c <k=v> push`, an absolute executable path such as `/usr/bin/git push` or `/opt/homebrew/bin/gh`, `env` or shell wrappers and API equivalents are not matched by this file; `git commit -m x --no-verify` and `-n` are not refused (only the direct `git commit --no-verify` is); the scrub removes only named environment variables, not stored `gh` credentials, git credential helpers or the SSH agent; whether rules load only for a trusted project and whether a user-level configuration or approval mode can still change what a step may run were not verified here, so the paragraph says so instead of asserting either; no model-command hook exists on this host, so `step-guard.mjs` has no Codex equivalent. State that `forbidden` was chosen because `prompt` goes to the auto reviewer and a non-interactive `codex exec` has no terminal to answer, and that the live refusal of a real step is a recorded Manual check. Grep the docs for the old behaviour first (lessons: grep every doc when behaviour changes) and edit any statement that claims `git` or `gh` is allowed as a whole.
 
 #### 2. Decision record
 
@@ -173,7 +173,7 @@ Write down what the Codex host enforces and what it cannot, then run the full su
 
 #### Manual Verification:
 
-- A human runs one live Codex step (`codex exec` in a trusted scratch clone with this rule file) that is told to run `git push origin HEAD`, then `gh pr create`, then `gh auth token`, with `GH_TOKEN` set in the shell, and records that each is refused and that `env` inside the step shows no GitHub token; the record goes in `context/changes/codex-step-publication-guard/evidence/live-codex-refusal.md`.
+- A human runs one live Codex step (`codex exec` in a trusted scratch clone with this rule file, whose `origin` is a local bare repository, so a guard failure cannot publish anything) that is told to run `git push origin HEAD`, then `gh pr create`, then `gh auth token`, with a dummy `GH_TOKEN` set in the shell, and records that each is refused and that `env` inside the step shows no GitHub token; the record goes in `context/changes/codex-step-publication-guard/evidence/live-codex-refusal.md`.
 - The same human notes in that record whether `bash -lc "git push"` is refused, so the reference statement about wrappers can be tightened or confirmed.
 
 ---
