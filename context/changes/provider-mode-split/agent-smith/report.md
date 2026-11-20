@@ -2,8 +2,9 @@
 
 Goal: Implement it automatically, without human interaction
 Rigor: thorough (signals)
-Outcome: halt - Implementation still REJECTED after 2 fix loops. Needs a human.
+Outcome: halt - Step 16 (impl-review) needs a human: F3 remains pending. Confirm the concurrent, uncommitted change raising the by-file action ceiling to 1,536 bytes, or choose a more compact provider preview that preserves the 1,280-byte ceiling. The largest representative action measured 1,532 bytes after adjusting to a 100-byte root.
 Archive: not run (run halted)
+Code under chore commits: 1 path(s) in 1 step commit(s); see "Code committed by the router"
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -21,13 +22,29 @@ Archive: not run (run halted)
 | 12 | impl-review | openai | gpt-6.2-astra | high | 5 | no | ok (ee417f8) | 15539703 |
 | 13 | fix | openai | gpt-6.2-astra | xhigh | 6 | no | ok (cf984fc) | 4987319 |
 | 14 | impl-review | openai | gpt-6.2-astra | high | 5 | no | ok (c8819cf) | 16519258 |
+| 15 | fix | openai | gpt-6.2-astra | max | 7 | no | ok (720f0a4), 1 neutral rerun | 4159261 |
+| 16 | impl-review | openai | gpt-6.2-astra | high | 5 | no | failed | 17061065 |
 
-Steps: 14 · Tokens: 164058119 (figures for 14 of 14 steps)
+Steps: 16 · Tokens: 185278445 (figures for 16 of 16 steps)
 
 ## Token coverage
 
-Verified observed host usage: 14 · Unavailable: 0 · Legacy/unverified scope: 0 · Missing figures: 0
+Verified observed host usage: 16 · Unavailable: 0 · Legacy/unverified scope: 0 · Missing figures: 0
 Provider, model and tier groups describe the enclosing dispatch.
+
+## Code committed by the router
+
+These paths sat uncommitted when a step ended and went into the router's `chore` step commit, so release-please lists no changelog line for them.
+
+- step 15 fix (720f0a4):
+  - `context/foundation/agent-smith-policy.json`
+
+## Neutral reruns
+
+Steps returned again unchanged (same prompt, model and effort) after the orchestrator declared a fault of its own; no failed attempt was counted. The notes are the orchestrator's.
+
+- step 15 fix: 1 rerun after an orchestrator fault
+  - Step 15 action output was truncated before launch; nothing ran. Rerun unchanged.
 
 ## Review findings
 
@@ -39,6 +56,7 @@ Counts as recorded when each review step ended; later edits of a review file are
 - step 10 plan-review: REVISE, 0 critical, 4 warnings measured; 0 critical, 0 warnings open
 - step 12 impl-review: REJECTED, 1 critical, 2 warnings measured; 0 critical, 0 warnings open
 - step 14 impl-review: REJECTED, 1 critical, 3 warnings measured; 0 critical, 0 warnings open
+- step 16 impl-review: REJECTED, 1 critical, 2 warnings measured; 0 critical, 1 warnings open
 
 ## Manual checks
 

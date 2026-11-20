@@ -6,76 +6,76 @@
 - **Reviewed phases**: 1, 2, 3, 4
 - **Date**: 2026-11-20
 - **Verdict**: REJECTED
-- **Findings**: 1 critical, 3 warnings, 0 observations
+- **Findings**: 1 critical, 2 warnings, 0 observations
 
-The verdict applies to `cf984fc2`, where the Claude runner could release execution ownership using a Stop that predated tool completion. All four findings have fixes in `45c949972bbc`. The preceding review and its applied decisions are preserved in `ee417f89`.
+The verdict and counts describe `ce4737da9338` with the owner's 1,536-byte ceiling already in the working copy. All three findings were applied in `cd20da6d5589`. There are zero open critical findings and zero open warnings. The fix commit includes the ceiling confirmed by the owner in the plan. Phase 4 refers to the earlier findings fixed in `84205bf0` and verified in `07221f54`.
 
 ## Verdicts
 
-| Dimension | Verdict | Basis on the reviewed candidate |
+| Dimension | Verdict | Evidence on the reviewed candidate |
 | --- | --- | --- |
-| Plan Adherence | WARNING | Both chains implement host defaults, split roles, exact dispatch and legacy recovery. Claude preflight missed two required capability checks. |
-| Scope Discipline | PASS | The branch changes provider selection, execution, reporting, publication exclusion and their supporting fixtures and documentation. |
-| Safety & Quality | FAIL | A late tool completion could leave stale evidence eligible to release the run lock. |
-| Architecture | PASS | The router owns selection and persisted state. Each external runner checks its own execution capabilities under the shared lock. |
-| Pattern Consistency | PASS | Dispatch validation, CLI envelopes, fixtures and reporting follow the existing transport conventions. |
-| Success Criteria | FAIL | Three model-free regressions exposed the runner defects. The original crash fixture also made a timing-dependent assertion about a killed writer. |
+| Plan Adherence | WARNING | The Claude transport could accept an idle receipt that preceded later enclosing output. |
+| Scope Discipline | PASS | Provider assignment, external execution, publication locking and migration documentation follow the four planned phases. |
+| Safety & Quality | FAIL | Claude could release ownership using stale settlement evidence. The archive path could also move the physical lock. |
+| Architecture | PASS | The router owns assignment and saved dispatch. Runners validate it under the lock shared with publication. |
+| Pattern Consistency | WARNING | Only the Codex runner enforced external temporary storage. |
+| Success Criteria | FAIL | Local fixtures exposed the settlement and lock defects. The size fixture also measured Claude under two OpenAI labels. |
 
 ## Findings
 
-### F1 — Tool completion could invalidate an accepted Stop
+### F1 — Later assistant output could reuse an earlier idle Stop
 
 - **Severity**: ❌ CRITICAL
-- **Impact**: 🔎 MEDIUM — the runner uses this evidence to release the shared lock.
+- **Impact**: 🔎 MEDIUM — the decision determines when another writer can enter the run.
 - **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/run-claude.mjs:151` on `cf984fc2`
-- **Detail**: A fixture authorized a Read, delivered the enclosing Stop, then reported the Read completion and the matching terminal reply. The runner marked the step complete and released ownership even though the last evidence of tool activity followed Stop. The same callback handles preflight and work.
-- **Fix**: Invalidate Stop when accepting either tool callback. Reject a completion after the terminal event. The regression checks the retained Claude session lock and refusal of a second launch.
-- **Decision**: APPLIED in `45c949972bbc`.
+- **Location**: `skills/10x-pipeline/scripts/run-claude.mjs:272` on the reviewed candidate.
+- **Detail**: A matching enclosing assistant event received after Stop left the old receipt valid. With identical reply text, the fake CLI started work after a stale preflight Stop and completed work after a stale work Stop. A recognized CLI failure also relied on that receipt to release ownership.
+- **Fix**: Invalidate the receipt on enclosing assistant activity in either turn and on tool callbacks, including denied requests. A new idle Stop can settle the turn. The fixtures cover preflight refusal and retry, successful and failed work terminals, and retained-lock refusal on relaunch.
+  - **Strength**: Preflight and both work terminal types use the same freshness rule.
+  - **Tradeoff**: Out-of-order activity can require a retry or ownership reconciliation.
+  - **Confidence**: HIGH. The targeted fixtures failed on the candidate and passed after the fix.
+  - **Blind spot**: Live event ordering awaits row 3.2.
+- **Decision**: APPLIED in `cd20da6d5589`.
 
-### F2 — A missing or unknown permission mode passed preflight
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — the runner can validate the permission mode while handling session initialization.
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/run-claude.mjs:130` and `:252` on `cf984fc2`
-- **Detail**: A fake session omitted its effective permission mode and received the work prompt. The runner rejected only the explicit bypass value. Both initialization and tool callbacks could accept an unfamiliar value.
-- **Fix**: Require a supported mode at initialization and validate the mode when a callback supplies one. The fixtures cover missing, unknown and bypass modes and verify that preflight refusal releases the lock.
-- **Decision**: APPLIED in `45c949972bbc`.
-
-### F3 — Review and framing skills could launch without a delegation tool
+### F2 — A headless archive could move its own lock
 
 - **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — the saved skill identifies the required tool for the shipped invocations.
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/run-claude.mjs:255` on `cf984fc2`
-- **Detail**: The runner checked for Agent or Task only on implementation steps. The installed implementation review requires two reviewers, the shipped deep plan review requires one, and framing delegates its hypothesis checks. A session advertising the selected skill and Skill tool could receive the task with neither delegation tool.
-- **Fix**: Check for Agent or Task when the saved skill is one of those three. A fake tool catalog exercises each selection and verifies refusal before dispatch.
-- **Decision**: APPLIED in `45c949972bbc`.
+- **Impact**: 🔎 MEDIUM — every lock holder relies on the same physical location throughout the run.
+- **Dimension**: Safety & Quality
+- **Location**: `skills/10x-pipeline/scripts/run-claude.mjs:93` and `skills/10x-pipeline/scripts/run-codex.mjs:212` on the reviewed candidate.
+- **Detail**: With TMPDIR inside the live change, the Claude runner launched the fake archive. Moving the change would move the lock from the location used to settle it. Codex already rejected that configuration.
+- **Fix**: Enforce the existing external-temp requirement when acquiring the shared run lock. Check for an existing owner first. The archive fixture now checks refusal before CLI startup and compares the directory contents before and after. Historical lock names and ownership records retain their existing format.
+  - **Strength**: Runners, router writers and publication share the placement check.
+  - **Tradeoff**: Writers reject a TMPDIR inside the run root. Existing owners must settle before TMPDIR changes.
+  - **Confidence**: HIGH. The same local archive fixture demonstrated both the original launch and the corrected prelaunch refusal.
+  - **Blind spot**: Fresh-host archive qualification awaits row 3.2.
+- **Decision**: APPLIED in `cd20da6d5589`.
 
-### F4 — The crash fixture expected the killed writer to clean its temporary file
+### F3 — The size fixture missed OpenAI actions and skipped the ceiling on long checkouts
 
 - **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — the ownership checks already distinguish a crashed runner from later callers.
+- **Impact**: 🏃 LOW — the plan specifies both provider selection and the byte ceiling.
 - **Dimension**: Success Criteria
-- **Location**: `skills/10x-pipeline/test/run-lock.test.mjs:184` on `cf984fc2`
-- **Detail**: The first full-suite run reached the expected lock refusals, then failed because the killed runner had left its private temporary lock file. A SIGKILL can land between writing the updated owner record and renaming it over the lock. The assertion could therefore fail with execution still correctly suspended.
-- **Fix**: Allow only the temporary file with that run’s exact lock name and the killed runner’s PID. Continue requiring every refused caller to clean up and verifying that the shared lock survives process-group exit on both chains.
-- **Decision**: APPLIED in `45c949972bbc`.
+- **Location**: `skills/10x-pipeline/test/prompt-handoff.test.mjs:421` and line 442 of the same file on the reviewed candidate.
+- **Detail**: The two fresh OpenAI cases supplied a ladder preset, so the host-native default routed them to Claude. An assertion against the first OpenAI label returned `claude`. The size check only ran when the checkout fixture's absolute root fit in 100 bytes.
+- **Fix**: Select the intended mode and check the provider on initial, retry and next actions. The test measures the actual stdout and checks each of the 19 ordinary envelopes at a 100-byte root, substituting only the root and its quoted task path. The owner-approved 1,536-byte ceiling is also the value recorded in measurement evidence.
+- **Decision**: APPLIED in `cd20da6d5589`.
 
-## Verification
+## Coverage and verification
 
-The plan records all ten automated rows complete and leaves two manual rows open. Node 24.19.0 and OpenSpec CLI 2.0.0 were available. The review ran the plan's commands in the worktree with local provider and publication fixtures.
+The review compared the implementation with run base `6834d2b4`. It covered both chains' six host/mode assignments, default and legacy routing, mixed and homogeneous ladders, retries, metadata recovery, archive descriptors and provenance. The transport review covered exact handoffs, skill and tool discovery, cancellation, leaf collection, settlement and usage evidence. Both skill loops and their terminal publication protocols were checked against the reference.
 
-| Plan criteria | Command | Post-fix result |
+Post-fix commands used Node 24.19.0, OpenSpec CLI 2.0.0 and local provider and publication fixtures. Scratch projects stayed inside the review worktree. The full suite used a Git discovery boundary so fixtures without a repository could not inherit the enclosing checkout's history.
+
+| Criteria | Command | Result |
 | --- | --- | --- |
-| 1.1–1.2 · roles, ladders, both chains, resume, archive and provenance | `node --test --test-concurrency=2 skills/10x-pipeline/test/{providers,ladder,host-integration,route,archive,provenance}.test.mjs skills/openspec-pipeline/test/{openspec-steps,openspec-archive}.test.mjs` | 316 passed |
-| 2.1–2.2 · external dispatch, guards, accounting, closure and cancellation | `node --test --test-concurrency=2 skills/10x-pipeline/test/{claude-runner,codex-runner,step-guard}.test.mjs` | 167 passed |
-| 4.1–4.5 · settlement, recovery, capabilities, dispatch drift, CLI help and evidence | `node --test --test-concurrency=2 skills/10x-pipeline/test/{claude-runner,codex-runner,providers,provenance,host-integration,route,openfindings,manualverify,step-guard}.test.mjs` | 529 passed |
-| 3.1 · both orchestrator loops and the full repository suite | `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` | 2,107 passed, 3 expected skips, 0 failures |
+| 1.1–1.2 | `node --test --test-concurrency=2 skills/10x-pipeline/test/{providers,ladder,host-integration,route,archive,provenance}.test.mjs skills/openspec-pipeline/test/{openspec-steps,openspec-archive}.test.mjs` | 316 passed |
+| 2.1–2.2 | `node --test --test-concurrency=2 skills/10x-pipeline/test/{claude-runner,codex-runner,step-guard}.test.mjs` | 169 passed |
+| 4.1–4.5 | `node --test --test-concurrency=2 skills/10x-pipeline/test/{claude-runner,codex-runner,providers,provenance,host-integration,route,openfindings,manualverify,step-guard}.test.mjs` | 531 passed |
+| 3.1 | `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` | 2,109 passed, 3 expected skips, 0 failures |
 
-The first full suite had one failure in the original crash-fixture assertion (F4). Both chain cases passed on an isolated rerun. After the fixture correction, all three focused gates and the complete 2,110-test suite passed with their expected skips. The two live GitHub cases were disabled by `GH_LIVE=0`. The root `CLAUDE.md` import check skipped because this checkout has no such file.
+The first full run had 2,108 passes, three expected skips and one failure. The OpenSpec crash fixture received `EPERM` on its process-group liveness check after termination. Both chains passed in nine focused reruns. The final full gate used the approved process permissions. Its three skips were the optional root CLAUDE.md import and the two live GitHub checks.
 
-Manual row **3.2** remains open for fresh authenticated sessions across six host/mode combinations per chain. Row **3.3** remains open until the orchestrator publishes the final head and its CI and elected report comment can be inspected. [Manual evidence](../evidence/unproven.md)
+Manual row **3.2** awaits fresh authenticated host qualification across all six combinations per chain. Row **3.3** awaits orchestrator publication and verification of the final PR head, CI and any elected report comment. The plan records ten completed automated rows and these two pending manual rows. [Manual evidence](../evidence/unproven.md)
 
-The read-only plan reviewer (`/root/drift`) traced both chains and identified F3. The safety reviewer (`/root/quality`) identified F1 and F2. The enclosing step reproduced F1–F3 with the fake CLI and identified F4 in the complete suite. Child-inclusive token coverage was unavailable.
+The read-only reviewers `/root/quality` and `/root/drift` returned F1–F2 and F3 respectively under enclosing invocation `01a1f853-b4a6-70d3-a42f-f04280230fb9`. The enclosing review confirmed all three with local fixtures. Child-inclusive token coverage was unavailable.
