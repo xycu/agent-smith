@@ -42,6 +42,9 @@ function stop(reply) {
 function result(uuid, reply, terminal = { subtype: "success", is_error: false }) {
   event({ type: "result", result: reply, user_message_uuid: uuid, usage: { totalTokens: 998 }, ...terminal });
 }
+function assistant(text) {
+  event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text }] } });
+}
 let first = true;
 async function handle(message) {
   if (message.type === "control_response") {
@@ -97,6 +100,7 @@ async function handle(message) {
     }
     if (mode.changeHandoff) fs.appendFileSync(mode.changeHandoff, "altered");
     if (!mode.earlyProbeStop) stop("ready");
+    if (mode.assistantAfterStop === "preflight") assistant("ready");
     result(message.uuid, "ready");
     return;
   }
@@ -126,18 +130,19 @@ async function handle(message) {
   }
   event({ type: "result", session_id: "foreign", result: 'RESULT: {"status":"done"}' });
   event({ type: "result", user_message_uuid: "unrelated", result: 'RESULT: {"status":"done"}' });
-  event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }] } });
+  assistant(reply);
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
   const reported = mode.mismatch ? reply + "mismatch" : reply;
   const input = { file_path: path.join(fixture, "work.txt") };
   const finishRead = () => callback("PostToolUse", "Read", input, "late-read", { tool_response: { file: { filePath: input.file_path } } });
   if (mode.readFinishesAfter) await callback("PreToolUse", "Read", input, "late-read");
   if (!mode.earlyStop) stop(reported);
+  if (mode.assistantAfterStop === "work") assistant(reported);
   if (mode.toolAfterStop) await callback("PreToolUse", "Read", input, "late-read");
   if (mode.toolAfterStop || mode.readFinishesAfter === "stop") await finishRead();
   result(message.uuid, reported, mode.terminal);
   if (mode.readFinishesAfter === "terminal") await finishRead();
-  if (mode.trailingAssistant) event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "late output" }] } });
+  if (mode.trailingAssistant) assistant("late output");
 }
 lines.on("line", line => { handle(JSON.parse(line)).catch(e => { process.stderr.write(e.message); process.exit(1); }); });
 await once(lines, "close");

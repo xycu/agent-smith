@@ -21,8 +21,8 @@ function pidAlive(pid) {
 
 // Takes the lock of the run or halts. The pid is in the file from the moment it exists: written to a private temp file,
 // then linked to the lock name, so a second caller never reads an empty lock as stale.
-export function lockRunDirectory(id, dir, onBusy) {
-  const lock = runLockPath(dir);
+export function lockRunDirectory(root, id, chain, onBusy) {
+  const lock = runLockPath(liveRunDirectory(root, id, chain));
   const nativeSuspension = (threadId, claudeSession) =>
     `Execution suspended: native ownership unresolved (lock file ${lock}, ${claudeSession ? "Claude session " + claudeSession : "thread " + (threadId ?? "unknown")}). `
     + "Keep the enabling revision and TMPDIR. Await an active runner through its existing handle. "
@@ -75,6 +75,12 @@ export function lockRunDirectory(id, dir, onBusy) {
         if (attempt > 0) throw e;
         unlinkQuiet(lock); // stale: remove it and try once more; another caller may have removed it already
       }
+    }
+    // Check existing ownership first. An archive move or git add -A must never capture the lock.
+    const relativeTemp = path.relative(fs.realpathSync(root), fs.realpathSync(path.dirname(lock)));
+    if (relativeTemp !== ".." && !relativeTemp.startsWith(".." + path.sep) && !path.isAbsolute(relativeTemp)) {
+      release();
+      onBusy("The OS temporary directory must be outside the run worktree. Reconcile any existing execution locks before changing TMPDIR.");
     }
   } catch (e) {
     release();

@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { liveRunDirectory, lockRunDirectory } from "./run-lock.mjs";
+import { lockRunDirectory } from "./run-lock.mjs";
 import { removeTree } from "./remove-tree.mjs";
 
 export const ID_RE = /^[a-z0-9][a-z0-9-]{0,99}$/;
@@ -105,7 +105,7 @@ export function withPublicationLock(id, publish) {
   };
   try {
     for (const chain of ["10x", "openspec"]) {
-      held.push(lockRunDirectory(id, liveRunDirectory(process.cwd(), id, chain), suspend));
+      held.push(lockRunDirectory(process.cwd(), id, chain, suspend));
     }
     return publish();
   } finally {

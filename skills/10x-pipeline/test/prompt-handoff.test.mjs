@@ -5,7 +5,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, init, next, run, writeOverride, writeResult, readLogEntries,
   readMetaFile, planText, gitInit, git, gitEnv, seedRun, writeLog, entry,
@@ -402,7 +401,8 @@ fs.rmSync = file => {
 
 test("actual emitted sizes fit normal roots and quantify long path/reason overhead", () => {
   const repo = fileURLToPath(new URL("../../../", import.meta.url));
-  const shortRoot = path.join(repo, "p");
+  const normalCeilingBytes = 1536;
+  const normalRoot = "/" + "r".repeat(99);
   const cases = [
     { label: "10x-claude", chain: "10x" },
     { label: "10x-openai", chain: "10x", openai: true },
@@ -413,12 +413,20 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
     { label: "manual-openai", chain: "10x", manual: true, openai: true },
   ];
   const rows = [];
-  function record(p, result, label, policy) {
+  function record(p, result, label, policy, expectedProvider) {
     const action = result.json;
     canonical(p, action);
     const row = { ...measure(p, action, label), policy };
     assert.equal(row.actionBytes, bytes(result.stdout), "measure actual pretty-printed CLI bytes");
-    if (row.rootBytes <= 100) assert.ok(row.actionBytes <= 1280, JSON.stringify(row));
+    if (expectedProvider) {
+      assert.equal(action.provider, expectedProvider, label);
+      // Measure the maximum ordinary root independently of the checkout or TMPDIR length.
+      const task = JSON.stringify(path.join(normalRoot, action.promptFile));
+      const prompt = action.prompt.replace(JSON.stringify(taskPath(p)), task);
+      row.normalActionBytes = bytes(JSON.stringify({ ...action, root: normalRoot, prompt }, null, 2) + "\n");
+      assert.ok(row.normalActionBytes <= normalCeilingBytes, JSON.stringify(row));
+      if (row.rootBytes <= bytes(normalRoot)) assert.ok(row.actionBytes <= normalCeilingBytes, JSON.stringify(row));
+    }
     rows.push(row);
   }
   for (const c of cases) {
@@ -427,29 +435,23 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
       ...(c.manual ? { manualVerify: { minRigor: "lean" } } : {}),
     };
     const p = c.chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
-    // A short real root permits the normal-fixture budget even when TMPDIR is inside a long checkout.
-    fs.mkdirSync(shortRoot);
-    try {
-      fs.cpSync(p.root, shortRoot, { recursive: true });
-      const remap = value => path.join(shortRoot, path.relative(p.root, value));
-      const q = { ...p, base: shortRoot, root: shortRoot, changeDir: remap(p.changeDir), agentDir: remap(p.agentDir),
-        planFile: p.planFile ? remap(p.planFile) : null };
-      if (c.manual) {
-        writePlan(q, buildPlan([{ auto: [{ text: "implemented", done: true }], manual: ["Browser displays saved result"] }]));
-        writeReview(q, "plan-review", { verdict: "SOUND" });
-        seedRun(q, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { providerMode: c.openai ? "codex" : "claude" });
-      }
-      const first = run(q, ["init", q.id, "--chain", c.chain, "--goal", "fix typo"]);
-      record(q, first, c.label + "-initial", policy);
-      writeResult(q, FAULT);
-      record(q, next(q), c.label + "-retry", policy);
-      if (!c.manual) {
-        if (c.chain === "10x") writePlan(q, planText());
-        else writeArtifacts(q, { proposal: true, specs: 1, tasks: { open: 1 } });
-        writeResult(q, { status: "done" });
-        record(q, next(q), c.label + "-next", policy);
-      }
-    } finally { removeTree(shortRoot); }
+    const provider = c.openai ? "openai" : "claude";
+    const mode = c.openai ? "codex" : "claude";
+    if (c.manual) {
+      writePlan(p, buildPlan([{ auto: [{ text: "implemented", done: true }], manual: ["Browser displays saved result"] }]));
+      writeReview(p, "plan-review", { verdict: "SOUND" });
+      seedRun(p, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { providerMode: mode });
+    }
+    const first = run(p, ["init", p.id, "--chain", c.chain, "--provider-mode", mode, "--goal", "fix typo"]);
+    record(p, first, c.label + "-initial", policy, provider);
+    writeResult(p, FAULT);
+    record(p, next(p), c.label + "-retry", policy, provider);
+    if (!c.manual) {
+      if (c.chain === "10x") writePlan(p, planText());
+      else writeArtifacts(p, { proposal: true, specs: 1, tasks: { open: 1 } });
+      writeResult(p, { status: "done" });
+      record(p, next(p), c.label + "-next", policy, provider);
+    }
   }
   const long = makeProject({ policy: ON, nest: "long-root-".repeat(12) });
   record(long, init(long, "fix typo"), "long-path", ON);
@@ -465,7 +467,7 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
     sourceState: "working tree; final phase commit records the test source",
     node: process.version,
     command: 'TMPDIR="$PWD/.agent-smith-test-tmp" HANDOFF_MEASUREMENTS=context/changes/step-prompt-by-file/evidence/size-measurements.json node --test --test-name-pattern="actual emitted sizes" skills/10x-pipeline/test/prompt-handoff.test.mjs',
-    goal: "fix typo", id: "demo", normalCeilingBytes: 1280, normalRootLimitBytes: 100,
+    goal: "fix typo", id: "demo", normalCeilingBytes, normalRootLimitBytes: bytes(normalRoot),
     archive: "excluded; inline by contract", livePairs: 0,
     fixtureDefaults: { score: { minRigor: null }, isolation: { require: false }, manualVerify: { minRigor: null } },
     rows,

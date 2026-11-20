@@ -210,10 +210,6 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     lock = acquireRunLock(id, chain, refuse);
     const required = validateAction(action, id, chain, "openai");
     const tempRoot = fs.realpathSync(os.tmpdir());
-    const relativeTemp = path.relative(fs.realpathSync(ROOT), tempRoot);
-    if (relativeTemp === "" || (!relativeTemp.startsWith(".." + path.sep) && relativeTemp !== ".." && !path.isAbsolute(relativeTemp))) {
-      refuse("The OS temporary directory must be outside the run worktree. Select an external TMPDIR before retrying.");
-    }
     temp = fs.mkdtempSync(path.join(tempRoot, "agent-smith-codex-"));
     const probe = path.join(temp, "permission-probe.mjs");
     fs.writeFileSync(probe, `import { proveCodexToolkit } from ${JSON.stringify(new URL("./runner-toolkit.mjs", import.meta.url).href)};

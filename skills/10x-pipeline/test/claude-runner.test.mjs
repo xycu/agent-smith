@@ -158,14 +158,29 @@ test("incompatible handshake, toolkit, privilege set or changed handoff refuses 
   assert.match(w.execute().reason, /revision differs/);
 });
 
-test("preflight requires a fresh Stop after the last authorized probe", () => {
-  const w = fixture("10x", {}, { earlyProbeStop: true });
-  const refused = w.execute();
-  assert.equal(refused.launched, false, refused.reason);
-  assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
+test("preflight requires a fresh Stop after the last tool or assistant activity", () => {
+  const w = fixture();
+  for (const mode of [{ earlyProbeStop: true }, { assistantAfterStop: "preflight" }]) {
+    w.setMode(mode);
+    const refused = w.execute();
+    assert.equal(refused.launched, false, refused.reason);
+    assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
+  }
   w.setMode({});
   const retry = w.execute();
   assert.equal(retry.completed, true, retry.reason);
+});
+
+test("headless archive refuses a TMPDIR that would move with the change", () => {
+  const { w, p, archive } = archiveFixture("10x");
+  w.setMode({ skill: "10x-archive" });
+  w.env.TMPDIR = p.changeDir;
+  const before = fs.readdirSync(p.changeDir).sort();
+  const refused = w.execute(archive);
+  assert.equal(refused.launched, false, refused.reason);
+  assert.match(refused.reason, /temporary directory must be outside the run worktree/);
+  assert.equal(fs.existsSync(path.join(w.dir, "args.json")), false);
+  assert.deepEqual(fs.readdirSync(p.changeDir).sort(), before);
 });
 
 test("headless preflight requires a recognized permission mode", () => {
@@ -297,6 +312,7 @@ for (const chain of ["10x", "openspec"]) {
 test("unmatched lifecycle before work, missing leaf collection and conflicting output retain native ownership", () => {
   for (const mode of [{ earlyLeaf: true }, { earlyLeaf: "other-hook" }, { leaf: true, uncollected: true }, { leaf: true, earlyStop: true }, { mismatch: true },
     { toolAfterStop: true }, { readFinishesAfter: "stop" }, { readFinishesAfter: "terminal" }, { trailingAssistant: true },
+    { assistantAfterStop: "work" }, { assistantAfterStop: "work", terminal: { subtype: "error_max_turns", is_error: true } },
     { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
     { terminal: { subtype: "error_max_turns", is_error: false } },
     { terminal: { subtype: "interrupted", is_error: true } }]) {

@@ -1116,5 +1116,5 @@ export function halt(reason) {
 
 // Router callers halt on contention. External runners supply their own envelope failure callback.
 export function acquireRunLock(id, chain, onBusy = halt) {
-  return lockRunDirectory(id, liveRunDirectory(ROOT, id, chain), onBusy);
+  return lockRunDirectory(ROOT, id, chain, onBusy);
 }

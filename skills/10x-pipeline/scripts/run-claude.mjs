@@ -133,6 +133,7 @@ export async function runClaude(id, chain, action) {
           || (event.permission_mode !== undefined && !permissionModes.has(event.permission_mode))) {
         fail("Claude tool identity or effective permission mode could not be verified.");
       }
+      stop = null;
       if (req.callback_id === "PreToolUse") {
         if (!envelope.launched) {
           const trial = sentProbe && handshake && !leaf && initTools && probeInput(probe, tool, input);
@@ -172,8 +173,6 @@ export async function runClaude(id, chain, action) {
           collected.add(out.agentId);
         }
       } else fail("Unknown Claude guard callback.");
-      // An idle receipt must follow both authorization and completion in the same turn.
-      stop = null;
       return {};
     }
     function receive(e) {
@@ -269,10 +268,13 @@ export async function runClaude(id, chain, action) {
         }
         effortProven ||= e.effort === action.effort;
         initTools = true;
-      } else if (e.type === "assistant" && envelope.launched && e.message?.role === "assistant") {
+      } else if (e.type === "assistant" && e.message?.role === "assistant") {
         if (finished) fail("Claude emitted enclosing assistant output after its terminal event.");
-        const content = e.message.content;
-        if (Array.isArray(content)) finalText = content.filter(c => c.type === "text").map(c => c.text).join("\n");
+        stop = null;
+        if (envelope.launched) {
+          const content = e.message.content;
+          finalText = Array.isArray(content) ? content.filter(c => c.type === "text").map(c => c.text).join("\n") : undefined;
+        }
       } else if (e.type === "result") {
         if (e.user_message_uuid !== (envelope.launched ? work : qualification)) return;
         if (finished || leavesPending()) fail("Claude returned with unresolved leaf ownership.");
