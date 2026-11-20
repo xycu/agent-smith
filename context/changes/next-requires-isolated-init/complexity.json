@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (next halts when isolation is required and meta.isolated is not true); open detail is whether next halts without meta.json when isolation is off, which change.md leaves to the plan with a clear default" },
+    "novelty": { "score": 1, "evidence": "change.md names the init check at route.mjs:1075-1078 (isolationCheck, isolationOn); next() can reuse the same isolationOn gate and meta.isolated flag already used at route.mjs:1102-1118" },
+    "coupling": { "score": 1, "evidence": "change.md Constraints: the check belongs in route.mjs next() (route.mjs:83-121), reads meta.isolated, which init already sets; isolated-run and isolation-off behaviour stay as they are" },
+    "discovery": { "score": 0, "evidence": "change.md names the locations: route.mjs:83-121 (next), route.mjs:90 (meta fallback), route.mjs:1075-1078 (init check), and docs/REFERENCE.md under the next command" },
+    "volume": { "score": 1, "evidence": "change.md: one guard in route.mjs next(), one line in docs/REFERENCE.md, and two new tests (halt with default policy and no meta.json; isolated run still advances)" },
+    "verification": { "score": 1, "evidence": "change.md Done when: the existing node --test suite covers next and init; two tests to add for the halt and for the isolated advance" }
+  },
+  "unknowns": ["Whether next without any meta.json should halt when isolation is off (change.md leaves it to the plan)", "Exact tests that already exercise next with isolation required (not searched further; scoring does not depend on them)"],
+  "confidence": "high"
+}
