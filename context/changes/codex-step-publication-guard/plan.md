@@ -226,9 +226,9 @@ A user-level `~/.codex/rules` file or project override that allows `git push` ke
 
 #### Automated
 
-- [ ] 2.1 Runner tests pass, including the new environment tests: `node --test skills/10x-pipeline/test/codex-runner.test.mjs`
-- [ ] 2.2 Other Codex suites using the helper pass: `node --test skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/codex-usage.test.mjs`
-- [ ] 2.3 No recursive delete was introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 2.1 Runner tests pass, including the new environment tests: `node --test skills/10x-pipeline/test/codex-runner.test.mjs`
+- [x] 2.2 Other Codex suites using the helper pass: `node --test skills/10x-pipeline/test/codex-chain.test.mjs skills/10x-pipeline/test/codex-usage.test.mjs`
+- [x] 2.3 No recursive delete was introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
 
 ### Phase 3: Reference, decision record and live proof
 
