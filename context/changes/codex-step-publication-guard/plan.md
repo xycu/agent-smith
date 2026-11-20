@@ -234,9 +234,9 @@ A user-level `~/.codex/rules` file or project override that allows `git push` ke
 
 #### Automated
 
-- [ ] 3.1 Full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.2 Reference names the guard: `grep -n "Codex publication guard" docs/REFERENCE.md`
-- [ ] 3.3 Version fields still agree: `node tools/version-check.mjs`
+- [x] 3.1 Full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.2 Reference names the guard: `grep -n "Codex publication guard" docs/REFERENCE.md`
+- [x] 3.3 Version fields still agree: `node tools/version-check.mjs`
 - [ ] 3.4 Commit subjects are Conventional Commits: `node tools/commit-lint.mjs main..HEAD`
 
 #### Manual
