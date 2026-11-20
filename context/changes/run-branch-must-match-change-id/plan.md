@@ -14,6 +14,7 @@
   - `prepare-run.mjs:179-201`: `inRun` is "linked worktree and HEAD starts with the prefix"; `branch` is HEAD, the recorded branch or the generated name, or the branch of a saved-run candidate chosen by `savedRunCandidates` (lines 55-71, 189-198); `validateRunBranch(config, opts.id, branch, git)` at line 201 runs before any lock, worktree or copy, so a throw there writes nothing.
 - The branch forms in use: `<prefix><id>` (fresh run), `<prefix><id>-baseline` (the baseline arm of `compare`, `docs/REFERENCE.md:482`: "a branch such as `<effective-prefix><change-id>-baseline`"), and saved runs of the same id on other suffix branches, which the existing fallback discovery tests use (`codex/demo-a`, `demo-b`, `demo-saved`, `demo-other`, `demo-nested` in `skills/10x-pipeline/test/prepare-run.test.mjs:851-890`). Every one of those saved runs carries a `meta.json` whose `id` equals the change id.
 - Two tests encode the defect and must change: `prepare-run.test.mjs:69` and `:798` assert that `prepare-run.mjs other` inside the worktree of run `demo` returns `in-run-worktree` on the branch of `demo`.
+- Two more tests record a `meta.json` of `demo` on the branch `codex/other` and expect the HEAD-mismatch message ("started on branch codex/other"): `isolation.test.mjs:286-287` and the `{ id: "demo", isolated: true, branch: "codex/other", chain }` case at `open-pr.test.mjs:904` (regex `saved run identity|started on branch|Invalid run branch` a few lines below). The new id check in `validateRunIdentity` runs before the HEAD comparison, so those two fail with the other-change message unless their fixture branch becomes `codex/demo-other`, which the saved tier accepts and which keeps the HEAD-mismatch message.
 - Change ids are kebab-case and one id is often a prefix of another in this repository (`step-guard` and `step-guard-heredoc-false-positives`), so a plain `startsWith(prefix + id)` would still let `foo` run on the branch of `foo-bar`.
 
 ## Desired End State
@@ -38,7 +39,7 @@
 - No new policy key for the baseline suffix; `-baseline` is a constant in `run-identity.mjs`.
 - No change to `open-pr.mjs`, `pr-comment.mjs`, `route.mjs` or the rollback code; they reach the guard through `validateRunIdentity` and `runBranch`.
 - No repair of a `meta.json` written earlier by the defect (id `foo`, branch `agent-smith/bar`); the saved tier refuses it with the new message, and recovery is by hand (no history is rewritten, no branch is deleted).
-- No accepted suffix other than `-baseline` for a run without saved identity. A user who made a baseline on another suffix needs the saved identity (the baseline arm writes one at its first `init`) or the `-baseline` name.
+- No accepted suffix other than `-baseline` for a run without saved identity. The first `init` of a run has no saved identity yet, so a baseline arm on another suffix refuses at that first `init`; it needs the `-baseline` name. Only a run whose `meta.json` already exists resumes on another suffix.
 
 ## Implementation Approach
 
@@ -61,7 +62,7 @@ Add the id check to `validateRunBranch`, route the saved tier from `validateRunI
 **Contract**: `validateRunBranch(config, id, branch, g, saved = false)`.
 - `saved === false`: `branch` must equal `<prefix><id>` or `<prefix><id>-baseline` (a module constant holds `-baseline`, with a comment that the name cannot tell it from a change called `<id>-baseline`).
 - `saved === true`: `branch` must start with `<prefix><id>`.
-- Failure message names both ids: the id being started and `branch.slice(prefix.length)` as the id the branch belongs to. It says to leave that run's worktree and run `prepare-run.mjs <id>` from the original project root (or resume the other change there). The error carries a marker property (`error.otherChange = true`) so a caller can tell it from the prefix error.
+- Failure message names both ids: the id being started and `branch.slice(prefix.length)` as the id the branch belongs to. It says to leave that run's worktree and run `prepare-run.mjs <id>` from the original project root (or resume the other change there), and, for the unsaved tier, it lists the accepted names `<prefix><id>` and `<prefix><id>-baseline`. The error carries a marker property (`error.otherChange = true`) so a caller can tell it from the prefix error.
 - The "does not start with <prefix>" message and its position (before the id check) stay as they are.
 - `validateRunIdentity` passes `saved = true` and rethrows an error with the marker unchanged; every other error keeps the "Restore isolation.branchPrefix to match the recorded branch" suffix.
 
@@ -83,6 +84,8 @@ Add the id check to `validateRunBranch`, route the saved tier from `validateRunI
 - `prepare-run.test.mjs` line 69 and line 798: `setup` with `args: ["other", "--chain", chain]` inside the run worktree of `demo` (branch `agent-smith/demo`, and `runs-demo` for the configured-prefix test) now returns a `reason` that names `demo` and `other`, a null `runRoot`, and leaves `originalState` and the run worktree files unchanged.
 - New prepare-run cases: in the worktree of `agent-smith/demo-extra`, id `demo` refuses (the `foo` / `foo-bar` case); in the worktree of `agent-smith/demo`, id `demo-extra` refuses; in a worktree on `agent-smith/demo-baseline` with no saved identity, id `demo` returns `in-run-worktree` on that branch; a saved identity of `demo` on `codex/demo-saved` still resumes (the existing fallback tests at lines 851-890 pass unchanged).
 - New `isolation.test.mjs` cases: `init` for `demo` in a worktree on `agent-smith/other` halts with a reason that names `demo` and `other`, ends with "Nothing was written." and creates no `agent-smith/` folder (`assertHalt` with the project); the same worktree on `agent-smith/demo-baseline` runs `init` and returns `action: "run"` (the unsaved baseline case, next to the executed case at line 241); a `meta.json` with `id: "demo"`, `isolated: true` and `branch: "agent-smith/other"`, HEAD on that branch, halts with the new message and without the "Restore isolation.branchPrefix" sentence.
+- Two existing fixtures change their recorded branch from `codex/other` to `codex/demo-other` and keep their assertions: `isolation.test.mjs:286` (still expects "started on branch", now `codex/demo-other`) and `open-pr.test.mjs:904` (a contradictory-identity case that still matches "started on branch").
+- Boundary cases for the unsaved tier: `init` for `demo` in a worktree on `agent-smith/demo-baselines` and on `agent-smith/demo-baseline-2` halts with the other-change message.
 - The existing prefix tests keep passing unchanged: `isolation.test.mjs:149` ("does not start with agent-smith/"), the recorded-prefix tests at `:241-262` ("isolation.branchPrefix ... recorded branch"), and `open-pr.test.mjs` (`HEAD is on agent-smith/demo, not agent-smith/other`).
 
 ### Success Criteria:
@@ -167,7 +170,7 @@ State the rule in the Run isolation section of `docs/REFERENCE.md` and in ADR-01
 
 ## Migration Notes
 
-A run already started by the defect (`meta.json` id `foo`, branch `agent-smith/bar`) now refuses on resume with the new message. Its recovery is the user's: leave the worktree and start `foo` from the original project root. No branch is deleted and no history is rewritten.
+A run already started by the defect (`meta.json` id `foo`, branch `agent-smith/bar`) now refuses on resume with the new message. Its recovery is the user's: leave the worktree and start `foo` from the original project root. No branch is deleted and no history is rewritten. Known limit: a defect-written `meta.json` whose recorded branch starts with `<prefix><id>` (id `foo` on `agent-smith/foo-bar`, the very case the exact check exists for) still resumes, because the saved tier cannot tell it from a saved suffix run of `foo`.
 
 ## References
 

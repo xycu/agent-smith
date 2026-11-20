@@ -46,7 +46,8 @@ One guard with a `saved` flag: strict by default, loose when a saved identity of
 ## Open Risks & Assumptions
 
 - Assumes `-baseline` is the only baseline suffix users rely on without a saved identity (REFERENCE.md says "such as"; the plan tightens it).
-- A `meta.json` already written by the defect now refuses on resume; recovery is manual.
+- A `meta.json` already written by the defect now refuses on resume; recovery is manual. A defect-written `meta.json` of `foo` on `agent-smith/foo-bar` still resumes, because the saved tier only requires `<prefix><id>` as a start.
+- Two existing fixtures (`isolation.test.mjs:286`, `open-pr.test.mjs:904`) move their recorded branch from `codex/other` to `codex/demo-other`, so they keep asserting the HEAD-mismatch message.
 
 ## Success Criteria (Summary)
 
