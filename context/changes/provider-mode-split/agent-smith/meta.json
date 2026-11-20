@@ -42,15 +42,14 @@
       "score.minRigor": "standard",
       "agents.restricted": false,
       "advisor.enabled": false
-    }
+    },
+    "drift": [
+      "limits"
+    ]
   },
   "startCommit": "e3cc38b1d8c0266bbe4a9f6d1a181ac9daf197fd",
   "rigor": {
     "level": "thorough",
     "by": "signals"
-  },
-  "outcome": {
-    "action": "halt",
-    "reason": "Implementation still REJECTED after 2 fix loops. Needs a human."
   }
 }
