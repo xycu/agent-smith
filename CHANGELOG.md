@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/xycu/agent-smith/compare/v1.14.2...v1.15.0) (2026-11-20)
+
+
+### Features
+
+* **provider-mode-split:** Select a Claude, Codex or split provider mode for a run ([#231](https://github.com/xycu/agent-smith/issues/231)) ([0d0886f](https://github.com/xycu/agent-smith/commit/0d0886f57327697ab97718c60efca9691ef29882))
+
 ## [1.14.2](https://github.com/xycu/agent-smith/compare/v1.14.1...v1.14.2) (2026-11-19)
 
 
