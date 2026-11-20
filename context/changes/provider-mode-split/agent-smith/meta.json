@@ -48,5 +48,9 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Implementation still REJECTED after 2 fix loops. Needs a human."
   }
 }

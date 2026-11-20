@@ -2,7 +2,7 @@
 
 Goal: Implement it automatically, without human interaction
 Rigor: thorough (signals)
-Outcome: halt - Step 9 (plan-review) needs a human: F2 requires the owner to decide whether a run with a surviving log but missing metadata must stop for recovery, or whether to provide an explicit legacy recovery path.
+Outcome: halt - Implementation still REJECTED after 2 fix loops. Needs a human.
 Archive: not run (run halted)
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
@@ -16,12 +16,17 @@ Archive: not run (run halted)
 | 7 | impl-review | openai | gpt-6.2-astra | high | 5 | no | ok (0014231) | 18438258 |
 | 8 | plan | openai | gpt-6.2-astra | xhigh | 6 | no | ok (f50c804) | 839368 |
 | 9 | plan-review | openai | gpt-6.2-sol | high | 3 | no | failed | 3013990 |
+| 10 | plan-review | openai | gpt-6.2-astra | high | 5 | no | ok (a2a9979) | 2307239 |
+| 11 | implement | openai | gpt-6.2-astra | high | 5 | no | ok (3b4f5aa) | 23013805 |
+| 12 | impl-review | openai | gpt-6.2-astra | high | 5 | no | ok (ee417f8) | 15539703 |
+| 13 | fix | openai | gpt-6.2-astra | xhigh | 6 | no | ok (cf984fc) | 4987319 |
+| 14 | impl-review | openai | gpt-6.2-astra | high | 5 | no | ok (c8819cf) | 16519258 |
 
-Steps: 9 · Tokens: 101690795 (figures for 9 of 9 steps)
+Steps: 14 · Tokens: 164058119 (figures for 14 of 14 steps)
 
 ## Token coverage
 
-Verified observed host usage: 9 · Unavailable: 0 · Legacy/unverified scope: 0 · Missing figures: 0
+Verified observed host usage: 14 · Unavailable: 0 · Legacy/unverified scope: 0 · Missing figures: 0
 Provider, model and tier groups describe the enclosing dispatch.
 
 ## Review findings
@@ -31,6 +36,9 @@ Counts as recorded when each review step ended; later edits of a review file are
 - step 2 plan-review: REVISE, 3 critical, 5 warnings measured; 0 critical, 0 warnings open
 - step 7 impl-review: REJECTED, 1 critical, 6 warnings measured; 0 critical, 0 warnings open
 - step 9 plan-review: REVISE, 0 critical, 4 warnings measured; 0 critical, 1 warnings open
+- step 10 plan-review: REVISE, 0 critical, 4 warnings measured; 0 critical, 0 warnings open
+- step 12 impl-review: REJECTED, 1 critical, 2 warnings measured; 0 critical, 0 warnings open
+- step 14 impl-review: REJECTED, 1 critical, 3 warnings measured; 0 critical, 0 warnings open
 
 ## Manual checks
 
@@ -48,3 +56,5 @@ Not proved: 2
 Candidates from the implementation review. Run a command yourself; the pipeline never runs `/10x-lesson`.
 
 - `/10x-lesson Always carry measured duration and token coverage through every settled outcome, including failed attempts.` (step 7)
+- `/10x-lesson Always bound streamed input by raw byte count and preserve UTF-8 characters across chunk boundaries before parsing or hashing text.` (step 12)
+- `/10x-lesson Always require fresh idle evidence after the last tool authorization or completion before accepting a terminal result and releasing execution ownership.` (step 14)
