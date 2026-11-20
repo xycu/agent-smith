@@ -132,6 +132,14 @@ for (const chain of ["10x", "openspec"]) {
   }
 }
 
+test("the Stop receipt hashes a multibyte reply across hook input chunks", () => {
+  const reply = "界".repeat(128 * 1024) + '\nRESULT: {"status":"done"}';
+  const w = fixture("10x", {}, { reply });
+  const result = w.execute();
+  assert.equal(result.completed, true, result.reason);
+  assert.deepEqual(fs.readdirSync(w.tmp), []);
+});
+
 test("incompatible handshake, toolkit, privilege set or changed handoff refuses before work and allows retry", () => {
   const w = fixture("10x", { prompts: { byFile: true } });
   for (const mode of [{ missingHandshake: true }, { badHandshake: true }, { foreignAgent: true }, { missingSkill: true }, { disabledHooks: true },
@@ -239,8 +247,8 @@ for (const chain of ["10x", "openspec"]) {
 }
 
 test("unmatched lifecycle before work, missing leaf collection and conflicting output retain native ownership", () => {
-  for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { mismatch: true },
-    { trailingAssistant: true }, { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
+  for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { leaf: true, earlyStop: true }, { mismatch: true },
+    { toolAfterStop: true }, { trailingAssistant: true }, { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
     { terminal: { subtype: "error_max_turns", is_error: false } },
     { terminal: { subtype: "interrupted", is_error: true } }]) {
     const w = fixture("10x", {}, mode);

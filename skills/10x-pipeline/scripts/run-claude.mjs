@@ -72,6 +72,7 @@ export async function runClaude(id, chain, action) {
   const stopped = new Set();
   const collected = new Set();
   const calls = new Set();
+  const leavesPending = () => active.size > 0 || calls.size > 0 || stopped.size !== collected.size;
   const proven = new Set();
   const probeCalls = new Map();
   const terminate = (signal = "SIGTERM") => {
@@ -150,6 +151,8 @@ export async function runClaude(id, chain, action) {
           if (calls.has(key) || calls.size >= 512) fail("Duplicate or excessive native leaf calls.");
           calls.add(key);
         }
+        // A tool call after Stop needs a new idle receipt before the work can settle.
+        stop = null;
       } else if (req.callback_id === "PostToolUse") {
         if (!envelope.launched) {
           const trial = probeCalls.get(key);
@@ -240,6 +243,7 @@ export async function runClaude(id, chain, action) {
             stopped.add(record.id);
             break;
           case "Stop":
+            if (leavesPending()) fail("Claude stopped with unresolved leaf ownership.");
             if (record.agent !== action.agent || record.id !== undefined || record.idle !== true || !/^[a-f\d]{64}$/.test(record.reply)) {
               fail("Claude could not prove an idle enclosing stop.");
             }
@@ -262,7 +266,7 @@ export async function runClaude(id, chain, action) {
         if (Array.isArray(content)) finalText = content.filter(c => c.type === "text").map(c => c.text).join("\n");
       } else if (e.type === "result") {
         if (e.user_message_uuid !== (envelope.launched ? work : qualification)) return;
-        if (finished || active.size || calls.size || stopped.size !== collected.size) fail("Claude returned with unresolved leaf ownership.");
+        if (finished || leavesPending()) fail("Claude returned with unresolved leaf ownership.");
         if (!envelope.launched) {
           if (!sentProbe || !handshake || e.subtype !== "success" || e.is_error !== false || !initTools || !effortProven || !stop || digest(e.result) !== stop
               || !(scorer ? ["read","write"] : ["read","write","bash","denial"]).every(k => proven.has(k))) {
@@ -348,12 +352,8 @@ export async function runClaude(id, chain, action) {
     envelope.usageEvidence = unavailableEvidence("incomplete-capture", { source: "claude-native", hostVersion: version });
     if (code !== 0 || terminal.is_error || terminal.subtype !== "success") fail("Claude exited unsuccessfully after confirmed settlement.");
     const reply = terminal.result;
-    if (!/^RESULT:/.test(reply.trimEnd().split(/\r?\n/).at(-1))) fail("Enclosing Claude reply has no final RESULT line.");
-    const result = readResult(reply);
-    if (action.action === "archive") {
-      if (!["done", "blocked", "failed"].includes(result.status)) fail("Claude archive RESULT has an invalid status.");
-      lock.clearChild(true);
-    }
+    const result = readResult(reply, action);
+    if (action.action === "archive") lock.clearChild(true);
     envelope.result = { ...result, usage: envelope.usage, usageEvidence: envelope.usageEvidence };
     envelope.completed = true;
     if (action.action === "archive") envelope.reply = reply;

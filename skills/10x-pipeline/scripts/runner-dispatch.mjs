@@ -90,13 +90,16 @@ export function validateAction(action, id, chain, provider, preflight) {
   return required;
 }
 
-export function readResult(message) {
-  const lines = message.split(/\r?\n/).filter((line) => /^RESULT:/.test(line));
-  if (!lines.length) refuse("The final assistant message has no RESULT line.");
+export function readResult(message, action) {
+  const lines = message.trimEnd().split(/\r?\n/);
+  const archive = action.action === "archive";
+  const line = archive || action.provider === "claude" ? lines.at(-1) : lines.findLast(line => line.startsWith("RESULT:"));
+  if (!line?.startsWith("RESULT:")) refuse("The final assistant message has no RESULT line at the expected position.");
   let result;
-  try { result = JSON.parse(lines.at(-1).slice("RESULT:".length).trim()); }
+  try { result = JSON.parse(line.slice("RESULT:".length).trim()); }
   catch { refuse("The last RESULT line is invalid JSON."); }
   if (!isObject(result) || typeof result.status !== "string" || !result.status.trim()) refuse("RESULT must be an object with a status.");
+  if (archive && !["done", "blocked", "failed"].includes(result.status)) refuse("Archive RESULT has an invalid status.");
   if (result.status === "orchestrator-error") result.status = "unknown";
   return result;
 }

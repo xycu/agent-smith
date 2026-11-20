@@ -35,8 +35,10 @@ async function callback(name, tool, input, key, extra = {}) {
     input: { session_id: session, agent_type: agent, hook_event_name: name, tool_use_id: key, tool_name: tool, tool_input: input, ...extra } } });
   return await response;
 }
-function result(uuid, reply, terminal = { subtype: "success", is_error: false }) {
+function stop(reply) {
   hook("Stop", { last_assistant_message: reply, background_tasks: [], session_crons: [] });
+}
+function result(uuid, reply, terminal = { subtype: "success", is_error: false }) {
   event({ type: "result", result: reply, user_message_uuid: uuid, usage: { totalTokens: 998 }, ...terminal });
 }
 let first = true;
@@ -89,11 +91,13 @@ async function handle(message) {
       await callback("PostToolUse", tool, input, key, { tool_response: output });
     }
     if (mode.changeHandoff) fs.appendFileSync(mode.changeHandoff, "altered");
+    stop("ready");
     result(message.uuid, "ready");
     return;
   }
   fs.writeFileSync(path.join(fixture, "work.txt"), message.message.content);
   if (mode.hold) return;
+  const reply = mode.reply ?? 'RESULT: {"status":"done","usage":{"totalTokens":987654},"usageEvidence":{"status":"verified"}}';
   const leafInput = { subagent_type: "agent-smith:step", prompt: "Bounded fixture task", description: "Read fixture" };
   if (mode.background || mode.leaf) {
     const refusal = await callback("PreToolUse", "Agent", { ...leafInput, run_in_background: true }, "background");
@@ -102,6 +106,7 @@ async function handle(message) {
   if (mode.leaf) {
     assert.deepEqual(await callback("PreToolUse", "Agent", leafInput, "parent-call"), {});
     hook("SubagentStart", { agent_id: "leaf" });
+    if (mode.earlyStop) stop(reply);
     const nested = await callback("PreToolUse", "Agent", leafInput, "nested-call", { agent_id: "leaf" });
     assert.equal(nested.hookSpecificOutput.permissionDecision, "deny");
     event({ type: "assistant", parent_tool_use_id: "parent-call", message: { role: "assistant", content: [{ type: "text", text: "foreign RESULT" }] } });
@@ -116,10 +121,16 @@ async function handle(message) {
   }
   event({ type: "result", session_id: "foreign", result: 'RESULT: {"status":"done"}' });
   event({ type: "result", user_message_uuid: "unrelated", result: 'RESULT: {"status":"done"}' });
-  const reply = mode.reply ?? 'RESULT: {"status":"done","usage":{"totalTokens":987654},"usageEvidence":{"status":"verified"}}';
   event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }] } });
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
-  result(message.uuid, mode.mismatch ? reply + "mismatch" : reply, mode.terminal);
+  const reported = mode.mismatch ? reply + "mismatch" : reply;
+  if (!mode.earlyStop) stop(reported);
+  if (mode.toolAfterStop) {
+    const input = { file_path: path.join(fixture, "work.txt") };
+    await callback("PreToolUse", "Read", input, "late-read");
+    await callback("PostToolUse", "Read", input, "late-read");
+  }
+  result(message.uuid, reported, mode.terminal);
   if (mode.trailingAssistant) event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "late output" }] } });
 }
 lines.on("line", line => { handle(JSON.parse(line)).catch(e => { process.stderr.write(e.message); process.exit(1); }); });

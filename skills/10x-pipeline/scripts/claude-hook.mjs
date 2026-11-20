@@ -18,12 +18,14 @@ async function receipt() {
   const session = process.env.AGENT_SMITH_CLAUDE_SESSION;
   if (!session) return;
   const agent = process.env.AGENT_SMITH_CLAUDE_AGENT;
-  let input = "";
+  const chunks = [];
+  let size = 0;
   for await (const bytes of process.stdin) {
-    input += bytes;
-    if (Buffer.byteLength(input) > 8 * 1024 * 1024) throw new Error("Oversized Claude lifecycle event.");
+    size += bytes.length;
+    if (size > 8 * 1024 * 1024) throw new Error("Oversized Claude lifecycle event.");
+    chunks.push(bytes);
   }
-  const event = JSON.parse(input);
+  const event = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, size)));
   if (event.session_id !== session || event.agent_type !== (event.agent_id ? "agent-smith:step" : agent)
       || fs.realpathSync(process.env.CLAUDE_PLUGIN_ROOT) !== pluginRoot) throw new Error("Claude lifecycle identity mismatch.");
   const record = { session, event: event.hook_event_name, agent: event.agent_type, id: event.agent_id };

@@ -466,6 +466,17 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(metadataCalls(w.fixture), []);
     assert.deepEqual(snapshot(w.project.agentDir), before);
   });
+
+  test(`${chain}: an invalid final archive RESULT retains native ownership`, () => {
+    for (const reply of ['RESULT: {"status":"done"}\nmore output', 'RESULT: {"status":"unknown"}']) {
+      const w = archiveFixture(chain);
+      setMode(w, { reply });
+      const result = execute(w);
+      assert.equal(result.json.completed, false, result.stdout);
+      assert.equal(result.json.launched, true);
+      assertNativeSuspension(w, result.json.reason);
+    }
+  });
 }
 
 test("fake child readiness guarantees immediate cancellation can be handled", async (t) => {

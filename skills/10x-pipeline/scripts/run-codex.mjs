@@ -326,7 +326,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
       if (!stat.isFile() || stat.size > MAX_MESSAGE) refuse("Codex final message file is missing or oversized.");
       reply = fs.readFileSync(finalFile, "utf8");
       if (typeof finalMessage !== "string" || finalMessage !== reply) refuse("Codex final file does not match the final assistant message.");
-      try { result = readResult(reply); }
+      try { result = readResult(reply, action); }
       catch (error) {
         if (!canSettleFailure) throw error;
         rejection = failureReason(error);
