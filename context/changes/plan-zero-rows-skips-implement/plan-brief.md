@@ -22,7 +22,7 @@ A `plan` or `plan-revise` step passes only with at least one pending Automated r
 | Fence handling | Fence-state scanning, not "last Progress heading" | A quoted example can sit after the real section, and a fence inside the section must not end it | Plan |
 | `readFindings` | Same tracker, same change | The helper is shared and the defect is the same | Plan |
 | Verification bar | `autoPending > 0` for `plan` and `plan-revise` | Same bar `verifyCodeReplan` already sets for code re-plans | Change.md |
-| Retry of a failed first plan | `decide` schedules `plan` again when no pending or done Automated row was read | Isolated runs roll back, non-isolated runs do not; without this the run still reaches `impl-review` | Plan |
+| Retry of a failed first plan | `decide` schedules `plan` again when no pending Automated row was read | Isolated runs roll back, non-isolated runs do not; without this the run still reaches `impl-review` | Plan |
 | Row form told to the planner | New always-true rule in `rules/steps/plan.md`, prompts untouched | The prompts are pinned verbatim by tests; the rule file is appended to all four plan templates | Plan |
 | User-supplied or all-done plans | Unchanged | The new check is for verifying a fresh plan step only | Change.md |
 
