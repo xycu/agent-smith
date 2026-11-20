@@ -213,7 +213,10 @@ export async function runClaude(id, chain, action) {
       }
       if (e.session_id !== session || e.parent_tool_use_id || e.agent_id) return;
       if (e.type === "system" && e.subtype === "hook_response") {
-        if (!envelope.launched && ["SubagentStart","SubagentStop"].includes(e.hook_event)) unresolvedLeaf = true;
+        if (!envelope.launched && ["SubagentStart","SubagentStop"].includes(e.hook_event)) {
+          unresolvedLeaf = true;
+          fail("Claude reported native leaf activity during preflight.");
+        }
         if (e.outcome !== "success" || e.exit_code !== 0) {
           if (["PreToolUse","SessionStart","SubagentStart","SubagentStop","Stop"].includes(e.hook_event)) fail("Claude session guard failed.");
           return;
@@ -260,7 +263,8 @@ export async function runClaude(id, chain, action) {
             || (required.skill && (!e.skills?.includes(required.skill) || !e.tools.includes("Skill")))) {
           fail("Claude did not expose the required effective tools, skill, or trusted plugin in the execution session.");
         }
-        if ((required.step === "implement" || delegatingSkills.has(required.skill)) && !e.tools.some(t => t === "Task" || t === "Agent")) {
+        const needsDelegation = required.step === "implement" || required.template === "research-with-map" || delegatingSkills.has(required.skill);
+        if (needsDelegation && !e.tools.some(t => t === "Task" || t === "Agent")) {
           fail(`Claude did not expose the required foreground delegation tool for ${required.skill ?? required.step}.`);
         }
         effortProven ||= e.effort === action.effort;

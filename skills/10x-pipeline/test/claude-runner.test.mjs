@@ -234,6 +234,20 @@ test("headless manual verification refuses either native advisor opt-in before s
   }
 });
 
+test("mapped research requires a delegation tool while ordinary research can run inline", () => {
+  for (const template of ["research", "research-with-map"]) {
+    const gate = { minRigor: "standard", template };
+    const w = fixture("10x", { preplan: { gates: { research: gate } } }, { skill: "10x-research", missingTool: "Agent" });
+    assert.equal(readLogEntries(w.p).at(-1).template, template);
+    const result = w.execute();
+    assert.equal(result.launched, template === "research", result.reason);
+    if (template === "research") assert.equal(result.completed, true, result.reason);
+    else assert.match(result.reason, /delegation tool/);
+    assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), result.launched);
+    assert.deepEqual(fs.readdirSync(w.tmp), []);
+  }
+});
+
 test("executor preflight requires the skill stored with the actual pending template", () => {
   for (const executor of ["tdd","e2e"]) {
     const w = fixture();
@@ -281,7 +295,7 @@ for (const chain of ["10x", "openspec"]) {
 }
 
 test("unmatched lifecycle before work, missing leaf collection and conflicting output retain native ownership", () => {
-  for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { leaf: true, earlyStop: true }, { mismatch: true },
+  for (const mode of [{ earlyLeaf: true }, { earlyLeaf: "other-hook" }, { leaf: true, uncollected: true }, { leaf: true, earlyStop: true }, { mismatch: true },
     { toolAfterStop: true }, { readFinishesAfter: "stop" }, { readFinishesAfter: "terminal" }, { trailingAssistant: true },
     { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
     { terminal: { subtype: "error_max_turns", is_error: false } },
@@ -290,6 +304,7 @@ test("unmatched lifecycle before work, missing leaf collection and conflicting o
     const result = w.execute();
     assert.equal(result.completed, false);
     assert.equal(result.launched, !mode.earlyLeaf);
+    if (mode.earlyLeaf) assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
     assert.match(result.reason, /^Execution suspended: native ownership unresolved .*Claude session/);
     if (mode.readFinishesAfter === "terminal") assert.match(result.reason, /tool completion after its terminal event/);
     const file = path.join(w.tmp, fs.readdirSync(w.tmp).find(name => name.endsWith(".lock")));

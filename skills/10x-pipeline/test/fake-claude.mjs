@@ -56,7 +56,9 @@ async function handle(message) {
       assert.equal(arg("--permission-prompts"), "none");
       fs.writeFileSync(path.join(fixture, "args.json"), JSON.stringify(process.argv.slice(2)));
       if (!mode.missingHandshake) hook("SessionStart", { source: "startup", ...mode.badHandshake ? { session_id: "another-session" } : {} });
-      if (mode.earlyLeaf) hook("SubagentStart", { agent_type: "agent-smith:step", agent_id: "unowned" });
+      if (mode.earlyLeaf === "other-hook") {
+        event({ type: "system", subtype: "hook_response", hook_event: "SubagentStart", outcome: "success", exit_code: 0, stderr: "" });
+      } else if (mode.earlyLeaf) hook("SubagentStart", { agent_type: "agent-smith:step", agent_id: "unowned" });
     }
     send({ type: "control_response", response: { subtype: "success", request_id: message.request_id, response: init ? {
       hooks_applied: !mode.disabledHooks, agents: [{ name: agent }], claude_code_version: "2.1.311",
