@@ -218,9 +218,9 @@ A user-level `~/.codex/rules` file or project override that allows `git push` ke
 
 #### Automated
 
-- [ ] 1.1 Rule table and file-shape assertions pass: `node --test skills/10x-pipeline/test/codex-rules.test.mjs`
-- [ ] 1.2 Rule file has no blanket gh allow: `! grep -nE 'pattern = \["gh"\], decision = "allow"' .codex/rules/project.rules`
-- [ ] 1.3 Rule file refuses git push through the real evaluator, when Codex is installed: `codex execpolicy check --rules "$PWD/.codex/rules/project.rules" git push origin main --force` prints `"decision":"forbidden"`
+- [x] 1.1 Rule table and file-shape assertions pass: `node --test skills/10x-pipeline/test/codex-rules.test.mjs`
+- [x] 1.2 Rule file has no blanket gh allow: `! grep -nE 'pattern = \["gh"\], decision = "allow"' .codex/rules/project.rules`
+- [x] 1.3 Rule file refuses git push through the real evaluator, when Codex is installed: `codex execpolicy check --rules "$PWD/.codex/rules/project.rules" git push origin main --force` prints `"decision":"forbidden"`
 
 ### Phase 2: Token-free environment for every codex child
 
