@@ -1,9 +1,9 @@
 ---
 change_id: run-branch-must-match-change-id
 title: Refuse to run a change on another change's run branch
-status: new
+status: planned
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-20
 archived_at: null
 ---
 
