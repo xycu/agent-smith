@@ -1,12 +1,12 @@
 # Waves v3
 
-Updated 2026-11-19. The planning snapshot is `main` at `52e197f3ad5a6722022026aeb1bec81870aa8fc6`, after [PR #221](https://github.com/xycu/agent-smith/pull/221). The current release is [v1.14.0](https://github.com/xycu/agent-smith/releases/tag/v1.14.0).
+Updated 2026-11-20. Wave 1 is merged. `main` is at `48fee96e`, after [PR #233](https://github.com/xycu/agent-smith/pull/233), and the current release is [v1.15.0](https://github.com/xycu/agent-smith/releases/tag/v1.15.0). The planning snapshot of 2026-11-19 was `main` at `52e197f3ad5a6722022026aeb1bec81870aa8fc6`, after [PR #221](https://github.com/xycu/agent-smith/pull/221); the line numbers below are still those of that snapshot.
 
 This version replaces the v2 schedule. Waves 0 to 2 of v2 are merged and archived (S-14, the two audit fixes of 2026-11-15, S-13). Their acceptance records, the Wave 0 contract and the deferrals to S-20 stay in the [version 2 ledger](https://github.com/xycu/agent-smith/blob/52e197f3ad5a6722022026aeb1bec81870aa8fc6/context/changes/WAVES.md). No archived artifact is changed or marked complete by this file.
 
 ## Why the schedule changed
 
-- `context/changes/` holds 25 open folders: 5 from the weekly review ([PR #220](https://github.com/xycu/agent-smith/pull/220)), 18 from the whole-repo audit (PR #221), `first-unattended-delivery` (S-12) and the parked `quote-router-in-skill-loops`.
+- At the snapshot `context/changes/` held 25 open folders: 5 from the weekly review ([PR #220](https://github.com/xycu/agent-smith/pull/220)), 18 from the whole-repo audit (PR #221), `first-unattended-delivery` (S-12) and the parked `quote-router-in-skill-loops`. After Wave 1 it holds 21: 17 scheduled fix changes, S-12, the parked change, and two changes that are not in the schedule (see "Added outside the schedule").
 - The audit verdict is that the pipeline is not safe for unattended use until its five must-fix findings are fixed. So the fix waves run before the S-12 live proof and before the roadmap slices S-15 to S-20.
 - Most fixes are small and sit in different files. The waves below are built so that every change in a wave owns a different region of the runtime code and can run in its own worktree at the same time.
 
@@ -44,9 +44,9 @@ A lane is a region of code that one change owns at a time. Changes in one lane r
 
 | Wave | Runs in parallel | Entry condition | Exit outcome |
 | --- | --- | --- | --- |
-| **D, decisions** (no code) | Frames for `ci-self-hosted-runner-exposure`, `first-attempt-drop-unmeasured`, `claude-token-figures-default`; the owner decision on PR #214 | Starts now, beside Wave 1. | Each frame records the chosen option. Each implementation gets its slot in Wave 4 or 5. |
-| **1, safety part 1** (6) | `review-verdict-unknown-passes`; `open-pr-unfinished-merge-commit`; `codex-failure-native-lock-stuck`; `step-guard-heredoc-false-positives`; `usage-file-docs-drift`; `docs-status-truth-up` | `main` at the snapshot or later. | Three of five must-fix findings are closed. The guard parser is ready for the bypass fix. Usage text and document statuses are true. |
-| **2, safety part 2** (6) | `plan-zero-rows-skips-implement`; `step-guard-bypass-forms`; `run-lock-stale-takeover-race`; `codex-step-publication-guard`; `next-requires-isolated-init`; `run-branch-must-match-change-id` | Wave 1 merged. | All five must-fix findings are closed. Cut a release here. |
+| **D, decisions** (no code), **not started** | Frames for `ci-self-hosted-runner-exposure`, `first-attempt-drop-unmeasured`, `claude-token-figures-default`; the owner decision on PR #214 | Open now, beside Wave 2. Each of the three changes holds only its `change.md`. | Each frame records the chosen option. Each implementation gets its slot in Wave 4 or 5. |
+| **1, safety part 1** (6), **merged and archived 2026-11-20** | `review-verdict-unknown-passes`; `open-pr-unfinished-merge-commit`; `codex-failure-native-lock-stuck`; `step-guard-heredoc-false-positives`; `usage-file-docs-drift`; `docs-status-truth-up` | `main` at the snapshot or later. | Three of five must-fix findings are closed. The guard parser is ready for the bypass fix. Usage text and document statuses are true. |
+| **2, safety part 2** (6), **next** | `plan-zero-rows-skips-implement`; `step-guard-bypass-forms`; `run-lock-stale-takeover-race`; `codex-step-publication-guard`; `next-requires-isolated-init`; `run-branch-must-match-change-id` | Wave 1 merged (met). | All five must-fix findings are closed. Cut a release here. |
 | **3, state and setup** (4, plus one live proof) | `meta-json-damage-halts`; `prepare-run-retry-after-failed-setup`; `open-pr-base-prefix-collision`; `openspec-critical-none-placeholder`; S-12 live rows 3.1 to 3.3 on the Wave 2 release | Wave 2 merged and released. | Damaged state halts, a failed setup can be retried, a short prefix cannot hide the base. S-12 has its live proof or a recorded deferral. |
 | **4, recovery and decisions** (2 to 4) | `replan-failure-halt-recoverable`; `open-pr-base-selection`; the implementation of `ci-self-hosted-runner-exposure`; the implementation of `claude-token-figures-default` | Wave 3 merged; the two frames decided. | Every runtime should-fix finding is closed. CI and the token figures follow the owner's decisions. |
 | **5, policy and skill text** (2) | The implementation of `first-attempt-drop-unmeasured`; `quote-router-in-skill-loops` if the owner resumes it | Wave 4 merged. | The first-attempt drop matches ADR-010. The skill loops quote their paths, or the change stays parked. |
@@ -61,7 +61,7 @@ A lane is a region of code that one change owns at a time. Changes in one lane r
 
 Each row is a planning boundary. The plan of each change confirms it before launch.
 
-### Wave 1
+### Wave 1 (merged)
 
 | Change | Priority | Owns | Shared files it also edits |
 | --- | --- | --- | --- |
@@ -72,7 +72,7 @@ Each row is a planning boundary. The plan of each change confirms it before laun
 | `usage-file-docs-drift` | P3 | usage strings at `route.mjs:794` and `:970` | `AGENTS.md:26`, `docs/REFERENCE.md`, the OpenSpec `SKILL.md` |
 | `docs-status-truth-up` | P3 | ADR statuses, the six dead links, README "pending" notes, the roadmap states | `docs/REFERENCE.md:21`, `:340`, `:411` |
 
-Merge `docs-status-truth-up` last in this wave, after it takes in `main`, because its link fixes sit next to sections that other changes edit. Item 3 of that change (this file) is done by this rewrite; the change keeps the rest.
+Merged as [#223](https://github.com/xycu/agent-smith/pull/223) `usage-file-docs-drift`, [#224](https://github.com/xycu/agent-smith/pull/224) `open-pr-unfinished-merge-commit`, [#225](https://github.com/xycu/agent-smith/pull/225) `codex-failure-native-lock-stuck`, [#226](https://github.com/xycu/agent-smith/pull/226) `docs-status-truth-up`, [#227](https://github.com/xycu/agent-smith/pull/227) `review-verdict-unknown-passes` and [#229](https://github.com/xycu/agent-smith/pull/229) `step-guard-heredoc-false-positives`. All six folders are in `context/archive/` with the date prefix 2026-11-19. The ownership table above is kept as the record of the boundaries.
 
 ### Wave 2
 
@@ -123,8 +123,9 @@ The minimum fix of `ci-self-hosted-runner-exposure` (`--ignore-scripts` on the i
 - Each change runs in its own run worktree on its own run branch. Changes in one wave run at the same time.
 - Before launch, each plan names the functions it edits. If two plans in one wave name the same function, the lower-priority change moves to the next wave. The tables above are boundaries to confirm, not approved file lists.
 - Shared files are `docs/REFERENCE.md`, `AGENTS.md`, the README of a test or prompt folder, and `README.md`. A change edits only its own section there. Merge the PRs of a wave one at a time; a later PR takes in `main` with a merge commit. Never force-push and never rewrite pushed history.
-- `skills/10x-pipeline/SKILL.md` is 28,097 bytes and `skill-loop.test.mjs:420` allows 28,100. A change that adds text to that file raises the ceiling in the same commit and says so in its PR, until `test-suite-trim-and-gaps` replaces the ceiling. The `## Anti-stall rules` sections of the two skills stay equal.
-- Until Wave 2 is merged, the pipeline that runs these changes still has the defects they fix. For every run in Waves 1 and 2, check by hand before merging: the review file has a verdict the router can read; the plan has Progress rows in the checkbox form; no merge is in progress when `open-pr.mjs` runs; no native lock is left after a failed Codex step.
+- `skills/10x-pipeline/SKILL.md` is 27,804 bytes and `skill-loop.test.mjs:423` allows 28,100. A change that adds text to that file raises the ceiling in the same commit and says so in its PR, until `test-suite-trim-and-gaps` replaces the ceiling. The `## Anti-stall rules` sections of the two skills stay equal.
+- Wave 1 closed the unknown review verdict, the unfinished merge commit in `open-pr.mjs` and the stuck native lock after a Codex failure. Until Wave 2 is merged, the pipeline that runs these changes still has the defects Wave 2 fixes. For every run in Wave 2, check by hand before merging: the plan has Progress rows in the checkbox form (`plan-zero-rows-skips-implement`), and no step ran a command through a bypass form of the step guard (`step-guard-bypass-forms`).
+- A run now defaults to the provider of its host: a run started in Claude Code runs every step in Claude, a run started in Codex runs every step in Codex, and `--provider-mode claude|codex|split` overrides it at `init` (v1.15.0). The project override ladder in `context/foundation/agent-smith-policy.json` is OpenAI-only, so state the mode at launch instead of relying on the ladder.
 - A run branch that holds only `chore`, `docs` and `test` commits opens no release PR. Check the derived PR title before merging: a `fix` or `feat` title on a change without product code publishes a release with a wrong changelog line.
 - Keep live host and account prerequisites explicit. A passing local fixture does not replace a promised live proof.
 - Update this ledger after each wave in one maintenance PR. The parallel changes of a wave leave it alone.
@@ -154,6 +155,11 @@ The fix waves close cases that v2 attached to later slices. Each slice plan star
 | S-20 `supported-host-acceptance` | every change above; the deferred rows of S-13 and S-14; the full Claude run that `claude-token-figures-default` lists |
 
 S-16 and S-18 stay in one wave only if their plans own different runner, settings and skill regions. S-19 comes before S-17 because both can change the archive and terminal sections of the skills.
+
+## Added outside the schedule
+
+- **`provider-mode-split`, [PR #231](https://github.com/xycu/agent-smith/pull/231), released in v1.15.0:** a run selects Claude, Codex or a split provider mode, with the host as the default. It has no wave slot because it came from an owner request after Wave 1. The change is not archived: its Manual rows 3.2 (fresh authenticated sessions for six host and mode combinations on each chain) and 3.3 (final CI and report comment) were not run. The run ended on its fix-loop cap, so its last fix commit has no review of its own. The PR raised `limits.maxFixLoops` to 3 in the project override and the by-file action ceiling to 1,536 bytes in `prompt-handoff.test.mjs`. Prove rows 3.2 and 3.3 before the change is archived, or record a deferral to S-20.
+- **`record-archive-manual-decision`:** a seed from the archive decision of `docs-status-truth-up`, status `new`. It documents a durable record for an archive with unresolved Manual rows. S-19 owns the wider decision flow, so the seed has no slot until the owner decides whether S-19 absorbs it or it runs earlier in the Docs and tests lane.
 
 ## Parked and out of scope
 
