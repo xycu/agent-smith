@@ -32,7 +32,8 @@ async function callback(name, tool, input, key, extra = {}) {
   const request_id = "native-" + ++seq;
   const response = new Promise(resolve => replies.set(request_id, resolve));
   send({ type: "control_request", request_id, request: { subtype: "hook_callback", callback_id: name,
-    input: { session_id: session, agent_type: agent, hook_event_name: name, tool_use_id: key, tool_name: tool, tool_input: input, ...extra } } });
+    input: { session_id: session, agent_type: agent, permission_mode: mode.callbackPermissionMode,
+      hook_event_name: name, tool_use_id: key, tool_name: tool, tool_input: input, ...extra } } });
   return await response;
 }
 function stop(reply) {
@@ -70,7 +71,8 @@ async function handle(message) {
     first = false;
     const tools = agent.endsWith(":score") ? ["Read","Write","Glob","Grep", ...mode.extraTool ? ["Bash"] : []] : ["Read","Write","Bash","Agent","Skill","Edit"];
     event({ type: "system", subtype: "init", plugins: [{ name: "agent-smith", path: root }], tools: tools.filter(t => t !== mode.missingTool), skills: [skill],
-      model: arg("--model"), effort: arg("--effort"), permissionMode: "dontAsk", cwd: process.cwd() });
+      model: arg("--model"), effort: arg("--effort"), cwd: process.cwd(),
+      permissionMode: mode.missingPermissionMode ? undefined : mode.permissionMode ?? "dontAsk" });
     const trials = JSON.parse(message.message.content.split("\n").at(-1));
     if (mode.earlyProbeStop) stop("ready");
     for (const [tool, input] of trials) {
@@ -125,10 +127,11 @@ async function handle(message) {
   event({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }] } });
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
   const reported = mode.mismatch ? reply + "mismatch" : reply;
+  const input = { file_path: path.join(fixture, "work.txt") };
+  if (mode.toolFinishesAfterStop) await callback("PreToolUse", "Read", input, "late-read");
   if (!mode.earlyStop) stop(reported);
-  if (mode.toolAfterStop) {
-    const input = { file_path: path.join(fixture, "work.txt") };
-    await callback("PreToolUse", "Read", input, "late-read");
+  if (mode.toolAfterStop) await callback("PreToolUse", "Read", input, "late-read");
+  if (mode.toolAfterStop || mode.toolFinishesAfterStop) {
     await callback("PostToolUse", "Read", input, "late-read");
   }
   result(message.uuid, reported, mode.terminal);

@@ -168,6 +168,19 @@ test("preflight requires a fresh Stop after the last authorized probe", () => {
   assert.equal(retry.completed, true, retry.reason);
 });
 
+test("headless preflight requires a recognized permission mode", () => {
+  const w = fixture();
+  for (const mode of [{ missingPermissionMode: true }, { permissionMode: "unknown" }, { permissionMode: "bypassPermissions" },
+    { callbackPermissionMode: "unknown" }]) {
+    w.setMode(mode);
+    const result = w.execute();
+    assert.equal(result.launched, false, JSON.stringify(mode));
+    assert.match(result.reason, /permission mode/i);
+    assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
+    assert.deepEqual(fs.readdirSync(w.tmp), []);
+  }
+});
+
 test("scorer gets its four effective tools and rejects a broader pool, custom mappings or a native advisor", () => {
   const restricted = { score: { minRigor: "standard" }, agents: { restricted: true } };
   const w = fixture("10x", restricted, { scorerCall: true });
@@ -190,6 +203,17 @@ test("a discovered skill without its invocation tool refuses the work turn", () 
   assert.match(result.reason, /required effective tools/);
   assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
   assert.deepEqual(fs.readdirSync(w.tmp), []);
+});
+
+test("headless preflight checks the delegation tool for the selected review and framing skills", () => {
+  for (const skill of ["10x-frame", "10x-plan-review", "10x-impl-review"]) {
+    const w = fixture("10x", { steps: { plan: { skill } } }, { skill, missingTool: "Agent" });
+    const result = w.execute();
+    assert.equal(result.launched, false, skill);
+    assert.match(result.reason, /delegation tool/);
+    assert.equal(fs.existsSync(path.join(w.dir, "work.txt")), false);
+    assert.deepEqual(fs.readdirSync(w.tmp), []);
+  }
 });
 
 test("headless manual verification refuses either native advisor opt-in before spawning Claude", () => {
@@ -258,7 +282,7 @@ for (const chain of ["10x", "openspec"]) {
 
 test("unmatched lifecycle before work, missing leaf collection and conflicting output retain native ownership", () => {
   for (const mode of [{ earlyLeaf: true }, { leaf: true, uncollected: true }, { leaf: true, earlyStop: true }, { mismatch: true },
-    { toolAfterStop: true }, { trailingAssistant: true }, { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
+    { toolAfterStop: true }, { toolFinishesAfterStop: true }, { trailingAssistant: true }, { terminal: {} }, { terminal: { subtype: "success" } }, { terminal: { subtype: "success", is_error: "false" } },
     { terminal: { subtype: "error_max_turns", is_error: false } },
     { terminal: { subtype: "interrupted", is_error: true } }]) {
     const w = fixture("10x", {}, mode);

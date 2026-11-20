@@ -16,6 +16,8 @@ const fail = message => { throw new Error(message); };
 const quote = value => "'" + value.replaceAll("'", "'\\''") + "'";
 const startupLimit = "Trusted startup imports can read pending task files before the tool guard handshake.";
 const scoreTools = ["Glob", "Grep", "Read", "Write"];
+const permissionModes = new Set(["default", "manual", "acceptEdits", "auto", "dontAsk", "plan"]);
+const delegatingSkills = new Set(["10x-frame", "10x-plan-review", "10x-impl-review"]);
 const terminalErrors = new Set(["error_during_execution", "error_max_turns", "error_max_budget_usd", "error_max_structured_output_retries"]);
 const mayCommit = new Set(["implement", "fix", "impl-review", "archive", "os-apply", "os-archive"]);
 const otherLaunch = new Set(["SendMessage", "Monitor", "CronCreate", "ScheduleWakeup", "RemoteTrigger", "Workflow", "EnterWorktree", "PowerShell"]);
@@ -127,7 +129,8 @@ export async function runClaude(id, chain, action) {
       const input = event.tool_input;
       const key = event.tool_use_id;
       if ((leaf ? event.agent_type !== "agent-smith:step" || !active.has(event.agent_id) : event.agent_type !== action.agent)
-          || typeof key !== "string" || !key || !isObject(input) || event.permission_mode === "bypassPermissions") {
+          || typeof key !== "string" || !key || !isObject(input)
+          || (event.permission_mode !== undefined && !permissionModes.has(event.permission_mode))) {
         fail("Claude tool identity or effective permission mode could not be verified.");
       }
       if (req.callback_id === "PreToolUse") {
@@ -148,9 +151,8 @@ export async function runClaude(id, chain, action) {
           if (calls.has(key) || calls.size >= 512) fail("Duplicate or excessive native leaf calls.");
           calls.add(key);
         }
-        // Both preflight and work need a fresh idle receipt after the last authorized tool call.
-        stop = null;
       } else if (req.callback_id === "PostToolUse") {
+        if (finished) fail("Claude reported tool completion after its terminal event.");
         if (!envelope.launched) {
           const trial = probeCalls.get(key);
           if (trial && trial === probeInput(probe, tool, input)) {
@@ -170,6 +172,8 @@ export async function runClaude(id, chain, action) {
           collected.add(out.agentId);
         }
       } else fail("Unknown Claude guard callback.");
+      // An idle receipt must follow both authorization and completion in the same turn.
+      stop = null;
       return {};
     }
     function receive(e) {
@@ -249,11 +253,15 @@ export async function runClaude(id, chain, action) {
           default: fail("Unexpected Claude lifecycle receipt.");
         }
       } else if (e.type === "system" && e.subtype === "init") {
-        if (!models?.has(e.model) || (e.effort != null && e.effort !== action.effort) || !Array.isArray(e.tools) || e.cwd !== ROOT || e.permissionMode === "bypassPermissions"
+        if (!permissionModes.has(e.permissionMode)) fail("Claude did not report a supported effective permission mode.");
+        if (!models?.has(e.model) || (e.effort != null && e.effort !== action.effort) || !Array.isArray(e.tools) || e.cwd !== ROOT
             || e.plugin_errors?.length || !e.plugins?.some(p => p.name === "agent-smith" && fs.realpathSync(p.path) === pluginRoot)
             || (scorer ? JSON.stringify([...e.tools].sort()) !== JSON.stringify(scoreTools) : !["Bash","Read","Write"].every(t => e.tools.includes(t)))
-            || (required.skill && (!e.skills?.includes(required.skill) || !e.tools.includes("Skill"))) || (required.step === "implement" && !e.tools.some(t => t === "Task" || t === "Agent"))) {
+            || (required.skill && (!e.skills?.includes(required.skill) || !e.tools.includes("Skill")))) {
           fail("Claude did not expose the required effective tools, skill, or trusted plugin in the execution session.");
+        }
+        if ((required.step === "implement" || delegatingSkills.has(required.skill)) && !e.tools.some(t => t === "Task" || t === "Agent")) {
+          fail(`Claude did not expose the required foreground delegation tool for ${required.skill ?? required.step}.`);
         }
         effortProven ||= e.effort === action.effort;
         initTools = true;
