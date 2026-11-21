@@ -170,9 +170,9 @@ A run in flight in the main checkout with isolation on (started before this chan
 
 #### Automated
 
-- [x] 1.1 The new tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/isolation.test.mjs`
-- [x] 1.2 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 1.3 The main-checkout halt test inside the suite asserts exit 1, `init` named in the reason, and no `agent-smith/` folder afterwards
+- [x] 1.1 The new tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/isolation.test.mjs` — aa17e6d9
+- [x] 1.2 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` — aa17e6d9
+- [x] 1.3 The main-checkout halt test inside the suite asserts exit 1, `init` named in the reason, and no `agent-smith/` folder afterwards — aa17e6d9
 
 #### Manual
 
@@ -182,9 +182,9 @@ A run in flight in the main checkout with isolation on (started before this chan
 
 #### Automated
 
-- [ ] 2.1 The REFERENCE line exists: `grep -n "next. halts" docs/REFERENCE.md`
-- [ ] 2.2 The full suite still passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 Version metadata is untouched: `node tools/version-check.mjs`
+- [x] 2.1 The REFERENCE line exists: `grep -n "next. halts" docs/REFERENCE.md`
+- [x] 2.2 The full suite still passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.3 Version metadata is untouched: `node tools/version-check.mjs`
 
 #### Manual
 
