@@ -472,13 +472,15 @@ function gitOptions(words) {
   const messageOperands = new Set();
   const shortValues = sub === "commit" ? "mFcCtSu" : sub === "clean" ? "e" : sub === "tag" ? "mFu" : "";
   const optionalValues = sub === "commit" ? "Su" : "";
-  const longValues = ["--message", "--file", "--author", "--date"];
-  if (sub === "commit") longValues.push("--reuse-message", "--reedit-message", "--template", "--fixup", "--squash", "--cleanup", "--trailer", "--pathspec-from-file");
-  if (sub === "clean") longValues.push("--exclude");
+  // Prefixes match only the value options this subcommand has, so "branch --d" (--delete) is never read as --date.
+  const longValues = sub === "commit" ? ["--message", "--file", "--author", "--date", "--reuse-message", "--reedit-message",
+    "--template", "--fixup", "--squash", "--cleanup", "--trailer", "--pathspec-from-file"]
+    : sub === "tag" ? ["--message", "--file"] : sub === "clean" ? ["--exclude"] : [];
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--") break;
-    if ((!arg.includes("=") && longValues.some((full) => longFlag(arg, full))) || ["-m", "-F"].includes(arg)) {
+    if ((!arg.includes("=") && longValues.some((full) => longFlag(arg, full))) ||
+        ["--message", "--file", "--author", "--date", "-m", "-F"].includes(arg)) {
       if (arg === "-m") messageOperands.add(at + i + 2);
       i++;
       continue;
@@ -548,7 +550,7 @@ const MAX_WRAPPERS = 8;
 const DIRECTLY = " Run the command directly.";
 // Options of each wrapper that take a separate value, run nothing, or carry a command string.
 const wrappers = {
-  env: { values: ["-u", "--unset", "-C", "--chdir"], strings: ["-S", "--split-string"], assignments: true },
+  env: { values: ["-u", "--unset", "-C", "--chdir"], strings: ["-S", "--split-string"], assignments: true, dash: true },
   command: { values: [], none: ["-v", "-V"] },
   exec: { values: ["-a"] },
   nohup: { values: [] },
@@ -575,6 +577,8 @@ function unwrap(words, spec) {
     const word = words[at];
     if (word === "--") { at++; break; }
     if (spec.assignments && assignment.test(word)) { at++; continue; }
+    // A bare "-" is env's short form of -i.
+    if (word === "-" && spec.dash) { at++; continue; }
     if (!word.startsWith("-") || word === "-") break;
     at++;
     // Unknown options are value-less flags.

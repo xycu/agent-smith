@@ -295,7 +295,7 @@ test("command shapes: wrappers", () => {
   for (const command of [
     "env git push", "command git push", "exec git push", "nohup git push", "time git reset --hard",
     "timeout 60 git push", "nice -n 5 git push", "nice -5 git push", "sudo rm -rf x", "sudo -u root env git push", // Never execute.
-    "env -i PATH=/bin git push", "xargs -n1 git push", "/usr/bin/env git push",
+    "env -i PATH=/bin git push", "env - git push", "xargs -n1 git push", "/usr/bin/env git push",
   ]) denied(command);
   for (const command of ["env -S 'git push'", "env --split-string='git push'", "sudo -s 'git push'", "sudo -i git push"]) {
     denied(command, directly);
@@ -324,10 +324,11 @@ test("git options: abbreviations", () => {
     "rm --recursiv build", "rm --r build", // Never execute.
     "git switch --di main", "git branch --fo main HEAD~3",
     "git clean --exc -n -fd", "git clean --no-d -fd", "git commit --mess -- --no-verify",
+    "git branch --d old", "git tag --d v1", "git rm --f src", "git checkout-index --f -a", // Never execute.
   ]) denied(command);
   for (const command of [
     "git reset --soft HEAD~1", "git branch --list", "rm --force inspected-file", "git switch --detach HEAD",
-    "git clean --exc pattern -n -fd", "git clean --dry -d", "git commit --mess x -m y", "git diff --no-ver",
+    "git clean --exc pattern -n -fd", "git clean --dry -d", "git clean --d", "git commit --mess x -m y", "git diff --no-ver",
   ]) neutral(payload(command));
 });
 
