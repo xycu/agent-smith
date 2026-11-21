@@ -9,7 +9,8 @@ const PRESERVATION = "This stateless guard cannot prove preservation. Preserve w
 const DELETION = "Recursive deletion is forbidden. List and inspect files, unlink them one by one, then rmdir empty directories deepest first. Repository code uses removeTree.";
 const HEREDOC_ALTERNATIVE = " Quote the delimiter for literal text or use the Write tool.";
 
-class HeredocDenial extends Error {}
+class Denial extends Error {}
+class HeredocDenial extends Denial {}
 
 const shellSpace = (c) => c === " " || c === "\t";
 const shellBoundary = (c) => c === undefined || shellSpace(c) || "\n;&|<>()".includes(c);
@@ -375,19 +376,26 @@ function commands(text) {
   let words = [];
   let word = "";
   let started = false;
+  let quoted = false;
   let quote = null;
+  // The word after a redirect operator is its target, not a command word.
+  let target = false;
   const flushWord = () => {
-    if (started) words.push(word);
+    if (started && target) target = false;
+    else if (started) words.push(word);
     word = "";
     started = false;
+    quoted = false;
   };
   const flushCommand = () => {
     flushWord();
+    target = false;
     if (words.length) result.push(words);
     words = [];
   };
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
+    const opening = c === "$" ? afterContinuations(text, i + 1) : i;
     if (c === "\\" && quote !== "'") {
       const next = text[++i];
       if (next === undefined) throw new Error("Unterminated shell escape.");
@@ -396,16 +404,31 @@ function commands(text) {
       if (quote === '"' && !['$', '\x60', '"', "\\"].includes(next)) word += "\\";
       word += next;
       started = true;
+      quoted = true;
+    } else if (quote !== "'" && (c === "\x60" || (c === "$" && text[opening] === "("))) {
+      // A command substitution runs its own commands, also inside double quotes.
+      const end = shellExpansionEnd(text, opening, 1);
+      result.push(...commands(text.slice(opening + 1, end - 1)));
+      started = true;
+      quoted = true;
+      i = end - 1;
     } else if (quote) {
       if (c === quote) quote = null;
       else word += c;
     } else if (c === "'" || c === '"') {
       quote = c;
       started = true;
+      quoted = true;
     } else if (c === "#" && !started) {
       while (i < text.length && text[i] !== "\n") i++;
       flushCommand();
-    } else if (";&|\n".includes(c)) {
+    } else if (c === "<" || c === ">") {
+      // An unquoted number glued to a redirect is its file descriptor.
+      if (started && !quoted && /^\d+$/.test(word)) started = false;
+      flushWord();
+      while (text[i + 1] && "<>&|".includes(text[i + 1])) i++;
+      target = true;
+    } else if (";&|\n()".includes(c)) {
       flushCommand();
     } else if (/\s/.test(c)) {
       flushWord();
@@ -493,6 +516,89 @@ function commandProblem(words) {
   return null;
 }
 
+const assignment = /^[A-Za-z_][A-Za-z0-9_]*\+?=/;
+const prefixWords = ["if", "then", "elif", "else", "do", "while", "until", "!", "{", "}"];
+const MAX_WRAPPERS = 8;
+const DIRECTLY = " Run the command directly.";
+// Options of each wrapper that take a separate value, run nothing, or carry a command string.
+const wrappers = {
+  env: { values: ["-u", "--unset", "-C", "--chdir"], strings: ["-S", "--split-string"], assignments: true },
+  command: { values: [], none: ["-v", "-V"] },
+  exec: { values: ["-a"] },
+  nohup: { values: [] },
+  time: { values: ["-f", "-o", "--format", "--output"] },
+  timeout: { values: ["-s", "-k", "--signal", "--kill-after"], operands: 1 },
+  nice: { values: ["-n", "--adjustment"] },
+  sudo: {
+    values: ["-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-T", "-U", "--user", "--group", "--close-from",
+      "--chdir", "--host", "--prompt", "--role", "--type", "--command-timeout", "--other-user"],
+    none: ["-l", "-v", "-K", "-V", "-e", "--list", "--validate", "--remove-timestamp", "--version", "--edit"],
+    shells: ["-s", "-i", "--shell", "--login"],
+    assignments: true,
+  },
+  xargs: {
+    values: ["-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s", "--arg-file", "--delimiter", "--eof", "--replace",
+      "--max-lines", "--max-args", "--max-procs", "--max-chars"],
+  },
+};
+
+function unwrap(words, spec) {
+  let at = 1;
+  let shell = false;
+  while (at < words.length) {
+    const word = words[at];
+    if (word === "--") { at++; break; }
+    if (spec.assignments && assignment.test(word)) { at++; continue; }
+    if (!word.startsWith("-") || word === "-") break;
+    at++;
+    // Unknown options are value-less flags.
+    const options = word.startsWith("--") ? [word.split("=")[0]] : [...word.slice(1)].map((c) => "-" + c);
+    for (const [k, option] of options.entries()) {
+      if (spec.strings?.includes(option)) throw new Denial(`${words[0]} ${option} runs a command string the guard cannot inspect.` + DIRECTLY);
+      if (spec.none?.includes(option)) return [];
+      if (spec.shells?.includes(option)) shell = true;
+      if (spec.values.includes(option)) {
+        // A value attached after "=" or to a short option belongs to this word.
+        if (!word.includes("=") && k === options.length - 1) at++;
+        break;
+      }
+    }
+  }
+  at += spec.operands ?? 0;
+  if (shell && at < words.length) throw new Denial(`${words[0]} with a shell option runs a command string the guard cannot inspect.` + DIRECTLY);
+  return words.slice(at);
+}
+
+// Strip prefixes and wrappers to find the effective command, plus any find -exec commands.
+function resolve(words, depth = 0) {
+  for (let round = 0; ; round++) {
+    let at = 0;
+    while (at < words.length) {
+      if (assignment.test(words[at]) || prefixWords.includes(words[at])) at++;
+      else if (words[at] === "function") at += 2;
+      else break;
+    }
+    words = words.slice(at);
+    if (!words.length) return [];
+    const spec = Object.hasOwn(wrappers, basename(words[0])) ? wrappers[basename(words[0])] : null;
+    if (!spec) break;
+    if (round === MAX_WRAPPERS) throw new Denial("Too many nested wrappers." + DIRECTLY);
+    words = unwrap(words, spec);
+  }
+  const found = [words];
+  if (basename(words[0]) === "find") {
+    for (let i = 1; i < words.length; i++) {
+      if (!["-exec", "-execdir", "-ok", "-okdir"].includes(words[i])) continue;
+      let end = i + 1;
+      while (end < words.length && ![";", "+"].includes(words[end])) end++;
+      if (depth === MAX_WRAPPERS) throw new Denial("Too many nested wrappers." + DIRECTLY);
+      found.push(...resolve(words.slice(i + 1, end), depth + 1));
+      i = end;
+    }
+  }
+  return found;
+}
+
 function isGuarded(agentType, hasAgentId) {
   // agent_type alone can describe the main session's --agent selection.
   return agentType === STEP_AGENT_TYPE && hasAgentId;
@@ -512,20 +618,21 @@ function eventProblem(event) {
       !event.tool_input || typeof event.tool_input.command !== "string" || !event.tool_input.command.trim()) {
     return "Malformed guarded Bash event. Retry with a valid PreToolUse command payload.";
   }
-  let command;
   try {
-    command = withoutHeredocData(event.tool_input.command);
-  } catch (error) {
-    if (error instanceof HeredocDenial) return error.message;
-    throw error;
-  }
-  for (const words of commands(command)) {
-    if (session && basename(words[0]) === "git" && ["add", "commit"].includes(gitOptions(words).sub)
-        && (event.agent_id !== undefined || process.env.AGENT_SMITH_CLAUDE_COMMIT !== "1")) {
-      return "This step or leaf has no staging or commit permission.";
+    const command = withoutHeredocData(event.tool_input.command);
+    for (const scanned of commands(command)) {
+      for (const words of resolve(scanned)) {
+        if (session && basename(words[0]) === "git" && ["add", "commit"].includes(gitOptions(words).sub)
+            && (event.agent_id !== undefined || process.env.AGENT_SMITH_CLAUDE_COMMIT !== "1")) {
+          return "This step or leaf has no staging or commit permission.";
+        }
+        const problem = commandProblem(words);
+        if (problem) return problem;
+      }
     }
-    const problem = commandProblem(words);
-    if (problem) return problem;
+  } catch (error) {
+    if (error instanceof Denial) return error.message;
+    throw error;
   }
   return null;
 }

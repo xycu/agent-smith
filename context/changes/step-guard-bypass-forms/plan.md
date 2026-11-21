@@ -267,9 +267,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [ ] 1.1 Guard tests pass, including every new shape deny/allow pair
-- [ ] 1.2 Source constraints hold (no forbidden words or calls in the guard)
-- [ ] 1.3 Pathological nesting finishes inside the hook timeout
+- [x] 1.1 Guard tests pass, including every new shape deny/allow pair
+- [x] 1.2 Source constraints hold (no forbidden words or calls in the guard)
+- [x] 1.3 Pathological nesting finishes inside the hook timeout
 
 #### Manual
 
