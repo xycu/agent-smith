@@ -148,10 +148,10 @@ None. Existing overrides are not rewritten; the recipe is opt-in and applies bet
 
 #### Automated
 
-- [ ] 1.1 README holds the recipe heading and its JSON fence has a single `ladder` key of eight rungs with no `provider`
-- [ ] 1.2 REFERENCE links to the recipe anchor
-- [ ] 1.3 No SKILL.md file changed
-- [ ] 1.4 AGENTS.md checks still pass
+- [x] 1.1 README holds the recipe heading and its JSON fence has a single `ladder` key of eight rungs with no `provider` — cd1a9abf
+- [x] 1.2 REFERENCE links to the recipe anchor — cd1a9abf
+- [x] 1.3 No SKILL.md file changed — cd1a9abf
+- [x] 1.4 AGENTS.md checks still pass — cd1a9abf
 
 #### Manual
 
@@ -161,7 +161,7 @@ None. Existing overrides are not rewritten; the recipe is opt-in and applies bet
 
 #### Automated
 
-- [ ] 2.1 The new ladder tests pass
-- [ ] 2.2 The full suite passes
-- [ ] 2.3 No-recursive-delete test and commit-lint pass
-- [ ] 2.4 Smoke check in a scratch project returns all-Claude providers
+- [x] 2.1 The new ladder tests pass — cd1a9abf
+- [x] 2.2 The full suite passes — cd1a9abf
+- [x] 2.3 No-recursive-delete test and commit-lint pass — cd1a9abf
+- [x] 2.4 Smoke check in a scratch project returns all-Claude providers — cd1a9abf
