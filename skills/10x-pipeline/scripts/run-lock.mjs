@@ -86,7 +86,13 @@ export function lockRunDirectory(root, id, chain, onBusy) {
           const holderPid = Number(holder);
           // shortcut: a dead holder's guard is never auto-removed (that would reopen the race); the owner removes it.
           if (!(Number.isInteger(holderPid) && holderPid > 0 && pidAlive(holderPid))) {
-            halt(`Stale run-lock takeover guard ${guard} names no running process (contents "${holder}"). Remove that file when no router runs for change ${id}, then retry. Nothing was written.`);
+            // A holder that released the guard and then exited looks dead too: halt only while the same guard is still there.
+            let again = null;
+            try { again = fs.readFileSync(guard, "utf8").trim(); } catch { /* released meanwhile */ }
+            if (again === holder) {
+              halt(`Stale run-lock takeover guard ${guard} names no running process (contents "${holder}"). Remove that file when no router runs for change ${id}, then retry. Nothing was written.`);
+            }
+            holder = null; // released or replaced meanwhile: retry the link at once
           }
         }
         if (Date.now() >= deadline) {
