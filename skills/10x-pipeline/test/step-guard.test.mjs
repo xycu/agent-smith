@@ -247,8 +247,146 @@ test("orchestrator and unrelated agents pass through, including publication scri
   ]) neutral(payload("node /plugin/open-pr.mjs demo && gh pr create", extra));
 });
 
-test("dynamic programs and wrappers are outside the documented direct-command subset", () => {
-  for (const command of ["bash -c 'git push'", 'echo "$(git push)"', "custom-helper"]) neutral(payload(command));
+test("interpreter command strings and unknown helpers are outside the documented command subset", () => {
+  for (const command of ["bash -c 'git push'", "custom-helper"]) neutral(payload(command));
+});
+
+const directly = /directly/;
+
+test("command shapes: assignment prefix", () => {
+  for (const command of ["X=1 git push", "GH_TOKEN=x gh api repos/o/r", "TMPDIR=/x rm -rf build"]) denied(command); // Never execute.
+  neutral(payload("X=1 git status"));
+});
+
+test("command shapes: subshell and group", () => {
+  for (const command of [
+    "(git push)", "(cd sub && git reset --hard)", "{ rm -rf build; }", // Never execute.
+    'git add -A && git commit -m "x" && (git push || true)', "function f { git push; }", "f() { git push; }",
+  ]) denied(command);
+  for (const command of ["(cd sub && git status)", "{ ls; }"]) neutral(payload(command));
+});
+
+test("command shapes: reserved words", () => {
+  for (const command of [
+    "if [ -d build ]; then rm -rf build; fi", 'for d in a b; do rm -rf "$d"; done', // Never execute.
+    "while ! git push; do sleep 1; done", "! git push",
+  ]) denied(command);
+  for (const command of ["if [ -d build ]; then ls build; fi", 'for d in a b; do echo "$d"; done']) neutral(payload(command));
+});
+
+test("command shapes: substitutions", () => {
+  for (const command of [
+    "PR_URL=$(gh pr create --fill)", "echo \x60git push\x60", 'git commit -m "fix \x60git push\x60"',
+    'echo "$(git push)"', 'echo "$(echo "$(git push)")"', "cat <(git push)",
+  ]) denied(command);
+  for (const command of [
+    "PR=$(git rev-parse HEAD)", 'echo "$(date +%s)"', "echo $((1+2))", "echo \x60date\x60", "echo '$(git push)'",
+    'echo "\\$(git push)"',
+  ]) neutral(payload(command));
+  for (const command of ["echo $(git push", "echo \x60git push"]) failedClosed(payload(command));
+});
+
+test("command shapes: glued redirects", () => {
+  for (const command of ["git push>/dev/null", "2>/dev/null git push", "git push 2>&1", ">out git push", "<in git push"]) denied(command);
+  for (const command of ["git status>out.txt", "git commit -m x 2>&1", "git status >git", "echo x >push"]) neutral(payload(command));
+});
+
+test("command shapes: wrappers", () => {
+  for (const command of [
+    "env git push", "command git push", "exec git push", "nohup git push", "time git reset --hard",
+    "timeout 60 git push", "nice -n 5 git push", "nice -5 git push", "sudo rm -rf x", "sudo -u root env git push", // Never execute.
+    "env -i PATH=/bin git push", "env - git push", "xargs -n1 git push", "/usr/bin/env git push",
+  ]) denied(command);
+  for (const command of ["env -S 'git push'", "env --split-string='git push'", "sudo -s 'git push'", "sudo -i git push"]) {
+    denied(command, directly);
+  }
+  denied("env ".repeat(9) + "git push", /nested wrappers.*directly/);
+  for (const command of [
+    "command -v gh", "env FOO=1 git status", "env - git status", "timeout 60 git status", "sudo -l", "xargs echo", "exec 3>&1",
+    "env ".repeat(8) + "git status",
+  ]) neutral(payload(command));
+});
+
+test("command shapes: xargs", () => {
+  for (const command of ["find . -name '*.tmp' | xargs rm -rf", "xargs -I{} rm -rf {}", "printf x | xargs -0 git push"]) denied(command); // Never execute.
+  neutral(payload("find . -name '*.tmp' | xargs ls"));
+});
+
+test("command shapes: find -exec", () => {
+  for (const command of ["find build -exec rm -rf {} +", "find . -exec git push \\;", "find . -execdir env git push \\;"]) denied(command); // Never execute.
+  for (const command of ["find . -name '*.tmp' -exec ls {} +", "find . -exec echo {} \\;"]) neutral(payload(command));
+});
+
+test("git options: abbreviations", () => {
+  for (const command of [
+    "git commit --no-verif -m x", "git commit --no-v -m x", "git merge --no-verif b",
+    "git reset --har", "git reset --ha HEAD~1", "git branch --delet old", "git update-ref --del refs/heads/x",
+    "rm --recursiv build", "rm --r build", // Never execute.
+    "git switch --di main", "git branch --fo main HEAD~3",
+    "git clean --exc -n -fd", "git clean --no-d -fd", "git commit --mess -- --no-verify",
+    "git branch --d old", "git tag --d v1", "git rm --f src", "git checkout-index --f -a", // Never execute.
+  ]) denied(command);
+  for (const command of [
+    "git reset --soft HEAD~1", "git branch --list", "rm --force inspected-file", "git switch --detach HEAD",
+    "git clean --exc pattern -n -fd", "git clean --dry -d", "git clean --d", "git commit --mess x -m y", "git diff --no-ver",
+    "git tag -a v1 --mess x", "git tag --fi notes v1",
+  ]) neutral(payload(command));
+});
+
+test("git options: discarding verbs", () => {
+  for (const command of [
+    "git reset --merge", "git reset --keep HEAD~1",
+    "git switch -f main", "git switch --discard-changes main", "git switch -C main origin/main",
+    "git branch -f main HEAD~3", "git branch -M old new", "git branch -C old new", "git tag -f v1 HEAD~1",
+    "git rm -rf src", "git checkout-index -f -a", "git read-tree --reset -u HEAD", // Never execute.
+    "git update-ref --stdin", "git send-pack origin HEAD", "git http-push https://example.invalid/r HEAD",
+  ]) denied(command);
+  for (const command of [
+    "git switch feature", "git switch -c new", "git reset --mixed HEAD", "git branch -m old new",
+    "git branch -c a b", "git branch -a -v", "git tag -l", 'git tag -a v1 -m"fix deploy"', "git rm file",
+    "git checkout-index -a", "git read-tree HEAD", "git update-ref refs/preserve/x HEAD",
+  ]) neutral(payload(command));
+});
+
+test("git options: global options", () => {
+  for (const command of [
+    "git --exec-path /x push", "git --super-prefix p/ push", "git --attr-source HEAD push",
+    "git -c core.hooksPath=/dev/null commit -m x", "git -c core.HooksPath=/x commit -m x",
+    "git --config-env core.hooksPath=ENV commit -m x", "git --config-env=core.hooksPath=ENV commit -m x",
+  ]) denied(command);
+  for (const command of [
+    "git -C sub status", "git -c color.ui=false status", "git -c core.editor=vi commit -m x",
+    "git --config-env=core.pager=ENV status", "git --exec-path /x status",
+  ]) neutral(payload(command));
+});
+
+test("git options: search patterns", () => {
+  for (const command of ['git log -S "--no-verify"', 'git log --grep "--no-verify"', "git grep -e --no-verify"]) {
+    neutral(payload(command));
+  }
+});
+
+test("command shapes: ANSI-C and locale quoting", () => {
+  for (const command of [
+    "$'git' push", '$"git" push', "echo $'\\'' ; git push #'", "echo \"$(echo $'\\'')\" ; git push ; echo \"')\"",
+    "echo $$'\\' ; git push #'",
+  ]) denied(command); // Never execute.
+  for (const command of [
+    "$'git' status", "echo $'it\\'s'", "echo $$'\\'", "git commit -m $'subject\\n\\nbody'", "echo \"$(echo $'it\\'s')\"",
+    "echo \"$'x'\"", "echo $'$(git push)'", "cat > out.txt <<'EOF'\nstray $'x\nEOF\n",
+    // The substitution-end finder and the heredoc lexer read $$ the same way.
+    "echo \"$(echo $$'\\')\"", "cat > out.txt <<'EOF'\nx\nEOF\necho $$'\\'",
+  ]) neutral(payload(command));
+  denied("cat > $'out.txt' <<'EOF'\nbody\nEOF\n", /heredoc/i);
+});
+
+test("command shapes: nesting stays inside the hook timeout", () => {
+  for (const command of ["$(".repeat(30 * 1024), "$(".repeat(20 * 1024) + ")".repeat(20 * 1024), "$(true)".repeat(8 * 1024)]) {
+    const started = Date.now();
+    const result = invoke(payload(command));
+    assert.ok(Date.now() - started < 5000);
+    assert.ok(result.status === 2 || result.status === 0, result.stderr);
+  }
 });
 
 test("malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed", () => {
@@ -384,6 +522,8 @@ test("distinct HEAD, index and working-copy versions survive denied staged resto
   }
   guarded("git restore --staged unique.txt");
   guarded("node /plugin/open-pr.mjs demo");
+  guarded("X=1 git restore --staged unique.txt");
+  guarded("(git push)");
   assert.equal(fs.existsSync(calls), false, "denied calls reach no recording executable");
   assert.equal(git(p, ["show", "HEAD:unique.txt"]), "HEAD version");
   assert.equal(git(p, ["show", ":unique.txt"]), "staged-only version");
@@ -421,6 +561,12 @@ test("headless Bash binds main and leaf identities, including oversized and miss
   assert.equal(runHook("git add -- proof.txt").decision, null);
   assert.equal(runHook("git push").decision.permissionDecision, "deny");
   assert.equal(runHook("git commit -m test", { agent_id: "leaf" }).decision.permissionDecision, "deny");
+  for (const command of ["X=1 git commit -m x", "(git add -- f)"]) {
+    assert.equal(runHook(command, { agent_id: "leaf" }).decision.permissionDecision, "deny");
+    const withoutCommit = invoke(payload(command, { session_id: "fixture", agent_id: undefined }), script,
+      { env: { ...env, AGENT_SMITH_CLAUDE_COMMIT: "0" } });
+    assert.equal(withoutCommit.decision.permissionDecision, "deny");
+  }
   for (const extra of [{ session_id: "foreign" }, { agent_type: "unmapped" }, { agent_type: undefined }]) {
     assert.equal(runHook("git status", extra).decision.permissionDecision, "deny");
     assert.equal(runHook("x".repeat(70000), extra).status, 2);
