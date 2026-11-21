@@ -279,9 +279,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [x] 2.1 Guard tests pass with every Git option deny/allow pair
-- [x] 2.2 The three `--no-verify` search commands are allowed
-- [x] 2.3 Every change.md abbreviation form is denied and its safe neighbour is allowed
+- [x] 2.1 Guard tests pass with every Git option deny/allow pair — 76565ff3
+- [x] 2.2 The three `--no-verify` search commands are allowed — 76565ff3
+- [x] 2.3 Every change.md abbreviation form is denied and its safe neighbour is allowed — 76565ff3
 
 #### Manual
 
@@ -291,9 +291,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [ ] 3.1 Full suite passes
-- [ ] 3.2 Reference names the new coverage and drops the old wrapper exclusion
-- [ ] 3.3 Version fields still agree
+- [x] 3.1 Full suite passes
+- [x] 3.2 Reference names the new coverage and drops the old wrapper exclusion
+- [x] 3.3 Version fields still agree
 
 #### Manual
 
