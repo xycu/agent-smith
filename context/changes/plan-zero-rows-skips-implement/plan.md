@@ -237,10 +237,10 @@ The tracker is one pass over the lines of `plan.md` and of each review file; bot
 
 #### Automated
 
-- [x] 2.1 New CLI cases pass: `node --test skills/10x-pipeline/test/plan-rows.test.mjs`
-- [x] 2.2 Re-plan, pre-plan and loop tests still pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/codereplan.test.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/loops.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs`
-- [x] 2.3 Prompt and rule pins still pass: `node --test skills/10x-pipeline/test/step-safety.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
-- [x] 2.4 The rule file names the row form and the pending row: `grep -n "pending" skills/10x-pipeline/rules/steps/plan.md` lists the new rule
+- [x] 2.1 New CLI cases pass: `node --test skills/10x-pipeline/test/plan-rows.test.mjs` — 1e1e3f4f
+- [x] 2.2 Re-plan, pre-plan and loop tests still pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/codereplan.test.mjs skills/10x-pipeline/test/preplan.test.mjs skills/10x-pipeline/test/loops.test.mjs skills/10x-pipeline/test/loops-existing.test.mjs` — 1e1e3f4f
+- [x] 2.3 Prompt and rule pins still pass: `node --test skills/10x-pipeline/test/step-safety.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs skills/10x-pipeline/test/provenance.test.mjs` — 1e1e3f4f
+- [x] 2.4 The rule file names the row form and the pending row: `grep -n "pending" skills/10x-pipeline/rules/steps/plan.md` lists the new rule — 1e1e3f4f
 
 #### Manual
 
@@ -250,10 +250,10 @@ The tracker is one pass over the lines of `plan.md` and of each review file; bot
 
 #### Automated
 
-- [ ] 3.1 The documented minimum is present: `grep -n "pending Automated row" docs/REFERENCE.md`
-- [ ] 3.2 The new test is indexed: `grep -n "plan-rows.test.mjs" skills/10x-pipeline/test/README.md`
-- [ ] 3.3 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 3.4 Smoke check in a scratch project with `isolation.require` false: `init` returns `action: "run"` with step `plan`, and `next` after a `done` result on a plan written with `* [ ]` rows returns step `plan` again
+- [x] 3.1 The documented minimum is present: `grep -n "pending Automated row" docs/REFERENCE.md`
+- [x] 3.2 The new test is indexed: `grep -n "plan-rows.test.mjs" skills/10x-pipeline/test/README.md`
+- [x] 3.3 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 3.4 Smoke check in a scratch project with `isolation.require` false: `init` returns `action: "run"` with step `plan`, and `next` after a `done` result on a plan written with `* [ ]` rows returns step `plan` again
 
 #### Manual
 
