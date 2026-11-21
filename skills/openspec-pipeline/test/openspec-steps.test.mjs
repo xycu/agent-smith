@@ -23,7 +23,10 @@ const GOAL = "Add a thing";
 const PROPOSED = { proposal: true, specs: 1, tasks: { done: 0, open: 2 } };
 const TICKED = { proposal: true, specs: 1, tasks: { done: 2, open: 0 } };
 const VERIFY_FILE = "openspec/changes/demo/agent-smith/verify.md";
-const CAP_HALT = `OpenSpec verify FAIL after 2 fix loops. Needs a human. Fix the issues, set the first lines of ${VERIFY_FILE} to "Verdict: PASS" and "Critical: 0", then run /agent-smith:openspec-pipeline demo again.`;
+const CAP_HALT = `OpenSpec verify FAIL after 2 fix loops. Needs a human. Fix the issues, set the first lines of ${VERIFY_FILE} ` +
+  'to "Verdict: PASS" and "Critical: 0", and remove the `- ` lines under `## Critical`. ' +
+  "Then run /agent-smith:openspec-pipeline demo again.";
+const CRITICAL_PLACEHOLDERS = ["None", "(NoNe).\t ", "n/A. "];
 
 // A verify.md as the os-verify guide writes it. The counts default to the number of lines.
 function verifyText({ verdict = "PASS", critical = [], warnings = [], criticalCount = critical.length, warningCount = warnings.length } = {}) {
@@ -168,6 +171,16 @@ test("PASS and PASS WITH WARNINGS end the run done", () => {
   }
 });
 
+test("a placeholder-only PASS ends the run without a fix step", () => {
+  const project = atVerify();
+  const text = verifyText({ critical: CRITICAL_PLACEHOLDERS, criticalCount: 0 });
+  const res = answer(project, done(), () => writeVerify(project, text));
+  assert.equal(res.json.action, "done", res.stdout);
+  const entries = readLogEntries(project);
+  assert.equal(entries.length, 1);
+  assert.deepEqual(entries[0].review, { verdict: "PASS", critical: 0, warnings: 0 });
+});
+
 test("a PASS line with Critical: 1 routes as FAIL", () => {
   const project = atVerify();
   const res = answer(project, done(), () => writeVerify(project, verifyText({ verdict: "PASS", critical: ["tests do not run"] })));
@@ -199,9 +212,24 @@ test("FAIL returns os-apply in fix mode with the critical lines in the prompt", 
   assert.ok(prompt.endsWith("\n\n" + ruleTail(POLICY.prompts.suffix, { chain: "openspec", step: "os-apply" })));
 });
 
-test("a FAIL with no critical line sends see verify.md", () => {
+test("a mixed Critical section with a zero header sends only the real finding", () => {
   const project = atVerify();
-  const res = answer(project, done(), () => writeVerify(project, verifyText({ verdict: "FAIL", warnings: ["w"] })));
+  const critical = [...CRITICAL_PLACEHOLDERS, "None of the migrations ran"];
+  const res = answer(project, done(), () => writeVerify(project, verifyText({ critical, criticalCount: 0 })));
+  assert.equal(res.json.step, "os-apply", res.stdout);
+  const entries = readLogEntries(project);
+  assert.deepEqual(entries[0].review, { verdict: "FAIL", critical: 1, warnings: 0 });
+  assert.equal(entries[1].template, "os-apply-fix");
+  assert.ok(res.json.prompt.includes(`Critical findings from ${VERIFY_FILE}:\n- None of the migrations ran\n`), res.json.prompt);
+  for (const placeholder of CRITICAL_PLACEHOLDERS) {
+    assert.equal(res.json.prompt.includes(`\n- ${placeholder.trimEnd()}\n`), false);
+  }
+});
+
+test("an explicit FAIL with only placeholders sends see verify.md", () => {
+  const project = atVerify();
+  const text = verifyText({ verdict: "FAIL", critical: CRITICAL_PLACEHOLDERS, criticalCount: 0, warnings: ["w"] });
+  const res = answer(project, done(), () => writeVerify(project, text));
   assert.equal(res.json.step, "os-apply", res.stdout);
   assert.ok(res.json.prompt.includes(`Critical findings from ${VERIFY_FILE}:\nsee verify.md\n`), res.json.prompt);
 });
@@ -211,8 +239,9 @@ test("the critical lines are capped at 20, made one line and cut to 300 code poi
   try {
     const file = path.join(dir, "verify.md");
     const long = "é".repeat(400);
-    const critical = [`a\tb   c`, long, ...Array.from({ length: 30 }, (_, i) => `issue ${i}`)];
-    fs.writeFileSync(file, verifyText({ verdict: "FAIL", critical }).replace(/\n/g, "\r\n"));
+    const placeholders = Array(20).fill("None");
+    const critical = [...placeholders, `a\tb   c`, long, ...Array.from({ length: 30 }, (_, i) => `issue ${i}`)];
+    fs.writeFileSync(file, verifyText({ verdict: "FAIL", critical, criticalCount: 32 }).replace(/\n/g, "\r\n"));
     const read = readVerdict(file);
     assert.equal(read.ok, true);
     assert.equal(read.verdict, "FAIL");
@@ -225,6 +254,30 @@ test("the critical lines are capped at 20, made one line and cut to 300 code poi
     fs.writeFileSync(file, "Verdict: FAIL\nCritical: 2\nWarnings: 0\n## Critical\n- one\n### Detail\n- two\n## Other\n- three\n");
     assert.deepEqual(readVerdict(file).criticalLines, ["- one", "- two"]);
     assert.equal(readVerdict(path.join(dir, "missing.md")).ok, false);
+  } finally {
+    removeTree(dir);
+  }
+});
+
+test("the verdict reader ignores only whole Critical placeholder bullets", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "as-verdict-"));
+  try {
+    const file = path.join(dir, "verify.md");
+    for (const [headerVerdict, criticalCount, verdict] of [
+      ["PASS", 0, "PASS"],
+      ["PASS", 1, "FAIL"],
+      ["FAIL", 0, "FAIL"],
+    ]) {
+      fs.writeFileSync(file, verifyText({ verdict: headerVerdict, critical: CRITICAL_PLACEHOLDERS, criticalCount }));
+      assert.deepEqual(readVerdict(file), { ok: true, verdict, critical: criticalCount, warnings: 0, criticalLines: [] });
+    }
+    const critical = [...CRITICAL_PLACEHOLDERS, "None of the migrations ran"];
+    fs.writeFileSync(file, verifyText({ critical, criticalCount: 0 }));
+    assert.deepEqual(readVerdict(file), {
+      ok: true, verdict: "FAIL", critical: 1, warnings: 0, criticalLines: ["- None of the migrations ran"],
+    });
+    fs.writeFileSync(file, verifyText({ critical: ["None\u200b"], criticalCount: 0 }));
+    assert.deepEqual(readVerdict(file).criticalLines, ["- None"]);
   } finally {
     removeTree(dir);
   }
@@ -264,7 +317,12 @@ test("a third FAIL after two fix loops halts; a verify.md edited to PASS after t
   assert.equal(res.json.reason, CAP_HALT);
   assert.equal(res.status, 0);
   assert.equal(res.json.steps, 5);
-  // The human fixes the code and edits the verdict; the router reads the file, not the log copy.
+  // Editing only the header leaves the finding active.
+  writeVerify(project, FAIL().replace("Verdict: FAIL\nCritical: 1", "Verdict: PASS\nCritical: 0"));
+  const stillHalted = next(project);
+  assert.equal(stillHalted.json.action, "halt", stillHalted.stdout);
+  assert.equal(stillHalted.json.reason, CAP_HALT);
+  // Clearing the finding lets the router finish from the current file.
   writeVerify(project, PASS);
   const again = next(project);
   assert.equal(again.json.action, "done", again.stdout);

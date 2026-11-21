@@ -86,15 +86,16 @@ export function missingChangeReason(id) {
 // The critical lines kept from verify.md: at most this many, each cut to this many code points.
 const CRITICAL_MAX_LINES = 20;
 const CRITICAL_MAX_CHARS = 300;
+const CRITICAL_PLACEHOLDER_RE = /^- (?:none|\(none\)|n\/a)\.?[ \t]*$/i;
 const VERDICT_RE = /^Verdict: (PASS WITH WARNINGS|PASS|FAIL)\s*$/;
 const COUNT_RE = (name) => new RegExp(`^${name}: (\\d+)\\s*$`);
 
 // The verdict of verify.md, as the os-verify guide writes it: line 1 `Verdict: PASS|PASS WITH WARNINGS|FAIL`, line 2
-// `Critical: <n>`, line 3 `Warnings: <n>`, then the `- ` lines under `## Critical` up to the next `## ` heading (at most
-// 20, each made one line and cut to 300 code points). A Critical count above 0 reads as FAIL whatever line 1 says, and
-// so does a `- ` line under `## Critical` with a lower count: the critical count is the larger of the two, so the file
-// never reads cleaner than it says (as ADR-011 reads review headers). Returns { ok: true, verdict, critical, warnings,
-// criticalLines } or { ok: false, error }. Only a regular file is read.
+// `Critical: <n>`, line 3 `Warnings: <n>`, then the `- ` findings under `## Critical` up to the next `## ` heading.
+// Skip empty-list placeholders before collecting up to 20 findings, each made one line and cut to 300 code points.
+// The critical count is the larger of the header count and the collected findings, so the file never reads cleaner
+// than it says (as ADR-011 reads review headers). Any positive critical count forces FAIL.
+// Returns { ok: true, verdict, critical, warnings, criticalLines } or { ok: false, error }. Only a regular file is read.
 export function readVerdict(file) {
   let st;
   try { st = fs.lstatSync(file); } catch { return { ok: false, error: "missing or unreadable" }; }
@@ -118,6 +119,7 @@ export function readVerdict(file) {
   for (const line of lines.slice(3)) {
     if (/^## /.test(line)) { inCritical = /^## Critical\s*$/.test(line); continue; }
     if (!inCritical || !line.startsWith("- ")) continue;
+    if (CRITICAL_PLACEHOLDER_RE.test(line)) continue;
     if (criticalLines.length === CRITICAL_MAX_LINES) break;
     const one = line.replace(/\p{Cf}/gu, "").replace(/[\p{Cc}\s]+/gu, " ").trim();
     criticalLines.push(Array.from(one).slice(0, CRITICAL_MAX_CHARS).join(""));
@@ -196,7 +198,7 @@ export function decideOpenspec(p, log, policy, meta) {
   if (read.verdict !== "FAIL") return { done: true, reason: `OpenSpec verify ${read.verdict}` };
   const loops = ran.filter((e) => e.step === "os-apply" && e.template === "os-apply-fix" && e.ok === true).length;
   if (loops >= policy.limits.maxFixLoops) {
-    let text = `OpenSpec verify FAIL after ${loops} fix loops. Needs a human. Fix the issues, set the first lines of ${file} to "Verdict: PASS" and "Critical: 0", then run /agent-smith:openspec-pipeline ${id} again.`;
+    let text = `OpenSpec verify FAIL after ${loops} fix loops. Needs a human. Fix the issues, set the first lines of ${file} to "Verdict: PASS" and "Critical: 0", and remove the \`- \` lines under \`## Critical\`. Then run /agent-smith:openspec-pipeline ${id} again.`;
     if (meta.isolated === true) text += " Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.";
     return { halt: text };
   }
