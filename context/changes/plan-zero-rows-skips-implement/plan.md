@@ -231,7 +231,7 @@ The tracker is one pass over the lines of `plan.md` and of each review file; bot
 
 #### Manual
 
-- [ ] 1.6 The tracker's comment names its limit (fences deeper than three spaces, in block quotes or list items, and `<pre>` are not tracked) in the `shortcut:` form
+- [x] 1.6 The tracker's comment names its limit (fences deeper than three spaces, in block quotes or list items, and `<pre>` are not tracked) in the `shortcut:` form — evidence: evidence/judgment-tracker-comment-limit.md
 
 ### Phase 2: Verify only with a pending Automated row, and retry a failed first plan
 
@@ -244,7 +244,7 @@ The tracker is one pass over the lines of `plan.md` and of each review file; bot
 
 #### Manual
 
-- [ ] 2.5 The retry reason reads clearly in the `next` output of a failed first plan
+- [x] 2.5 The retry reason reads clearly in the `next` output of a failed first plan — evidence: evidence/judgment-retry-reason-and-reference-wording.md
 
 ### Phase 3: Documentation, indexes and full suite
 
@@ -257,5 +257,5 @@ The tracker is one pass over the lines of `plan.md` and of each review file; bot
 
 #### Manual
 
-- [ ] 3.5 The REFERENCE wording reads as the minimum a plan needs, not as a change of the plan format
+- [x] 3.5 The REFERENCE wording reads as the minimum a plan needs, not as a change of the plan format — evidence: evidence/judgment-retry-reason-and-reference-wording.md
 - [ ] 3.6 Before merging: the plan of the next run in this wave has its rows in `- [ ]` form (the check `WAVES.md` asks for)
