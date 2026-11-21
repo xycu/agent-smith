@@ -115,6 +115,8 @@ function shellWord(text, at, depth = 0, closing = null) {
     }
     if (c === quote) { quote = null; ansi = false; }
     else if (!quote && (c === "'" || c === '"')) { quote = c; bare = false; }
+    // $$ is the shell's process ID, so a quote after it is an ordinary quote.
+    else if (!quote && c === "$" && text[opening] === "$") { value += "$$"; literal = false; at = opening + 1; continue; }
     else if (!quote && c === "$" && (text[opening] === "'" || text[opening] === '"')) {
       // $'...' and $"..." open a quote; the dollar sign is dropped.
       quote = text[opening];
@@ -132,7 +134,7 @@ function shellWord(text, at, depth = 0, closing = null) {
     } else {
       if (quote !== "'" && c === "$") {
         const marker = text[opening] ?? "";
-        if (parameterStart.test(marker) || !quote && (marker === "'" || marker === '"')) literal = false;
+        if (parameterStart.test(marker)) literal = false;
       }
       if (!quote && /[*?[{}\x00]/.test(c)) literal = false;
       if (!quote && c === "~" && (value === "" || value.endsWith("="))) literal = false;
@@ -427,6 +429,11 @@ function commands(text) {
     } else if (quote) {
       if (c === quote) { quote = null; ansi = false; }
       else word += c;
+    } else if (c === "$" && text[opening] === "$") {
+      // $$ is the shell's process ID, so a quote after it is an ordinary quote.
+      word += "$$";
+      started = true;
+      i = opening;
     } else if (c === "$" && (text[opening] === "'" || text[opening] === '"')) {
       // $'...' and $"..." open a quote; the dollar sign is dropped.
       quote = text[opening];
