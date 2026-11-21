@@ -63,7 +63,10 @@ export function runBranch(config, id, g) {
   return branch;
 }
 
-export function validateRunBranch(config, id, branch, g) {
+// shortcut: the name cannot tell `<id>-baseline` from a change called `<id>-baseline`; both are accepted.
+const BASELINE_SUFFIX = "-baseline";
+
+export function validateRunBranch(config, id, branch, g, saved = false) {
   const prefix = branchPrefix(config);
   validBranch(`${prefix}${id}`, g);
   validBranch(branch, g);
@@ -76,6 +79,14 @@ export function validateRunBranch(config, id, branch, g) {
   }
   if (!branch.startsWith(prefix)) {
     throw new Error(`Branch ${branch} does not start with ${prefix}; run isolation needs the configured branch ${prefix}${id}`);
+  }
+  const own = `${prefix}${id}`;
+  if (saved ? !branch.startsWith(own) : branch !== own && branch !== `${own}${BASELINE_SUFFIX}`) {
+    const owner = branch.slice(prefix.length);
+    const accepted = saved ? "" : ` (accepted here: ${own} and ${own}${BASELINE_SUFFIX})`;
+    const error = new Error(`Branch ${branch} belongs to change ${owner}, not to change ${id}${accepted}. Leave that run's worktree and run prepare-run.mjs ${id} from the original project root, or resume change ${owner} there`);
+    error.otherChange = true;
+    throw error;
   }
   return branch;
 }
@@ -94,7 +105,8 @@ export function validateRunIdentity(meta, config, id, chain, branch, g) {
   if (meta.isolated !== true || meta.id !== id || (meta.chain ?? "10x") !== chain || typeof meta.branch !== "string") {
     throw new Error(`Saved run identity does not match isolated ${chain} change ${id}; resume the original recorded run ${meta.branch ?? "(branch unavailable)"}`);
   }
-  try { validateRunBranch(config, id, meta.branch, g); } catch (error) {
+  try { validateRunBranch(config, id, meta.branch, g, true); } catch (error) {
+    if (error.otherChange) throw error;
     throw new Error(`${error.message}. Restore isolation.branchPrefix to match the recorded branch ${meta.branch} and resume its original worktree`);
   }
   if (branch !== null && meta.branch !== branch) {
