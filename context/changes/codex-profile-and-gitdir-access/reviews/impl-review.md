@@ -36,7 +36,7 @@
 - **Location**: docs/REFERENCE.md:21
 - **Detail**: The sentence said the fixtures cover diagnostics "present in Codex 0.169.0 and 0.171.0 source". The plan's Assumptions state the exact diagnostics were observed on 0.171.0 only and that the 0.169.0 behavior belongs to live acceptance (row 1.5, still open; `evidence/unproven.md`). The doc overstated verified behavior.
 - **Fix**: State that the diagnostics were observed on 0.171.0 and that the 0.169.0 baseline is not yet verified.
-- **Decision**: APPLIED — rewritten in docs/REFERENCE.md (commit: the `fix(codex-profile-and-gitdir-access)` commit that adds this report).
+- **Decision**: APPLIED — rewritten in docs/REFERENCE.md (commit 1bbf9fca).
 
 ### F2 — Manual rows 1.5 and 1.6 are open
 
