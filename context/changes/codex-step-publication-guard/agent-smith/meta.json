@@ -50,5 +50,9 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/run-codex.mjs, skills/10x-pipeline/test/codex-helpers.mjs, skills/10x-pipeline/test/codex-runner.test.mjs"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 7 (impl-review) needs a human: The Write hook refuses every write inside this worktree (its path runs through .claude/), so the review file, the change.md stamp and the F1/F3 doc fixes cannot be written. Copy the scratchpad draft into the change's reviews folder and apply the fixes, or rerun the step in a writable worktree. F2 al"
   }
 }
