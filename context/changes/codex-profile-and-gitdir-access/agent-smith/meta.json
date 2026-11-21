@@ -44,7 +44,10 @@
       "score.minRigor": "standard",
       "agents.restricted": false,
       "advisor.enabled": false
-    }
+    },
+    "drift": [
+      "prompts"
+    ]
   },
   "startCommit": "343b556c4b438b287e3c49bd65bfc74f73f78df2",
   "rigor": {
