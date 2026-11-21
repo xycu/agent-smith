@@ -1,10 +1,10 @@
 ---
 change_id: run-lock-stale-takeover-race
 title: Stop two router processes from both taking over a stale run lock
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-21
-archived_at: null
+archived_at: 2026-11-21T14:22:34Z
 ---
 
 ## Notes

@@ -177,19 +177,19 @@ None. The lock file is unchanged; old and new versions interoperate, with the gu
 
 #### Automated
 
-- [x] 1.1 Focused lock tests pass, including the single-caller stale recovery — 21f78071
-- [x] 1.2 Other users of the lock still pass — 21f78071
-- [x] 1.3 Lock path and format are unchanged — 21f78071
-- [x] 1.4 No stale statement of the old limit remains — 21f78071
-- [x] 1.5 Router smoke check returns a run action and a status — 21f78071
+- [x] 1.1 Focused lock tests pass, including the single-caller stale recovery — 7ca53f7a
+- [x] 1.2 Other users of the lock still pass — 7ca53f7a
+- [x] 1.3 Lock path and format are unchanged — 7ca53f7a
+- [x] 1.4 No stale statement of the old limit remains — 7ca53f7a
+- [x] 1.5 Router smoke check returns a run action and a status — 7ca53f7a
 
 ### Phase 2: Multi-process exclusion proof
 
 #### Automated
 
-- [x] 2.1 The new multi-process test passes on the fixed module — 21f78071
-- [x] 2.2 The harness detects the race on the pre-fix module — 21f78071
-- [x] 2.3 The test is stable on the fixed module over five runs — 21f78071
-- [x] 2.4 Full suite passes — 21f78071
-- [x] 2.5 No recursive delete was introduced — 21f78071
-- [x] 2.6 Version fields still equal — 21f78071
+- [x] 2.1 The new multi-process test passes on the fixed module — 7ca53f7a
+- [x] 2.2 The harness detects the race on the pre-fix module — 7ca53f7a
+- [x] 2.3 The test is stable on the fixed module over five runs — 7ca53f7a
+- [x] 2.4 Full suite passes — 7ca53f7a
+- [x] 2.5 No recursive delete was introduced — 7ca53f7a
+- [x] 2.6 Version fields still equal — 7ca53f7a
