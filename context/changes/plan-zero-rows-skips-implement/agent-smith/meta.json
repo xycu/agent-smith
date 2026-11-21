@@ -1,0 +1,64 @@
+{
+  "id": "plan-zero-rows-skips-implement",
+  "goal": "Stop a plan with no readable Progress rows from skipping the implement step: a fresh plan or plan-revise step verifies only when the plan has at least one pending Automated row, the Progress reader (and readFindings, if the fence route is taken) ignores a quoted ## Progress inside a code fence and counts the real rows, archived plans read the same as before, and docs/REFERENCE.md states the minimum a plan needs to verify.",
+  "host": "claude",
+  "providerMode": "claude",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/plan-zero-rows-skips-implement",
+  "baseSha": "52f6a1793251dbb33b05fcddabafe49da7769094",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.15.0",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "2c10243b953d64dd",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "86b963500aa6f8f6",
+      "complexity": "997fa59224abe417",
+      "escalation": "1222803c4bfef379",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "hookFiles": "b5c8d73410b1c941",
+      "isolation": "cda0720f290e645e",
+      "ladder": "00bd04bb00a5db6a",
+      "lessons": "92d849fccafd0527",
+      "limits": "ad6be642613c2b99",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "9d2625c66c412c46",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "08fd996ffbe0660a",
+      "score": "dc16b78fdf08a0df",
+      "splitProviders": "e23dcbd325996cb7",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "providerMode": "claude",
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  },
+  "startCommit": "31c7de17d2ab100e4687dec60d3372295f6ec661",
+  "rigor": {
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/state.mjs, skills/10x-pipeline/test/route.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.6 Before merging: the plan of the next run in this wave has its rows in `- [ ]` form (the check `WAVES.md` asks for)"
+    ],
+    "manualNotProved": [
+      "3.6 Before merging: the plan of the next run in this wave has its rows in `- [ ]` form (the check `WAVES.md` asks for) — not proved: no plan of a next Wave 2 run exists in this worktree (only this change and provider-mode-split have a plan.md, and provider-mode-split is Wave-1-era and already merged); the check applies to a later r"
+    ]
+  }
+}

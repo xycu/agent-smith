@@ -188,6 +188,7 @@ function prepare(opts, result) {
       validateRunIdentity(meta, selectedConfig, opts.id, opts.chain, expected, git);
     }
   };
+  let savedBranch = Boolean(invocation);
   if (!inRun && !invocation && !branchExists(generated)) {
     const candidates = savedRunCandidates(opts, prefix, change, common, current);
     if (candidates.length > 1) {
@@ -196,9 +197,10 @@ function prepare(opts, result) {
     if (candidates.length === 1) {
       const selected = candidates[0];
       branch = validateRunIdentity(selected.meta, config, opts.id, opts.chain, selected.branch, git);
+      savedBranch = true;
     }
   }
-  validateRunBranch(config, opts.id, branch, git);
+  validateRunBranch(config, opts.id, branch, git, savedBranch);
   const selected = inRun ? gitText(["rev-parse", "--show-toplevel"]) : registeredWorktree(branch);
   if (selected !== null) validateSelected(selected, branch);
   if (invocation && !branchExists(branch)) throw new Error(`Recorded run branch ${branch} is unavailable; restore it and resume its original worktree`);

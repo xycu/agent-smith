@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md Direction: the choice between a tolerant and a strict readPlan (accept TASK_ROW forms or stay strict) is open, and the fence fix can be last-heading or fence-state scanning; both are named as open in the change.md Direction section." },
+    "novelty": { "score": 1, "evidence": "steps.mjs verifyCodeReplan (line 515) already requires pending Automated rows for re-plans, so the new check adapts an existing pattern; fence-aware scanning is new to state.mjs readPlan (line 268) but small." },
+    "coupling": { "score": 2, "evidence": "readPlan (state.mjs:268) feeds flow.mjs:572/607/772 and steps.mjs:288/515, and state.mjs:847 reads plan.phases; readFindings (state.mjs:321) shares the fence problem; prompts and rules for the plan step must agree with the reader per change.md Constraints." },
+    "discovery": { "score": 1, "evidence": "change.md names the exact locations (state.mjs:268-288, flow.mjs:572 and 773, state.mjs:321-327, openspec.mjs:11 and 176) and the archive folder; a single extra search for other readPlan callers (route.mjs, isolation.mjs) is needed." },
+    "volume": { "score": 2, "evidence": "Likely 4 to 10 files: state.mjs, flow.mjs, steps.mjs, the plan-step prompts and rules under skills/10x-pipeline/prompts/ and rules/steps/, docs/REFERENCE.md (line 61 and 115-126 routing text), plus new tests in skills/10x-pipeline/test/." },
+    "verification": { "score": 1, "evidence": "The suite in change.md Done-when already covers the router through the CLI (75 test files under skills/10x-pipeline/test); a few new tests for the * [ ] rows and the fenced Progress are needed, and the archive comparison is a scriptable read-only count over context/archive/*/plan.md." }
+  },
+  "unknowns": [
+    "Whether readFindings must change in this run or only if the plan takes the fence route (change.md leaves it to the plan)",
+    "Whether any other caller of readPlan in route.mjs or isolation.mjs depends on counting rows in non-canonical forms",
+    "Whether the OpenSpec chain TASK_ROW tolerance must match the 10x reader or stays separate"
+  ],
+  "confidence": "medium"
+}
