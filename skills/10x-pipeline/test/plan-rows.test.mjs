@@ -4,6 +4,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { cleanupAll, makeProject, init, next, writeResult, readLogEntries, seedRun, entry } from "./helpers.mjs";
 import { writePlan as writeAheadPlan, writeReview as writeAheadReview } from "./ahead.mjs";
 import { readPlan, readReview, openCounts } from "../scripts/state.mjs";
@@ -123,7 +124,7 @@ function oldReadPlan(text) {
   return res;
 }
 
-const ARCHIVE = path.resolve(process.cwd(), "context/archive");
+const ARCHIVE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../context/archive");
 const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})/;
 
 test("archived plans read the same as with the old reader", { skip: fs.existsSync(ARCHIVE) ? false : "no context/archive here" }, () => {

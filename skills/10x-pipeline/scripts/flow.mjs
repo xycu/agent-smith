@@ -772,9 +772,10 @@ export function decide(p, fullLog, policy, meta, ctx) {
 
   // A failed first plan that left no pending Automated row is asked for again, so a non-isolated run (no rollback of
   // plan.md) never reads its empty Progress as finished work. A plan supplied at init has no plan entry and routes as before.
+  const codeRan = log.some((e) => e.step === "implement" || e.step === "fix");
   const lastPlan = [...log].reverse().find((e) => e.step === "plan");
   const planRetry = lp < 0 && lastPlan?.template === "plan" && !lastPlan.ok && !lastPlan.verified &&
-    plan.autoPending === 0 && !log.some((e) => e.step === "implement" || e.step === "fix");
+    plan.autoPending === 0 && !codeRan;
   if (!plan.exists || !plan.hasProgress || planRetry) {
     const pre = preplanNext(p, fullLog, policy, meta, ctx);
     if (pre) return pre;
@@ -787,11 +788,10 @@ export function decide(p, fullLog, policy, meta, ctx) {
       template: "plan",
       bump: kind === "hard" ? B.hard : B.plain,
       bumpWhy: `goal class ${kind}`,
-      reason: `${!plan.exists ? "no plan yet" : !plan.hasProgress ? "plan.md has no ## Progress" : `plan.md has no pending Automated Progress row (read ${plan.rows} rows)`} (goal:${kind}${keyword ? `, "${keyword}"` : ""})`,
+      reason: `${!plan.exists ? "no plan yet" : !plan.hasProgress ? "plan.md has no ## Progress" : `plan.md has no pending Automated Progress row (read ${plan.rows} rows)`} (goal: ${kind}${keyword ? `, "${keyword}"` : ""})`,
     };
   }
 
-  const codeRan = log.some((e) => e.step === "implement" || e.step === "fix");
   const workStarted = codeRan || plan.autoDone > 0;
 
   // Plan review is fresh if it ran after the last successful plan step.
