@@ -3,10 +3,12 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
-import { readPolicyObject, readIsolationPolicy, isolationEnabled, runBranch, runBranchName, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
+import { readPolicyObject, readIsolationPolicy, isolationEnabled, integrationBranch, runBranch, runBranchName, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
 
 const USAGE = "Usage: prepare-run.mjs <id> [--chain 10x|openspec] [--cleanup]";
 const GIT_TIMEOUT_MS = 120000;
+const setupDeadline = performance.now() + 590000;
+const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
 function parseArgs(args) {
@@ -23,18 +25,80 @@ function parseArgs(args) {
 }
 
 function git(args, input) {
-  return spawn("git", args, GIT_TIMEOUT_MS, { ...process.env, GIT_OPTIONAL_LOCKS: "0" }, input);
+  const timeoutMs = Math.min(GIT_TIMEOUT_MS, Math.floor(setupDeadline - performance.now()));
+  if (timeoutMs <= 0) throw new Error("Run setup deadline expired before the next Git command");
+  return { ...spawn("git", args, timeoutMs, {
+    ...process.env, GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never", SSH_ASKPASS_REQUIRE: "never",
+  }, input), timeoutMs };
 }
 
 function checked(res, label, allowed = [0]) {
   if (res.missing || res.timedOut || !allowed.includes(res.status)) {
-    throw new Error(`${label}: ${res.timedOut ? "Git timed out after 120000 ms" : firstLine(res.stderr) || `Git exited ${res.status}`}`);
+    throw new Error(`${label}: ${res.timedOut ? `Git timed out after ${res.timeoutMs} ms` : firstLine(res.stderr) || `Git exited ${res.status}`}`);
   }
   return res;
 }
 
 function gitText(args, input) {
   return checked(git(args, input), `git ${args[0]}`).stdout.replace(/\n$/, "");
+}
+
+// Remote helpers can put credentials in stderr. Report outcomes without relaying their output.
+function freshnessGit(args, label) {
+  const res = git(args);
+  if (res.status !== 0) {
+    const detail = res.timedOut ? `Git timed out after ${res.timeoutMs} ms` : `Git exited ${res.status}`;
+    throw new Error(`${label}: ${detail}`);
+  }
+  return res.stdout;
+}
+
+function checkFreshBase(startCommit, branch, result) {
+  const remotes = gitText(["remote"]).split("\n").filter(Boolean);
+  if (!remotes.length) {
+    result.base = { skipped: "no-remote" };
+    return;
+  }
+  const remote = remotes.includes("origin") ? "origin" : remotes[0];
+  if (remote !== "origin" && remotes.length > 1) {
+    throw new Error("Cannot select an integration remote: several remotes are configured and none is origin");
+  }
+  if (gitText(["rev-parse", "--is-shallow-repository"]) !== "false") {
+    throw new Error(`Cannot compare integration history from ${remote} in a shallow repository. Unshallow the original checkout and rerun setup`);
+  }
+
+  const target = branch === null ? "HEAD" : `refs/heads/${branch}`;
+  const flag = branch === null ? "--symref" : "--refs";
+  const advertised = freshnessGit(["ls-remote", flag, "--", remote, target], `Read integration branch ${branch ?? "HEAD"} from ${remote}`);
+  const values = advertised.split("\n").filter(Boolean).map((row) => row.split("\t"))
+    .filter((fields) => fields.length === 2 && fields[1] === target).map(([value]) => value);
+  if (branch === null) {
+    const symbolic = values.filter((value) => value.startsWith("ref: "));
+    const ref = symbolic.length === 1 ? symbolic[0].slice(5) : "";
+    if (!ref.startsWith("refs/heads/")) {
+      throw new Error(`Remote ${remote} did not advertise a default branch via symbolic HEAD. Configure isolation.integrationBranch or repair the remote HEAD`);
+    }
+    freshnessGit(["check-ref-format", ref], `Validate advertised integration branch from ${remote}`);
+    branch = ref.slice("refs/heads/".length);
+  }
+  const commits = values.filter((value) => !value.startsWith("ref: "));
+  const tip = commits.length === 1 ? commits[0] : "";
+  if (!COMMIT_RE.test(tip)) {
+    throw new Error(`Remote ${remote} did not advertise a valid commit for integration branch ${branch}`);
+  }
+  freshnessGit(["fetch", "--no-tags", "--no-recurse-submodules", "--refmap=", "--no-write-fetch-head",
+    "--no-prune", "--no-prune-tags", "--no-auto-maintenance", "--no-write-commit-graph", "--", remote, tip],
+    `Fetch integration branch ${branch} from ${remote}`);
+  const localTip = freshnessGit(["rev-parse", "--verify", `${tip}^{commit}`], `Verify integration commit for ${remote}/${branch}`).trim();
+  if (localTip !== tip) throw new Error(`Invalid integration commit for ${remote}/${branch}`);
+  const counts = freshnessGit(["rev-list", "--left-right", "--count", `${startCommit}...${tip}`],
+    `Compare original HEAD with ${remote}/${branch}`).trim().match(/^\d+\s+(\d+)$/);
+  const behind = counts ? Number(counts[1]) : NaN;
+  if (!Number.isSafeInteger(behind)) throw new Error(`Invalid integration commit count for ${remote}/${branch}`);
+  result.base = { remote, branch, behind };
+  if (behind > 0) {
+    throw new Error(`Original checkout is ${behind} commit${behind === 1 ? "" : "s"} behind ${remote}/${branch}. Update the original checkout and rerun setup`);
+  }
 }
 
 function branchExists(branch) {
@@ -167,7 +231,7 @@ function readPending(file) {
     if (typeof pending.root !== "string" || !path.isAbsolute(pending.root)
       || typeof pending.worktree !== "string" || !path.isAbsolute(pending.worktree)
       || typeof pending.prefix !== "string" || !["10x", "openspec"].includes(pending.chain)
-      || typeof pending.startCommit !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(pending.startCommit)) {
+      || typeof pending.startCommit !== "string" || !COMMIT_RE.test(pending.startCommit)) {
       throw new Error("invalid pending copy record");
     }
     return pending;
@@ -250,6 +314,7 @@ function prepare(opts, result) {
     result.runRoot = result.root;
     return;
   }
+  const baseBranch = integrationBranch(config, git);
   const prefix = gitText(["rev-parse", "--show-prefix"]);
   const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
   let invocation = readRunIdentity(path.join(result.root, change));
@@ -338,10 +403,12 @@ function prepare(opts, result) {
       result.case = "created";
       validateSource(source);
       checkCopyParents(expectedWorktree, result.root);
+      const startCommit = gitText(["rev-parse", "--verify", "HEAD^{commit}"]);
+      if (!COMMIT_RE.test(startCommit)) throw new Error("Cannot verify the original HEAD commit");
+      checkFreshBase(startCommit, baseBranch, result);
       addExclude(prefix, opts.id, result);
       result.notInRun = outsidePaths(prefix, change);
       result.worktree = expectedWorktree;
-      const startCommit = gitText(["rev-parse", "--verify", "HEAD^{commit}"]);
       pending = { root: result.root, worktree: expectedWorktree, prefix, chain: opts.chain, startCommit };
       writePending(file, pending);
       const added = git(["worktree", "add", "--no-track", "-b", branch, expectedWorktree, startCommit]);

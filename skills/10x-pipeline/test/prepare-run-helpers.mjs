@@ -28,6 +28,22 @@ export function fixture(chain = "10x", nest = null, committed = false) {
   return p;
 }
 
+export function fixtureRemote(p, name = "origin", branch = "release") {
+  const dir = path.join(p.base, ".git/fixture-remote.git");
+  git(p, ["clone", "--quiet", "--bare", "--no-hardlinks", p.base, dir]);
+  const remoteGit = (args) => git(p, ["--git-dir", dir, ...args]);
+  remoteGit(["branch", branch, "HEAD"]);
+  remoteGit(["symbolic-ref", "HEAD", `refs/heads/${branch}`]);
+  git(p, ["remote", "add", name, dir]);
+  return { dir, git: remoteGit, advance(message, target = branch) {
+    const ref = `refs/heads/${target}`;
+    const parent = remoteGit(["rev-parse", ref]);
+    const next = remoteGit(["commit-tree", `${parent}^{tree}`, "-p", parent, "-m", message]);
+    remoteGit(["update-ref", ref, next, parent]);
+    return next;
+  } };
+}
+
 export function setup(p, { env = {}, args = ["demo", "--chain", p.chain], script = PREPARE_RUN, timeout } = {}) {
   const res = run(p, args, { script, env: { ...gitEnv(p), ...env }, ...(timeout ? { timeout } : {}) });
   assert.equal(res.status, 0, res.stderr);
@@ -52,7 +68,7 @@ import { spawnSync } from "node:child_process";
 const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + "\\n");
 const command = args[0] === "-C" ? args[2] : args[0];
-const allowed = ["rev-parse", "symbolic-ref", "show-ref", "status", "check-ignore", "worktree", "ls-files", "ls-tree", "merge-base", "hash-object", "check-ref-format", "show"];
+const allowed = ["rev-parse", "symbolic-ref", "show-ref", "status", "check-ignore", "worktree", "ls-files", "ls-tree", "merge-base", "hash-object", "check-ref-format", "show", "remote", "ls-remote", "fetch", "rev-list"];
 if (!allowed.includes(command) || (command === "worktree" && !["add", "list"].includes(args[1]))) process.exit(99);
 const matched = args.join(" ").includes(${JSON.stringify(match)});
 if (${JSON.stringify(mode)} === "fail" && matched) { process.stderr.write("injected Git failure"); process.exit(70); }

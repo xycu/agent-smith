@@ -154,8 +154,8 @@ No router-state or project data migration. Existing initialized runs and worktre
 
 #### Automated
 
-- [ ] 1.1 Local Git fixtures prove fresh tip selection, exact lag, pinned worktree HEAD and zero setup mutations on stale or failed fetch via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
-- [ ] 1.2 The setup CLI keeps one JSON result, reports a local-only freshness skip and performs no freshness fetch on resume, opt-out or cleanup via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
+- [x] 1.1 Local Git fixtures prove fresh tip selection, exact lag, pinned worktree HEAD and zero setup mutations on stale or failed fetch via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
+- [x] 1.2 The setup CLI keeps one JSON result, reports a local-only freshness skip and performs no freshness fetch on resume, opt-out or cleanup via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
 
 ### Phase 2: Prepare dependencies and run the project preflight
 

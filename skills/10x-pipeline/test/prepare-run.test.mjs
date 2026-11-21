@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { cleanupAll, makeProject, run, git, gitEnv, ROUTE, planText, writeReview } from "./helpers.mjs";
-import { PREPARE_RUN, REAL_GIT, relChange, fixture, setup, wrapper } from "./prepare-run-helpers.mjs";
+import { PREPARE_RUN, REAL_GIT, relChange, fixture, fixtureRemote, setup, wrapper } from "./prepare-run-helpers.mjs";
 
 after(cleanupAll);
 const SCRIPTS = path.dirname(PREPARE_RUN);
@@ -336,6 +336,176 @@ test("operational failures return honest JSON and leave created resources intact
 function setupRecord(p, suffix = "pending") {
   return path.join(p.base, ".git", `agent-smith-setup-agent-smith%2Fdemo.${suffix}`);
 }
+
+function freshnessState(p) {
+  return {
+    ...originalState(p),
+    registrations: git(p, ["worktree", "list", "--porcelain"]),
+    exclude: fs.readFileSync(path.join(p.base, ".git/info/exclude")),
+    fetchHead: fs.readFileSync(path.join(p.base, ".git/FETCH_HEAD")),
+    setupFiles: fs.readdirSync(path.join(p.base, ".git")).filter((name) => name.startsWith("agent-smith-setup-")),
+    targetExists: fs.existsSync(path.join(p.root, ".claude/worktrees/agent-smith-demo")),
+  };
+}
+
+test("fresh setup rejects a stale or divergent start without mutating the checkout", () => {
+  for (const diverged of [false, true]) {
+    const p = fixture(diverged ? "openspec" : "10x");
+    const remote = fixtureRemote(p);
+    const start = git(p, ["rev-parse", "HEAD"]);
+    git(p, ["update-ref", "refs/remotes/origin/main", start]);
+    git(p, ["update-ref", "refs/remotes/origin/release", start]);
+    git(p, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
+    git(p, ["config", "remote.origin.prune", "true"]);
+    remote.advance("first upstream commit");
+    const tip = remote.advance("second upstream commit");
+    if (diverged) {
+      git(p, ["commit", "--allow-empty", "-qm", "local-only commit"]);
+      fs.writeFileSync(path.join(p.root, "tracked.txt"), "staged source edit\n");
+      git(p, ["add", "tracked.txt"]);
+      fs.writeFileSync(path.join(p.root, "tracked.txt"), "working source edit\n");
+    }
+    const fetchHead = path.join(p.base, ".git/FETCH_HEAD");
+    fs.writeFileSync(fetchHead, "preserve existing FETCH_HEAD\n");
+    const before = freshnessState(p);
+
+    const out = setup(p);
+    assert.deepEqual(out.base, { remote: "origin", branch: "release", behind: 2 });
+    assert.match(out.reason, /2 commits behind origin\/release.*Update the original checkout and rerun/);
+    assert.equal(out.worktree, null);
+    assert.equal(out.excludeAdded, false);
+    assert.equal(out.copied, false);
+    assert.deepEqual(freshnessState(p), before);
+    assert.equal(git(p, ["cat-file", "-t", tip]), "commit");
+    if (!diverged) {
+      git(p, ["merge", "--ff-only", tip]);
+      const retried = success(p, "created");
+      assert.deepEqual(retried.base, { remote: "origin", branch: "release", behind: 0 });
+      assert.equal(git(p, ["-C", retried.runRoot, "rev-parse", "HEAD"]), tip);
+    }
+  }
+});
+
+test("fresh setup chooses origin or the sole remote and keeps equal and ahead starts pinned", () => {
+  for (const [remoteName, ahead] of [["origin", false], ["upstream", true]]) {
+    const p = fixture();
+    const remote = fixtureRemote(p, remoteName);
+    const integrationTip = git(p, ["rev-parse", "HEAD"]);
+    if (ahead) git(p, ["commit", "--allow-empty", "-qm", "local-only commit"]);
+    else git(p, ["remote", "add", "extra", `${remote.dir}-unreachable`]);
+    const expected = git(p, ["rev-parse", "HEAD"]);
+    const w = wrapper(p);
+    const out = success(p, "created", { env: w.env });
+    assert.deepEqual(out.base, { remote: remoteName, branch: "release", behind: 0 });
+    assert.equal(git(p, ["-C", out.runRoot, "rev-parse", "HEAD"]), expected);
+    const calls = fs.readFileSync(w.log, "utf8").trim().split("\n").map(JSON.parse);
+    assert.deepEqual(calls.find(([cmd]) => cmd === "ls-remote"), ["ls-remote", "--symref", "--", remoteName, "HEAD"]);
+    const fetch = calls.find(([cmd]) => cmd === "fetch");
+    for (const arg of ["--no-tags", "--no-recurse-submodules", "--refmap=", "--no-write-fetch-head"]) assert.ok(fetch.includes(arg), arg);
+    assert.deepEqual(fetch.slice(-3), ["--", remoteName, integrationTip]);
+    assert.deepEqual(calls.find(([cmd]) => cmd === "rev-list"), ["rev-list", "--left-right", "--count", `${expected}...${integrationTip}`]);
+  }
+});
+
+test("integrationBranch selects an exact named remote ref and validates active overrides", () => {
+  const p = fixture();
+  const remote = fixtureRemote(p);
+  remote.git(["branch", "team/integration", "HEAD"]);
+  remote.advance("named integration change", "team/integration");
+  const w = wrapper(p);
+  override(p, { isolation: { integrationBranch: "team/integration" } });
+  const lagging = setup(p, { env: w.env });
+  assert.deepEqual(lagging.base, { remote: "origin", branch: "team/integration", behind: 1 });
+  assert.match(lagging.reason, /1 commit behind origin\/team\/integration/);
+  const calls = fs.readFileSync(w.log, "utf8").trim().split("\n").map(JSON.parse);
+  assert.deepEqual(calls.find(([cmd]) => cmd === "ls-remote"), ["ls-remote", "--refs", "--", "origin", "refs/heads/team/integration"]);
+
+  override(p, { isolation: { integrationBranch: "missing" } });
+  assert.match(setup(p).reason, /Remote origin did not advertise a valid commit for integration branch missing/);
+  for (const integrationBranch of ["", "  ", 7, ["main"], "release/*", "a..b"]) {
+    override(p, { isolation: { integrationBranch } });
+    assert.match(setup(p).reason, /isolation\.integrationBranch/);
+  }
+  assert.equal(fs.existsSync(setupRecord(p)), false);
+  override(p, { isolation: { require: false, integrationBranch: 7 } });
+  assert.equal(success(p, "opt-out").base, undefined);
+});
+
+test("freshness discovery and transport failures keep the original checkout retryable", () => {
+  const p = fixture();
+  const remote = fixtureRemote(p);
+  const fetchHead = path.join(p.base, ".git/FETCH_HEAD");
+  fs.writeFileSync(fetchHead, "preserve existing FETCH_HEAD\n");
+  for (const [stage, reason] of [["ls-remote", /Read integration branch HEAD from origin/],
+    ["fetch", /Fetch integration branch release from origin/], ["rev-list", /Compare original HEAD with origin\/release/]]) {
+    const before = freshnessState(p);
+    const out = setup(p, { env: wrapper(p, "fail", stage).env });
+    assert.match(out.reason, reason);
+    assert.match(out.reason, /Git exited 70/);
+    assert.doesNotMatch(out.reason, /injected Git failure/);
+    assert.equal(out.base, undefined);
+    assert.deepEqual(freshnessState(p), before);
+  }
+  remote.git(["symbolic-ref", "HEAD", "refs/heads/unborn"]);
+  assert.match(setup(p).reason, /Remote origin did not advertise a default branch/);
+  remote.git(["symbolic-ref", "HEAD", "refs/heads/release"]);
+  git(p, ["remote", "set-url", "origin", `${remote.dir}-unreachable`]);
+  assert.match(setup(p).reason, /Read integration branch HEAD from origin: Git exited/);
+  git(p, ["remote", "set-url", "origin", remote.dir]);
+  git(p, ["remote", "rename", "origin", "upstream"]);
+  git(p, ["remote", "add", "other", remote.dir]);
+  assert.match(setup(p).reason, /several remotes.*none is origin/);
+  git(p, ["remote", "rename", "upstream", "origin"]);
+  success(p, "created");
+});
+
+test("fresh setup refuses shallow history without creating a run", () => {
+  const p = fixture();
+  fixtureRemote(p);
+  git(p, ["fetch", "--depth=1", "origin", "refs/heads/release"]);
+  const before = freshnessState(p);
+  assert.match(setup(p).reason, /shallow repository.*Unshallow the original checkout/);
+  assert.deepEqual(freshnessState(p), before);
+});
+
+test("freshness runs only before a new registration, including an unregistered pending retry", () => {
+  const local = fixture();
+  assert.deepEqual(success(local, "created").base, { skipped: "no-remote" });
+
+  const p = fixture();
+  const remote = fixtureRemote(p);
+  const file = setupRecord(p);
+  const startCommit = git(p, ["rev-parse", "HEAD"]);
+  const worktree = path.join(p.root, ".claude/worktrees/agent-smith-demo");
+  const pending = JSON.stringify({ root: p.root, worktree, prefix: "", chain: p.chain, startCommit });
+  fs.writeFileSync(file, pending);
+  const tip = remote.advance("new upstream commit");
+  assert.equal(setup(p).base.behind, 1);
+  assert.equal(fs.readFileSync(file, "utf8"), pending);
+  git(p, ["merge", "--ff-only", tip]);
+  const saved = success(p, "created");
+  assert.equal(saved.base.behind, 0);
+  initialize(p, saved);
+  assert.equal(fs.existsSync(file), false);
+  remote.advance("a later upstream commit");
+  const w = wrapper(p, "fail", "ls-remote");
+  assert.equal(success(p, "reused", { env: w.env }).base, undefined);
+  assert.equal(success({ ...p, root: saved.runRoot }, "in-run-worktree", { env: w.env }).base, undefined);
+  assert.deepEqual(cleanSuccess(p, saved, { env: w.env }).base, saved.base);
+  override(p, { isolation: { require: false } });
+  assert.equal(success(p, "opt-out", { env: w.env }).base, undefined);
+  assert.ok(!fs.readFileSync(w.log, "utf8").trim().split("\n").map(JSON.parse)
+    .some(([cmd]) => ["remote", "ls-remote", "fetch"].includes(cmd)));
+
+  const retry = fixture("10x", null, true);
+  const retryRemote = fixtureRemote(retry);
+  const conflict = copyConflict(retry);
+  retryRemote.advance("after registration");
+  conflict.fix();
+  const recovered = success(retry, "reused", { env: wrapper(retry, "fail", "ls-remote").env });
+  assert.equal(recovered.runRoot, conflict.out.worktree);
+  assert.equal(recovered.base, undefined);
+});
 
 function copyConflict(p) {
   const source = path.join(p.changeDir, "change.md");
