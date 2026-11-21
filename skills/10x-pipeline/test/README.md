@@ -79,6 +79,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `openfindings.test.mjs` | routing of reviews on open findings (ADR-011): the `### F<n>` and `Decision` parser, policy keys, the `review` field of the log and `status`, the review gates and halt texts, the confirmation round, the `## Review findings` report section. It writes its own Decision-bearing reviews |
+| `plan-rows.test.mjs` | the fence-aware Progress and finding readers, archived plans read as by the old reader, and a `plan` or `plan-revise` step that leaves no pending `- [ ] N.M` Automated row fails and is asked for again |
 | `cost.test.mjs` | the run cost estimate: the `prices` block and its validation, `estimateCost`, the `Cost (est.)` column and `Cost (estimate)` line of `report.md`, the `cost` object of `status` for both chains, and `compare` cost rows and the `cost-incomplete` warning. Turn on with `prices: { usdPerMillionTokens: { ... } }` |
 | `neutral.test.mjs` | the `orchestrator-error` rerun (ADR-015): same prompt and tier on both chains and in an isolated run, with no failed attempt, rigor rise, budget use or rollback; the `limits.maxNeutralRetries` cap; the `neutralRetries` field of `status`; the `## Neutral reruns` report section |
 | `prompt-handoff.test.mjs` | opt-in task files: exact dispatch and saved flat/delegated replay across settings drift, cleanup recovery, Codex validation, commit hygiene and synthetic byte measurements |
