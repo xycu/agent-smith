@@ -199,8 +199,8 @@ A run already started by the defect (`meta.json` id `foo`, branch `agent-smith/b
 
 #### Automated
 
-- [x] 2.1 The rule is in the isolation section: `grep -n "run branch of another change\|<id>-baseline\|<change-id>-baseline" docs/REFERENCE.md` shows the new bullet and the exact baseline name
-- [x] 2.2 The ADR records it: `grep -n "Amendment 5" docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md`
-- [x] 2.3 No doc still says the check is prefix-only: `grep -n "does not start with" docs/REFERENCE.md | grep -v "another change"` prints nothing
-- [x] 2.4 Version and commit-lint tools stay green: `node tools/version-check.mjs`
-- [x] 2.5 Full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 2.1 The rule is in the isolation section: `grep -n "run branch of another change\|<id>-baseline\|<change-id>-baseline" docs/REFERENCE.md` shows the new bullet and the exact baseline name — d0c5914a
+- [x] 2.2 The ADR records it: `grep -n "Amendment 5" docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md` — d0c5914a
+- [x] 2.3 No doc still says the check is prefix-only: `grep -n "does not start with" docs/REFERENCE.md | grep -v "another change"` prints nothing — d0c5914a
+- [x] 2.4 Version and commit-lint tools stay green: `node tools/version-check.mjs` — d0c5914a
+- [x] 2.5 Full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` — d0c5914a
