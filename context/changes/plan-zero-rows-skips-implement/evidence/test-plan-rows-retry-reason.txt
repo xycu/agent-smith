@@ -1,0 +1,26 @@
+skills/10x-pipeline/test/plan-rows.test.mjs (reason assertion at line 218: retry reason after failed first plan)
+✔ a backtick-fenced Progress example before the real section leaves the real rows read (4.607208ms)
+✔ a tilde-fenced Progress example before the real section leaves the real rows read (1.402542ms)
+✔ a fenced Progress example in a CRLF plan leaves the real rows read (1.332708ms)
+✔ a quoted Progress after the real section and fenced lines inside it change nothing (3.85425ms)
+✔ a plan whose only Progress heading is fenced reads no Progress (1.106584ms)
+✔ an unclosed fence reads as fenced to the end of the text (1.744125ms)
+✔ a backtick line whose info string holds a backtick opens no fence (0.896459ms)
+✔ archived plans read the same as with the old reader (77.034625ms)
+✔ a fenced ### line inside a finding block keeps its Decision (6.565416ms)
+✔ an unfenced heading still cuts a finding block (5.031125ms)
+✔ an unclosed fence in a finding block never reads cleaner than the header counts (1.747208ms)
+✔ a plan written with * rows does not verify, is asked for again and halts at the attempt limit (720.148334ms)
+✔ numbered and indented rows do not verify and the plan is asked for again (774.286709ms)
+✔ a plan with only Manual pending rows or only ticked Automated rows is asked for again (845.7395ms)
+✔ a plan with a pending - [ ] row verifies and moves to plan-review (483.786291ms)
+✔ a plan-revise that leaves no readable row fails and plan-revise runs again (450.602333ms)
+✔ a plan supplied at init with every row ticked still routes to review (239.452625ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3829.313333

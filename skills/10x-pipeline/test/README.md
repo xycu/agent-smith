@@ -58,7 +58,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp/copy and resume preservation, concurrent setup exclusion, runtime failures and command restrictions |
 | `prepare-run-timeout.test.mjs` | The real two-minute Git deadline, isolated so it runs alongside the other setup checks |
 | `prepare-run-helpers.mjs` | Shared setup fixtures, JSON assertions and Git wrapper for both pre-init test files |
-| `isolation.test.mjs` | the isolation gate of `init`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
+| `isolation.test.mjs` | the isolation gate of `init` and `next`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
 | `stepcommit.test.mjs` | the start and step commits (ADR-010) |
 | `rollback.test.mjs` | the failed-step rollback, preserved interrupted index-snapshot ancestry and undo on halt (ADR-010) |
 | `firstattempt.test.mjs` | the cheaper first implement attempt (ADR-010) |
@@ -73,13 +73,15 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `codex-rules.test.mjs` | `.codex/rules/project.rules` refuses `git push` and every `gh` form by a table checked with an in-test prefix evaluator and, when Codex is installed, with `codex execpolicy check`; no `gh` or `git push` allow remains |
 | `result-persist.test.mjs` | persist-before-unlink, both-chain inline/file crash recovery, cleanup errors, result ownership boundaries, isolated success commits and failure snapshots, pending neutral retry and late-usage preservation |
 | `run-state.test.mjs` | atomic log, metadata and report publication, failure and process-termination boundaries, permission preservation, exact owned-temp cleanup, strict log guards and read-only diagnostics, both-chain CLI smoke checks and byte-exact late-usage recovery |
-| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, native crash exclusion after group exit and surviving out-of-group child writes, unchanged staged/working edits and late results while blocked, uncertain-child refusal, cancellation retention through held-descendant collection, release on success and halt, read-only commands, both chains. `TMPDIR` points the lock into a scratch directory |
+| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, native crash exclusion after group exit and surviving out-of-group child writes, unchanged staged/working edits and late results while blocked, uncertain-child refusal, cancellation retention through held-descendant collection, release on success and halt, read-only commands, both chains, stale-takeover exclusion across processes (guard held by a live or dead pid, native lock untouched, no overlapping holds over 120 stale locks). `TMPDIR` points the lock into a scratch directory |
+| `run-lock-worker.mjs` | one process of the multi-process stale-takeover test: spins to a shared time slot, takes a run lock, holds it, prints its hold intervals; `LOCK_MODULE` swaps the module under test; registers no tests |
 
 ## Reviews, cost, retries and policy
 
 | File | Scope |
 | --- | --- |
 | `openfindings.test.mjs` | routing of reviews on open findings (ADR-011): the `### F<n>` and `Decision` parser, policy keys, the `review` field of the log and `status`, the review gates and halt texts, the confirmation round, the `## Review findings` report section. It writes its own Decision-bearing reviews |
+| `plan-rows.test.mjs` | the fence-aware Progress and finding readers, archived plans read as by the old reader, and a `plan` or `plan-revise` step that leaves no pending `- [ ] N.M` Automated row fails and is asked for again |
 | `cost.test.mjs` | the run cost estimate: the `prices` block and its validation, `estimateCost`, the `Cost (est.)` column and `Cost (estimate)` line of `report.md`, the `cost` object of `status` for both chains, and `compare` cost rows and the `cost-incomplete` warning. Turn on with `prices: { usdPerMillionTokens: { ... } }` |
 | `neutral.test.mjs` | the `orchestrator-error` rerun (ADR-015): same prompt and tier on both chains and in an isolated run, with no failed attempt, rigor rise, budget use or rollback; the `limits.maxNeutralRetries` cap; the `neutralRetries` field of `status`; the `## Neutral reruns` report section |
 | `prompt-handoff.test.mjs` | opt-in task files: exact dispatch and saved flat/delegated replay across settings drift, cleanup recovery, Codex validation, commit hygiene and synthetic byte measurements |

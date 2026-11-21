@@ -901,7 +901,7 @@ for (const chain of ["10x", "openspec"]) {
       { id: "demo", isolated: true, branch: "codex/demo", chain: chain === "10x" ? "openspec" : "10x" },
       { id: "demo" }, { id: "demo", isolated: false, branch: "codex/demo", chain },
       { id: "demo", isolated: true, branch: null, chain },
-      { id: "demo", isolated: true, branch: "codex/other", chain },
+      { id: "demo", isolated: true, branch: "codex/demo-other", chain },
       { id: "demo", isolated: true, branch: "codex/@{-1}", chain }];
     const w = world({ chain, prefix: "codex/", identity: true });
     fs.writeFileSync(path.join(w.root, "kept.txt"), "staged contents");

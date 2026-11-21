@@ -1,6 +1,6 @@
 # ADR-010: Run every change in its own worktree, commit each step, roll back a failed step, and make the first implement attempt cheaper
 
-- **Status:** Accepted (owner, 2026-11-08), amended through Amendment 4. Isolated edits, step commits and scratch rollback have recorded results. The permission prompt and first-attempt savings still need evidence. [Live checks](#live-checks) · [First-attempt experiment](#ab-result)
+- **Status:** Accepted (owner, 2026-11-08), amended through Amendment 5. Isolated edits, step commits and scratch rollback have recorded results. The permission prompt and first-attempt savings still need evidence. [Live checks](#live-checks) · [First-attempt experiment](#ab-result)
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `worktree-step-commits`; the repository owner confirms or changes the readings below
 - **Origin:** change `worktree-step-commits` (`context/changes/worktree-step-commits/change.md`, `plan.md`, `research.md` and `reviews/plan-review.md`). It widens the router's git-write rule in `AGENTS.md` (Hard Rules), which before this change allowed only the pre-archive commit of ADR-003 ("Archive adapter"). That commit is unchanged.
@@ -219,3 +219,13 @@ Saved invocation identity is checked first, followed by the established already-
 The router owns `meta.json` and `run.jsonl`, and the saved format needs no added field. Worktree directories use `.claude/worktrees/agent-smith-<id>`. Router recovery refs use `refs/agent-smith/`. The strict boolean isolation opt-out precedes prefix-specific validation. Both skills report saved setup identity and publication identity in terminal diagnostics.
 
 Deploy scripts and skills together. Existing default-prefix runs resume through their recorded identity. An older publisher can refuse a custom-prefix run after downgrade, so keep that run on a compatible revision or restore the fixed version. Roll back code with a new revert commit through the normal review process and retain run branches, worktrees and recovery refs.
+
+## Amendment 5 — Run branch belongs to the change id (2026-11-20)
+
+`validateRunBranch` accepted any branch under the prefix, so a run of change `foo` started in the worktree of run `bar` committed and rolled back on `bar`'s branch.
+
+**GIVEN** a run without a saved identity of the change id **WHEN** setup or `init` validates the branch **THEN** it **MUST** accept only `<prefix><id>` and `<prefix><id>-baseline`, and refuse any other branch under the prefix with a message that names the change id being started and the id the branch belongs to, before any write.
+
+**GIVEN** a saved identity (`meta.json` with the same id) **WHEN** its recorded branch is validated **THEN** it **MUST** start with `<prefix><id>`, so saved runs on other suffix branches resume. A recorded branch of another change is refused with the same message and without the `isolation.branchPrefix` recovery sentence.
+
+Known limit: the name cannot tell the baseline branch of `foo` from the run branch of a change called `foo-baseline`, and a saved identity of `foo` on `agent-smith/foo-bar` still resumes. No branch is deleted and no history is rewritten to recover; the user leaves the other worktree and runs `prepare-run.mjs <id>` from the original project root.

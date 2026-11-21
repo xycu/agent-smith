@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md Done when and Direction fix the outcome; the open detail is whether the character after the id must be end-of-name or '-' (change.md Direction, left to the plan)" },
+    "novelty": { "score": 1, "evidence": "validateRunBranch in skills/10x-pipeline/scripts/run-identity.mjs already has a startsWith prefix check at line 77; the change adapts it to prefix plus id" },
+    "coupling": { "score": 2, "evidence": "validateRunBranch is called from run-identity.mjs (runBranch, validateRunIdentity), prepare-run.mjs and isolation.mjs; the shared guard is used by several modules" },
+    "discovery": { "score": 1, "evidence": "change.md names run-identity.mjs:66-81, prepare-run.mjs:179-180, isolation.mjs:301-304 and docs/REFERENCE.md isolation section; one grep confirmed the callers" },
+    "volume": { "score": 2, "evidence": "one guard function plus its messages, a docs/REFERENCE.md rule and new refusal and baseline tests across the prepare-run and run-identity suites, about 4 to 5 files" },
+    "verification": { "score": 1, "evidence": "existing prepare-run, run-identity and open-pr tests cover most of it; change.md Done when needs two new tests (refuse inside run bar's worktree, accept <id>-baseline)" }
+  },
+  "unknowns": [
+    "Whether the character after the id must be end-of-name or '-' (the stricter rule would reject agent-smith/foo-bar for id foo); the plan decides",
+    "Exact behavior of open-pr.mjs and isolation.mjs under the new rule was not traced line by line; only the grep of callers was done"
+  ],
+  "confidence": "medium"
+}

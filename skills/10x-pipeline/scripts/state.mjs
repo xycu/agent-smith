@@ -315,6 +315,32 @@ function rowId(text) {
   return m ? m[1] : text.replace(ROW_SUFFIX_RE, "");
 }
 
+// Per line, true when the line is a code-fence line or lies inside a fence. A fence opens on up to three spaces then
+// three or more backticks or tildes (a backtick fence's info string holds no backtick) and closes on a line of the same
+// character, at least as long, then blanks only. A trailing \r is ignored. An unclosed fence runs to the end of the text.
+// shortcut: fences indented more than three spaces, inside block quotes or list items, and <pre> blocks are not tracked; upgrade to a Markdown parser if plans or reviews start using them.
+function fencedLines(lines) {
+  const out = [];
+  let open = null;
+  for (const raw of lines) {
+    const line = raw.replace(/\r$/, "");
+    if (open) {
+      const c = line.match(/^ {0,3}(`{3,}|~{3,})[ \t]*$/);
+      if (c && c[1][0] === open[0] && c[1].length >= open.length) open = null;
+      out.push(true);
+      continue;
+    }
+    const o = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (o && !(o[1][0] === "`" && o[2].includes("`"))) {
+      open = o[1];
+      out.push(true);
+      continue;
+    }
+    out.push(false);
+  }
+  return out;
+}
+
 export function readPlan(file) {
   const res = { exists: false, hasProgress: false, phases: 0, rows: 0, autoDone: 0, autoPending: 0, manualPending: [], phaseList: [], mtime: 0 };
   // A chain without a plan (OpenSpec: paths().plan is null) reads as a missing plan.
@@ -322,12 +348,16 @@ export function readPlan(file) {
   res.exists = true;
   res.mtime = mtime(file);
   const text = fs.readFileSync(file, "utf8");
-  const idx = text.search(/^## Progress\s*$/m);
+  const lines = text.split(/\r?\n/);
+  const fenced = fencedLines(lines);
+  const idx = lines.findIndex((line, i) => !fenced[i] && /^## Progress\s*$/.test(line));
   if (idx < 0) return res;
   res.hasProgress = true;
   let section = null;
   let cur = null;
-  for (const line of text.slice(idx).split(/\r?\n/)) {
+  for (let i = idx; i < lines.length; i++) {
+    if (fenced[i]) continue;
+    const line = lines[i];
     if (/^## /.test(line) && !/^## Progress\s*$/.test(line)) break;
     if (/^### Phase \d+/.test(line)) {
       res.phases++;
@@ -376,8 +406,10 @@ function readFindings(text) {
     });
     cur = null;
   };
-  for (const line of text.split("\n")) {
-    if (/^#{2,3}\s/.test(line)) {
+  const lines = text.split("\n");
+  const fenced = fencedLines(lines);
+  for (const [i, line] of lines.entries()) {
+    if (!fenced[i] && /^#{2,3}\s/.test(line)) {
       flush();
       const h = line.match(/^###\s+(F\d+)\b/);
       if (h) cur = { id: h[1], lines: [] };

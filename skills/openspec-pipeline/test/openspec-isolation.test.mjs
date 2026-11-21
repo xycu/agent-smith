@@ -176,6 +176,15 @@ test("an OpenSpec init in a worktree that holds context/changes/<id>/ halts", { 
   assert.equal(head(wt), start);
 });
 
+test("next --chain openspec halts and writes nothing when init never ran", { skip }, () => {
+  const main = repo();
+  const res = run(main, ["next", main.id, "--chain", "openspec"], { env: gitEnv(main) });
+  assert.equal(res.status, 1, res.stdout + res.stderr);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /init/);
+  assert.equal(fs.existsSync(path.join(main.base, CHANGE, "agent-smith")), false);
+});
+
 test("the fix-loop halt of an isolated run adds the commit rule", () => {
   // Run state only: the last entry is a verified os-verify with a step commit, so next makes no git call.
   const project = makeOpenspecProject({ policy: ON, ...TICKED });
