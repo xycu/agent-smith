@@ -50,5 +50,9 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step 5 (impl-review) needs a human: Hook rejects Edit/Write under this worktree's .claude folder; the owner must save reviews/impl-review.md, stamp change.md, apply the F1 fix in run-lock.mjs and commit it, or allow edits and rerun the step."
   }
 }
