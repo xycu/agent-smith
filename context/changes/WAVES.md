@@ -1,6 +1,6 @@
 # Waves v3
 
-Updated 2026-11-20. Wave 1 is merged. `main` is at `48fee96e`, after [PR #233](https://github.com/xycu/agent-smith/pull/233), and the current release is [v1.15.0](https://github.com/xycu/agent-smith/releases/tag/v1.15.0). The planning snapshot of 2026-11-19 was `main` at `52e197f3ad5a6722022026aeb1bec81870aa8fc6`, after [PR #221](https://github.com/xycu/agent-smith/pull/221); the line numbers below are still those of that snapshot.
+Updated 2026-11-21. Waves 1 and 2 are merged. `main` is at `91b89f8c`, after the release PR [#246](https://github.com/xycu/agent-smith/pull/246). [v1.15.1](https://github.com/xycu/agent-smith/releases/tag/v1.15.1) shipped five of the six Wave 2 changes and the merged release PR #246 publishes v1.15.2 with `step-guard-bypass-forms` once CI on `main` passes. Wave 3 starts after that release. The four GitHub issues open on 2026-11-21 have change folders and slots (see "Added from GitHub issues"). The planning snapshot of 2026-11-19 was `main` at `52e197f3ad5a6722022026aeb1bec81870aa8fc6`, after [PR #221](https://github.com/xycu/agent-smith/pull/221); the line numbers below are still those of that snapshot.
 
 This version replaces the v2 schedule. Waves 0 to 2 of v2 are merged and archived (S-14, the two audit fixes of 2026-11-15, S-13). Their acceptance records, the Wave 0 contract and the deferrals to S-20 stay in the [version 2 ledger](https://github.com/xycu/agent-smith/blob/52e197f3ad5a6722022026aeb1bec81870aa8fc6/context/changes/WAVES.md). No archived artifact is changed or marked complete by this file.
 
@@ -16,8 +16,8 @@ This version replaces the v2 schedule. Waves 0 to 2 of v2 are merged and archive
 | --- | --- |
 | P0, must fix | `review-verdict-unknown-passes`, `plan-zero-rows-skips-implement`, `open-pr-unfinished-merge-commit`, `codex-failure-native-lock-stuck`, `step-guard-bypass-forms` |
 | P0 prerequisite | `step-guard-heredoc-false-positives` (the bypass fix builds on its parser) |
-| P1, should fix, runtime | `next-requires-isolated-init`, `meta-json-damage-halts`, `run-branch-must-match-change-id`, `prepare-run-retry-after-failed-setup`, `open-pr-base-selection`, `run-lock-stale-takeover-race`, `replan-failure-halt-recoverable`, `openspec-critical-none-placeholder`, `codex-step-publication-guard` |
-| P2, owner decision first | `ci-self-hosted-runner-exposure`, `first-attempt-drop-unmeasured`, `claude-token-figures-default`, and the open [PR #214](https://github.com/xycu/agent-smith/pull/214) for S-12 |
+| P1, should fix, runtime | `next-requires-isolated-init`, `meta-json-damage-halts`, `run-branch-must-match-change-id`, `prepare-run-retry-after-failed-setup`, `open-pr-base-selection`, `run-lock-stale-takeover-race`, `replan-failure-halt-recoverable`, `openspec-critical-none-placeholder`, `codex-step-publication-guard`, `codex-profile-and-gitdir-access`, `run-root-worktree-readiness`, `run-root-cross-worktree-writes` (frame first) |
+| P2, owner decision first | `ci-self-hosted-runner-exposure`, `first-attempt-drop-unmeasured`, `claude-token-figures-default`, and the open [PR #214](https://github.com/xycu/agent-smith/pull/214) for S-12; `usage-capture-preflight` (waits for the token decision) |
 | P3, upkeep | `usage-file-docs-drift`, `docs-status-truth-up`, `open-pr-base-prefix-collision`, `test-suite-trim-and-gaps`, `test-shard-durations-refresh`, `quote-router-in-skill-loops` (parked) |
 
 A wave takes the highest priority first. A lower-priority change joins an earlier wave only when its lane is free there.
@@ -31,11 +31,11 @@ A lane is a region of code that one change owns at a time. Changes in one lane r
 | Flow | `flow.mjs` (`decide`); in `state.mjs` the verdict regex (`:340`) and `readPlan` (`:268-288`) | `review-verdict-unknown-passes`, then `plan-zero-rows-skips-implement`, then `replan-failure-halt-recoverable` |
 | Guard | `step-guard.mjs` and its test | `step-guard-heredoc-false-positives`, then `step-guard-bypass-forms` |
 | Publish | `open-pr.mjs` | `open-pr-unfinished-merge-commit` (`commitLeftovers`), then `open-pr-base-prefix-collision`, then `open-pr-base-selection` (both in `resolveBase`) |
-| Lock and Codex | `acquireRunLock` in `state.mjs` (`:990-1054`), `run-codex.mjs`, `.codex/` | `codex-failure-native-lock-stuck`, then `run-lock-stale-takeover-race` and `codex-step-publication-guard` side by side |
+| Lock and Codex | `acquireRunLock` in `state.mjs` (`:990-1054`), `run-codex.mjs`, `.codex/` | `codex-failure-native-lock-stuck`, then `run-lock-stale-takeover-race` and `codex-step-publication-guard` side by side, then `codex-profile-and-gitdir-access` |
 | Router entry | `next()` in `route.mjs` (`:83-127`); `readJson` and `readMeta` in `state.mjs` | `next-requires-isolated-init`, then `meta-json-damage-halts`, then `replan-failure-halt-recoverable` |
-| Setup | `run-identity.mjs`, `prepare-run.mjs` | `run-branch-must-match-change-id`, then `prepare-run-retry-after-failed-setup`; `open-pr-base-prefix-collision` may validate the prefix in `run-identity.mjs:38`, so it comes after the first |
+| Setup | `run-identity.mjs`, `prepare-run.mjs` | `run-branch-must-match-change-id`, then `prepare-run-retry-after-failed-setup`; `open-pr-base-prefix-collision` may validate the prefix in `run-identity.mjs:38`, so it comes after the first; then `run-root-worktree-readiness`, and `run-root-cross-worktree-writes` if its frame puts the fix in setup |
 | OpenSpec | `openspec.mjs`, `os-verify.md` | `openspec-critical-none-placeholder` |
-| Skill text | both `SKILL.md` files and the tests that pin them | `codex-failure-native-lock-stuck` (line 88), then `claude-token-figures-default`, then `quote-router-in-skill-loops` |
+| Skill text | both `SKILL.md` files and the tests that pin them | `codex-failure-native-lock-stuck` (line 88), then `claude-token-figures-default`, then `quote-router-in-skill-loops`; `usage-capture-preflight` follows `claude-token-figures-default` because both touch `claude-usage.mjs` |
 | Docs and tests | `docs/`, `README.md`, `AGENTS.md`, `tools/`, test files | `usage-file-docs-drift` and `docs-status-truth-up` early; `test-suite-trim-and-gaps`, then `test-shard-durations-refresh` last |
 
 `replan-failure-halt-recoverable` sits in two lanes (Flow and Router entry), so it waits for both.
@@ -44,12 +44,12 @@ A lane is a region of code that one change owns at a time. Changes in one lane r
 
 | Wave | Runs in parallel | Entry condition | Exit outcome |
 | --- | --- | --- | --- |
-| **D, decisions** (no code), **not started** | Frames for `ci-self-hosted-runner-exposure`, `first-attempt-drop-unmeasured`, `claude-token-figures-default`; the owner decision on PR #214 | Open now, beside Wave 2. Each of the three changes holds only its `change.md`. | Each frame records the chosen option. Each implementation gets its slot in Wave 4 or 5. |
+| **D, decisions** (no code), **not started** | Frames for `ci-self-hosted-runner-exposure`, `first-attempt-drop-unmeasured`, `claude-token-figures-default`, `run-root-cross-worktree-writes`; the owner decision on PR #214 | Open now, beside Wave 2. Each of the three changes holds only its `change.md`. | Each frame records the chosen option. Each implementation gets its slot in Wave 4 or 5. The frame of `run-root-cross-worktree-writes` names the hook that refused the write. |
 | **1, safety part 1** (6), **merged and archived 2026-11-20** | `review-verdict-unknown-passes`; `open-pr-unfinished-merge-commit`; `codex-failure-native-lock-stuck`; `step-guard-heredoc-false-positives`; `usage-file-docs-drift`; `docs-status-truth-up` | `main` at the snapshot or later. | Three of five must-fix findings are closed. The guard parser is ready for the bypass fix. Usage text and document statuses are true. |
-| **2, safety part 2** (6), **merged and archived 2026-11-21**; v1.15.1 shipped five, `step-guard-bypass-forms` ships in the next release | `plan-zero-rows-skips-implement`; `step-guard-bypass-forms`; `run-lock-stale-takeover-race`; `codex-step-publication-guard`; `next-requires-isolated-init`; `run-branch-must-match-change-id` | Wave 1 merged (met). | All five must-fix findings are closed. Cut a release here. |
-| **3, state and setup** (4, plus one live proof) | `meta-json-damage-halts`; `prepare-run-retry-after-failed-setup`; `open-pr-base-prefix-collision`; `openspec-critical-none-placeholder`; S-12 live rows 3.1 to 3.3 on the Wave 2 release | Wave 2 merged and released. | Damaged state halts, a failed setup can be retried, a short prefix cannot hide the base. S-12 has its live proof or a recorded deferral. |
-| **4, recovery and decisions** (2 to 4) | `replan-failure-halt-recoverable`; `open-pr-base-selection`; the implementation of `ci-self-hosted-runner-exposure`; the implementation of `claude-token-figures-default` | Wave 3 merged; the two frames decided. | Every runtime should-fix finding is closed. CI and the token figures follow the owner's decisions. |
-| **5, policy and skill text** (2) | The implementation of `first-attempt-drop-unmeasured`; `quote-router-in-skill-loops` if the owner resumes it | Wave 4 merged. | The first-attempt drop matches ADR-010. The skill loops quote their paths, or the change stays parked. |
+| **2, safety part 2** (6), **merged and archived 2026-11-21**; released in v1.15.1 and v1.15.2 (#246) | `plan-zero-rows-skips-implement`; `step-guard-bypass-forms`; `run-lock-stale-takeover-race`; `codex-step-publication-guard`; `next-requires-isolated-init`; `run-branch-must-match-change-id` | Wave 1 merged (met). | All five must-fix findings are closed. Cut a release here. |
+| **3, state and setup** (5, plus one live proof) | `meta-json-damage-halts`; `prepare-run-retry-after-failed-setup`; `open-pr-base-prefix-collision`; `openspec-critical-none-placeholder`; `codex-profile-and-gitdir-access`; S-12 live rows 3.1 to 3.3 on the Wave 2 release | Wave 2 merged (met) and released as v1.15.2. | Damaged state halts, a failed setup can be retried, a short prefix cannot hide the base. `init` warns when the Codex profile or the worktree gitdir write access is missing. S-12 has its live proof or a recorded deferral. |
+| **4, recovery and decisions** (3 to 6) | `replan-failure-halt-recoverable`; `open-pr-base-selection`; `run-root-worktree-readiness`; the implementation of `run-root-cross-worktree-writes`; the implementation of `ci-self-hosted-runner-exposure`; the implementation of `claude-token-figures-default` | Wave 3 merged; the three frames decided. | Every runtime should-fix finding is closed. A run root is ready for the project's gates before step 1, and a refused write stops `init` with one clear error. CI and the token figures follow the owner's decisions. |
+| **5, policy and skill text** (3) | The implementation of `first-attempt-drop-unmeasured`; `usage-capture-preflight`; `quote-router-in-skill-loops` if the owner resumes it | Wave 4 merged. | The first-attempt drop matches ADR-010. A run warns before step 1 when token usage cannot be captured. The skill loops quote their paths, or the change stays parked. |
 | **6, tests** (2, one after the other) | `test-suite-trim-and-gaps`, then `test-shard-durations-refresh` | Wave 5 merged, so no other open change edits a test file. | The suite is faster, the untested branches are covered, and the shard timings match the new suite. |
 | **7** (1) | S-15 `actionable-run-prerequisites` | Wave 6 merged; S-12 delivered. | As in v2. |
 | **8** (2) | S-16 `resumable-unattended-runs`; S-18 `verified-step-protection` | Wave 7 merged; the two plans own different regions. | As in v2. |
@@ -74,7 +74,7 @@ Each row is a planning boundary. The plan of each change confirms it before laun
 
 Merged as [#223](https://github.com/xycu/agent-smith/pull/223) `usage-file-docs-drift`, [#224](https://github.com/xycu/agent-smith/pull/224) `open-pr-unfinished-merge-commit`, [#225](https://github.com/xycu/agent-smith/pull/225) `codex-failure-native-lock-stuck`, [#226](https://github.com/xycu/agent-smith/pull/226) `docs-status-truth-up`, [#227](https://github.com/xycu/agent-smith/pull/227) `review-verdict-unknown-passes` and [#229](https://github.com/xycu/agent-smith/pull/229) `step-guard-heredoc-false-positives`. All six folders are in `context/archive/` with the date prefix 2026-11-19. The ownership table above is kept as the record of the boundaries.
 
-### Wave 2
+### Wave 2 (merged)
 
 | Change | Priority | Owns | Waits for |
 | --- | --- | --- | --- |
@@ -85,6 +85,8 @@ Merged as [#223](https://github.com/xycu/agent-smith/pull/223) `usage-file-docs-
 | `next-requires-isolated-init` | P1 | `route.mjs:83-121` | none |
 | `run-branch-must-match-change-id` | P1 | `run-identity.mjs:66-81` | none |
 
+Merged as [#235](https://github.com/xycu/agent-smith/pull/235) `run-lock-stale-takeover-race`, [#236](https://github.com/xycu/agent-smith/pull/236) `codex-step-publication-guard`, [#237](https://github.com/xycu/agent-smith/pull/237) `next-requires-isolated-init`, [#238](https://github.com/xycu/agent-smith/pull/238) `run-branch-must-match-change-id`, [#239](https://github.com/xycu/agent-smith/pull/239) `plan-zero-rows-skips-implement` and [#241](https://github.com/xycu/agent-smith/pull/241) `step-guard-bypass-forms`. All six folders are in `context/archive/` with the date prefix 2026-11-19. Open follow-ups from the reviews: `step-guard-bypass-forms` findings F2 (brace, glob and letter-case forms) and F3 (history-pruning commands), and `codex-step-publication-guard` finding F2, wait for the owner.
+
 ### Wave 3
 
 | Change | Priority | Owns | Waits for |
@@ -93,6 +95,7 @@ Merged as [#223](https://github.com/xycu/agent-smith/pull/223) `usage-file-docs-
 | `prepare-run-retry-after-failed-setup` | P1 | `prepare-run.mjs:100-126`, `:218-262` | `run-branch-must-match-change-id` |
 | `open-pr-base-prefix-collision` | P3 | `open-pr.mjs:204-206`; maybe `run-identity.mjs:38` | `open-pr-unfinished-merge-commit`, `run-branch-must-match-change-id` |
 | `openspec-critical-none-placeholder` | P1 | `openspec.mjs:116-126`, `:199`; `os-verify.md` | none |
+| `codex-profile-and-gitdir-access` | P1 | a new `init` check of the Codex profile and the gitdir write access; the plan names its function and keeps it out of `prepare-run.mjs:100-126`, `:218-262` and the `readMeta` callers | `codex-step-publication-guard` |
 | S-12 live rows 3.1 to 3.3 | P2 | no code; one fresh headless Claude-only run | the Wave 2 release; the owner decision on PR #214 |
 
 If the plan of `open-pr-base-prefix-collision` validates the prefix where the policy is loaded and that code sits in the region of `meta-json-damage-halts`, move it to Wave 4 beside `open-pr-base-selection` and run the two one after the other.
@@ -103,6 +106,8 @@ If the plan of `open-pr-base-prefix-collision` validates the prefix where the po
 | --- | --- | --- | --- |
 | `replan-failure-halt-recoverable` | P1 | `flow.mjs:768-770`; `route.mjs:126-127` | `plan-zero-rows-skips-implement`, `meta-json-damage-halts` |
 | `open-pr-base-selection` | P1 | `open-pr.mjs:191-232` | `open-pr-base-prefix-collision` |
+| `run-root-worktree-readiness` | P1 | `prepare-run.mjs` (base check, install, readiness command); a `readiness` key in the project override | `prepare-run-retry-after-failed-setup` |
+| `run-root-cross-worktree-writes` | P1 | set by its frame: the refusing hook if the plugin owns it, or an early `init` error | its frame; `run-root-worktree-readiness` if both edit `prepare-run.mjs` |
 | `ci-self-hosted-runner-exposure` | P2 | `.github/workflows/ci.yml`, `pr-title.yml`, ADR-020, `tools/test/ci-runner.test.mjs` | its frame |
 | `claude-token-figures-default` | P2 | both `SKILL.md` loops, `claude-usage.mjs`, `compare` at `route.mjs:572` | its frame; `codex-failure-native-lock-stuck` |
 
@@ -113,6 +118,7 @@ The minimum fix of `ci-self-hosted-runner-exposure` (`--ignore-scripts` on the i
 | Change | Priority | Owns | Waits for |
 | --- | --- | --- | --- |
 | `first-attempt-drop-unmeasured` | P2 | `policy.json:50`; ADR-007, ADR-010; with option C also `compare` in `route.mjs:531-700` and its tests | its frame; `claude-token-figures-default` |
+| `usage-capture-preflight` | P2 | an `init` preflight of the usage sources; the source checks in `claude-usage.mjs`; the reason line of the report and PR comment | `claude-token-figures-default` |
 | `quote-router-in-skill-loops` | P3, parked | both `SKILL.md` loops; `skill-loop.test.mjs`, `openspec-skill.test.mjs`, `archive-gate.test.mjs` | the owner's resume instruction; `claude-token-figures-default` |
 | `test-suite-trim-and-gaps` | P3 | test files across the suite; `GIT_TIMEOUT_MS` at `prepare-run.mjs:8` | every change above |
 | `test-shard-durations-refresh` | P3 | `tools/test-durations.json`; a drift test in `tools/test/` | `test-suite-trim-and-gaps` |
@@ -137,6 +143,7 @@ The minimum fix of `ci-self-hosted-runner-exposure` (`--ignore-scripts` on the i
 | PR #214, S-12 | The run archived S-12 and set the roadmap to `done` with 0 of 3 Manual rows proved. Prove rows 3.1 to 3.3 on the Wave 2 release, or record a deferral to S-20 as for S-13 and S-14? | Wave 7 (S-15 needs S-12) |
 | `ci-self-hosted-runner-exposure` | Keep the self-hosted runner with a hardened install, move pull request jobs to hosted runners, or move everything? | its Wave 4 slot |
 | `claude-token-figures-default` | Should Claude steps report token figures by default, and from which source? | its Wave 4 slot; any measurement for `first-attempt-drop-unmeasured` |
+| `run-root-cross-worktree-writes` | Frame, no owner choice yet: which hook refused the write (the plugin, the host's worktree sandbox or the project's settings), and which paths may a step write in the run root? | its Wave 4 slot |
 | `first-attempt-drop-unmeasured` | Measure at least 5 pairs, set the drop to `0`, or set it to `0` and remove `compare`? Measuring is the savings experiment that FR-017 defers. | its Wave 5 slot |
 
 Until the owner decides on PR #214, this ledger counts S-12 as not delivered.
@@ -147,7 +154,7 @@ The fix waves close cases that v2 attached to later slices. Each slice plan star
 
 | Slice | Fix-wave changes that feed it |
 | --- | --- |
-| S-15 `actionable-run-prerequisites` | `next-requires-isolated-init`, `run-branch-must-match-change-id`, `prepare-run-retry-after-failed-setup` |
+| S-15 `actionable-run-prerequisites` | `next-requires-isolated-init`, `run-branch-must-match-change-id`, `prepare-run-retry-after-failed-setup`, `codex-profile-and-gitdir-access`, `run-root-worktree-readiness`, `run-root-cross-worktree-writes`, `usage-capture-preflight` |
 | S-16 `resumable-unattended-runs` | `codex-failure-native-lock-stuck`, `run-lock-stale-takeover-race`, `meta-json-damage-halts`, `replan-failure-halt-recoverable`; the staged-only file case of `open-pr-unfinished-merge-commit` |
 | S-18 `verified-step-protection` | `step-guard-heredoc-false-positives`, `step-guard-bypass-forms`, `codex-step-publication-guard` |
 | S-19 `truthful-owner-decision-halts` | `review-verdict-unknown-passes`, `plan-zero-rows-skips-implement`, `openspec-critical-none-placeholder`; the archive gate for unchecked rows that `docs-status-truth-up` asks about |
@@ -160,6 +167,17 @@ S-16 and S-18 stay in one wave only if their plans own different runner, setting
 
 - **`provider-mode-split`, [PR #231](https://github.com/xycu/agent-smith/pull/231), released in v1.15.0:** a run selects Claude, Codex or a split provider mode, with the host as the default. It has no wave slot because it came from an owner request after Wave 1. The change is not archived: its Manual rows 3.2 (fresh authenticated sessions for six host and mode combinations on each chain) and 3.3 (final CI and report comment) were not run. The run ended on its fix-loop cap, so its last fix commit has no review of its own. The PR raised `limits.maxFixLoops` to 3 in the project override and the by-file action ceiling to 1,536 bytes in `prompt-handoff.test.mjs`. Prove rows 3.2 and 3.3 before the change is archived, or record a deferral to S-20.
 - **`record-archive-manual-decision`:** a seed from the archive decision of `docs-status-truth-up`, status `new`. It documents a durable record for an archive with unresolved Manual rows. S-19 owns the wider decision flow, so the seed has no slot until the owner decides whether S-19 absorbs it or it runs earlier in the Docs and tests lane.
+
+## Added from GitHub issues
+
+Four issues opened from live runs on 2026-11-20 and 2026-11-21. Each has a change folder with status `new`; the slots are in the wave map above.
+
+| Issue | Change | Priority | Slot |
+| --- | --- | --- | --- |
+| [#243](https://github.com/xycu/agent-smith/issues/243), bug | `run-root-cross-worktree-writes` | P1 | frame in Wave D; fix in Wave 4. The plugin registers no `Write` hook, so the frame finds the source first. |
+| [#245](https://github.com/xycu/agent-smith/issues/245) | `codex-profile-and-gitdir-access` | P1 | Wave 3, Lock and Codex lane |
+| [#244](https://github.com/xycu/agent-smith/issues/244) | `run-root-worktree-readiness` | P1 | Wave 4, Setup lane, after `prepare-run-retry-after-failed-setup` |
+| [#232](https://github.com/xycu/agent-smith/issues/232) | `usage-capture-preflight` | P2 | Wave 5, after `claude-token-figures-default` |
 
 ## Parked and out of scope
 
