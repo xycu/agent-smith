@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.2](https://github.com/xycu/agent-smith/compare/v1.15.1...v1.15.2) (2026-11-21)
+
+
+### Bug Fixes
+
+* **step-guard-bypass-forms:** Make the step guard deny forbidden commands behind common shell shapes ([#241](https://github.com/xycu/agent-smith/issues/241)) ([9e45fa7](https://github.com/xycu/agent-smith/commit/9e45fa79ff5268455b319bf4b84d331926c69869))
+
 ## [1.15.1](https://github.com/xycu/agent-smith/compare/v1.15.0...v1.15.1) (2026-11-21)
 
 
