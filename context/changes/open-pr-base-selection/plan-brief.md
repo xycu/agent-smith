@@ -25,11 +25,11 @@ If a run and fetched `main` each add one commit at the fork point, `main` wins o
 
 ## Scope
 
-The shared publisher's ranking, tests in the existing offline fixture, and the base-selection descriptions in the reference and ADR-017. Existing PRs continue through the publisher's reuse path. Policies and run metadata need no migration.
+The shared publisher's ranking, tests in the existing offline fixture, and the base-selection descriptions in the reference and ADR-017. Existing PRs continue through the publisher's reuse path. Policies and run metadata need no migration. Out of scope: ranking a diverged default when the remote's symbolic HEAD is unknown, and any extra fetch or GitHub lookup.
 
 ## Architecture / Approach
 
-Reuse the publisher's existing eligibility predicate, ancestor scan and older-Git compatibility path. Read a diverged default's count from the selected remote's local tracking ref. Keep the existing GitHub lookup as a final fallback.
+Reuse the publisher's existing eligibility predicate, ancestor scan and older-Git compatibility path, validating the older-Git per-ancestor counts too. Read a diverged default's count from the selected remote's local tracking ref. Keep the existing GitHub lookup as a final fallback.
 
 ## Phases at a Glance
 

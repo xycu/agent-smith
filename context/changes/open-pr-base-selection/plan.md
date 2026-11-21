@@ -25,11 +25,11 @@ For example, fork a run from `main` at commit A and add one run commit. Advance 
 
 ## Scope
 
-The shared publisher's automatic base ranking for both chains, offline regression coverage and the publication documentation. Existing eligibility, publication ownership, branch safety checks and PR reuse remain the controlling contracts. [Publication ADR](../../../docs/ADR/ADR-017-run-branch-always-pushed-for-review.md)
+The shared publisher's automatic base ranking for both chains, offline regression coverage and the publication documentation. Existing eligibility, publication ownership, branch safety checks and PR reuse remain the controlling contracts. Not in scope: ranking a diverged default when the remote's symbolic HEAD is unknown (a configured default competes only as an eligible ancestor), a network fetch or extra GitHub lookup for the comparison, and any change to `countAhead`, PR title derivation or PR reuse. [Publication ADR](../../../docs/ADR/ADR-017-run-branch-always-pushed-for-review.md)
 
 ## Implementation Approach
 
-Keep ranking inside `open-pr.mjs`. Reuse the ancestor counts and eligibility check from the prefix-collision fix. Carry the nearest ancestor's name and distance into default comparison, using the already enumerated count for an ancestor default. Count the exact remote-tracking ref locally when a comparable default is outside the ancestor scan. Accept only a successful, nonempty non-negative integer count, so a failed probe cannot appear to be a perfect match. The existing GitHub lookup stays at the end of the fallback path.
+Keep ranking inside `open-pr.mjs`. Reuse the ancestor counts and eligibility check from the prefix-collision fix. Carry the nearest ancestor's name and distance into default comparison, using the already enumerated count for an ancestor default. Count the exact remote-tracking ref locally when a comparable default is outside the ancestor scan. Accept only a successful, nonempty non-negative integer count, so a failed probe cannot appear to be a perfect match. Apply the same check to the older-Git per-ancestor counts: `Number(gitOut(...))` turns a failed or empty `rev-list` into `0`, which would rank that ancestor as the nearest, so a candidate without a valid count is dropped. The existing GitHub lookup stays at the end of the fallback path.
 
 ### Planning assumptions
 
@@ -61,9 +61,9 @@ Apply the new ranking in the shared publisher and prove the effect on its JSON r
 
 **Contract**: Extend the existing base tests using `world`, `gitCalls` and `ghCalls`. Update remote-tracking refs through fixture-local pushes.
 
-- Fork from `main`, keep a stale branch at the fork and push a separate advance to `main`. Confirm the fixture refs give equal two-dot counts and assert JSON `base` and fake `gh pr create --base` select `main`. Exercise the same comparison with the existing older-Git shim and vary the stale ref to predate the fork to cover a strictly closer default.
+- Fork from `main`, keep a stale branch at the fork and push a separate advance to `main`. Confirm the fixture refs give equal two-dot counts and assert JSON `base` and fake `gh pr create --base` select `main`. Exercise the same comparison with the existing older-Git shim. For a strictly closer default, create the stale ref at a commit made before the fork (the fixture's `main` holds only the init commit, so add one before `from` is forked or push an older ref from a separate clone).
 - Suppress or omit symbolic remote HEAD and put `main`, `develop` and `archive-2025` on the same ancestor. Assert both outputs select `main` with shipped defaults. Add a custom policy order that chooses a different tied branch and a no-configured-match case that exercises alphabetical ordering.
-- Prove a strictly closer feature ancestor still wins with a diverged default. Cover an unavailable comparison with the Git shim while an eligible ancestor exists. Assert the winner and verify the new comparison paths make no fetch or default-branch GitHub lookup. Retain the current tests for explicit override, remote HEAD ties, prefix exclusions, fallback, no commits and PR reuse.
+- Prove a strictly closer feature ancestor still wins with a diverged default. Cover an unavailable comparison with a Git shim that fails only `rev-list --count refs/remotes/origin/main..HEAD`, because `countAhead` later runs the same rev-list for the chosen base and a blanket failure would hide the ranking result, while an eligible ancestor exists. Add an older-Git case in which the per-ancestor `rev-list` fails for one ancestor and that ancestor is not chosen. Assert the winner and verify the new comparison paths make no fetch or default-branch GitHub lookup. Retain the current tests for explicit override, remote HEAD ties, prefix exclusions, fallback, no commits and PR reuse.
 
 #### 3. Publication documentation
 
@@ -71,7 +71,7 @@ Apply the new ranking in the shared publisher and prove the effect on its JSON r
 
 **Intent**: Make the automatic base choice predictable for repositories with an advancing default or missing remote HEAD.
 
-**Contract**: Update the reference's base-selection bullet and ADR-017's current base contract. State the distance, tie order, fetched default exception and continued eligibility rules. Search README, docs, skills, prompts and rules for stale current descriptions, following the repository lesson on changed output.
+**Contract**: Update the reference's base-selection bullet (`docs/REFERENCE.md` line 183). In ADR-017 update the places that state the rule: the "What the script does" base step (item 2), the Assumptions line on the nearest remote branch, and the closing sentence of Amendment 3 ("Nearest-ancestor counting, remote-HEAD tie preference and older-Git counting fallback continue to determine the automatic base"), or add a new dated amendment that supersedes them, as the prefix-collision change did for eligibility. Leave no current description of the old rule. State the distance, tie order, fetched default exception and continued eligibility rules. Search README, docs, skills, prompts and rules for stale current descriptions, following the repository lesson on changed output.
 
 ### Success Criteria
 
@@ -83,7 +83,7 @@ Apply the new ranking in the shared publisher and prove the effect on its JSON r
 
 ## Testing Strategy
 
-Use the existing local bare remote, fake GitHub CLI and logging Git shim. Name new tests with the existing `base:` prefix. Run the focused base tests first and confirm the two reported behavior regressions fail with the old selector before verifying the fix. Assert return values and outgoing arguments from the same local fixture. Publication stays with the orchestrator under ADR-017.
+Use the existing local bare remote, fake GitHub CLI and logging Git shim. Name new tests with the existing `base:` prefix. Write the new tests first and run the focused command below with `open-pr.mjs` still unedited: the two reported-scenario tests must fail (stale ancestor and alphabetical winner) while the existing base tests pass. Only then change the selector and rerun to confirm the fix. Assert return values and outgoing arguments from the same local fixture. Publication stays with the orchestrator under ADR-017.
 
 ```sh
 node --test --test-name-pattern='base:' skills/10x-pipeline/test/open-pr.test.mjs
