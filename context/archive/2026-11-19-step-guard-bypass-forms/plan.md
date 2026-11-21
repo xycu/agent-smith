@@ -339,9 +339,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [x] 1.1 Guard tests pass, including every new shape deny/allow pair — 9f57423c
-- [x] 1.2 Source constraints hold (no forbidden words or calls in the guard) — 9f57423c
-- [x] 1.3 Pathological nesting finishes inside the hook timeout — 9f57423c
+- [x] 1.1 Guard tests pass, including every new shape deny/allow pair — 9e45fa79
+- [x] 1.2 Source constraints hold (no forbidden words or calls in the guard) — 9e45fa79
+- [x] 1.3 Pathological nesting finishes inside the hook timeout — 9e45fa79
 
 #### Manual
 
@@ -351,9 +351,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [x] 2.1 Guard tests pass with every Git option deny/allow pair — 76565ff3
-- [x] 2.2 The three `--no-verify` search commands are allowed — 76565ff3
-- [x] 2.3 Every change.md abbreviation form is denied and its safe neighbour is allowed — 76565ff3
+- [x] 2.1 Guard tests pass with every Git option deny/allow pair — 9e45fa79
+- [x] 2.2 The three `--no-verify` search commands are allowed — 9e45fa79
+- [x] 2.3 Every change.md abbreviation form is denied and its safe neighbour is allowed — 9e45fa79
 
 #### Manual
 
@@ -363,9 +363,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [x] 3.1 Full suite passes — 74f8db52
-- [x] 3.2 Reference names the new coverage and drops the old wrapper exclusion — 74f8db52
-- [x] 3.3 Version fields still agree — 74f8db52
+- [x] 3.1 Full suite passes — 9e45fa79
+- [x] 3.2 Reference names the new coverage and drops the old wrapper exclusion — 9e45fa79
+- [x] 3.3 Version fields still agree — 9e45fa79
 
 #### Manual
 
@@ -376,10 +376,10 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [x] 4.1 Guard tests pass, including the review deny/allow pairs — 83a9c242
-- [x] 4.2 Value-option prefixes no longer hide denied abbreviations, and their safe neighbours pass — 83a9c242
-- [x] 4.3 `env - git push` is denied and `env - git status` passes — 83a9c242
-- [x] 4.4 ANSI-C and locale quoting neither hide a command nor fail closed on an escaped quote — 83a9c242
-- [x] 4.5 Source constraints still hold — 83a9c242
-- [x] 4.6 Reference names the quoting coverage and its limit — 83a9c242
-- [x] 4.7 Full suite passes — 83a9c242
+- [x] 4.1 Guard tests pass, including the review deny/allow pairs — 9e45fa79
+- [x] 4.2 Value-option prefixes no longer hide denied abbreviations, and their safe neighbours pass — 9e45fa79
+- [x] 4.3 `env - git push` is denied and `env - git status` passes — 9e45fa79
+- [x] 4.4 ANSI-C and locale quoting neither hide a command nor fail closed on an escaped quote — 9e45fa79
+- [x] 4.5 Source constraints still hold — 9e45fa79
+- [x] 4.6 Reference names the quoting coverage and its limit — 9e45fa79
+- [x] 4.7 Full suite passes — 9e45fa79
