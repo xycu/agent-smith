@@ -1,0 +1,2 @@
+- 1.5 — real Codex 0.171.0 reproduces the missing-table diagnostic, but the documented baseline CLI 0.169.0 is not installed, and clearance in a trusted project plus outer sandbox restrictions were not exercised unattended.
+- 1.6 — needs an interactive sandboxed Claude linked-worktree session with sandbox settings; this unattended step runs unsandboxed (no sandbox configured), so host grant behaviour cannot be observed.

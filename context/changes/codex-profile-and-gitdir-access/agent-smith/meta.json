@@ -51,7 +51,7 @@
   },
   "startCommit": "343b556c4b438b287e3c49bd65bfc74f73f78df2",
   "rigor": {
-    "level": "lean",
-    "by": "goal short"
+    "level": "thorough",
+    "by": "hot paths .claude-plugin/marketplace.json, .claude-plugin/plugin.json, .release-please-manifest.json +11"
   }
 }
