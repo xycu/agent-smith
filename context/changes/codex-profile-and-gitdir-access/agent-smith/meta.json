@@ -53,5 +53,17 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths .claude-plugin/marketplace.json, .claude-plugin/plugin.json, .release-please-manifest.json +11"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.5 In a disposable trusted project, verify the warning and its clearance after applying the snippet with real Codex on the current and documented baseline CLI, recording the versions and any unsupported diagnostic or outer sandbox restriction.",
+      "1.6 In a disposable Claude linked worktree, compare the explicit-entry advisory with the session's sandbox configuration and run a sandboxed local Git write, recording whether the host grants access automatically and whether the applicable settings fix clears the advisory."
+    ],
+    "manualNotProved": [
+      "1.5 In a disposable trusted project, verify the warning and its clearance after applying the snippet with real Codex on the current and documented baseline CLI, recording the versions and any unsupported diagnostic or outer sandbox restriction. — not proved: real Codex 0.171.0 is installed, but the documented baseline CLI 0.169.0 is not, and installing it means a download from an external source (not allowed unattended); clearance in a trusted project and",
+      "1.6 In a disposable Claude linked worktree, compare the explicit-entry advisory with the session's sandbox configuration and run a sandboxed local Git write, recording whether the host grants access automatically and whether the applicable settings fix clears the advisory. — not proved: needs a Claude linked-worktree session with sandbox settings enabled; this unattended step runs unsandboxed, so the host grant behaviour and the sandboxed local Git write cannot be observed. No test o"
+    ]
   }
 }
