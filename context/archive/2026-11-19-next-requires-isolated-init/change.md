@@ -1,10 +1,10 @@
 ---
 change_id: next-requires-isolated-init
 title: Make next refuse a run that init would refuse for missing isolation
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-21
-archived_at: null
+archived_at: 2026-11-21T14:22:33Z
 ---
 
 ## Notes
