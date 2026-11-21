@@ -182,9 +182,9 @@ A run in flight in the main checkout with isolation on (started before this chan
 
 #### Automated
 
-- [x] 2.1 The REFERENCE line exists: `grep -n "next. halts" docs/REFERENCE.md`
-- [x] 2.2 The full suite still passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 2.3 Version metadata is untouched: `node tools/version-check.mjs`
+- [x] 2.1 The REFERENCE line exists: `grep -n "next. halts" docs/REFERENCE.md` — e2db0f57
+- [x] 2.2 The full suite still passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` — e2db0f57
+- [x] 2.3 Version metadata is untouched: `node tools/version-check.mjs` — e2db0f57
 
 #### Manual
 
