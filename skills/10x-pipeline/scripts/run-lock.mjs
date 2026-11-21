@@ -15,6 +15,8 @@ export function runLockPath(dir) {
   return path.join(os.tmpdir(), `agent-smith-${crypto.createHash("sha256").update(dir).digest("hex").slice(0, 16)}.lock`);
 }
 
+const GROUP_DRAIN_MS = 5000;
+
 function pidAlive(pid) {
   try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; }
 }
@@ -172,6 +174,10 @@ export function lockRunDirectory(root, id, chain, onBusy) {
     },
     clearChild(settled = false) {
       if (execution?.native && !settled) throw new Error(this.retainedReason());
+      // Helpers of the child (a git over the network, an MCP server) can outlive it by seconds; wait for the group to drain.
+      if (execution?.processGroup && execution.childPid) {
+        for (const deadline = Date.now() + GROUP_DRAIN_MS; pidAlive(-execution.childPid) && Date.now() < deadline;) sleep(50);
+      }
       if (execution?.processGroup && execution.childPid && pidAlive(-execution.childPid)) {
         throw new Error(`Codex child process group ${execution.childPid} is still alive. Execution lock retained at ${lock}.`);
       }
