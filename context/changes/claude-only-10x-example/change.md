@@ -1,7 +1,7 @@
 ---
 change_id: claude-only-10x-example
 title: Claude only 10x example
-status: new
+status: planned
 created: 2026-11-21
 updated: 2026-11-21
 archived_at: null
