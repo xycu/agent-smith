@@ -36,7 +36,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const args = process.argv.slice(2);
 const fixture = process.env.CODEX_FIXTURE;
-const seenEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => /TOKEN/i.test(name) || name === "CODEX_TEST_KEEP"));
+// Token-like names only, never their values: host credentials must not land in fixture files.
+const seenEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => /TOKEN/i.test(name) || name === "CODEX_TEST_KEEP")
+  .map(([name, value]) => [name, name === "CODEX_TEST_KEEP" ? value : "set"]));
 const mode = JSON.parse(fs.readFileSync(path.join(fixture, "mode.json"), "utf8"));
 const rootId = mode.threadId ?? "root-fixture";
 const rootTurnId = mode.rootTurnId ?? "turn-" + rootId;
