@@ -97,5 +97,5 @@ The existing 64 KiB read bound and 20-finding prompt cap bound the work. Existin
 
 #### Automated
 
-- [x] 1.1 Focused OpenSpec step and isolation tests pass and cover placeholder acceptance, real findings and fix-cap recovery. — a5944d57
-- [x] 1.2 The full repository test suite passes on Node 24 or later. — a5944d57
+- [x] 1.1 Focused OpenSpec step and isolation tests pass and cover placeholder acceptance, real findings and fix-cap recovery. — 519dedcb
+- [x] 1.2 The full repository test suite passes on Node 24 or later. — 519dedcb

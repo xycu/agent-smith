@@ -122,9 +122,9 @@ Ship the reader and caller changes together. Valid metadata is readable by both 
 
 #### Automated
 
-- [x] 1.1 The metadata reader distinguishes ENOENT from malformed JSON, non-object JSON and other filesystem errors, and accepts sparse objects. — d3756244
-- [x] 1.2 On both chains the four writing commands halt on damaged metadata with and without a log, preserving run-folder bytes, abandoned temps, pending results, Git HEAD, index and refs. — d3756244
-- [x] 1.3 Both chains initialize from absent metadata in a fresh change, keep the logged-missing guard, and accept valid sparse metadata. — d3756244
-- [x] 1.4 Plain status exposes metadata recovery, risk and both comparison formats halt on damage, and OpenSpec chain discovery preserves explicit recovery and archive ownership. — d3756244
-- [x] 1.5 The existing dispatch validator refuses damaged metadata before external execution, with its normal failure envelope. — d3756244
-- [x] 1.6 The repository test suite passes on Node 24 or later. — d3756244
+- [x] 1.1 The metadata reader distinguishes ENOENT from malformed JSON, non-object JSON and other filesystem errors, and accepts sparse objects. — aba1a4a5
+- [x] 1.2 On both chains the four writing commands halt on damaged metadata with and without a log, preserving run-folder bytes, abandoned temps, pending results, Git HEAD, index and refs. — aba1a4a5
+- [x] 1.3 Both chains initialize from absent metadata in a fresh change, keep the logged-missing guard, and accept valid sparse metadata. — aba1a4a5
+- [x] 1.4 Plain status exposes metadata recovery, risk and both comparison formats halt on damage, and OpenSpec chain discovery preserves explicit recovery and archive ownership. — aba1a4a5
+- [x] 1.5 The existing dispatch validator refuses damaged metadata before external execution, with its normal failure envelope. — aba1a4a5
+- [x] 1.6 The repository test suite passes on Node 24 or later. — aba1a4a5

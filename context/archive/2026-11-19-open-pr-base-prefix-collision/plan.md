@@ -108,5 +108,5 @@ Existing policies and saved run metadata work across versions. Newly selected ba
 
 #### Automated
 
-- [x] 1.1 The focused offline publication tests fail on the old collision behavior and pass with the fix, covering nearest-ancestor selection, both fallback sources, configured defaults, competing run refs and explicit override. — cf0d7820
-- [x] 1.2 The full repository Node test suite passes, including existing publication and run-identity coverage, and `git diff --check` passes. — cf0d7820
+- [x] 1.1 The focused offline publication tests fail on the old collision behavior and pass with the fix, covering nearest-ancestor selection, both fallback sources, configured defaults, competing run refs and explicit override. — 3aa8feff
+- [x] 1.2 The full repository Node test suite passes, including existing publication and run-identity coverage, and `git diff --check` passes. — 3aa8feff
