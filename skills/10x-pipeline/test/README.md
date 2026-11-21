@@ -41,7 +41,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `executors.test.mjs` | commit check, fallback, executor routing, retry, the report label |
-| `codereplan.test.mjs` | code re-plans |
+| `codereplan.test.mjs` | code re-plans, failed re-plan repair and resume, legacy halt recovery, review and budget gates |
 | `manualverify.test.mjs` | `manual-verify` and `--chrome` (ADR-012): every row in scope at every level, outside the pool, browser rows and their proof kinds, the reason in the outputs, report marks, tier and retry, evidence kinds, `evidence/unproven.md` reasons, the prompt and the Chrome default. Turn the step on with `manualVerify: { minRigor: "lean" }` |
 | `budget-executors.test.mjs` | the budget derived from the longest legal path, `manual-verify` and its retry included, at `lean`, `standard` and `thorough`: longest legal path, failure path, lean without a pool step |
 | `budget-pool-score.test.mjs` | the budget with a raised pool allowance and with scorer failures skipped |
@@ -60,7 +60,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `prepare-run-helpers.mjs` | Shared setup fixtures, JSON assertions and Git wrapper for both pre-init test files |
 | `isolation.test.mjs` | the isolation gate of `init` and `next`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
 | `stepcommit.test.mjs` | the start and step commits (ADR-010) |
-| `rollback.test.mjs` | the failed-step rollback, preserved interrupted index-snapshot ancestry and undo on halt (ADR-010) |
+| `rollback.test.mjs` | failed-step rollback, preserved interrupted index-snapshot ancestry, undo on halt, and committed re-plan repair through rollback (ADR-010) |
 | `firstattempt.test.mjs` | the cheaper first implement attempt (ADR-010) |
 | `coauthor.test.mjs` | the `coAuthor` trailer (ADR-021): start commit, step commit, rollback snapshot, pre-archive and late-usage commits carry it; `coAuthor: null` gives none; a malformed value halts; parity of `coAuthorProblem`/`coAuthorTrailer` in `state.mjs` with `coAuthorLine` in `open-pr.mjs` |
 | `codex-usage.test.mjs` | pinned 0.169.0 observed response records, copied-child boundaries, cache subsets, duplicate/conflicting records, final snapshots, safe bounded sources and unavailable accounting; hand-authored fixtures do not qualify live hosts |

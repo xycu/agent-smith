@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { liveRunDirectory, lockRunDirectory } from "./run-lock.mjs";
 import path from "node:path";
+import { hash } from "node:crypto";
 export { runLockPath } from "./run-lock.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -341,14 +342,16 @@ function fencedLines(lines) {
   return out;
 }
 
-export function readPlan(file) {
+export function readPlan(file, { fingerprint = false } = {}) {
   const res = { exists: false, hasProgress: false, phases: 0, rows: 0, autoDone: 0, autoPending: 0, manualPending: [], phaseList: [], mtime: 0 };
+  if (fingerprint) res.fingerprint = null;
   // A chain without a plan (OpenSpec: paths().plan is null) reads as a missing plan.
   if (typeof file !== "string" || !fs.existsSync(file)) return res;
   res.exists = true;
   res.mtime = mtime(file);
-  const text = fs.readFileSync(file, "utf8");
-  const lines = text.split(/\r?\n/);
+  const bytes = fs.readFileSync(file);
+  if (fingerprint) res.fingerprint = hash("sha256", bytes);
+  const lines = bytes.toString("utf8").split(/\r?\n/);
   const fenced = fencedLines(lines);
   const idx = lines.findIndex((line, i) => !fenced[i] && /^## Progress\s*$/.test(line));
   if (idx < 0) return res;

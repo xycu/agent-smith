@@ -349,6 +349,8 @@ Two triggers run the `plan` step with a new template, at rigor `standard` or abo
 
 A re-plan counts against the step budget. A `plan-rejected` re-plan also counts as one fix loop against `maxFixLoops`; a `plan-replan` does not. A `REJECTED` review after a fix keeps today's path, which is another fix. Plan review follows a re-plan like any other plan. Order: the failure re-plan fires at exactly two trailing implement failures and costs nothing from the pool, so when those failures left rows ticked without a commit it takes the turn of the one `implement-retry`, and a failed re-plan then halts the run in a case where the retry would have fitted. This follows the plan and is recorded, not changed.
 
+The `replan-failure-halt-recoverable` change adds an exit from this halt. The owner edits `plan.md` in the run worktree, keeps the checked Automated row IDs listed in the halt and leaves pending Automated work under `## Progress`. In an isolated run the owner commits the repair before resuming the pipeline, `init` or `next`. The router halts again while the plan is unchanged or invalid. After a valid edit, normal review, retry and budget checks apply. The failed re-plan remains in the log and counts against the shared cap. On upgrade, the old halt reason and a valid plan newer than the failed result can establish a repair without a stored content baseline.
+
 ### Manual verification
 
 Superseded by ADR-012 (`automate-manual-checks`): every pending Manual row is in scope at every rigor level, the step is outside the extra-step pool, and Chrome is on by default. The text below is the change 3 history.

@@ -112,7 +112,7 @@ The router owns the additive acknowledgement on the failed log entry. Existing e
 
 #### Automated
 
-- [ ] 1.1 Failed re-plan CLI cases halt with repair instructions on first intake and keep halting for unchanged or invalid plans until a valid edit allows both resume commands to route normally.
-- [ ] 1.2 Recovery preserves failure accounting, the re-plan cap, review and step-budget gates, and recognizes supported legacy halt records.
-- [ ] 1.3 Isolated CLI recovery restores the failed re-plan's partial edits and preserves a committed repair through rollback of a later failed step.
-- [ ] 1.4 The full router suite passes on Node 24 or later.
+- [x] 1.1 Failed re-plan CLI cases halt with repair instructions on first intake and keep halting for unchanged or invalid plans until a valid edit allows both resume commands to route normally.
+- [x] 1.2 Recovery preserves failure accounting, the re-plan cap, review and step-budget gates, and recognizes supported legacy halt records.
+- [x] 1.3 Isolated CLI recovery restores the failed re-plan's partial edits and preserves a committed repair through rollback of a later failed step.
+- [x] 1.4 The full router suite passes on Node 24 or later.
