@@ -430,6 +430,30 @@ const worker = (args, env) => new Promise((resolve, reject) => {
   child.on("close", (code) => (code === 0 ? resolve(JSON.parse(out)) : reject(new Error(`worker exit ${code}: ${err}`))));
 });
 
+// A helper of the child (a git over the network) outlives it briefly; clearChild waits for the group instead of calling it alive.
+test("clearChild waits for a lingering process-group member to exit", { skip: process.platform === "win32" }, async () => {
+  const { lockRunDirectory } = await import("../scripts/run-lock.mjs");
+  const tmp = fs.realpathSync(fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "lock-drain-")));
+  lockDirs.push(tmp);
+  const previous = process.env.TMPDIR;
+  process.env.TMPDIR = tmp;
+  let lock;
+  try {
+    const root = fs.realpathSync(fs.mkdtempSync(path.join(tmp, "root-")));
+    lock = lockRunDirectory(root, "drain", "10x", (reason) => { throw new Error(reason); });
+    // The leader exits at once; its helper keeps the group alive for 700 ms.
+    const child = spawn("sh", ["-c", "sleep 0.7 &"], { detached: true, stdio: "ignore" });
+    lock.setChild(child.pid);
+    await new Promise((resolve) => child.on("close", resolve));
+    const start = Date.now();
+    lock.clearChild(true);
+    assert.ok(Date.now() - start >= 300, "clearChild must have waited for the helper");
+  } finally {
+    lock?.release();
+    if (previous === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = previous;
+  }
+});
+
 // LOCK_MODULE (absolute path) runs the same harness against another run-lock.mjs, e.g. the pre-fix source.
 test("1.2a many processes over stale locks never hold one lock at the same time", { timeout: 120000 }, async () => {
   const ROUNDS = 120;
