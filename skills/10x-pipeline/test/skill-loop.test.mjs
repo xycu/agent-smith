@@ -306,7 +306,8 @@ test("Start step 3 consumes the shared setup result and retains run safety", () 
   for (const text of ["exactly one JSON object", "reason: null", "absolute `root` and `runRoot`",
     "nonzero exit", "missing/malformed JSON", "non-null `reason`", "STOP before `init`",
     "returned `root`", "`runRoot` as `<root>` and `<run root>`", "not in the run (uncommitted in the main checkout)",
-    "A resume never copies", 'cd "<run root>" && node $ROUTER', "<run root>/<resultFile>",
+    "An ordinary resume leaves the worktree inputs as they are", "retry from the original project root",
+    'case: "reused"', "copied: true", 'cd "<run root>" && node $ROUTER', "<run root>/<resultFile>",
     "Never commit, stash, reset or clean", "refs/agent-smith/", "name their side refs",
     "List the files, check the list", "retained original paths", "before removing the worktree"]) {
     assert.ok(setup.includes(text), text);

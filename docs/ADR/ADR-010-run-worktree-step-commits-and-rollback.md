@@ -31,7 +31,7 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** a log with executed steps and no `meta.isolated` **WHEN** `init` resumes it with `isolation.require` `true` **THEN** the router **MUST** halt and name the opt-out, so a run is isolated from its first step or not at all.
 
-**GIVEN** a project root **WHEN** the orchestrator makes the run worktree **THEN** it **MUST** put it at `<project root>/.claude/worktrees/agent-smith-<change-id>` on the branch `agent-smith/<change-id>`, and copy the change folder into it with its file times only when it creates the run branch.
+**GIVEN** a project root **WHEN** the orchestrator makes the run worktree **THEN** it **MUST** put it at `<project root>/.claude/worktrees/agent-smith-<change-id>` on the branch `agent-smith/<change-id>`, and copy the change folder into it with its file times when it creates the run branch. Amendment 6 covers retries of an interrupted copy.
 
 **GIVEN** an isolated run **WHEN** the router returns a prompt **THEN** it **MUST** start the prompt with the working-directory rules of `prompts/worktree.md`, which name the run root.
 
@@ -188,7 +188,7 @@ The paired first-attempt experiment remains unmeasured. [first-attempt-drop-unme
 
 Both pipeline skills call `skills/10x-pipeline/scripts/prepare-run.mjs <id> [--chain 10x|openspec]` from the original project root before router initialization. The standalone executable uses existing standalone helpers and Node built-ins. It owns setup sequencing and filesystem copying. The router owns isolation enforcement, run state, commits and rollback.
 
-Setup preserves the ordered `opt-out`, `in-run-worktree`, `in-flight-main`, `created`, `reused` and `attached` cases. A fresh branch starts from invoking HEAD with automatic upstream tracking suppressed. Fresh creation alone adds a needed local exclude, reports uncommitted paths outside the selected change folder and copies that folder with regular-file timestamps, modes and symlink targets preserved. Project prefixes are appended once to the selected worktree. Resume paths preserve destination bytes and timestamps. Git discovery preserves the source index.
+Setup preserves the ordered `opt-out`, `in-run-worktree`, `in-flight-main`, `created`, `reused` and `attached` cases. A fresh branch starts from invoking HEAD with automatic upstream tracking suppressed. Fresh creation alone adds a needed local exclude, reports uncommitted paths outside the selected change folder and copies that folder with regular-file timestamps, modes and symlink targets preserved. Project prefixes are appended once to the selected worktree. Ordinary resume paths preserve destination bytes and timestamps. Amendment 6 defines pending-copy recovery. Git discovery preserves the source index.
 
 Runtime outcomes print one JSON object and exit 0. Successful setup carries `reason: null` and an absolute `runRoot`. A setup failure carries a bounded `reason` and `runRoot: null`, retaining partial resources for inspection. Usage errors print a diagnostic on stderr and exit 2. Skills validate the result and stop before `init` on a failure signal or invalid output.
 
@@ -229,3 +229,11 @@ Deploy scripts and skills together. Existing default-prefix runs resume through 
 **GIVEN** a saved identity (`meta.json` with the same id) **WHEN** its recorded branch is validated **THEN** it **MUST** start with `<prefix><id>`, so saved runs on other suffix branches resume. A recorded branch of another change is refused with the same message and without the `isolation.branchPrefix` recovery sentence.
 
 Known limit: the name cannot tell the baseline branch of `foo` from the run branch of a change called `foo-baseline`, and a saved identity of `foo` on `agent-smith/foo-bar` still resumes. No branch is deleted and no history is rewritten to recover; the user leaves the other worktree and runs `prepare-run.mjs <id>` from the original project root.
+
+## Amendment 6 — Retry an interrupted setup copy (2026-11-21)
+
+Before Git registers a fresh worktree, setup writes a complete JSON intent to a temporary file and renames it to `agent-smith-setup-<encodeURIComponent(branch)>.pending` in the Git common directory. The intent records the original project root, expected worktree, project prefix, chain and starting commit. The full-branch setup lock protects the intent, registration, overlay and final worktree checks. Setup clears the intent after successful validation. After an interruption, inspect the lock's PID and confirm setup and its Git process have stopped before manually removing the lock. Keep the intent for the retry.
+
+Rerun the same setup from the original project root after repairing the source. Setup verifies the invocation, registered worktree, Git common directory, branch and starting commit before applying the overlay. A completed retry reports `case: "reused"`, `copied: true` and `reason: null`, which keeps original inputs outside the post-init cleanup path. An ordinary resume reports `copied: false`. When router state exists in the destination, setup preserves it and requires a valid saved identity to resume. Ambiguous state, lost ownership or an unresolved copy error returns a bounded reason and `runRoot: null`. For a missing registered directory, inspect `git worktree prune --dry-run` before pruning.
+
+Older failed copies have no intent and need inspection and manual restoration of missing inputs after any worktree edits are preserved. An older executable can treat an incomplete worktree as an ordinary resume. Finish pending copies before downgrading or using mixed versions on a branch.

@@ -1,4 +1,5 @@
 // Shared pre-init setup. Router state and recovery remain owned by the router.
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
@@ -97,15 +98,28 @@ function addExclude(prefix, id, result) {
   result.excludeAdded = true;
 }
 
-function copyChange(source, destination, worktree) {
-  if (!fs.lstatSync(source).isDirectory()) throw new Error(`Change folder is not a directory: ${source}`);
-  for (let parent = path.dirname(destination); parent !== worktree; parent = path.dirname(parent)) {
-    try {
-      if (fs.lstatSync(parent).isSymbolicLink()) throw new Error(`Copy destination has a symlink parent: ${parent}`);
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
+function lstat(file) {
+  try { return fs.lstatSync(file); } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+    return null;
   }
+}
+
+function validateSource(source) {
+  const stat = lstat(source);
+  if (!stat) throw new Error(`Change folder is missing: ${source}`);
+  if (!stat.isDirectory()) throw new Error(`Change folder is not a directory: ${source}`);
+}
+
+function checkCopyParents(destination, root) {
+  for (let parent = path.dirname(destination); parent !== root; parent = path.dirname(parent)) {
+    if (lstat(parent)?.isSymbolicLink()) throw new Error(`Copy destination has a symlink parent: ${parent}`);
+  }
+}
+
+function copyChange(source, destination, worktree) {
+  validateSource(source);
+  checkCopyParents(destination, worktree);
   fs.cpSync(source, destination, {
     recursive: true, preserveTimestamps: true, dereference: false, verbatimSymlinks: true,
     filter(sourceFile, target) {
@@ -126,7 +140,8 @@ function copyChange(source, destination, worktree) {
 }
 
 function withSetupLock(common, branch, operation) {
-  const lock = path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}.lock`);
+  const file = path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}`);
+  const lock = `${file}.lock`;
   let fd;
   try {
     try { fd = fs.openSync(lock, "wx"); } catch (error) {
@@ -134,13 +149,74 @@ function withSetupLock(common, branch, operation) {
       throw error;
     }
     fs.writeFileSync(fd, `${process.pid}\n`);
-    return operation();
+    return operation(`${file}.pending`);
   } finally {
     if (fd !== undefined) {
       fs.closeSync(fd);
       fs.unlinkSync(lock);
     }
   }
+}
+
+function readPending(file) {
+  try {
+    const stat = lstat(file);
+    if (!stat) return null;
+    if (!stat.isFile()) throw new Error("expected a regular file");
+    const pending = readPolicyObject(file);
+    if (typeof pending.root !== "string" || !path.isAbsolute(pending.root)
+      || typeof pending.worktree !== "string" || !path.isAbsolute(pending.worktree)
+      || typeof pending.prefix !== "string" || !["10x", "openspec"].includes(pending.chain)
+      || typeof pending.startCommit !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(pending.startCommit)) {
+      throw new Error("invalid pending copy record");
+    }
+    return pending;
+  } catch (error) {
+    throw new Error(`Cannot read pending setup at ${file}: ${error.message}. Inspect the record and registered worktree before retrying`);
+  }
+}
+
+function writePending(file, pending) {
+  const temp = `${file}.${randomUUID()}.tmp`;
+  const fd = fs.openSync(temp, "wx", 0o600);
+  try {
+    try { fs.writeFileSync(fd, `${JSON.stringify(pending)}\n`); } finally { fs.closeSync(fd); }
+    fs.renameSync(temp, file);
+  } catch (error) {
+    fs.unlinkSync(temp);
+    throw error;
+  }
+}
+
+function routerState(changeDir) {
+  const state = path.join(changeDir, "agent-smith");
+  return { meta: lstat(path.join(state, "meta.json")), log: lstat(path.join(state, "run.jsonl")) };
+}
+
+function validatePendingSource(source, file) {
+  validateSource(source);
+  const { meta, log } = routerState(source);
+  if (meta || log) {
+    throw new Error(`Pending setup source now contains router state: ${source}. Inspect ${file} and preserve both copies before recovery`);
+  }
+}
+
+function validateWorktreePath(root, worktree, common, branch) {
+  if (!lstat(worktree)) {
+    throw new Error(`Registered worktree is missing: ${worktree}. Inspect stale registrations with git worktree prune --dry-run before pruning`);
+  }
+  if (!fs.statSync(root).isDirectory()) throw new Error(`Run root is not a directory: ${root}`);
+  const top = gitText(["-C", root, "rev-parse", "--show-toplevel"]);
+  if (fs.realpathSync(top) !== fs.realpathSync(worktree)) throw new Error(`Unavailable registered worktree: ${worktree}`);
+  const selectedCommon = gitText(["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  const selectedBranch = gitText(["-C", root, "symbolic-ref", "--quiet", "--short", "HEAD"]);
+  if (fs.realpathSync(selectedCommon) !== fs.realpathSync(common) || selectedBranch !== branch) {
+    throw new Error(`Run worktree no longer belongs to this repository and branch ${branch}: ${root}`);
+  }
+}
+
+function pendingOrigin(pending, file) {
+  return `Pending ${pending.chain} setup belongs to the original project root ${pending.root}. Inspect ${file} and retry setup from that root`;
 }
 
 function prepare(opts, result) {
@@ -151,16 +227,30 @@ function prepare(opts, result) {
     return;
   }
   checked(inside, "discover Git worktree");
+  if (inside.stdout.trim() !== "true") {
+    result.case = "opt-out";
+    result.runRoot = result.root;
+    return;
+  }
   const config = readIsolationPolicy(result.root);
-  if (inside.stdout.trim() !== "true" || !isolationEnabled(config)) {
+  const gitDir = gitText(["rev-parse", "--absolute-git-dir"]);
+  const common = gitText(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  const current = checked(git(["symbolic-ref", "--quiet", "--short", "HEAD"]), "read current branch", [0, 1]).stdout.replace(/\n$/, "");
+  const checkCurrentPending = () => {
+    if (gitDir !== common && current) {
+      withSetupLock(common, current, (file) => {
+        const pending = readPending(file);
+        if (pending) throw new Error(pendingOrigin(pending, file));
+      });
+    }
+  };
+  if (!isolationEnabled(config)) {
+    checkCurrentPending();
     result.case = "opt-out";
     result.runRoot = result.root;
     return;
   }
   const prefix = gitText(["rev-parse", "--show-prefix"]);
-  const gitDir = gitText(["rev-parse", "--absolute-git-dir"]);
-  const common = gitText(["rev-parse", "--path-format=absolute", "--git-common-dir"]);
-  const current = checked(git(["symbolic-ref", "--quiet", "--short", "HEAD"]), "read current branch", [0, 1]).stdout.replace(/\n$/, "");
   const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
   let invocation = readRunIdentity(path.join(result.root, change));
   if (invocation && !Object.hasOwn(invocation, "isolated") && !Object.hasOwn(invocation, "branch")
@@ -187,6 +277,7 @@ function prepare(opts, result) {
       if (!isolationEnabled(selectedConfig)) throw new Error(`Restore isolation.require before resuming recorded branch ${meta.branch}`);
       validateRunIdentity(meta, selectedConfig, opts.id, opts.chain, expected, git);
     }
+    return meta;
   };
   let savedBranch = Boolean(invocation);
   if (!inRun && !invocation && !branchExists(generated)) {
@@ -200,42 +291,67 @@ function prepare(opts, result) {
       savedBranch = true;
     }
   }
+  // An incomplete checkout may carry a different isolation policy than its origin.
+  if (!inRun && current !== branch) checkCurrentPending();
   validateRunBranch(config, opts.id, branch, git, savedBranch);
-  const selected = inRun ? gitText(["rev-parse", "--show-toplevel"]) : registeredWorktree(branch);
-  if (selected !== null) validateSelected(selected, branch);
-  if (invocation && !branchExists(branch)) throw new Error(`Recorded run branch ${branch} is unavailable; restore it and resume its original worktree`);
-  if (!inRun && !branchExists(branch) && fs.existsSync(path.join(result.root, change, "agent-smith/meta.json"))) {
-    result.case = "in-flight-main";
-    result.runRoot = result.root;
-    return;
-  }
-  withSetupLock(common, branch, () => {
-    if (invocation) validateRunIdentity(readRunIdentity(path.join(result.root, change)) ?? {}, config, opts.id, opts.chain, inRun ? current : null, git);
-    const registered = registeredWorktree(branch);
-    if (registered !== null) validateSelected(registered, branch);
+  withSetupLock(common, branch, (file) => {
+    const registrations = registeredWorktrees();
+    const registered = registrations.find((entry) => entry.branch === branch)?.worktree ?? null;
+    const exists = branchExists(branch);
+    const source = path.join(result.root, change);
+    const expectedWorktree = path.join(result.root, ".claude/worktrees", `agent-smith-${opts.id}`);
+    const isExpectedPath = (entry) => path.resolve(entry.worktree) === expectedWorktree;
+    let pending = readPending(file);
+    if (pending) {
+      if (inRun || pending.root !== result.root || pending.worktree !== expectedWorktree
+        || pending.prefix !== prefix || pending.chain !== opts.chain) {
+        throw new Error(pendingOrigin(pending, file));
+      }
+      if (exists && registered === null) {
+        throw new Error(`Pending setup branch ${branch} has no registered worktree at ${expectedWorktree}. Inspect git worktree list and ${file} before recovery`);
+      }
+      if (registered !== null && (!exists || path.resolve(registered) !== expectedWorktree)) {
+        throw new Error(`Pending setup expected worktree ${expectedWorktree} for branch ${branch}, found ${registered}. Inspect the registration and ${file} before recovery`);
+      }
+      if (registered === null) {
+        if (registrations.some(isExpectedPath)) {
+          throw new Error(`Pending setup worktree ${expectedWorktree} is registered to another branch or detached. Inspect git worktree list and ${file} before recovery`);
+        }
+        validatePendingSource(source, file);
+      }
+    }
+    if (invocation) {
+      validateRunIdentity(readRunIdentity(source) ?? {}, config, opts.id, opts.chain, inRun ? current : null, git);
+      if (!exists) throw new Error(`Recorded run branch ${branch} is unavailable; restore it and resume its original worktree`);
+    }
     result.branch = branch;
     if (inRun) {
       result.case = "in-run-worktree";
       result.worktree = gitText(["rev-parse", "--show-toplevel"]);
-    } else if (!branchExists(branch)) {
-      // Refresh in-flight detection under the same lock as creation and the complete copy.
-      if (fs.existsSync(path.join(result.root, change, "agent-smith/meta.json"))) {
+    } else if (!exists) {
+      if (fs.existsSync(path.join(source, "agent-smith/meta.json"))) {
         result.case = "in-flight-main";
         result.branch = null;
         result.runRoot = result.root;
         return;
       }
       result.case = "created";
-      const source = path.join(result.root, change);
-      if (!fs.lstatSync(source).isDirectory()) throw new Error(`Change folder is not a directory: ${source}`);
+      validateSource(source);
+      checkCopyParents(expectedWorktree, result.root);
       addExclude(prefix, opts.id, result);
       result.notInRun = outsidePaths(prefix, change);
-      result.worktree = path.join(result.root, ".claude/worktrees", `agent-smith-${opts.id}`);
-      checked(git(["worktree", "add", "--no-track", "-b", branch, result.worktree, "HEAD"]), "create run worktree");
-      copyChange(source, path.join(result.worktree, prefix, change), result.worktree);
-      result.copied = true;
+      result.worktree = expectedWorktree;
+      const startCommit = gitText(["rev-parse", "--verify", "HEAD^{commit}"]);
+      pending = { root: result.root, worktree: expectedWorktree, prefix, chain: opts.chain, startCommit };
+      writePending(file, pending);
+      const added = git(["worktree", "add", "--no-track", "-b", branch, expectedWorktree, startCommit]);
+      if (!added.timedOut && added.status !== 0 && !branchExists(branch)
+        && !registeredWorktrees().some((entry) => entry.branch === branch || isExpectedPath(entry))) {
+        fs.unlinkSync(file);
+      }
+      checked(added, "create run worktree");
     } else {
-      result.worktree = registeredWorktree(branch);
+      result.worktree = registered;
       if (result.worktree !== null) {
         result.case = "reused";
       } else {
@@ -261,15 +377,38 @@ function prepare(opts, result) {
       }
     }
     const runRoot = inRun ? result.root : path.resolve(result.worktree, prefix);
-    if (!fs.statSync(runRoot).isDirectory()) throw new Error(`Run root is not a directory: ${runRoot}`);
-    const top = gitText(["-C", runRoot, "rev-parse", "--show-toplevel"]);
-    if (fs.realpathSync(top) !== fs.realpathSync(result.worktree)) throw new Error(`Unavailable registered worktree: ${result.worktree}`);
-    const selectedCommon = gitText(["-C", runRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
-    const selectedBranch = gitText(["-C", runRoot, "symbolic-ref", "--quiet", "--short", "HEAD"]);
-    if (fs.realpathSync(selectedCommon) !== fs.realpathSync(common) || selectedBranch !== branch) {
-      throw new Error(`Run worktree no longer belongs to this repository and branch ${branch}: ${runRoot}`);
+    let copied = false;
+    if (pending) {
+      validateWorktreePath(result.worktree, result.worktree, common, branch);
+      if (fs.realpathSync(result.worktree) !== expectedWorktree) {
+        throw new Error(`Pending setup worktree is not canonical: ${expectedWorktree}. Inspect ${file} before recovery`);
+      }
+      validatePendingSource(source, file);
+      const destination = path.join(runRoot, change);
+      const { meta, log } = routerState(destination);
+      if (!meta && !log) {
+        const head = gitText(["-C", result.worktree, "rev-parse", "--verify", "HEAD^{commit}"]);
+        if (head !== pending.startCommit) {
+          throw new Error(`Pending setup expected commit ${pending.startCommit} in ${result.worktree}, found ${head}. Inspect ${file} and preserve worktree edits before recovery`);
+        }
+        copyChange(source, destination, result.worktree);
+        copied = true;
+      } else {
+        if (!meta?.isFile() || (log && !log.isFile()) || fs.realpathSync(runRoot) !== runRoot) {
+          throw new Error(`Pending setup found ambiguous router state in ${destination}. Inspect ${file} and preserve worktree inputs before recovery`);
+        }
+        checkAncestors(runRoot, path.join(destination, "agent-smith/meta.json"));
+      }
     }
-    validateSelected(result.worktree, branch);
+    validateWorktreePath(runRoot, result.worktree, common, branch);
+    const identity = validateSelected(result.worktree, branch);
+    if (pending) {
+      if (!copied && !identity) {
+        throw new Error(`Pending setup found router state without a saved run identity in ${runRoot}. Inspect ${file} and preserve worktree inputs before recovery`);
+      }
+      fs.unlinkSync(file);
+    }
+    result.copied = copied;
     result.runRoot = runRoot;
   });
 }

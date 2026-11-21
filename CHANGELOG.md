@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.15.4](https://github.com/xycu/agent-smith/compare/v1.15.3...v1.15.4) (2026-11-21)
+
+
+### Bug Fixes
+
+* **meta-json-damage-halts:** Halt on a damaged meta.json instead of replacing it with defaults ([#253](https://github.com/xycu/agent-smith/issues/253)) ([aba1a4a](https://github.com/xycu/agent-smith/commit/aba1a4a50eb004c3f2abec6d07adb9e09765f168))
+* **open-pr-base-prefix-collision:** Keep a short isolation.branchPrefix from hiding the base branch in open-pr ([#251](https://github.com/xycu/agent-smith/issues/251)) ([3aa8fef](https://github.com/xycu/agent-smith/commit/3aa8feffc98f5859c6e5bd9bcaf881cdba1c7569))
+* **openspec-critical-none-placeholder:** Stop a "- None" line under Critical from failing an OpenSpec verification ([#250](https://github.com/xycu/agent-smith/issues/250)) ([519dedc](https://github.com/xycu/agent-smith/commit/519dedcbf35d8b876dce9c3e3eec09fd61473788))
+* **prepare-run-retry-after-failed-setup:** Finish the change-folder copy when prepare-run is retried after a failed setup ([#252](https://github.com/xycu/agent-smith/issues/252)) ([f0e4912](https://github.com/xycu/agent-smith/commit/f0e4912b0e830c8eb41ac55d96fa1dcdf0721aeb))
+
 ## [1.15.3](https://github.com/xycu/agent-smith/compare/v1.15.2...v1.15.3) (2026-11-21)
 
 

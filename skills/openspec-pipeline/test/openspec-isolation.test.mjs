@@ -202,6 +202,7 @@ test("the fix-loop halt of an isolated run adds the commit rule", () => {
   assert.equal(res.json.action, "halt", res.stdout);
   assert.equal(res.json.reason,
     `OpenSpec verify FAIL after 2 fix loops. Needs a human. Fix the issues, set the first lines of ${CHANGE}/agent-smith/verify.md ` +
-    'to "Verdict: PASS" and "Critical: 0", then run /agent-smith:openspec-pipeline demo again. ' +
+    'to "Verdict: PASS" and "Critical: 0", and remove the `- ` lines under `## Critical`. ' +
+    "Then run /agent-smith:openspec-pipeline demo again. " +
     "Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.");
 });

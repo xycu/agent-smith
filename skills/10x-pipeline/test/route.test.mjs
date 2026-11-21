@@ -321,13 +321,18 @@ test("simple is false where the lean offset or the clamp absorbed the discount",
 
 // ---- malformed input ---------------------------------------------------------
 
-test("a meta.json that is not an object falls back and the output stays valid JSON", () => {
-  for (const content of ["[]", "5", "not json"]) {
+test("init halts with JSON and preserves malformed or non-object metadata", () => {
+  for (const [content, reason] of [["[]", "Expected a JSON object"], ["5", "Expected a JSON object"], ["not json", "Invalid JSON"]]) {
     const project = makeProject();
+    const file = path.join(project.agentDir, "meta.json");
     writeMetaFile(project, content);
+    const before = fs.readFileSync(file);
     const res = init(project, "fix typo");
-    assert.equal(res.status, 0, content);
-    assert.equal(res.json.action, "run");
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "halt");
+    assert.ok(res.json.reason.includes(`${file}: ${reason}`), res.stdout);
+    assert.equal(res.stderr, "");
+    assert.deepEqual(fs.readFileSync(file), before);
   }
 });
 
