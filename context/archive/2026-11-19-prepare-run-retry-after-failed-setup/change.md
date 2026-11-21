@@ -1,10 +1,10 @@
 ---
 change_id: prepare-run-retry-after-failed-setup
 title: Finish the change-folder copy when prepare-run is retried after a failed setup
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-21
-archived_at: null
+archived_at: 2026-11-21T20:56:37Z
 ---
 
 ## Notes
