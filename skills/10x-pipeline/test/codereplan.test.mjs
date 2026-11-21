@@ -140,7 +140,7 @@ test("failed replan halts before missing-plan or review routing", () => {
   assert.equal(e.planBaseline, null);
   const again = next(p).json;
   assert.equal(again.action, "halt");
-  assert.match(again.reason, /content is unchanged/);
+  assert.match(again.reason, /plan\.md is missing/);
   assert.doesNotMatch(again.reason, /Choose a supported file format/);
   writePlan(p, OPEN_PLAN());
   assert.equal(next(p).json.step, "plan-review");

@@ -752,8 +752,8 @@ export function replanRecoveryProblem(last, plan, previousOutcome) {
     previousOutcome?.action === "halt" && typeof previousOutcome.reason === "string" &&
     previousOutcome.reason.startsWith(LEGACY_REPLAN_HALT_PREFIX) && plan.mtime > last.finishedAt;
   if (!last.replanAck && !legacyEdit) return "The re-plan failed.";
-  if (plan.fingerprint === last.planBaseline) return "plan.md content is unchanged.";
   if (!plan.exists) return "plan.md is missing.";
+  if (plan.fingerprint === last.planBaseline) return "plan.md content is unchanged.";
   if (!plan.hasProgress) return "plan.md has no ## Progress section.";
   if (plan.autoPending <= 0) return "plan.md has no pending Automated rows.";
   if (verifyCodeReplan(last, plan)) return null;
