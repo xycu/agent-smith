@@ -124,12 +124,14 @@ Publication uses the same effective isolation projection and literal branch vali
 
 Missing metadata and legacy empty metadata use the exact configured prefix plus change id. An absent saved chain reads as `10x`. The strict boolean isolation opt-out skips publication before prefix validation. A conflicting policy diagnostic identifies the recorded branch and the policy restoration prerequisite.
 
-**GIVEN** automatic base discovery **WHEN** the script considers an ancestor or default-branch fallback **THEN** it **MUST** validate its literal branch name and exclude the run branch, the effective run prefix and the legacy `agent-smith/` namespace.
+**GIVEN** automatic base discovery **WHEN** the script considers an ancestor or default-branch fallback **THEN** it **MUST** validate its literal branch name and exclude `HEAD`, the current run branch, the legacy `agent-smith/` namespace and names starting with a configured prefix that ends in `/` or `-`.
 
-Explicit base precedence, nearest-ancestor counting, remote-HEAD tie preference and older-Git counting fallback continue to determine the base. The validated actual branch flows through the complete push refspec, GitHub `--head`, JSON output and recovery guidance.
+**GIVEN** a candidate starts with any other configured prefix **WHEN** the remainder starts with a character that can begin a change ID (`[a-z0-9]`) **THEN** automatic discovery **MUST** exclude it unless the exact branch is in `isolation.defaultBranches`, is the selected remote's symbolic HEAD target or is the default reported by GitHub in the final fallback. The first-character check covers saved run branches with suffixes after their IDs. An empty remainder or one starting with another character passes the prefix check.
+
+Explicit `--base` takes precedence and can select a non-default branch whose name could also identify a run. Nearest-ancestor counting, remote-HEAD tie preference and older-Git counting fallback continue to determine the automatic base. The validated actual branch flows through the complete push refspec, GitHub `--head`, JSON output and recovery guidance.
 
 **GIVEN** an executable recovery command **WHEN** the script renders dynamic arguments **THEN** it **MUST** quote each as a shell literal, including the worktree path, remote, complete refspec, repository, branch and base, while runtime Git and GitHub calls use argument arrays.
 
 **GIVEN** terminal reporting **WHEN** publication returns or fails to return JSON **THEN** both skills **MUST** use publication `branch`, then saved setup `branch`, then explicit `unavailable` identity for normal and failure messages.
 
-Deterministic tests cover both chains, saved suffix branches, archived report locations, configured and legacy base exclusions, refusal preservation and literal recovery-command arguments. External PR, comment and CI acceptance remains orchestrator-owned under Amendment 2.
+Deterministic tests cover both chains, saved suffix branches, archived report locations, automatic base selection with overlapping prefixes, configured and legacy base exclusions, refusal preservation and literal recovery-command arguments. External PR, comment and CI acceptance remains orchestrator-owned under Amendment 2.

@@ -201,20 +201,27 @@ function ancestorCounts(prefix) {
   return refs.map((ref) => ({ ref, count: Number(gitOut(["rev-list", "--count", `${ref}..HEAD`])) }));
 }
 
-// The nearest remote branch the run descends from: fewest commits between it and HEAD, ties to <remote>/HEAD.
-function automaticBase(name, branch, config) {
-  return typeof name === "string" && name !== "" && name !== "HEAD" && name !== branch
-    && !name.startsWith("-") && !name.startsWith(BRANCH_PREFIX) && !name.startsWith(config.branchPrefix ?? BRANCH_PREFIX)
-    && runGit(["check-ref-format", `refs/heads/${name}`]).status === 0;
+function automaticBase(name, branch, config, defaultBranch) {
+  if (typeof name !== "string" || !name || name === "HEAD" || name === branch
+    || name.startsWith("-") || name.startsWith(BRANCH_PREFIX)) return false;
+  const prefix = config.branchPrefix ?? BRANCH_PREFIX;
+  if (name.startsWith(prefix)) {
+    if (prefix.endsWith("/") || prefix.endsWith("-")) return false;
+    // Check only the first character because saved run branches can have suffixes after the change id.
+    const possibleRun = ID_RE.test(name.charAt(prefix.length));
+    const knownDefault = name === defaultBranch || (Array.isArray(config.defaultBranches) && config.defaultBranches.includes(name));
+    if (possibleRun && !knownDefault) return false;
+  }
+  return runGit(["check-ref-format", `refs/heads/${name}`]).status === 0;
 }
 
-function nearestBase(remote, branch, config) {
+// The nearest remote branch the run descends from: fewest commits between it and HEAD, ties to <remote>/HEAD.
+function nearestBase(remote, branch, config, head) {
   const prefix = `refs/remotes/${remote}/`;
-  const head = remoteHeadBranch(remote);
   let best = null;
   for (const { ref, count } of ancestorCounts(prefix).sort((a, b) => (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0))) {
     const name = ref.slice(prefix.length);
-    if (!automaticBase(name, branch, config)) continue;
+    if (!automaticBase(name, branch, config, head)) continue;
     if (!Number.isInteger(count)) continue;
     if (!best || count < best.count || (count === best.count && name === head && best.name !== head)) best = { name, count };
   }
@@ -223,14 +230,14 @@ function nearestBase(remote, branch, config) {
 
 function resolveBase(opts, branch, repo, config) {
   if (opts.base) return { base: opts.base };
-  const nearest = nearestBase(opts.remote, branch, config);
-  if (nearest) return { base: nearest };
   const head = remoteHeadBranch(opts.remote);
-  if (automaticBase(head, branch, config)) return { base: head };
+  const nearest = nearestBase(opts.remote, branch, config, head);
+  if (nearest) return { base: nearest };
+  if (automaticBase(head, branch, config, head)) return { base: head };
   if (repo) {
     const res = runGh(["repo", "view", repo, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"], opts.timeoutMs);
     const name = res.status === 0 ? res.stdout.trim() : "";
-    if (automaticBase(name, branch, config)) return { base: name };
+    if (automaticBase(name, branch, config, name)) return { base: name };
   }
   return { skip: "base branch not found: pass --base <branch>" };
 }
