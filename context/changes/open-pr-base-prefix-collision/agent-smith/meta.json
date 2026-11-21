@@ -48,7 +48,7 @@
   },
   "startCommit": "3fc48312ff8f3dc8222997cd43c8abaf2e7117e5",
   "rigor": {
-    "level": "lean",
-    "by": "goal short"
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/scripts/open-pr.mjs, skills/10x-pipeline/test/open-pr.test.mjs, skills/10x-pipeline/test/run-lock.test.mjs"
   }
 }
