@@ -18,11 +18,11 @@ Fresh setup reports integration lag and stops before worktree creation when the 
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Integration base | Advertised default branch of `origin`, or the sole remote. Without a remote, report a freshness skip. | The default follows repository conventions and keeps local projects usable. |
+| Integration base | Advertised default branch of `origin`, or the sole remote, unless the optional `isolation.integrationBranch` policy key names another branch. Without a remote, report a freshness skip. | The default follows repository conventions and keeps local projects usable. The key supports stacked and release-branch starts. |
 | Stale start | Report the exact lag and stop. | The operator chooses how to integrate upstream while setup keeps the original branch intact. |
 | Dependencies | Choose npm, pnpm, Yarn or Bun from the lockfile and run its frozen install from the owning worktree package root. | Reproducible installs give later gates their local dependencies. Project ignore rules protect generated dependencies from the final sweep. |
 | Project command | Run the optional committed top-level `readiness` string from the selected project root after dependencies. | The project owns service checks and other prerequisites. |
-| Retry | Save copy completion in the existing pending record before running gates. | A failed install or hook can be retried while preserving worktree edits. |
+| Retry | Save copy completion in the existing pending record before running gates. The retry rereads the readiness hook from the worktree's current HEAD. | A failed install or hook can be retried while preserving worktree edits, and a corrected hook committed in the worktree reaches the retry. |
 
 ## Scope
 
@@ -47,7 +47,7 @@ The shared executable checks freshness before registering the branch, validates 
 
 ## Open Risks & Assumptions
 
-- The remote default is the integration branch for this delivery. Ambiguous remote selection or an unreachable remote stops preparation.
+- The remote default is the integration branch unless `isolation.integrationBranch` names another one. The pipeline `SKILL.md` files stay unchanged. Ambiguous remote selection or an unreachable remote stops preparation.
 - The readiness command comes from trusted committed project policy. The project command owns isolation of services such as a database.
 - Finish pending setup with the enabling version before downgrading so a completed copy is preserved.
 

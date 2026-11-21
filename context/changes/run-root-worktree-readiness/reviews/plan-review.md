@@ -50,7 +50,7 @@ Grounding: 12/12 paths ✓ (prepare-run.mjs, run-identity.mjs, run-claude.mjs, r
   - Tradeoff: New policy surface, docs and tests.
   - Confidence: MED — it follows the existing policy-override pattern.
   - Blind spot: Interaction with the isolation policy projection.
-- **Decision**: PENDING — owner decides whether non-default starts are blocked (Fix A) or get an override or configurable base (Fix B); the plan cannot choose that scope.
+- **Decision**: APPLIED — owner chose Fix B (relayed by the parent session). Plan sections changed: Assumptions and rationale (first bullet), Phase 1 "1. Shared fresh-branch setup" (files, `isolation.integrationBranch` key and validator), Phase 1 "2. Local Git proof", Phase 2 "3. Cross-chain proof and operator documentation" (docs), plan-brief Key Decisions.
 
 ### F3 — "Bound the whole preparation" has no concrete budget
 
@@ -80,7 +80,7 @@ Grounding: 12/12 paths ✓ (prepare-run.mjs, run-identity.mjs, run-claude.mjs, r
 - **Location**: Phase 2
 - **Detail**: Phase 2 holds lockfile selection, dependency-boundary validation, the readiness hook, async process control, the copy-complete record, cross-chain tests and documentation under three Automated rows. A failure midway leaves no usable intermediate state to commit or review. Splitting into "gate execution" and "pending recovery plus docs" would give a smaller diff per phase, but it renumbers the Progress rows, which this review must not change.
 - **Fix**: Split Phase 2 into two phases (gate execution; pending recovery, proof and docs) when the owner agrees to renumber Progress.
-- **Decision**: PENDING — the split changes `## Progress` row indices and titles, which this step may not edit; the owner decides whether to renumber before implementation.
+- **Decision**: ACCEPTED — owner chose to leave Phase 2 as one phase (relayed by the parent session); no renumbering.
 
 ### F6 — Recovery when the committed readiness hook itself is wrong is unclear
 
@@ -99,4 +99,4 @@ Grounding: 12/12 paths ✓ (prepare-run.mjs, run-identity.mjs, run-claude.mjs, r
   - Tradeoff: Pushes risky manual steps on the operator.
   - Confidence: LOW — removal rules in `AGENTS.md` forbid tooling help here.
   - Blind spot: Interaction with the pending record and branch lock.
-- **Decision**: PENDING — owner decides which recovery path the plan supports; each choice changes the policy-provenance contract.
+- **Decision**: APPLIED — owner chose Fix A (relayed by the parent session). Plan sections changed: Assumptions and rationale (readiness bullet), Phase 2 "1. Worktree gate execution" (hook read via `git show HEAD:<path>`), Phase 2 "2. Pending setup and recovery" (pinned start must be an ancestor of HEAD), Phase 2 "3. Cross-chain proof and operator documentation" (provenance tests), Migration Notes, plan-brief Key Decisions.
