@@ -50,5 +50,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.4 In a live `agent-smith:step` subagent with the plugin installed, `X=1 git push` and `(git push)` are denied and `X=1 git status` runs"
+    ],
+    "manualNotProved": [
+      "3.4 In a live `agent-smith:step` subagent with the plugin installed, `X=1 git push` and `(git push)` are denied and `X=1 git status` runs — not proved: needs a live agent-smith:step subagent running the guard from this branch; the installed plugin copy is not provably this branch, and a live 'git push' probe must not run in an unattended step, so onl"
+    ]
   }
 }
