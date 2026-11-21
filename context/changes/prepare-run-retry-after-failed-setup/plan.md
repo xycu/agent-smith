@@ -45,7 +45,7 @@ Complete pending copies through the shared CLI and prove that ordinary resumes a
 
 **Intent** — Retry a copy that the setup executable still owns and report a usable run root only after recovery. Give missing-worktree diagnostics at the stale registration.
 
-**Contract** — Publish the pending intent as a complete record before registration. Keep all intent access and copy mutations under the setup lock. Retain the existing copy validation and mode, timestamp and symlink semantics. Set `copied: true` only after the entire copy and validation succeed. A successful retry remains `reused`, so the original change folder remains available. Preserve the existing JSON shape, runtime exit behavior and usage errors. A missing registered worktree top gets prune guidance. An existing replacement repository, wrong branch, or missing nested prefix takes its own validation path.
+**Contract** — Publish the pending intent as a complete record before registration, as a JSON file `agent-smith-setup-<encodeURIComponent(branch)>.pending` beside the setup lock in the Git common directory, written to a temporary name and renamed into place, holding the owning original project root, expected worktree, project prefix, chain and starting commit. Keep all intent access and copy mutations under the setup lock. Retain the existing copy validation and mode, timestamp and symlink semantics. Set `copied: true` only after the entire copy and validation succeed. A successful retry remains `reused`, so the original change folder remains available. Preserve the existing JSON shape, runtime exit behavior and usage errors. A missing registered worktree top gets prune guidance. An existing replacement repository, wrong branch, or missing nested prefix takes its own validation path.
 
 #### 2. Setup regression coverage
 
@@ -61,7 +61,7 @@ Complete pending copies through the shared CLI and prove that ordinary resumes a
 
 **Intent** — Document how to retry an unfinished setup and how to handle a missing registered worktree.
 
-**Contract** — Update the active isolation reference and record the decision alongside ADR-010's setup amendments. Cover the existing JSON fields on retry, original-root ownership, stale lock inspection, and the compatibility boundary for failures from older releases.
+**Contract** — Update the active isolation reference and record the decision alongside ADR-010's setup amendments. Cover the existing JSON fields on retry, original-root ownership, stale lock inspection, and the compatibility boundary for failures from older releases. Grep every doc for the old behavior that registered reuse always reports `copied: false` (including `docs/REFERENCE.md` lines 147-154 and both `SKILL.md` setup steps) and update any statement that a recovered retry changes.
 
 ### Success Criteria
 
