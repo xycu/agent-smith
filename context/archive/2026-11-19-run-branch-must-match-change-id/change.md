@@ -1,10 +1,10 @@
 ---
 change_id: run-branch-must-match-change-id
 title: Refuse to run a change on another change's run branch
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-21
-archived_at: null
+archived_at: 2026-11-21T14:22:33Z
 ---
 
 ## Notes
