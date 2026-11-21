@@ -4,7 +4,8 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { cleanupAll, makeProject } from "./helpers.mjs";
+import { cleanupAll, makeProject, init, next, writeResult, readLogEntries, seedRun, entry } from "./helpers.mjs";
+import { writePlan as writeAheadPlan, writeReview as writeAheadReview } from "./ahead.mjs";
 import { readPlan, readReview, openCounts } from "../scripts/state.mjs";
 
 after(cleanupAll);
@@ -180,4 +181,90 @@ test("an unclosed fence in a finding block never reads cleaner than the header c
   assert.equal(open.openCritical, 0);
   assert.equal(open.openWarnings, 1);
   assert.equal(open.unparsed, 1);
+});
+
+// ---- verification of plan and plan-revise (CLI) ------------------------------
+
+const GOAL = "Parse blank lines";
+const progressWith = (rows, manual = "- [ ] 1.9 Look at it") =>
+  `# Plan\n\n## Phase 1: Core\n\n## Progress\n\n### Phase 1: Core\n\n#### Automated\n\n${rows}\n\n#### Manual\n\n${manual}\n`;
+const STAR_ROWS = progressWith("* [ ] 1.1 First\n* [ ] 1.2 Second");
+const NUMBERED_ROWS = progressWith("1. [ ] 1.1 First\n2. [ ] 1.2 Second");
+const INDENTED_ROWS = progressWith("  - [ ] 1.1 First\n  - [ ] 1.2 Second");
+const MANUAL_ONLY = progressWith("");
+const TICKED_ONLY = progressWith("- [x] 1.1 First");
+const GOOD = progressWith("- [ ] 1.1 First");
+
+function startPlan() {
+  const p = makeProject();
+  const res = init(p, GOAL);
+  assert.equal(res.json?.step, "plan", res.stdout);
+  return p;
+}
+
+function finishPlan(p, text) {
+  writeAheadPlan(p, text);
+  writeResult(p, { status: "done", note: "plan written" });
+  return next(p).json;
+}
+
+function assertRetried(text, label) {
+  const p = startPlan();
+  const res = finishPlan(p, text);
+  const first = readLogEntries(p)[0];
+  assert.equal(first.ok, false, label);
+  assert.equal(first.verified, false, label);
+  assert.equal(res.step, "plan", label);
+  assert.match(res.reason, /plan\.md has no pending Automated Progress row \(read \d+ rows\)/, label);
+  return p;
+}
+
+test("a plan written with * rows does not verify, is asked for again and halts at the attempt limit", () => {
+  const p = assertRetried(STAR_ROWS, "star");
+  const second = finishPlan(p, STAR_ROWS);
+  assert.equal(second.step, "plan");
+  const third = finishPlan(p, STAR_ROWS);
+  assert.equal(third.action, "halt", JSON.stringify(third));
+  const steps = readLogEntries(p).filter((e) => !e.skipped).map((e) => e.step);
+  assert.deepEqual([...new Set(steps)], ["plan"]);
+});
+
+test("numbered and indented rows do not verify and the plan is asked for again", () => {
+  assertRetried(NUMBERED_ROWS, "numbered");
+  assertRetried(INDENTED_ROWS, "indented");
+});
+
+test("a plan with only Manual pending rows or only ticked Automated rows is asked for again", () => {
+  assertRetried(MANUAL_ONLY, "manual only");
+  assertRetried(TICKED_ONLY, "ticked only");
+});
+
+test("a plan with a pending - [ ] row verifies and moves to plan-review", () => {
+  const p = startPlan();
+  const res = finishPlan(p, GOOD);
+  const first = readLogEntries(p)[0];
+  assert.equal(first.ok, true);
+  assert.equal(first.verified, true);
+  assert.equal(res.step, "plan-review");
+});
+
+test("a plan-revise that leaves no readable row fails and plan-revise runs again", () => {
+  const p = makeProject({ plan: GOOD });
+  writeAheadReview(p, "plan-review", { verdict: "REVISE", findings: "1 critical, 0 warnings" });
+  seedRun(p, [entry(1, "plan"), entry(2, "plan-review")]);
+  const started = init(p, GOAL).json;
+  assert.equal(started.step, "plan", JSON.stringify(started));
+  assert.equal(readLogEntries(p).at(-1).template, "plan-revise");
+  const res = finishPlan(p, STAR_ROWS);
+  const revise = readLogEntries(p).find((e) => e.template === "plan-revise");
+  assert.equal(revise.ok, false);
+  assert.equal(revise.verified, false);
+  assert.equal(res.step, "plan", JSON.stringify(res));
+  assert.equal(readLogEntries(p).at(-1).template, "plan-revise");
+});
+
+test("a plan supplied at init with every row ticked still routes to review", () => {
+  const p = makeProject({ plan: TICKED_ONLY });
+  const res = init(p, GOAL).json;
+  assert.equal(res.step, "plan-review", JSON.stringify(res));
 });

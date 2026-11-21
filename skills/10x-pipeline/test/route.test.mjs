@@ -629,21 +629,22 @@ test("the plan prompt carries named-skill loading, layered safety rules and the 
   const res = init(project, "fix typo");
   const prompt = res.json.prompt;
   const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
-  // Three defaults, two planning rules, then the shared safety and precedence rules.
-  assert.equal(rules.length, 26);
+  // Three defaults, three planning rules, then the shared safety and precedence rules.
+  assert.equal(rules.length, 27);
+  assert.match(rules[5], /`- \[ \] N\.M title`.*pending row under `#### Automated`/);
   assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
   assert.match(rules[1], /`signals\.needsHuman`/);
   assert.match(rules[2], /\*\*MAY\*\* add `signals\.rigor`/);
-  assert.match(rules[5], /\*\*MUST\*\* load its SKILL\.md through the host/);
-  assert.match(rules[6], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
-  assert.match(rules[7], /\*\*MUST NOT\*\* use `rm -rf`/);
-  assert.match(rules[8], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
-  assert.match(rules[16], /\*\*MAY\*\* start one native child layer/);
-  assert.match(rules[17], /all applicable always-true, chain and step safety rules/);
-  assert.match(rules[20], /delegated leaf.*\*\*MUST NOT\*\* do so/);
-  assert.match(rules[22], /collect every launched child, reconcile edits and failures/);
-  assert.match(rules[24], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
-  assert.match(rules[25], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
+  assert.match(rules[6], /\*\*MUST\*\* load its SKILL\.md through the host/);
+  assert.match(rules[7], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
+  assert.match(rules[8], /\*\*MUST NOT\*\* use `rm -rf`/);
+  assert.match(rules[9], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
+  assert.match(rules[17], /\*\*MAY\*\* start one native child layer/);
+  assert.match(rules[18], /all applicable always-true, chain and step safety rules/);
+  assert.match(rules[21], /delegated leaf.*\*\*MUST NOT\*\* do so/);
+  assert.match(rules[23], /collect every launched child, reconcile edits and failures/);
+  assert.match(rules[25], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
+  assert.match(rules[26], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
   const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
   assert.equal(prompt.split("\n").at(-1), result, "the RESULT line of top.md ends the prompt");
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));

@@ -604,7 +604,8 @@ export function attachResult(p, log, policy) {
   const plan = readPlan(p.plan);
   let verified;
   switch (last.step) {
-    case "plan": verified = plan.hasProgress && plan.mtime > last.startedAt && (!CODE_REPLANS.includes(last.template) || verifyCodeReplan(last, plan)); break;
+    // A plan verifies only with a pending Automated row: zero readable rows would read as finished work and skip implement.
+    case "plan": verified = plan.mtime > last.startedAt && (CODE_REPLANS.includes(last.template) ? verifyCodeReplan(last, plan) : plan.autoPending > 0); break;
     case "plan-review":
     case "impl-review": {
       const file = last.step === "plan-review" ? p.planReview : p.implReview;
@@ -769,7 +770,12 @@ export function decide(p, fullLog, policy, meta, ctx) {
   }
   if (implRecovery?.problem) return implReviewNext(log, plan, policy, implRecovery.problem);
 
-  if (!plan.exists || !plan.hasProgress) {
+  // A failed first plan that left no pending Automated row is asked for again, so a non-isolated run (no rollback of
+  // plan.md) never reads its empty Progress as finished work. A plan supplied at init has no plan entry and routes as before.
+  const lastPlan = [...log].reverse().find((e) => e.step === "plan");
+  const planRetry = lp < 0 && lastPlan?.template === "plan" && !lastPlan.ok && !lastPlan.verified &&
+    plan.autoPending === 0 && !log.some((e) => e.step === "implement" || e.step === "fix");
+  if (!plan.exists || !plan.hasProgress || planRetry) {
     const pre = preplanNext(p, fullLog, policy, meta, ctx);
     if (pre) return pre;
     const score = scoreNext(p, fullLog, policy, meta, ctx);
@@ -781,7 +787,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
       template: "plan",
       bump: kind === "hard" ? B.hard : B.plain,
       bumpWhy: `goal class ${kind}`,
-      reason: `${plan.exists ? "plan.md has no ## Progress" : "no plan yet"} (goal: ${kind}${keyword ? `, "${keyword}"` : ""})`,
+      reason: `${!plan.exists ? "no plan yet" : !plan.hasProgress ? "plan.md has no ## Progress" : `plan.md has no pending Automated Progress row (read ${plan.rows} rows)`} (goal:${kind}${keyword ? `, "${keyword}"` : ""})`,
     };
   }
 
