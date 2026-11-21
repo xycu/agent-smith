@@ -81,6 +81,7 @@ test("1.1g a stale lock with a guard held by a live pid halts after the wait and
   assert.equal(res.status, 1);
   assert.equal(res.json.action, "halt");
   assert.ok(res.json.reason.includes(`${lock}.takeover`));
+  assert.match(res.json.reason, /removes the guard file and retries\. Nothing was written\./);
   assert.equal(fs.readFileSync(lock, "utf8"), before);
   assert.deepEqual(leftovers(tmp).sort(), [path.basename(lock), `${path.basename(lock)}.takeover`].sort());
 });

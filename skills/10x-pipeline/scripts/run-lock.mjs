@@ -90,7 +90,7 @@ export function lockRunDirectory(root, id, chain, onBusy) {
           }
         }
         if (Date.now() >= deadline) {
-          halt(`Another caller is taking over the stale run lock of change ${id} (guard file ${guard}, pid ${holder ?? "unknown"}). Retry in a moment. Nothing was written.`);
+          halt(`Another caller is taking over the stale run lock of change ${id} (guard file ${guard}, pid ${holder ?? "unknown"}). Retry in a moment. When that pid is not a router and no router runs for this change, the owner removes the guard file and retries. Nothing was written.`);
         }
         if (holder !== null) sleep(20);
       }
