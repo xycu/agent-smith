@@ -33,7 +33,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `loops.test.mjs` | the new loops and the budget reference paths |
 | `score.test.mjs` | complexity score step (ADR-007): policy data, gate, file validation, failure skip, tier shift, report and status. Turn on with `score: { minRigor: "standard" }` |
 | `advisor.test.mjs` | opt-in advisor (ADR-009): no advisor text by default, its place in the listed prompts, the `advisor` log flag, malformed `advisor` blocks, the prompt file, the provenance link, and the pin that the indexes describe the advisor flag. Turn on with `advisor: { enabled: true }` |
-| `step-guard.test.mjs` | scoped plugin Bash hook, registration, fail-closed input, direct-command denial, safe commands, recording clients, side-effect boundaries and paths with spaces |
+| `step-guard.test.mjs` | scoped plugin Bash hook, registration, fail-closed input, direct-command denial, command shapes, wrappers, ANSI-C quoting, Git option abbreviations, safe commands, recording clients, side-effect boundaries and paths with spaces |
 | `agents.test.mjs` | guarded Claude default and restricted step agents (ADR-009): the `agent` field of the run output, log entry and `status`, malformed `agents` blocks, inherited-tool/restricted definitions, the provenance link, the `SKILL.md` dispatch line. Turn on with `score: { minRigor: "standard" }, agents: { restricted: true }`; a test that edits `agents/score.md` uses a scratch copy of the plugin tree |
 
 ## Phase executors

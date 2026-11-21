@@ -1,9 +1,9 @@
 ---
 change_id: step-guard-bypass-forms
 title: Make the step guard deny forbidden commands behind common shell shapes
-status: new
+status: impl_reviewed
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-21
 archived_at: null
 ---
 
