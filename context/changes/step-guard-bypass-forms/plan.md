@@ -267,9 +267,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [x] 1.1 Guard tests pass, including every new shape deny/allow pair
-- [x] 1.2 Source constraints hold (no forbidden words or calls in the guard)
-- [x] 1.3 Pathological nesting finishes inside the hook timeout
+- [x] 1.1 Guard tests pass, including every new shape deny/allow pair — 9f57423c
+- [x] 1.2 Source constraints hold (no forbidden words or calls in the guard) — 9f57423c
+- [x] 1.3 Pathological nesting finishes inside the hook timeout — 9f57423c
 
 #### Manual
 
@@ -279,9 +279,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [ ] 2.1 Guard tests pass with every Git option deny/allow pair
-- [ ] 2.2 The three `--no-verify` search commands are allowed
-- [ ] 2.3 Every change.md abbreviation form is denied and its safe neighbour is allowed
+- [x] 2.1 Guard tests pass with every Git option deny/allow pair
+- [x] 2.2 The three `--no-verify` search commands are allowed
+- [x] 2.3 Every change.md abbreviation form is denied and its safe neighbour is allowed
 
 #### Manual
 

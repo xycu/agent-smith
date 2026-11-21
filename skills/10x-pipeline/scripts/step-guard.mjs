@@ -446,25 +446,39 @@ const basename = (word) => word.split("/").at(-1);
 const publicationScript = (word) => ["open-pr.mjs", "pr-comment.mjs"].includes(basename(word));
 const beforePaths = (args) => args.slice(0, args.includes("--") ? args.indexOf("--") : args.length);
 
+// Git accepts any unique prefix of a long option, and rejects an ambiguous one.
+function longFlag(arg, full) {
+  const name = arg.startsWith("--") ? arg.slice(2).split("=")[0] : "";
+  return name !== "" && full.slice(2).startsWith(name);
+}
+
+const gitGlobalValues = ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env", "--exec-path", "--super-prefix", "--attr-source"];
+
 function gitOptions(words) {
   let at = 1;
+  const config = [];
   // Git global options that take a separate value precede the subcommand.
   while (at < words.length && words[at].startsWith("-")) {
-    if (["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"].includes(words[at])) at += 2;
-    else at++;
+    const option = words[at];
+    if (option.startsWith("--config-env=")) config.push(option.slice("--config-env=".length));
+    if (gitGlobalValues.includes(option)) {
+      if (option === "-c" || option === "--config-env") config.push(words[at + 1] ?? "");
+      at += 2;
+    } else at++;
   }
   const sub = words[at];
   const args = words.slice(at + 1);
   const flags = [];
   const messageOperands = new Set();
-  const shortValues = sub === "commit" ? "mFcCtSu" : sub === "clean" ? "e" : "";
+  const shortValues = sub === "commit" ? "mFcCtSu" : sub === "clean" ? "e" : sub === "tag" ? "mFu" : "";
+  const optionalValues = sub === "commit" ? "Su" : "";
   const longValues = ["--message", "--file", "--author", "--date"];
   if (sub === "commit") longValues.push("--reuse-message", "--reedit-message", "--template", "--fixup", "--squash", "--cleanup", "--trailer", "--pathspec-from-file");
   if (sub === "clean") longValues.push("--exclude");
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg === "--") break;
-    if (longValues.includes(arg) || ["-m", "-F"].includes(arg)) {
+    if ((!arg.includes("=") && longValues.some((full) => longFlag(arg, full))) || ["-m", "-F"].includes(arg)) {
       if (arg === "-m") messageOperands.add(at + i + 2);
       i++;
       continue;
@@ -474,7 +488,7 @@ function gitOptions(words) {
       for (let j = 1; j < arg.length; j++) {
         flags.push("-" + arg[j]);
         if (shortValues.includes(arg[j])) {
-          if (j === arg.length - 1 && !"Su".includes(arg[j])) i++;
+          if (j === arg.length - 1 && !optionalValues.includes(arg[j])) i++;
           break;
         }
       }
@@ -482,23 +496,35 @@ function gitOptions(words) {
     }
     flags.push(arg);
   }
-  return { sub, args, flags, messageOperands };
+  return { sub, args, flags, messageOperands, config };
 }
 
+const hookSubcommands = ["commit", "merge", "pull", "am", "rebase", "cherry-pick", "revert"];
+const shortFlag = (flags, letters) => flags.some((arg) => /^-[^-]/.test(arg) && [...arg.slice(1)].some((c) => letters.includes(c)));
+const anyLongFlag = (flags, ...names) => flags.some((arg) => names.some((full) => longFlag(arg, full)));
+
 function gitProblem(words) {
-  const { sub, args, flags } = gitOptions(words);
-  const dryRun = flags.findLast((arg) => ["-n", "--dry-run", "--no-dry-run"].includes(arg));
-  if (sub === "push") return PUBLICATION;
-  if (flags.includes("--no-verify") || (sub === "commit" && flags.some((arg) => /^-[^-]*n/.test(arg)))) {
+  const { sub, args, flags, config } = gitOptions(words);
+  if (["push", "send-pack", "http-push"].includes(sub)) return PUBLICATION;
+  if ((hookSubcommands.includes(sub) && anyLongFlag(flags, "--no-verify")) ||
+      (sub === "commit" && flags.some((arg) => /^-[^-]*n/.test(arg))) ||
+      config.some((value) => /^core\.hookspath(?:=|$)/i.test(value))) {
     return "Bypassing Git hooks is forbidden. Run the authorized commit with its hooks enabled.";
   }
+  const dryRun = flags.findLast((arg) => arg === "-n" || anyLongFlag([arg], "--dry-run", "--no-dry-run"));
+  const deletes = flags.some((arg) => longFlag(arg, "--delete") || /^-[^-]*[dD]/.test(arg));
   if (sub === "restore" || sub === "checkout" ||
-      (sub === "reset" && flags.some((arg) => arg === "--hard" || arg.startsWith("--hard="))) ||
-      (sub === "clean" && !["-n", "--dry-run"].includes(dryRun)) ||
+      (sub === "reset" && anyLongFlag(flags, "--hard", "--merge", "--keep")) ||
+      (sub === "clean" && !(dryRun === "-n" || longFlag(dryRun ?? "", "--dry-run"))) ||
       (sub === "stash" && ["drop", "clear"].includes(args[0])) ||
-      (["branch", "tag", "update-ref"].includes(sub) && flags.some((arg) => arg === "--delete" || /^-[^-]*[dD]/.test(arg))) ||
-      (sub === "worktree" && ["remove", "prune"].includes(args[0])) ||
-      (sub === "update-ref" && beforePaths(args).some((arg) => arg.startsWith("refs/agent-smith/")))) {
+      (sub === "switch" && (shortFlag(flags, "fC") || anyLongFlag(flags, "--force", "--discard-changes", "--force-create"))) ||
+      (sub === "branch" && (deletes || shortFlag(flags, "fMC") || anyLongFlag(flags, "--force"))) ||
+      (sub === "tag" && (deletes || shortFlag(flags, "f") || anyLongFlag(flags, "--force"))) ||
+      (["rm", "checkout-index"].includes(sub) && (shortFlag(flags, "f") || anyLongFlag(flags, "--force"))) ||
+      (sub === "read-tree" && anyLongFlag(flags, "--reset")) ||
+      (sub === "update-ref" && (deletes || anyLongFlag(flags, "--stdin") ||
+        beforePaths(args).some((arg) => arg.startsWith("refs/agent-smith/")))) ||
+      (sub === "worktree" && ["remove", "prune"].includes(args[0]))) {
     return PRESERVATION;
   }
   return null;
@@ -509,7 +535,7 @@ function commandProblem(words) {
   if (executable === "gh" || publicationScript(words[0]) ||
       (executable === "node" && words.slice(1).some(publicationScript))) return PUBLICATION;
   if (executable === "git") return gitProblem(words);
-  if (executable === "rm" && beforePaths(words.slice(1)).some((arg) => arg === "--recursive" || /^-[^-]*[rR]/.test(arg))) {
+  if (executable === "rm" && beforePaths(words.slice(1)).some((arg) => longFlag(arg, "--recursive") || /^-[^-]*[rR]/.test(arg))) {
     return DELETION;
   }
   if (executable === "find" && words.includes("-delete")) return DELETION;

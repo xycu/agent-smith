@@ -317,6 +317,53 @@ test("command shapes: find -exec", () => {
   for (const command of ["find . -name '*.tmp' -exec ls {} +", "find . -exec echo {} \\;"]) neutral(payload(command));
 });
 
+test("git options: abbreviations", () => {
+  for (const command of [
+    "git commit --no-verif -m x", "git commit --no-v -m x", "git merge --no-verif b",
+    "git reset --har", "git reset --ha HEAD~1", "git branch --delet old", "git update-ref --del refs/heads/x",
+    "rm --recursiv build", "rm --r build", // Never execute.
+    "git switch --di main", "git branch --fo main HEAD~3",
+    "git clean --exc -n -fd", "git clean --no-d -fd", "git commit --mess -- --no-verify",
+  ]) denied(command);
+  for (const command of [
+    "git reset --soft HEAD~1", "git branch --list", "rm --force inspected-file", "git switch --detach HEAD",
+    "git clean --exc pattern -n -fd", "git clean --dry -d", "git commit --mess x -m y", "git diff --no-ver",
+  ]) neutral(payload(command));
+});
+
+test("git options: discarding verbs", () => {
+  for (const command of [
+    "git reset --merge", "git reset --keep HEAD~1",
+    "git switch -f main", "git switch --discard-changes main", "git switch -C main origin/main",
+    "git branch -f main HEAD~3", "git branch -M old new", "git branch -C old new", "git tag -f v1 HEAD~1",
+    "git rm -rf src", "git checkout-index -f -a", "git read-tree --reset -u HEAD", // Never execute.
+    "git update-ref --stdin", "git send-pack origin HEAD", "git http-push https://example.invalid/r HEAD",
+  ]) denied(command);
+  for (const command of [
+    "git switch feature", "git switch -c new", "git reset --mixed HEAD", "git branch -m old new",
+    "git branch -c a b", "git branch -a -v", "git tag -l", 'git tag -a v1 -m"fix deploy"', "git rm file",
+    "git checkout-index -a", "git read-tree HEAD", "git update-ref refs/preserve/x HEAD",
+  ]) neutral(payload(command));
+});
+
+test("git options: global options", () => {
+  for (const command of [
+    "git --exec-path /x push", "git --super-prefix p/ push", "git --attr-source HEAD push",
+    "git -c core.hooksPath=/dev/null commit -m x", "git -c core.HooksPath=/x commit -m x",
+    "git --config-env core.hooksPath=ENV commit -m x", "git --config-env=core.hooksPath=ENV commit -m x",
+  ]) denied(command);
+  for (const command of [
+    "git -C sub status", "git -c color.ui=false status", "git -c core.editor=vi commit -m x",
+    "git --config-env=core.pager=ENV status", "git --exec-path /x status",
+  ]) neutral(payload(command));
+});
+
+test("git options: search patterns", () => {
+  for (const command of ['git log -S "--no-verify"', 'git log --grep "--no-verify"', "git grep -e --no-verify"]) {
+    neutral(payload(command));
+  }
+});
+
 test("command shapes: nesting stays inside the hook timeout", () => {
   for (const command of ["$(".repeat(30 * 1024), "$(".repeat(20 * 1024) + ")".repeat(20 * 1024), "$(true)".repeat(8 * 1024)]) {
     const started = Date.now();
