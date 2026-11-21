@@ -322,8 +322,33 @@ test("configured isolation protects main checkout, detached HEAD, defaults and w
   git(main, ["-C", wt.root, "checkout", "-q", "--detach"]);
   assertHalt(initIn(wt), /HEAD is detached/, wt);
   git(main, ["-C", wt.root, "checkout", "-q", "codex/demo"]);
-  writeMetaFile(wt, { id: "demo", isolated: true, branch: "codex/other" });
+  writeMetaFile(wt, { id: "demo", isolated: true, branch: "codex/demo-other" });
   const before = fs.readFileSync(path.join(wt.agentDir, "meta.json"));
-  assertHalt(initIn(wt), /started on branch codex\/other/);
+  assertHalt(initIn(wt), /started on branch codex\/demo-other/);
   assert.deepEqual(fs.readFileSync(path.join(wt.agentDir, "meta.json")), before);
+});
+
+test("init refuses another change's run branch and names both ids", { skip }, () => {
+  const main = repo();
+  for (const branch of ["agent-smith/other", "agent-smith/demo-baselines", "agent-smith/demo-baseline-2", "agent-smith/demo-extra"]) {
+    const wt = worktree(main, branch, branch.replace("/", "-"));
+    const owner = branch.slice("agent-smith/".length);
+    assertHalt(initIn(wt), new RegExp(`belongs to change ${owner}, not to change demo`), wt);
+    assert.equal(fs.existsSync(path.join(wt.root, "context/changes/demo/agent-smith")), false);
+  }
+});
+
+test("init accepts the baseline branch of the change", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main, "agent-smith/demo-baseline");
+  assert.equal(initIn(wt).json.action, "run");
+});
+
+test("a saved identity on another change's branch halts with the other-change message only", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main, "agent-smith/other");
+  writeMetaFile(wt, { id: "demo", isolated: true, branch: "agent-smith/other" });
+  const res = initIn(wt);
+  assertHalt(res, /belongs to change other, not to change demo/);
+  assert.doesNotMatch(res.json.reason, /Restore isolation\.branchPrefix/);
 });
