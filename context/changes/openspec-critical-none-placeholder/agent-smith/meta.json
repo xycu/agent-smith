@@ -44,11 +44,14 @@
       "score.minRigor": "standard",
       "agents.restricted": false,
       "advisor.enabled": false
-    }
+    },
+    "drift": [
+      "prompts"
+    ]
   },
   "startCommit": "8ddd9fc40aa9fd7ec9bedc972ead440609d73217",
   "rigor": {
-    "level": "lean",
-    "by": "goal short"
+    "level": "standard",
+    "by": "hot paths skills/10x-pipeline/test/run-lock.test.mjs"
   }
 }
