@@ -254,13 +254,13 @@ test("interpreter command strings and unknown helpers are outside the documented
 const directly = /directly/;
 
 test("command shapes: assignment prefix", () => {
-  for (const command of ["X=1 git push", "GH_TOKEN=x gh api repos/o/r", "TMPDIR=/x rm -rf build"]) denied(command);
+  for (const command of ["X=1 git push", "GH_TOKEN=x gh api repos/o/r", "TMPDIR=/x rm -rf build"]) denied(command); // Never execute.
   neutral(payload("X=1 git status"));
 });
 
 test("command shapes: subshell and group", () => {
   for (const command of [
-    "(git push)", "(cd sub && git reset --hard)", "{ rm -rf build; }",
+    "(git push)", "(cd sub && git reset --hard)", "{ rm -rf build; }", // Never execute.
     'git add -A && git commit -m "x" && (git push || true)', "function f { git push; }", "f() { git push; }",
   ]) denied(command);
   for (const command of ["(cd sub && git status)", "{ ls; }"]) neutral(payload(command));
@@ -268,7 +268,7 @@ test("command shapes: subshell and group", () => {
 
 test("command shapes: reserved words", () => {
   for (const command of [
-    "if [ -d build ]; then rm -rf build; fi", 'for d in a b; do rm -rf "$d"; done',
+    "if [ -d build ]; then rm -rf build; fi", 'for d in a b; do rm -rf "$d"; done', // Never execute.
     "while ! git push; do sleep 1; done", "! git push",
   ]) denied(command);
   for (const command of ["if [ -d build ]; then ls build; fi", 'for d in a b; do echo "$d"; done']) neutral(payload(command));
@@ -294,7 +294,7 @@ test("command shapes: glued redirects", () => {
 test("command shapes: wrappers", () => {
   for (const command of [
     "env git push", "command git push", "exec git push", "nohup git push", "time git reset --hard",
-    "timeout 60 git push", "nice -n 5 git push", "nice -5 git push", "sudo rm -rf x", "sudo -u root env git push",
+    "timeout 60 git push", "nice -n 5 git push", "nice -5 git push", "sudo rm -rf x", "sudo -u root env git push", // Never execute.
     "env -i PATH=/bin git push", "xargs -n1 git push", "/usr/bin/env git push",
   ]) denied(command);
   for (const command of ["env -S 'git push'", "env --split-string='git push'", "sudo -s 'git push'", "sudo -i git push"]) {
@@ -308,12 +308,12 @@ test("command shapes: wrappers", () => {
 });
 
 test("command shapes: xargs", () => {
-  for (const command of ["find . -name '*.tmp' | xargs rm -rf", "xargs -I{} rm -rf {}", "printf x | xargs -0 git push"]) denied(command);
+  for (const command of ["find . -name '*.tmp' | xargs rm -rf", "xargs -I{} rm -rf {}", "printf x | xargs -0 git push"]) denied(command); // Never execute.
   neutral(payload("find . -name '*.tmp' | xargs ls"));
 });
 
 test("command shapes: find -exec", () => {
-  for (const command of ["find build -exec rm -rf {} +", "find . -exec git push \\;", "find . -execdir env git push \\;"]) denied(command);
+  for (const command of ["find build -exec rm -rf {} +", "find . -exec git push \\;", "find . -execdir env git push \\;"]) denied(command); // Never execute.
   for (const command of ["find . -name '*.tmp' -exec ls {} +", "find . -exec echo {} \\;"]) neutral(payload(command));
 });
 
