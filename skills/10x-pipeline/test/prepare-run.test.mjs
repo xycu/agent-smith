@@ -25,6 +25,15 @@ function linked(p, branch = "agent-smith/demo", name = "custom checkout") {
   return { ...p, root: path.join(top, path.relative(p.base, p.root)), top };
 }
 
+// Refusal inside another change's run worktree: names both ids, no runRoot, nothing written.
+function assertOtherChange(p, args, started, owner) {
+  const before = originalState(p);
+  const out = setup(p, { args });
+  assert.equal(out.runRoot, null, JSON.stringify(out));
+  assert.match(out.reason, new RegExp(`belongs to change ${owner}, not to change ${started}`));
+  assert.deepEqual(originalState(p), before);
+}
+
 function override(p, value) {
   fs.writeFileSync(path.join(p.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(value));
 }
@@ -66,7 +75,13 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(snapshot(dest), before);
     const current = { ...p, root: created.runRoot };
     assert.equal(success(current, "in-run-worktree").branch, "agent-smith/demo");
-    assert.equal(success(current, "in-run-worktree", { args: ["other", "--chain", chain] }).branch, "agent-smith/demo");
+    assertOtherChange(current, ["other", "--chain", chain], "other", "demo");
+    for (const [branch, id] of [["agent-smith/demo-extra", "demo"], ["agent-smith/demo", "demo-extra"]]) {
+      const w = linked(fixture(chain), branch, "other run");
+      assertOtherChange(w, [id, "--chain", chain], id, branch.slice("agent-smith/".length));
+    }
+    const base = linked(fixture(chain), "agent-smith/demo-baseline", "baseline run");
+    assert.equal(success(base, "in-run-worktree").branch, "agent-smith/demo-baseline");
     override(current, { isolation: { require: false } });
     assert.equal(success(current, "opt-out").runRoot, current.root);
 
@@ -795,7 +810,7 @@ for (const chain of ["10x", "openspec"]) {
     const attached = success(p, "attached");
     assert.equal(attached.branch, "runs-demo");
     assert.equal(success(p, "reused").runRoot, attached.runRoot);
-    assert.equal(success({ ...p, root: attached.runRoot }, "in-run-worktree", { args: ["other", "--chain", chain] }).branch, "runs-demo");
+    assertOtherChange({ ...p, root: attached.runRoot }, ["other", "--chain", chain], "other", "demo");
     const q = fixture(chain, "apps/widget", true);
     configurePrefix(q);
     const wt = linked(q, "codex/demo");

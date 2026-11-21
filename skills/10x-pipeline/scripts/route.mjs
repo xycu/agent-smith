@@ -82,6 +82,9 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   if (openspec && !fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
   if (!openspec) haltNoChangeMd(p, id);
   const meta = mutationMeta(p) ?? { id, goal: "" };
+  if (isolationOn(policy) && meta.isolated !== true) {
+    halt("isolation.require is on and meta.json does not record an isolated run. Run init first, in the run worktree. Nothing was written.");
+  }
   const log = validatedLog ?? readLog(p.log).entries;
   const visibility = { providerMode: meta.providerMode ?? "legacy", providersByStep: providersByStep(policy, meta) };
   const bad = selectionProblem(policy, meta, !neutralPending(p, log, policy));
