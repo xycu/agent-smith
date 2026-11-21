@@ -155,7 +155,7 @@ None. Existing overrides are not rewritten; the recipe is opt-in and applies bet
 
 #### Manual
 
-- [ ] 1.5 README recipe reads correctly in the rendered Configure section
+- [x] 1.5 README recipe reads correctly in the rendered Configure section — evidence: evidence/judgment-readme-recipe.md
 
 ### Phase 2: Guard the snippet with a test
 
