@@ -222,7 +222,7 @@ test("a bad prompt reference halts before the subagent result is consumed", () =
     assert.equal(readLogEntries(project).filter((e) => !e.skipped)[0].result, undefined, `${name}: the log entry has no result yet`);
   }
   // After the policy is fixed the same result is consumed and the run goes on.
-  fs.rmSync(overrideFile);
+  writeOverride(project, {});
   const resumed = next(project);
   assert.equal(resumed.status, 0, resumed.stdout);
   assert.equal(resumed.json.action, "run");
