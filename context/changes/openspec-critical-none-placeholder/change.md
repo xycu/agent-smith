@@ -1,9 +1,9 @@
 ---
 change_id: openspec-critical-none-placeholder
 title: Stop a "- None" line under Critical from failing an OpenSpec verification
-status: new
+status: planned
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-21
 archived_at: null
 ---
 
