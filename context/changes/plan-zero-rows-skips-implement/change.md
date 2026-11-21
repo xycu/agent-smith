@@ -1,9 +1,9 @@
 ---
 change_id: plan-zero-rows-skips-implement
 title: Stop a plan with no readable Progress rows from skipping the implement step
-status: implementing
+status: implemented
 created: 2026-11-19
-updated: 2026-11-20
+updated: 2026-11-21
 archived_at: null
 ---
 

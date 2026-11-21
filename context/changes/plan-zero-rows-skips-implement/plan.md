@@ -250,10 +250,10 @@ The tracker is one pass over the lines of `plan.md` and of each review file; bot
 
 #### Automated
 
-- [x] 3.1 The documented minimum is present: `grep -n "pending Automated row" docs/REFERENCE.md`
-- [x] 3.2 The new test is indexed: `grep -n "plan-rows.test.mjs" skills/10x-pipeline/test/README.md`
-- [x] 3.3 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [x] 3.4 Smoke check in a scratch project with `isolation.require` false: `init` returns `action: "run"` with step `plan`, and `next` after a `done` result on a plan written with `* [ ]` rows returns step `plan` again
+- [x] 3.1 The documented minimum is present: `grep -n "pending Automated row" docs/REFERENCE.md` — 912fd1fe
+- [x] 3.2 The new test is indexed: `grep -n "plan-rows.test.mjs" skills/10x-pipeline/test/README.md` — 912fd1fe
+- [x] 3.3 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` — 912fd1fe
+- [x] 3.4 Smoke check in a scratch project with `isolation.require` false: `init` returns `action: "run"` with step `plan`, and `next` after a `done` result on a plan written with `* [ ]` rows returns step `plan` again — 912fd1fe
 
 #### Manual
 
