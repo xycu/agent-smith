@@ -273,7 +273,7 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Manual
 
-- [ ] 1.4 Read the new scanner and `resolve` code once for cases the table-driven tests do not name
+- [x] 1.4 Read the new scanner and `resolve` code once for cases the table-driven tests do not name — evidence: evidence/judgment-review.md
 
 ### Phase 2: Git option handling
 
@@ -285,7 +285,7 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Manual
 
-- [ ] 2.4 Compare the deny lists once against the always-true rules and confirm no safe form a step needs is blocked
+- [x] 2.4 Compare the deny lists once against the always-true rules and confirm no safe form a step needs is blocked — evidence: evidence/judgment-review.md
 
 ### Phase 3: Docs, index and live check
 
@@ -298,4 +298,4 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 #### Manual
 
 - [ ] 3.4 In a live `agent-smith:step` subagent with the plugin installed, `X=1 git push` and `(git push)` are denied and `X=1 git status` runs
-- [ ] 3.5 Read the changed paragraphs in `docs/REFERENCE.md` and `README.md` once for accuracy against the tests
+- [x] 3.5 Read the changed paragraphs in `docs/REFERENCE.md` and `README.md` once for accuracy against the tests — evidence: evidence/judgment-review.md

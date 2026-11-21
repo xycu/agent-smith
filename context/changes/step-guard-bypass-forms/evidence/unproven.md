@@ -1,0 +1,1 @@
+- 3.4 — needs a live agent-smith:step subagent with the plugin installed from this branch; this unattended step cannot confirm the installed plugin carries the new guard, so only the hook CLI probe (script-guard-probe.mjs) was run, not a live subagent
