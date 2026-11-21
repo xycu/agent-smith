@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md goal fixes the outcome (a README Configure recipe restoring the shipped Claude ladder, preserving unrelated override keys, checking effective providers); only the exact wording and placement are open." },
+    "novelty": { "score": 1, "evidence": "README.md Configure section (around lines 122-132) and docs/REFERENCE.md (around line 404, the fable ladder merge recipe) already document the same merge-and-preserve-keys pattern." },
+    "coupling": { "score": 1, "evidence": "Docs-only change touching README.md Configure and a possible link in docs/REFERENCE.md; no code path or interface changes." },
+    "discovery": { "score": 1, "evidence": "Locations follow from the goal with one search: README.md Configure section, skills/10x-pipeline/policy.json (shipped Claude ladder) and docs/REFERENCE.md provider sections." },
+    "volume": { "score": 1, "evidence": "A few edits in 2 or 3 docs files, a short recipe with a JSON snippet." },
+    "verification": { "score": 2, "evidence": "No existing automated check covers a README recipe; the smoke check (init and status in a scratch project) is a manual check, and the suite does not parse README prose." }
+  },
+  "unknowns": [
+    "Which command the recipe should use to check effective providers before a fresh run (status or init output fields) was not confirmed against docs/REFERENCE.md.",
+    "The S-12 launch manifest (first-unattended-delivery, evidence/launch.md) named in change.md was not located in the repository, so the exact intended wording is not verified."
+  ],
+  "confidence": "medium"
+}

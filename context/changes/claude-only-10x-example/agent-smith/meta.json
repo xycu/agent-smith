@@ -8,7 +8,9 @@
   "isolated": true,
   "branch": "agent-smith/claude-only-10x-example",
   "rigor": {
-    "requested": "standard"
+    "requested": "standard",
+    "level": "standard",
+    "by": "--rigor standard"
   },
   "baseSha": "27a0547fead0c5f183892e05efdb08290ec5f517",
   "provenance": {
@@ -49,5 +51,6 @@
       "agents.restricted": false,
       "advisor.enabled": false
     }
-  }
+  },
+  "startCommit": "04fcc4b000ab3d97afdc054869531b04aedbbae2"
 }
