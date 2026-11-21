@@ -1,1 +1,1 @@
-- 3.6 — needs the plan of the next Wave 2 run, which does not exist yet (only this change and provider-mode-split have a plan.md); cannot be checked before that run
+- 3.6 — no plan of a next Wave 2 run exists in this worktree (only this change and provider-mode-split have a plan.md, and provider-mode-split is Wave-1-era and already merged); the check applies to a later run's plan before its merge and cannot be proved from here
