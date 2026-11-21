@@ -50,5 +50,17 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/run-codex.mjs, skills/10x-pipeline/test/codex-helpers.mjs, skills/10x-pipeline/test/codex-runner.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "3.5 A human runs one live Codex step that tries git push, gh pr create and gh auth token with GH_TOKEN set, and records the refusals and a token-free environment in the evidence file",
+      "3.6 The same human notes whether bash -lc \"git push\" is refused, so the wrapper statement in the reference is confirmed or tightened"
+    ],
+    "manualNotProved": [
+      "3.5 A human runs one live Codex step that tries git push, gh pr create and gh auth token with GH_TOKEN set, and records the refusals and a token-free environment in the evidence file — not proved: live codex exec ran (see evidence/command-live-codex-untrusted-run.md) but the scratch project was untrusted, so Codex ignored .codex/rules/project.rules: git push and gh ran instead of being refused.",
+      "3.6 The same human notes whether bash -lc \"git push\" is refused, so the wrapper statement in the reference is confirmed or tightened — not proved: same run: bash -lc \"git push origin HEAD\" ran (exit 0), but with rules not loaded this says nothing about wrappers under the rules; static codex execpolicy check for bash -lc \"git push\" matched no rul"
+    ]
   }
 }
