@@ -10,6 +10,7 @@ import {
   planText, gitInit, commitFiles, git,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
+import { codexChildEnv } from "../scripts/run-codex.mjs";
 import { writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { codexFixture, execute, calls, metadataCalls, setMode, startRunner, waitForFile, runnerLeftovers } from "./codex-helpers.mjs";
 
@@ -729,3 +730,29 @@ test("Codex discovers the retained executor skill and required OpenSpec CLI insi
     assert.equal(calls(w.fixture).filter(c => c.args[0] === "exec").length, 1);
   }
 });
+
+test("codexChildEnv drops GitHub token variables in any case and keeps the rest", () => {
+  const tokens = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"];
+  const kept = { PATH: "/bin", GH_HOST: "github.example", OPENAI_API_KEY: "key", CODEX_TEST_KEEP: "1" };
+  const input = { ...kept, ...Object.fromEntries([...tokens, ...tokens.map(name => name.toLowerCase())].map(name => [name, "secret"])) };
+  const copy = { ...input };
+  assert.deepEqual(codexChildEnv(input), kept);
+  assert.deepEqual(input, copy, "the input is not mutated");
+});
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: probe, exec and metadata server start without GitHub tokens`, () => {
+    const tokens = ["GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"];
+    const w = codexFixture(chain);
+    Object.assign(w.env, Object.fromEntries(tokens.map(name => [name, "secret"])), { CODEX_TEST_KEEP: "kept" });
+    const result = execute(w);
+    assert.equal(result.json.completed, true, result.stdout + result.stderr);
+    const records = calls(w.fixture);
+    assert.deepEqual(records.map(call => call.args[0]), ["sandbox", "exec"]);
+    const server = JSON.parse(fs.readFileSync(path.join(w.fixture, "server-env.json"), "utf8"));
+    for (const seen of [...records.map(call => call.env), server]) {
+      for (const name of tokens) assert.equal(Object.hasOwn(seen, name), false, name);
+      assert.equal(seen.CODEX_TEST_KEEP, "kept");
+    }
+  });
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md 'Direction': the rule file may use forbidden or prompt for publishing forms, and the env edit may be a deny list or an allow list; both are open, so a key detail has more than one reasonable answer." },
+    "novelty": { "score": 1, "evidence": "change.md 'The defect' item 3 and the existing prefix_rule patterns in .codex/rules/project.rules adapt patterns already in the repo; the env scrub is a small change to the spawn call at skills/10x-pipeline/scripts/run-codex.mjs:288." },
+    "coupling": { "score": 2, "evidence": "change.md names .codex/rules/project.rules, .codex/config.toml, run-codex.mjs and docs/REFERENCE.md; the Codex host config and the router's step commits (ADR-010) must stay consistent, so several modules are involved." },
+    "discovery": { "score": 1, "evidence": "change.md 'Direction' names the file lines and the spawn call; one search is needed to find which gh forms a step still uses (read-only gh)." },
+    "volume": { "score": 2, "evidence": "change.md 'Done when': edits to project.rules, run-codex.mjs and docs/REFERENCE.md plus new tests in the rules and runner test files, roughly 4 to 6 files." },
+    "verification": { "score": 2, "evidence": "change.md 'Done when' needs a new rule-file test and a runner env test, and a human must run one live Codex step that tries git push, because the suite cannot start Codex." }
+  },
+  "unknowns": [
+    "How codex exec treats a prompt decision without a terminal (change.md Constraints says the plan must check this).",
+    "Which read-only gh forms a Codex step actually needs.",
+    "Whether the Codex CLI itself needs any GitHub token or proxy variable to run, which sets the env allow list."
+  ],
+  "confidence": "medium"
+}

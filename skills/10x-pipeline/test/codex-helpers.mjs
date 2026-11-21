@@ -36,6 +36,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 const args = process.argv.slice(2);
 const fixture = process.env.CODEX_FIXTURE;
+// Token-like names only, never their values: host credentials must not land in fixture files.
+const seenEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => /TOKEN/i.test(name) || name === "CODEX_TEST_KEEP")
+  .map(([name, value]) => [name, name === "CODEX_TEST_KEEP" ? value : "set"]));
 const mode = JSON.parse(fs.readFileSync(path.join(fixture, "mode.json"), "utf8"));
 const rootId = mode.threadId ?? "root-fixture";
 const rootTurnId = mode.rootTurnId ?? "turn-" + rootId;
@@ -44,6 +47,7 @@ const sourcePath = id => path.join(process.env.CODEX_HOME, archivedIds.has(id) ?
 if (args.includes("app-server")) {
   const readline = require("node:readline");
   let archivedLists = 0;
+  fs.writeFileSync(path.join(fixture, "server-env.json"), JSON.stringify(seenEnv));
   readline.createInterface({ input: process.stdin }).on("line", line => {
     const request = JSON.parse(line);
     fs.appendFileSync(path.join(fixture, "metadata-calls.jsonl"), JSON.stringify(request) + "\\n");
@@ -103,7 +107,7 @@ let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", chunk => input += chunk);
 process.stdin.on("end", async () => {
-  fs.appendFileSync(path.join(fixture, "calls.jsonl"), JSON.stringify({ args, input, cwd: process.cwd(), pid: process.pid }) + "\\n");
+  fs.appendFileSync(path.join(fixture, "calls.jsonl"), JSON.stringify({ args, input, cwd: process.cwd(), pid: process.pid, env: seenEnv }) + "\\n");
   if (args[0] === "sandbox") {
     if (mode.preflightFailure || args.includes("missing-profile")) { process.exitCode = 1; return; }
     if (mode.checkToolkit) {

@@ -1,9 +1,9 @@
 ---
 change_id: codex-step-publication-guard
 title: Stop Codex steps from pushing, publishing or reading GitHub tokens
-status: new
+status: impl_reviewed
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-21
 archived_at: null
 ---
 

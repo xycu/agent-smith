@@ -17,6 +17,12 @@ const MAX_MESSAGE = 1024 * 1024;
 const MAX_EVENT = 8 * 1024 * 1024;
 const refuse = (message) => { throw new Error(message); };
 
+// Deny list: GitHub token variables never reach a codex child (ADR-017). A new token name is a pattern edit.
+const GITHUB_TOKEN_NAME = /^(GH|GITHUB)_([A-Z0-9]+_)*TOKEN$/i;
+export function codexChildEnv(env = process.env) {
+  return Object.fromEntries(Object.entries(env).filter(([name]) => !GITHUB_TOKEN_NAME.test(name)));
+}
+
 function failureReason(error) {
   const message = error instanceof Error ? error.message : "Codex runner failed.";
   return message.slice(0, 2048);
@@ -29,7 +35,7 @@ function configArgs(action) {
 
 // Model-free, bounded metadata reads: inactive labels and reconstructed interrupted turns prove no closure.
 async function settledDescendants(threadId, rejectedResult, onSettled) {
-  const server = spawn("codex", ["app-server", "--stdio"], { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"] });
+  const server = spawn("codex", ["app-server", "--stdio"], { cwd: ROOT, env: codexChildEnv(), stdio: ["pipe", "pipe", "pipe"] });
   let sequence = 0;
   let waiting;
   let failure;
@@ -174,7 +180,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     let streamError;
     lock.setChild(null, model);
     try {
-      child = spawn("codex", args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
+      child = spawn("codex", args, { cwd: ROOT, env: codexChildEnv(), stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
     } catch (cause) {
       lock.clearChild(true); // synchronous spawn failure created no process
       resolve({ error: cause.code ?? "spawn error" });
