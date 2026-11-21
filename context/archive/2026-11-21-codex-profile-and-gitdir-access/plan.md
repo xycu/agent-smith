@@ -126,10 +126,10 @@ The change adds advisory stderr output. Existing state, configuration data and a
 
 #### Automated
 
-- [x] 1.1 Fake Codex CLI fixtures verify the undefined-profile and missing-table remedies, optional overlay selection, bounded indeterminate cases and token-scrubbed execution from the run root. — 206d0f16
-- [x] 1.2 Linked Git fixtures verify canonical common-directory remediation, covered and uncovered Claude settings, scoped path matching, indeterminate settings and silence outside linked worktrees. — 206d0f16
-- [x] 1.3 Router CLI fixtures verify provider and chain scoping, warning recomputation on resume, one stdout action JSON object, unchanged routing and exit behavior, and unchanged settings. — 206d0f16
-- [x] 1.4 Run the required Node 24 router, OpenSpec and tools test suite and verify the documented stderr contract in both chain skills. — 206d0f16
+- [x] 1.1 Fake Codex CLI fixtures verify the undefined-profile and missing-table remedies, optional overlay selection, bounded indeterminate cases and token-scrubbed execution from the run root. — de753260
+- [x] 1.2 Linked Git fixtures verify canonical common-directory remediation, covered and uncovered Claude settings, scoped path matching, indeterminate settings and silence outside linked worktrees. — de753260
+- [x] 1.3 Router CLI fixtures verify provider and chain scoping, warning recomputation on resume, one stdout action JSON object, unchanged routing and exit behavior, and unchanged settings. — de753260
+- [x] 1.4 Run the required Node 24 router, OpenSpec and tools test suite and verify the documented stderr contract in both chain skills. — de753260
 
 #### Manual
 
