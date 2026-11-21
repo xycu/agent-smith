@@ -53,7 +53,7 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 - Policy keys are camelCase; step names are kebab-case (`plan-review`, `impl-review`).
 - A policy change belongs in `policy.json`. A per-project override belongs in `context/foundation/agent-smith-policy.json`, never in the router scripts under `scripts/`.
 - When you change tier logic (`tierFor` in `scripts/steps.mjs`, `decide` in `scripts/flow.mjs`), update the routing bullets in `docs/REFERENCE.md`. When you change `decideOpenspec` or the verification in `skills/openspec-pipeline/scripts/openspec.mjs`, update the OpenSpec section of `docs/REFERENCE.md`.
-- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. `route.mjs` keeps `next`, the undo on halt and the commands.
+- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. Only `route.mjs` imports `init-permissions.mjs`, which uses `state.mjs`, the bounded file reader and the shared Codex startup inputs. `route.mjs` keeps `next`, the undo on halt and the commands.
 
 ## Layout
 
