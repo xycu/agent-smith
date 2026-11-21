@@ -48,6 +48,7 @@ if [ -n "$GIT_PROBE_ROOT" ] && [ "$*" = "rev-parse --path-format=absolute --git-
 fi
 exec "${real}" "$@"
 `;
+const OLDER_GIT_SHIM = GIT_SHIM(REAL_GIT).replace("exec ", "case \"$*\" in *ahead-behind*) echo 'fatal: unknown field name: ahead-behind:HEAD' >&2; exit 128;; esac\nexec ");
 
 // Kinds: pr-list, pr-create, repo-view. Files <FAKE_GH_DIR>/<kind>.{out,err,code}. The --body-file is copied to body-<n>.txt.
 const GH_SHIM = `#!/bin/sh
@@ -112,7 +113,7 @@ function commitFile(w, cwd, file, text, message) {
 // A repository with main pushed to the bare remote, origin/HEAD -> main, and a linked worktree on agent-smith/demo
 // branched from `from`. With start: true the worktree has the start commit of a run.
 function world({ id = "demo", url = GH_URL, from = "main", feature = false, start = true, chain = "10x", withGh = true,
-  prefix = "agent-smith/", branch = `${prefix}${id}`, nest = null, identity = false, worktreeName = "wt" } = {}) {
+  prefix = "agent-smith/", branch = `${prefix}${id}`, nest = null, identity = false, worktreeName = "wt", advanceBeforeFork = false } = {}) {
   const base = tmpDir("as-opr-");
   const w = { base, id, chain, branch, repo: path.join(base, "repo"), bare: path.join(base, "remote.git"), wt: path.join(base, worktreeName) };
   w.root = nest ? path.join(w.wt, nest) : w.wt;
@@ -120,6 +121,7 @@ function world({ id = "demo", url = GH_URL, from = "main", feature = false, star
   g(w, base, ["init", "-q", "--bare", w.bare]);
   g(w, w.repo, ["init", "-q"]);
   commitFile(w, w.repo, "README.md", "hello\n", "chore: init");
+  if (advanceBeforeFork) commitFile(w, w.repo, "before-fork.txt", "before fork\n", "feat: advance main before fork");
   g(w, w.repo, ["remote", "add", "origin", url]);
   g(w, w.repo, ["config", "remote.origin.pushurl", w.bare]);
   g(w, w.repo, ["push", "-q", "origin", "main"]);
@@ -296,6 +298,78 @@ test("base: a tie goes to the branch origin/HEAD points to, and --base wins over
   assert.equal(ghCalls(forced).find((a) => a[1] === "create")[7], "release");
 });
 
+function assertPublishedBase(w, base, env = {}) {
+  const res = runScript(w, undefined, { env: { GIT_ALLOW_PROTOCOL: "file", ...env } });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.base, base, res.stdout);
+  assert.equal(res.json.pr.action, "created", res.stdout);
+  const create = ghCalls(w).find(([cmd, sub]) => cmd === "pr" && sub === "create");
+  assert.deepEqual(create.slice(6, 8), ["--base", base]);
+  assert.equal(gitCalls(w).some(([cmd]) => cmd === "fetch"), false);
+  assert.equal(ghCalls(w).some(([cmd, sub]) => cmd === "repo" && sub === "view"), false);
+}
+
+for (const [scenario, staleTip, oldGit, failComparison, base] of [
+  ["tied", "main", false, false, "main"],
+  ["tied on older Git", "main", true, false, "main"],
+  ["closer", "main^", false, false, "main"],
+  ["unavailable for comparison", "main", false, true, "stale"],
+]) {
+  test(`base: the advanced default is ${scenario} against a stale ancestor`, { skip }, () => {
+    const w = world({ advanceBeforeFork: staleTip === "main^" });
+    g(w, w.repo, ["push", "-q", "origin", `${staleTip}:refs/heads/stale`]);
+    commitFile(w, w.repo, "advance.txt", "advance\n", "feat: advance main");
+    g(w, w.repo, ["push", "-q", "origin", "main"]);
+    const compareDefault = ["rev-list", "--count", "refs/remotes/origin/main..HEAD"];
+    assert.equal(g(w, w.wt, compareDefault), "1");
+    assert.equal(g(w, w.wt, ["rev-list", "--count", "HEAD..refs/remotes/origin/main"]), "1");
+    assert.equal(g(w, w.wt, ["rev-list", "--count", "refs/remotes/origin/stale..HEAD"]), staleTip === "main^" ? "2" : "1");
+    if (oldGit) fs.writeFileSync(path.join(w.bin, "git"), OLDER_GIT_SHIM, { mode: 0o755 });
+
+    assertPublishedBase(w, base, failComparison ? { GIT_FAIL_PROBE: compareDefault.join(" ") } : {});
+    const comparisons = gitCalls(w).filter(([cmd, flag, range]) =>
+      cmd === compareDefault[0] && flag === compareDefault[1] && range === compareDefault[2]);
+    assert.equal(comparisons.length, failComparison ? 1 : 2, "compare the fetched default, then count ahead only if chosen");
+  });
+}
+
+for (const [scenario, configured, base] of [
+  ["shipped policy", null, "main"],
+  ["custom policy order", ["develop", "main"], "develop"],
+  ["alphabetical fallback", ["master"], "archive-2025"],
+]) {
+  test(`base: a tie without remote HEAD follows ${scenario}`, { skip }, () => {
+    const w = world();
+    g(w, w.repo, ["push", "-q", "origin", "main:refs/heads/develop", "main:refs/heads/archive-2025"]);
+    if (configured) writePolicy(w, { isolation: { defaultBranches: configured } });
+
+    assertPublishedBase(w, base, { GIT_FAIL_PROBE: "symbolic-ref -q refs/remotes/origin/HEAD" });
+  });
+}
+
+test("base: a pushed feature ancestor remains closer than a diverged default", { skip }, () => {
+  const w = world({ feature: true });
+  commitFile(w, w.repo, "advance.txt", "advance\n", "feat: advance main");
+  g(w, w.repo, ["push", "-q", "origin", "main"]);
+  const compareDefault = ["rev-list", "--count", "refs/remotes/origin/main..HEAD"];
+  assert.equal(g(w, w.wt, compareDefault), "3");
+  assert.equal(g(w, w.wt, ["rev-list", "--count", "HEAD..refs/remotes/origin/main"]), "1");
+  assert.equal(g(w, w.wt, ["rev-list", "--count", "refs/remotes/origin/feature/x..HEAD"]), "1");
+
+  assertPublishedBase(w, "feature/x");
+  assert.ok(gitCalls(w).some((args) => args.join(" ") === compareDefault.join(" ")));
+});
+
+test("base: older Git discards an ancestor whose comparison fails", { skip }, () => {
+  const w = world();
+  g(w, w.repo, ["push", "-q", "origin", "main:refs/heads/aaa-copy"]);
+  fs.writeFileSync(path.join(w.bin, "git"), OLDER_GIT_SHIM, { mode: 0o755 });
+  const probe = "rev-list --count refs/remotes/origin/aaa-copy..HEAD";
+
+  assertPublishedBase(w, "main", { GIT_FAIL_PROBE: probe });
+  assert.ok(gitCalls(w).some((args) => args.join(" ") === probe));
+});
+
 test("base: one for-each-ref call finds and counts the ancestors, with no git process per remote branch", { skip }, () => {
   const w = world({ feature: true });
   for (const n of [1, 2, 3]) g(w, w.repo, ["push", "-q", "origin", `main:refs/heads/copy-${n}`]);
@@ -309,15 +383,14 @@ test("base: one for-each-ref call finds and counts the ancestors, with no git pr
 test("base: a git without %(ahead-behind) falls back to one rev-list per ancestor and picks the same base", { skip }, () => {
   const w = world({ feature: true });
   g(w, w.repo, ["push", "-q", "origin", "main:refs/heads/aaa-copy"]);
-  const shim = GIT_SHIM(REAL_GIT).replace("exec ", "case \"$*\" in *ahead-behind*) echo 'fatal: unknown field name: ahead-behind:HEAD' >&2; exit 128;; esac\nexec ");
-  fs.writeFileSync(path.join(w.bin, "git"), shim, { mode: 0o755 });
+  fs.writeFileSync(path.join(w.bin, "git"), OLDER_GIT_SHIM, { mode: 0o755 });
   assert.equal(runScript(w).json.base, "feature/x");
   const merged = gitCalls(w).filter((a) => a[0] === "for-each-ref" && a.includes("--merged"));
   assert.equal(merged.length, 2, "the rejected call, then the plain one");
   assert.equal(gitCalls(w).filter((a) => a[0] === "merge-base").length, 0);
   const tie = world();
   g(tie, tie.repo, ["push", "-q", "origin", "main:refs/heads/aaa-copy"]);
-  fs.writeFileSync(path.join(tie.bin, "git"), shim, { mode: 0o755 });
+  fs.writeFileSync(path.join(tie.bin, "git"), OLDER_GIT_SHIM, { mode: 0o755 });
   assert.equal(runScript(tie).json.base, "main", "a tie still goes to origin/HEAD");
 });
 
