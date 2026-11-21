@@ -23,7 +23,7 @@ import { isDeepStrictEqual } from "node:util";
 import { normalizeAccounting, cleanInvocation, readBoundedFile, accountingFor, usageCoverage, usageFigure, addFigures } from "./usage.mjs";
 import {
   ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
-  readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
+  inspectMeta, readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
   providerOf, hostOf, selectionProblem, providersByStep, stepPolicy, dispatchTarget,
   prCommentField,
@@ -60,8 +60,8 @@ function ruleProblem(policy) {
   }
 }
 
-// A logged run's host and mode cannot be recovered from a damaged metadata file.
-function metadataProblem(p, meta) {
+// A logged run's host and mode cannot be recovered without its metadata.
+function missingMetadataProblem(p, meta) {
   return meta === null && fs.existsSync(p.log)
     ? `Cannot read an object from ${p.meta} for the existing run. Recover its metadata before continuing. Nothing was written.`
     : null;
@@ -69,7 +69,7 @@ function metadataProblem(p, meta) {
 
 function mutationMeta(p) {
   const meta = readMeta(p.meta, null);
-  const problem = metadataProblem(p, meta);
+  const problem = missingMetadataProblem(p, meta);
   if (problem) halt(problem);
   return meta;
 }
@@ -719,16 +719,21 @@ function compareCommand(id, flags, policy, chain = "10x") {
 
 function status(id, flags, chain = "10x", policy = null) {
   const p = paths(id, null, chain);
-  // A moved OpenSpec run halts as archived instead of printing an empty log.
-  if (chain === "openspec") guardArchived(p, id);
+  // Plain OpenSpec status also reports a moved run as archived instead of printing an empty log.
+  if (chain === "openspec" || flags.report) guardArchived(p, id);
+  if (flags.report) {
+    if (chain === "openspec") {
+      if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
+    } else haltNoChangeMd(p, id);
+  }
+  const { meta: stored, problem } = flags.report ? { meta: mutationMeta(p), problem: null } : inspectMeta(p.meta);
+  const recovery = problem ?? missingMetadataProblem(p, stored);
   const { entries: log, logProblems } = readLog(p.log, { tolerant: !flags.report });
   // The cost estimate, only when the merged policy prices a model; without prices status has no cost key.
   const prices = loadPrices();
   const normalized = executed(log).map((entry) => ({ ...entry, ...accountingFor(entry) }));
   const coverage = usageCoverage(normalized);
   const cost = prices ? estimateCost(normalized, prices) : null;
-  const stored = readMeta(p.meta, null);
-  const recovery = metadataProblem(p, stored);
   const res = {
     change: id,
     ...(logProblems.length ? { logProblems } : {}),
@@ -793,13 +798,8 @@ function status(id, flags, chain = "10x", policy = null) {
     res.openspec = { planningComplete: os.planningComplete, tasks: { total: os.tasks.total, complete: os.tasks.complete } };
   }
   if (flags.report) {
-    guardArchived(p, id);
-    if (chain === "openspec") {
-      if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
-    } else haltNoChangeMd(p, id);
-    const meta = mutationMeta(p) ?? { id, goal: "" };
     cleanupStateTemps(p.dir);
-    res.report = writeReport(p, id, meta, log);
+    res.report = writeReport(p, id, stored ?? { id, goal: "" }, log);
   }
   out(res);
 }
@@ -952,9 +952,9 @@ const CHAINS = ["10x", "openspec"];
 // `tenx` is true when a live 10x run holds its own agent-smith/meta.json, and only then does --chain openspec contradict it.
 // An archived OpenSpec run does not claim a name that a 10x change uses, live (context/changes/<id>/) or archived
 // (context/archive/<date>-<id>/), so the 10x skill, which never passes --chain, keeps reaching its own change.
-function storedChain(id) {
+function storedChain(id, allowDamaged) {
   const p = paths(id, null, "openspec");
-  const isOpenspec = (file) => readMeta(file, {}).chain === "openspec";
+  const isOpenspec = (file) => (allowDamaged ? inspectMeta(file).meta : readMeta(file, null))?.chain === "openspec";
   const tenx = fs.existsSync(paths(id, null, "10x").meta);
   if (fs.existsSync(p.change)) return { chain: isOpenspec(p.meta) ? "openspec" : null, live: true, tenx };
   if (fs.existsSync(path.join(ROOT, "context/changes", id)) || archiveDirs(id, "10x").length) return { chain: null, live: false, tenx };
@@ -967,7 +967,8 @@ function storedChain(id) {
 // applies, else 10x. init without the flag halts on a live OpenSpec run; on a name only an archived OpenSpec run
 // holds it resolves to openspec, so the archive guard halts it as archived.
 function resolveChain(cmd, id, flags) {
-  const stored = storedChain(id);
+  const allowDamaged = flags.chain === "openspec" && (cmd === "verify-archive" || (cmd === "status" && !flags.report));
+  const stored = storedChain(id, allowDamaged);
   if (flags.chain === undefined) {
     if (cmd === "init" && stored.chain === "openspec" && stored.live) {
       halt(`Change ${id} is an OpenSpec run: openspec/changes/${id}/agent-smith/meta.json holds chain "openspec". A 10x init does not apply; resume it with --chain openspec. Nothing was written.`);
@@ -1076,8 +1077,8 @@ function main() {
       }
     }
     if (chain !== "openspec") haltNoChangeMd(p, id);
-    const { entries: log } = readLog(p.log);
     const stored = mutationMeta(p);
+    const { entries: log } = readLog(p.log);
     const prev = stored ?? {};
     const host = flags.host ?? hostOf(prev);
     const existing = stored !== null;
