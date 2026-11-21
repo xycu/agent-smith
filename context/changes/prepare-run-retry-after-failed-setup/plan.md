@@ -101,7 +101,7 @@ A regular resume checks for pending setup intent without scanning or copying the
 
 #### Automated
 
-- [x] 1.1 The real setup CLI on both chains reports failure until the copy conflict is fixed, then returns reused with copied true for the same worktree and restores every source input to the selected run root.
-- [x] 1.2 Setup preserves completed, initialized and custom worktrees, and a mismatched pending invocation cannot write or obtain the unfinished run root.
-- [x] 1.3 A missing registered worktree reports its path and git worktree prune guidance, and a replacement repository is refused before copy.
-- [x] 1.4 The full repository suite passes on Node 24 or later.
+- [x] 1.1 The real setup CLI on both chains reports failure until the copy conflict is fixed, then returns reused with copied true for the same worktree and restores every source input to the selected run root. — f9239877
+- [x] 1.2 Setup preserves completed, initialized and custom worktrees, and a mismatched pending invocation cannot write or obtain the unfinished run root. — f9239877
+- [x] 1.3 A missing registered worktree reports its path and git worktree prune guidance, and a replacement repository is refused before copy. — f9239877
+- [x] 1.4 The full repository suite passes on Node 24 or later. — f9239877
