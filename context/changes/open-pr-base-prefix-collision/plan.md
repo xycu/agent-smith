@@ -28,7 +28,7 @@ This is a low-complexity publisher change shared by both chains. Branch creation
 
 Apply the eligibility rule once across the three automatic paths. Keep literal Git ref validation and continue excluding the current branch, the pseudo-ref `HEAD`, the legacy `agent-smith/` namespace and branches under explicit run namespaces whose configured prefix ends in `/` or `-`.
 
-For other prefixes, a candidate with a matching prefix is eligible if its remainder cannot start a change ID, or its exact name is a known default. Use the same first-character constraint as `ID_RE` so a run ID followed by a saved suffix still counts as a possible run. Known defaults come from `isolation.defaultBranches`, the selected remote's symbolic HEAD target, or the GitHub result when considered in the existing final fallback. Keep the exception limited to the ambiguous prefix case. Use the local HEAD value already needed for ranking in ancestor selection and keep the GitHub query at its current position.
+For other prefixes, a candidate with a matching prefix is eligible if its remainder cannot start a change ID, or its exact name is a known default. Use the same first-character constraint as `ID_RE` so a run ID followed by a saved suffix still counts as a possible run. An empty remainder (the name equals the prefix, such as a branch `release` under prefix `release`) cannot start a change ID, so it is eligible; test the remainder's first character against `[a-z0-9]` so the check follows `ID_RE` in `pr-common.mjs`. Known defaults come from `isolation.defaultBranches`, the selected remote's symbolic HEAD target, or the GitHub result when considered in the existing final fallback. Keep the exception limited to the ambiguous prefix case. Use the local HEAD value already needed for ranking in ancestor selection and keep the GitHub query at its current position.
 
 ## Phase 1: Keep ordinary branches eligible as PR bases
 
@@ -65,7 +65,7 @@ Change base eligibility and prove the selection behavior using the existing offl
 
 **Intent** Document when a short prefix overlaps an ordinary branch and how to select an ambiguous non-default branch.
 
-**Contract** Update the publication base rule in the reference and amend the normative rule in ADR-017 Amendment 3. State the default evidence, saved-suffix handling, explicit namespace exclusions and `--base` precedence. Search other current documentation for the old blanket eligibility rule and align any affected descriptions.
+**Contract** Update the publication base rule in the reference and amend the normative rule in ADR-017 Amendment 3. State the default evidence, saved-suffix handling, explicit namespace exclusions and `--base` precedence. The sentences to replace in the reference are in the Base bullet at `docs/REFERENCE.md` line 178 ("branches under either the effective prefix or the legacy `agent-smith/` namespace" and the closing exclusion sentence). Grep `docs/`, `README.md`, both `SKILL.md` files, `prompts/` and `rules/` for the old blanket rule and align any affected descriptions.
 
 ### Success Criteria
 
