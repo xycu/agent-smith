@@ -719,10 +719,37 @@ export function executed(log) {
   return log.filter((e) => !e.skipped);
 }
 
-// meta.json must be a plain object; anything else falls back.
+function damagedMetadata(file, reason) {
+  const absolute = path.resolve(file);
+  const rel = path.relative(ROOT, absolute);
+  const inside = rel && rel !== ".." && !rel.startsWith(".." + path.sep) && !path.isAbsolute(rel);
+  const hint = inside ? ` with git show <sha>:./${rel.split(path.sep).join("/")}` : "";
+  return {
+    meta: null,
+    problem: `${absolute}: ${reason}. Preserve the damaged copy and inspect a verified copy from the same run${hint} `
+      + "before restoring it, then retry. Nothing was written.",
+  };
+}
+
+// Only diagnostic commands opt in to inspecting metadata without throwing on damage.
+export function inspectMeta(file) {
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch (error) {
+    if (error.code === "ENOENT") return { meta: null, problem: null };
+    return damagedMetadata(file, `Cannot read metadata (${error.code ?? "filesystem error"})`);
+  }
+  let meta;
+  try { meta = JSON.parse(text); } catch {
+    return damagedMetadata(file, "Invalid JSON");
+  }
+  if (!isObject(meta)) return damagedMetadata(file, "Expected a JSON object");
+  return { meta, problem: null };
+}
+
 export function readMeta(file, fallback) {
-  const m = readJson(file, null);
-  return m && typeof m === "object" && !Array.isArray(m) ? m : fallback;
+  const { meta, problem } = inspectMeta(file);
+  if (problem) throw new Error(problem);
+  return meta ?? fallback;
 }
 
 // The --pr-comment request of init, as the end-of-run outputs and status carry it: present only as true.

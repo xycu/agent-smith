@@ -57,23 +57,51 @@ for (const chain of ["10x", "openspec"]) {
     const first = start(p, ["--host=codex", "--provider-mode=split"]).json;
     assert.equal(first.action, "run");
     writeResult(p, { status: "done", note: "keep the pending result for recovery" });
-    for (const damaged of ["not JSON", "[]", null]) {
+    for (const [damaged, diagnostic] of [
+      ["not JSON", /Invalid JSON/], ["[]", /Expected a JSON object/], [null, /Recover its metadata/],
+    ]) {
       if (damaged === null) fs.unlinkSync(path.join(p.agentDir, "meta.json"));
       else writeMetaFile(p, damaged);
       const before = snapshot(p.changeDir);
       for (const args of [["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens=1"], ["status", p.id, "--report"]]) {
         const response = run(p, [...args, "--chain", chain]);
-        assert.match(response.json.reason, /Recover its metadata/);
+        assert.equal(response.status, 1, response.stdout);
+        assert.equal(response.json.action, "halt");
+        assert.match(response.json.reason, diagnostic);
         assert.deepEqual(snapshot(p.changeDir), before);
       }
       const status = run(p, ["status", p.id, "--chain", chain]);
       assert.equal(status.status, 0, status.stdout);
       assert.equal(status.json.host, null);
       assert.equal(status.json.providerMode, null);
-      assert.match(status.json.metadataProblem, /Recover its metadata/);
+      assert.match(status.json.metadataProblem, diagnostic);
       assert.equal(status.json.steps.find(step => step.n === first.n).provider, first.provider);
       assert.deepEqual(snapshot(p.changeDir), before);
     }
+  });
+
+  test(`${chain}: plain status diagnoses damaged metadata before a log exists`, () => {
+    const p = make({});
+    writeMetaFile(p, " \n");
+    const before = snapshot(p.changeDir);
+    const status = run(p, ["status", p.id, "--chain", chain]);
+    assert.equal(status.status, 0, status.stdout);
+    assert.equal(status.json.host, null);
+    assert.equal(status.json.providerMode, null);
+    assert.deepEqual(status.json.steps, []);
+    assert.ok(status.json.metadataProblem.includes(`${path.join(p.agentDir, "meta.json")}: Invalid JSON`));
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+
+  test(`${chain}: init accepts sparse metadata and retains its unknown fields`, () => {
+    const p = make({});
+    const legacy = { custom: { kept: true } };
+    writeMetaFile(p, legacy);
+    const first = start(p);
+    assert.equal(first.status, 0, first.stdout);
+    assert.equal(first.json.action, "run");
+    assert.equal(first.json.providerMode, "legacy");
+    assert.deepEqual(readMetaFile(p).custom, legacy.custom);
   });
 
   for (const host of ["claude", "codex"]) {

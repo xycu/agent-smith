@@ -1,10 +1,10 @@
 ---
 change_id: open-pr-base-prefix-collision
 title: Keep a short isolation.branchPrefix from hiding the base branch in open-pr
-status: new
+status: archived
 created: 2026-11-19
-updated: 2026-11-19
-archived_at: null
+updated: 2026-11-21
+archived_at: 2026-11-21T20:56:37Z
 ---
 
 ## Notes
