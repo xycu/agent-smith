@@ -1,9 +1,9 @@
 ---
 change_id: prepare-run-setup-lock-and-residue-followups
 title: Close the three prepare-run follow-ups from the PR 252 review
-status: new
+status: plan_reviewed
 created: 2026-11-21
-updated: 2026-11-21
+updated: 2026-11-22
 archived_at: null
 ---
 
