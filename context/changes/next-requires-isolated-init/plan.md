@@ -176,7 +176,7 @@ A run in flight in the main checkout with isolation on (started before this chan
 
 #### Manual
 
-- [ ] 1.4 Read the halt reason once and confirm it tells a person what to do (run `init` in the run worktree) without suggesting the opt-out as the first remedy
+- [x] 1.4 Read the halt reason once and confirm it tells a person what to do (run `init` in the run worktree) without suggesting the opt-out as the first remedy — evidence: evidence/judgment-halt-reason.md
 
 ### Phase 2: Document the rule
 
@@ -188,4 +188,4 @@ A run in flight in the main checkout with isolation on (started before this chan
 
 #### Manual
 
-- [ ] 2.4 The new REFERENCE bullet reads clearly next to the `init` bullets and mentions the isolation-off exception
+- [x] 2.4 The new REFERENCE bullet reads clearly next to the `init` bullets and mentions the isolation-off exception — evidence: evidence/judgment-reference-bullet.md
