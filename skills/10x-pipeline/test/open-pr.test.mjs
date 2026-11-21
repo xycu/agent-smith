@@ -166,6 +166,10 @@ function setAnswers(w, answers) {
   }
 }
 
+function suppressAncestorEnumeration(w) {
+  fs.writeFileSync(path.join(w.bin, "git"), GIT_SHIM(REAL_GIT).replace("exec ", 'if [ "$1" = for-each-ref ]; then exit 0; fi\nexec '));
+}
+
 function runScript(w, args = [w.id], { cwd = w.root, onlyBin = false, env = {} } = {}) {
   const res = spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd,
@@ -961,11 +965,62 @@ test("configured base discovery excludes both run namespaces and keeps feature, 
   assert.equal(runScript(tie, ["demo", "--base", "aaa-copy"]).json.base, "aaa-copy");
 });
 
+test("configured short prefix keeps the default base eligible and excludes nearer run refs", { skip }, () => {
+  const w = world({ prefix: "ma", identity: true });
+  g(w, w.repo, ["push", "-q", "origin", "main:refs/heads/aaa-copy"]);
+  g(w, w.wt, ["push", "-q", "origin", "HEAD:refs/heads/maother", "HEAD:refs/heads/maretry.retry", "HEAD:refs/heads/agent-smith/older-run"]);
+  commitFile(w, w.wt, "later.txt", "later", "fix: later");
+
+  assert.equal(runScript(w).json.base, "main");
+  assert.equal(ghCalls(w).find((a) => a[1] === "create")[7], "main");
+  assert.equal(runScript(w, ["demo", "--base", "aaa-copy"]).json.base, "aaa-copy");
+  assert.equal(ghCalls(w).filter((a) => a[1] === "create").at(-1)[7], "aaa-copy");
+});
+
+for (const base of ["release/1.x", "release"]) {
+  test(`configured prefix permits the ordinary ancestor ${base} as a base`, { skip }, () => {
+    const w = world({ prefix: "release", identity: true });
+    g(w, w.wt, ["push", "-q", "origin", `HEAD:refs/heads/${base}`]);
+    commitFile(w, w.wt, "later.txt", "later", "fix: later");
+
+    assert.equal(runScript(w).json.base, base);
+  });
+}
+
+test("configured default branches keep an overlapping ancestor eligible as a base without remote HEAD", { skip }, () => {
+  const w = world({ prefix: "dev", identity: true });
+  writePolicy(w, { isolation: { require: true, branchPrefix: "dev", defaultBranches: ["develop"] } });
+  g(w, w.wt, ["push", "-q", "origin", "HEAD:refs/heads/develop"]);
+  commitFile(w, w.wt, "later.txt", "later", "fix: later");
+
+  const env = { GIT_FAIL_PROBE: "symbolic-ref -q refs/remotes/origin/HEAD" };
+  assert.equal(runScript(w, undefined, { env }).json.base, "develop");
+  assert.equal(ghCalls(w).some(([cmd, sub]) => cmd === "repo" && sub === "view"), false);
+});
+
+for (const source of ["remote HEAD", "GitHub"]) {
+  test(`configured prefix permits a default base from ${source}`, { skip }, () => {
+    const w = world({ prefix: "dev", identity: true });
+    g(w, w.repo, ["push", "-q", "origin", "main:refs/heads/develop"]);
+    g(w, w.wt, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/develop"]);
+    suppressAncestorEnumeration(w);
+    const env = {};
+    if (source === "GitHub") {
+      env.GIT_FAIL_PROBE = "symbolic-ref -q refs/remotes/origin/HEAD";
+      setAnswers(w, { "repo-view": { out: "develop" } });
+    }
+
+    assert.equal(runScript(w, undefined, { env }).json.base, "develop");
+    assert.ok(gitCalls(w).some(([cmd]) => cmd === "for-each-ref"));
+    assert.equal(ghCalls(w).some(([cmd, sub]) => cmd === "repo" && sub === "view"), source === "GitHub");
+  });
+}
+
 test("configured automatic fallback bases validate names and exclude both run namespaces", { skip }, () => {
   for (const fallback of ["main", "codex/other-run", "agent-smith/older-run", "-option", "bad..ref"]) {
     const w = world({ prefix: "codex/" });
     g(w, w.wt, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/codex/other-run"]);
-    fs.writeFileSync(path.join(w.bin, "git"), GIT_SHIM(REAL_GIT).replace("exec ", 'if [ "$1" = for-each-ref ]; then exit 0; fi\nexec '));
+    suppressAncestorEnumeration(w);
     setAnswers(w, { "repo-view": { out: fallback } });
     const result = runScript(w).json;
     assert.equal(result.pushed, fallback === "main", JSON.stringify(result));
@@ -973,7 +1028,7 @@ test("configured automatic fallback bases validate names and exclude both run na
     else assert.match(result.reason, /base branch not found/);
   }
   const remoteHead = world({ prefix: "codex/" });
-  fs.writeFileSync(path.join(remoteHead.bin, "git"), GIT_SHIM(REAL_GIT).replace("exec ", 'if [ "$1" = for-each-ref ]; then exit 0; fi\nexec '));
+  suppressAncestorEnumeration(remoteHead);
   assert.equal(runScript(remoteHead).json.base, "main");
   assert.equal(ghCalls(remoteHead).some((a) => a[0] === "repo"), false);
 });
