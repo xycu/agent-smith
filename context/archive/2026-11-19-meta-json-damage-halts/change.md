@@ -1,10 +1,10 @@
 ---
 change_id: meta-json-damage-halts
 title: Halt on a damaged meta.json instead of replacing it with defaults
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-21
-archived_at: null
+archived_at: 2026-11-21T20:56:37Z
 ---
 
 ## Notes
