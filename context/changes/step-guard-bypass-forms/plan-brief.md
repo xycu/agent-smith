@@ -34,7 +34,7 @@ Every form from the change list is denied, each next to an allow case for a norm
 
 **In scope:** scanner and normalization in `step-guard.mjs`; Git option handling; guard tests; `docs/REFERENCE.md`, `README.md`, test index row.
 
-**Out of scope:** Codex children, hook wiring and timeout, byte cap, heredoc rules, foundation docs and ADRs, hook-skipping environment variables.
+**Out of scope:** Codex children, hook wiring and timeout, byte cap, heredoc rules (only the quote reader `shellWord` changes for `$'...'`), foundation docs and ADRs, hook-skipping environment variables.
 
 ## Architecture / Approach
 

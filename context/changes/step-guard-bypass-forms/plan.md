@@ -19,7 +19,7 @@ Every form in the `change.md` list is denied in an `agent-smith:step` subagent, 
 - `shellExpansionEnd(text, opening, depth)` (`step-guard.mjs:135`) already finds the end of `$(...)`, `$((...))` and backtick substitutions, tracks quotes via `shellWord`, caps depth at 64 and throws on an unterminated one. Reuse it to find substitution bodies instead of writing a second matcher.
 - `withoutHeredocData` removes heredoc bodies before `commands()` runs and leaves the opener (`<<EOF`) in the text. Glued-redirect handling must consume that operator and its delimiter word.
 - `skills/10x-pipeline/test/step-guard.test.mjs:250` asserts `echo "$(git push)"` and `bash -c 'git push'` are neutral. The first expectation flips; `bash -c`, `custom-helper` stay neutral (interpreters stay out of scope).
-- `skills/10x-pipeline/test/step-guard.test.mjs:398` reads the guard source and forbids the words `import`, `require`, `eval`, `Function`, and calls such as `.exec(`, `spawn(`, `fork(`. New code and comments must avoid them (use `.test()`/`.match()`).
+- The source-constraints test in `skills/10x-pipeline/test/step-guard.test.mjs` (`:398` when planned, `:523` after Phases 1-3) reads the guard source and forbids the words `import`, `require`, `eval`, `Function`, and calls such as `.exec(`, `spawn(`, `fork(`. New code and comments must avoid them (use `.test()`/`.match()`).
 - Git accepts any unique prefix of a long option and rejects an ambiguous one. Verified on the installed Git: `git commit --no-v` fails with "ambiguous option: no-v (could be --no-verbose or --no-verify)"; `git switch --d` fails with "ambiguous option: d". So denying every non-empty prefix of a denied option only ever denies commands Git itself would reject, except where a prefix is the unique abbreviation, which is the bypass.
 - `git --exec-path /x status` only prints the exec path and exits, so it is not a bypass in itself. The change.md direction still asks to treat it as taking a value, which is the deny-biased reading and costs nothing.
 - Existing false denial: the `clean` dry-run check uses exact `-n`/`--dry-run`, so `git clean --dry -d` is denied today by code reading (`:467`). The shared prefix helper fixes it.
@@ -29,7 +29,7 @@ Every form in the `change.md` list is denied in an `agent-smith:step` subagent, 
 - No interpretation of `sh -c`, `bash -c`, `eval`, `source`, variables holding a command name, interpreters (`python -c`, `node -e`), aliases (shell aliases and `git -c alias.X=...`), `function`-body calls or `env -S`/`sudo -s` command strings. `env -S` and `sudo -s`/`-i` with a command string are denied with guidance rather than parsed. The docs list the rest as out of scope and say why.
 - No new denial for hook-skipping environment variables (`HUSKY=0`, `SKIP=`, `GIT_CONFIG_*`), for `git config core.hooksPath`, or for `git reset` (mixed) unstaging. They are separate decisions.
 - No change to Codex children (`.codex/rules/project.rules`, `run-codex.mjs`); `codex-step-publication-guard` owns that.
-- No change to `hooks/hooks.json` (`timeout: 5` stays), the scope predicate (`isGuarded`), the byte cap, the heredoc rules, routing, policy or run state.
+- No change to `hooks/hooks.json` (`timeout: 5` stays), the scope predicate (`isGuarded`), the byte cap, the heredoc rules (what is accepted and what is denied; Phase 4 changes only how `shellWord`, which the heredoc lexer shares, reads a `$'...'` or `$"..."` string), routing, policy or run state.
 - No deny of `git update-ref` that creates or moves a ref in general: the shared rules tell steps to preserve work "in a commit or ref", so a ref write must stay possible. Only `--stdin`, delete forms and `refs/agent-smith/` are denied.
 - No edit of `context/foundation/prd.md`, `health-check.md` or ADRs. Their wording ("common direct unsafe commands", "bounded literal-command coverage") stays true.
 - No decoding of escape sequences inside `$'...'`. A command name spelled with them (`$'\x67it'`) is dynamic construction, like a variable holding a command name, and the reference says so.
@@ -271,7 +271,7 @@ Close the three findings of `reviews/impl-review.md`. F1 and F2 landed in `ecb46
 
 **Intent**: Deny/allow pairs for the quoting forms, run through the hook CLI with inert payloads.
 
-**Contract**: A test named `command shapes: ANSI-C and locale quoting`. Deny: `$'git' push`, `$"git" push`, `echo $'\'' ; git push #'`, `echo "$(echo $'\'')" ; git push ; echo "')"`. Allow: `$'git' status`, `echo $'it\'s'`, `git commit -m $'subject\n\nbody'`, `echo "$(echo $'it\'s')"`, `echo "$'x'"`, `echo $'$(git push)'`. The strings are the shell text; escape them for the JavaScript source.
+**Contract**: A test named `command shapes: ANSI-C and locale quoting`. Deny: `$'git' push`, `$"git" push`, `echo $'\'' ; git push #'`, `echo "$(echo $'\'')" ; git push ; echo "')"`. Allow: `$'git' status`, `echo $'it\'s'`, `git commit -m $'subject\n\nbody'`, `echo "$(echo $'it\'s')"`, `echo "$'x'"`, `echo $'$(git push)'`. Heredoc routes keep today's result: deny `cat > $'out.txt' <<'EOF'` with a body line and the closing `EOF` (a `$'...'` destination is not literal); allow `cat > out.txt <<'EOF'` whose body holds a stray `$'x`. The strings are the shell text; escape them for the JavaScript source.
 
 #### 5. Reference and test index
 
@@ -312,6 +312,7 @@ Close the three findings of `reviews/impl-review.md`. F1 and F2 landed in `ecb46
 
 1. Install the plugin build, start a fresh session and run `X=1 git push`, `(git push)` and `X=1 git status` through an `agent-smith:step` subagent.
 2. Confirm the denial text names what to do instead.
+3. Run steps 1 and 2 after Phase 4 lands, so the live check covers the final scanner, and re-read the `docs/REFERENCE.md` guard paragraphs once more, because Phase 4 edits `:67` and `:71` after row 3.5 was read.
 
 ## Performance Considerations
 
@@ -326,7 +327,7 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 - Change identity and audit origin: `context/changes/step-guard-bypass-forms/change.md`
 - Parser it builds on: `context/archive/2026-11-19-step-guard-heredoc-false-positives/plan.md`
 - Guard code: `skills/10x-pipeline/scripts/step-guard.mjs:98-189`, `:373-531`
-- Tests: `skills/10x-pipeline/test/step-guard.test.mjs:61-130`, `:250`, `:398`
+- Tests: `skills/10x-pipeline/test/step-guard.test.mjs:61-130`, `:250`, and the source-constraints test (`:398` when planned, `:523` now)
 - Docs: `docs/REFERENCE.md:65-71`, `README.md:32`
 - Implementation review and its fix commit: `context/changes/step-guard-bypass-forms/reviews/impl-review.md`, `ecb46f8f`
 
