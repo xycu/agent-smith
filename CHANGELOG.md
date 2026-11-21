@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.3](https://github.com/xycu/agent-smith/compare/v1.15.2...v1.15.3) (2026-11-21)
+
+
+### Bug Fixes
+
+* **run-lock:** wait for the Codex process group to drain before calling it alive ([#248](https://github.com/xycu/agent-smith/issues/248)) ([f5ac242](https://github.com/xycu/agent-smith/commit/f5ac24269d53d3656bd9011cfa8a037ba5d3a96b))
+
 ## [1.15.2](https://github.com/xycu/agent-smith/compare/v1.15.1...v1.15.2) (2026-11-21)
 
 
