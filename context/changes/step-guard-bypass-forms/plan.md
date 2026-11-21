@@ -2,7 +2,7 @@
 
 ## Overview
 
-Make `skills/10x-pipeline/scripts/step-guard.mjs` deny the forbidden commands it already knows when they sit behind common shell shapes (assignment prefix, subshell, group, reserved word, `$(...)`, backticks, simple wrappers, `xargs`, `find -exec`, glued redirects), deny the Git forms it does not know yet (abbreviated long options, discarding `switch`/`reset`/`branch`/`tag`/`rm`/`checkout-index`/`read-tree`/`update-ref` forms, hook-path overrides, `send-pack`), and stop denying `--no-verify` used as a search pattern. The guard stays a hand-written, dependency-free scanner, not a shell interpreter. Docs state the new coverage and what stays out of scope.
+Make `skills/10x-pipeline/scripts/step-guard.mjs` deny the forbidden commands it already knows when they sit behind common shell shapes (assignment prefix, subshell, group, reserved word, `$(...)`, backticks, simple wrappers, `xargs`, `find -exec`, glued redirects), deny the Git forms it does not know yet (abbreviated long options, discarding `switch`/`reset`/`branch`/`tag`/`rm`/`checkout-index`/`read-tree`/`update-ref` forms, hook-path overrides, `send-pack`), and stop denying `--no-verify` used as a search pattern. The implementation review (`reviews/impl-review.md`, REJECTED) adds three fixes: value-option prefixes scoped to the subcommand (F1), a bare `-` after `env` (F2), and ANSI-C and locale quoting (`$'...'`, `$"..."`) read the way Bash reads it (F3). The guard stays a hand-written, dependency-free scanner, not a shell interpreter. Docs state the new coverage and what stays out of scope.
 
 ## Current State Analysis
 
@@ -12,7 +12,7 @@ The change.md line numbers (8-55, 94-119) predate `step-guard-heredoc-false-posi
 
 ## Desired End State
 
-Every form in the `change.md` list is denied in an `agent-smith:step` subagent, each next to an allow test for a normal command of the same shape. `git log -S "--no-verify"`, `git log --grep "--no-verify"` and `git grep -e --no-verify` pass. The full suite is green. `docs/REFERENCE.md` and `README.md` describe the new coverage and the remaining out-of-scope forms. A live check in a real `agent-smith:step` subagent confirms `X=1 git push` and `(git push)` are denied and `X=1 git status` runs.
+Every form in the `change.md` list is denied in an `agent-smith:step` subagent, each next to an allow test for a normal command of the same shape. `git log -S "--no-verify"`, `git log --grep "--no-verify"` and `git grep -e --no-verify` pass. The full suite is green. `docs/REFERENCE.md` and `README.md` describe the new coverage and the remaining out-of-scope forms. A live check in a real `agent-smith:step` subagent confirms `X=1 git push` and `(git push)` are denied and `X=1 git status` runs. After the review fixes, `git branch --d old`, `env - git push`, `$'git' push` and `echo $'\'' ; git push #'` are denied, while `git clean --d`, `env - git status` and `echo $'it\'s'` pass.
 
 ### Key Discoveries:
 
@@ -32,10 +32,11 @@ Every form in the `change.md` list is denied in an `agent-smith:step` subagent, 
 - No change to `hooks/hooks.json` (`timeout: 5` stays), the scope predicate (`isGuarded`), the byte cap, the heredoc rules, routing, policy or run state.
 - No deny of `git update-ref` that creates or moves a ref in general: the shared rules tell steps to preserve work "in a commit or ref", so a ref write must stay possible. Only `--stdin`, delete forms and `refs/agent-smith/` are denied.
 - No edit of `context/foundation/prd.md`, `health-check.md` or ADRs. Their wording ("common direct unsafe commands", "bounded literal-command coverage") stays true.
+- No decoding of escape sequences inside `$'...'`. A command name spelled with them (`$'\x67it'`) is dynamic construction, like a variable holding a command name, and the reference says so.
 
 ## Implementation Approach
 
-Three phases, each independently green: (1) command shapes in the scanner and a normalization step that resolves the real command behind prefixes and wrappers; (2) Git option handling on top of normalized words; (3) docs, index, full suite, live check. Phase 2 depends on phase 1 only through the normalized `words` array.
+Four phases, each independently green: (1) command shapes in the scanner and a normalization step that resolves the real command behind prefixes and wrappers; (2) Git option handling on top of normalized words; (3) docs, index, full suite, live check; (4) the fixes of the implementation review. Phase 2 depends on phase 1 only through the normalized `words` array.
 
 Unattended planning assumptions (no human answered; each is backed by the evidence named):
 
@@ -45,6 +46,7 @@ Unattended planning assumptions (no human answered; each is backed by the eviden
 - `--no-verify` is checked only for `commit`, `merge`, `pull`, `am`, `rebase`, `cherry-pick`, `revert` (`push` is denied anyway). `pull` is included because it forwards merge options.
 - `update-ref`: add `--stdin` (its body cannot be inspected); keep ref creation allowed (see What We're NOT Doing).
 - `-c core.hooksPath=` and `--config-env core.hooksPath=` are matched case-insensitively, since Git config names are.
+- Review F3 (left PENDING for the owner) is taken into scope as a scanner fix, not only a reference entry. Planning probes through the hook CLI found that `\'` inside `$'...'` desynchronises quote tracking: `echo $'\'' ; git push #'` is allowed while Bash runs `git push` (checked with `:` in place of `git`), and `echo $'it\'s'` fails closed. That hides forms this change already covers, so a docs-only exclusion would leave a real bypass. A scratch prototype changed about ten lines in `commands()` and `shellWord` and kept all 33 guard tests green. Escape decoding stays out of scope and is documented.
 
 ## Phase 1: Command shapes and normalization
 
@@ -129,7 +131,7 @@ Make Git flag checks accept unique-prefix abbreviations, stop applying `--no-ver
 
 **Intent**: One helper replaces the exact-string comparisons in `gitProblem` and the `rm` check.
 
-**Contract**: `longFlag(arg, full)` is true when `arg` starts with `--`, its name (up to the first `=`) is non-empty and `full.slice(2)` starts with that name. Use it for `--no-verify`, `--hard`, `--delete`, `--dry-run`, `--no-dry-run`, `--recursive` (`rm`) and every new flag below. Use it also for the value-taking long options in `gitOptions` (`--message`, `--file`, `--author`, `--date`, and the commit and clean lists), so an abbreviated `--exc -n` keeps `-n` as the pattern instead of reading it as a dry-run flag. A bare `--` stays the end-of-options marker.
+**Contract**: `longFlag(arg, full)` is true when `arg` starts with `--`, its name (up to the first `=`) is non-empty and `full.slice(2)` starts with that name. Use it for `--no-verify`, `--hard`, `--delete`, `--dry-run`, `--no-dry-run`, `--recursive` (`rm`) and every new flag below. Use it also for the value-taking long options in `gitOptions` (`--message`, `--file`, `--author`, `--date`, and the commit and clean lists), so an abbreviated `--exc -n` keeps `-n` as the pattern instead of reading it as a dry-run flag. A bare `--` stays the end-of-options marker. Amended by Phase 4 item 1 (review F1): value options match by prefix only for the subcommand that has them.
 
 #### 2. Subcommand-scoped `--no-verify`
 
@@ -226,12 +228,80 @@ State the new coverage and the remaining out-of-scope forms, then run the full s
 
 ---
 
+## Phase 4: Implementation review fixes
+
+### Overview
+
+Close the three findings of `reviews/impl-review.md`. F1 and F2 landed in `ecb46f8f` during the review; this phase records them in the plan and adds the allow tests the review probed only by hand. F3 is new work: read ANSI-C (`$'...'`) and locale (`$"..."`) quoting the way Bash does.
+
+### Changes Required:
+
+#### 1. Value options scoped to the subcommand (F1, landed in `ecb46f8f`)
+
+**File**: `skills/10x-pipeline/scripts/step-guard.mjs` (`gitOptions`), `skills/10x-pipeline/test/step-guard.test.mjs`
+
+**Intent**: A short abbreviation of a denied option (`--d` for `--delete`, `--f` for `--force`) must never be read as a value option the subcommand does not have, because the guard then skips the word after it and misses the flag.
+
+**Contract**: Long value options match by prefix only for the subcommand that has them: `commit` (its full list), `tag` (`--message`, `--file`), `clean` (`--exclude`). Every other subcommand matches `--message`, `--file`, `--author` and `--date` exactly. In `git options: abbreviations`, the denials `git branch --d old`, `git tag --d v1`, `git rm --f src`, `git checkout-index --f -a` and the allows `git clean --d`, `git commit --mess x -m y` are present; add the allows `git tag -a v1 --mess x` and `git tag --fi notes v1`.
+
+#### 2. Bare `-` after `env` (F2, landed in `ecb46f8f`)
+
+**File**: `skills/10x-pipeline/scripts/step-guard.mjs` (`wrappers`, `unwrap`), `skills/10x-pipeline/test/step-guard.test.mjs`
+
+**Intent**: `env -` is the short form of `env -i` and still runs the command after it.
+
+**Contract**: The `env` wrapper spec skips a bare `-`; other wrappers still stop at it. In `command shapes: wrappers`, `env - git push` is denied (present); add the allow `env - git status`.
+
+#### 3. ANSI-C and locale quoting (F3)
+
+**File**: `skills/10x-pipeline/scripts/step-guard.mjs` (`commands`, `shellWord`)
+
+**Intent**: Read `$'...'` and `$"..."` the way Bash does, so this quoting can neither hide a command name nor shift where the scanner thinks a quote ends. On the current code `$'git' push`, `$"git" push` and `echo $'\'' ; git push #'` are allowed while Bash runs `git push`, and `echo $'it\'s'` fails closed.
+
+**Contract**:
+- An unquoted `$` whose next character, after line continuations (the existing `opening` index), is `'` or `"` is dropped and opens that quote. `$"..."` is then an ordinary double-quoted word.
+- Inside `$'...'` a backslash takes the next character literally, so `\'` does not end the string; the string ends at the first unescaped `'`. Escape sequences are not decoded (`\x67` reads as `x67`). `$(`, backticks and `$` are literal inside `$'...'`, so no substitution starts there.
+- `shellWord` applies the same rule, so the heredoc lexer and the substitution-end finder agree with `commands()` on where an ANSI-C string ends. A `$'...'` or `$"..."` word stays non-literal for heredoc routes, as it is today.
+- Inside double quotes, `$'` stays literal text, as today.
+- The source constraint test still holds: no forbidden words or calls in the new lines.
+
+#### 4. Tests for quoting
+
+**File**: `skills/10x-pipeline/test/step-guard.test.mjs`
+
+**Intent**: Deny/allow pairs for the quoting forms, run through the hook CLI with inert payloads.
+
+**Contract**: A test named `command shapes: ANSI-C and locale quoting`. Deny: `$'git' push`, `$"git" push`, `echo $'\'' ; git push #'`, `echo "$(echo $'\'')" ; git push ; echo "')"`. Allow: `$'git' status`, `echo $'it\'s'`, `git commit -m $'subject\n\nbody'`, `echo "$(echo $'it\'s')"`, `echo "$'x'"`, `echo $'$(git push)'`. The strings are the shell text; escape them for the JavaScript source.
+
+#### 5. Reference and test index
+
+**File**: `docs/REFERENCE.md` (`:67`, `:71`), `skills/10x-pipeline/test/README.md` (`:36`)
+
+**Intent**: State the quoting coverage and its limit.
+
+**Contract**: `:67` adds ANSI-C (`$'...'`) and locale (`$"..."`) quoting to the shapes the guard reads, including an escaped `\'` inside `$'...'`. `:71` adds that escape sequences inside `$'...'` are not decoded, so a command name spelled with them (`$'\x67it'`) counts as dynamic construction, like a variable holding a command name. The `step-guard.test.mjs` row adds "ANSI-C quoting".
+
+### Success Criteria:
+
+#### Automated Verification:
+
+- Guard tests pass, including the review deny/allow pairs: `node --test skills/10x-pipeline/test/step-guard.test.mjs`
+- Value-option prefixes no longer hide denied abbreviations, and their safe neighbours pass: `node --test --test-name-pattern "abbreviat" skills/10x-pipeline/test/step-guard.test.mjs`
+- `env - git push` is denied and `env - git status` passes: `node --test --test-name-pattern "wrappers" skills/10x-pipeline/test/step-guard.test.mjs`
+- ANSI-C and locale quoting neither hide a command nor fail closed on an escaped quote: `node --test --test-name-pattern "ANSI-C" skills/10x-pipeline/test/step-guard.test.mjs`
+- Source constraints still hold: `node --test --test-name-pattern "no execution" skills/10x-pipeline/test/step-guard.test.mjs`
+- Reference names the quoting coverage and its limit: `grep -c "ANSI-C" docs/REFERENCE.md` is at least 1 and `grep -c "not decoded" docs/REFERENCE.md` is at least 1
+- Full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+
+---
+
 ## Testing Strategy
 
 ### Unit Tests:
 
 - Table-driven deny and allow lists per form group in `step-guard.test.mjs`, run through the real hook CLI with inert payloads.
 - Fail-closed cases (unterminated substitution) and a timing guard for pathological nesting.
+- Review regressions (Phase 4): the F1 and F2 forms in the existing `abbreviations` and `wrappers` tests, and a quoting test for F3.
 - Existing tests unchanged apart from the `:250` expectation.
 
 ### Integration Tests:
@@ -258,6 +328,7 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 - Guard code: `skills/10x-pipeline/scripts/step-guard.mjs:98-189`, `:373-531`
 - Tests: `skills/10x-pipeline/test/step-guard.test.mjs:61-130`, `:250`, `:398`
 - Docs: `docs/REFERENCE.md:65-71`, `README.md:32`
+- Implementation review and its fix commit: `context/changes/step-guard-bypass-forms/reviews/impl-review.md`, `ecb46f8f`
 
 ## Progress
 
@@ -299,3 +370,15 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 - [ ] 3.4 In a live `agent-smith:step` subagent with the plugin installed, `X=1 git push` and `(git push)` are denied and `X=1 git status` runs
 - [x] 3.5 Read the changed paragraphs in `docs/REFERENCE.md` and `README.md` once for accuracy against the tests — evidence: evidence/judgment-review.md
+
+### Phase 4: Implementation review fixes
+
+#### Automated
+
+- [ ] 4.1 Guard tests pass, including the review deny/allow pairs
+- [ ] 4.2 Value-option prefixes no longer hide denied abbreviations, and their safe neighbours pass
+- [ ] 4.3 `env - git push` is denied and `env - git status` passes
+- [ ] 4.4 ANSI-C and locale quoting neither hide a command nor fail closed on an escaped quote
+- [ ] 4.5 Source constraints still hold
+- [ ] 4.6 Reference names the quoting coverage and its limit
+- [ ] 4.7 Full suite passes

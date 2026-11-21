@@ -25,7 +25,10 @@ Every form from the change list is denied, each next to an allow case for a norm
 | `--no-verify` scope | Only `commit merge pull am rebase cherry-pick revert` | Fixes the search-pattern false denial |
 | `update-ref` | Deny `--stdin`, delete, `refs/agent-smith/`; allow creating other refs | Steps must be able to preserve work in a ref |
 | Hook path override | Deny `-c`/`--config-env` `core.hooksPath=`, case-insensitive | Skips hooks like `--no-verify` |
-| Out of scope | `sh -c`, `bash -c`, `eval`, interpreters, aliases, hook-skip env vars, `git config` | Needs a shell interpreter, so documented instead |
+| Out of scope | `sh -c`, `bash -c`, `eval`, interpreters, aliases, hook-skip env vars, `git config`, escape sequences inside `$'...'` | Needs a shell interpreter, so documented instead |
+| Value-option prefixes (review F1) | Prefix-match value options only for the subcommand that has them | `--d` and `--f` were read as `--date`/`--file` and hid `branch --delete`, `rm --force` |
+| `env -` (review F2) | Skip a bare `-` after `env` | It is `env -i` and still runs the command |
+| `$'...'`, `$"..."` (review F3) | Drop the `$`, treat `\'` inside `$'...'` as escaped, in `commands()` and `shellWord` | `echo $'\'' ; git push #'` desyncs the quotes and hides a push; a docs-only entry would leave it open |
 
 ## Scope
 
@@ -44,18 +47,21 @@ Every form from the change list is denied, each next to an allow case for a norm
 | 1. Command shapes and normalization | Scanner and `resolve()`, shape tests | A false denial on a normal command; wrapper option tables miss a case |
 | 2. Git option handling | Prefix helper, `--no-verify` scoping, global options, new verbs | Denying a safe form a step needs (commit, branch, ref preservation) |
 | 3. Docs, index and live check | Updated reference, README, test index; full suite; live row | Docs drift from tests |
+| 4. Implementation review fixes | F1 and F2 (landed in `ecb46f8f`) pinned with allow tests; F3 quoting fix, quoting test, reference lines | The two quote readers disagree on where `$'...'` ends |
 
 **Prerequisites:** `step-guard-heredoc-false-positives` merged (it is).
-**Estimated effort:** about 3 sessions across 3 phases; one script, one test file, three doc spots.
+**Estimated effort:** about 3 sessions across 3 phases, plus one short session for Phase 4; one script, one test file, three doc spots.
 
 ## Open Risks & Assumptions
 
 - No human answered during planning; the decisions above rest on `change.md`, the code and Git's own behavior, and are listed as assumptions.
 - The guard source is scanned by a test that forbids words like `import`, `eval`, `Function` and `.exec(` calls, including in comments.
 - The live check needs a session with the plugin installed; the harness cannot cover it.
+- The review left F3 to the owner. With no human to ask, the plan takes the scanner fix: a scratch prototype (about ten lines) kept all 33 guard tests green and closed the probed forms.
 
 ## Success Criteria (Summary)
 
 - Each listed form is denied and each safe sibling still runs, shown by paired tests.
 - The full suite passes and the guard stays inside its 5 s hook timeout on pathological input.
 - The live subagent denies `X=1 git push` and `(git push)` and runs `X=1 git status`.
+- The review forms are denied (`git branch --d old`, `env - git push`, `$'git' push`) and their neighbours pass (`git clean --d`, `env - git status`, `echo $'it\'s'`).
