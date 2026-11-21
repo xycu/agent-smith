@@ -2,48 +2,6 @@
   "compare": {
     "targetDropPercent": 30
   },
-  "ladder": [
-    {
-      "provider": "openai",
-      "model": "gpt-6-luna",
-      "effort": "low"
-    },
-    {
-      "provider": "openai",
-      "model": "gpt-6.2-sol",
-      "effort": "low"
-    },
-    {
-      "provider": "openai",
-      "model": "gpt-6.2-sol",
-      "effort": "medium"
-    },
-    {
-      "provider": "openai",
-      "model": "gpt-6.2-sol",
-      "effort": "high"
-    },
-    {
-      "provider": "openai",
-      "model": "gpt-6.2-astra",
-      "effort": "medium"
-    },
-    {
-      "provider": "openai",
-      "model": "gpt-6.2-astra",
-      "effort": "high"
-    },
-    {
-      "provider": "openai",
-      "model": "gpt-6.2-astra",
-      "effort": "xhigh"
-    },
-    {
-      "provider": "openai",
-      "model": "gpt-6.2-astra",
-      "effort": "max"
-    }
-  ],
   "limits": {
     "maxNeutralRetries": 3,
     "maxFixLoops": 3
