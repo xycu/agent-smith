@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.15.1](https://github.com/xycu/agent-smith/compare/v1.15.0...v1.15.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **codex-step-publication-guard:** Stop Codex steps from pushing, publishing or reading GitHub tokens ([#236](https://github.com/xycu/agent-smith/issues/236)) ([1393e5f](https://github.com/xycu/agent-smith/commit/1393e5ffc6af3d16e277fb27490f8aef24c88eba))
+* **next-requires-isolated-init:** Make next refuse a run that init would refuse for missing isolation ([#237](https://github.com/xycu/agent-smith/issues/237)) ([b57c5d5](https://github.com/xycu/agent-smith/commit/b57c5d5a81d94c0af369c2ffb83b47ebed82a7d9))
+* **plan-zero-rows-skips-implement:** Stop a plan with no readable Progress rows from skipping the implement step ([#239](https://github.com/xycu/agent-smith/issues/239)) ([bd30eb9](https://github.com/xycu/agent-smith/commit/bd30eb93cbe3f1fd6409037d6c14cbb9b5018cbe))
+* **run-branch-must-match-change-id:** Refuse to run a change on another change's run branch ([#238](https://github.com/xycu/agent-smith/issues/238)) ([1135c2a](https://github.com/xycu/agent-smith/commit/1135c2ac812b18381096cfcf8013afc85baf72e9))
+* **run-lock-stale-takeover-race:** Stop two router processes from both taking over a stale run lock ([#235](https://github.com/xycu/agent-smith/issues/235)) ([7ca53f7](https://github.com/xycu/agent-smith/commit/7ca53f7a8ebc1111b22c012fe4f5f1b0fc774a2b))
+
 ## [1.15.0](https://github.com/xycu/agent-smith/compare/v1.14.2...v1.15.0) (2026-11-20)
 
 
