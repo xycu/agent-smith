@@ -374,6 +374,8 @@ test("command shapes: ANSI-C and locale quoting", () => {
   for (const command of [
     "$'git' status", "echo $'it\\'s'", "echo $$'\\'", "git commit -m $'subject\\n\\nbody'", "echo \"$(echo $'it\\'s')\"",
     "echo \"$'x'\"", "echo $'$(git push)'", "cat > out.txt <<'EOF'\nstray $'x\nEOF\n",
+    // The substitution-end finder and the heredoc lexer read $$ the same way.
+    "echo \"$(echo $$'\\')\"", "cat > out.txt <<'EOF'\nx\nEOF\necho $$'\\'",
   ]) neutral(payload(command));
   denied("cat > $'out.txt' <<'EOF'\nbody\nEOF\n", /heredoc/i);
 });
