@@ -1,7 +1,7 @@
 ---
 change_id: codex-profile-and-gitdir-access
 title: Warn at init when the Codex profile or the worktree gitdir access is missing
-status: new
+status: planned
 created: 2026-11-21
 updated: 2026-11-21
 archived_at: null
