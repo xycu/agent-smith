@@ -10,7 +10,7 @@ import {
   cleanupAll, makeProject, planText, writeReview, init, next, writeResult, seedRun, writeLog, entry, readLogEntries,
   run, writeOverride, writeMetaFile, readReportFile,
 } from "./helpers.mjs";
-import { pluginPolicy, policyProblems, providerOf, dispatchTarget, estimateCost } from "../scripts/state.mjs";
+import { pluginPolicy, policyProblems, providerOf, dispatchTarget, estimateCost, stepPolicy } from "../scripts/state.mjs";
 import { tierFor } from "../scripts/steps.mjs";
 
 after(cleanupAll);
@@ -594,4 +594,53 @@ test("fable: missing prices remain unknown in estimates, status, reports and neu
     assert.deepEqual(complete.json.cost.unpriced, []);
     assert.match(readReportFile(project), /\| fable \| high \| 8 \| no \| ok \| 1000000 \| \$12\.0000 \|/);
   }
+});
+
+// ---- README recipe: restore the shipped Claude ladder ----------------------------------
+
+const readme = fs.readFileSync(path.join(SKILL_DIR, "../../README.md"), "utf8");
+const recipe = readme.split("### Restore the shipped Claude ladder\n")[1]?.match(/```json\n([\s\S]*?)\n```/);
+assert.ok(recipe, "the README recipe JSON fence exists");
+const RECIPE = JSON.parse(recipe[1]);
+const codexPolicy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "codex-policy.json"), "utf8"));
+
+test("recipe: the README ladder equals the shipped Claude ladder", () => {
+  assert.deepEqual(Object.keys(RECIPE), ["ladder"]);
+  assert.deepEqual(RECIPE.ladder, policy.ladder);
+  assert.equal(RECIPE.ladder.some((rung) => Object.hasOwn(rung, "provider")), false);
+});
+
+test("recipe: replacing only the ladder of an OpenAI override restores Claude and keeps other keys", () => {
+  const unrelated = {
+    compare: { targetDropPercent: 30 },
+    limits: { maxNeutralRetries: 3, maxFixLoops: 3 },
+    codex: { profile: "work" },
+  };
+  const project = makeProject({ policy: { ladder: codexPolicy.ladder, ...unrelated } });
+  const probe = path.join(project.root, "policy-probe.mjs");
+  const stateUrl = new URL("../scripts/state.mjs", import.meta.url).href;
+  fs.writeFileSync(probe, `import { loadPolicy } from ${JSON.stringify(stateUrl)}; console.log(JSON.stringify(loadPolicy()));\n`);
+  const before = run(project, [], { script: probe });
+  assert.equal(before.status, 0, before.stderr);
+  assert.ok(before.json.ladder.every((rung) => providerOf(rung) === "openai"), "negative control: OpenAI ladder");
+
+  writeOverride(project, { ...unrelated, ladder: RECIPE.ladder });
+  const started = init(project, GOAL, ["--provider-mode", "claude"]);
+  assert.equal(started.status, 0, started.stdout);
+  assert.equal(started.json.providerMode, "claude");
+  assert.ok(Object.values(started.json.providersByStep).every((p) => p === "claude"));
+  assert.equal(started.json.provider, "claude");
+  assert.ok(policy.ladder.some((rung) => rung.model === started.json.model));
+
+  const merged = run(project, [], { script: probe });
+  assert.equal(merged.status, 0, merged.stderr);
+  assert.deepEqual(merged.json.ladder, policy.ladder);
+  for (const [key, value] of Object.entries(unrelated)) assert.deepEqual(Object.fromEntries(Object.keys(value).map((k) => [k, merged.json[key][k]])), value, key);
+});
+
+test("recipe: a leftover OpenAI rung keeps its position", () => {
+  const mixed = policy.ladder.map((rung, i) => (i === 3 ? codexPolicy.ladder[3] : rung));
+  const effective = stepPolicy({ ...policy, ladder: mixed }, { providerMode: "codex" }, "plan");
+  assert.deepEqual(effective.ladder[3], codexPolicy.ladder[3]);
+  assert.equal(providerOf(effective.ladder[3]), "openai");
 });

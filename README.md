@@ -135,6 +135,29 @@ With a price table missing fable, status gives its step cost as `null`, the repo
 
 Opt-in extras: restricted step agents, advisor prompts, confirmation review rounds. All in the [reference](docs/REFERENCE.md).
 
+### Restore the shipped Claude ladder
+
+A project whose `context/foundation/agent-smith-policy.json` holds the `codex-policy.json` rungs can return to the shipped Claude ladder. Merge only the `ladder` key below, or delete that key to take the shipped default.
+
+```json
+{
+  "ladder": [
+    { "model": "haiku", "effort": "low" },
+    { "model": "sonnet", "effort": "low" },
+    { "model": "sonnet", "effort": "medium" },
+    { "model": "sonnet", "effort": "high" },
+    { "model": "opus", "effort": "medium" },
+    { "model": "opus", "effort": "high" },
+    { "model": "opus", "effort": "xhigh" },
+    { "model": "opus", "effort": "max" }
+  ]
+}
+```
+
+Arrays replace whole, so paste all eight rungs and never patch single rungs: a leftover `provider: "openai"` rung keeps its position on OpenAI. Leave `compare`, `limits`, `codex.profile` and every other key untouched. Delete any `steps.<name>.maxTier` above 7 left from a longer ladder, and never add `splitProviders`, which a project override may not carry.
+
+Check the file first, because `init` cannot show the ladder: no rung in the override's `ladder` has a `provider` key, and the rungs equal the block above. Then start the fresh run with `init <id> --goal "<text>" --provider-mode claude` in the run worktree and read `providerMode` (`claude`), `providersByStep` (every value `claude`) and the first step's `provider` and `model`. `init` starts the run and fixes its mode, so restore the ladder before it. A resumed run keeps its stored mode, so this applies to a fresh run only. See [Codex and provider dispatch](docs/REFERENCE.md#codex-and-provider-dispatch).
+
 ### Claude Code subagent depth
 
 This repository permits the orchestrator → step → child layers. Plugin users enable delegation by merging this entry into their project’s `.claude/settings.json`.
