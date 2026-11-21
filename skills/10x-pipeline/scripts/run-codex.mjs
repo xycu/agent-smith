@@ -12,16 +12,12 @@ import { validateAction, readResult } from "./runner-dispatch.mjs";
 import { PERMISSION_PROBE } from "./permission-probe.mjs";
 import { removeTree } from "./remove-tree.mjs";
 import { collectCodexUsage, CODEX_USAGE_LIMITS } from "./codex-usage.mjs";
+import { codexChildEnv, codexProfileArgs } from "./codex-startup.mjs";
+export { codexChildEnv } from "./codex-startup.mjs";
 
 const MAX_MESSAGE = 1024 * 1024;
 const MAX_EVENT = 8 * 1024 * 1024;
 const refuse = (message) => { throw new Error(message); };
-
-// Deny list: GitHub token variables never reach a codex child (ADR-017). A new token name is a pattern edit.
-const GITHUB_TOKEN_NAME = /^(GH|GITHUB)_([A-Z0-9]+_)*TOKEN$/i;
-export function codexChildEnv(env = process.env) {
-  return Object.fromEntries(Object.entries(env).filter(([name]) => !GITHUB_TOKEN_NAME.test(name)));
-}
 
 function failureReason(error) {
   const message = error instanceof Error ? error.message : "Codex runner failed.";
@@ -29,7 +25,7 @@ function failureReason(error) {
 }
 
 function configArgs(action) {
-  return ["-C", ROOT, ...(action.profile === null ? [] : ["-p", action.profile]),
+  return ["-C", ROOT, ...codexProfileArgs(action.profile),
     "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2"];
 }
 

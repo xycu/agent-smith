@@ -40,6 +40,7 @@ import {
   isolationOn, isolationCheck, worktreeLine, startCommit, stepCommit, fileTimes, resumeTimes, rollback, undoRollback, legacyReviewProblem,
   archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
+import { initPermissionWarnings } from "./init-permissions.mjs";
 
 // Only the call that made a rollback can undo it on halt. Recovery in a new process restores timestamps only.
 let undoOnError = null;
@@ -1089,7 +1090,8 @@ function main() {
       halt(`Run provider mode is ${prev.providerMode ?? "legacy (ladder-driven)"}; --provider-mode ${requestedMode} cannot resume it. Nothing was written.`);
     }
     const selection = { ...prev, host, chain, ...(existing ? {} : { providerMode: requestedMode ?? host }) };
-    const incompatible = selectionProblem(policy, selection, !neutralPending(p, log, policy));
+    const neutralReplay = neutralPending(p, log, policy) ? executed(log).at(-1) : null;
+    const incompatible = selectionProblem(policy, selection, !neutralReplay);
     if (incompatible) halt(incompatible);
     // No flag keeps the stored value, so a resume of an archive run is checked again.
     if ((archive ?? prev.archive) === true) {
@@ -1107,6 +1109,7 @@ function main() {
     // set only at an init whose log has no executed entry, so a run is isolated from its first step or not at all.
     const fresh = executed(log).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
+    initPermissionWarnings(policy, selection, neutralReplay);
     cleanupStateTemps(p.dir);
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
