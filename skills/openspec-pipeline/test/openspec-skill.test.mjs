@@ -322,7 +322,8 @@ test("Start step 3 consumes shared OpenSpec setup and retains run safety", () =>
   for (const text of ["exactly one JSON object", "reason: null", "absolute `root` and `runRoot`",
     "nonzero exit", "missing/malformed JSON", "non-null `reason`", "STOP before `init`",
     "returned `root`", "`runRoot` as `<root>` and `<run root>`", "not in the run (uncommitted in the main checkout)",
-    "A resume never copies", 'cd "<run root>" && node $ROUTER ... --chain openspec',
+    "An ordinary resume leaves the worktree inputs as they are", "retry from the original project root",
+    'case: "reused"', "copied: true", 'cd "<run root>" && node $ROUTER ... --chain openspec',
     "<run root>/<resultFile>", "Never commit, stash, reset or clean", "refs/agent-smith/",
     "name their side refs", "List the files, check the list", "retained original paths", "before removing the worktree",
     "(isolation off)", "`os-apply` commits its code itself", "the files of the change folder stay uncommitted"]) {
