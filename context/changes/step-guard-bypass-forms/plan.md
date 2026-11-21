@@ -291,9 +291,9 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [x] 3.1 Full suite passes
-- [x] 3.2 Reference names the new coverage and drops the old wrapper exclusion
-- [x] 3.3 Version fields still agree
+- [x] 3.1 Full suite passes — 74f8db52
+- [x] 3.2 Reference names the new coverage and drops the old wrapper exclusion — 74f8db52
+- [x] 3.3 Version fields still agree — 74f8db52
 
 #### Manual
 
