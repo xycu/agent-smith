@@ -98,6 +98,8 @@ function unexpectedHeredoc() {
 // This lexer is used only to classify heredoc syntax. The direct-command checker still sees its original words.
 function shellWord(text, at, depth = 0, closing = null) {
   let quote = null;
+  // In $'...' a backslash takes the next character literally, so \' does not end the string.
+  let ansi = false;
   let literal = true;
   let bare = true;
   let value = "";
@@ -106,13 +108,22 @@ function shellWord(text, at, depth = 0, closing = null) {
     const next = text[at + 1];
     const opening = c === "$" && quote !== "'" ? afterContinuations(text, at + 1) : at;
     if (!quote && (shellBoundary(c) || c === closing)) break;
-    if (c === "\\" && quote !== "'") {
+    if (c === "\\" && (quote !== "'" || ansi)) {
       if (next === undefined) throw new Error("Unterminated shell escape.");
       if (next === "\n") { at += 2; continue; }
-      if (!quote || '$\x60"\\'.includes(next)) { value += next; bare = false; at += 2; continue; }
+      if (!quote || ansi || '$\x60"\\'.includes(next)) { value += next; bare = false; at += 2; continue; }
     }
-    if (c === quote) quote = null;
+    if (c === quote) { quote = null; ansi = false; }
     else if (!quote && (c === "'" || c === '"')) { quote = c; bare = false; }
+    else if (!quote && c === "$" && (text[opening] === "'" || text[opening] === '"')) {
+      // $'...' and $"..." open a quote; the dollar sign is dropped.
+      quote = text[opening];
+      ansi = quote === "'";
+      literal = false;
+      bare = false;
+      at = opening + 1;
+      continue;
+    }
     else if (quote !== "'" && (c === "\x60" || c === "$" && text[opening] && "({[".includes(text[opening]))) {
       at = shellExpansionEnd(text, opening, depth + 1);
       literal = false;
@@ -378,6 +389,7 @@ function commands(text) {
   let started = false;
   let quoted = false;
   let quote = null;
+  let ansi = false;
   // The word after a redirect operator is its target, not a command word.
   let target = false;
   const flushWord = () => {
@@ -396,7 +408,7 @@ function commands(text) {
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
     const opening = c === "$" ? afterContinuations(text, i + 1) : i;
-    if (c === "\\" && quote !== "'") {
+    if (c === "\\" && (quote !== "'" || ansi)) {
       const next = text[++i];
       if (next === undefined) throw new Error("Unterminated shell escape.");
       if (next === "\n") continue;
@@ -413,8 +425,15 @@ function commands(text) {
       quoted = true;
       i = end - 1;
     } else if (quote) {
-      if (c === quote) quote = null;
+      if (c === quote) { quote = null; ansi = false; }
       else word += c;
+    } else if (c === "$" && (text[opening] === "'" || text[opening] === '"')) {
+      // $'...' and $"..." open a quote; the dollar sign is dropped.
+      quote = text[opening];
+      ansi = quote === "'";
+      started = true;
+      quoted = true;
+      i = opening;
     } else if (c === "'" || c === '"') {
       quote = c;
       started = true;

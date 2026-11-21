@@ -302,7 +302,7 @@ test("command shapes: wrappers", () => {
   }
   denied("env ".repeat(9) + "git push", /nested wrappers.*directly/);
   for (const command of [
-    "command -v gh", "env FOO=1 git status", "timeout 60 git status", "sudo -l", "xargs echo", "exec 3>&1",
+    "command -v gh", "env FOO=1 git status", "env - git status", "timeout 60 git status", "sudo -l", "xargs echo", "exec 3>&1",
     "env ".repeat(8) + "git status",
   ]) neutral(payload(command));
 });
@@ -329,6 +329,7 @@ test("git options: abbreviations", () => {
   for (const command of [
     "git reset --soft HEAD~1", "git branch --list", "rm --force inspected-file", "git switch --detach HEAD",
     "git clean --exc pattern -n -fd", "git clean --dry -d", "git clean --d", "git commit --mess x -m y", "git diff --no-ver",
+    "git tag -a v1 --mess x", "git tag --fi notes v1",
   ]) neutral(payload(command));
 });
 
@@ -363,6 +364,17 @@ test("git options: search patterns", () => {
   for (const command of ['git log -S "--no-verify"', 'git log --grep "--no-verify"', "git grep -e --no-verify"]) {
     neutral(payload(command));
   }
+});
+
+test("command shapes: ANSI-C and locale quoting", () => {
+  for (const command of [
+    "$'git' push", '$"git" push', "echo $'\\'' ; git push #'", "echo \"$(echo $'\\'')\" ; git push ; echo \"')\"",
+  ]) denied(command); // Never execute.
+  for (const command of [
+    "$'git' status", "echo $'it\\'s'", "git commit -m $'subject\\n\\nbody'", "echo \"$(echo $'it\\'s')\"",
+    "echo \"$'x'\"", "echo $'$(git push)'", "cat > out.txt <<'EOF'\nstray $'x\nEOF\n",
+  ]) neutral(payload(command));
+  denied("cat > $'out.txt' <<'EOF'\nbody\nEOF\n", /heredoc/i);
 });
 
 test("command shapes: nesting stays inside the hook timeout", () => {

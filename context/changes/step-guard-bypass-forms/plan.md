@@ -376,10 +376,10 @@ None. A fresh session loads the updated script; hook provenance (`hookFiles` has
 
 #### Automated
 
-- [ ] 4.1 Guard tests pass, including the review deny/allow pairs
-- [ ] 4.2 Value-option prefixes no longer hide denied abbreviations, and their safe neighbours pass
-- [ ] 4.3 `env - git push` is denied and `env - git status` passes
-- [ ] 4.4 ANSI-C and locale quoting neither hide a command nor fail closed on an escaped quote
-- [ ] 4.5 Source constraints still hold
-- [ ] 4.6 Reference names the quoting coverage and its limit
-- [ ] 4.7 Full suite passes
+- [x] 4.1 Guard tests pass, including the review deny/allow pairs
+- [x] 4.2 Value-option prefixes no longer hide denied abbreviations, and their safe neighbours pass
+- [x] 4.3 `env - git push` is denied and `env - git status` passes
+- [x] 4.4 ANSI-C and locale quoting neither hide a command nor fail closed on an escaped quote
+- [x] 4.5 Source constraints still hold
+- [x] 4.6 Reference names the quoting coverage and its limit
+- [x] 4.7 Full suite passes
