@@ -50,6 +50,7 @@ The launcher starts a private local receiver before Claude and binds each sessio
 - Incoming OTLP or transcript data can be late or incomplete. Missing closure stays unavailable throughout the normal run and any later read.
 - Managed exporter policy may prevent the session-local capture. The launcher preserves the policy and any existing export destination.
 - The 2.1.311 fixture baseline has retained native probe evidence. Full pipeline qualification remains pending until the authorized human run.
+- The installed host reviewed was 2.1.323, not the 2.1.311 seed, so that release needs its own qualification before the human run. The retained evidence is headless only, so one interactive launcher probe comes before the registry fixtures are finalized.
 
 ## Success Criteria (Summary)
 
