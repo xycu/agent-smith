@@ -1,10 +1,10 @@
 ---
 change_id: replan-failure-halt-recoverable
 title: Let a run continue after a human fixes a failed re-plan
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-22
-archived_at: null
+archived_at: 2026-11-22T14:44:26Z
 ---
 
 ## Notes
