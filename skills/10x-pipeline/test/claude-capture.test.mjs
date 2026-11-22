@@ -119,12 +119,21 @@ test("fresh launcher binds private, minimized and bounded capture to one Claude 
     events[0].attributes[1] = attr("session.id", binding.sessionId);
     assert.equal(read("otel.jsonl"), "");
     assert.equal(await post(batch), 200);
-    const exported = JSON.parse(read("otel.jsonl")).resourceLogs[0].scopeLogs[0].logRecords;
+    const captured = read("otel.jsonl");
+    const exported = JSON.parse(captured).resourceLogs[0].scopeLogs[0].logRecords;
     assert.deepEqual(exported.map(event => event.attributes.find(attr => attr.key === "event.sequence").value.intValue), [0, 1]);
-    assert.doesNotMatch(read("otel.jsonl"), /private-value|private-tool|private-resource/);
+    assert.doesNotMatch(captured, /private-value|private-tool|private-resource/);
     const oversized = await fetch(binding.endpoint, { method: "POST", headers: { "content-type": "application/json" },
       body: Buffer.alloc(${CAPTURE_LIMITS.bodyBytes + 1}) });
     assert.equal(oversized.status, 413);
+    const overLimitChunks = async function* () {
+      yield Buffer.alloc(${CAPTURE_LIMITS.bodyBytes});
+      yield Buffer.from("1");
+    };
+    const chunked = await fetch(binding.endpoint, { method: "POST", headers: { "content-type": "application/json" },
+      body: overLimitChunks(), duplex: "half" });
+    assert.equal(chunked.status, 413);
+    assert.equal(read("otel.jsonl"), captured, "oversized uploads leave no captured data");
     fs.truncateSync(path.join(root, "otel.jsonl"), ${CAPTURE_LIMITS.telemetryBytes});
     assert.equal(await post(batch), 503);
     assert.ok(fs.existsSync(path.join(root, "failed")));

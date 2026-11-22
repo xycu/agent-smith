@@ -104,10 +104,6 @@ async function receive(request, response, root, expected) {
     response.writeHead(415).end();
     return;
   }
-  if (Number(request.headers["content-length"]) > CAPTURE_LIMITS.bodyBytes) {
-    response.writeHead(413, { connection: "close" }).end();
-    return;
-  }
   try {
     const binding = readCaptureBinding(root);
     if (binding.process.pid !== expected.pid || binding.sessionId !== expected.sessionId
@@ -115,15 +111,20 @@ async function receive(request, response, root, expected) {
       response.writeHead(400).end();
       return;
     }
+    let oversized = Number(request.headers["content-length"]) > CAPTURE_LIMITS.bodyBytes;
     let size = 0;
     const chunks = [];
+    // Drain rejected uploads within the server's request timeout so the client receives the 413.
     for await (const chunk of request) {
+      if (oversized) continue;
       size += chunk.length;
-      if (size > CAPTURE_LIMITS.bodyBytes) {
-        response.writeHead(413).end();
-        return;
-      }
-      chunks.push(chunk);
+      oversized = size > CAPTURE_LIMITS.bodyBytes;
+      if (oversized) chunks.length = 0;
+      else chunks.push(chunk);
+    }
+    if (oversized) {
+      response.writeHead(413, { connection: "close" }).end();
+      return;
     }
     const batch = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks, size)));
     const projected = projectTelemetry(batch, binding);

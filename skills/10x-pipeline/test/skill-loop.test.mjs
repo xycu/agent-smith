@@ -421,7 +421,7 @@ test("AGENTS assigns routing documentation to the reference for both skills", ()
 });
 
 for (const [chain, source, ceiling] of [
-  ["10x", skill, 28100],
+  ["10x", skill, 28760],
   ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36449],
 ]) {
   test(`${chain}: skill byte budget and single procedure owners`, () => {
@@ -512,6 +512,30 @@ for (const chain of ["10x", "openspec"]) {
     assert.match(onTime, /Missing sources produce unavailable evidence through the same reader/);
     assert.match(onTime, /Omit missing usage without waiting/);
     assert.match(onTime, /bounded assumptions and evidence/);
+  });
+  test(`${chain}: bound capture checkpoints both native dispatches and carries the invocation into late collection`, () => {
+    const dispatch = branch("run", source.split("\n"));
+    const native = dispatch.split("\n").find(line => line.includes("use native Agent"));
+    assert.match(native, /For `provider: "claude"` on host `claude`, use native Agent/);
+    assert.match(native, /If `AGENT_SMITH_CLAUDE_CAPTURE` is present \(do not print its value\)/);
+    const checkpoint = native.indexOf('node "$CLAUDE_USAGE" checkpoint');
+    assert.ok(checkpoint >= 0 && checkpoint < native.indexOf("Call the Agent tool"));
+    assert.match(native, /immediately before dispatch\. Retain its JSON for this invocation and proceed even if it is null/);
+    assert.match(onTime, /observed host version and invocation IDs, the saved `checkpoint` for bound capture/);
+    assert.match(late, /recheck under Loop step 4 once per settled native Agent step with missing tokens, a recorded invocation and either its original launcher binding or authorized explicit sources/);
+    assert.match(late, /For bound capture use the same router identity, recorded host version and `usageEvidence.invocation` with no checkpoint/);
+    assert.match(late, /Only for a newly verified total for the same recorded native invocation/);
+    for (const name of ["done", "halt", "archive"]) {
+      const terminal = branch(name, source.split("\n"));
+      const latePass = terminal.indexOf('follow "Late usage (before every end)"');
+      assert.ok(latePass >= 0 && latePass < terminal.indexOf("node $ROUTER status"), name);
+      assert.ok(latePass < terminal.indexOf("do the pull request step"), name);
+      if (name === "archive") {
+        assert.ok(latePass < terminal.indexOf("\n  3. Call the Agent tool"));
+        assert.match(terminal, /taking the checkpoint as in run step 2 immediately before dispatch/);
+        assert.match(terminal, /collector once after settlement with router `n: null` and the archive step/);
+      }
+    }
   });
   test(`${chain}: late and archive accounting share collection without a second next or raw payload`, () => {
     assert.match(late, /under Loop step 4 once/);

@@ -1,6 +1,6 @@
 # ADR-018: A step subagent starts no subagent; the orchestrator ignores a foreign hand-back
 
-- **Status:** Accepted (implemented by unattended runs), as amended through observed step-tree accounting. The S-14 closeout carries final host qualification into S-20. [Owner closeout](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
+- **Status:** Accepted (implemented by unattended runs), as amended through opt-in native capture. The S-14 closeout carries final host qualification into S-20. [Owner closeout](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout) · [Opt-in capture](#amendment-5--opt-in-claude-native-capture)
 - **Date:** 2026-11-10
 - **Deciders:** the repository owner (the request in `change.md`, 2026-11-09); unattended implementation run of change `no-nested-subagents` for the readings marked A1 to A6 below
 - **Origin:** change `no-nested-subagents` (`context/changes/no-nested-subagents/change.md` and `plan.md`); lesson "Never let a subagent spawn its own subagent" in `context/foundation/lessons.md`
@@ -119,3 +119,11 @@ Codex 0.169.0 response records are attributed by real thread and causal root ses
 Reports/status expose verified, unavailable and legacy coverage with bounded reasons. Legacy-only comparisons keep their calculation with a warning; any verified/legacy mixture refuses a savings verdict. Model/provider/tier groups describe the enclosing dispatch, and cost is labelled a routing-rate approximation when children may use other models. Archive usage stays outside numbered totals. Structured late enrichment follows ADR-019’s amendment.
 
 All four phases shipped together in v1.14.0 after the Automated producer-to-reader gates passed. Keep one execution revision through settlement and intake. [Release](../../CHANGELOG.md#1140-2026-11-18) There is no ledger migration or backfill. Rollback preserves logs and evidence in normal follow-up commits after settlement; older readers cannot substantiate new/mixed scope. [Capture contract and limits](../REFERENCE.md#observed-token-accounting) · [Fixture and acceptance evidence](../../context/archive/2026-11-18-delegated-token-accounting/evidence/accounting.md). Deterministic documented-shape fixtures do not qualify the final interactive/headless host paths; Manual rows 4.3 and 4.4 remain pending.
+
+## Amendment 5 — Opt-in Claude native capture
+
+**Date** 2026-11-22. Change `claude-token-figures-default` keeps ordinary Claude launches off and ships a launcher for one fresh interactive session. It starts a private local receiver and binds projected hooks and accounting events to the Claude process and session. The passive hook has its own registration and joins hook provenance. The safety guards and their mandatory receipts still govern execution and settlement.
+
+Both native Agent loops checkpoint the launcher-bound capture before each dispatch. After settlement the collector uses matched launch evidence, including supported descendants, to prove the whole step tree. It accepts the existing explicit-source descriptor as well. Carry a verified total once. If proof is incomplete, retain the bounded reason and exact observed invocation for eligible late intake under ADR-019. Archive capture remains final-message-only. Default-off native entries carry `capture-disabled` with the launcher command.
+
+The exact 2.1.311 registry entry is supported by the retained headless format and sanitized replay. An authorized native interactive workflow and qualification of a later release remain pending. S-20 still owns the wider host/mode matrix. [Operator setup, cleanup and rollback](../REFERENCE.md#accounting-activation-and-rollback) · [Claude capture acceptance](../../context/changes/claude-token-figures-default/evidence/acceptance.md)

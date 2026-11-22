@@ -7,11 +7,11 @@ import {
   cleanupAll, makeProject, entry, skipEntry, writeLog, writeMetaFile, run, init,
   writeResult, readLogEntries, readReportFile, planText,
 } from "./helpers.mjs";
-import { writePlan } from "./ahead.mjs";
+import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { codexFixture, execute } from "./codex-helpers.mjs";
-import { claudeUsageFixture } from "./claude-helpers.mjs";
-import { collectClaudeUsage } from "../scripts/claude-usage.mjs";
+import { boundClaudeFixture, claudeUsageFixture } from "./claude-helpers.mjs";
+import { claudeCaptureCheckpoint, collectClaudeUsage } from "../scripts/claude-usage.mjs";
 import { unavailableEvidence } from "../scripts/usage.mjs";
 import { estimateCost } from "../scripts/state.mjs";
 
@@ -252,6 +252,54 @@ for (const chain of ["10x", "openspec"]) {
 }
 
 for (const chain of ["10x", "openspec"]) {
+  for (const enabled of [false, true]) {
+    test(`${chain}: native capture ${enabled ? "on" : "off"} appears in the terminal report and status rebuild`, () => {
+      const project = chain === "openspec"
+        ? makeOpenspecProject({ proposal: true, specs: 1, tasks: { done: 1 } })
+        : makeProject({ plan: planText({ done: 1 }) });
+      if (chain === "10x") writeReview(project, "plan-review");
+      const dispatch = init(project, "fix typo", ["--chain", chain]);
+      const action = dispatch.json;
+      assert.equal(action?.action, "run", dispatch.stdout + dispatch.stderr);
+      assert.equal(action.step, chain === "openspec" ? "os-verify" : "impl-review");
+      const router = { change: project.id, chain, n: action.n, step: action.step };
+      const invocation = { host: "claude" };
+      let accounting;
+      if (enabled) {
+        const capture = boundClaudeFixture({ project, ...router });
+        const checkpoint = claudeCaptureCheckpoint(capture.env);
+        capture.write();
+        accounting = collectClaudeUsage({ ...capture.descriptor, invocation, checkpoint }, capture.env);
+        assert.equal(accounting.usageEvidence.status, "verified");
+        assert.equal(accounting.usage.totalTokens, 151);
+      } else {
+        accounting = collectClaudeUsage({ router, invocation }, {});
+        assert.equal(accounting.usageEvidence.reason, "capture-disabled");
+      }
+      if (chain === "openspec") {
+        writeArtifacts(project, { verify: "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n" });
+      } else {
+        writeReview(project, "impl-review", { verdict: "APPROVED" });
+      }
+      writeResult(project, { status: "done", note: "reviewed", ...accounting });
+      const end = run(project, ["next", project.id, "--chain", chain]);
+      assert.equal(end.json?.action, "done", end.stdout + end.stderr);
+      const initial = readReportFile(project);
+      if (enabled) {
+        assert.match(initial, /^Steps: 1 · Tokens: 151 \(figures for 1 of 1 steps\)/m);
+        assert.match(initial, /^Verified observed host usage: 1 · Unavailable: 0/m);
+      } else {
+        assert.match(initial, /^Steps: 1 · Tokens: - \(figures for 0 of 1 steps\)/m);
+        assert.match(initial, /^- Step 1 \S+: capture-disabled — Claude token capture is off\. Run `node <absolute-plugin-scripts>\/claude-capture\.mjs`[^\n]*$/m);
+      }
+      fs.writeFileSync(path.join(project.root, end.json.report), "Old report\n");
+      const rebuilt = status(project, chain);
+      assert.deepEqual(rebuilt.steps[0].usageEvidence, accounting.usageEvidence);
+      assert.equal(rebuilt.tokens.stepsWithFigures, enabled ? 1 : 0);
+      assert.equal(readReportFile(project), initial);
+    });
+  }
+
   test(`${chain}: structured late evidence refreshes coverage and pricing without counting archive-only usage`, () => {
     const project = fixture([{ ...omitted(1), usage: { durationMs: 3 } }], { chain });
     assert.equal(readLogEntries(project)[0].usage.totalTokens, undefined);

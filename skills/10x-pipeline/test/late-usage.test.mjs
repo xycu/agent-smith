@@ -11,6 +11,8 @@ import {
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, moveToArchive } from "../../openspec-pipeline/test/openspec-helpers.mjs";
+import { boundClaudeFixture } from "./claude-helpers.mjs";
+import { claudeCaptureCheckpoint, collectClaudeUsage } from "../scripts/claude-usage.mjs";
 
 after(cleanupAll);
 
@@ -613,6 +615,45 @@ function treeFile(p, payload) {
 }
 
 for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: a delayed bound Claude export supplies the recorded step total only once`, () => {
+    const project = chain === "openspec" ? openspecRun() : running();
+    const log = readLogEntries(project);
+    const [first, pending] = log;
+    const capture = boundClaudeFixture({ project, chain, n: first.n, step: first.step });
+    const checkpoint = claudeCaptureCheckpoint(capture.env);
+    const terminal = capture.events.pop();
+    capture.write();
+    const awaiting = collectClaudeUsage({ ...capture.descriptor, checkpoint }, capture.env);
+    assert.equal(awaiting.usageEvidence.reason, "incomplete-capture");
+    assert.equal(awaiting.usageEvidence.invocation.sessionId, capture.binding.sessionId);
+    assert.equal(awaiting.usage.totalTokens, undefined);
+    Object.assign(first, awaiting);
+    writeLog(project, log);
+
+    capture.events.push(terminal);
+    capture.write();
+    const { invocation, hostVersion } = awaiting.usageEvidence;
+    const { router } = capture.descriptor;
+    const completed = collectClaudeUsage({ router, invocation, hostVersion }, capture.env);
+    assert.equal(completed.usage.totalTokens, 151);
+    assert.equal(completed.usageEvidence.status, "verified");
+    const { totalTokens } = completed.usage;
+    const file = treeFile(project, { ...router, usage: { totalTokens }, usageEvidence: completed.usageEvidence });
+    const args = ["--usage-file", file, "--chain", chain];
+    const attached = usage(project, first.n, args);
+    assert.equal(attached.status, 0, attached.stdout + attached.stderr);
+    assert.equal(attached.json.unchanged, false);
+    const [updated, later] = readLogEntries(project);
+    assert.deepEqual(updated.usage, { ...awaiting.usage, totalTokens });
+    assert.deepEqual(updated.usageEvidence, completed.usageEvidence);
+    assert.equal(updated.usageLate, true);
+    assert.deepEqual(later, pending);
+    const bytes = snapshot(project.changeDir);
+    const replay = usage(project, first.n, args);
+    assert.equal(replay.json.unchanged, true, replay.stdout);
+    assert.deepEqual(snapshot(project.changeDir), bytes);
+  });
+
   test(`${chain}: structured late tokens fill duration-only usage once for the exact invocation`, () => {
     const p = treeProject(chain);
     const pending = readLogEntries(p)[1];
