@@ -53,5 +53,17 @@
   "rigor": {
     "level": "thorough",
     "by": "signals"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 An authorized human runs one complete native Claude-hosted pipeline on Claude models with capture enabled and records exact host version, whole-step token evidence and README qualification.",
+      "2.5 The maintainer qualifies a subsequent Claude Code release with a live multi-request Agent capture and sanitized replay before listing that release as supported."
+    ],
+    "manualNotProved": [
+      "2.4 An authorized human runs one complete native Claude-hosted pipeline on Claude models with capture enabled and records exact host version, whole-step token evidence and README qualification. — not proved: needs an authorized human to run one complete live native Claude-hosted pipeline with capture enabled; no test, command or script can stand in for it, and an unattended step must not start a live pipe",
+      "2.5 The maintainer qualifies a subsequent Claude Code release with a live multi-request Agent capture and sanitized replay before listing that release as supported. — not proved: needs the maintainer to qualify a later Claude Code release with a live multi-request Agent capture and sanitized replay; no such release is available to this step, and the automated fixtures cover on"
+    ]
   }
 }
