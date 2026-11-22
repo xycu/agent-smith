@@ -95,5 +95,5 @@ If a real install or fixture fails, distinguish a registry outage, unavailable p
 
 #### Manual
 
-- [ ] 2.2 The owner confirms the recorded setting values and check dates, the runner’s reachable home-network hosts and services, and the residual same-repository write risk against Amendment 3.
+- [x] 2.2 The owner confirms the recorded setting values and check dates, the runner’s reachable home-network hosts and services, and the residual same-repository write risk against Amendment 3. — owner confirmed 2026-11-22 (approval setting still true; runner reaches nothing else on the home network; residual risk accepted 2026-11-21)
 - [ ] 2.3 The published PR has green CI across all six shards, including the installed OpenSpec 2.0.0 version checks and the five real OpenSpec contract cases passing without skips.
