@@ -174,7 +174,7 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
     const agents = new Map();
     const addAgent = (runId, launch) => {
       const { pre, post } = launch;
-      // Interactive hosts launch the step in the background: only the invocation's own root may settle from a launch record.
+      // Interactive hosts launch the step in the background: only the invocation's own root may settle from a non-completed status (the projection folds async_launched and others together).
       const rootRun = runId === invocation.runId && pre?.parent === null;
       if (!pre || !post || pre.parent !== post.parent
           || (post.response?.status !== "completed" && !rootRun) || !identifier(post.response.agentId)) fail("incomplete-capture");
@@ -345,9 +345,9 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
         const record = native.get(requestId);
         const response = responses.get(requestId);
         if (!record) {
-          // Side queries reach telemetry without a transcript entry, with or without a response event; they count only while the run is still open.
-          if ((response && response.agent !== agent.id) || observed.sequence >= ended.sequence
-              || (response && response.sequence >= ended.sequence)) fail("ambiguous-history");
+          // Side queries reach telemetry without a transcript entry; each needs its own response event and counts only while the run is still open.
+          if (!response || response.agent !== agent.id || observed.sequence >= ended.sequence
+              || response.sequence >= ended.sequence) fail("ambiguous-history");
         } else {
           if ((response && (response.agent !== agent.id || response.uuid !== record.uuid))
               || !isDeepStrictEqual(record.counts, observed.counts)) fail("snapshot-mismatch");
@@ -359,7 +359,7 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
         requestCount++;
       }
       const last = entries.get(finalRequest?.record.uuid);
-      if (last?.type !== "assistant" || last.textHash !== (agent.stop.textHash ?? hash("")) || !native.size) fail("incomplete-capture");
+      if (last?.type !== "assistant" || last.textHash !== (agent.stop.textHash ?? (rootLaunched && agent.id === invocation.agentId ? hash("") : null)) || !native.size) fail("incomplete-capture");
       // Attachments can be serialized late; membership follows UUID links, never file order.
       const visited = new Set();
       let uuid = finalRequest.record.uuid;

@@ -132,6 +132,13 @@ Change `collectClaudeUsage` and add fixtures and tests so the live-shaped async 
 
 ---
 
+#### Addendum (2026-11-23, implementation review)
+
+- Implemented beyond the plan text: the fixture option `telemetryOnly: "response"` (a telemetry-only request with its own response event), tests for a flat async root, a synchronous root and a child with a telemetry-only request, and an unknown-parent failure in the chain walk.
+- The existing "disconnected attachment history" test now mutates `parentUuid: null`, because a cloned branch that reaches the chain is accepted by design.
+- Decided in review: a telemetry-only request must carry its own response event from the same agent (verified against all six 2.1.323 steps); the null stop-hash fallback applies to the launched root only; the launch gate is any status other than `completed`, because the projection folds `async_launched` and the rest into one value.
+- `evidence/live-requalification.md` was created early with the offline replay; Phase 3 rows stay open until the interactive rerun.
+
 ## Phase 2: Docs match the evidence
 
 ### Overview
