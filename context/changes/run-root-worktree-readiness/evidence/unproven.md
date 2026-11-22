@@ -1,0 +1,1 @@
+- 2.4 — needs the owner's real project with a real lockfile, readiness hook and a deliberately unavailable shared service; no unattended command, test or script can prove a real-project run
