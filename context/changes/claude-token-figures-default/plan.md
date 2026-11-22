@@ -164,9 +164,9 @@ Existing accounting records and explicit-source descriptors remain readable with
 
 #### Automated
 
-- [x] 2.1 Both pipeline skill checks prove immediate and late attachment use the existing cutoffs and preserve equal anti-stall rules and guard provenance.
-- [x] 2.2 Router fixtures prove verified figures and default-off guidance in status --report, the run report and compare, including late evidence and historical comparison behavior.
-- [x] 2.3 The required Node test suite passes and operator docs agree with the launcher, supported-release registry and pending live qualification.
+- [x] 2.1 Both pipeline skill checks prove immediate and late attachment use the existing cutoffs and preserve equal anti-stall rules and guard provenance. — 0835a9d0
+- [x] 2.2 Router fixtures prove verified figures and default-off guidance in status --report, the run report and compare, including late evidence and historical comparison behavior. — 0835a9d0
+- [x] 2.3 The required Node test suite passes and operator docs agree with the launcher, supported-release registry and pending live qualification. — 0835a9d0
 
 #### Manual
 
