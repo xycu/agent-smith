@@ -1,0 +1,2 @@
+- 2.4 — needs an authorized human to run one complete live native Claude-hosted pipeline; no test or command can stand in for it, and an unattended step must not start a live pipeline.
+- 2.5 — needs the maintainer to qualify a future Claude Code release with a live multi-request Agent capture; that release is not available to this step.
