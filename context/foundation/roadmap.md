@@ -42,7 +42,7 @@ The owner wants to start an authorized workflow and let it finish without repeat
 
 The north star is the first complete user flow that provides direct evidence the milestone's intended behavior works.
 
-**S-12: First unattended plan-based delivery** requires a fresh Claude-only run reaching a reviewable pull request. S-14 delivered the delegation implementation. The first S-12 attempt left all three Manual delivery checks open. The owner decision on PR #214 blocks delivery. [Wave decision](../changes/WAVES.md#decision-track)
+**S-12: First unattended plan-based delivery** requires a fresh Claude-only run reaching a reviewable pull request. S-14 delivered the delegation implementation. The first S-12 attempt left all three Manual delivery checks open; one live run on 2026-11-22 proved them ([PR #266](https://github.com/xycu/agent-smith/pull/266), record in the S-12 archive `evidence/live-proof.md`). [Wave decision](../changes/WAVES.md#decision-track)
 
 ## At a glance
 
@@ -98,7 +98,7 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 - **PRD refs:** US-03, FR-001, FR-003, FR-007, FR-011, FR-012
 - **Prerequisites:** S-14
 - **Schedule:** Wave 3 of WAVES v3 reserves a fresh headless Claude-only run on the Wave 2 release, alongside state and setup fixes. [Wave 3](../changes/WAVES.md#wave-3)
-- **Blockers:** The run on PR #214 archived the change with zero of Manual rows 3.1–3.3 proved. The owner must choose proof on the Wave 2 release or explicitly defer those rows to S-20. The proof requires authenticated host/model access, project trust and review-remote credentials. [PR #214](https://github.com/xycu/agent-smith/pull/214) · [Owner decision track](../changes/WAVES.md#decision-track)
+- **Blockers:** none. The run on PR #214 archived the change with zero of Manual rows 3.1–3.3 proved; the owner chose proof over deferral and one live run proved them on 2026-11-22 ([PR #266](https://github.com/xycu/agent-smith/pull/266), with caveats in the S-12 archive `evidence/live-proof.md`). [PR #214](https://github.com/xycu/agent-smith/pull/214) · [Owner decision track](../changes/WAVES.md#decision-track)
 - **Unknowns:**
   - Which eligible change and exact host configuration provide the first representative run? — Owner: maintainer with the user. Block: no, select during planning.
   - Which fresh-session discovery or guard-delivery problems appear on the normal path? — Owner: maintainer. Block: no, establish through the first live proof.
