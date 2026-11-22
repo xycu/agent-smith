@@ -154,16 +154,16 @@ No router-state or project data migration. Existing initialized runs and worktre
 
 #### Automated
 
-- [x] 1.1 Local Git fixtures prove fresh tip selection, exact lag, pinned worktree HEAD and zero setup mutations on stale or failed fetch via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
-- [x] 1.2 The setup CLI keeps one JSON result, reports a local-only freshness skip and performs no freshness fetch on resume, opt-out or cleanup via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
+- [x] 1.1 Local Git fixtures prove fresh tip selection, exact lag, pinned worktree HEAD and zero setup mutations on stale or failed fetch via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`. — 3b653d9b
+- [x] 1.2 The setup CLI keeps one JSON result, reports a local-only freshness skip and performs no freshness fetch on resume, opt-out or cleanup via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`. — 3b653d9b
 
 ### Phase 2: Prepare dependencies and run the project preflight
 
 #### Automated
 
-- [ ] 2.1 Offline setup fixtures prove lockfile commands, worktree cwd, dependency boundary and optional committed hook order for both chains via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
-- [ ] 2.2 Offline failures and timeout prove bounded diagnostics, lock ownership, no gate-only recopy or cleanup authorization, and a successful retry via `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/prepare-run-timeout.test.mjs`.
-- [ ] 2.3 Both skill wiring tests prove failed setup stops before init, and the required Node 24+ suite passes via `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
+- [x] 2.1 Offline setup fixtures prove lockfile commands, worktree cwd, dependency boundary and optional committed hook order for both chains via `node --test skills/10x-pipeline/test/prepare-run.test.mjs`.
+- [x] 2.2 Offline failures and timeout prove bounded diagnostics, lock ownership, no gate-only recopy or cleanup authorization, and a successful retry via `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/prepare-run-timeout.test.mjs`.
+- [x] 2.3 Both skill wiring tests prove failed setup stops before init, and the required Node 24+ suite passes via `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`.
 
 #### Manual
 

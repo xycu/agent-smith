@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
+import { prepareProjectGates } from "./prepare-run-gates.mjs";
 import { readPolicyObject, readIsolationPolicy, isolationEnabled, integrationBranch, runBranch, runBranchName, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
 
 const USAGE = "Usage: prepare-run.mjs <id> [--chain 10x|openspec] [--cleanup]";
@@ -203,7 +204,7 @@ function copyChange(source, destination, worktree) {
   });
 }
 
-function withSetupLock(common, branch, operation) {
+function acquireSetupLock(common, branch) {
   const file = path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}`);
   const lock = `${file}.lock`;
   let fd;
@@ -213,13 +214,27 @@ function withSetupLock(common, branch, operation) {
       throw error;
     }
     fs.writeFileSync(fd, `${process.pid}\n`);
-    return operation(`${file}.pending`);
-  } finally {
+  } catch (error) {
     if (fd !== undefined) {
       fs.closeSync(fd);
       fs.unlinkSync(lock);
     }
+    throw error;
   }
+  return { file: `${file}.pending`, release() {
+    fs.closeSync(fd);
+    fs.unlinkSync(lock);
+  } };
+}
+
+function withSetupLockSync(common, branch, operation) {
+  const { file, release } = acquireSetupLock(common, branch);
+  try { return operation(file); } finally { release(); }
+}
+
+async function withSetupLock(common, branch, operation) {
+  const { file, release } = acquireSetupLock(common, branch);
+  try { return await operation(file); } finally { release(); }
 }
 
 function readPending(file) {
@@ -231,7 +246,8 @@ function readPending(file) {
     if (typeof pending.root !== "string" || !path.isAbsolute(pending.root)
       || typeof pending.worktree !== "string" || !path.isAbsolute(pending.worktree)
       || typeof pending.prefix !== "string" || !["10x", "openspec"].includes(pending.chain)
-      || typeof pending.startCommit !== "string" || !COMMIT_RE.test(pending.startCommit)) {
+      || typeof pending.startCommit !== "string" || !COMMIT_RE.test(pending.startCommit)
+      || (Object.hasOwn(pending, "copyComplete") && pending.copyComplete !== true)) {
       throw new Error("invalid pending copy record");
     }
     return pending;
@@ -283,7 +299,7 @@ function pendingOrigin(pending, file) {
   return `Pending ${pending.chain} setup belongs to the original project root ${pending.root}. Inspect ${file} and retry setup from that root`;
 }
 
-function prepare(opts, result) {
+async function prepare(opts, result, signal) {
   const inside = git(["rev-parse", "--is-inside-work-tree"]);
   if (inside.missing || (inside.status === 128 && /not a git repository/i.test(inside.stderr))) {
     result.case = "opt-out";
@@ -302,7 +318,7 @@ function prepare(opts, result) {
   const current = checked(git(["symbolic-ref", "--quiet", "--short", "HEAD"]), "read current branch", [0, 1]).stdout.replace(/\n$/, "");
   const checkCurrentPending = () => {
     if (gitDir !== common && current) {
-      withSetupLock(common, current, (file) => {
+      withSetupLockSync(common, current, (file) => {
         const pending = readPending(file);
         if (pending) throw new Error(pendingOrigin(pending, file));
       });
@@ -359,7 +375,7 @@ function prepare(opts, result) {
   // An incomplete checkout may carry a different isolation policy than its origin.
   if (!inRun && current !== branch) checkCurrentPending();
   validateRunBranch(config, opts.id, branch, git, savedBranch);
-  withSetupLock(common, branch, (file) => {
+  await withSetupLock(common, branch, async (file) => {
     const registrations = registeredWorktrees();
     const registered = registrations.find((entry) => entry.branch === branch)?.worktree ?? null;
     const exists = branchExists(branch);
@@ -372,7 +388,7 @@ function prepare(opts, result) {
         || pending.prefix !== prefix || pending.chain !== opts.chain) {
         throw new Error(pendingOrigin(pending, file));
       }
-      if (exists && registered === null) {
+      if ((exists || pending.copyComplete) && registered === null) {
         throw new Error(`Pending setup branch ${branch} has no registered worktree at ${expectedWorktree}. Inspect git worktree list and ${file} before recovery`);
       }
       if (registered !== null && (!exists || path.resolve(registered) !== expectedWorktree)) {
@@ -444,38 +460,60 @@ function prepare(opts, result) {
       }
     }
     const runRoot = inRun ? result.root : path.resolve(result.worktree, prefix);
-    let copied = false;
+    let initialized = false;
     if (pending) {
       validateWorktreePath(result.worktree, result.worktree, common, branch);
       if (fs.realpathSync(result.worktree) !== expectedWorktree) {
         throw new Error(`Pending setup worktree is not canonical: ${expectedWorktree}. Inspect ${file} before recovery`);
       }
-      validatePendingSource(source, file);
+      if (!pending.copyComplete || lstat(source)) validatePendingSource(source, file);
       const destination = path.join(runRoot, change);
+      if (pending.copyComplete) {
+        if (fs.realpathSync(runRoot) !== runRoot) {
+          throw new Error(`Pending setup run root is not canonical: ${runRoot}. Inspect ${file} before recovery`);
+        }
+        checkAncestors(runRoot, destination);
+        validateSource(destination);
+        const ancestor = checked(git(["-C", result.worktree, "merge-base", "--is-ancestor", pending.startCommit, "HEAD"]),
+          `Verify pinned start commit ${pending.startCommit} in ${result.worktree}. Inspect ${file} before recovery`, [0, 1]);
+        if (ancestor.status === 1) {
+          throw new Error(`Pending setup expected ${pending.startCommit} to be an ancestor of HEAD in ${result.worktree}. Inspect ${file} and preserve worktree edits before recovery`);
+        }
+      }
       const { meta, log } = routerState(destination);
       if (!meta && !log) {
-        const head = gitText(["-C", result.worktree, "rev-parse", "--verify", "HEAD^{commit}"]);
-        if (head !== pending.startCommit) {
-          throw new Error(`Pending setup expected commit ${pending.startCommit} in ${result.worktree}, found ${head}. Inspect ${file} and preserve worktree edits before recovery`);
+        if (!pending.copyComplete) {
+          const head = gitText(["-C", result.worktree, "rev-parse", "--verify", "HEAD^{commit}"]);
+          if (head !== pending.startCommit) {
+            throw new Error(`Pending setup expected commit ${pending.startCommit} in ${result.worktree}, found ${head}. Inspect ${file} and preserve worktree edits before recovery`);
+          }
+          copyChange(source, destination, result.worktree);
+          result.copied = true;
         }
-        copyChange(source, destination, result.worktree);
-        copied = true;
       } else {
         if (!meta?.isFile() || (log && !log.isFile()) || fs.realpathSync(runRoot) !== runRoot) {
           throw new Error(`Pending setup found ambiguous router state in ${destination}. Inspect ${file} and preserve worktree inputs before recovery`);
         }
         checkAncestors(runRoot, path.join(destination, "agent-smith/meta.json"));
+        initialized = true;
       }
     }
     validateWorktreePath(runRoot, result.worktree, common, branch);
     const identity = validateSelected(result.worktree, branch);
     if (pending) {
-      if (!copied && !identity) {
+      if (initialized && !identity) {
         throw new Error(`Pending setup found router state without a saved run identity in ${runRoot}. Inspect ${file} and preserve worktree inputs before recovery`);
+      }
+      if (!initialized) {
+        if (!pending.copyComplete) writePending(file, { ...pending, copyComplete: true });
+        try {
+          await prepareProjectGates(result.worktree, runRoot, setupDeadline, signal, gitText);
+        } catch (error) {
+          throw new Error(`Retry setup from the original project root ${result.root}. ${error.message}`);
+        }
       }
       fs.unlinkSync(file);
     }
-    result.copied = copied;
     result.runRoot = runRoot;
   });
 }
@@ -566,7 +604,7 @@ function cleanup(opts, result) {
   const original = readRunIdentity(path.join(selectedRoot, change));
   if (original) validateRunIdentity(original, config, opts.id, opts.chain, result.branch, git);
   const branch = runBranch(config, opts.id, git);
-  withSetupLock(common, branch, () => {
+  withSetupLockSync(common, branch, () => {
     if (result.branch !== branch || result.worktree !== expected
       || result.runRoot !== selectedRoot || result.runRoot === result.root
       || fs.realpathSync(result.runRoot) !== result.runRoot) {
@@ -627,7 +665,7 @@ function cleanup(opts, result) {
   });
 }
 
-function main() {
+async function main() {
   let opts;
   let saved;
   try {
@@ -640,12 +678,22 @@ function main() {
   }
   const result = saved ? { ...saved, left: [] } : { root: process.cwd(), runRoot: null, worktree: null, branch: null,
     case: null, copied: false, excludeAdded: false, notInRun: [], left: [], reason: null };
+  const controller = new AbortController();
+  const onInt = () => controller.abort("SIGINT");
+  const onTerm = () => controller.abort("SIGTERM");
   try {
     if (opts.cleanup) cleanup(opts, result);
-    else prepare(opts, result);
+    else {
+      process.on("SIGINT", onInt);
+      process.on("SIGTERM", onTerm);
+      await prepare(opts, result, controller.signal);
+    }
   } catch (error) {
     result.runRoot = null;
     result.reason = firstLine(error.message, 1000) || "Run setup failed";
+  } finally {
+    process.off("SIGINT", onInt);
+    process.off("SIGTERM", onTerm);
   }
   if (opts.cleanup && saved.case === "created" && saved.copied === true) {
     const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
@@ -662,4 +710,4 @@ function main() {
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-if (isEntryPoint(import.meta.url)) main();
+if (isEntryPoint(import.meta.url)) await main();

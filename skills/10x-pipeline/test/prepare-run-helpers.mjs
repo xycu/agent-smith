@@ -2,13 +2,66 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { makeProject, run, git, gitEnv, gitInit } from "./helpers.mjs";
 
 export const PREPARE_RUN = fileURLToPath(new URL("../scripts/prepare-run.mjs", import.meta.url));
 export const REAL_GIT = spawnSync("which", ["git"], { encoding: "utf8" }).stdout.trim();
 export const relChange = (chain) => `${chain === "openspec" ? "openspec" : "context"}/changes/demo`;
+export const PROJECT_POLICY = "context/foundation/agent-smith-policy.json";
+
+export function commitProjectFiles(p, files) {
+  for (const [relative, contents] of Object.entries(files)) {
+    const file = path.join(p.root, relative);
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, typeof contents === "string" ? contents : JSON.stringify(contents));
+  }
+  git(p, ["-C", p.root, "add", "--", ...Object.keys(files)]);
+  git(p, ["-C", p.root, "commit", "-qm", "fixture setup inputs"]);
+}
+
+export function projectTools(p, tools) {
+  const bin = path.join(p.base, ".git", "fixture-setup-bin");
+  const log = path.join(bin, "commands.jsonl");
+  fs.mkdirSync(bin, { recursive: true });
+  const gitPath = "'" + REAL_GIT.replaceAll("'", "'\\''") + "'";
+  fs.writeFileSync(path.join(bin, "git"), `#!/bin/sh\nexec ${gitPath} "$@"\n`, { mode: 0o755 });
+  const writeTool = (name, code) => fs.writeFileSync(path.join(bin, name), `#!${process.execPath}
+import fs from "node:fs";
+import path from "node:path";
+import { spawn } from "node:child_process";
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({
+  name: ${JSON.stringify(name)}, args, cwd: process.cwd(), stdin: fs.readFileSync(0, "utf8"),
+}) + "\\n");
+${code}
+`, { mode: 0o755 });
+  for (const [name, body] of Object.entries(tools)) writeTool(name, body);
+  return {
+    env: { PATH: bin },
+    writeTool,
+    calls: () => fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").map(JSON.parse) : [],
+  };
+}
+
+export function launchSetup(p, env) {
+  const child = spawn(process.execPath, [PREPARE_RUN, "demo", "--chain", p.chain], {
+    cwd: p.root, env: { ...gitEnv(p), ...env }, stdio: ["ignore", "pipe", "pipe"],
+  });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (part) => { stdout += part; });
+  child.stderr.on("data", (part) => { stderr += part; });
+  const done = new Promise((resolve, reject) => {
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) return reject(new Error(stderr));
+      try { resolve(JSON.parse(stdout)); } catch (error) { reject(error); }
+    });
+  });
+  return { child, done };
+}
 
 export function fixture(chain = "10x", nest = null, committed = false) {
   const p = makeProject({ policy: { isolation: { require: true } }, nest, change: false });
