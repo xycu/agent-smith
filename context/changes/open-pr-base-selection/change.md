@@ -1,7 +1,7 @@
 ---
 change_id: open-pr-base-selection
 title: Pick the default branch as PR base when it is as near as any other candidate
-status: implemented
+status: impl_reviewed
 created: 2026-11-19
 updated: 2026-11-22
 archived_at: null

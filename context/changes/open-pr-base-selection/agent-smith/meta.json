@@ -50,5 +50,9 @@
   "rigor": {
     "level": "standard",
     "by": "hot paths skills/10x-pipeline/scripts/open-pr.mjs, skills/10x-pipeline/test/open-pr.test.mjs"
+  },
+  "outcome": {
+    "action": "halt",
+    "reason": "Step commit of step 4 (impl-review): git add failed: error: '.as-env-victim-vkixNq/local/' does not have a commit checked out | error: unable to index file '.as-env-victim-vkixNq/local/' | fatal: adding files failed. The router's own add was unstaged again. Nothing was committed."
   }
 }
