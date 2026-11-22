@@ -1,6 +1,7 @@
 // Hand-authored documented 2.1.311 capture shapes, not retained telemetry or live-host qualification.
 import fs from "node:fs";
 import path from "node:path";
+import { CAPTURE_ENV, captureFile, projectNative, projectTelemetry } from "../scripts/claude-capture-data.mjs";
 import { makeProject } from "./helpers.mjs";
 
 export const claudeBuckets = ["input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"];
@@ -90,4 +91,39 @@ export function claudeUsageFixture({ project = makeProject(), chain = "10x", n =
   };
   write();
   return { project, descriptor, native, transcripts, events, resource, write };
+}
+
+export function boundClaudeFixture(options) {
+  const fixture = claudeUsageFixture(options);
+  const root = path.join(fixture.project.root, "bound-capture");
+  fs.mkdirSync(root, { mode: 0o700 });
+  const binding = { sessionId: "3ae13fa9-8a1b-4607-902c-5777a81ff2be", process: {
+    pid: 4242, createdAt: new Date().toISOString(),
+  }, hostVersion: "2.1.311", endpoint: "http://127.0.0.1:1234/" + "1".repeat(48) + "/v1/logs",
+  transcriptRoot: path.join(fixture.project.root, "claude-projects") };
+  fs.writeFileSync(captureFile(root, "binding"), JSON.stringify(binding), { mode: 0o600 });
+  fs.writeFileSync(captureFile(root, "native"), "", { mode: 0o600 });
+  fs.writeFileSync(captureFile(root, "telemetry"), "", { mode: 0o600 });
+  const boundTranscripts = new Map();
+  for (const record of fixture.native) {
+    record.session_id = binding.sessionId;
+    if (record.hook_event_name !== "SubagentStop") continue;
+    const directory = path.join(binding.transcriptRoot, "-fixture-project", binding.sessionId, "subagents");
+    fs.mkdirSync(directory, { recursive: true });
+    const transcript = fixture.transcripts.get(record.agent_transcript_path);
+    record.agent_transcript_path = path.join(directory, `agent-${record.agent_id}.jsonl`);
+    for (const line of transcript) line.sessionId = binding.sessionId;
+    boundTranscripts.set(record.agent_transcript_path, transcript);
+  }
+  fixture.resource.attributes[1] = otelAttribute("process.creation.time", binding.process.createdAt);
+  for (const event of fixture.events) setEvent(event, "session.id", binding.sessionId);
+  const write = () => {
+    const projected = fixture.native.map(record => projectNative(record, binding.sessionId));
+    fs.writeFileSync(captureFile(root, "native"), projected.map(record => JSON.stringify(record)).join("\n") + "\n");
+    const batch = { resourceLogs: [{ resource: fixture.resource, scopeLogs: [{ logRecords: fixture.events }] }] };
+    fs.writeFileSync(captureFile(root, "telemetry"), JSON.stringify(projectTelemetry(batch, binding)) + "\n");
+    for (const [file, records] of boundTranscripts) fs.writeFileSync(file, records.map(record => JSON.stringify(record)).join("\n") + "\n");
+  };
+  return { ...fixture, root, binding, transcripts: boundTranscripts, write, env: { [CAPTURE_ENV]: root },
+    descriptor: { router: fixture.descriptor.router, usage: fixture.descriptor.usage } };
 }

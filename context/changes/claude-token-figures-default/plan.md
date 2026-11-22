@@ -157,8 +157,8 @@ Existing accounting records and explicit-source descriptors remain readable with
 
 #### Automated
 
-- [ ] 1.1 Launcher and hook fixtures prove consent gating, private bounded local capture, process and session isolation, content minimization, failure handling and unchanged guard behavior.
-- [ ] 1.2 Collector fixtures verify flat and descendant totals, preserve the authorized descriptor, and reject unsupported versions, incomplete or conflicting provenance, symlink escape and ambiguous retries.
+- [x] 1.1 Launcher and hook fixtures prove consent gating, private bounded local capture, process and session isolation, content minimization, failure handling and unchanged guard behavior.
+- [x] 1.2 Collector fixtures verify flat and descendant totals, preserve the authorized descriptor, and reject unsupported versions, incomplete or conflicting provenance, symlink escape and ambiguous retries.
 
 ### Phase 2: Integrate both pipelines and qualify the user workflow
 

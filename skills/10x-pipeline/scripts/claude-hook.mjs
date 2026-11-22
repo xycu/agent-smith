@@ -10,7 +10,8 @@ export const digest = (value) => createHash("sha256").update(value).digest("hex"
 export function guardRevision(root, agent) {
   if (!["agent-smith:step", "agent-smith:score"].includes(agent)) throw new Error("Unsupported Claude agent.");
   return digest(["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs",
-    "skills/10x-pipeline/scripts/claude-hook.mjs", `agents/${agent.split(":")[1]}.md`]
+    "skills/10x-pipeline/scripts/claude-hook.mjs", "skills/10x-pipeline/scripts/claude-capture-hook.mjs",
+    "skills/10x-pipeline/scripts/claude-capture-data.mjs", `agents/${agent.split(":")[1]}.md`]
     .map(file => digest(fs.readFileSync(path.join(root, file)))).join("/"));
 }
 

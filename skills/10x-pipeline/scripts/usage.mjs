@@ -7,6 +7,7 @@ const integer = (value) => Number.isSafeInteger(value) && value >= 0;
 const identifier = (value) => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 const SOURCES = new Set(["codex-rollout", "claude-native", "unknown"]);
 const REASONS = {
+  "capture-disabled": "Claude token capture is off. Run `node <absolute-plugin-scripts>/claude-capture.mjs` to enable it for a fresh session.",
   "invalid-evidence": "Accounting evidence is invalid or inconsistent.",
   "unsupported-host": "The host version is not qualified for accounting.",
   "unsupported-schema": "The host record schema is not qualified for accounting.",

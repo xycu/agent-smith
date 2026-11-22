@@ -15,6 +15,21 @@
             "onFailure": "block"
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/10x-pipeline/scripts/claude-capture-hook.mjs"
+            ],
+            "timeout": 3,
+            "async": false,
+            "onFailure": "continue"
+          }
+        ]
       }
     ],
     "SessionStart": [
@@ -64,6 +79,20 @@
             "onFailure": "block"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/10x-pipeline/scripts/claude-capture-hook.mjs"
+            ],
+            "timeout": 3,
+            "async": false,
+            "onFailure": "continue"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -78,6 +107,23 @@
             "timeout": 5,
             "async": false,
             "onFailure": "block"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/skills/10x-pipeline/scripts/claude-capture-hook.mjs"
+            ],
+            "timeout": 3,
+            "async": false,
+            "onFailure": "continue"
           }
         ]
       }

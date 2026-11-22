@@ -5,9 +5,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { collectClaudeUsage, CLAUDE_USAGE_LIMITS } from "../scripts/claude-usage.mjs";
+import { claudeCaptureCheckpoint, collectClaudeUsage, CLAUDE_USAGE_LIMITS } from "../scripts/claude-usage.mjs";
+import { captureFile } from "../scripts/claude-capture-data.mjs";
 import { cleanupAll, cleanEnv } from "./helpers.mjs";
-import { claudeUsageFixture, eventValue, otelAttribute, setEvent } from "./claude-helpers.mjs";
+import { boundClaudeFixture, claudeUsageFixture, eventValue, otelAttribute, setEvent } from "./claude-helpers.mjs";
 
 after(cleanupAll);
 const CLI = fileURLToPath(new URL("../scripts/claude-usage.mjs", import.meta.url));
@@ -317,4 +318,95 @@ test("an unfinished descriptor stream reaches the fixed deadline without waiting
   });
   assert.equal(code, 0);
   unavailable(JSON.parse(output), "resource-limit");
+});
+
+for (const children of [false, true]) {
+  test(`bound capture proves ${children ? "step and leaf" : "flat step"} using the checkpoint CLI`, () => {
+    const f = boundClaudeFixture({ children });
+    const checkpoint = spawnSync(process.execPath, [CLI, "checkpoint"], { env: { ...cleanEnv(), ...f.env }, encoding: "utf8" });
+    assert.equal(checkpoint.status, 0, checkpoint.stderr);
+    assert.deepEqual(JSON.parse(checkpoint.stdout), { sessionId: f.binding.sessionId, offset: 0 });
+    f.write();
+    const descriptor = { ...f.descriptor, checkpoint: JSON.parse(checkpoint.stdout), invocation: { host: "claude", agentId: "step-agent" } };
+    const result = spawnSync(process.execPath, [CLI], {
+      env: { ...cleanEnv(), ...f.env }, encoding: "utf8", input: JSON.stringify(descriptor),
+    });
+    assert.equal(result.status, 0);
+    const measured = JSON.parse(result.stdout);
+    assert.equal(measured.usage.totalTokens, children ? 151 : 117);
+    assert.equal(measured.usageEvidence.status, "verified");
+    assert.deepEqual(measured.usageEvidence.invocation, { host: "claude", sessionId: f.binding.sessionId, agentId: "step-agent", runId: "tool-root" });
+  });
+}
+
+test("checkpoint refuses competing top-level launches even with an observed agent and different descriptions", () => {
+  const f = boundClaudeFixture({ children: false });
+  const checkpoint = claudeCaptureCheckpoint(f.env);
+  const competitor = structuredClone(f.native[0]);
+  competitor.tool_use_id = "competing-launch";
+  competitor.tool_input.description = "different description";
+  f.native.push(competitor);
+  f.write();
+  const descriptor = { ...f.descriptor, invocation: { host: "claude", agentId: "step-agent" } };
+  unavailable(collectClaudeUsage({ ...descriptor, checkpoint }, f.env), "ambiguous-history");
+  assert.equal(collectClaudeUsage({ ...descriptor, invocation: { ...descriptor.invocation, runId: "tool-root" } }, f.env).usage.totalTokens, 117);
+});
+
+test("checkpoint boundaries cannot attribute an earlier retry or a guessed offset", () => {
+  const f = boundClaudeFixture({ children: false });
+  const opening = claudeCaptureCheckpoint(f.env);
+  f.write();
+  const settled = claudeCaptureCheckpoint(f.env);
+  assert.ok(settled.offset > opening.offset);
+  for (const checkpoint of [settled, { ...opening, offset: 1 }, { ...opening, sessionId: "different-session" }]) {
+    unavailable(collectClaudeUsage({ ...f.descriptor, checkpoint }, f.env), "missing-identity");
+  }
+});
+
+test("late bound capture preserves the observed invocation before the full prefix arrives", () => {
+  const f = boundClaudeFixture();
+  const checkpoint = claudeCaptureCheckpoint(f.env);
+  const pending = f.events.splice(2, 1)[0];
+  f.write();
+  const initial = collectClaudeUsage({ ...f.descriptor, checkpoint }, f.env);
+  unavailable(initial, "incomplete-capture");
+  assert.deepEqual(initial.usage, { toolUses: 4, durationMs: 50 });
+  assert.equal(initial.usageEvidence.invocation.runId, "tool-root");
+  f.events.push(pending);
+  f.write();
+  const delayed = collectClaudeUsage({ ...f.descriptor, invocation: initial.usageEvidence.invocation }, f.env);
+  assert.equal(delayed.usage.totalTokens, 151);
+  assert.deepEqual(delayed.usageEvidence.invocation, initial.usageEvidence.invocation);
+});
+
+test("bound files and session transcripts reject a symlink or an out-of-session path", () => {
+  const f = boundClaudeFixture({ children: false });
+  const descriptor = { ...f.descriptor, checkpoint: claudeCaptureCheckpoint(f.env) };
+  f.write();
+  const transcript = [...f.transcripts.keys()][0];
+  const other = path.join(f.project.root, "outside-transcript");
+  fs.renameSync(transcript, other);
+  fs.symlinkSync(other, transcript);
+  unavailable(collectClaudeUsage(descriptor, f.env), "unsafe-path");
+  const stop = f.native.find(record => record.hook_event_name === "SubagentStop");
+  stop.agent_transcript_path = other;
+  f.transcripts.delete(transcript);
+  f.write();
+  unavailable(collectClaudeUsage(descriptor, f.env), "unsafe-path");
+  const telemetry = captureFile(f.root, "telemetry");
+  const outside = path.join(f.project.root, "outside-telemetry");
+  fs.renameSync(telemetry, outside);
+  fs.symlinkSync(outside, telemetry);
+  unavailable(collectClaudeUsage(descriptor, f.env), "unsafe-path");
+});
+
+test("default-off, a failed opt-in and unsupported host are distinct and explicit sources stay readable", () => {
+  const f = boundClaudeFixture({ children: false });
+  const off = collectClaudeUsage(f.descriptor, {});
+  unavailable(off, "capture-disabled");
+  assert.match(off.usageEvidence.explanation, /node <absolute-plugin-scripts>\/claude-capture.mjs/);
+  unavailable(collectClaudeUsage(f.descriptor, { ...f.env, AGENT_SMITH_CLAUDE_CAPTURE: path.join(f.root, "missing") }), "missing-source");
+  fs.writeFileSync(captureFile(f.root, "binding"), JSON.stringify({ ...f.binding, hostVersion: "2.1.323" }));
+  unavailable(collectClaudeUsage(f.descriptor, f.env), "unsupported-host");
+  assert.equal(collectClaudeUsage(claudeUsageFixture().descriptor, f.env).usage.totalTokens, 151);
 });
