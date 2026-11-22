@@ -270,28 +270,28 @@ No stored data changes. A figure already recorded unavailable stays unavailable;
 
 #### Automated
 
-- [x] 1.1 The live-shaped async fixture settles to verified
-- [x] 1.2 The synchronous fixtures still verify and keep their failure reasons
-- [x] 1.3 Negative async cases stay unavailable with bounded reasons
-- [x] 1.4 Producer-to-reader, launcher, late-usage, intake and comparison paths pass
-- [x] 1.5 No recursive delete was introduced
+- [x] 1.1 The live-shaped async fixture settles to verified — 5c4efda5
+- [x] 1.2 The synchronous fixtures still verify and keep their failure reasons — 5c4efda5
+- [x] 1.3 Negative async cases stay unavailable with bounded reasons — 5c4efda5
+- [x] 1.4 Producer-to-reader, launcher, late-usage, intake and comparison paths pass — 5c4efda5
+- [x] 1.5 No recursive delete was introduced — 5c4efda5
 
 #### Manual
 
-- [x] 1.6 Replaying the saved live 2.1.323 capture verifies all six steps
+- [x] 1.6 Replaying the saved live 2.1.323 capture verifies all six steps — 5c4efda5
 
 ### Phase 2: Docs match the evidence
 
 #### Automated
 
-- [ ] 2.1 No claim of headless evidence as the floor's basis remains
-- [ ] 2.2 Amendment 7 exists after Amendment 6
-- [ ] 2.3 Version fields stay equal
+- [x] 2.1 No claim of headless evidence as the floor's basis remains
+- [x] 2.2 Amendment 7 exists after Amendment 6
+- [x] 2.3 Version fields stay equal
 - [ ] 2.4 Commit subjects lint
 
 #### Manual
 
-- [ ] 2.5 The three documents read consistently with each other and with the collector rules
+- [x] 2.5 The three documents read consistently with each other and with the collector rules
 
 ### Phase 3: Live requalification
 
