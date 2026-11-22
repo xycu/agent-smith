@@ -1,9 +1,9 @@
 ---
 change_id: claude-capture-async-agent-launch
 title: Claude capture fails on Claude Code 2.1.323 because Agent launches asynchronously
-status: implemented
+status: impl_reviewed
 created: 2026-11-22
-updated: 2026-11-22
+updated: 2026-11-23
 archived_at: null
 ---
 
