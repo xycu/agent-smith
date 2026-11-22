@@ -53,5 +53,17 @@
   "rigor": {
     "level": "standard",
     "by": "failed steps 1"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.2 The owner confirms the recorded setting values and check dates, the runner’s reachable home-network hosts and services, and the residual same-repository write risk against Amendment 3.",
+      "2.3 The published PR has green CI across all six shards, including the installed OpenSpec 2.0.0 version checks and the five real OpenSpec contract cases passing without skips."
+    ],
+    "manualNotProved": [
+      "2.2 The owner confirms the recorded setting values and check dates, the runner’s reachable home-network hosts and services, and the residual same-repository write risk against Amendment 3. — not proved: ADR-020 Amendment 3 (line 91) still states the reachable home-network hosts and services are \"awaiting dated owner confirmation\"; owner-only network and settings knowledge that no command, test or jud",
+      "2.3 The published PR has green CI across all six shards, including the installed OpenSpec 2.0.0 version checks and the five real OpenSpec contract cases passing without skips. — not proved: needs CI results of a published PR across all six shards; this step may not push or call gh, and no PR run exists yet."
+    ]
   }
 }
