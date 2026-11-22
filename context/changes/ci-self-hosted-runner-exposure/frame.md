@@ -15,7 +15,7 @@ Every pull request that is not from a fork runs on `["self-hosted","linux","true
 
 - Add `--ignore-scripts` to the install line at `ci.yml:63`, which six jobs run. Check that `openspec` still runs without its install scripts. If it does not, install from a committed lockfile instead, and the plan names where that lockfile lives (it is a CI test tool, not a router dependency; ADR-006 stands).
 - Amend ADR-020: list the repository settings the boundary depends on ("Require approval for all external contributors" and any other the plan finds), the date the owner checked each one, and what the runner can reach on the home network.
-- Keep the runner expression. `tools/test/ci-runner.test.mjs` changes only if the plan touches the expression.
+- Keep the runner expression and its pins in `tools/test/ci-runner.test.mjs`. The plan may update only the two install-command assertions in that test (line 60, the `assert.match` on the `npm install` text, and line 116, the argv array), because they pin the install line that gains `--ignore-scripts`. Owner-approved 2026-11-22. While developing, run only that test file, not the full suite; CI is the gate.
 - Keep the 40-hex SHA pins (`tools/workflow-pins.mjs`).
 
 ## Owner actions (by hand, outside the plan)
