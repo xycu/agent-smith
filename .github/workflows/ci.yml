@@ -60,7 +60,7 @@ jobs:
           prefix="$(mktemp -d "$RUNNER_TEMP/openspec.XXXXXX")"
           export npm_config_cache="$prefix/npm-cache"
           export npm_config_userconfig="$prefix/npmrc"
-          npm install --prefix "$prefix" --no-save --package-lock=false @fission-ai/openspec@2.0.0
+          npm install --prefix "$prefix" --no-save --package-lock=false --ignore-scripts @fission-ai/openspec@2.0.0
           openspec="$prefix/node_modules/.bin/openspec"
           version="$("$openspec" --version)"
           test "$version" = "2.0.0" || { echo "::error::expected OpenSpec 2.0.0, got $version"; exit 1; }

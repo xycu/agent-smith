@@ -85,7 +85,7 @@ If a real install or fixture fails, distinguish a registry outage, unavailable p
 
 #### Automated
 
-- [ ] 1.1 The focused runner test passes with the script-disabled install pinned in both assertions (`node --test tools/test/ci-runner.test.mjs`).
+- [x] 1.1 The focused runner test passes with the script-disabled install pinned in both assertions (`node --test tools/test/ci-runner.test.mjs`).
 
 ### Phase 2: Record the trust boundary and verify acceptance
 
