@@ -91,7 +91,7 @@ If a real install or fixture fails, distinguish a registry outage, unavailable p
 
 #### Automated
 
-- [x] 2.1 ADR-020 has an Amendment 3 heading and its existing index row references Amendment 3 (`rg -n '^## Amendment 3' docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` and `rg -n 'ADR-020.*Amendment 3' docs/ADR/README.md`).
+- [x] 2.1 ADR-020 has an Amendment 3 heading and its existing index row references Amendment 3 (`rg -n '^## Amendment 3' docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` and `rg -n 'ADR-020.*Amendment 3' docs/ADR/README.md`). — af4a8e1f
 
 #### Manual
 
