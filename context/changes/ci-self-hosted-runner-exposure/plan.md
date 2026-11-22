@@ -85,13 +85,13 @@ If a real install or fixture fails, distinguish a registry outage, unavailable p
 
 #### Automated
 
-- [x] 1.1 The focused runner test passes with the script-disabled install pinned in both assertions (`node --test tools/test/ci-runner.test.mjs`).
+- [x] 1.1 The focused runner test passes with the script-disabled install pinned in both assertions (`node --test tools/test/ci-runner.test.mjs`). — 5e72dd66
 
 ### Phase 2: Record the trust boundary and verify acceptance
 
 #### Automated
 
-- [ ] 2.1 ADR-020 has an Amendment 3 heading and its existing index row references Amendment 3 (`rg -n '^## Amendment 3' docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` and `rg -n 'ADR-020.*Amendment 3' docs/ADR/README.md`).
+- [x] 2.1 ADR-020 has an Amendment 3 heading and its existing index row references Amendment 3 (`rg -n '^## Amendment 3' docs/ADR/ADR-020-ci-on-self-hosted-truenas-runners.md` and `rg -n 'ADR-020.*Amendment 3' docs/ADR/README.md`).
 
 #### Manual
 
