@@ -1,7 +1,7 @@
 ---
 change_id: run-root-worktree-readiness
 title: Make a fresh run-root worktree ready for the project's gates before step 1
-status: implemented
+status: impl_reviewed
 created: 2026-11-21
 updated: 2026-11-22
 archived_at: null
