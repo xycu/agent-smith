@@ -5,8 +5,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { LEGACY_REPLAN_HALT_PREFIX } from "../scripts/flow.mjs";
 import {
-  cleanupAll, makeProject, init, next, writeResult, readLogEntries, writeMetaFile, entry, seedRun, writeLog
+  cleanupAll, makeProject, init, next, writeResult, readLogEntries, readMetaFile, writeMetaFile, entry, seedRun, writeLog,
+  writeOverride,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { buildPlan, pendingEntry } from "./phase-helpers.mjs";
@@ -122,13 +124,129 @@ test("failed replan halts", () => {
   const { res, e } = finish(p);
   assert.equal(e.ok, false);
   assert.equal(res.json.action, "halt");
-  assert.match(res.json.reason, /re-plan after 2 failed implement attempts/);
-  assert.match(res.json.reason, /Needs a human/);
-  // The subagent itself reports failed: same halt.
-  const q = pendingReplan("plan-replan", { done: ["1.1"], saved: OPEN_PLAN() });
-  const again = finish(q, { status: "failed", note: "could not" });
-  assert.equal(again.res.json.action, "halt");
-  assert.match(again.res.json.reason, /Needs a human/);
+  assert.match(res.json.reason, /Edit plan\.md in the run worktree.*checked Automated rows \(1\.1\).*pending Automated row under ## Progress\./);
+  assert.match(res.json.reason, /resume with init or next/);
+  assert.match(e.planBaseline, /^[0-9a-f]{64}$/);
+  assert.equal(e.replanAck, true);
+});
+
+test("failed replan halts before missing-plan or review routing", () => {
+  const p = pendingReplan("plan-replan", { done: [], saved: null });
+  fs.unlinkSync(path.join(p.changeDir, "reviews/plan-review.md"));
+  const { res, e } = finish(p, { status: "blocked", signals: { needsHuman: "Choose a supported file format" } });
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /Choose a supported file format.*Edit plan\.md/);
+  assert.equal(e.needsHumanAck, true);
+  assert.equal(e.planBaseline, null);
+  const again = next(p).json;
+  assert.equal(again.action, "halt");
+  assert.match(again.reason, /plan\.md is missing/);
+  assert.doesNotMatch(again.reason, /Choose a supported file format/);
+  writePlan(p, OPEN_PLAN());
+  assert.equal(next(p).json.step, "plan-review");
+});
+
+for (const [command, resume] of [["init", start], ["next", next]]) {
+  test(`replan recovery checks the repair and resumes with ${command}`, () => {
+    const p = pendingReplan("plan-replan", { done: ["1.1"], saved: OPEN_PLAN() });
+    writePlan(p, OPEN_PLAN());
+    const { res, e } = finish(p, { status: "failed", note: "could not" });
+    assert.equal(res.json.action, "halt");
+    assert.equal(e.verified, true);
+    assert.equal(e.ok, false);
+    function stillHalted(reason) {
+      const again = resume(p).json;
+      assert.equal(again.action, "halt");
+      assert.match(again.reason, reason);
+      assert.deepEqual(lastEntry(p), e);
+    }
+    stillHalted(/content is unchanged/);
+    writePlan(p, OPEN_PLAN());
+    writeReview(p, "plan-review", { verdict: "SOUND" });
+    stillHalted(/content is unchanged/);
+
+    fs.unlinkSync(p.planFile);
+    stillHalted(/plan\.md is missing/);
+    writePlan(p, "# Plan\n");
+    stillHalted(/no ## Progress/);
+    writePlan(p, DONE_PLAN());
+    stillHalted(/no pending Automated rows/);
+    writePlan(p, buildPlan([{ auto: ["new work"] }]));
+    stillHalted(/missing previously checked Automated row IDs: 1\.1/);
+
+    writePlan(p, OPEN_PLAN() + "\nOwner clarified the remaining work.\n");
+    const resumed = resume(p).json;
+    assert.equal(resumed.action, "run");
+    assert.equal(resumed.step, "implement");
+    assert.deepEqual(readLogEntries(p)[4], e);
+    assert.equal(readMetaFile(p).outcome, undefined);
+    assert.doesNotMatch(lastEntry(p).tierWhy, /failed attempt/);
+    for (let n = 0; n < 2; n++) {
+      writeResult(p, { status: "failed", note: "still broken" });
+      assert.equal(next(p).json.step, "implement", "the failed re-plan still uses the cap");
+    }
+  });
+}
+
+const FIVE_STEPS = { limits: { maxTotalSteps: 5 }, rigor: { budgetDelta: { lean: 0, standard: 0, thorough: 0 } } };
+
+test("a repaired replan still passes through review and step-budget gates", () => {
+  const p = pendingReplan("plan-replan", { done: ["1.1"], saved: OPEN_PLAN() });
+  const { e } = finish(p, { status: "failed", note: "before repair" });
+  const repair = OPEN_PLAN() + "\nOwner repair.\n";
+  writePlan(p, repair);
+  writeReview(p, "plan-review", { verdict: "RETHINK" });
+  assert.match(next(p).json.reason, /Plan review RETHINK blocks remaining implementation work/);
+  writeReview(p, "plan-review", { verdict: "SOUND" });
+  writeOverride(p, FIVE_STEPS);
+  assert.match(next(p).json.reason, /Step budget 5 spent/);
+  assert.deepEqual(lastEntry(p), e);
+  writePlan(p, OPEN_PLAN());
+  assert.match(next(p).json.reason, /content is unchanged/);
+  writePlan(p, repair);
+  writeOverride(p);
+  assert.equal(next(p).json.step, "implement");
+});
+
+const LEGACY_FINISHED = Date.UTC(2026, 0, 1);
+const OLD_HALT = { action: "halt", reason: `${LEGACY_REPLAN_HALT_PREFIX} 2 failed implement attempts did not produce a valid plan. Needs a human.` };
+
+function legacyReplan({ plan = OPEN_PLAN(), mtime = LEGACY_FINISHED + 1000, outcome = OLD_HALT, finishedAt = LEGACY_FINISHED } = {}) {
+  const replan = REPLAN(5, { ok: false, verified: false, result: { status: "failed" }, before: { done: ["1.1"] }, finishedAt });
+  const p = project({ plan, log: [...base, failed(3), failed(4), replan] });
+  fs.utimesSync(p.planFile, mtime / 1000, mtime / 1000);
+  writeMetaFile(p, { ...readMetaFile(p), outcome });
+  return p;
+}
+
+test("legacy replan accepts a newer valid plan and retains the repair across unrelated halts", () => {
+  const p = legacyReplan();
+  writeOverride(p, FIVE_STEPS);
+  assert.match(start(p).json.reason, /Step budget 5 spent/);
+  assert.equal(lastEntry(p).replanAck, true);
+  assert.equal(lastEntry(p).ok, false);
+  assert.match(next(p).json.reason, /Step budget 5 spent/);
+  writeOverride(p);
+  assert.equal(next(p).json.step, "implement");
+});
+
+test("legacy replan establishes a content baseline without eligible repair evidence", () => {
+  for (const options of [
+    { mtime: LEGACY_FINISHED },
+    { outcome: { action: "halt", reason: "Step budget spent." } },
+    { finishedAt: String(LEGACY_FINISHED) },
+    { plan: DONE_PLAN() },
+  ]) {
+    const p = legacyReplan(options);
+    const halted = next(p).json;
+    assert.equal(halted.action, "halt");
+    assert.match(halted.reason, /Edit plan\.md/);
+    assert.match(lastEntry(p).planBaseline, /^[0-9a-f]{64}$/);
+    writePlan(p, fs.readFileSync(p.planFile, "utf8"));
+    assert.match(next(p).json.reason, /content is unchanged/);
+    writePlan(p, OPEN_PLAN() + "\nOwner repair.\n");
+    assert.equal(next(p).json.step, "implement");
+  }
 });
 
 test("replan then review then implement", () => {

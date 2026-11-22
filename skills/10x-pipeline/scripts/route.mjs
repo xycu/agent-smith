@@ -34,6 +34,7 @@ import { readOpenspec, decideOpenspec, missingChangeReason } from "../../openspe
 import {
   writeReport, finishRun, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, dispatchAgent,
   advisorOn, neutralRetry, neutralPending, cleanUsage, dispatchProblem, ruleTail, checkRules, prepareHandoff, publishHandoff, cleanupHandoff,
+  replanRecoveryProblem,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
@@ -97,13 +98,23 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
   // any other case returns here and goes on as before.
   neutralRetry(p, id, meta, log, policy, visibility);
+  const ranNow = executed(log);
+  const lastRan = ranNow.at(-1);
+  const previousOutcome = lastRan?.result ? meta.outcome : null;
   const justFailedReview = attachResult(p, log, policy);
   cleanupHandoff(p, log);
+  const failedReplan = !openspec && lastRan?.template === "plan-replan" && isFailure(lastRan);
+  const replanPlan = failedReplan ? readPlan(p.plan, { fingerprint: true }) : null;
+  const replanProblem = failedReplan ? replanRecoveryProblem(lastRan, replanPlan, previousOutcome) : null;
+  // A first halt restores the failed step's partial edits. Compare future repairs with those bytes, before rollback.
+  if (replanProblem && !lastRan.replanAck && !Object.hasOwn(lastRan, "planBaseline")) {
+    lastRan.planBaseline = replanPlan.fingerprint;
+  }
   // An isolated run commits what a successful step left before risk, rigor and decide read the files.
   stepCommit(p, id, meta, log, policy);
   // An isolated run rolls a failed step back before risk, rigor and decide read the files. When this call ends in a
   // halt instead of a next step, the rollback is undone first, so the partial edits stay for a human.
-  const rb = rollback(p, id, meta, log, policy);
+  const rb = failedReplan && !replanProblem ? null : rollback(p, id, meta, log, policy);
   const undoFailure = () => {
     const failure = undoRollback(p, meta, log, rb);
     if (!failure || rb.last.kept) return failure;
@@ -127,7 +138,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
     return endRun(p, id, meta, log, { ...visibility, ...result });
   };
 
-  const planNow = readPlan(p.plan);
+  const planNow = (!rb && replanPlan) || readPlan(p.plan);
   const risk = planNow.exists ? measureRisk(p, meta, log, policy) : null;
   const { level, changed } = resolveRigor(meta, log, policy, planNow, risk);
   // A policy, prompt or agent edit since the record adds its section to provenance.drift; meta.json is written only then.
@@ -135,16 +146,25 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   if (changed || drifted) writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
 
   // A subagent that cannot decide from evidence stops the run once. The ack lives on the log entry.
-  const ranNow = executed(log);
-  const lastRan = ranNow[ranNow.length - 1];
+  let humanReason = "";
   if (lastRan?.signals?.needsHuman && !lastRan.needsHumanAck) {
     lastRan.needsHumanAck = true;
-    return end({
-      action: "halt",
-      reason: `Step ${lastRan.n} (${lastRan.step}) needs a human: ${lastRan.signals.needsHuman}`,
-      steps: ranNow.length,
-    });
+    humanReason = `Step ${lastRan.n} (${lastRan.step}) needs a human: ${lastRan.signals.needsHuman}`;
   }
+  if (failedReplan) {
+    // An acknowledgement without a baseline records a qualifying legacy edit. Later halts can replace meta.outcome.
+    lastRan.replanAck = true;
+    if (replanProblem) {
+      const checked = lastRan.before?.done;
+      const keep = Array.isArray(checked) && checked.length ? ` (${checked.join(", ")})` : "";
+      const commit = meta.isolated === true ? " Commit the repair before resuming so a later rollback preserves it." : "";
+      const reason = `${replanProblem} Needs a human.${humanReason ? ` ${humanReason}.` : ""} ` +
+        `Edit plan.md in the run worktree, keep the previously checked Automated rows${keep}, and leave at least one pending Automated row under ## Progress.` +
+        `${commit} Rerun the pipeline or resume with init or next.`;
+      return end({ action: "halt", reason, steps: ranNow.length });
+    }
+  }
+  if (humanReason) return end({ action: "halt", reason: humanReason, steps: ranNow.length });
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
 

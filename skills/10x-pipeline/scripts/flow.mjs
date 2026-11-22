@@ -745,6 +745,23 @@ function implReviewNext(log, plan, policy, reviewFailure) {
   };
 }
 
+export const LEGACY_REPLAN_HALT_PREFIX = "The re-plan after";
+
+export function replanRecoveryProblem(last, plan, previousOutcome) {
+  const legacyEdit = !Object.hasOwn(last, "planBaseline") && Number.isFinite(last.finishedAt) &&
+    previousOutcome?.action === "halt" && typeof previousOutcome.reason === "string" &&
+    previousOutcome.reason.startsWith(LEGACY_REPLAN_HALT_PREFIX) && plan.mtime > last.finishedAt;
+  if (!last.replanAck && !legacyEdit) return "The re-plan failed.";
+  if (!plan.exists) return "plan.md is missing.";
+  if (plan.fingerprint === last.planBaseline) return "plan.md content is unchanged.";
+  if (!plan.hasProgress) return "plan.md has no ## Progress section.";
+  if (plan.autoPending <= 0) return "plan.md has no pending Automated rows.";
+  if (verifyCodeReplan(last, plan)) return null;
+  const checked = new Set(plan.phaseList.flatMap((phase) => phase.auto.filter((row) => row.done).map((row) => row.id)));
+  const missing = last.before.done.filter((id) => !checked.has(id));
+  return `plan.md is missing previously checked Automated row IDs: ${missing.join(", ")}.`;
+}
+
 export function decide(p, fullLog, policy, meta, ctx) {
   const E = policy.escalation;
   const L = policy.limits;
@@ -854,10 +871,6 @@ export function decide(p, fullLog, policy, meta, ctx) {
     if (confirm) return confirm;
   }
 
-  const lastRan = log[log.length - 1];
-  if (lastRan?.template === "plan-replan" && !lastRan.ok) {
-    return { halt: `The re-plan after ${policy.codeReplan?.afterFailures} failed implement attempts did not produce a valid plan. Needs a human.` };
-  }
   const reopen = retryRows(log, plan, policy);
   if (plan.autoPending > 0 || reopen.length) {
     if (needsReplan) {

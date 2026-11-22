@@ -121,6 +121,48 @@ test("4.1 a failed step is snapshotted with untracked files and reset to startSh
   assert.match(readReportFile(wt), new RegExp(`^- step 1 plan: \`${REF(wt, 1)}\` rolled back to ${start.slice(0, 7)}$`, "m"));
 });
 
+test("failed replan halt restores partial edits and a committed repair survives later rollback", { skip }, () => {
+  const { wt } = freshRun(["--rigor", "standard"]);
+  const plan = planText({ phases: 1, rowsPerPhase: 2, done: 1 });
+  toImplement(wt, plan);
+  for (const step of ["implement", "plan"]) {
+    writeResult(wt, { status: "failed", note: "implementation blocked" });
+    const routed = nextIn(wt);
+    assert.equal(routed.json.step, step, routed.stdout);
+  }
+  const pending = readLogEntries(wt).at(-1);
+  assert.equal(pending.template, "plan-replan");
+  const partial = `${plan}\nPartial edits from the failed re-plan.\n`;
+  writePlan(wt, partial);
+  writeResult(wt, { status: "failed", note: "could not correct plan" });
+  const halted = nextIn(wt);
+  assert.equal(halted.json.action, "halt", halted.stdout);
+  assert.match(halted.json.reason, /Commit the repair before resuming/);
+  assert.equal(fs.readFileSync(wt.planFile, "utf8"), partial);
+  assert.equal(head(wt), pending.startSha);
+  const failure = readLogEntries(wt).at(-1);
+  assert.equal(failure.ok, false);
+  assert.equal(failure.kept, REF(wt, pending.n));
+  assert.match(nextIn(wt).json.reason, /content is unchanged/);
+
+  const repair = `${plan}\nOwner repaired the plan.\n`;
+  writePlan(wt, repair);
+  gw(wt, ["add", `${CHANGE}/plan.md`]);
+  gw(wt, ["commit", "-q", "-m", "fix(demo): repair the plan"]);
+  const repaired = head(wt);
+  assert.equal(initIn(wt).json.step, "implement");
+  const attempt = readLogEntries(wt).at(-1);
+  assert.equal(attempt.startSha, repaired);
+  writePlan(wt, `${repair}\nUnfinished implementation edits.\n`);
+  writeResult(wt, { status: "failed", note: "implementation needs a retry" });
+  assert.equal(nextIn(wt).json.step, "implement");
+  const log = readLogEntries(wt);
+  assert.deepEqual(log.find((e) => e.n === pending.n), failure);
+  assert.equal(log.find((e) => e.n === attempt.n).rolledBack, REF(wt, attempt.n));
+  assert.equal(head(wt), repaired);
+  assert.equal(fs.readFileSync(wt.planFile, "utf8"), repair);
+});
+
 test("4.1 the side ref carries the run token: an earlier run's ref of the same id and step stays as it was", { skip }, () => {
   const { wt } = freshRun();
   const meta = JSON.parse(fs.readFileSync(path.join(wt.agentDir, "meta.json"), "utf8"));
