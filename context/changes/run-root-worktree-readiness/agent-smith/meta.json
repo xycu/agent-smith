@@ -50,5 +50,15 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/test/prepare-run.test.mjs, skills/10x-pipeline/test/skill-loop.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 On an owner's real project, confirm that a fresh run reaches its first gate with local dependencies and that its configured readiness command rejects an unavailable or shared service with a repairable diagnostic."
+    ],
+    "manualNotProved": [
+      "2.4 On an owner's real project, confirm that a fresh run reaches its first gate with local dependencies and that its configured readiness command rejects an unavailable or shared service with a repairable diagnostic. — not proved: row requires the owner's real project (real lockfile, committed readiness hook, a deliberately unavailable shared service); the fixture tests of rows 2.1-2.3 use fake package managers and a local hook"
+    ]
   }
 }
