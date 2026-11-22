@@ -1,2 +1,2 @@
-- 2.2 — ADR-020 Amendment 3 states the reachable home-network hosts and services are still "awaiting dated owner confirmation"; that is owner-only network knowledge no command, test or judgment of the repo can supply.
+- 2.2 — ADR-020 Amendment 3 (line 91) still states the reachable home-network hosts and services are "awaiting dated owner confirmation"; owner-only network and settings knowledge that no command, test or judgment of the repo can supply.
 - 2.3 — needs CI results of a published PR across all six shards; this step may not push or call gh, and no PR run exists yet.
