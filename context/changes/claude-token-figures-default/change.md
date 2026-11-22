@@ -1,9 +1,9 @@
 ---
 change_id: claude-token-figures-default
 title: Decide how Claude-hosted steps get token figures without operator capture
-status: new
+status: impl_reviewed
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-22
 archived_at: null
 ---
 

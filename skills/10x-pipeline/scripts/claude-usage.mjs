@@ -1,63 +1,24 @@
-// Optional native 2.1.311 capture adapter. It reads existing sources; it never configures capture or writes run state.
-// Default telemetry can lack process provenance; only a matched process prefix plus native UUID/request closure qualifies.
+// Read launcher-bound or independently authorized native evidence without writing run state.
 import fs from "node:fs";
 import path from "node:path";
-import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { cleanInvocation, cleanUsage, normalizeAccounting, readBoundedLines, unavailableEvidence, USAGE_LIMITS } from "./usage.mjs";
+import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_CAPTURE_RELEASES, assertCaptureAvailable, attributes, captureFile, captureStat,
+  fail, hash, identifier, integer, numeric, object, projectNative, readCaptureBinding, scalar, tokenBuckets, validProcess } from "./claude-capture-data.mjs";
 
-export const CLAUDE_USAGE_VERSION = "2.1.311";
-export const CLAUDE_USAGE_LIMITS = { descriptorBytes: USAGE_LIMITS.fileBytes, recordBytes: 1024 * 1024,
+export const CLAUDE_USAGE_LIMITS = { descriptorBytes: USAGE_LIMITS.fileBytes, recordBytes: CAPTURE_LIMITS.recordBytes,
   bytes: 32 * 1024 * 1024, agents: USAGE_LIMITS.sessions, requests: USAGE_LIMITS.requests,
-  events: 200000, readMs: USAGE_LIMITS.readMs };
-const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
-const identifier = value => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
-const integer = value => Number.isSafeInteger(value) && value >= 0;
-const hash = value => createHash("sha256").update(value).digest("hex");
-const fail = reason => { throw Object.assign(new Error(), { reason, accounting: true }); };
-const buckets = ["input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"];
+  events: CAPTURE_LIMITS.events, readMs: USAGE_LIMITS.readMs };
 const transcriptBuckets = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"];
 
-function counters(raw, keys = buckets) {
+function counters(raw, keys = tokenBuckets) {
   if (!object(raw)) fail("unsupported-schema");
   const values = keys.map(key => raw[key]);
   if (values.some(value => !integer(value))) fail("unsupported-schema");
   const total = values.reduce((sum, value) => sum + value, 0);
   if (!Number.isSafeInteger(total)) fail("resource-limit");
   return { values, total };
-}
-
-function attributes(raw) {
-  if (!Array.isArray(raw)) fail("unsupported-schema");
-  const values = new Map();
-  for (const item of raw) {
-    if (!object(item) || typeof item.key !== "string" || !object(item.value)) fail("unsupported-schema");
-    if (values.has(item.key) && !isDeepStrictEqual(values.get(item.key), item.value)) fail("conflicting-duplicate");
-    values.set(item.key, item.value);
-  }
-  return values;
-}
-
-function scalar(attrs, key) {
-  const value = attrs.get(key);
-  if (value === undefined) return undefined;
-  if (Object.hasOwn(value, "stringValue")) return value.stringValue;
-  if (Object.hasOwn(value, "intValue")) {
-    const raw = value.intValue;
-    if (!(integer(raw) || (typeof raw === "string" && /^\d+$/.test(raw) && integer(Number(raw))))) fail("unsupported-schema");
-    return Number(raw);
-  }
-  if (Object.hasOwn(value, "doubleValue")) return value.doubleValue;
-  if (Object.hasOwn(value, "boolValue")) return value.boolValue;
-  fail("unsupported-schema");
-}
-
-function numeric(attrs, key) {
-  const value = scalar(attrs, key);
-  const number = typeof value === "string" && /^\d+$/.test(value) ? Number(value) : value;
-  if (!integer(number)) fail("unsupported-schema");
-  return number;
 }
 
 function textContent(message) {
@@ -77,68 +38,138 @@ function routerDescription(router) {
   return `agent-smith ${router.change} step ${router.n} ${router.step}`;
 }
 
-export function collectClaudeUsage(descriptor = {}) {
+export function claudeCaptureCheckpoint(env = process.env) {
+  try {
+    if (!env[CAPTURE_ENV] || env.AGENT_SMITH_CLAUDE_SESSION) return null;
+    const root = env[CAPTURE_ENV];
+    const { sessionId } = readCaptureBinding(root);
+    return { sessionId, offset: captureStat(root, "native").size };
+  } catch {
+    return null;
+  }
+}
+
+const digestOrNull = value => value === null || (typeof value === "string" && /^[0-9a-f]{64}$/.test(value));
+
+function validateProjectedNative(record, sessionId) {
+  if (record.sessionId !== sessionId) fail("missing-identity");
+  if (record.event === "SubagentStop") {
+    if (!identifier(record.agentId) || !digestOrNull(record.textHash)) fail("unsupported-schema");
+  } else {
+    if (!identifier(record.runId) || (record.parent !== null && !identifier(record.parent))) fail("missing-identity");
+    if (record.event === "PreToolUse") {
+      if (!digestOrNull(record.descriptionHash) || !digestOrNull(record.promptHash) || typeof record.resumed !== "boolean") fail("unsupported-schema");
+    } else if (record.event !== "PostToolUse" || !identifier(record.response?.agentId)
+        || !["completed", "other"].includes(record.response.status)
+        || (record.response.totalTokens !== undefined && !integer(record.response.totalTokens))) fail("unsupported-schema");
+  }
+  return record;
+}
+
+function scopedTranscript(root, file, sessionId, agentId) {
+  const parts = path.relative(root, file).split(path.sep);
+  if (fs.realpathSync(root) !== root || parts.length !== 4 || !parts[0] || parts[0] === ".."
+      || parts[1] !== sessionId || parts[2] !== "subagents" || parts[3] !== `agent-${agentId}.jsonl`) fail("unsafe-path");
+  return root;
+}
+
+export function collectClaudeUsage(descriptor = {}, env = process.env) {
   if (!object(descriptor)) descriptor = {};
-  const invocation = cleanInvocation(descriptor.invocation);
-  const hostVersion = descriptor.hostVersion;
+  let invocation = cleanInvocation(descriptor.invocation);
+  let hostVersion = descriptor.hostVersion;
   const independent = cleanUsage(descriptor.usage) ?? {};
   delete independent.totalTokens;
   const unavailable = reason => normalizeAccounting(independent,
     unavailableEvidence(reason, { source: "claude-native", hostVersion, invocation }));
   try {
-    if (!invocation || invocation.host !== "claude") fail("missing-identity");
-    if (hostVersion !== CLAUDE_USAGE_VERSION) fail("unsupported-host");
+    let sources = descriptor.sources;
+    let hostProcess = descriptor.process;
+    let binding, checkpoint;
+    const observed = descriptor.invocation ?? {};
+    if (sources === undefined) {
+      const root = env[CAPTURE_ENV];
+      if (!root || env.AGENT_SMITH_CLAUDE_SESSION) fail("capture-disabled");
+      invocation = null;
+      binding = readCaptureBinding(root);
+      hostVersion = binding.hostVersion;
+      if (descriptor.hostVersion !== undefined && descriptor.hostVersion !== hostVersion) fail("unsupported-host");
+      if (!object(observed) || (observed.host !== undefined && observed.host !== "claude")
+          || (observed.sessionId !== undefined && observed.sessionId !== binding.sessionId)
+          || [observed.runId, observed.agentId].some(value => value !== undefined && !identifier(value))) fail("missing-identity");
+      checkpoint = descriptor.checkpoint;
+      if (checkpoint != null && (!object(checkpoint) || checkpoint.sessionId !== binding.sessionId
+          || !integer(checkpoint.offset) || checkpoint.offset > CAPTURE_LIMITS.nativeBytes)) fail("missing-identity");
+      if (observed.runId === undefined && !checkpoint) fail("missing-identity");
+      captureStat(root, "native");
+      sources = { root, nativeFile: captureFile(root, "native"), telemetryFile: captureFile(root, "telemetry") };
+      hostProcess = binding.process;
+    } else {
+      if (!invocation || invocation.host !== "claude") fail("missing-identity");
+      if (!CLAUDE_CAPTURE_RELEASES.includes(hostVersion)) fail("unsupported-host");
+      if (!object(sources) || ![sources.root, sources.nativeFile, sources.telemetryFile].every(value => typeof value === "string" && path.isAbsolute(value))) fail("missing-source");
+      if (!validProcess(hostProcess)) fail("missing-identity");
+    }
     const description = routerDescription(descriptor.router);
-    const sources = descriptor.sources;
-    if (!object(sources) || ![sources.root, sources.nativeFile, sources.telemetryFile].every(value => typeof value === "string" && path.isAbsolute(value))) fail("missing-source");
-    const hostProcess = descriptor.process;
-    if (!object(hostProcess) || !Number.isSafeInteger(hostProcess.pid) || hostProcess.pid < 1
-        || typeof hostProcess.createdAt !== "string" || !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(hostProcess.createdAt)
-        || !Number.isFinite(Date.parse(hostProcess.createdAt))) fail("missing-identity");
     const deadline = Date.now() + CLAUDE_USAGE_LIMITS.readMs;
     let remaining = CLAUDE_USAGE_LIMITS.bytes;
-    const read = (file, visit) => {
+    const read = (file, visit, root = sources.root) => {
       if (!fs.existsSync(file)) fail("missing-source");
-      remaining -= readBoundedLines(file, { root: sources.root, maxBytes: remaining,
+      remaining -= readBoundedLines(file, { root, maxBytes: remaining,
         recordBytes: CLAUDE_USAGE_LIMITS.recordBytes, deadline }, line => {
         let record;
         try { record = JSON.parse(line); } catch { fail("unsupported-schema"); }
         if (!object(record)) fail("unsupported-schema");
-        visit(record);
+        visit(record, Buffer.byteLength(line) + 1);
       });
     };
     const launches = new Map();
     const stops = new Map();
-    read(sources.nativeFile, record => {
-      if (!["PreToolUse", "PostToolUse", "SubagentStop"].includes(record.hook_event_name)) return;
-      if (record.session_id !== invocation.sessionId) return;
-      if (record.hook_event_name === "SubagentStop") {
-        if (!identifier(record.agent_id)) fail("missing-identity");
-        const stop = { file: record.agent_transcript_path, textHash: typeof record.last_assistant_message === "string" ? hash(record.last_assistant_message) : null };
-        if (stops.has(record.agent_id) && !isDeepStrictEqual(stops.get(record.agent_id), stop)) fail("ambiguous-history");
-        stops.set(record.agent_id, stop);
+    const sessionId = binding?.sessionId ?? invocation.sessionId;
+    let position = 0;
+    let checkpointBoundary = checkpoint == null;
+    read(sources.nativeFile, (raw, bytes) => {
+      const offset = position;
+      position += bytes;
+      if (offset === checkpoint?.offset) checkpointBoundary = true;
+      const record = binding ? validateProjectedNative(raw, sessionId) : projectNative(raw, sessionId);
+      if (!record) return;
+      if (record.event === "SubagentStop") {
+        const stop = { file: record.file, textHash: record.textHash };
+        if (stops.has(record.agentId) && !isDeepStrictEqual(stops.get(record.agentId), stop)) fail("ambiguous-history");
+        stops.set(record.agentId, stop);
         if (stops.size > CLAUDE_USAGE_LIMITS.agents * 4) fail("resource-limit");
         return;
       }
-      if (record.tool_name !== "Agent") return;
-      if (!identifier(record.tool_use_id)) fail("missing-identity");
-      const launch = launches.get(record.tool_use_id) ?? {};
-      const key = record.hook_event_name === "PreToolUse" ? "pre" : "post";
-      if (record.agent_id != null && !identifier(record.agent_id)) fail("missing-identity");
-      if (key === "post" && (!identifier(record.tool_response?.agentId)
-          || (record.tool_response.totalTokens !== undefined && !integer(record.tool_response.totalTokens)))) fail("unsupported-schema");
-      const value = key === "pre" ? { parent: record.agent_id ?? null,
-        descriptionHash: typeof record.tool_input?.description === "string" ? hash(record.tool_input.description) : null,
-        promptHash: typeof record.tool_input?.prompt === "string" ? hash(record.tool_input.prompt) : null, resumed: record.tool_input?.resume != null }
-        : { parent: record.agent_id ?? null, response: { agentId: record.tool_response?.agentId,
-          status: record.tool_response?.status === "completed" ? "completed" : "other", totalTokens: record.tool_response?.totalTokens } };
+      const launch = launches.get(record.runId) ?? {};
+      const key = record.event === "PreToolUse" ? "pre" : "post";
+      const value = key === "pre" ? { parent: record.parent, descriptionHash: record.descriptionHash, promptHash: record.promptHash, resumed: record.resumed }
+        : { parent: record.parent, response: record.response };
       if (launch[key] && !isDeepStrictEqual(launch[key], value)) fail("ambiguous-history");
       launch[key] = value;
-      launches.set(record.tool_use_id, launch);
+      launch[key + "Offset"] ??= offset;
+      launches.set(record.runId, launch);
       if (launches.size > CLAUDE_USAGE_LIMITS.agents * 4) fail("resource-limit");
     });
+    let runId = observed.runId;
+    if (binding) {
+      if (!checkpointBoundary && position !== checkpoint?.offset) fail("missing-identity");
+      if (runId === undefined) {
+        const candidates = [...launches].filter(([, launch]) => (launch.pre
+          ? launch.pre.parent === null && launch.preOffset >= checkpoint.offset
+          : launch.post.parent === null && launch.postOffset >= checkpoint.offset));
+        if (candidates.length > 1) fail("ambiguous-history");
+        if (candidates.length !== 1) fail("missing-identity");
+        [[runId]] = candidates;
+      }
+      const launch = launches.get(runId);
+      if (!launch?.pre || !launch.post || launch.pre.parent !== null || launch.post.parent !== null
+          || (checkpoint && launch.preOffset < checkpoint.offset)
+          || launch.postOffset < launch.preOffset || (observed.agentId !== undefined && observed.agentId !== launch.post.response.agentId)
+          || launch.pre.descriptionHash !== hash(description)) fail("missing-identity");
+      invocation = cleanInvocation({ host: "claude", sessionId, runId, agentId: launch.post.response.agentId });
+    }
     const root = launches.get(invocation.runId);
-    if (!root?.pre || !root.post || root.post.response?.agentId !== invocation.agentId
+    if (!root?.pre || !root.post || root.post.response.agentId !== invocation.agentId
         || root.pre.descriptionHash !== hash(description)) fail("missing-identity");
     const agents = new Map();
     const addAgent = (runId, launch) => {
@@ -164,6 +195,7 @@ export function collectClaudeUsage(descriptor = {}) {
       if (recorded && recorded.runId !== runId) fail("ambiguous-history");
     }
     const events = new Map();
+    if (binding) captureStat(sources.root, "telemetry");
     read(sources.telemetryFile, batch => {
       if (!Array.isArray(batch.resourceLogs)) fail("unsupported-schema");
       for (const resource of batch.resourceLogs) {
@@ -189,7 +221,7 @@ export function collectClaudeUsage(descriptor = {}) {
             if (["claude_code.api_request", "claude_code.assistant_response"].includes(name)) {
               value.requestId = scalar(attrs, "request_id");
               if (!identifier(value.requestId)) fail("missing-identity");
-              if (name === "claude_code.api_request") value.counts = counters(Object.fromEntries(buckets.map(key => [key, numeric(attrs, key)])));
+              if (name === "claude_code.api_request") value.counts = counters(Object.fromEntries(tokenBuckets.map(key => [key, numeric(attrs, key)])));
               else {
                 value.uuid = scalar(attrs, "message.uuid");
                 if (!identifier(value.uuid)) fail("missing-identity");
@@ -268,6 +300,7 @@ export function collectClaudeUsage(descriptor = {}) {
       const native = new Map();
       const messages = new Map();
       const entries = new Map();
+      const transcriptRoot = binding ? scopedTranscript(binding.transcriptRoot, agent.stop.file, sessionId, agent.id) : sources.root;
       read(agent.stop.file, record => {
         if (!["user", "assistant", "attachment"].includes(record.type)) return;
         if (record.sessionId !== invocation.sessionId || record.agentId !== agent.id || record.version !== hostVersion
@@ -294,7 +327,7 @@ export function collectClaudeUsage(descriptor = {}) {
         if (old && (old.message !== entry.message || entry.counts.values.some((value, index) => value < old.counts.values[index]))) fail("conflicting-duplicate");
         native.set(entry.request, { message: entry.message, counts: entry.counts, uuid: record.uuid });
         if (native.size > CLAUDE_USAGE_LIMITS.requests) fail("resource-limit");
-      });
+      }, transcriptRoot);
       const exported = [...requests].filter(([, request]) => request.agent === agent.id);
       if (exported.length !== native.size) fail("snapshot-mismatch");
       let finalSequence = -1;
@@ -326,10 +359,11 @@ export function collectClaudeUsage(descriptor = {}) {
       if (ended.total !== finalRequest.observed.counts.total
           || (agent.response.totalTokens !== undefined && agent.response.totalTokens !== ended.total)) fail("snapshot-mismatch");
     }
+    if (binding) assertCaptureAvailable(sources.root, binding);
     return normalizeAccounting({ ...independent, totalTokens }, { schemaVersion: 1, status: "verified", scope: "step-tree",
       source: "claude-native", hostVersion, invocation, sessionCount: agents.size, requestCount, reconciliation: "request-records" });
   } catch (error) {
-    return unavailable(error.reason ?? "unsupported-schema");
+    return unavailable(error.reason ?? (error.code === "ENOENT" ? "missing-source" : "unsupported-schema"));
   }
 }
 
@@ -351,4 +385,7 @@ async function main() {
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  if (process.argv[2] === "checkpoint") process.stdout.write(JSON.stringify(claudeCaptureCheckpoint()) + "\n");
+  else await main();
+}

@@ -51,10 +51,13 @@ test("shipped hook uses synchronous Bash exec-form Node, bounded timeout and fai
   const command = (file) => ({ type: "command", command: "node",
     args: [pluginPlaceholder + "/skills/10x-pipeline/scripts/" + file], timeout: 5, async: false, onFailure: "block" });
   const lifecycle = [{ hooks: [command("claude-hook.mjs")] }];
+  const capture = { ...command("claude-capture-hook.mjs"), timeout: 3, onFailure: "continue" };
+  const captureAgent = { matcher: "Agent", hooks: [capture] };
   assert.deepEqual(hooks.hooks, {
-    PreToolUse: [{ matcher: "Bash", hooks: [command("step-guard.mjs")] }],
+    PreToolUse: [{ matcher: "Bash", hooks: [command("step-guard.mjs")] }, captureAgent],
     SessionStart: [{ matcher: "startup", hooks: [command("claude-hook.mjs")] }],
-    SubagentStart: lifecycle, SubagentStop: lifecycle, Stop: lifecycle,
+    SubagentStart: lifecycle, SubagentStop: [...lifecycle, { hooks: [capture] }], Stop: lifecycle,
+    PostToolUse: [captureAgent],
   });
 });
 

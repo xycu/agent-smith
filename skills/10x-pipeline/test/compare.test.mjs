@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
+import { collectClaudeUsage } from "../scripts/claude-usage.mjs";
 import {
   cleanupAll, makeProject, planText, writePlan, run, init, next, writeResult, readLogEntries, readMetaFile,
   gitAvailable, gitEnv, gitInit, commitFiles, git, entry, skipEntry, writeLog, writeMetaFile,
@@ -166,6 +167,23 @@ function side({ totals = [], over = {}, meta = {}, files = {}, policy = null, id
 // `compare` run from the routed project against the baseline project.
 const compare = (routed, baseline, extra = []) => run(routed, ["compare", routed.id, "--baseline", baseline.root, ...extra]);
 const targetPolicy = (t) => ({ compare: { targetDropPercent: t } });
+
+test("capture off keeps comparison incomplete and supplies one canonical launcher instruction", () => {
+  const { usageEvidence } = collectClaudeUsage({}, {});
+  const routed = side({ totals: [null], over: { usageEvidence: { ...usageEvidence, explanation: "Obsolete stored wording" } } });
+  const baseline = side({ totals: [100] });
+  const res = compare(routed, baseline);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.comparable, false);
+  assert.deepEqual(res.json.reasons, ["usage-incomplete:routed"]);
+  assert.equal(res.json.dropPercent, null);
+  assert.deepEqual(res.json.routed.usageSteps[0].usageEvidence, usageEvidence);
+  const md = compare(routed, baseline, ["--format", "md"]);
+  assert.equal(md.status, 0, md.stderr);
+  const guidance = md.stdout.split("\n").filter(line => line.startsWith("Unavailable routed step 1:"));
+  assert.equal(guidance.length, 1);
+  assert.match(guidance[0], /capture-disabled — Claude token capture is off\. Run `node <absolute-plugin-scripts>\/claude-capture\.mjs`/);
+});
 
 test("2.1 a complete done pair gives the drop, and the default policy leaves the target unset", () => {
   const res = compare(side({ totals: [250, 350] }), side({ totals: [400, 600] }));

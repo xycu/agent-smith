@@ -1,0 +1,2 @@
+- 2.4 — needs an authorized human to run one complete live native Claude-hosted pipeline with capture enabled; no test, command or script can stand in for it, and an unattended step must not start a live pipeline. The acceptance doc lists it as pending live qualification.
+- 2.5 — needs the maintainer to qualify a later Claude Code release with a live multi-request Agent capture and sanitized replay; no such release is available to this step, and the automated fixtures cover only the 2.1.311 registry entry.
