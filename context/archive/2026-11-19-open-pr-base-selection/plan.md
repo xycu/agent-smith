@@ -116,6 +116,6 @@ The change is prospective for newly created PRs. Existing policies, recorded run
 
 #### Automated
 
-- [x] 1.1 Offline regressions show the advanced default wins at equal or shorter distance, and missing remote HEAD uses configured order and then alphabetical order. The two reported scenarios fail on the old selector and pass with the fix. Verify JSON base and fake PR-create base for both reported scenarios. — c90d5d55
-- [x] 1.2 Offline coverage passes for a strictly closer pushed feature, failed default comparison, old Git, explicit override and the existing eligibility and fallback rules. Logged comparison paths show no fetch or added GitHub default lookup. — c90d5d55
-- [x] 1.3 The full Node 24+ repository suite and `git diff --check` pass, and the reference and ADR describe the implemented selection rule. — c90d5d55
+- [x] 1.1 Offline regressions show the advanced default wins at equal or shorter distance, and missing remote HEAD uses configured order and then alphabetical order. The two reported scenarios fail on the old selector and pass with the fix. Verify JSON base and fake PR-create base for both reported scenarios. — 264ded6f
+- [x] 1.2 Offline coverage passes for a strictly closer pushed feature, failed default comparison, old Git, explicit override and the existing eligibility and fallback rules. Logged comparison paths show no fetch or added GitHub default lookup. — 264ded6f
+- [x] 1.3 The full Node 24+ repository suite and `git diff --check` pass, and the reference and ADR describe the implemented selection rule. — 264ded6f
