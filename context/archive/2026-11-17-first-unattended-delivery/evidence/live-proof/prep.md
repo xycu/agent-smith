@@ -1,0 +1,11 @@
+# S-12 live proof: preparation record (2026-11-21, before launch)
+- Candidate: origin/main 0680a16b4b7dc847ebe36f82506307e79852e362, plugin 1.15.4. Installed plugin root: /Users/blazej/WebstormProjects/agent-smith (user scope, HEAD same SHA; working tree has unrelated dirty files, no plugin code).
+- Versions: node v24.19.0, git 2.54.0 (Apple Git-157), claude 2.1.323 (floors 2.1.292 / 2.1.295 met). Child model claude-opus-5-5, permissionMode auto.
+- Acceptance clone: /private/tmp/claude-501/-Users-blazej-WebstormProjects-agent-smith--claude-worktrees-wave-2-parallel-changes-a536c3/2f513355-a1b4-49b9-b8a3-78ddf4f82595/scratchpad/acceptance/project (independent clone, origin git@github.com:xycu/agent-smith.git, branch main-acceptance)
+- Commits in clone: d8155cc3 (delete only `ladder` from context/foundation/agent-smith-policy.json; sha256 9721302c65bf407ad2400ebd06f08faaca3f757fd3b364fda234d1b0e6e18f1f), 27a0547f (change claude-only-10x-example created by `claude -p '/10x-new claude-only-10x-example'`). .claude/settings.json already has CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2 (sha256 a6500c1b...).
+- Effective ladder in clone: 8 rungs, all provider claude (haiku low, sonnet low/medium/high, opus medium/high/xhigh/max).
+- Toolkit sha256 (first 16): 10x-new 8bbe7d326e94571d, 10x-plan 3beb283496edbd10, 10x-plan-review f6522b54b17c9f3b, 10x-goal-implement 9b59556fbb8c6d84, 10x-impl-review c56679dbdfb77174.
+- Discovery (fresh child at project root): skills + commands agent-smith:10x-pipeline, the four toolkit skills, 10x-new; agents agent-smith:step, agent-smith:score. transcripts/discovery.jsonl
+- Guard probe (scratch repo, native Agent agent-smith:step): `git checkout -h` denied by PreToolUse:Bash hook before execution; Write + git add + git commit allowed; HEAD moved only by the authorized commit. transcripts/guard-probe.jsonl
+- Known gaps for 3.1: authorized Write/Edit/commit in the GENERATED worktree is only evidenced by the real run itself; hook delivery proven by denial text, not by a hook_started event for PreToolUse.
+- Risks: PR will carry the config commit d8155cc3 (ladder removal) unless dropped; SSH from my sandbox timed out (launch from the user's own terminal); installed plugin is the live main checkout (another session switching its branch mid-run would change the plugin code).
