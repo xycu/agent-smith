@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.16.0](https://github.com/xycu/agent-smith/compare/v1.15.4...v1.16.0) (2026-11-22)
+
+
+### Features
+
+* **claude-token-figures-default:** Decide how Claude-hosted steps get token figures without operator capture ([#270](https://github.com/xycu/agent-smith/issues/270)) ([72c957c](https://github.com/xycu/agent-smith/commit/72c957cb1ca940b8309c67d600a6d8ca1935e8ca))
+* **codex-profile-and-gitdir-access:** Warn at init when the Codex profile or the worktree gitdir access is missing ([#257](https://github.com/xycu/agent-smith/issues/257)) ([de75326](https://github.com/xycu/agent-smith/commit/de7532602da7a89701bd247b9fdca3dc8868f900))
+
+
+### Bug Fixes
+
+* **ci-self-hosted-runner-exposure:** Disable lifecycle scripts for the OpenSpec install on the test shards ([#269](https://github.com/xycu/agent-smith/issues/269)) ([6437116](https://github.com/xycu/agent-smith/commit/6437116a669b63eeea27bb054d7e07e1e4158487))
+* **first-unattended-delivery:** First unattended delivery ([#214](https://github.com/xycu/agent-smith/issues/214)) ([98ef04b](https://github.com/xycu/agent-smith/commit/98ef04b128a8608bf31f71182a7d6a19b19f6d5b))
+* **open-pr-base-selection:** Pick the default branch as PR base when it is as near as any other candidate ([#264](https://github.com/xycu/agent-smith/issues/264)) ([264ded6](https://github.com/xycu/agent-smith/commit/264ded6f9a583a6bf05109a5d51cd7aec25ea04c))
+* **replan-failure-halt-recoverable:** Let a run continue after a human fixes a failed re-plan ([#263](https://github.com/xycu/agent-smith/issues/263)) ([4daf162](https://github.com/xycu/agent-smith/commit/4daf162e8775dc6c3b44b6bb8b9c74b4efc3a8cb))
+
 ## [1.15.4](https://github.com/xycu/agent-smith/compare/v1.15.3...v1.15.4) (2026-11-21)
 
 
