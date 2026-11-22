@@ -284,14 +284,14 @@ No stored data changes. A figure already recorded unavailable stays unavailable;
 
 #### Automated
 
-- [x] 2.1 No claim of headless evidence as the floor's basis remains
-- [x] 2.2 Amendment 7 exists after Amendment 6
-- [x] 2.3 Version fields stay equal
-- [ ] 2.4 Commit subjects lint
+- [x] 2.1 No claim of headless evidence as the floor's basis remains — 971f29eb
+- [x] 2.2 Amendment 7 exists after Amendment 6 — 971f29eb
+- [x] 2.3 Version fields stay equal — 971f29eb
+- [x] 2.4 Commit subjects lint — 971f29eb
 
 #### Manual
 
-- [x] 2.5 The three documents read consistently with each other and with the collector rules
+- [x] 2.5 The three documents read consistently with each other and with the collector rules — 971f29eb
 
 ### Phase 3: Live requalification
 
