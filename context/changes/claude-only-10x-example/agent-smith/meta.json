@@ -52,5 +52,10 @@
       "advisor.enabled": false
     }
   },
-  "startCommit": "04fcc4b000ab3d97afdc054869531b04aedbbae2"
+  "startCommit": "04fcc4b000ab3d97afdc054869531b04aedbbae2",
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": []
+  }
 }
