@@ -35,7 +35,7 @@ The workflow installs into job-local storage, verifies the pinned binary and pas
 
 | Phase | Deliverable | Evidence |
 | --- | --- | --- |
-| 1. Disable install scripts | Shared install line and two updated assertions | Run only `node --test tools/test/ci-runner.test.mjs` locally |
+| 1. Disable install scripts | Shared install line and two updated assertions | Run only `node --test tools/test/ci-runner.test.mjs` locally, plus a scratch-prefix install check of OpenSpec 2.0.0 with scripts disabled |
 | 2. Record and verify the boundary | Indexed ADR amendment with operational evidence | Check the heading and index locally. Owner confirmation and green PR CI are manual acceptance. |
 
 **Prerequisites and effort.** One small workflow patch and one documentation amendment. Owner input and the published CI run determine elapsed time.

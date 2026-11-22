@@ -33,6 +33,8 @@ Use two phases. Phase 1 has a local, deterministic regression check. Phase 2 rec
 
 **Test intent.** Pin the literal flag and prove the shell passes it to npm. **Contract.** In the command-text match (line 60) and expected argv (line 116), insert the flag in the same position. These are the only approved edits to the test. Keeping the prefix in place also preserves the npm stub’s argument contract. [Runner test](../../../tools/test/ci-runner.test.mjs#L60)
 
+**Local pre-check.** Before the change is published, install `@fission-ai/openspec@2.0.0` with `--ignore-scripts` into a scratch prefix (own npm cache and user config, as in the workflow), run its `--version`, and list every installed `package.json` that declares a `preinstall`, `install` or `postinstall` script. Each hit is a hook that the flag now skips. The top-level 2.0.0 manifest declares no such hook (checked with `npm view` on 2026-11-22). The transitive tree was not scanned. This check does not replace the published run in 2.3, and it does not change the test scope.
+
 ### Success Criteria
 
 #### Automated Verification
@@ -62,13 +64,13 @@ Use two phases. Phase 1 has a local, deterministic regression check. Phase 2 rec
 
 ## Testing Strategy
 
-During development run only the Phase 1 test file. Its shell harness records npm argv, checks the selected executable, and covers install and version failures. Inspect the diff for the one workflow line and the two authorized assertions. For post-publication acceptance, inspect the six shard results and the contract cases that compare router output to `openspec instructions apply --change demo --json`. CI runs the complete suite. The fake executable used locally cannot supply this evidence.
+During development run only the Phase 1 test file. Its shell harness records npm argv, checks the selected executable, and covers install and version failures. Inspect the diff for the one workflow line and the two authorized assertions. For post-publication acceptance, inspect the six shard results and the contract cases that compare router output to `openspec instructions apply --change demo --json`. CI runs the complete suite. The fake executable used locally cannot supply this evidence. For Phase 2, besides the two `rg` checks, read Amendment 3 and the ADR-020 status line: the status must name Amendments 1 to 3, and the amendment must state the install protection and its limits, the checked settings with dates, the reach evidence or its named unknowns, and the accepted same-repository risk. A bare heading satisfies the `rg` checks only.
 
 ## Migration and fallback
 
 The workflow consumes its own revision, and each shard creates a new prefix. Old runs retain their original install behavior. A retry on the hardened revision uses a new prefix. There is no persistent package or router state to migrate.
 
-If a real install or fixture fails, distinguish a registry outage, unavailable package, or unrelated suite failure from a required lifecycle hook. Only a confirmed hook dependency triggers the frame’s fallback. Put the CI-only manifest and committed lockfile at `.github/ci/openspec/package.json` and `.github/ci/openspec/package-lock.json`, review the resolved tree and integrity entries, then copy both files into the fresh prefix and use `npm ci` there. Keep scripts disabled wherever possible. If needed, permit only the reviewed, locked install behavior. Repeat the exact-version and real-fixture checks. Keep the failed revision out of main while resolving the issue. If this alternative needs changes beyond the two approved assertions (for example to the npm stub), return the concrete incompatibility for owner authorization before widening the diff. Never fall back to running scripts against an unlocked tree.
+If a real install or fixture fails, distinguish a registry outage, unavailable package, or unrelated suite failure from a required lifecycle hook. Only a confirmed hook dependency triggers the frame’s fallback. Put the CI-only manifest and committed lockfile at `.github/ci/openspec/package.json` and `.github/ci/openspec/package-lock.json`, review the resolved tree and integrity entries, then copy both files into the fresh prefix and use `npm ci` there. Run `npm ci --ignore-scripts` first. If a reviewed hook is confirmed necessary, run `npm rebuild <package>` for that one named package afterwards. Never enable scripts for the whole tree. Repeat the exact-version and real-fixture checks. Keep the failed revision out of main while resolving the issue. If this alternative needs changes beyond the two approved assertions (for example to the npm stub), return the concrete incompatibility for owner authorization before widening the diff. Never fall back to running scripts against an unlocked tree.
 
 ## References
 
