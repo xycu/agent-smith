@@ -1,4 +1,9 @@
 // Hand-authored documented 2.1.311 capture shapes, not retained telemetry or live-host qualification.
+// The default synchronous Agent shape (completed PostToolUse with totalTokens, result after completion) is hand-authored.
+// `async: true` follows the wire shape of the live 2.1.323 interactive capture (async_launched PostToolUse without
+// totalTokens, Agent result before subagent_completed); `nullStop`, `branch` and `telemetryOnly` (`"response"` also adds its response event) add the other live
+// traits (no last_assistant_message, an attachment off the chain, an api_request without a transcript entry) to the
+// step run. The records stay synthetic: no real transcript text or capture log is retained.
 import fs from "node:fs";
 import path from "node:path";
 import { CAPTURE_ENV, captureFile, projectNative, projectTelemetry } from "../scripts/claude-capture-data.mjs";
@@ -15,7 +20,8 @@ export const setEvent = (event, key, value) => {
 };
 
 export function claudeUsageFixture({ project = makeProject(), chain = "10x", n = 1,
-  step = chain === "openspec" ? "os-propose" : "plan", children = true } = {}) {
+  step = chain === "openspec" ? "os-propose" : "plan", children = true,
+  async = false, nullStop = false, branch = false, telemetryOnly = false } = {}) {
   const root = path.join(project.root, "claude-capture");
   fs.mkdirSync(root);
   const descriptor = { router: { change: project.id, chain, n, step }, hostVersion: "2.1.311",
@@ -35,6 +41,7 @@ export function claudeUsageFixture({ project = makeProject(), chain = "10x", n =
   const agents = new Map();
   const add = (id, parent, runId, prompt, usages) => {
     const file = path.join(root, `${id}.jsonl`);
+    const quiet = nullStop && id === "step-agent";
     const records = [{ type: "user", uuid: `${id}-user`, parentUuid: null,
       message: { role: "user", content: prompt } }];
     usages.forEach((values, index) => {
@@ -42,12 +49,14 @@ export function claudeUsageFixture({ project = makeProject(), chain = "10x", n =
         message: { role: "user", content: [{ type: "tool_result", tool_use_id: `${id}-local-tool` }] } });
       records.push({ type: "assistant", uuid: `${id}-answer-${index}`, parentUuid: records.at(-1).uuid,
         requestId: `${id}-request-${index}`, message: { id: `${id}-message-${index}`, role: "assistant",
-          content: index === usages.length - 1 ? [{ type: "text", text: `${id} finished` }]
+          content: index === usages.length - 1 ? [{ type: "text", text: quiet ? "" : `${id} finished` }]
             : [{ type: "tool_use", id: `${id}-local-tool`, name: "Bash", input: {} }],
           usage: Object.fromEntries(["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"].map((key, i) => [key, values[i]])) } });
     });
     records[1].parentUuid = `${id}-attachment`;
     records.push({ type: "attachment", uuid: `${id}-attachment`, parentUuid: records[0].uuid,
+      attachment: { type: "directory", content: "private-prompt ignored attachment" } });
+    if (branch && id === "step-agent") records.push({ type: "attachment", uuid: `${id}-branch`, parentUuid: records[0].uuid,
       attachment: { type: "directory", content: "private-prompt ignored attachment" } });
     for (const record of records) Object.assign(record, { sessionId: "native-session", agentId: id, version: "2.1.311", isSidechain: true });
     transcripts.set(file, records);
@@ -56,9 +65,10 @@ export function claudeUsageFixture({ project = makeProject(), chain = "10x", n =
     native.push({ hook_event_name: "PreToolUse", session_id: "native-session", tool_name: "Agent", tool_use_id: runId,
       ...parentField, tool_input: { description, prompt } },
     { hook_event_name: "SubagentStop", session_id: "native-session", agent_id: id, agent_type: "agent-smith:step",
-      agent_transcript_path: file, last_assistant_message: `${id} finished` },
+      agent_transcript_path: file, ...(quiet ? {} : { last_assistant_message: `${id} finished` }) },
     { hook_event_name: "PostToolUse", session_id: "native-session", tool_name: "Agent", tool_use_id: runId,
-      ...parentField, tool_response: { status: "completed", agentId: id, totalTokens: usages.at(-1).reduce((a, b) => a + b, 0) } });
+      ...parentField, tool_response: async && id === "step-agent" ? { status: "async_launched", agentId: id }
+        : { status: "completed", agentId: id, totalTokens: usages.at(-1).reduce((a, b) => a + b, 0) } });
     agents.set(id, { id, parent, runId, usages, records });
   };
   add("step-agent", null, "tool-root", "private-prompt-root", [[10, 2, 30, 5], [20, 3, 40, 7]]);
@@ -81,8 +91,13 @@ export function claudeUsageFixture({ project = makeProject(), chain = "10x", n =
     event("tool_result", { agent_id: child.parent, tool_use_id: child.runId, tool_name: "Agent", success: "true" });
   }
   request(agents.get("step-agent"), 1);
+  if (telemetryOnly) event("api_request", { agent_id: "step-agent", request_id: "step-agent-side-query",
+    ...Object.fromEntries(claudeBuckets.map(key => [key, 1])) });
+  if (telemetryOnly === "response") event("assistant_response", { agent_id: "step-agent", request_id: "step-agent-side-query", "message.uuid": "step-agent-side-answer" });
+  const returned = () => event("tool_result", { tool_use_id: "tool-root", tool_name: "Agent", success: "true" });
+  if (async) returned();
   event("subagent_completed", { agent_id: "step-agent", total_tokens: 70 });
-  event("tool_result", { tool_use_id: "tool-root", tool_name: "Agent", success: "true" });
+  if (!async) returned();
   const resource = { attributes: [otelAttribute("process.pid", 4242), otelAttribute("process.creation.time", descriptor.process.createdAt)] };
   const write = () => {
     fs.writeFileSync(descriptor.sources.nativeFile, native.map(record => JSON.stringify(record)).join("\n") + "\n");
