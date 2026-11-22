@@ -35,6 +35,8 @@ const FAKE = `#!${process.execPath}
 const fs = require("node:fs");
 const path = require("node:path");
 const args = process.argv.slice(2);
+// The init advisory runs a fixed no-op. Runtime fixtures count and configure only the runner's sandbox probe.
+if (args[0] === "sandbox" && args.at(-2) === "-e" && args.at(-1) === "") return;
 const fixture = process.env.CODEX_FIXTURE;
 // Token-like names only, never their values: host credentials must not land in fixture files.
 const seenEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => /TOKEN/i.test(name) || name === "CODEX_TEST_KEEP")

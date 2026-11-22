@@ -3,7 +3,7 @@ project: agent-smith
 version: 1
 status: draft
 created: 2026-10-30
-updated: 2026-11-16
+updated: 2026-11-17
 prd_version: 2
 main_goal: quality
 top_blocker: external
@@ -42,14 +42,14 @@ The owner wants to start an authorized workflow and let it finish without repeat
 
 The north star is the first complete user flow that provides direct evidence the milestone's intended behavior works.
 
-**S-12: First unattended plan-based delivery** requires a fresh Claude-only run reaching a reviewable pull request. S-14 delivered the delegation implementation. The first S-12 attempt left all three Manual delivery checks open. The owner decision on PR #214 blocks delivery. [Wave decision](../changes/WAVES.md#decision-track)
+**S-12: First unattended plan-based delivery** requires a fresh Claude-only run reaching a reviewable pull request. S-14 delivered the delegation implementation. The first S-12 attempt left all three Manual delivery checks open; one live run on 2026-11-22 proved them ([PR #266](https://github.com/xycu/agent-smith/pull/266), record in the S-12 archive `evidence/live-proof.md`). [Wave decision](../changes/WAVES.md#decision-track)
 
 ## At a glance
 
 | ID | Change ID | Outcome (user can …) | Prerequisites | PRD refs | Status |
 | --- | --- | --- | --- | --- | --- |
 | S-14 | nested-step-delegation | user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes. | —; alone in Wave 0 | MS-01, MS-02, US-03, US-05, FR-007, FR-014 | done |
-| S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | blocked |
+| S-12 | first-unattended-delivery | user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request. | S-14 | US-03, FR-001, FR-003, FR-007, FR-011, FR-012 | done |
 | S-13 | openspec-2-upgrade | user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions. | — | US-03, FR-006, FR-008, FR-020 | done |
 | S-15 | actionable-run-prerequisites | user can identify a missing prerequisite or execution permission and the action needed to start the selected workflow configuration. | S-12, S-13, S-14 | US-04, FR-013 | proposed |
 | S-16 | resumable-unattended-runs | user can resume an interrupted run with preserved work, consistent progress and results matched to the correct invocation. | S-15 | US-05, FR-008, FR-014 | proposed |
@@ -98,12 +98,12 @@ Slice numbering continues after M-1's S-11 so prior Done entries retain their me
 - **PRD refs:** US-03, FR-001, FR-003, FR-007, FR-011, FR-012
 - **Prerequisites:** S-14
 - **Schedule:** Wave 3 of WAVES v3 reserves a fresh headless Claude-only run on the Wave 2 release, alongside state and setup fixes. [Wave 3](../changes/WAVES.md#wave-3)
-- **Blockers:** The run on PR #214 archived the change with zero of Manual rows 3.1–3.3 proved. The owner must choose proof on the Wave 2 release or explicitly defer those rows to S-20. The proof requires authenticated host/model access, project trust and review-remote credentials. [PR #214](https://github.com/xycu/agent-smith/pull/214) · [Owner decision track](../changes/WAVES.md#decision-track)
+- **Blockers:** none. The run on PR #214 archived the change with zero of Manual rows 3.1–3.3 proved; the owner chose proof over deferral and one live run proved them on 2026-11-22 ([PR #266](https://github.com/xycu/agent-smith/pull/266), with caveats in the S-12 archive `evidence/live-proof.md`). [PR #214](https://github.com/xycu/agent-smith/pull/214) · [Owner decision track](../changes/WAVES.md#decision-track)
 - **Unknowns:**
   - Which eligible change and exact host configuration provide the first representative run? — Owner: maintainer with the user. Block: no, select during planning.
   - Which fresh-session discovery or guard-delivery problems appear on the normal path? — Owner: maintainer. Block: no, establish through the first live proof.
 - **Risk:** Fresh-host setup can invalidate a normal workflow despite passing automated contracts, so this flow exposes that dependency first.
-- **Status:** blocked
+- **Status:** done
 
 ### S-13: Complete the specification-based workflow on OpenSpec 2.0.0
 
@@ -288,3 +288,4 @@ Entries 1–11 reproduce the PRD decision and evidence register verbatim. Their 
 - **S-11: user can have the complexity of a change scored by an LLM on a cheap model, with the scores stored with evidence and unknowns in a machine-readable file, and have the router use them next to the deterministic signals.** — Archived 2026-11-02 → `context/archive/2026-11-02-llm-complexity-scorer/`. Lesson: —.
 - **S-13: user can run the specification-based workflow with OpenSpec 2.0.0 and matching integration instructions.** — Archived 2026-11-16 → `context/archive/2026-11-16-openspec-2-upgrade/`. Lesson: —. Owner-approved deferral of six live-host cells to S-20 is recorded in [archive acceptance](../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision).
 - **S-14: user can have a pipeline step delegate work to child subagents and receive their completed results before the step finishes.** — Archived 2026-11-16 → `context/archive/2026-11-16-nested-step-delegation/`. Lesson: —. Owner-directed context closeout carries native qualification rows 1.3 and 3.4 into S-20.
+- **S-12: user can start a Claude-only plan-based change once and receive reviewable completed work on a pull request.** — Archived 2026-11-17 → `context/archive/2026-11-17-first-unattended-delivery/`. Lesson: —.

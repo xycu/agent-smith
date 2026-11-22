@@ -13,7 +13,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs and OpenSpec skill chains.
 
 ## Commands
 
-Run the tests after any change to `route.mjs`, a module under `scripts/`, `policy.json`, a prompt or `tools/`: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects.
+Run only the test files that cover what you changed; CI runs the full suite. Run the full suite only when the user asks or to reproduce a CI failure: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects.
 
 Smoke check: in a scratch project that has `context/changes/<id>/change.md` (or, for the OpenSpec chain, `openspec/config.yaml` and `openspec/changes/<id>/`), put `{ "isolation": { "require": false } }` in `context/foundation/agent-smith-policy.json`, then run `init <id> --goal "<text>"` (`--chain openspec` for that chain) and `status <id>`. It works when `init` returns `action: "run"` with a step; a halt is valid JSON too and proves nothing.
 
@@ -53,7 +53,7 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 - Policy keys are camelCase; step names are kebab-case (`plan-review`, `impl-review`).
 - A policy change belongs in `policy.json`. A per-project override belongs in `context/foundation/agent-smith-policy.json`, never in the router scripts under `scripts/`.
 - When you change tier logic (`tierFor` in `scripts/steps.mjs`, `decide` in `scripts/flow.mjs`), update the routing bullets in `docs/REFERENCE.md`. When you change `decideOpenspec` or the verification in `skills/openspec-pipeline/scripts/openspec.mjs`, update the OpenSpec section of `docs/REFERENCE.md`.
-- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. `route.mjs` keeps `next`, the undo on halt and the commands.
+- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. Only `route.mjs` imports `init-permissions.mjs`, which uses `state.mjs`, the bounded file reader and the shared Codex startup inputs. `route.mjs` keeps `next`, the undo on halt and the commands.
 
 ## Layout
 

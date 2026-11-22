@@ -186,6 +186,16 @@ function remoteHeadBranch(remote, strict = false) {
   return ref && ref.startsWith(prefix) ? ref.slice(prefix.length) : null;
 }
 
+function parseComparisonCount(text) {
+  if (!/^\d+$/.test(text ?? "")) return null;
+  const count = Number(text);
+  return Number.isSafeInteger(count) ? count : null;
+}
+
+function comparisonCount(ref) {
+  return parseComparisonCount(gitOut(["rev-list", "--count", `${ref}..HEAD`]));
+}
+
 // Remote refs that are ancestors of HEAD, each with the number of commits between it and HEAD.
 // One for-each-ref call: --merged HEAD keeps the ancestors, %(ahead-behind:HEAD) counts them (git 2.41 and later;
 // an ancestor is "0 <count>"). An older git rejects the field, so the counts then come from one rev-list per ancestor.
@@ -194,11 +204,11 @@ function ancestorCounts(prefix) {
   if (res.status === 0) {
     return res.stdout.split("\n").filter(Boolean).map((line) => {
       const [ref, ahead, behind] = line.split(" ");
-      return { ref, count: ahead === "0" ? Number(behind) : NaN };
+      return { ref, count: ahead === "0" ? parseComparisonCount(behind) : null };
     });
   }
   const refs = (gitOut(["for-each-ref", "--merged", "HEAD", "--format=%(refname)", prefix]) ?? "").split("\n").filter(Boolean);
-  return refs.map((ref) => ({ ref, count: Number(gitOut(["rev-list", "--count", `${ref}..HEAD`])) }));
+  return refs.map((ref) => ({ ref, count: comparisonCount(ref) }));
 }
 
 function automaticBase(name, branch, config, defaultBranch) {
@@ -215,25 +225,38 @@ function automaticBase(name, branch, config, defaultBranch) {
   return runGit(["check-ref-format", `refs/heads/${name}`]).status === 0;
 }
 
-// The nearest remote branch the run descends from: fewest commits between it and HEAD, ties to <remote>/HEAD.
-function nearestBase(remote, branch, config, head) {
-  const prefix = `refs/remotes/${remote}/`;
+function nearestBase(ancestors, prefix, branch, config, head) {
+  const defaults = head === null && Array.isArray(config.defaultBranches) ? config.defaultBranches : [];
   let best = null;
-  for (const { ref, count } of ancestorCounts(prefix).sort((a, b) => (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0))) {
+  for (const { ref, count } of ancestors.sort((a, b) => (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0))) {
     const name = ref.slice(prefix.length);
-    if (!automaticBase(name, branch, config, head)) continue;
-    if (!Number.isInteger(count)) continue;
-    if (!best || count < best.count || (count === best.count && name === head && best.name !== head)) best = { name, count };
+    if (count === null || !automaticBase(name, branch, config, head)) continue;
+    const index = defaults.indexOf(name);
+    const priority = index === -1 ? Infinity : index;
+    if (!best || count < best.count || (count === best.count && priority < best.priority)) {
+      best = { name, count, priority };
+    }
   }
-  return best ? best.name : null;
+  return best;
 }
 
 function resolveBase(opts, branch, repo, config) {
   if (opts.base) return { base: opts.base };
   const head = remoteHeadBranch(opts.remote);
-  const nearest = nearestBase(opts.remote, branch, config, head);
-  if (nearest) return { base: nearest };
-  if (automaticBase(head, branch, config, head)) return { base: head };
+  const prefix = `refs/remotes/${opts.remote}/`;
+  const ancestors = ancestorCounts(prefix);
+  const nearest = nearestBase(ancestors, prefix, branch, config, head);
+  if (nearest?.name === head) return { base: head };
+  if (automaticBase(head, branch, config, head)) {
+    if (!nearest) return { base: head };
+    const ref = `${prefix}${head}`;
+    const ancestor = ancestors.find((candidate) => candidate.ref === ref);
+    let count = ancestor?.count ?? null;
+    // Verify an off-ancestry ref literally, since revision lookup can fall through to other namespaces.
+    if (!ancestor && runGit(["show-ref", "--verify", "--quiet", ref]).status === 0) count = comparisonCount(ref);
+    if (count !== null && count <= nearest.count) return { base: head };
+  }
+  if (nearest) return { base: nearest.name };
   if (repo) {
     const res = runGh(["repo", "view", repo, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"], opts.timeoutMs);
     const name = res.status === 0 ? res.stdout.trim() : "";
