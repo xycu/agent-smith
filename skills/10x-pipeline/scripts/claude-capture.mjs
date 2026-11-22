@@ -7,12 +7,12 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { removeTree } from "./remove-tree.mjs";
 import { readBoundedFile } from "./usage.mjs";
-import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_CAPTURE_RELEASES, appendCapture, captureFile, endpointPattern,
+import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_CAPTURE_MIN_VERSION, appendCapture, captureFile, claudeCaptureSupported, endpointPattern,
   markCaptureFailure, object, privateRoot, projectTelemetry, readCaptureBinding, sessionIdentifier } from "./claude-capture-data.mjs";
 
 const script = fileURLToPath(import.meta.url);
 const pluginRoot = fs.realpathSync(fileURLToPath(new URL("../../../", import.meta.url)));
-const guidance = "Use the ordinary claude command, or use a supported release (" + CLAUDE_CAPTURE_RELEASES.join(", ") + ").";
+const guidance = "Use the ordinary claude command, or use Claude Code " + CLAUDE_CAPTURE_MIN_VERSION + " or later.";
 const settingsConflict = key => /^(?:OTEL_|BETA_TRACING_|CLAUDE_CODE_OTEL_|CLAUDE_CODE_ENHANCED_TELEMETRY_BETA$)/.test(key)
   || [CAPTURE_ENV, "AGENT_SMITH_CLAUDE_SESSION", "CLAUDE_CODE_ENABLE_TELEMETRY", "DISABLE_TELEMETRY",
     "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC"].includes(key);
@@ -71,7 +71,7 @@ function claudeExecutable() {
 function installedVersion(executable) {
   const probe = spawnSync(executable, ["--version"], { encoding: "utf8", timeout: 5000, maxBuffer: 8192 });
   const version = probe.status === 0 && /^(\d+\.\d+\.\d+)(?: \(Claude Code\))?\s*$/.exec(probe.stdout)?.[1];
-  if (!CLAUDE_CAPTURE_RELEASES.includes(version)) throw new Error("Installed Claude Code version is not qualified for capture.");
+  if (!claudeCaptureSupported(version)) throw new Error("Installed Claude Code version is not qualified for capture.");
   return version;
 }
 
@@ -79,7 +79,7 @@ export function execClaude([executable, hostVersion, sessionId, endpoint, transc
   const root = process.env[CAPTURE_ENV];
   privateRoot(root);
   if (!path.isAbsolute(executable) || !path.isAbsolute(transcriptRoot) || !sessionIdentifier(sessionId)
-      || !endpointPattern.test(endpoint) || !CLAUDE_CAPTURE_RELEASES.includes(hostVersion)) throw new Error("Invalid capture startup binding.");
+      || !endpointPattern.test(endpoint) || !claudeCaptureSupported(hostVersion)) throw new Error("Invalid capture startup binding.");
   // execve replaces this wrapper, preserving the PID and process creation time the receiver checks.
   const boundProcess = { pid: process.pid, createdAt: new Date(performance.timeOrigin).toISOString() };
   const binding = { sessionId, hostVersion, endpoint, transcriptRoot, process: boundProcess };
@@ -200,7 +200,7 @@ async function launch() {
 if (process.argv[1] && path.resolve(process.argv[1]) === script) {
   const [command, ...args] = process.argv.slice(2);
   try {
-    if (command === "--versions" && !args.length) process.stdout.write(CLAUDE_CAPTURE_RELEASES.join("\n") + "\n");
+    if (command === "--versions" && !args.length) process.stdout.write(CLAUDE_CAPTURE_MIN_VERSION + " or later\n");
     else if (command !== undefined) throw new Error("Start capture without arguments to reserve a fresh interactive Claude session.");
     else process.exitCode = await launch();
   } catch (error) {

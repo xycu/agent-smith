@@ -4,7 +4,7 @@ import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { cleanInvocation, cleanUsage, normalizeAccounting, readBoundedLines, unavailableEvidence, USAGE_LIMITS } from "./usage.mjs";
-import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_CAPTURE_RELEASES, assertCaptureAvailable, attributes, captureFile, captureStat,
+import { CAPTURE_ENV, CAPTURE_LIMITS, assertCaptureAvailable, attributes, captureFile, captureStat, claudeCaptureSupported,
   fail, hash, identifier, integer, numeric, object, projectNative, readCaptureBinding, scalar, tokenBuckets, validProcess } from "./claude-capture-data.mjs";
 
 export const CLAUDE_USAGE_LIMITS = { descriptorBytes: USAGE_LIMITS.fileBytes, recordBytes: CAPTURE_LIMITS.recordBytes,
@@ -105,7 +105,7 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
       hostProcess = binding.process;
     } else {
       if (!invocation || invocation.host !== "claude") fail("missing-identity");
-      if (!CLAUDE_CAPTURE_RELEASES.includes(hostVersion)) fail("unsupported-host");
+      if (!claudeCaptureSupported(hostVersion)) fail("unsupported-host");
       if (!object(sources) || ![sources.root, sources.nativeFile, sources.telemetryFile].every(value => typeof value === "string" && path.isAbsolute(value))) fail("missing-source");
       if (!validProcess(hostProcess)) fail("missing-identity");
     }

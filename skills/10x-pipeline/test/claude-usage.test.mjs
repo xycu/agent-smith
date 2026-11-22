@@ -84,7 +84,7 @@ test("late exports remain unavailable until terminal and exact request membershi
 });
 
 for (const [name, mutate, reason] of [
-  ["unsupported host", f => { f.descriptor.hostVersion = "2.1.312"; }, "unsupported-host"],
+  ["unsupported host", f => { f.descriptor.hostVersion = "2.1.310"; }, "unsupported-host"],
   ["missing process provenance", f => { delete f.descriptor.process; }, "missing-identity"],
   ["resumed process", f => { f.resource.attributes[0] = otelAttribute("process.pid", 4243); }, "ambiguous-history"],
   ["missing native stop", f => { f.native.splice(f.native.findIndex(record => record.hook_event_name === "SubagentStop"), 1); }, "incomplete-capture"],
@@ -406,7 +406,7 @@ test("default-off, a failed opt-in and unsupported host are distinct and explici
   unavailable(off, "capture-disabled");
   assert.match(off.usageEvidence.explanation, /node <absolute-plugin-scripts>\/claude-capture.mjs/);
   unavailable(collectClaudeUsage(f.descriptor, { ...f.env, AGENT_SMITH_CLAUDE_CAPTURE: path.join(f.root, "missing") }), "missing-source");
-  fs.writeFileSync(captureFile(f.root, "binding"), JSON.stringify({ ...f.binding, hostVersion: "2.1.323" }));
+  fs.writeFileSync(captureFile(f.root, "binding"), JSON.stringify({ ...f.binding, hostVersion: "2.1.310" }));
   unavailable(collectClaudeUsage(f.descriptor, f.env), "unsupported-host");
   assert.equal(collectClaudeUsage(claudeUsageFixture().descriptor, f.env).usage.totalTokens, 151);
 });

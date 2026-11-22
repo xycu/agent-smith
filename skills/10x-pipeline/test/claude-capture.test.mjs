@@ -5,7 +5,7 @@ import path from "node:path";
 import { once } from "node:events";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { CAPTURE_ENV, CAPTURE_LIMITS } from "../scripts/claude-capture-data.mjs";
+import { CAPTURE_ENV, CAPTURE_LIMITS, claudeCaptureSupported } from "../scripts/claude-capture-data.mjs";
 import { cleanupAll, makeProject } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -180,11 +180,11 @@ test("conflicting telemetry settings, managed policy and unqualified versions fa
   assert.equal(managed.status, 2);
   assert.match(managed.stderr, /managed Claude policy/);
   assert.deepEqual(fs.readdirSync(f.temp), []);
-  const other = launcherFixture("", "2.1.323");
+  const other = launcherFixture("", "2.1.310");
   const unsupported = other.launch();
   assert.equal(unsupported.status, 2);
-  assert.match(unsupported.stderr, /not qualified.*supported release \(2\.1\.311\)/);
-  assert.equal(other.launch(["--versions"]).stdout.trim(), "2.1.311");
+  assert.match(unsupported.stderr, /not qualified.*Claude Code 2\.1\.311 or later/);
+  assert.equal(other.launch(["--versions"]).stdout.trim(), "2.1.311 or later");
   assert.deepEqual(fs.readdirSync(other.temp), []);
 });
 
@@ -228,4 +228,9 @@ test("launcher interruption settles the bound process and receiver before cleanu
   assert.throws(() => process.kill(ready.pid, 0), { code: "ESRCH" });
   assert.equal(fs.existsSync(ready.root), false);
   await assert.rejects(fetch(ready.endpoint));
+});
+
+test("the capture version floor accepts the floor and later releases only", () => {
+  for (const version of ["2.1.311", "2.1.312", "2.1.323", "2.1.1000", "2.2.0", "3.0.0"]) assert.equal(claudeCaptureSupported(version), true, version);
+  for (const version of ["2.1.310", "2.0.999", "1.99.99", "2.1", "2.1.311-beta", "v2.1.311", "", undefined, 2.1]) assert.equal(claudeCaptureSupported(version), false, String(version));
 });
