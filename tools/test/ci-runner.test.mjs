@@ -57,7 +57,7 @@ test("CI installs and selects the pinned contract CLI between Node setup and the
   assert.match(step, /mktemp -d "\$RUNNER_TEMP\/openspec\.XXXXXX"/);
   assert.match(step, /npm_config_cache="\$prefix\/npm-cache"/);
   assert.match(step, /npm_config_userconfig="\$prefix\/npmrc"/);
-  assert.match(step, /npm install --prefix "\$prefix" --no-save --package-lock=false @fission-ai\/openspec@2\.0\.0\n/);
+  assert.match(step, /npm install --prefix "\$prefix" --no-save --package-lock=false --ignore-scripts @fission-ai\/openspec@2\.0\.0\n/);
   assert.match(step, /openspec="\$prefix\/node_modules\/\.bin\/openspec"/);
   assert.match(step, /version="\$\("\$openspec" --version\)"/);
   assert.match(step, /test "\$version" = "2\.0\.0"/);
@@ -113,7 +113,7 @@ npm() {
         assert.match(result.stdout, /OpenSpec 2\.0\.0/);
         const prefix = selected.slice("OPENSPEC_BIN=".length, -"/node_modules/.bin/openspec".length);
         assert.deepEqual(fs.readFileSync(npmLog, "utf8").trim().split("\n"),
-          ["install", "--prefix", prefix, "--no-save", "--package-lock=false", "@fission-ai/openspec@2.0.0"]);
+          ["install", "--prefix", prefix, "--no-save", "--package-lock=false", "--ignore-scripts", "@fission-ai/openspec@2.0.0"]);
         exported.push(selected);
       } else {
         assert.equal(fs.existsSync(envFile), false, `${name}: failed setup must not publish a binary`);

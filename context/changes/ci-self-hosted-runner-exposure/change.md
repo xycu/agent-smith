@@ -1,9 +1,9 @@
 ---
 change_id: ci-self-hosted-runner-exposure
 title: Decide whether pull request CI may run on the self-hosted runner
-status: new
+status: impl_reviewed
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-22
 archived_at: null
 ---
 

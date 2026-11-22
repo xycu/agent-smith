@@ -1,6 +1,6 @@
 # ADR-020: Run CI on self-hosted TrueNAS runners
 
-- **Status:** Accepted, amended (Amendments 1 and 2)
+- **Status:** Accepted, amended (Amendments 1 through 3)
 - **Date:** 2026-11-11
 - **Deciders:** the repository owner (goal of change `ci-self-hosted-truenas`)
 - **Origin:** change `ci-self-hosted-truenas` (`context/changes/ci-self-hosted-truenas/plan.md`). It touches the CI job of ADR-008; no earlier decision is superseded.
@@ -77,3 +77,15 @@ The repository holds no runner setup. A runner for this repository needs:
 The owner confirmed that the TrueNAS installation works. Read-only API evidence reports six online labelled runners and the required fork approval policy. Same-repository PR CI run 43701664098 passed both jobs on TrueNAS. Main CI run 43703539173 passed the non-root guard and complete test suite on TrueNAS. Its logs show runner version 2.338.2, Node 24.22.3, Git 2.53.0 and the configured writable scratch directory.
 
 On 2026-11-15, none of the 177 pull requests examined came from a fork. All eight automated cases evaluating the two runner-selection expressions at that revision passed, including fork fallback to `ubuntu-latest`. The conditional live-fork check is recorded as not applicable to the available PRs. Historical findings remain in Amendment 1 and the original implementation review. [TrueNAS runner and fork-fallback evidence](../../context/archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md)
+
+## Amendment 3 — OpenSpec install and runner trust boundary
+
+All six CI test shards install OpenSpec 2.0.0 in a fresh prefix with `--ignore-scripts`, which suppresses npm lifecycle scripts during installation. The dependency tree remains unlocked, so transitive versions can change between runs. Running the CLI for the version check and contract fixtures still executes package and dependency code. [CI install step](../../.github/workflows/ci.yml#L52)
+
+Same-repository pull requests run CI and PR title jobs on TrueNAS. Pushes to `main` run the six test shards there. Fork pull requests select `ubuntu-latest` under the repository's workflow, and release jobs run on `ubuntu-latest`. A fork can change its proposed workflow, including runner selection, so the owner reviews workflow changes before approving an external run. [CI](../../.github/workflows/ci.yml) · [PR title](../../.github/workflows/pr-title.yml) · [Release](../../.github/workflows/release.yml)
+
+The fork approval gate is **Settings → Actions → General → Fork pull request workflows from outside collaborators**. The required value is **Require approval for all external contributors**, which holds their fork workflow runs for review before execution. The read-only GitHub API check recorded on 2026-11-15 returned `all_external_contributors`, which matches the required value. The earlier reading of `first_time_contributors` on 2026-11-11 fell short of this requirement. On 2026-11-22 the owner stated that the setting "Require approval for all external contributors" is still true today. This is the owner's statement, relayed through the maintaining session, and no API reading was taken on that date. [Archived acceptance, rows 3.5 and 3.6](../../context/archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md#rows-35-and-36)
+
+The owner accepted on 2026-11-21 that people, tokens and automation with write access to this repository can cause code to run on TrueNAS via a same-repository pull request without fork approval. This includes branches published by Agent Smith. [Owner decision and accepted residual risk](../../context/changes/ci-self-hosted-runner-exposure/frame.md#accepted-residual-risk)
+
+D4 requires limiting LAN routes to what CI needs. On 2026-11-22 the owner stated that the runner can reach nothing else on the home network: no other hosts or services. This is the owner's statement, relayed through the maintaining session; no network test in this repository supports it. Manual acceptance also requires green published PR CI across all six shards, with OpenSpec 2.0.0 verified and all five real contract cases passing without skips. [Manual acceptance checklist](../../context/changes/ci-self-hosted-runner-exposure/plan.md#manual)
