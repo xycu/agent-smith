@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 2,
+      "evidence": "change.md allows scanning or denying interpreter-fed bodies and leaves the bounded input handling strategy open."
+    },
+    "novelty": {
+      "score": 2,
+      "evidence": "skills/10x-pipeline/scripts/step-guard.mjs has a literal tokenizer and byte cap but needs heredoc tracking across command substitution and a way to classify oversized events."
+    },
+    "coupling": {
+      "score": 1,
+      "evidence": "hooks/hooks.json invokes one standalone guard, with implementation and regression coverage localized to step-guard.mjs and step-guard.test.mjs."
+    },
+    "discovery": {
+      "score": 0,
+      "evidence": "change.md names the guard, its Bash hook registration, the regression test file and the relevant functions."
+    },
+    "volume": {
+      "score": 2,
+      "evidence": "change.md calls for moderate parser and bounded-input changes plus paired regression cases and a Manual row."
+    },
+    "verification": {
+      "score": 2,
+      "evidence": "skills/10x-pipeline/test/step-guard.test.mjs already exercises the hook, and change.md also requires a live check with the installed plugin."
+    }
+  },
+  "unknowns": [
+    "The inputs do not define the full set of interpreter, wrapper and pipeline forms to recognize beyond the listed examples and the guard's existing literal-command scope.",
+    "The inputs do not establish whether Claude Code guarantees the location of identity fields relative to oversized command data in serialized hook events."
+  ],
+  "confidence": "medium"
+}

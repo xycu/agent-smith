@@ -106,14 +106,36 @@ test("a verified os-apply gets a step commit", { skip }, () => {
   assert.equal(Object.hasOwn(verify, "swept"), false);
 });
 
-test("a failed os-apply resets the code and tasks.md to startSha and writes the side ref", { skip }, () => {
-  const { wt } = freshRun();
+test("a failed os-apply restores both OpenSpec routing times after an interrupted rollback", { skip }, () => {
+  const wt = worktree(repo(PROPOSED, {
+    setup: (project) => writeVerify(project, "Verdict: FAIL\nCritical: 1\nWarnings: 0\n"),
+  }));
+  const verify = path.join(wt.agentDir, "verify.md");
+  const tasksTime = new Date("2026-01-01T10:00:00Z");
+  const verifyTime = new Date("2026-01-01T11:00:00Z");
+  fs.utimesSync(path.join(wt.changeDir, "tasks.md"), tasksTime, tasksTime);
+  fs.utimesSync(verify, verifyTime, verifyTime);
+  const prepared = initIn(wt);
+  assert.equal(prepared.json.step, "os-apply", prepared.stdout + prepared.stderr);
   const start = head(wt);
   const before = tasksOf(wt);
   fs.mkdirSync(path.join(wt.top, "src"), { recursive: true });
   fs.writeFileSync(path.join(wt.top, "src/half.sh"), "echo half\n");
   writeArtifacts(wt, { tasks: { done: 1, open: 1 } });
+  writeVerify(wt, "Verdict: PASS\nCritical: 0\nWarnings: 0\n");
   writeResult(wt, { status: "failed", note: "tests red" });
+  const hook = path.join(wt.base, "timestamp-fault.mjs");
+  fs.writeFileSync(hook, `import fs from "node:fs";
+const touch = fs.futimesSync;
+fs.futimesSync = (...args) => {
+  touch(...args);
+  process.exit(86);
+};
+`);
+  const interrupted = run(wt, ["next", wt.id], { env: { ...gitEnv(wt), NODE_OPTIONS: "--import=" + hook } });
+  assert.equal(interrupted.status, 86, interrupted.stdout + interrupted.stderr);
+  assert.ok(readLogEntries(wt)[0].timestamps.files.verify.sha256);
+  assert.notEqual(fs.statSync(verify).mtimeMs, verifyTime.getTime());
   const res = nextIn(wt);
   assert.equal(res.status, 0, res.stdout + res.stderr);
   assert.equal(res.json.step, "os-apply");
@@ -129,6 +151,8 @@ test("a failed os-apply resets the code and tasks.md to startSha and writes the 
   assert.equal(tasksOf(wt), before);
   const entries = readLogEntries(wt);
   assert.equal(entries[0].rolledBack, ref);
+  assert.equal(entries[0].timestamps, "completed");
+  assert.deepEqual(entries[1].before.mtimes, { tasks: tasksTime.getTime(), verify: verifyTime.getTime() });
   assert.equal(entries[1].template, "os-apply");
   assert.deepEqual(entries[1].before.ticks, 0);
   assert.match(entries[1].tierWhy, /\+1 for 1 failed attempt/);
@@ -152,6 +176,15 @@ test("an OpenSpec init in a worktree that holds context/changes/<id>/ halts", { 
   assert.equal(head(wt), start);
 });
 
+test("next --chain openspec halts and writes nothing when init never ran", { skip }, () => {
+  const main = repo();
+  const res = run(main, ["next", main.id, "--chain", "openspec"], { env: gitEnv(main) });
+  assert.equal(res.status, 1, res.stdout + res.stderr);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /init/);
+  assert.equal(fs.existsSync(path.join(main.base, CHANGE, "agent-smith")), false);
+});
+
 test("the fix-loop halt of an isolated run adds the commit rule", () => {
   // Run state only: the last entry is a verified os-verify with a step commit, so next makes no git call.
   const project = makeOpenspecProject({ policy: ON, ...TICKED });
@@ -169,6 +202,7 @@ test("the fix-loop halt of an isolated run adds the commit rule", () => {
   assert.equal(res.json.action, "halt", res.stdout);
   assert.equal(res.json.reason,
     `OpenSpec verify FAIL after 2 fix loops. Needs a human. Fix the issues, set the first lines of ${CHANGE}/agent-smith/verify.md ` +
-    'to "Verdict: PASS" and "Critical: 0", then run /agent-smith:openspec-pipeline demo again. ' +
+    'to "Verdict: PASS" and "Critical: 0", and remove the `- ` lines under `## Critical`. ' +
+    "Then run /agent-smith:openspec-pipeline demo again. " +
     "Commit the edit in the run worktree first: a failed step rolls back uncommitted edits.");
 });

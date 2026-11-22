@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeResult, readMetaFile, readLogEntries,
-  writeLog, writeMetaFile, entry, gitAvailable, gitEnv, gitInit, commitFiles,
+  seedRun, writeLog, writeMetaFile, entry, gitAvailable, gitEnv, gitInit, commitFiles,
   ruleTail,
 } from "./helpers.mjs";
 import { buildPlan } from "./phase-helpers.mjs";
@@ -110,10 +110,10 @@ function review(project, name, verdict, findings = "0 critical, 0 warnings") {
 }
 
 // A project whose plan, reviews and log stand right before the step under test.
-function staged(policy, { plan = planText(), reviews = [], log = [] } = {}) {
+function staged(policy, { plan = planText(), reviews = [], log = [], meta } = {}) {
   const project = makeProject({ plan, policy });
   for (const [name, verdict, findings] of reviews) review(project, name, verdict, findings);
-  if (log.length) writeLog(project, log);
+  if (log.length) seedRun(project, log, meta);
   return project;
 }
 
@@ -273,8 +273,12 @@ const CASES = [
   } },
   { template: "manual-verify-openai", make: (policy) => {
     const ladder = DEFAULT.ladder.map((rung) => ({ ...rung, provider: "openai" }));
-    const project = staged({ ...policy, ladder, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED });
-    return { project, res: standard(project) };
+    const project = staged({ ...policy, ladder, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED, meta: { providerMode: "codex" } });
+    return { project, res: standard(project, "Parse blank lines", ["--provider-mode=codex"]) };
+  } },
+  { template: "manual-verify-headless", make: (policy) => {
+    const project = staged({ ...policy, manualVerify: { minRigor: "lean" } }, { plan: MANUAL_PLAN, reviews: [["plan-review", "SOUND"]], log: IMPLEMENTED, meta: { host: "codex", providerMode: "claude" } });
+    return { project, res: standard(project, "Parse blank lines", ["--host=codex", "--provider-mode=claude"]) };
   } },
 ];
 const CASE = Object.fromEntries(CASES.map((c) => [c.template, c]));

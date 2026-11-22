@@ -11,6 +11,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { cleanEnv, makeProject, cleanupAll } from "./helpers.mjs";
 import { COMMENT_JQ } from "../scripts/pr-comment.mjs";
+import { runLockPath } from "../scripts/run-lock.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/pr-comment.mjs");
@@ -34,6 +35,7 @@ function tmpDir(prefix) {
 // Without --paginate the comments call prints comments.firstpage (one page) when that file exists; without --jq it
 // prints comments.nojq (raw JSON) when that file exists. Both fall back to comments.out.
 const SHIM = `#!/bin/sh
+if [ -n "$EXPECTED_RUN_LOCK" ] && [ ! -s "$EXPECTED_RUN_LOCK" ]; then exit 91; fi
 D="$FAKE_GH_DIR"
 n=$(( $(cat "$D/count" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$D/count"
@@ -644,7 +646,7 @@ test("mutation: without the author comparison a foreign marker comment would be 
   const dir = tmpDir("as-prc-mut-");
   const mutant = path.join(dir, "pr-comment.mjs");
   fs.writeFileSync(mutant, source.replace(needle, "true"));
-  for (const f of ["remove-tree.mjs", "pr-common.mjs"]) fs.copyFileSync(path.join(path.dirname(SCRIPT), f), path.join(dir, f));
+  for (const f of ["remove-tree.mjs", "run-lock.mjs", "pr-common.mjs"]) fs.copyFileSync(path.join(path.dirname(SCRIPT), f), path.join(dir, f));
   const scenario = () => postWorld({ comments: [entry(5, "mallory", `${markerOf("demo")}\n\nold`)] });
   const original = scenario();
   runScript(original, ["demo"]);
@@ -885,3 +887,31 @@ test("live: the real comment projection is one parseable object per line across 
     assert.ok([...c.head].length <= 200);
   }
 });
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: an archived comment respects the live lock through the final request`, { skip: win }, () => {
+    const w = postWorld();
+    const root = fs.realpathSync(w.project.root);
+    const live = path.join(root, chain === "10x" ? "context/changes" : "openspec/changes", w.id, "agent-smith");
+    const archive = path.join(root, chain === "10x" ? "context/archive" : "openspec/changes/archive", "2026-11-19-demo", "agent-smith");
+    fs.mkdirSync(path.dirname(archive), { recursive: true });
+    fs.renameSync(w.project.agentDir, archive);
+    const lock = path.join(w.fake, path.basename(runLockPath(live)));
+    const args = [w.id, "--report", path.join(archive, "report.md")];
+    const env = { TMPDIR: w.fake, EXPECTED_RUN_LOCK: lock };
+    const owner = JSON.stringify({ pid: process.pid, native: { claudeSessionId: "pending" } });
+    fs.writeFileSync(lock, owner);
+    const refused = runScript(w, args, { env });
+    assertSkip(refused, /^Execution suspended:/);
+    assert.ok(refused.json.reason.includes(lock));
+    assert.deepEqual(calls(w), []);
+    assert.deepEqual(fs.readdirSync(w.fake).filter(f => f.endsWith(".lock")), [path.basename(lock)]);
+    assert.equal(fs.readFileSync(lock, "utf8"), owner);
+
+    fs.unlinkSync(lock); // Fixture owner releases its lock.
+    const result = runScript(w, args, { env }).json;
+    assert.equal(result.action, "created", JSON.stringify(result));
+    assert.deepEqual(methodsOf(w), ["POST"]);
+    assert.deepEqual(fs.readdirSync(w.fake).filter(f => f.endsWith(".lock")), []);
+  });
+}

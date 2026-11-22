@@ -1,0 +1,2 @@
+- 1.5 — real Codex 0.171.0 is installed, but the documented baseline CLI 0.169.0 is not, and installing it means a download from an external source (not allowed unattended); clearance in a trusted project and outer sandbox restrictions cannot be exercised here, and the row needs both versions.
+- 1.6 — needs a Claude linked-worktree session with sandbox settings enabled; this unattended step runs unsandboxed, so the host grant behaviour and the sandboxed local Git write cannot be observed. No test or script can substitute for the host's behaviour.

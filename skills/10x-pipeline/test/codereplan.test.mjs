@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, init, next, writeResult, readLogEntries, writeMetaFile, entry, writeLog
+  cleanupAll, makeProject, init, next, writeResult, readLogEntries, writeMetaFile, entry, seedRun, writeLog
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { buildPlan, pendingEntry } from "./phase-helpers.mjs";
@@ -31,7 +31,7 @@ function project({ plan = OPEN_PLAN(), log, policy = null, review = null }) {
   const p = makeProject({ plan, policy });
   writeReview(p, "plan-review", { verdict: "SOUND" });
   if (review) writeReview(p, "impl-review", review);
-  writeLog(p, log);
+  seedRun(p, log);
   return p;
 }
 

@@ -1,9 +1,13 @@
 # ADR-010: Run every change in its own worktree, commit each step, roll back a failed step, and make the first implement attempt cheaper
 
-- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending); amended through Amendment 4
+- **Status:** Accepted (owner, 2026-11-08), amended through Amendment 5. Isolated edits, step commits and scratch rollback have recorded results. The permission prompt and first-attempt savings still need evidence. [Live checks](#live-checks) · [First-attempt experiment](#ab-result)
 - **Date:** 2026-11-04
 - **Deciders:** unattended implementation run of change `worktree-step-commits`; the repository owner confirms or changes the readings below
 - **Origin:** change `worktree-step-commits` (`context/changes/worktree-step-commits/change.md`, `plan.md`, `research.md` and `reviews/plan-review.md`). It widens the router's git-write rule in `AGENTS.md` (Hard Rules), which before this change allowed only the pre-archive commit of ADR-003 ("Archive adapter"). That commit is unchanged.
+
+## Rule in force
+
+Shared setup prepares or resumes the isolated worktree using its configured branch identity. The router commits verified step changes and reports paths swept in from outside the change. Before rollback it preserves working contents, commits made by the step and any distinct staged version under recovery refs. `isolation.require: false` opts out of isolated setup, these step commits and terminal publication. [Setup and rollback](../REFERENCE.md) · [Publication](ADR-017-run-branch-always-pushed-for-review.md)
 
 ## Context
 
@@ -27,7 +31,7 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** a log with executed steps and no `meta.isolated` **WHEN** `init` resumes it with `isolation.require` `true` **THEN** the router **MUST** halt and name the opt-out, so a run is isolated from its first step or not at all.
 
-**GIVEN** a project root **WHEN** the orchestrator makes the run worktree **THEN** it **MUST** put it at `<project root>/.claude/worktrees/agent-smith-<change-id>` on the branch `agent-smith/<change-id>`, and copy the change folder into it with its file times only when it creates the run branch.
+**GIVEN** a project root **WHEN** the orchestrator makes the run worktree **THEN** it **MUST** put it at `<project root>/.claude/worktrees/agent-smith-<change-id>` on the branch `agent-smith/<change-id>`, and copy the change folder into it with its file times when it creates the run branch. Amendment 6 covers retries of an interrupted copy.
 
 **GIVEN** an isolated run **WHEN** the router returns a prompt **THEN** it **MUST** start the prompt with the working-directory rules of `prompts/worktree.md`, which name the run root.
 
@@ -139,20 +143,20 @@ A failed step is reset to its `startSha`, as the change notes decide ("hard-rese
 
 ## Unverified assumptions
 
-- A subagent of a live run works in the worktree. The docs say a subagent starts in the main conversation's working directory; an orchestrator that itself runs inside a subagent never carries a `cd` over. The router therefore names the run root in every prompt, and the orchestrator runs each router call with `cd` into it. Not checked live.
+- A subagent of a live run works in the worktree. The docs say a subagent starts in the main conversation's working directory; an orchestrator that itself runs inside a subagent never carries a `cd` over. The router therefore names the run root in every prompt, and the orchestrator runs each router call with `cd` into it. Row 2.5 subsequently recorded edits confined to the worktree. [Archived isolation check](../../context/archive/2026-11-03-worktree-step-commits/plan.md#progress)
 - `.claude` is a protected directory. The documented exemption names "Claude's own git worktrees under `.claude/worktrees/`"; whether a worktree made by plain `git worktree add` counts is not stated. If it does not, Edit and Write under the worktree prompt even in `acceptEdits`, and an unattended run stalls. The untested fallback is to make the worktree with the `EnterWorktree` tool.
 - Hooks: git runs no hook on `git add -A`, `write-tree`, `commit-tree` or `update-ref`. A hook on the step commit can stage or write files; the post-commit checks halt on that.
 - Cost: no run has measured whether the cheaper first attempt saves tokens once its failures, retries and redone phases are counted.
 
 ## Live checks
 
-All pending. A human runs each check with the plugin installed from the branch and records the result here.
+The archived plan records outcomes at the original implementation revisions for rows 2.5, 3.5 and 4.4. Its Manual Testing Steps retain the separate permission-prompt check. [Recorded rows](../../context/archive/2026-11-03-worktree-step-commits/plan.md#progress) · [Permission check](../../context/archive/2026-11-03-worktree-step-commits/plan.md#testing-strategy)
 
 | Check | What it settles | Result |
 | --- | --- | --- |
-| Live check 1 | In a live run the subagent edits files only under the worktree, not in the main checkout, and Edit and Write under `.claude/worktrees/` do not prompt in `acceptEdits`. | Pending |
-| Live check 2 | `git log --oneline` in a run worktree shows the start commit and one `chore(<id>): step <n> <step>` commit per step that left changes, and the subjects pass `node tools/commit-lint.mjs`. | Pending |
-| Live check 3 | After a forced failed step, `git show refs/agent-smith/<id>/<run>/failed-<n> --stat` lists the partial edits and `git status` in the worktree is clean. | Pending |
+| Live check 1 | In a live run the subagent edits files only under the worktree, not in the main checkout, and Edit and Write under `.claude/worktrees/` do not prompt in `acceptEdits`. | Isolated edits recorded in row 2.5. Prompt-free Edit and Write under `acceptEdits` still require observation. |
+| Live check 2 | `git log --oneline` in a run worktree shows the start commit and one `chore(<id>): step <n> <step>` commit per step that left changes, and the subjects pass `node tools/commit-lint.mjs`. | Recorded in row 3.5 for changed steps. |
+| Live check 3 | After a forced failed step, `git show refs/agent-smith/<id>/<run>/failed-<n> --stat` lists the partial edits and `git status` in the worktree is clean. | Recorded in row 4.4 in a scratch worktree. |
 
 ## Decision rule
 
@@ -170,6 +174,8 @@ Anything else, including fewer than 5 comparable pairs, sets `escalation.firstAt
 
 Pending. A human runs the pairs and records here, per pair, `dropPercent`, `tokens.byModel`, `tokens.byTier`, the failed implement attempts and the rigor level of both arms, and the reasons of every pair that is not comparable, then the decision.
 
+The paired first-attempt experiment remains unmeasured. [first-attempt-drop-unmeasured](../../context/changes/first-attempt-drop-unmeasured/change.md)
+
 ## Amendment 1: the step commit records the code it takes (change step-commit-code-under-chore)
 
 - A step commit of an isolated run takes whatever the step left in the worktree under `chore(<id>): step <n> <step>`. When a step subagent leaves its code uncommitted, that code reaches `main` under a `chore` subject, which release-please hides: no changelog line, and a run of only `chore` and `docs` commits opens no release PR.
@@ -182,7 +188,7 @@ Pending. A human runs the pairs and records here, per pair, `dropPercent`, `toke
 
 Both pipeline skills call `skills/10x-pipeline/scripts/prepare-run.mjs <id> [--chain 10x|openspec]` from the original project root before router initialization. The standalone executable uses existing standalone helpers and Node built-ins. It owns setup sequencing and filesystem copying. The router owns isolation enforcement, run state, commits and rollback.
 
-Setup preserves the ordered `opt-out`, `in-run-worktree`, `in-flight-main`, `created`, `reused` and `attached` cases. A fresh branch starts from invoking HEAD with automatic upstream tracking suppressed. Fresh creation alone adds a needed local exclude, reports uncommitted paths outside the selected change folder and copies that folder with regular-file timestamps, modes and symlink targets preserved. Project prefixes are appended once to the selected worktree. Resume paths preserve destination bytes and timestamps. Git discovery preserves the source index.
+Setup preserves the ordered `opt-out`, `in-run-worktree`, `in-flight-main`, `created`, `reused` and `attached` cases. A fresh branch starts from invoking HEAD with automatic upstream tracking suppressed. Fresh creation alone adds a needed local exclude, reports uncommitted paths outside the selected change folder and copies that folder with regular-file timestamps, modes and symlink targets preserved. Project prefixes are appended once to the selected worktree. Ordinary resume paths preserve destination bytes and timestamps. Amendment 6 defines pending-copy recovery. Git discovery preserves the source index.
 
 Runtime outcomes print one JSON object and exit 0. Successful setup carries `reason: null` and an absolute `runRoot`. A setup failure carries a bounded `reason` and `runRoot: null`, retaining partial resources for inspection. Usage errors print a diagnostic on stderr and exit 2. Skills validate the result and stop before `init` on a failure signal or invalid output.
 
@@ -213,3 +219,21 @@ Saved invocation identity is checked first, followed by the established already-
 The router owns `meta.json` and `run.jsonl`, and the saved format needs no added field. Worktree directories use `.claude/worktrees/agent-smith-<id>`. Router recovery refs use `refs/agent-smith/`. The strict boolean isolation opt-out precedes prefix-specific validation. Both skills report saved setup identity and publication identity in terminal diagnostics.
 
 Deploy scripts and skills together. Existing default-prefix runs resume through their recorded identity. An older publisher can refuse a custom-prefix run after downgrade, so keep that run on a compatible revision or restore the fixed version. Roll back code with a new revert commit through the normal review process and retain run branches, worktrees and recovery refs.
+
+## Amendment 5 — Run branch belongs to the change id (2026-11-20)
+
+`validateRunBranch` accepted any branch under the prefix, so a run of change `foo` started in the worktree of run `bar` committed and rolled back on `bar`'s branch.
+
+**GIVEN** a run without a saved identity of the change id **WHEN** setup or `init` validates the branch **THEN** it **MUST** accept only `<prefix><id>` and `<prefix><id>-baseline`, and refuse any other branch under the prefix with a message that names the change id being started and the id the branch belongs to, before any write.
+
+**GIVEN** a saved identity (`meta.json` with the same id) **WHEN** its recorded branch is validated **THEN** it **MUST** start with `<prefix><id>`, so saved runs on other suffix branches resume. A recorded branch of another change is refused with the same message and without the `isolation.branchPrefix` recovery sentence.
+
+Known limit: the name cannot tell the baseline branch of `foo` from the run branch of a change called `foo-baseline`, and a saved identity of `foo` on `agent-smith/foo-bar` still resumes. No branch is deleted and no history is rewritten to recover; the user leaves the other worktree and runs `prepare-run.mjs <id>` from the original project root.
+
+## Amendment 6 — Retry an interrupted setup copy (2026-11-21)
+
+Before Git registers a fresh worktree, setup writes a complete JSON intent to a temporary file and renames it to `agent-smith-setup-<encodeURIComponent(branch)>.pending` in the Git common directory. The intent records the original project root, expected worktree, project prefix, chain and starting commit. The full-branch setup lock protects the intent, registration, overlay and final worktree checks. Setup clears the intent after successful validation. After an interruption, inspect the lock's PID and confirm setup and its Git process have stopped before manually removing the lock. Keep the intent for the retry.
+
+Rerun the same setup from the original project root after repairing the source. Setup verifies the invocation, registered worktree, Git common directory, branch and starting commit before applying the overlay. A completed retry reports `case: "reused"`, `copied: true` and `reason: null`, which keeps original inputs outside the post-init cleanup path. An ordinary resume reports `copied: false`. When router state exists in the destination, setup preserves it and requires a valid saved identity to resume. Ambiguous state, lost ownership or an unresolved copy error returns a bounded reason and `runRoot: null`. For a missing registered directory, inspect `git worktree prune --dry-run` before pruning.
+
+Older failed copies have no intent and need inspection and manual restoration of missing inputs after any worktree edits are preserved. An older executable can treat an incomplete worktree as an ordinary resume. Finish pending copies before downgrading or using mixed versions on a branch.

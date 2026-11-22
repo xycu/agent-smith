@@ -141,6 +141,16 @@ test("the sixth rule is the same line in both skills", () => {
   assert.equal(sixthRule(SKILLS["10x"]), sixthRule(SKILLS.openspec));
 });
 
+test("child notifications never certify a whole native step token total", () => {
+  for (const file of Object.values(SKILLS)) {
+    const source = fs.readFileSync(file, "utf8");
+    assert.match(source, /never map it to `totalTokens`, even for a flat step/);
+    assert.match(source, /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
+    assert.match(source, /Missing sources produce unavailable evidence through the same reader/);
+    assert.match(source, /child notifications never complete the step/);
+  }
+});
+
 test("the intro of both anti-stall sections names the sixth rule", () => {
   for (const [chain, file] of Object.entries(SKILLS)) {
     const intro = antiStall(file).find((l) => l.startsWith("Rules "));

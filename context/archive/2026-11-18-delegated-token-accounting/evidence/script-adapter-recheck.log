@@ -1,0 +1,6 @@
+Synthetic adapter recheck; no model launches, host capture, router intake or settlement proof.
+Codex 0.169.0 shapes: baseline verified 220; per-thread metadata sessionId from retained review => unavailable/missing-identity, no total.
+Claude 2.1.311 shapes (10x): baseline verified 151; numeric event.sequence intValue from retained review => unavailable/unsupported-schema, no total.
+Claude 2.1.311 shapes (openspec): baseline verified 151; numeric event.sequence intValue from retained review => unavailable/unsupported-schema, no total.
+PASS: current adapters reproduce both documented compatibility gaps; positive live paths remain unqualified.
+Scratch removed file by file: 10 files, 7 directories.

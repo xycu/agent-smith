@@ -25,8 +25,9 @@ function snapshot(dir) {
   for (const name of fs.readdirSync(dir).sort()) {
     const file = path.join(dir, name);
     if (fs.statSync(file).isDirectory()) {
+      files[name + "/"] = null;
       for (const [child, bytes] of Object.entries(snapshot(file))) files[`${name}/${child}`] = bytes;
-    } else files[name] = fs.readFileSync(file, "utf8");
+    } else files[name] = fs.readFileSync(file);
   }
   return files;
 }
@@ -35,8 +36,8 @@ test("the GPT overlay preserves all eight tier/effort positions without changing
   assert.deepEqual(Object.keys(PRESET), ["ladder"]);
   assert.deepEqual(PRESET.ladder.map((r) => r.effort), DEFAULT.ladder.map((r) => r.effort));
   assert.deepEqual(PRESET.ladder.map((r) => r.model), [
-    "gpt-6-luna", "gpt-6.1-sol", "gpt-6.1-sol", "gpt-6.1-sol",
-    "gpt-6-astra", "gpt-6-astra", "gpt-6-astra", "gpt-6-astra",
+    "gpt-6-luna", "gpt-6.2-sol", "gpt-6.2-sol", "gpt-6.2-sol",
+    "gpt-6.2-astra", "gpt-6.2-astra", "gpt-6.2-astra", "gpt-6.2-astra",
   ]);
   assert.equal(PRESET.ladder.every((r) => r.provider === "openai"), true);
   assert.deepEqual(DEFAULT.ladder.map((r) => r.model), ["haiku", "sonnet", "sonnet", "sonnet", "opus", "opus", "opus", "opus"]);
@@ -50,6 +51,83 @@ test("the GPT overlay preserves all eight tier/effort positions without changing
 for (const chain of ["10x", "openspec"]) {
   const make = (policy) => chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
   const start = (project, extra = []) => init(project, "fix typo", [...extra, "--chain", chain]);
+
+  test(`${chain}: damaged metadata cannot change a logged run's provider mode`, () => {
+    const p = make({});
+    const first = start(p, ["--host=codex", "--provider-mode=split"]).json;
+    assert.equal(first.action, "run");
+    writeResult(p, { status: "done", note: "keep the pending result for recovery" });
+    for (const [damaged, diagnostic] of [
+      ["not JSON", /Invalid JSON/], ["[]", /Expected a JSON object/], [null, /Recover its metadata/],
+    ]) {
+      if (damaged === null) fs.unlinkSync(path.join(p.agentDir, "meta.json"));
+      else writeMetaFile(p, damaged);
+      const before = snapshot(p.changeDir);
+      for (const args of [["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens=1"], ["status", p.id, "--report"]]) {
+        const response = run(p, [...args, "--chain", chain]);
+        assert.equal(response.status, 1, response.stdout);
+        assert.equal(response.json.action, "halt");
+        assert.match(response.json.reason, diagnostic);
+        assert.deepEqual(snapshot(p.changeDir), before);
+      }
+      const status = run(p, ["status", p.id, "--chain", chain]);
+      assert.equal(status.status, 0, status.stdout);
+      assert.equal(status.json.host, null);
+      assert.equal(status.json.providerMode, null);
+      assert.match(status.json.metadataProblem, diagnostic);
+      assert.equal(status.json.steps.find(step => step.n === first.n).provider, first.provider);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+  });
+
+  test(`${chain}: plain status diagnoses damaged metadata before a log exists`, () => {
+    const p = make({});
+    writeMetaFile(p, " \n");
+    const before = snapshot(p.changeDir);
+    const status = run(p, ["status", p.id, "--chain", chain]);
+    assert.equal(status.status, 0, status.stdout);
+    assert.equal(status.json.host, null);
+    assert.equal(status.json.providerMode, null);
+    assert.deepEqual(status.json.steps, []);
+    assert.ok(status.json.metadataProblem.includes(`${path.join(p.agentDir, "meta.json")}: Invalid JSON`));
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+
+  test(`${chain}: init accepts sparse metadata and retains its unknown fields`, () => {
+    const p = make({});
+    const legacy = { custom: { kept: true } };
+    writeMetaFile(p, legacy);
+    const first = start(p);
+    assert.equal(first.status, 0, first.stdout);
+    assert.equal(first.json.action, "run");
+    assert.equal(first.json.providerMode, "legacy");
+    assert.deepEqual(readMetaFile(p).custom, legacy.custom);
+  });
+
+  for (const host of ["claude", "codex"]) {
+    for (const mode of ["claude", "codex", "split", undefined]) {
+      test(`${chain} ${host} host, ${mode ?? "implicit"} mode resolves all roles`, () => {
+        const project = make({});
+        const flags = ["--host", host, ...(mode ? [`--provider-mode=${mode}`] : [])];
+        const result = start(project, flags);
+        assert.equal(result.json.action, "run", result.stdout);
+        assert.equal(result.json.providerMode, mode ?? host);
+        assert.equal(readMetaFile(project).providerMode, mode ?? host);
+        const assignments = result.json.providersByStep;
+        const hostProvider = host === "codex" ? "openai" : "claude";
+        const other = host === "codex" ? "claude" : "openai";
+        const roles = chain === "10x" ? Object.keys(DEFAULT.steps) : ["os-propose", "os-apply", "os-apply-fix", "os-verify", "os-archive"];
+        assert.deepEqual(Object.keys(assignments).sort(), roles.sort());
+        for (const role of roles) {
+          const external = ["plan", "implement", "os-propose", "os-apply"].includes(role);
+          const expected = mode === "split" ? (external ? other : hostProvider) : (mode ?? host) === "codex" ? "openai" : "claude";
+          assert.equal(assignments[role], expected, role);
+        }
+        assert.equal(result.json.provider, assignments[result.json.step]);
+        assert.equal(readMetaFile(project).provenance.flags.providerMode, mode ?? host);
+      });
+    }
+  }
 
   test(`${chain}: default and explicit Claude dispatch, host and legacy status/report`, () => {
     for (const explicit of [false, true]) {
@@ -68,7 +146,15 @@ for (const chain of ["10x", "openspec"]) {
       writeLog(p, [logged]);
       const meta = readMetaFile(p);
       delete meta.host;
+      delete meta.providerMode;
       writeMetaFile(p, meta);
+      const before = snapshot(p.changeDir);
+      const plain = run(p, ["status", p.id, "--chain", chain]).json;
+      assert.equal(plain.host, "claude");
+      assert.equal(plain.providerMode, "legacy");
+      assert.equal(plain.metadataProblem, undefined);
+      assert.equal(plain.steps[0].provider, "claude");
+      assert.deepEqual(snapshot(p.changeDir), before);
       const status = run(p, ["status", p.id, "--chain", chain, "--report"]);
       assert.equal(status.json.host, "claude");
       assert.equal(status.json.steps[0].provider, "claude");
@@ -123,7 +209,9 @@ for (const chain of ["10x", "openspec"]) {
       [{ ...GPT, codex: { profile: " " } }, [], /codex\.profile/],
       [{ ...GPT, codex: { profile: 12 } }, [], /codex\.profile/],
       [{ ...GPT, codex: { profile: "bad\nprofile" } }, [], /codex\.profile/],
-      [{}, ["--host", "codex"], /OpenAI-only ladder/],
+      [{}, ["--provider-mode", "openai"], /--provider-mode/],
+      [{}, ["--provider-mode="], /--provider-mode/],
+      [{ splitProviders: null }, ["--provider-mode=split"], /cannot replace.*splitProviders/],
       [{}, ["--host=other"], /--host/],
       [{}, ["--host"], /--host/],
     ];
@@ -148,6 +236,13 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(mismatch.status, 1, mismatch.stdout);
     assert.match(mismatch.json.reason, /Run host is codex/);
     assert.deepEqual(snapshot(p.changeDir), before);
+    const modeConflict = start(p, ["--provider-mode", "claude"]);
+    assert.equal(modeConflict.json.action, "halt");
+    assert.deepEqual(snapshot(p.changeDir), before);
+    const legacy = readMetaFile(p);
+    delete legacy.providerMode;
+    writeMetaFile(p, legacy);
+    assert.equal(start(p, ["--provider-mode", "codex"]).json.action, "halt");
     writeOverride(p, { ladder: DEFAULT.ladder });
     writeResult(p, { status: "failed", note: "fixture" });
     const changed = snapshot(p.changeDir);
@@ -161,7 +256,7 @@ for (const chain of ["10x", "openspec"]) {
     const p = make(GPT);
     const first = start(p, ["--host", "codex"]);
     assert.equal(first.json.action, "run", first.stdout);
-    writeOverride(p, { ...GPT, codex: { profile: "replacement-profile" }, ladder: PRESET.ladder.map((r) => ({ ...r, model: "new-model" })) });
+    writeOverride(p, { ...GPT, codex: { profile: "replacement-profile" }, ladder: [{ ...PRESET.ladder[0], model: "new-model" }] });
     writeResult(p, { status: "orchestrator-error", note: "no child started" });
     const again = run(p, ["next", p.id, "--chain", chain]);
     assert.equal(again.json.action, "run", again.stdout);
@@ -189,6 +284,7 @@ for (const chain of ["10x", "openspec"]) {
 test("a mixed ladder is supported under Claude without guessing providers from model names", () => {
   const ladder = DEFAULT.ladder.map((r, i) => i < 4 ? { ...r, provider: "openai" } : r);
   const p = makeProject({ policy: { ladder } });
+  writeMetaFile(p, { id: p.id, goal: "fix typo" });
   const first = init(p, "fix typo");
   assert.equal(first.json.action, "run", first.stdout);
   assert.equal(first.json.provider, "openai");
@@ -196,6 +292,49 @@ test("a mixed ladder is supported under Claude without guessing providers from m
   assert.equal(first.json.model, "sonnet", "model spelling must not choose a provider");
   assert.equal(first.json.host, "claude");
   assert.equal(first.json.profile, null);
+});
+
+test("mixed replacements keep ordinal gaps, provider-specific effort floors and shipped fallback rungs", () => {
+  const ladder = DEFAULT.ladder.map((r, i) => i === 2 ? { model: "custom", effort: "high", provider: "openai" } : r);
+  const steps = { plan: { baseTier: 2, minTier: 2, maxTier: 2 } };
+  for (const [mode, provider, model] of [["codex", "openai", "custom"], ["claude", "claude", "sonnet"]]) {
+    const p = makeProject({ policy: { ladder, steps } });
+    const action = init(p, "fix typo", ["--rigor=standard", `--provider-mode=${mode}`]).json;
+    assert.equal(action.provider, provider);
+    assert.equal(action.model, model);
+    assert.equal(action.effort, "high");
+    assert.equal(readLogEntries(p).at(-1).tier, provider === "claude" ? 3 : 2);
+  }
+  const p = makeProject({ policy: { ladder: [...ladder, DEFAULT.ladder[7], PRESET.ladder[7]] } });
+  const broken = init(p, "fix typo", ["--provider-mode=split"]);
+  assert.equal(broken.json.action, "halt");
+  assert.match(broken.json.reason, /Step plan uses openai.*ladder\[8\]/);
+  assert.equal(fs.existsSync(p.agentDir), false);
+});
+
+test("a short provider ladder validates only its assigned steps, including the OpenSpec repair role", () => {
+  const ladder = PRESET.ladder.slice(0, 4);
+  const steps = { "os-propose": { baseTier: 3, maxTier: 3 }, "os-apply": { maxTier: 3 } };
+  const start = (host, settings) => {
+    const p = makeOpenspecProject({ policy: { ladder, steps: settings } });
+    return init(p, "fix typo", ["--chain=openspec", `--host=${host}`, "--provider-mode=split"]).json;
+  };
+  assert.equal(start("claude", steps).action, "run");
+  const denied = start("claude", { "os-propose": steps["os-propose"] });
+  assert.match(denied.reason, /Step os-apply uses openai/);
+  const repair = start("codex", { "os-verify": { maxTier: 3 } });
+  assert.match(repair.reason, /Step os-apply-fix uses openai/);
+});
+
+test("late usage attaches to a recorded step after its provider ladder shrinks", () => {
+  const p = makeProject({ policy: GPT });
+  const first = init(p, "fix typo", ["--provider-mode=codex"]).json;
+  writeResult(p, { status: "failed", note: "fixture" });
+  assert.equal(run(p, ["next", p.id]).json.action, "run");
+  writeOverride(p, { ladder: [PRESET.ladder[0]] });
+  const late = run(p, ["usage", p.id, String(first.n), "--tokens=15"]);
+  assert.equal(late.json.attached, true, late.stdout);
+  assert.equal(readLogEntries(p).find((e) => e.n === first.n).usage.totalTokens, 15);
 });
 
 test("provider profile participates in provenance and drift tracking", () => {
@@ -212,7 +351,7 @@ test("provider profile participates in provenance and drift tracking", () => {
   assert.equal(next.json.profile, "new-profile");
 });
 
-function archivedAction(chain, capability = {}) {
+function archivedAction(chain, capability = {}, selection = {}) {
   const policy = { ...GPT, ...capability };
   const p = chain === "10x"
     ? makeProject({ policy, plan: planText({ done: 1 }) })
@@ -225,7 +364,7 @@ function archivedAction(chain, capability = {}) {
   const code = chain === "10x" ? "implement" : "os-apply";
   const review = chain === "10x" ? "impl-review" : "os-verify";
   writeLog(p, [entry(1, code, { provider: "openai", profile: GPT.codex.profile }), entry(2, review, { provider: "openai", profile: GPT.codex.profile })]);
-  writeMetaFile(p, { id: p.id, goal: "fixture", host: "codex", archive: true, ...(chain === "openspec" ? { chain } : {}) });
+  writeMetaFile(p, { id: p.id, goal: "fixture", host: "codex", archive: true, ...selection, ...(chain === "openspec" ? { chain } : {}) });
   gitInit(p);
   commitFiles(p, ["README.md"]);
   const before = git(p, ["rev-parse", "HEAD"]);
@@ -242,6 +381,16 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(result.json.host, "codex");
     assert.equal(Object.hasOwn(result.json, "resultFile"), false);
     assert.equal(readLogEntries(p).filter((e) => !e.skipped).length, 2);
+  });
+
+  test(`${chain}: archive resolves the stored mode on the original host`, { skip: noGit }, () => {
+    for (const [host, mode, provider] of [["codex", "claude", "claude"], ["claude", "split", "claude"], ["codex", "split", "openai"]]) {
+      const { result } = archivedAction(chain, {}, { host, providerMode: mode });
+      assert.equal(result.json.action, "archive", result.stdout);
+      assert.equal(result.json.provider, provider);
+      assert.equal(result.json.agent, provider === "claude" ? "agent-smith:step" : undefined);
+      assert.match(result.json.prompt, /Archive|archive/);
+    }
   });
 
   test(`${chain}: unsupported archive capability refuses before committing`, { skip: noGit }, () => {

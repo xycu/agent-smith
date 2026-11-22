@@ -1,0 +1,3 @@
+# Fresh Codex entry point check
+
+A disposable 10x plan step dispatched from this desktop session through the complete pre-review candidate's real Codex runner on 0.169.0. A native child read a synthetic nonce, the enclosing result returned it, settlement completed, and router intake retained elapsed time. The candidate marked tokens unavailable/missing-identity, reproducing the historical reader defect on fresh records. The separate scratch collector with the metadata field correction reconciled 154,871 observed tokens over two threads and five requests from the exact same completed invocation. The fixture intentionally reports a blocked plan to test accounting without touching a real change. It did not run the full change workflow.

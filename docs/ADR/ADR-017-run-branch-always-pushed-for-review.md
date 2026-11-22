@@ -1,10 +1,14 @@
 # ADR-017: Push every run branch and open its pull request for human review
 
-- **Status:** Accepted (the repository owner decided the two open review findings on 2026-11-09; the live checks below are still pending). Amendment 1 (2026-11-13) derives a conventional title for the pull request. Amendment 3 (2026-11-16) applies configured branch identity
+- **Status:** Accepted (owner, 2026-11-09, including the isolation opt-out), amended through Amendment 3. S-14 records a published run. The original throwaway-repository checks remain open. [Published run](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout) · [Original evidence register](../../context/archive/2026-11-09-worktree-pr-only/evidence/unproven.md)
 - **Date:** 2026-11-09
 - **Deciders:** unattended implementation run of change `worktree-pr-only`; the repository owner decided the opt-out (F1) and the number of this record (F9)
 - **Origin:** change `worktree-pr-only` (`context/changes/worktree-pr-only/change.md`, `plan.md` and `reviews/plan-review.md`). The goal: "All work must done on worktrees and always pushed to be reviewd by human on PRs - no exceptions". It builds on ADR-010 (run worktree, start and step commits) and on the relaxed git rule of `AGENTS.md` (Hard Rules, commit 2d28f0c), which lets code, skills and prompts push a branch and create or edit pull requests and forbids only operations that cannot be undone.
 - **Number:** ADR-014, ADR-015 and ADR-016 are reserved by the changes `archive-manual-gate`, `neutral-orchestrator-retry` and `no-recursive-delete`, which run in parallel with this one, so this record is ADR-017.
+
+## Rule in force
+
+At a terminal action the orchestrator runs `open-pr.mjs`, which validates the configured run branch and saved identity, pushes without force, and opens a PR with a Conventional Commit title or reuses the existing PR. The owner retains review and merge. `isolation.require: false` skips publication. Only the orchestrator posts a report comment with explicit authorization. Checks requiring a real PR, its CI or an external comment belong to Manual acceptance. [Publisher](../../skills/10x-pipeline/scripts/open-pr.mjs) · [Acceptance ownership](#amendment-2--step-publication-and-acceptance-ownership-2026-11-15)
 
 ## Context
 
@@ -39,7 +43,9 @@ The owner decided (review finding F1) to keep the `isolation.require: false` opt
 
 1. Guards: a git work tree, a linked worktree (`--git-dir` differs from `--git-common-dir`) and HEAD on `agent-smith/<change-id>`. Otherwise it skips before it writes anything.
 2. Base: `--base`, else the nearest remote branch the run descends from (fewest commits between it and HEAD, ties to the branch `<remote>/HEAD` points to; `<remote>/HEAD`, the run branch's own remote ref and `<remote>/agent-smith/*` are left out), else `<remote>/HEAD`, else `gh repo view`. No commit beyond the base skips with nothing committed.
-3. Leftover commit: what the worktree still holds is committed as `chore(<change-id>): final run state` with `git add -A`, hooks and signing. A failed commit unstages only the paths its own add staged, so an entry staged before the script ran stays staged, and the script pushes what exists.
+3. The leftover commit starts with the router's read-only Git operation check. A worktree-local merge, rebase, cherry-pick, revert or sequencer marker, an unmerged entry anywhere in the index or a failed probe skips the commit before status or staging. The worktree, index, operation metadata and local HEAD stay intact. CLI JSON reports `committed: false`, the reason in `commitError` and null `commit` and `swept`. The ordinary push and subsequent PR handling still use existing commits. A detached HEAD, including during a rebase, hits the earlier isolation refusal with null commit fields and skips publication entirely.
+
+   With the guard satisfied and a nonempty status, the script records leftovers as `chore(<change-id>): final run state` with `git add -A`, hooks and signing. A failed commit unstages the paths its own add staged. An entry staged before the script ran stays staged if its working copy was unchanged. The script still attempts to push the existing commits.
 4. Push: `git push <remote> refs/heads/<branch>:refs/heads/<branch>`, no force.
 5. Pull request: `gh pr list --repo <owner>/<repo> --head <branch> --state all`. An open one is left as the push updated it; a merged or closed one creates nothing; none gives `gh pr create --repo <owner>/<repo> --head <branch> --base <base>`, titled as Amendment 1 says and with the report header as its body. `<owner>/<repo>` comes from the remote url, so `gh` never picks a repository by itself.
 
@@ -49,16 +55,16 @@ The PR comment step now runs from the run root and names the pull request with `
 
 - One remote (`origin` by default) on `github.com`. GitHub Enterprise is not supported, as in `pr-comment.mjs`.
 - The base is the nearest remote branch the run descends from, else the default branch. A feature branch that exists only locally is no remote ref, so its run gets the default branch as base and its pull request carries that branch's commits.
-- `gh pr list --head` and `gh pr create --head` work on a branch without upstream config as the fake `gh` of the tests simulates. This is unverified live until the manual rows 1.5 and 2.4 of the change run.
+- `gh pr list --head` and `gh pr create --head` work on a branch without upstream config as the fake `gh` of the tests simulates. S-14 row 3.5 records a published branch, PR, green CI and requested comment on 2026-11-16. Original row 1.5 still requires a throwaway repository and an unchanged second invocation. Row 2.4 requires unattended terminal publication on both done and halt paths in a throwaway repository. [S-14 publication](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout) · [Original Manual rows](../../context/archive/2026-11-09-worktree-pr-only/evidence/unproven.md)
 - The pull request carries the goal text and the report header to a repository that may be public, with no opt-in.
-- The step and leftover commits use `git add -A`, so every file in the worktree that git does not ignore, `evidence/` included, is pushed. The redaction rule of the `manual-verify` prompt is the only guard against a secret in evidence; once pushed, it is hard to take back.
-- A halted run's partial edits (`kept`) are committed and pushed by the leftover commit. A later rollback of a retry resets to that step's `startSha`, which is at or after the pushed head, so pushed history is never rewritten and every later push is a fast-forward, but the rollback no longer discards those edits, as it did while they were uncommitted.
+- The step and leftover commits use `git add -A`. When their commits are pushed, that includes unignored files in the worktree such as `evidence/`. The redaction rule of the `manual-verify` prompt is the only guard against a secret in evidence.
+- A successful leftover commit saves a halted run's partial edits (`kept`). A later rollback of a retry resets to that step's `startSha`, at or after the pushed head, preserving pushed history and the committed edits.
 
 ## Consequences
 
-- Every isolated run ends with its branch on the remote and an open pull request, unless the push or `gh` fails, which the final message says loudly.
-- The `report.md`, `run.jsonl` and `meta.json` that the router leaves uncommitted at the end of a run are now committed by the leftover commit, so the worktree is clean for `git worktree remove` after a successful step.
-- A resumed run starts from a HEAD the router did not make (the leftover commit). The router tolerates it, as it tolerates a human commit after a halt.
+- An isolated run with commits beyond its base can publish its branch and open a pull request even when the operation guard skips the leftover commit.
+- A successful leftover commit saves `report.md`, `run.jsonl` and `meta.json`, including any late usage, and clears those edits for `git worktree remove`. A skipped commit leaves those artifacts and other pending edits local. Resolve unfinished Git state, return to the validated run branch if detached, and preserve any pending work before retrying publication or removing the worktree.
+- A resumed run starts from its current run-branch HEAD. The router accepts a leftover or human commit made after the halt. If the guard skipped the commit, resolve the Git state and commit any kept edits you want included before resuming.
 
 ## Relation to older records
 
@@ -118,12 +124,14 @@ Publication uses the same effective isolation projection and literal branch vali
 
 Missing metadata and legacy empty metadata use the exact configured prefix plus change id. An absent saved chain reads as `10x`. The strict boolean isolation opt-out skips publication before prefix validation. A conflicting policy diagnostic identifies the recorded branch and the policy restoration prerequisite.
 
-**GIVEN** automatic base discovery **WHEN** the script considers an ancestor or default-branch fallback **THEN** it **MUST** validate its literal branch name and exclude the run branch, the effective run prefix and the legacy `agent-smith/` namespace.
+**GIVEN** automatic base discovery **WHEN** the script considers an ancestor or default-branch fallback **THEN** it **MUST** validate its literal branch name and exclude `HEAD`, the current run branch, the legacy `agent-smith/` namespace and names starting with a configured prefix that ends in `/` or `-`.
 
-Explicit base precedence, nearest-ancestor counting, remote-HEAD tie preference and older-Git counting fallback continue to determine the base. The validated actual branch flows through the complete push refspec, GitHub `--head`, JSON output and recovery guidance.
+**GIVEN** a candidate starts with any other configured prefix **WHEN** the remainder starts with a character that can begin a change ID (`[a-z0-9]`) **THEN** automatic discovery **MUST** exclude it unless the exact branch is in `isolation.defaultBranches`, is the selected remote's symbolic HEAD target or is the default reported by GitHub in the final fallback. The first-character check covers saved run branches with suffixes after their IDs. An empty remainder or one starting with another character passes the prefix check.
+
+Explicit `--base` takes precedence and can select a non-default branch whose name could also identify a run. Nearest-ancestor counting, remote-HEAD tie preference and older-Git counting fallback continue to determine the automatic base. The validated actual branch flows through the complete push refspec, GitHub `--head`, JSON output and recovery guidance.
 
 **GIVEN** an executable recovery command **WHEN** the script renders dynamic arguments **THEN** it **MUST** quote each as a shell literal, including the worktree path, remote, complete refspec, repository, branch and base, while runtime Git and GitHub calls use argument arrays.
 
 **GIVEN** terminal reporting **WHEN** publication returns or fails to return JSON **THEN** both skills **MUST** use publication `branch`, then saved setup `branch`, then explicit `unavailable` identity for normal and failure messages.
 
-Deterministic tests cover both chains, saved suffix branches, archived report locations, configured and legacy base exclusions, refusal preservation and literal recovery-command arguments. External PR, comment and CI acceptance remains orchestrator-owned under Amendment 2.
+Deterministic tests cover both chains, saved suffix branches, archived report locations, automatic base selection with overlapping prefixes, configured and legacy base exclusions, refusal preservation and literal recovery-command arguments. External PR, comment and CI acceptance remains orchestrator-owned under Amendment 2.

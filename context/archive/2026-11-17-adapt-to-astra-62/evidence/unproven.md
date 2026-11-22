@@ -1,0 +1,1 @@
+- 1.4 — Codex CLI 0.169.0 exited before dispatch even with SQLite and logs redirected to scratch. This environment denies the read/write open of installation_id required at app-server startup. No live completions were observed for the seven required pairs. See evidence/command-live-codex-retry.txt.

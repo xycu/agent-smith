@@ -1,0 +1,9 @@
+apostrophe: hook returned neutral and Bash printed the literal text
+recursive-delete text: hook returned neutral and Bash printed the literal text
+commit-message capture: hook returned neutral
+GNU bash, version 3.2.57(1)-release (arm64-apple-darwin26)
+/bin/bash: -c: line 2: unexpected EOF while looking for matching `''
+/bin/bash: -c: line 5: syntax error: unexpected end of file
+zsh supplied one literal message argument to a stand-in
+gh --version: the hook returned a denial for the inert payload
+Live Claude Code integration and an actual scratch Git commit remain unverified.

@@ -1,0 +1,5 @@
+Command: codex --version; claude --version; node --version
+WARNING: proceeding, even though we could not create PATH aliases: Operation not permitted (os error 1)
+codex-cli 0.169.0
+2.1.311 (Claude Code)
+v24.19.0

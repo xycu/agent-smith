@@ -1,3 +1,4 @@
 Always-true rules of the step `plan`:
 - **GIVEN** a plan runs before orchestrator publication **WHEN** you write phase Success Criteria and canonical Progress **THEN** you **MUST** keep Automated criteria locally executable before publication, using deterministic checks and local fake Git/GitHub clients where they prove the claim.
 - **GIVEN** acceptance requires a pushed branch, an open PR, PR CI or an external PR comment **WHEN** you classify that acceptance **THEN** you **MUST** put it in Manual criteria, keeping its phase Success Criteria and plan brief consistent.
+- **GIVEN** the router reads `plan.md` to verify this step **WHEN** you write the `## Progress` section **THEN** you **MUST** write each row as `- [ ] N.M title` (or `- [x] N.M title`) at the start of the line and outside a code fence, and keep at least one pending row under `#### Automated`, because `*`, numbered and indented items are not read as rows and a plan with no pending Automated row fails.

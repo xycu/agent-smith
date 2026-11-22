@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md offers either settled-failure release or a recovery command, with only the first specified in the goal." },
+    "novelty": { "score": 1, "evidence": "run-codex.mjs already proves closure and clears the native lock on successful completion; failure paths adapt that pattern." },
+    "coupling": { "score": 2, "evidence": "Goal spans run-codex.mjs, state.mjs lock semantics, router retry behavior, tests, ADR-024 and docs/REFERENCE.md." },
+    "discovery": { "score": 1, "evidence": "change.md names run-codex.mjs, state.mjs and reference locations; related tests are discoverable from the Codex runner test index." },
+    "volume": { "score": 2, "evidence": "Goal requires runner and fake-Codex tests, a timer test seam, ADR-024, docs/REFERENCE.md, and possibly recovery-command docs/tests." },
+    "verification": { "score": 2, "evidence": "Fake Codex harness exists, but the goal requires a new SIGTERM-grace timer test and a real Codex manual verification row." }
+  },
+  "unknowns": [],
+  "confidence": "medium"
+}

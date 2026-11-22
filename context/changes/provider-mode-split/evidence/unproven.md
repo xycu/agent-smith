@@ -1,0 +1,2 @@
+- 3.2 — Six local runner fixtures passed. The plan requires fresh authenticated top-level Claude Code and Codex sessions for all six host/mode combinations on each chain.
+- 3.3 — Remote head 22b0d01c is behind local head 6e3c993f. PR head CI and the opted-in report comment await orchestrator publication.

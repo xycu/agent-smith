@@ -11,7 +11,7 @@ import {
 } from "./helpers.mjs";
 import { writePlan } from "./ahead.mjs";
 import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
-import { writeFileAtomic, stateTempFiles, cleanupStateTemps, runLockPath, readLog } from "../scripts/state.mjs";
+import { writeFileAtomic, stateTempFiles, cleanupStateTemps, runLockPath, readLog, readMeta } from "../scripts/state.mjs";
 
 import { codexFixture, execute, calls } from "./codex-helpers.mjs";
 
@@ -362,7 +362,75 @@ test("log read failures identify the file with a null line and strict reads refu
   t.mock.restoreAll();
 });
 
+test("metadata reader reserves its fallback for absence and preserves legacy fields", () => {
+  const p = makeProject();
+  const file = path.join(p.changeDir, "meta.json");
+  const fallback = { absent: true };
+  assert.equal(readMeta(file, fallback), fallback);
+  const legacy = { custom: { value: 4 } };
+  for (const object of [{}, legacy]) {
+    fs.writeFileSync(file, JSON.stringify(object));
+    assert.deepEqual(readMeta(file, fallback), object);
+  }
+  for (const [reason, samples] of [
+    ["Invalid JSON", ["", " \r\n\t", '{"private-marker":', "<<<<<<< private-marker\n{}\n======="]],
+    ["Expected a JSON object", ["null", "[]", "42", "true", '"private-marker"']],
+  ]) {
+    for (const text of samples) {
+      fs.writeFileSync(file, text);
+      assert.throws(() => readMeta(file, fallback), (error) => {
+        assert.ok(error.message.includes(`${file}: ${reason}`));
+        assert.doesNotMatch(error.message, /private-marker/);
+        return true;
+      });
+    }
+  }
+});
+
+test("metadata reader reports non-ENOENT read failures without exposing filesystem error text", (t) => {
+  const file = path.join(makeProject().changeDir, "meta.json");
+  t.mock.method(fs, "readFileSync", () => { throw Object.assign(new Error("private content"), { code: "EACCES" }); });
+  assert.throws(() => readMeta(file, {}), (error) => {
+    assert.ok(error.message.includes(`${file}: Cannot read metadata (EACCES)`));
+    assert.doesNotMatch(error.message, /private content/);
+    return true;
+  });
+});
+
 for (const chain of ["10x", "openspec"]) {
+  for (const logged of [false, true]) {
+    test(`${chain}: damaged metadata halts every writer ${logged ? "with" : "without"} a log`, () => {
+      const p = isolatedProject(chain);
+      if (logged) {
+        const started = runIn(p, ["init", p.id, "--goal", GOAL, "--chain", chain]);
+        assert.equal(started.json.action, "run", started.stdout);
+        writeLog(p, [
+          entry(1, "fix", { usage: { totalTokens: 4 } }),
+          entry(2, "fix", { result: undefined, pendingPrompt: "pending" }),
+        ]);
+      }
+      writeMetaFile(p, '<<<<<<< private-marker\n{"goal":"private-marker"}\n=======\n{}\n>>>>>>> branch\n');
+      writeResult(p, { status: "orchestrator-error", note: "must be retained" });
+      fs.writeFileSync(path.join(p.agentDir, "report.md"), "original report\n");
+      addTemps(p);
+      const file = path.join(p.agentDir, "meta.json");
+      const before = gitSnapshot(p);
+      for (const args of [
+        ["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens", "4"],
+        ["usage", p.id, "1", "--tokens", "5"], ["status", p.id, "--report"],
+      ]) {
+        const res = runIn(p, [...args, "--chain", chain]);
+        assert.equal(res.status, 1, res.stdout);
+        assert.equal(res.json.action, "halt");
+        assert.ok(res.json.reason.includes(`${file}: Invalid JSON`), res.stdout);
+        assert.ok(res.json.reason.includes(`git show <sha>:./${path.relative(p.root, file)}`), res.stdout);
+        assert.match(res.json.reason, /Preserve the damaged copy.*verified copy from the same run.*before restoring/);
+        assert.doesNotMatch(res.json.reason, /private-marker/);
+        assert.deepEqual(gitSnapshot(p), before);
+      }
+    });
+  }
+
   for (const damaged of ["middle", "final"]) {
     test(`${chain}: damaged ${damaged} log halts every writer before cleanup, result intake or git writes`, () => {
       const p = isolatedProject(chain);
@@ -480,23 +548,26 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(Object.hasOwn(cmp.json.routed, "logProblems"), false);
   });
 
-  test(`${chain}: Codex validation refuses damage before any permission probe or child launch`, () => {
-    const fixture = codexFixture(chain);
-    const p = fixture.project;
-    const file = path.join(p.agentDir, "run.jsonl");
-    fs.appendFileSync(file, "{private damage\n");
-    addTemps(p);
-    const before = snapshot(p.changeDir);
-    const res = execute(fixture);
-    assert.equal(res.status, 1, res.stdout);
-    assert.equal(res.json.action, "codex-result");
-    assert.equal(res.json.launched, false);
-    assert.equal(res.json.completed, false);
-    assert.equal(res.json.result, null);
-    assert.ok(res.json.reason.includes(`${file} line 2`), res.stdout);
-    assert.deepEqual(calls(fixture.fixture), []);
-    assert.deepEqual(snapshot(p.changeDir), before);
-  });
+  for (const [name, location] of [["run.jsonl", " line 2"], ["meta.json", ""]]) {
+    test(`${chain}: Codex validation refuses damaged ${name} before any permission probe or child launch`, () => {
+      const fixture = codexFixture(chain);
+      const p = fixture.project;
+      const file = path.join(p.agentDir, name);
+      fs.appendFileSync(file, "{private damage\n");
+      addTemps(p);
+      const before = snapshot(p.changeDir);
+      const res = execute(fixture);
+      assert.equal(res.status, 1, res.stdout);
+      assert.equal(res.json.action, "codex-result");
+      assert.equal(res.json.launched, false);
+      assert.equal(res.json.completed, false);
+      assert.equal(res.json.result, null);
+      assert.ok(res.json.reason.includes(`${file}${location}: Invalid JSON`), res.stdout);
+      assert.doesNotMatch(res.json.reason, /private damage/);
+      assert.deepEqual(calls(fixture.fixture), []);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    });
+  }
 }
 
 test("nested project recovery uses a project-relative Git revision path", () => {
@@ -519,6 +590,30 @@ function faultScript(p, body) {
   fs.writeFileSync(file, `import fs from "node:fs";\n${body}\nawait import(${JSON.stringify(new URL("../scripts/route.mjs", import.meta.url).href)});\n`);
   return file;
 }
+
+test("OpenSpec writers revalidate selected metadata while holding the run lock", () => {
+  const p = seed(makeOpenspecProject(), "openspec");
+  const file = path.join(p.agentDir, "meta.json");
+  const lock = runLockPath(p.agentDir);
+  const script = faultScript(p, `
+    const read = fs.readFileSync;
+    fs.readFileSync = (file, ...args) => {
+      if (file === ${JSON.stringify(file)} && fs.existsSync(${JSON.stringify(lock)})) return "{private damage";
+      return read(file, ...args);
+    };
+  `);
+  addTemps(p);
+  const before = snapshot(p.changeDir);
+  for (const args of [
+    ["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens", "4"], ["status", p.id, "--report"],
+  ]) {
+    const res = runIn(p, [...args, "--chain", "openspec"], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "halt");
+    assert.ok(res.json.reason.includes(`${file}: Invalid JSON`), res.stdout);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  }
+});
 
 function rejectCommit(p) {
   const hooks = path.resolve(p.base, git(p, ["rev-parse", "--git-path", "hooks"]));
@@ -700,6 +795,29 @@ function comparisonPair(chain) {
 }
 
 for (const chain of ["10x", "openspec"]) {
+  for (const side of ["baseline", "routed"]) {
+    test(`${chain}: risk and both comparison formats refuse damaged ${side} metadata`, () => {
+      const caller = projectFor(chain);
+      const pair = comparisonPair(chain);
+      const file = path.join(pair[side].agentDir, "meta.json");
+      writeMetaFile(pair[side], "null");
+      const before = [snapshot(pair.baseline.changeDir), snapshot(pair.routed.changeDir)];
+      const risk = runIn(pair[side], ["risk", caller.id, "--chain", chain]);
+      assert.equal(risk.status, 1, risk.stdout);
+      assert.equal(risk.json.action, "halt");
+      assert.ok(risk.json.reason.includes(`${file}: Expected a JSON object`));
+      for (const format of ["json", "md"]) {
+        const res = runIn(caller, ["compare", caller.id, "--chain", chain, "--baseline", pair.baseline.root,
+          "--routed", pair.routed.root, "--format", format]);
+        assert.equal(res.status, 1, res.stdout);
+        assert.equal(res.json.action, "halt");
+        assert.ok(res.json.reason.includes(`${file}: Expected a JSON object`), res.stdout);
+        assert.doesNotMatch(res.json.reason, /git show/, "the compared file is outside the caller project");
+      }
+      assert.deepEqual([snapshot(pair.baseline.changeDir), snapshot(pair.routed.changeDir)], before);
+    });
+  }
+
   test(`${chain}: truncating the 600-token record cannot turn a missed target into savings`, () => {
     const { baseline, routed } = comparisonPair(chain);
     const args = ["compare", routed.id, "--baseline", baseline.root, "--chain", chain];
@@ -847,6 +965,55 @@ for (const chain of ["10x", "openspec"]) {
         }
         for (const result of [res, md]) assert.doesNotMatch(result.stdout + result.stderr, /private-read-failure/);
         assert.deepEqual([snapshot(baseline.changeDir), snapshot(routed.changeDir)], before);
+      }
+    });
+  }
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const rejected of [false, true]) {
+    test(`${chain}: structured pre-archive evidence ${rejected ? "restores bytes after rejected commit" : "commits with counters and report"}`, () => {
+      const p = archivedState(chain);
+      const invocation = { host: "codex", rootThreadId: "root", rootTurnId: "turn" };
+      const waiting = {
+        schemaVersion: 1, status: "unavailable", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+        invocation, reason: "incomplete-capture", explanation: "The captured records do not prove complete invocation coverage.",
+      };
+      const evidence = {
+        schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+        invocation, sessionCount: 2, requestCount: 3, reconciliation: "response-snapshot",
+      };
+      const step = chain === "openspec" ? "os-apply" : "implement";
+      const first = entry(1, step, { usage: { durationMs: 42, toolUses: 5 }, usageEvidence: waiting });
+      const log = path.join(p.agentDir, "run.jsonl");
+      fs.writeFileSync(log, ` \t${JSON.stringify(first)} \r\n\r\n`);
+      commitAll(p);
+      const before = gitSnapshot(p);
+      if (rejected) rejectCommit(p);
+      const file = path.join(p.root, "late-usage.json");
+      fs.writeFileSync(file, JSON.stringify({ change: p.id, chain, n: 1, step,
+        usage: { totalTokens: 7 }, usageEvidence: evidence }));
+      const args = ["usage", p.id, "1", "--usage-file", file, "--chain", chain];
+      const res = runIn(p, args);
+      assert.equal(res.status, rejected ? 1 : 0, res.stdout);
+      if (rejected) {
+        assert.equal(res.json.attached, false);
+        assert.match(res.json.reason, /figure was not kept/);
+        const after = gitSnapshot(p);
+        assert.deepEqual(after.files, before.files);
+        assert.equal(after.head, before.head);
+        assert.equal(after.refs, before.refs);
+        git(p, ["diff", "--cached", "--quiet"]);
+        assert.deepEqual(readLog(log).entries[0].usageEvidence, waiting);
+      } else {
+        assert.equal(typeof res.json.commit, "string");
+        assert.deepEqual(readLogEntries(p)[0].usage, { durationMs: 42, toolUses: 5, totalTokens: 7 });
+        assert.deepEqual(readLogEntries(p)[0].usageEvidence, evidence);
+        assert.match(fs.readFileSync(path.join(p.agentDir, "report.md"), "utf8"), /\| 7 \|/);
+        const committed = gitSnapshot(p);
+        const replay = runIn(p, args);
+        assert.equal(replay.json.unchanged, true);
+        assert.deepEqual(gitSnapshot(p), committed);
       }
     });
   }

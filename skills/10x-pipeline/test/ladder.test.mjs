@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, writeReview, init, next, writeResult, writeLog, entry, readLogEntries,
+  cleanupAll, makeProject, planText, writeReview, init, next, writeResult, seedRun, writeLog, entry, readLogEntries,
   run, writeOverride, writeMetaFile, readReportFile,
 } from "./helpers.mjs";
 import { pluginPolicy, policyProblems, providerOf, dispatchTarget, estimateCost } from "../scripts/state.mjs";
@@ -94,11 +94,11 @@ function finish(project, result) {
 }
 
 // A project with a plan, a plan review with one warning (no clean-review drop) and a fixture log.
-function staged({ phases, done = 0, log, implReview = null, policy: over = null }) {
+function staged({ phases, done = 0, log, implReview = null, policy: over = null, meta }) {
   const project = makeProject({ plan: planText({ phases, done }), policy: over });
   writeReview(project, "plan-review", ONE_WARNING);
   if (implReview) writeReview(project, "impl-review", implReview);
-  writeLog(project, log);
+  seedRun(project, log, meta);
   return project;
 }
 
@@ -168,6 +168,19 @@ test("ladder: a plain-goal first plan after one failed attempt skips opus/medium
 
 // ---- phase-count bumps ----------------------------------------------------------------
 
+test("split host fix carries the other provider's last code tier through its own clamp", () => {
+  const p = staged({ phases: 1, done: 1, meta: { providerMode: "split" }, policy: { steps: { fix: { maxTier: 5 } } },
+    log: [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", { tier: 7, provider: "openai" }), entry(4, "impl-review")],
+    implReview: { verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings" },
+  });
+  const action = init(p, GOAL, ["--provider-mode=split", "--rigor=standard"]).json;
+  assert.equal(action.step, "fix");
+  assert.equal(action.provider, "claude");
+  const fix = readLogEntries(p).at(-1);
+  assert.equal(fix.tier, 5);
+  assert.match(fix.tierWhy, /floor at last code tier 7.*clamped to 5/);
+});
+
 test("ladder: implement and fix with 3 phases run opus/medium", () => {
   const impl = start(staged({ phases: 3, log: [entry(1, "plan"), entry(2, "plan-review")] }), GOAL, "standard");
   assert.equal(impl.json.step, "implement");
@@ -225,7 +238,7 @@ test("ladder: implement, impl-review and fix with 6 phases run opus/high", () =>
 
 test("ladder: plan-review with 6 phases skips opus/medium to opus/high", () => {
   const project = makeProject({ plan: planText({ phases: 6 }) });
-  writeLog(project, [entry(1, "plan")]);
+  seedRun(project, [entry(1, "plan")]);
   const { json, e } = start(project, GOAL, "standard");
   assert.equal(json.step, "plan-review");
   assert.deepEqual(route(e), ["opus", "high"]);
@@ -314,7 +327,7 @@ test("ladder: no interactive step lands on a rung whose effort is below the floo
   for (const rigor of ["standard", "thorough"]) {
     for (const phases of [1, 2, 3, 6]) {
       const pr = makeProject({ plan: planText({ phases }) });
-      writeLog(pr, [entry(1, "plan")]);
+      seedRun(pr, [entry(1, "plan")]);
       assert.equal(start(pr, GOAL, rigor).json.step, "plan-review");
       for (const fails of [0, 1, 2]) {
         const log = [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")];
@@ -331,7 +344,7 @@ test("ladder: a lean interactive step may run on opus/medium", () => {
   // plan-review pinned at tier 4 by an override: the lean floor is medium, so the rung stays.
   const over = { steps: { "plan-review": { baseTier: 4 } } };
   const lean = makeProject({ plan: planText({ phases: 2 }), policy: over });
-  writeLog(lean, [entry(1, "plan")]);
+  seedRun(lean, [entry(1, "plan")]);
   const l = start(lean, "fix typo", "lean");
   assert.equal(l.json.step, "plan-review");
   assert.equal(l.e.rigor, "lean");
@@ -340,7 +353,7 @@ test("ladder: a lean interactive step may run on opus/medium", () => {
   assert.match(l.e.tierWhy, /floor medium \(tier 2\)$/);
 
   const standard = makeProject({ plan: planText({ phases: 2 }), policy: over });
-  writeLog(standard, [entry(1, "plan")]);
+  seedRun(standard, [entry(1, "plan")]);
   const s = start(standard, GOAL, "standard");
   assert.equal(s.json.step, "plan-review");
   assert.deepEqual(route(s.e), ["opus", "high"]);
@@ -375,7 +388,7 @@ test("ladder: the characterized RETHINK and REVISE re-plans run opus/max and opu
   ]) {
     const project = makeProject({ plan: planText() });
     writeReview(project, "plan-review", { verdict, findings });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
     const { json, e } = start(project, GOAL, "standard");
     assert.equal(json.step, "plan", verdict);
     assert.equal(e.template, "plan-revise", verdict);
@@ -437,14 +450,15 @@ test("fable: the published override preserves default pins and selectively merge
   assert.equal(Object.hasOwn(baseline, "steps"), false);
 });
 
-test("fable: a Codex host refuses the published Claude ladder before creating run state", () => {
+test("fable: a legacy Codex host refuses the published Claude ladder without changing run state", () => {
   const project = makeProject({ policy: FABLE });
-  assert.equal(fs.existsSync(project.agentDir), false);
+  const meta = { id: project.id, host: "codex" };
+  writeMetaFile(project, meta);
   const res = init(project, GOAL, ["--host", "codex"]);
   assert.equal(res.status, 1, res.stdout);
   assert.equal(res.json.action, "halt");
   assert.match(res.json.reason, /OpenAI-only ladder/);
-  assert.equal(fs.existsSync(project.agentDir), false);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(project.agentDir, "meta.json"))), meta);
 });
 
 test("fable: real RETHINK revisions dispatch opus/max then fable/high and retain the revision cap", () => {
@@ -455,7 +469,7 @@ test("fable: real RETHINK revisions dispatch opus/max then fable/high and retain
     for (let i = 0; i < failures; i++) {
       log.push(entry(3 + i, "plan", { ...failed, template: "plan-revise" }));
     }
-    writeLog(project, log);
+    seedRun(project, log);
     const res = init(project, GOAL, ["--rigor", "standard"]);
     if (failures === 2) {
       assert.equal(res.status, 0, res.stdout);

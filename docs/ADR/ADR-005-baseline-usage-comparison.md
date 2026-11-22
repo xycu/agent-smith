@@ -1,9 +1,13 @@
 # ADR-005: Baseline usage comparison as data plus a read-only command
 
-- **Status:** Proposed
+- **Status:** Implemented as amended. The read-only comparison shipped in M-1. Measuring the 30% savings target remains deferred under FR-017. [M-1 closeout](../../context/foundation/roadmap.md#milestone-history) · [Parked experiments](../../context/foundation/roadmap.md#parked)
 - **Date:** 2026-10-31
 - **Deciders:** repository owner
 - **Origin:** roadmap S-06 (FR-009) and the `baseline-usage-comparison` change. Research: `context/changes/baseline-usage-comparison/research.md`. Plan and review rounds: `context/changes/baseline-usage-comparison/plan.md`.
+
+## Rule in force
+
+Run the baseline in a separate checkout at the routed base revision, with all eight ladder positions pinned to Claude Sonnet at high effort. `compare` reads both completed runs and requires comparable coverage for executed steps. Provenance differences raise warnings. Legacy-only figures keep their calculation with a warning, while mixed verified and legacy coverage precludes a savings verdict. Optional routing-rate estimates use the enclosing dispatch and leave the raw-token verdict unchanged. [Baseline policy](../../skills/10x-pipeline/baseline-policy.json) · [Accounting contract](../REFERENCE.md#observed-token-accounting)
 
 ## Context
 
@@ -43,7 +47,7 @@ Rules for the command, written as scenarios (the form of ADR-004):
 - No change to `init`, `next`, `decide` or the log schema. S-05 and S-07 do not conflict with this change in code; the shared lines are README and AGENTS.md.
 - One pair is an anecdote. There is no significance test and no aggregate mode. A reader compares per-pair drops across several changes.
 - Orchestrator-session tokens are on neither side. Retries and failed steps are counted, because a run that halted is not comparable instead of being dropped.
-- The result is only as good as the usage figures the orchestrator passes. The first live check saw them in the Agent completion notice (`subagent_tokens`, `tool_uses`, `duration_ms`); the foreground orchestrator path is still to be re-checked in a live session (plan row 1.8).
+- The original Claude run received usage in a task notification after launch. Plan row 1.8 records that the foreground observation was not met as written. Current capture requires attributable step-tree evidence. [Historical row 1.8](../../context/archive/2026-10-31-baseline-usage-comparison/plan.md#progress) · [Observed token accounting](../REFERENCE.md#observed-token-accounting)
 - The baseline checkout holds the only copy of its `run.jsonl`. The user keeps the worktree until `compare` has run.
 - 2026-11-09 (run-cost-estimate): `compare` can also print a money estimate per side when the project that runs it sets `prices.usdPerMillionTokens`. It sits on top of the raw tokens: one blended USD rate per model alias, because the host reports one `totalTokens` per step with no input/output split. It never enters `comparable`, `reasons`, `dropPercent` or the verdict, which stay on raw tokens.
 

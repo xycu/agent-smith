@@ -8,9 +8,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint,
+  ID_RE, DEFAULT_TIMEOUT_MS, GH_HOST, firstLine, spawn, runGh, ghFailure, checkReportArg, capBody, withTempDir, isEntryPoint, withPublicationLock, PublicationSuspended,
 } from "./pr-common.mjs";
 import { readIsolationPolicy, isolationEnabled, runBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
+import { gitOperationProblem } from "./git-operation.mjs";
 
 const USAGE = "usage: node open-pr.mjs <change-id> [--chain 10x|openspec] [--report <path>] [--remote <name>] [--base <branch>] [--draft] [--timeout-ms <n>]";
 const REMOTE_RE = /^[A-Za-z0-9._][A-Za-z0-9._-]*$/;
@@ -92,8 +93,8 @@ function parseArgs(argv) {
   return opts;
 }
 
-function runGit(args, timeoutMs = GIT_TIMEOUT_MS, input = undefined) {
-  return spawn("git", args, timeoutMs, { ...process.env, GIT_TERMINAL_PROMPT: "0" }, input);
+function runGit(args, { input, encoding } = {}) {
+  return spawn("git", args, GIT_TIMEOUT_MS, { ...process.env, GIT_TERMINAL_PROMPT: "0" }, input, encoding);
 }
 
 const gitOut = (args) => {
@@ -200,20 +201,27 @@ function ancestorCounts(prefix) {
   return refs.map((ref) => ({ ref, count: Number(gitOut(["rev-list", "--count", `${ref}..HEAD`])) }));
 }
 
-// The nearest remote branch the run descends from: fewest commits between it and HEAD, ties to <remote>/HEAD.
-function automaticBase(name, branch, config) {
-  return typeof name === "string" && name !== "" && name !== "HEAD" && name !== branch
-    && !name.startsWith("-") && !name.startsWith(BRANCH_PREFIX) && !name.startsWith(config.branchPrefix ?? BRANCH_PREFIX)
-    && runGit(["check-ref-format", `refs/heads/${name}`]).status === 0;
+function automaticBase(name, branch, config, defaultBranch) {
+  if (typeof name !== "string" || !name || name === "HEAD" || name === branch
+    || name.startsWith("-") || name.startsWith(BRANCH_PREFIX)) return false;
+  const prefix = config.branchPrefix ?? BRANCH_PREFIX;
+  if (name.startsWith(prefix)) {
+    if (prefix.endsWith("/") || prefix.endsWith("-")) return false;
+    // Check only the first character because saved run branches can have suffixes after the change id.
+    const possibleRun = ID_RE.test(name.charAt(prefix.length));
+    const knownDefault = name === defaultBranch || (Array.isArray(config.defaultBranches) && config.defaultBranches.includes(name));
+    if (possibleRun && !knownDefault) return false;
+  }
+  return runGit(["check-ref-format", `refs/heads/${name}`]).status === 0;
 }
 
-function nearestBase(remote, branch, config) {
+// The nearest remote branch the run descends from: fewest commits between it and HEAD, ties to <remote>/HEAD.
+function nearestBase(remote, branch, config, head) {
   const prefix = `refs/remotes/${remote}/`;
-  const head = remoteHeadBranch(remote);
   let best = null;
   for (const { ref, count } of ancestorCounts(prefix).sort((a, b) => (a.ref < b.ref ? -1 : a.ref > b.ref ? 1 : 0))) {
     const name = ref.slice(prefix.length);
-    if (!automaticBase(name, branch, config)) continue;
+    if (!automaticBase(name, branch, config, head)) continue;
     if (!Number.isInteger(count)) continue;
     if (!best || count < best.count || (count === best.count && name === head && best.name !== head)) best = { name, count };
   }
@@ -222,14 +230,14 @@ function nearestBase(remote, branch, config) {
 
 function resolveBase(opts, branch, repo, config) {
   if (opts.base) return { base: opts.base };
-  const nearest = nearestBase(opts.remote, branch, config);
-  if (nearest) return { base: nearest };
   const head = remoteHeadBranch(opts.remote);
-  if (automaticBase(head, branch, config)) return { base: head };
+  const nearest = nearestBase(opts.remote, branch, config, head);
+  if (nearest) return { base: nearest };
+  if (automaticBase(head, branch, config, head)) return { base: head };
   if (repo) {
     const res = runGh(["repo", "view", repo, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name"], opts.timeoutMs);
     const name = res.status === 0 ? res.stdout.trim() : "";
-    if (automaticBase(name, branch, config)) return { base: name };
+    if (automaticBase(name, branch, config, name)) return { base: name };
   }
   return { skip: "base branch not found: pass --base <branch>" };
 }
@@ -268,11 +276,13 @@ export function pathsToStage(porcelainZ) {
 function unstage(paths) {
   if (paths.length === 0) return;
   const input = paths.map((p) => `:(top,literal)${p}`).join("\0");
-  runGit(["reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"], GIT_TIMEOUT_MS, input);
+  runGit(["reset", "-q", "--pathspec-from-file=-", "--pathspec-file-nul"], { input });
 }
 
 // Commits what the worktree holds after the router's last write. On failure it unstages only what its own add staged.
 function commitLeftovers(id) {
+  const operation = gitOperationProblem((args) => runGit(args, { encoding: "buffer" }));
+  if (operation) return { committed: false, error: operation };
   const status = runGit(["status", "--porcelain", "-z", "--untracked-files=all"]);
   if (status.status !== 0) return { committed: false, error: gitError(status, "git status") };
   if (status.stdout === "") return { committed: null };
@@ -473,10 +483,11 @@ function main() {
   }
   let out;
   try {
-    out = run(opts);
+    out = withPublicationLock(opts.id, () => run(opts));
   } catch (e) {
-    const reason = `internal error: ${firstLine(e?.message) || "unknown"}`;
-    out = result({ reason, pr: prSkip(reason), manual: "run the script by hand from the run root" });
+    const suspended = e instanceof PublicationSuspended;
+    const reason = suspended ? e.message : `internal error: ${firstLine(e?.message) || "unknown"}`;
+    out = result({ reason, pr: prSkip(reason), manual: suspended ? null : "run the script by hand from the run root" });
   }
   process.stdout.write(`${JSON.stringify(out)}\n`);
 }

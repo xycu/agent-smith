@@ -1,9 +1,13 @@
 # ADR-009: Record run provenance, opt in to tool-restricted step agents and to an advisor prompt rule, and keep the router a script
 
-- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending)
+- **Status:** Accepted (owner, 2026-11-08). Live checks 1 and 2 have recorded results for background calls. The advisor precondition and both flag experiments remain open. [Checks](#live-checks) · [Experiment rules](#decision-rules)
 - **Date:** 2026-11-02
 - **Deciders:** unattended pipeline run of change `managed-agent-patterns`; the repository owner confirms or changes the readings below
 - **Origin:** change `managed-agent-patterns` (`context/changes/managed-agent-patterns/change.md`, `plan.md` and `research.md`). Three patterns from the Managed Agents docs, adapted to a local Claude Code plugin: run provenance, tool-restricted agents and the advisor.
+
+## Rule in force
+
+The router records plugin, flags and hashes for policy and shipped inputs, including agents, rules and hooks. By default, `provenance.ignore` excludes `compare`, `provenance`, `prices` and `coAuthor` from policy hashes. A project can replace that list. New Claude steps default to guarded `agent-smith:step`. Normal steps can opt into supported restricted mappings, and archive uses the fixed guarded identity. The advisor flag adds consult guidance for selected templates and the host setting selects the advisor. OpenAI and custom Claude identities use their own permission controls and the shared rules. [Provenance rules](#what-each-feature-covers) · [Guard coverage](#amendment-1--guarded-claude-dispatch-2026-11-15)
 
 ## Context
 
@@ -98,6 +102,8 @@ Checks 1 and 2 are done; check P0 is pending. A human runs each check with the p
 | Live check 2 | In that restricted run the subagent cannot call `Bash`, `Edit` or an MCP tool. Record the observed behavior for MCP tools in a foreground subagent; the docs describe only the background case. | Done 2026-11-08, by a probe call of the same agent type: the subagent reported the tools Read, Write, Grep, Glob and the hand-back tool, and no Bash, Edit, ToolSearch or `mcp__*` tool, so it could call none. This is the subagent's own report. The call returned a launch notice, so this is the background case; the foreground case was not observed. |
 | Live check P0 | With `advisorModel` set, one `plan` step with `advisor.enabled: true`: did the step consult, and does the Agent result's `totalTokens` include the advisor's tokens? | Pending |
 
+The original plan records the observed background restriction and the open advisor-token precondition in rows 2.8–2.9 and 3.7. [Manual checks](../../context/archive/2026-11-02-managed-agent-patterns/plan.md#progress)
+
 ## Decision rules
 
 Fixed before any run. A pair that is not comparable is recorded with its reasons and does not count. Five pairs is a screen, not a significance test. The thresholds are uncalibrated.
@@ -125,6 +131,8 @@ The same pairs with `agents.restricted` `false` and `true`, the scorer on in bot
 
 Pending. A human runs the pairs and records here, per pair, `dropPercent`, `steps`, `failedAttempts`, `byModel` and `byTier` of both arms, the failed `score` attempts of the restricted pairs, and the reasons of every pair that is not comparable, then the decision for each flag.
 
+The advisor flag and restricted-agent flag each require their own pairs under the rules above. FR-017 separately defers the savings and scorer experiments. [Flag experiments](#decision-rules) · [Deferred measurements](../../context/foundation/roadmap.md#parked)
+
 ## Amendment 1 — Guarded Claude dispatch (2026-11-15)
 
 New Claude actions use the inherited-tool `agent-smith:step` identity. The original absent-agent default is superseded. Enabled restricted mappings select their configured type for normal Claude steps. Claude archive actions select the fixed guarded type, preserving the archive mapping contract. OpenAI dispatch uses its provider-specific execution boundary and capability checks. Historical neutral retries replay exact stored dispatches.
@@ -135,4 +143,4 @@ New Claude actions use the inherited-tool `agent-smith:step` identity. The origi
 
 The hook filters host-provided scoped identity and emits a deny decision or neutral pass-through. Its fixed hook JSON and script receive an independent `hookFiles` provenance hash. An unreadable input records null, following existing hashing conventions. Stored provenance stays immutable and records drift at later calls.
 
-The plugin baseline is 2.1.292+. Fail-closed `onFailure: block` handling requires 2.1.295+. Older supported hosts have unverified runtime enforcement. Payload tests and strict plugin validation passed, with fresh-host identity and blocking still pending. The reference documents the direct-command subset and custom-agent/provider limits. [Hooks](https://code.claude.com/docs/en/hooks) · [Subagents](https://code.claude.com/docs/en/sub-agents)
+The plugin baseline is 2.1.292+. Fail-closed `onFailure: block` handling requires 2.1.295+. Older supported hosts have unverified runtime enforcement. Payload tests and strict plugin validation passed, with fresh-host identity and blocking still pending. The reference documents the direct-command subset and custom-agent/provider limits. [Guard plan, Manual rows 2.6–2.7](../../context/archive/2026-11-13-step-subagent-git-guard/plan.md#progress) · [S-18 effective protection](../../context/foundation/roadmap.md#s-18-effective-step-protection-in-the-supported-environment) [Hooks](https://code.claude.com/docs/en/hooks) · [Subagents](https://code.claude.com/docs/en/sub-agents)

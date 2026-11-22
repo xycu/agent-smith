@@ -10,6 +10,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | --- | --- |
 | `change-id.test.mjs` | Both-chain init boundaries, pre-read refusal, PR-pattern parity and legacy longer-id command compatibility |
 | `route.test.mjs` | `init`, `next`, `status` and the main routing paths |
+| `init-permissions.test.mjs` | Codex configuration diagnostics and Claude worktree Git advice on init, provider and resume scoping, and stderr/stdout separation |
 | `churn.test.mjs` | `risk` command: churn hot paths, plan hits and diff hits |
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |
 | `step-safety.test.mjs` | shared Git/deletion/publication safety in all step tails, planning variants, overrides, file handoff, isolated runs and both archive paths |
@@ -29,11 +30,11 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `preplan.test.mjs` | pre-plan gates and prompt wiring |
-| `loops-existing.test.mjs` | the characterized RETHINK/REVISE loop. Never edit it; the one exception is the two tier literals renumbered by ADR-010's ladder change |
+| `loops-existing.test.mjs` | the characterized RETHINK/REVISE loop. Keep it stable. ADR-010 renumbered two tier literals, and verdict validation changes the partial-implementation RETHINK fixture to expect a halt |
 | `loops.test.mjs` | the new loops and the budget reference paths |
 | `score.test.mjs` | complexity score step (ADR-007): policy data, gate, file validation, failure skip, tier shift, report and status. Turn on with `score: { minRigor: "standard" }` |
 | `advisor.test.mjs` | opt-in advisor (ADR-009): no advisor text by default, its place in the listed prompts, the `advisor` log flag, malformed `advisor` blocks, the prompt file, the provenance link, and the pin that the indexes describe the advisor flag. Turn on with `advisor: { enabled: true }` |
-| `step-guard.test.mjs` | scoped plugin Bash hook, registration, fail-closed input, direct-command denial, safe commands, recording clients, side-effect boundaries and paths with spaces |
+| `step-guard.test.mjs` | scoped plugin Bash hook, registration, fail-closed input, direct-command denial, command shapes, wrappers, ANSI-C quoting, Git option abbreviations, safe commands, recording clients, side-effect boundaries and paths with spaces |
 | `agents.test.mjs` | guarded Claude default and restricted step agents (ADR-009): the `agent` field of the run output, log entry and `status`, malformed `agents` blocks, inherited-tool/restricted definitions, the provenance link, the `SKILL.md` dispatch line. Turn on with `score: { minRigor: "standard" }, agents: { restricted: true }`; a test that edits `agents/score.md` uses a scratch copy of the plugin tree |
 
 ## Phase executors
@@ -55,28 +56,38 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `ladder.test.mjs` | the 8-rung ladder and the effort floor on the rung's effort (ADR-010) |
-| `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp/copy and resume preservation, concurrent setup exclusion, runtime failures and command restrictions |
+| `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp and resume preservation, pending-copy recovery after failure or interruption, ownership and stale registration checks, concurrent setup exclusion, runtime failures and command restrictions |
 | `prepare-run-timeout.test.mjs` | The real two-minute Git deadline, isolated so it runs alongside the other setup checks |
 | `prepare-run-helpers.mjs` | Shared setup fixtures, JSON assertions and Git wrapper for both pre-init test files |
-| `isolation.test.mjs` | the isolation gate of `init`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
+| `isolation.test.mjs` | the isolation gate of `init` and `next`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
 | `stepcommit.test.mjs` | the start and step commits (ADR-010) |
 | `rollback.test.mjs` | the failed-step rollback, preserved interrupted index-snapshot ancestry and undo on halt (ADR-010) |
 | `firstattempt.test.mjs` | the cheaper first implement attempt (ADR-010) |
 | `coauthor.test.mjs` | the `coAuthor` trailer (ADR-021): start commit, step commit, rollback snapshot, pre-archive and late-usage commits carry it; `coAuthor: null` gives none; a malformed value halts; parity of `coAuthorProblem`/`coAuthorTrailer` in `state.mjs` with `coAuthorLine` in `open-pr.mjs` |
-| `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight refusal, RESULT/completion/usage boundaries, held-descendant collection before reply, retained native metadata (recursive pagination, archived threads, completed timestamps), cancellation, cleanup and archive moves on both chains |
-| `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd, a controllable child lifetime and a model-free descendant with readiness, termination, release and collection barriers |
+| `codex-usage.test.mjs` | pinned 0.169.0 observed response records, copied-child boundaries, cache subsets, duplicate/conflicting records, final snapshots, safe bounded sources and unavailable accounting; hand-authored fixtures do not qualify live hosts |
+| `claude-usage.test.mjs` | optional native 2.1.311 capture: fresh Agent hooks, process-qualified event prefix, transcript/request membership, cache buckets, late exports, duplicate/conflicting records, safe bounded reads and read-only CLI fallback; hand-authored fixtures do not qualify live hosts |
+| `claude-helpers.mjs` | hand-authored native hooks, transcript and OTLP JSON fixtures shared by collector and producer-to-reader integration checks; registers no tests |
+| `claude-runner.test.mjs` | guarded headless CLI discovery, exact run and archive handoffs, foreground leaf collection, cancellation, retained ownership, and unavailable token evidence through intake and reporting |
+| `fake-claude.mjs` | model-free stream-json CLI peer exercising the candidate's real hook scripts and bounded permission fixture |
+| `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight, RESULT/completion/usage boundaries, settled failure intake and retry on both chains, retained ownership for uncertain closure and archive failure, held-descendant collection, recursive metadata, cancellation with SIGKILL escalation, temporary-file cleanup, archive moves and GitHub-token-free child environments (`codexChildEnv`) |
+| `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd, recorded token-like environment of each fake process, a controllable child lifetime and a model-free descendant with readiness, termination, release and collection barriers |
+| `codex-rules.test.mjs` | `.codex/rules/project.rules` refuses `git push` and every `gh` form by a table checked with an in-test prefix evaluator and, when Codex is installed, with `codex execpolicy check`; no `gh` or `git push` allow remains |
 | `result-persist.test.mjs` | persist-before-unlink, both-chain inline/file crash recovery, cleanup errors, result ownership boundaries, isolated success commits and failure snapshots, pending neutral retry and late-usage preservation |
 | `run-state.test.mjs` | atomic log, metadata and report publication, failure and process-termination boundaries, permission preservation, exact owned-temp cleanup, strict log guards and read-only diagnostics, both-chain CLI smoke checks and byte-exact late-usage recovery |
-| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, native crash exclusion after group exit and surviving out-of-group child writes, unchanged staged/working edits and late results while blocked, uncertain-child refusal, cancellation retention through held-descendant collection, release on success and halt, read-only commands, both chains. `TMPDIR` points the lock into a scratch directory |
+| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, native crash exclusion after group exit and surviving out-of-group child writes, unchanged staged/working edits and late results while blocked, uncertain-child refusal, cancellation retention through held-descendant collection, release on success and halt, read-only commands, both chains, stale-takeover exclusion across processes (guard held by a live or dead pid, native lock untouched, no overlapping holds over 120 stale locks). `TMPDIR` points the lock into a scratch directory |
+| `run-lock-worker.mjs` | one process of the multi-process stale-takeover test: spins to a shared time slot, takes a run lock, holds it, prints its hold intervals; `LOCK_MODULE` swaps the module under test; registers no tests |
 
 ## Reviews, cost, retries and policy
 
 | File | Scope |
 | --- | --- |
 | `openfindings.test.mjs` | routing of reviews on open findings (ADR-011): the `### F<n>` and `Decision` parser, policy keys, the `review` field of the log and `status`, the review gates and halt texts, the confirmation round, the `## Review findings` report section. It writes its own Decision-bearing reviews |
+| `plan-rows.test.mjs` | the fence-aware Progress and finding readers, archived plans read as by the old reader, and a `plan` or `plan-revise` step that leaves no pending `- [ ] N.M` Automated row fails and is asked for again |
 | `cost.test.mjs` | the run cost estimate: the `prices` block and its validation, `estimateCost`, the `Cost (est.)` column and `Cost (estimate)` line of `report.md`, the `cost` object of `status` for both chains, and `compare` cost rows and the `cost-incomplete` warning. Turn on with `prices: { usdPerMillionTokens: { ... } }` |
 | `neutral.test.mjs` | the `orchestrator-error` rerun (ADR-015): same prompt and tier on both chains and in an isolated run, with no failed attempt, rigor rise, budget use or rollback; the `limits.maxNeutralRetries` cap; the `neutralRetries` field of `status`; the `## Neutral reruns` report section |
 | `prompt-handoff.test.mjs` | opt-in task files: exact dispatch and saved flat/delegated replay across settings drift, cleanup recovery, Codex validation, commit hygiene and synthetic byte measurements |
+| `accounting-readers.test.mjs` | normalized coverage and safe aggregates, zero/missing/subtotals, scope verdicts, routing-rate estimates, late refresh/archive exclusion, byte-identical ledgers and both-chain real Codex/Claude producer-to-intake-to-reader fixtures; no live qualification |
+| `usage-evidence.test.mjs` | Additive bounded evidence normalization, safe counters and zero, privacy, exact host identities and guarded local input reads |
 | `late-usage.test.mjs` | the `usage` command (ADR-019): arguments and refusals that leave the change folder byte-identical, attaching on both chains, an unchanged and a refused second figure, the rewritten report and cost of an ended run, `compare`, survival of an isolated rollback, and the archive state (folder commit of `archive.usageMessage`, restore after a hook failure, `next` resume with `commit: null`) |
 | `policy-validate.test.mjs` | the policy check at load (ADR-022): `init`, `next` and `usage` halt with the key name and write nothing on a malformed limit, ladder, step tier or prompt placeholder; `status` reports `policyProblem`; the shipped `policy.json` and `baseline-policy.json` pass |
 | `providers.test.mjs` | per-rung provider and fixed run host: legacy Claude defaults, GPT overlay/profile validation, exact neutral retry, capability refusals, both archive actions, provenance and provider-aware report/comparison aggregates |

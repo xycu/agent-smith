@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the safety behavior and output shape; it leaves the shared-helper export location for the plan." },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/scripts/isolation.mjs already checks operation-in-progress markers for router commits." },
+    "coupling": { "score": 2, "evidence": "The goal spans open-pr.mjs, the router safety helper, its tests, docs/REFERENCE.md and ADR-017." },
+    "discovery": { "score": 1, "evidence": "change.md names open-pr.mjs, isolation.mjs, open-pr.test.mjs, docs/REFERENCE.md and ADR-017." },
+    "volume": { "score": 2, "evidence": "The goal calls for script and test changes plus two documentation updates, around four to six files." },
+    "verification": { "score": 1, "evidence": "change.md specifies three regression cases and the existing full Node test suite." }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

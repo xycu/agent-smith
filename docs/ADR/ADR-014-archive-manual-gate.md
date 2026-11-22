@@ -1,6 +1,6 @@
 # ADR-014: The orchestrator asks before it archives a run that has Manual checks pending
 
-- **Status:** Proposed (unattended reading, owner confirmation pending)
+- **Status:** Accepted (implemented by the unattended `archive-manual-gate` run). Both orchestrators carry the approval gate. The OpenSpec archive summary returns `manualPending: []` and omits the other two lists. [Archive fixture](../../skills/openspec-pipeline/test/openspec-archive.test.mjs) [10x loop](../../skills/10x-pipeline/SKILL.md) · [OpenSpec loop](../../skills/openspec-pipeline/SKILL.md)
 - **Date:** 2026-11-09
 - **Deciders:** the repository owner (goal of change `archive-manual-gate`); unattended implementation run for the readings marked A1 to A5 below
 - **Origin:** change `archive-manual-gate` (`context/changes/archive-manual-gate/change.md` and `plan.md`). It builds on ADR-010 (isolated run, pre-archive commit), ADR-011 (halt on open owner decisions), ADR-012 (Manual rows) and ADR-013 (OpenSpec archive).
@@ -26,7 +26,7 @@ The orchestrator of both chains asks one yes/no question in the `archive` branch
 
 **GIVEN** the run was not archived **WHEN** the user runs the pipeline command again **THEN** the router **MUST** return the `archive` action again (the commit step is skipped) and the question is asked again (A2).
 
-**GIVEN** the OpenSpec chain **WHEN** the `archive` action arrives **THEN** the orchestrator **MUST** apply the same gate; it is dormant, because all three lists are always `[]` there (A3).
+**GIVEN** the OpenSpec chain **WHEN** the `archive` action arrives **THEN** the orchestrator **MUST** apply the same gate; it is dormant, because there are no unresolved Manual entries (A3).
 
 **GIVEN** a no **WHEN** the final message is written **THEN** it **MUST** say that the `Archive: requested` line of `report.md` is stale (A4); the report is not rewritten and the pre-archive commit is not undone (A5).
 

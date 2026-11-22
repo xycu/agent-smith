@@ -1,5 +1,83 @@
 # Changelog
 
+## [1.15.4](https://github.com/xycu/agent-smith/compare/v1.15.3...v1.15.4) (2026-11-21)
+
+
+### Bug Fixes
+
+* **meta-json-damage-halts:** Halt on a damaged meta.json instead of replacing it with defaults ([#253](https://github.com/xycu/agent-smith/issues/253)) ([aba1a4a](https://github.com/xycu/agent-smith/commit/aba1a4a50eb004c3f2abec6d07adb9e09765f168))
+* **open-pr-base-prefix-collision:** Keep a short isolation.branchPrefix from hiding the base branch in open-pr ([#251](https://github.com/xycu/agent-smith/issues/251)) ([3aa8fef](https://github.com/xycu/agent-smith/commit/3aa8feffc98f5859c6e5bd9bcaf881cdba1c7569))
+* **openspec-critical-none-placeholder:** Stop a "- None" line under Critical from failing an OpenSpec verification ([#250](https://github.com/xycu/agent-smith/issues/250)) ([519dedc](https://github.com/xycu/agent-smith/commit/519dedcbf35d8b876dce9c3e3eec09fd61473788))
+* **prepare-run-retry-after-failed-setup:** Finish the change-folder copy when prepare-run is retried after a failed setup ([#252](https://github.com/xycu/agent-smith/issues/252)) ([f0e4912](https://github.com/xycu/agent-smith/commit/f0e4912b0e830c8eb41ac55d96fa1dcdf0721aeb))
+
+## [1.15.3](https://github.com/xycu/agent-smith/compare/v1.15.2...v1.15.3) (2026-11-21)
+
+
+### Bug Fixes
+
+* **run-lock:** wait for the Codex process group to drain before calling it alive ([#248](https://github.com/xycu/agent-smith/issues/248)) ([f5ac242](https://github.com/xycu/agent-smith/commit/f5ac24269d53d3656bd9011cfa8a037ba5d3a96b))
+
+## [1.15.2](https://github.com/xycu/agent-smith/compare/v1.15.1...v1.15.2) (2026-11-21)
+
+
+### Bug Fixes
+
+* **step-guard-bypass-forms:** Make the step guard deny forbidden commands behind common shell shapes ([#241](https://github.com/xycu/agent-smith/issues/241)) ([9e45fa7](https://github.com/xycu/agent-smith/commit/9e45fa79ff5268455b319bf4b84d331926c69869))
+
+## [1.15.1](https://github.com/xycu/agent-smith/compare/v1.15.0...v1.15.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **codex-step-publication-guard:** Stop Codex steps from pushing, publishing or reading GitHub tokens ([#236](https://github.com/xycu/agent-smith/issues/236)) ([1393e5f](https://github.com/xycu/agent-smith/commit/1393e5ffc6af3d16e277fb27490f8aef24c88eba))
+* **next-requires-isolated-init:** Make next refuse a run that init would refuse for missing isolation ([#237](https://github.com/xycu/agent-smith/issues/237)) ([b57c5d5](https://github.com/xycu/agent-smith/commit/b57c5d5a81d94c0af369c2ffb83b47ebed82a7d9))
+* **plan-zero-rows-skips-implement:** Stop a plan with no readable Progress rows from skipping the implement step ([#239](https://github.com/xycu/agent-smith/issues/239)) ([bd30eb9](https://github.com/xycu/agent-smith/commit/bd30eb93cbe3f1fd6409037d6c14cbb9b5018cbe))
+* **run-branch-must-match-change-id:** Refuse to run a change on another change's run branch ([#238](https://github.com/xycu/agent-smith/issues/238)) ([1135c2a](https://github.com/xycu/agent-smith/commit/1135c2ac812b18381096cfcf8013afc85baf72e9))
+* **run-lock-stale-takeover-race:** Stop two router processes from both taking over a stale run lock ([#235](https://github.com/xycu/agent-smith/issues/235)) ([7ca53f7](https://github.com/xycu/agent-smith/commit/7ca53f7a8ebc1111b22c012fe4f5f1b0fc774a2b))
+
+## [1.15.0](https://github.com/xycu/agent-smith/compare/v1.14.2...v1.15.0) (2026-11-20)
+
+
+### Features
+
+* **provider-mode-split:** Select a Claude, Codex or split provider mode for a run ([#231](https://github.com/xycu/agent-smith/issues/231)) ([0d0886f](https://github.com/xycu/agent-smith/commit/0d0886f57327697ab97718c60efca9691ef29882))
+
+## [1.14.2](https://github.com/xycu/agent-smith/compare/v1.14.1...v1.14.2) (2026-11-19)
+
+
+### Bug Fixes
+
+* **step-guard-heredoc-false-positives:** Stop the step guard blocking heredocs and oversized commands it should allow ([#229](https://github.com/xycu/agent-smith/issues/229)) ([6834d2b](https://github.com/xycu/agent-smith/commit/6834d2b4f5bb833b8dfe331964e9f53bab701d74))
+
+## [1.14.1](https://github.com/xycu/agent-smith/compare/v1.14.0...v1.14.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **codex-failure-native-lock-stuck:** Release the native lock after an ordinary Codex failure so the run can retry ([#225](https://github.com/xycu/agent-smith/issues/225)) ([d35e5f0](https://github.com/xycu/agent-smith/commit/d35e5f04662035481e6707b80f0f6685051355f5))
+* **open-pr-unfinished-merge-commit:** Keep open-pr from committing and pushing an unfinished merge ([#224](https://github.com/xycu/agent-smith/issues/224)) ([6539688](https://github.com/xycu/agent-smith/commit/6539688dcaf168c2f5f876431a02abd8a64bcd2b))
+* **review-verdict-unknown-passes:** Halt on an unknown or missing review verdict instead of ending the run as done ([#227](https://github.com/xycu/agent-smith/issues/227)) ([a41ae39](https://github.com/xycu/agent-smith/commit/a41ae39e4ef7be6e67ad35aadc2f9a6089be1e98))
+* **usage-file-docs-drift:** Document --usage-file in the router usage text and AGENTS.md ([#223](https://github.com/xycu/agent-smith/issues/223)) ([238e81c](https://github.com/xycu/agent-smith/commit/238e81cb1221252f2bd1c99192689d8cdd707181))
+
+## [1.14.0](https://github.com/xycu/agent-smith/compare/v1.13.1...v1.14.0) (2026-11-18)
+
+
+### Features
+
+* **delegated-token-accounting:** Report token usage for delegated pipeline steps ([#215](https://github.com/xycu/agent-smith/issues/215)) ([2ceca34](https://github.com/xycu/agent-smith/commit/2ceca343ae1f7119c6d8fe72f943f18753c7467d))
+
+
+### Bug Fixes
+
+* **adapt-to-astra-62:** Adapt to the newly released OpenAI models by updating Sol and Astra versions ([#218](https://github.com/xycu/agent-smith/issues/218)) ([8a88e70](https://github.com/xycu/agent-smith/commit/8a88e7052c1ea3619635fe64e0af3f31279665e5))
+
+## [1.13.1](https://github.com/xycu/agent-smith/compare/v1.13.0...v1.13.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **isolation:** let run steps read installed skills outside the worktree ([#216](https://github.com/xycu/agent-smith/issues/216)) ([9f91c89](https://github.com/xycu/agent-smith/commit/9f91c89d84c4063895f57f1c62151658e89a2471))
+
 ## [1.13.0](https://github.com/xycu/agent-smith/compare/v1.12.2...v1.13.0) (2026-11-16)
 
 

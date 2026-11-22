@@ -71,7 +71,7 @@ function ruleProblems(line) {
 test("frontmatter names the skill openspec-pipeline with its argument hint", () => {
   const fields = frontmatter();
   assert.equal(fields.name, "openspec-pipeline");
-  assert.equal(fields["argument-hint"], "<change-name> [goal text] [--archive] [--rigor <level>] [--pr-comment]");
+  assert.equal(fields["argument-hint"], "<change-name> [goal text] [--archive] [--rigor <level>] [--provider-mode <mode>] [--pr-comment]");
   assert.match(fields.description, /OpenSpec/);
   assert.match(fields.description, /explicit.*\/agent-smith:openspec-pipeline/);
 });
@@ -169,10 +169,13 @@ test("every os- step has a template, and every os- template resolves to existing
 
 const readPolicy = (dir) => JSON.parse(fs.readFileSync(path.join(dir, "policy.json"), "utf8"));
 
-test("the OpenSpec policy fragment holds only os- steps and prompts, and shares no key with the 10x policy", () => {
+test("the OpenSpec policy fragment owns its steps, prompts and split assignments", () => {
   const tenxPolicy = readPolicy(SKILL_DIR);
   const fragment = readPolicy(OS_SKILL_DIR);
-  assert.deepEqual(Object.keys(fragment).sort(), ["prompts", "steps"]);
+  assert.deepEqual(Object.keys(fragment).sort(), ["prompts", "splitProviders", "steps"]);
+  assert.deepEqual(fragment.splitProviders, {
+    openspec: { otherSteps: ["os-propose", "os-apply"], hostTemplates: { "os-apply-fix": "os-apply" } },
+  });
   for (const block of ["steps", "prompts"]) {
     assert.ok(Object.keys(fragment[block]).every((k) => k.startsWith("os-")), block);
     assert.deepEqual(Object.keys(fragment[block]).filter((k) => Object.hasOwn(tenxPolicy[block], k)), [], block);
@@ -240,7 +243,7 @@ test("terminal branches reach publication and archive verifies before publishing
 });
 
 test("one chain-selected usage procedure is called before status and publication on every terminal path", () => {
-  const call = "node $ROUTER usage <change-name> <n> --tokens N --tool-uses N --duration-ms N --chain openspec";
+  const call = "node $ROUTER usage <change-name> <n> --usage-file <usage-file> --chain openspec";
   assert.equal(skill.split(call).length - 1, 1);
   assert.ok(section(lines, "## Late usage (before every end)").join("\n").includes(call));
   for (const name of ["done", "halt", "archive"]) {
@@ -292,6 +295,20 @@ test("archive reuses dispatch with its archive description override", () => {
   assert.ok(branch("run").includes("override the description with `agent-smith <change-name> archive`"));
 });
 
+test("native accounting shares the immediate, late and archive reader without final-request mapping", () => {
+  assert.ok(skill.includes('CLAUDE_USAGE="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/claude-usage.mjs"'));
+  assert.match(branch("run"), /node "\$CLAUDE_USAGE"/);
+  assert.match(branch("run"), /never map it to `totalTokens`, even for a flat step/);
+  assert.match(branch("run"), /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
+  assert.match(branch("archive"), /Only for native Agent, apply Loop step 4.s collector/);
+  const late = section(lines, "## Late usage (before every end)").join("\n");
+  assert.match(late, /--usage-file <usage-file> --chain openspec/);
+  assert.match(late, /No verified total or no recorded invocation: omit the call/);
+  assert.match(late, /Include no raw source paths or records/);
+  assert.match(late, /Unlink the owned payload in a finally step/);
+  assert.doesNotMatch(late, /node \$ROUTER next|--tokens N/);
+});
+
 // OpenSpec consumes the same setup owner with its chain selector.
 test("Start step 3 consumes shared OpenSpec setup and retains run safety", () => {
   const start = skill.indexOf("\n3. Prepare run isolation");
@@ -305,7 +322,8 @@ test("Start step 3 consumes shared OpenSpec setup and retains run safety", () =>
   for (const text of ["exactly one JSON object", "reason: null", "absolute `root` and `runRoot`",
     "nonzero exit", "missing/malformed JSON", "non-null `reason`", "STOP before `init`",
     "returned `root`", "`runRoot` as `<root>` and `<run root>`", "not in the run (uncommitted in the main checkout)",
-    "A resume never copies", 'cd "<run root>" && node $ROUTER ... --chain openspec',
+    "An ordinary resume leaves the worktree inputs as they are", "retry from the original project root",
+    'case: "reused"', "copied: true", 'cd "<run root>" && node $ROUTER ... --chain openspec',
     "<run root>/<resultFile>", "Never commit, stash, reset or clean", "refs/agent-smith/",
     "name their side refs", "List the files, check the list", "retained original paths", "before removing the worktree",
     "(isolation off)", "`os-apply` commits its code itself", "the files of the change folder stay uncommitted"]) {

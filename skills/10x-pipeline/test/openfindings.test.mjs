@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, run, init, next, writeLog, entry, writeResult, readLogEntries, git,
+  cleanupAll, makeProject, planText, run, init, next, seedRun, writeLog, entry, writeResult, readLogEntries, git,
   gitAvailable, gitEnv, gitInit, writeMetaFile, readReportFile
 } from "./helpers.mjs";
 import { writePlan, writeReview, stampAhead } from "./ahead.mjs";
@@ -49,7 +49,7 @@ function observe(text, { step = "plan-review", policy = {} } = {}) {
     ? [entry(1, "plan"), entry(2, "plan-review", pending)]
     : [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review", pending)];
   if (step === "impl-review") writeReview(project, "plan-review", { verdict: "SOUND" });
-  writeLog(project, log);
+  seedRun(project, log);
   writeResult(project, { status: "done", note: "fixture" });
   const res = next(project);
   const logged = readLogEntries(project)[log.length - 1];
@@ -197,7 +197,7 @@ describe("fallback: a review without Decision lines is unaware", () => {
   test("no ### F block at all: verdict and measured pair only", () => {
     const project = makeProject({ plan: planText() });
     writeReview(project, "plan-review", { verdict: "REVISE", findings: "1 critical, 2 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
     writeResult(project, { status: "done", note: "fixture" });
     next(project);
     const logged = readLogEntries(project)[1];
@@ -222,7 +222,7 @@ describe("fallback: a review without Decision lines is unaware", () => {
 
     const project = makeProject({ plan: planText() });
     writeReview(project, "plan-review", { verdict: "REVISE", findings: "1 critical, 0 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
     writeResult(project, { status: "done", note: "fixture" });
     const plain = next(project);
     assert.equal(plain.json.step, "plan");
@@ -258,7 +258,7 @@ describe("fallback: a review without Decision lines is unaware", () => {
     const project = makeProject({ plan: planText() });
     fs.mkdirSync(path.join(project.changeDir, "reviews"), { recursive: true });
     fs.writeFileSync(path.join(project.changeDir, "reviews", "plan-review.md"), "# Review\n\nnothing\n");
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review", { result: undefined, verified: undefined, ok: undefined, finishedAt: undefined })]);
     writeResult(project, { status: "done", note: "fixture" });
     next(project);
     const logged = readLogEntries(project)[1];
@@ -413,7 +413,7 @@ function writeReviewFile(project, name, text) {
 function routePlan(text, { policy = {}, rigor = "standard", log = null, plan = planText() } = {}) {
   const project = makeProject({ plan, policy });
   writeReviewFile(project, "plan-review", text);
-  writeLog(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(project, log ?? [entry(1, "plan"), entry(2, "plan-review")]);
   return { project, res: init(project, GOAL, ["--rigor", rigor]) };
 }
 
@@ -421,7 +421,7 @@ function routeImpl(text, { policy = {}, rigor = "standard" } = {}) {
   const project = makeProject({ plan: planText({ done: 1 }), policy });
   writeReview(project, "plan-review", { verdict: "SOUND" });
   writeReviewFile(project, "impl-review", text);
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
   return { project, res: init(project, GOAL, ["--rigor", rigor]) };
 }
 
@@ -542,7 +542,7 @@ describe("plan review routing on open findings", () => {
   test("a review without Decision lines keeps the old routing and the exact reason prefix", () => {
     const project = makeProject({ plan: planText() });
     writeReview(project, "plan-review", { verdict: "REVISE", findings: "1 critical, 1 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
     assert.equal(res.json.step, "plan");
     assert.match(res.json.reason, /^plan review REVISE \(1 critical, 1 warnings\);/);
@@ -550,7 +550,7 @@ describe("plan review routing on open findings", () => {
     // The same header with a tolerated count goes on, as before.
     const ok = makeProject({ plan: planText() });
     writeReview(ok, "plan-review", { verdict: "REVISE", findings: "0 critical, 1 warnings" });
-    writeLog(ok, [entry(1, "plan"), entry(2, "plan-review")]);
+    seedRun(ok, [entry(1, "plan"), entry(2, "plan-review")]);
     assert.equal(init(ok, GOAL, ["--rigor", "standard"]).json.step, "implement");
   });
 
@@ -581,13 +581,13 @@ describe("plan review routing on open findings", () => {
     assert.match(res.json.reason, /Plus 1 counted/);
   });
 
-  test("the gate acts only before any automated row is done", () => {
+  test("a REVISE with an open critical halts partial implementation", () => {
     const { res } = routePlan(reviewText({
       findings: "1 critical, 0 warnings",
       blocks: [block("F1", CRIT, "PENDING")],
     }), { plan: planText({ phases: 1, rowsPerPhase: 2, done: 1 }) });
-    assert.notEqual(res.json.action, "halt");
-    assert.equal(res.json.step, "implement");
+    assert.equal(res.json.action, "halt", res.stdout);
+    assert.match(res.json.reason, /^Plan review REVISE blocks remaining implementation work after implementation started\./);
   });
 });
 
@@ -721,7 +721,7 @@ describe("implementation review routing on open findings", () => {
     const project = makeProject({ plan: planText({ done: 1 }) });
     writeReview(project, "plan-review", { verdict: "SOUND" });
     writeReview(project, "impl-review", { verdict: "NEEDS ATTENTION", findings: "0 critical, 1 warnings" });
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
     assert.equal(res.json.step, "fix");
     assert.match(res.json.reason, /^impl review NEEDS ATTENTION \(0 critical, 1 warnings\);/);
@@ -730,7 +730,7 @@ describe("implementation review routing on open findings", () => {
     const off = makeProject({ plan: planText({ done: 1 }), policy: { review: { fixOnNeedsAttention: false } } });
     writeReview(off, "plan-review", { verdict: "SOUND" });
     writeReview(off, "impl-review", { verdict: "NEEDS ATTENTION", findings: "0 critical, 1 warnings" });
-    writeLog(off, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+    seedRun(off, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
     assert.equal(init(off, GOAL, ["--rigor", "standard"]).json.action, "done");
   });
 
@@ -776,15 +776,18 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
   const ON = { isolation: { require: true } };
 
   // A real linked worktree on agent-smith/demo, a first init and a plan step answered as done, so the next call asks for the plan review.
-  function isolatedRun() {
-    const main = makeProject({ policy: ON });
+  function isolatedRun(policy = {}, { nest = null, crlf = false, ident = false } = {}) {
+    const main = makeProject({ policy: { ...ON, ...policy }, nest });
     gitInit(main);
+    if (crlf) git(main, ["config", "core.autocrlf", "true"]);
+    if (ident) fs.writeFileSync(path.join(main.base, ".gitattributes"), "plan-review.md ident\n");
     git(main, ["add", "-A"]);
     git(main, ["commit", "-q", "-m", "chore: project"]);
     const top = path.join(main.base, ".claude/worktrees", "agent-smith-demo");
     git(main, ["worktree", "add", "-q", "-b", "agent-smith/demo", top]);
-    const changeDir = path.join(top, "context/changes/demo");
-    const wt = { id: "demo", base: main.base, root: top, changeDir, agentDir: path.join(changeDir, "agent-smith"), planFile: path.join(changeDir, "plan.md") };
+    const root = path.join(top, nest ?? "");
+    const changeDir = path.join(root, "context/changes/demo");
+    const wt = { id: "demo", base: main.base, root, changeDir, agentDir: path.join(changeDir, "agent-smith"), planFile: path.join(changeDir, "plan.md") };
     const env = gitEnv(main);
     const first = run(wt, ["init", "demo", "--goal", GOAL, "--rigor", "standard"], { env });
     assert.equal(first.status, 0, first.stdout + first.stderr);
@@ -792,7 +795,7 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
     writeResult(wt, { status: "done", note: "planned" });
     const review = run(wt, ["next", "demo"], { env });
     assert.equal(review.json.step, "plan-review", review.stdout + review.stderr);
-    return { wt, env };
+    return { wt, env, top };
   }
 
   test("the text ends with the commit sentence", () => {
@@ -804,6 +807,175 @@ describe("halt text in an isolated run", { skip: !gitAvailable() && "git is not 
     assert.match(res.json.reason, /^Plan review REVISE left 1 open critical and 0 open warnings \(F1\)\. Needs a human\./);
     assert.ok(res.json.reason.endsWith(" again. Commit the edit in the run worktree first: a failed step rolls back uncommitted edits."), res.json.reason);
   });
+
+  for (const edited of [true, false]) {
+    test(edited ? "a malformed confirmation survives rollback and blocks resume" : "confirmation must rewrite the earlier valid review", () => {
+      const { wt, env } = isolatedRun(CONFIRM_ON(1));
+      const file = path.join(wt.changeDir, "reviews", "plan-review.md");
+      writeReviewFile(wt, "plan-review", APPLIED_PLAN);
+      writeResult(wt, { status: "done", note: "reviewed" });
+      const confirmation = run(wt, ["next", "demo"], { env });
+      assert.equal(lastEntry(wt).template, "plan-review-confirm", confirmation.stdout);
+      const invalidText = reviewText({ verdict: "NEEDS REVISION" });
+      if (edited) {
+        writeReviewFile(wt, "plan-review", invalidText);
+        writePlan(wt, "# Plan without Progress\n");
+      }
+      writeResult(wt, { status: "done", note: "confirmed" });
+
+      const result = run(wt, ["next", "demo"], { env });
+      assert.equal(result.json.action, "halt", result.stdout);
+      const diagnostic = edited ? /Unknown review verdict "NEEDS REVISION"/ : /Stale review artifact/;
+      assert.match(result.json.reason, diagnostic);
+      const failed = lastEntry(wt);
+      assert.equal(failed.ok, false);
+      assert.equal(failed.verified, false);
+      assert.equal(failed.review, undefined);
+      assert.ok(failed.kept, "the halt undid rollback");
+      assert.equal(fs.readFileSync(file, "utf8"), edited ? invalidText : APPLIED_PLAN);
+
+      const resumed = run(wt, ["init", "demo", "--goal", GOAL], { env });
+      assert.equal(resumed.json.action, "halt", resumed.stdout);
+      assert.match(resumed.json.reason, diagnostic);
+      assert.equal(lastEntry(wt).n, failed.n);
+    });
+  }
+
+  function confirmationRun(step, options) {
+    const fixture = isolatedRun(CONFIRM_ON(1), options);
+    const { wt, env } = fixture;
+    const route = (command = "next", extraEnv) => run(wt, [command, wt.id], { env: { ...env, ...extraEnv } });
+    if (step === "impl-review") {
+      writeReview(wt, "plan-review", { verdict: "SOUND" });
+      writeResult(wt, { status: "done", note: "reviewed" });
+      assert.equal(route().json?.step, "implement");
+      writePlan(wt, planText({ done: 1 }));
+      writeResult(wt, { status: "done", note: "implemented" });
+      const dispatched = route();
+      assert.equal(dispatched.json?.step, step, dispatched.stdout + dispatched.stderr);
+    }
+    const applied = (step === "plan-review" ? APPLIED_PLAN : APPLIED_IMPL) + (options?.ident ? "\n$Id$\n" : "");
+    writeReviewFile(wt, step, applied);
+    writeResult(wt, { status: "done", note: "reviewed" });
+    const result = route();
+    const pending = lastEntry(wt);
+    assert.equal(pending.template, `${step}-confirm`, result.stdout + result.stderr);
+    return { ...fixture, route, applied, pending, file: path.join(wt.changeDir, "reviews", `${step}.md`) };
+  }
+
+  function interruptConfirmation(wt, env) {
+    const hook = path.join(wt.base, "review-reset-fault.mjs");
+    fs.writeFileSync(hook, String.raw`
+import fs from "node:fs";
+const log = ${JSON.stringify(path.join(wt.agentDir, "run.jsonl"))};
+const rename = fs.renameSync;
+fs.renameSync = (from, to) => {
+  const result = rename(from, to);
+  if (to === log) {
+    const last = fs.readFileSync(log, "utf8").trimEnd().split("\n").map(JSON.parse).at(-1);
+    if (last.rolledBack && typeof last.timestamps === "object") process.exit(86);
+  }
+  return result;
+};
+`);
+    writeResult(wt, { status: "done", note: "confirmation output" });
+    const result = run(wt, ["next", wt.id], { env: { ...env, NODE_OPTIONS: "--import=" + hook } });
+    assert.equal(result.status, 86, result.stdout + result.stderr);
+  }
+
+  test("a tracked review absent at dispatch stays stale after checkout and resume", () => {
+    const { wt, env, route, file, pending, applied } = confirmationRun("plan-review");
+    fs.unlinkSync(file);
+    // Seed the dispatch-time absence on a real pending confirmation whose saved HEAD still tracks the review.
+    const entries = readLogEntries(wt);
+    pending.before.mtimes.planReview = 0;
+    entries[entries.length - 1] = pending;
+    writeLog(wt, entries);
+    interruptConfirmation(wt, env);
+    assert.equal(fs.readFileSync(file, "utf8"), applied);
+    assert.equal(lastEntry(wt).timestamps.files.planReview.time, pending.startedAt);
+    const resumed = route("init");
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Missing review artifact .*Current artifact: Stale review artifact/);
+    assert.ok(Math.abs(fs.statSync(file).mtimeMs - pending.startedAt) < 1);
+    assert.equal(lastEntry(wt).timestamps, "completed");
+  });
+
+  test("a nested implementation confirmation keeps the checkout stale across a line-ending config change", () => {
+    const { wt, env, top, route, file, pending, applied } = confirmationRun("impl-review", { nest: "packages/widget", crlf: true });
+    writeReviewFile(wt, "impl-review", reviewText({ verdict: "BROKEN" }));
+    interruptConfirmation(wt, env);
+    assert.equal(fs.readFileSync(file, "utf8"), applied.replaceAll("\n", "\r\n"));
+    git(wt, ["-C", top, "config", "core.autocrlf", "false"]);
+    stampAhead(file);
+    const resumed = route();
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Unknown review verdict "BROKEN".*Current artifact: Stale review artifact/);
+    assert.ok(Math.abs(fs.statSync(file).mtimeMs - pending.before.mtimes.implReview) < 2);
+    assert.equal(lastEntry(wt).timestamps, "completed");
+  });
+
+  test("recovery preserves a corrected implementation review and routes on its open findings", () => {
+    const { wt, env, route, file } = confirmationRun("impl-review");
+    writeReviewFile(wt, "impl-review", reviewText({ verdict: "BROKEN" }));
+    interruptConfirmation(wt, env);
+    const corrected = reviewText({
+      verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "PENDING")],
+    });
+    writeReviewFile(wt, "impl-review", corrected);
+    const time = fs.statSync(file).mtimeMs;
+    const resumed = route("init");
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Implementation review NEEDS ATTENTION left 1 open critical/);
+    assert.equal(fs.readFileSync(file, "utf8"), corrected);
+    assert.equal(fs.statSync(file).mtimeMs, time);
+    assert.equal(lastEntry(wt).timestamps, "completed");
+    assert.ok(lastEntry(wt).rolledBack);
+    writeReviewFile(wt, "impl-review", reviewText({ verdict: "APPROVED" }));
+    assert.equal(route().json?.action, "done");
+  });
+
+  for (const unresolved of [false, true]) {
+    test(`a nested checkout comparison blocks an unchanged ${unresolved ? "unresolved" : "legacy"} plan review`, () => {
+      const { wt, env, route, file, applied } = confirmationRun("plan-review", { nest: "packages/widget", crlf: true });
+      writeReviewFile(wt, "plan-review", "# Review without a verdict\n");
+      interruptConfirmation(wt, env);
+      const entries = readLogEntries(wt);
+      const failed = entries.at(-1);
+      if (unresolved) delete failed.timestamps.files.planReview.sha256;
+      else {
+        delete failed.timestamps;
+        delete failed.invalid; // The earlier intake recorded only verified: false and ok: false.
+      }
+      writeLog(wt, entries);
+      assert.equal(fs.readFileSync(file, "utf8"), applied.replaceAll("\n", "\r\n"));
+      stampAhead(file);
+      const resumed = route("next", { GIT_LITERAL_PATHSPECS: "1" });
+      assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+      assert.match(resumed.json.reason, unresolved ? /Stale review artifact/ : /Unproved review freshness .*matches the checkout/);
+      assert.ok(lastEntry(wt).rolledBack);
+      const corrected = reviewText({ findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "PENDING")] });
+      writeReviewFile(wt, "plan-review", corrected);
+      const correctedRoute = route("init");
+      assert.match(correctedRoute.json?.reason, /Plan review REVISE left 1 open critical/, correctedRoute.stdout + correctedRoute.stderr);
+    });
+  }
+
+  test("legacy review comparison recognizes the pinned checkout after an ident attribute change", () => {
+    const { wt, env, top, route, file } = confirmationRun("plan-review", { ident: true });
+    writeReviewFile(wt, "plan-review", reviewText({ verdict: "BROKEN" }));
+    interruptConfirmation(wt, env);
+    assert.match(fs.readFileSync(file, "utf8"), /\$Id: [a-f0-9]+ \$/);
+    const entries = readLogEntries(wt);
+    delete entries.at(-1).timestamps;
+    writeLog(wt, entries);
+    fs.writeFileSync(path.join(top, ".gitattributes"), "plan-review.md -ident\n");
+    stampAhead(file);
+    const resumed = route();
+    assert.equal(resumed.json?.action, "halt", resumed.stdout + resumed.stderr);
+    assert.match(resumed.json.reason, /Unproved review freshness .*matches the checkout/);
+  });
+
 });
 
 // ---- Phase 3: the confirmation round ---------------------------------------
@@ -831,7 +1003,7 @@ function confirmImpl(text, { policy = CONFIRM_ON(1), confirms = [], rigor = "sta
   const project = makeProject({ plan: planText({ done: 1 }), policy });
   writeReview(project, "plan-review", { verdict: "SOUND" });
   writeReviewFile(project, "impl-review", text);
-  writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), ...confirms.map((over, i) => implConfirm(5 + i, over))]);
+  seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), ...confirms.map((over, i) => implConfirm(5 + i, over))]);
   return { project, res: init(project, GOAL, ["--rigor", rigor]) };
 }
 
@@ -951,7 +1123,7 @@ describe("plan review confirmation round", () => {
   test("the gate acts only before any automated row is done", () => {
     const project = makeProject({ plan: planText({ done: 1 }), policy: CONFIRM_ON(1) });
     writeReviewFile(project, "plan-review", APPLIED_PLAN);
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review")]);
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review")]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
     assert.notEqual(lastEntry(project).template, "plan-review-confirm", res.stdout);
   });
@@ -1202,7 +1374,7 @@ describe("report: Review findings section", () => {
       findings: "0 critical, 1 warnings",
       blocks: [block("F1", WARN, "PENDING")],
     }));
-    writeLog(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review", {
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review", {
       review: { verdict: "NEEDS ATTENTION", critical: 0, warnings: 1, openCritical: 0, openWarnings: 1 },
     })]);
     const res = init(project, GOAL, ["--rigor", "standard"]);
@@ -1213,6 +1385,11 @@ describe("report: Review findings section", () => {
 });
 
 describe("readReview header label forms", () => {
+  test("a leading byte-order mark preserves the first verdict and Markdown body boundary", () => {
+    assert.equal(observe("\uFEFF**Verdict**: SOUND\n").review.verdict, "SOUND");
+    assert.equal(observe("\uFEFF## Findings\n**Verdict**: SOUND\n").entry.verified, false);
+  });
+
   const cases = [
     ["**Verdict:** APPROVED", "**Findings:** 1 critical, 2 warnings", "APPROVED", 1, 2],
     ["- **Verdict**: APPROVED.", "- **Findings**: 0 critical, 0 warnings", "APPROVED", 0, 0],
@@ -1220,10 +1397,14 @@ describe("readReview header label forms", () => {
     ["**Verdict**: [NEEDS ATTENTION]", "**Findings**: 0 critical, 1 warnings", "NEEDS ATTENTION", 0, 1],
     ["**Verdict:** NEEDS ATTENTION - see F1", "**Findings:** 1 critical, 0 warnings", "NEEDS ATTENTION", 1, 0],
     ["- **Verdict**: REVISE", "- **Findings**: 1 critical, 1 warnings", "REVISE", 1, 1],
+    ["* **Verdict:**  ✅ [nEeDs aTtEnTiOn].  ", "**Findings**: 0 critical, 0 warnings", "NEEDS ATTENTION", 0, 0],
+    ["**Verdict**: sound (after fixes (F1)).", "**Findings**: 0 critical, 0 warnings", "SOUND", 0, 0],
+    ["> # Context\n**Verdict**: APPROVED", "**Findings**: 0 critical, 0 warnings", "APPROVED", 0, 0],
   ];
   for (const [v, f, verdict, critical, warnings] of cases) {
     test(`${v} / ${f}`, () => {
-      const { review } = observe(`# Review\n\n${v}\n${f}\n`);
+      const step = ["REVISE", "SOUND"].includes(verdict) ? "plan-review" : "impl-review";
+      const { review } = observe(`# Review\n\n${v}\n${f}\n`, { step });
       assert.equal(review.verdict, verdict);
       assert.equal(review.critical, critical);
       assert.equal(review.warnings, warnings);
@@ -1240,4 +1421,215 @@ describe("readReview header label forms", () => {
     const { res } = routeImpl("# Review\n\n**Verdict:** NEEDS ATTENTION\n**Findings:** 1 critical, 0 warnings\n");
     assert.equal(res.json.step, "fix");
   });
+});
+
+describe("verdict validation before advancing", () => {
+  function assertInvalidIntake({ res, entry: failed }, verdict, step) {
+    assert.equal(failed.verified, false);
+    assert.equal(failed.ok, false);
+    assert.equal(failed.review, undefined);
+    assert.equal(failed.result.note, "fixture");
+    assert.ok(failed.invalid.includes(JSON.stringify(verdict)), failed.invalid);
+    assert.ok(failed.invalid.includes(`reviews/${step}.md`), failed.invalid);
+    assert.equal(res.json.action, "run", res.stdout);
+    assert.equal(res.json.step, step, res.stdout);
+  }
+
+  for (const verdict of [
+    "NEEDS_ATTENTION", "NEEDS-ATTENTION", "NOT APPROVED", "CHANGES REQUESTED",
+    "APPROVED-WITH-CHANGES", "APPROVED with changes",
+  ]) {
+    test(`next rejects implementation verdict ${verdict}`, () => {
+      const seen = observe(reviewText({ verdict, findings: "2 critical, 1 warnings" }), { step: "impl-review" });
+      assertInvalidIntake(seen, verdict.toUpperCase(), "impl-review");
+    });
+  }
+
+  for (const verdict of ["NEEDS REVISION", "APPROVED"]) {
+    test(`next rejects plan verdict ${verdict}`, () => {
+      assertInvalidIntake(observe(reviewText({ verdict })), verdict, "plan-review");
+    });
+  }
+
+  test("retry a failed first review of a pre-existing plan with no plan step logged", () => {
+    const project = makeProject({ plan: planText() });
+    assert.equal(init(project, GOAL, ["--rigor", "standard"]).json.step, "plan-review");
+    writeReviewFile(project, "plan-review", reviewText({ verdict: "NEEDS REVISION" }));
+    writeResult(project, { status: "done", note: "fixture" });
+    const res = next(project);
+    assertInvalidIntake({ res, entry: readLogEntries(project)[0] }, "NEEDS REVISION", "plan-review");
+  });
+
+  test("a directory at the review path is recorded as a failed intake and retried", () => {
+    const project = makeProject({ plan: planText() });
+    assert.equal(init(project, GOAL, ["--rigor", "standard"]).json.step, "plan-review");
+    fs.mkdirSync(path.join(project.changeDir, "reviews", "plan-review.md"), { recursive: true });
+    writeResult(project, { status: "done", note: "fixture" });
+    const res = next(project);
+    const failed = readLogEntries(project)[0];
+    assert.equal(failed.verified, false);
+    assert.equal(failed.ok, false);
+    assert.equal(failed.review, undefined);
+    assert.match(failed.invalid, /Cannot read review artifact .*reviews\/plan-review\.md: expected a regular file/);
+    assert.equal(res.json?.step, "plan-review", res.stdout + res.stderr);
+  });
+
+  const noVerdictHeaders = [
+    ["a plain Markdown heading", "## Verdict: REJECTED"],
+    ["body prose with a quoted label", "## Findings\nThe example **Verdict**: REJECTED illustrates a possible outcome."],
+    ["a code fence", "```md\n**Verdict**: REJECTED\n```"],
+    ["a code fence in a list item", "- ```md\n  **Verdict**: APPROVED\n  ```"],
+    ["a Setext level-two heading", "Findings\n--------\n**Verdict**: APPROVED"],
+    ["a verdict formatted as a Setext heading", "**Verdict**: APPROVED\n--------"],
+    ["an HTML comment", "<!--\n**Verdict**: APPROVED\n-->"],
+    ["a multiline inline HTML comment", "Example: <!--\n**Verdict**: APPROVED\n-->"],
+    ["an HTML preformatted block", "<pre>\n**Verdict**: APPROVED\n</pre>"],
+    ["a multiline code span", "Example: `\n**Verdict**: APPROVED\n`"],
+    ["a multiline code span containing a number in prose", "Example: `\n2. continuation\n**Verdict**: APPROVED\n`"],
+    ["a quoted label", "> **Verdict**: REJECTED"],
+    ["a lazy blockquote continuation", "> Example:\n**Verdict**: APPROVED"],
+    ["duplicate labels", "**Verdict**: APPROVED\n- **Verdict:** REJECTED"],
+    ["duplicate labels around a literal comment opener", "**Verdict**: APPROVED\nThe literal `<!--` starts a comment.\n**Verdict**: REJECTED"],
+    ["duplicate labels around an escaped comment opener", "**Verdict**: APPROVED\nThe literal \\<!-- starts a comment.\n**Verdict**: REJECTED"],
+    ["duplicate labels around an unclosed inline comment opener", "**Verdict**: APPROVED\nThe literal <!-- starts a comment.\n**Verdict**: REJECTED"],
+    ["duplicate verdict items between literal backticks", "- Text with a `\n- **Verdict**: REJECTED\n- Another `\n- **Verdict**: APPROVED"],
+  ];
+  for (const [label, header] of noVerdictHeaders) {
+    test(`no-log init halts for ${label}`, () => {
+      const project = makeProject({ plan: planText({ done: 1 }) });
+      writeReview(project, "plan-review", { verdict: "SOUND" });
+      writeReviewFile(project, "impl-review", `# Review\n\n${header}\n`);
+      const res = init(project, GOAL, ["--rigor", "standard"]);
+      assert.equal(res.json.action, "halt", res.stdout);
+      assert.match(res.json.reason, /Missing review verdict in context\/changes\/demo\/reviews\/impl-review\.md/);
+      assert.match(res.json.reason, /APPROVED, NEEDS ATTENTION or REJECTED/);
+    });
+  }
+
+  for (const verdict of ["[APPROVED", "APPROVED]", "APPROVED (note", "APPROVED (note) extra", "APPROVED2", "APPROVED -"]) {
+    test(`the entire malformed verdict is kept for diagnosis: ${verdict}`, () => {
+      const seen = observe(reviewText({ verdict }), { step: "impl-review" });
+      assertInvalidIntake(seen, verdict.toUpperCase(), "impl-review");
+    });
+  }
+
+  for (const [step, value, planDone] of [["plan-review", "NEEDS REVISION", 0], ["impl-review", "CHANGES REQUESTED", 1]]) {
+    test(`an unknown existing ${step} verdict halts with its value and path`, () => {
+      const project = makeProject({ plan: planText({ done: planDone }) });
+      if (planDone) writeReview(project, "plan-review", { verdict: "SOUND" });
+      writeReviewFile(project, step, reviewText({ verdict: value }));
+      const res = init(project, GOAL, ["--rigor", "standard"]);
+      assert.equal(res.json.action, "halt", res.stdout);
+      assert.ok(res.json.reason.includes(`"${value}" in context/changes/demo/reviews/${step}.md`), res.json.reason);
+      assert.match(res.json.reason, /Expected /);
+    });
+  }
+
+  for (const [label, policy, expected] of [
+    ["attempt cap", { escalation: { maxAttemptsPerStep: 1 } }, /plan-review failed 1 times in a row/],
+    ["step budget", { limits: { maxTotalSteps: 1 }, rigor: { budgetDelta: { lean: 0, standard: 0, thorough: 0 } } }, /Step budget 1 spent/],
+  ]) {
+    test(`the ${label} halt includes the failed verdict diagnostic`, () => {
+      const { res, project, entry: failed } = observe(reviewText({ verdict: "NEEDS REVISION" }), { policy });
+      assert.equal(res.json.action, "halt", res.stdout);
+      assert.match(res.json.reason, expected);
+      assert.match(failed.invalid, /Unknown review verdict "NEEDS REVISION"/);
+      assert.ok(res.json.reason.includes(failed.invalid), res.json.reason);
+      const status = run(project, ["status", project.id]);
+      assert.equal(status.json.steps.find((e) => e.n === failed.n).invalid, failed.invalid);
+    });
+  }
+
+  test("an implementation confirmation failure blocks implementation scheduling until corrected", () => {
+    const { project, res } = confirmImpl(APPLIED_IMPL);
+    assert.equal(lastEntry(project).template, "impl-review-confirm", res.stdout);
+    writePlan(project, planText());
+    writeReviewFile(project, "impl-review", reviewText({ verdict: "CHANGES REQUESTED" }));
+    writeResult(project, { status: "done", note: "confirmed" });
+
+    for (const outcome of [next(project), init(project, GOAL, ["--rigor", "standard"])]) {
+      assert.equal(outcome.json.action, "halt", outcome.stdout);
+      assert.match(outcome.json.reason, /Unknown review verdict "CHANGES REQUESTED"/);
+    }
+    assert.equal(lastEntry(project).ok, false);
+
+    writeReviewFile(project, "impl-review", reviewText({ verdict: "APPROVED" }));
+    assert.equal(next(project).json.step, "implement");
+  });
+
+  test("an ordinary implementation review retry keeps the bump for prior code failures", () => {
+    const project = makeProject({ plan: planText({ done: 1 }) });
+    writeReview(project, "plan-review", { verdict: "SOUND" });
+    seedRun(project, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement", FAILED), entry(4, "implement")]);
+    const first = init(project, GOAL, ["--rigor", "standard"]);
+    assert.equal(first.json.step, "impl-review", first.stdout);
+    assert.match(lastEntry(project).tierWhy, /\+1 from results/);
+
+    writeReviewFile(project, "impl-review", reviewText({ verdict: "CHANGES REQUESTED" }));
+    writeResult(project, { status: "done", note: "fixture" });
+    const retry = next(project);
+    assert.equal(retry.json.step, "impl-review", retry.stdout);
+    assert.match(lastEntry(project).tierWhy, /\+1 from results/);
+  });
+
+  const singleAttempt = { escalation: { maxAttemptsPerStep: 1 } };
+
+  test("a corrected first plan review is used on resume and after implementation", () => {
+    const { project, res } = observe(reviewText({ verdict: "NEEDS REVISION" }), { policy: singleAttempt });
+    assert.equal(res.json.action, "halt", res.stdout);
+    const corrected = reviewText({ findings: "1 critical, 0 warnings", blocks: [block("F1", CRIT, "APPLIED")] });
+    writeReviewFile(project, "plan-review", corrected);
+    const resumed = init(project, GOAL, ["--rigor", "standard"]);
+    assert.equal(resumed.json.step, "implement", resumed.stdout);
+
+    writePlan(project, planText({ done: 1 }));
+    writeResult(project, { status: "done", note: "implemented" });
+    const reviewed = next(project);
+    assert.equal(reviewed.json.step, "impl-review", reviewed.stdout);
+    const planReviews = readLogEntries(project).filter((e) => e.step === "plan-review");
+    assert.equal(planReviews.length, 1);
+    assert.equal(planReviews[0].ok, false);
+  });
+
+  test("a corrected first implementation review runs the normal findings gate", () => {
+    const { project, res } = observe(reviewText({ verdict: "CHANGES REQUESTED" }), { step: "impl-review", policy: singleAttempt });
+    assert.equal(res.json.action, "halt", res.stdout);
+
+    writeReviewFile(project, "impl-review", reviewText({
+      verdict: "NEEDS ATTENTION",
+      findings: "1 critical, 0 warnings",
+      blocks: [block("F1", CRIT, "PENDING")],
+    }));
+    const open = init(project, GOAL, ["--rigor", "standard"]);
+    assert.equal(open.json.action, "halt", open.stdout);
+    assert.match(open.json.reason, /NEEDS ATTENTION left 1 open critical.*\(F1\)/);
+
+    writeReviewFile(project, "impl-review", reviewText({
+      verdict: "NEEDS ATTENTION",
+      findings: "0 critical, 1 warnings",
+      blocks: [block("F1", WARN, "PENDING")],
+    }));
+    const tolerated = next(project);
+    assert.equal(tolerated.json.action, "done", tolerated.stdout);
+    assert.equal(tolerated.json.reason, "impl review NEEDS ATTENTION");
+    const implReviews = readLogEntries(project).filter((e) => e.step === "impl-review");
+    assert.equal(implReviews.length, 1);
+    assert.equal(implReviews[0].ok, false);
+  });
+
+  for (const [remaining, plan, codeEntry] of [
+    ["unchecked rows after a tick", planText({ rowsPerPhase: 2, done: 1 }), null],
+    ["only a reopened row", planText({ done: 1 }), entry(3, "implement", { uncommitted: ["1.1"] })],
+    ["unchecked rows after a failed code attempt with zero ticks", planText(), entry(3, "implement", FAILED)],
+  ]) {
+    test(`a blocking plan verdict halts with ${remaining}`, () => {
+      const log = [entry(1, "plan"), entry(2, "plan-review"), ...(codeEntry ? [codeEntry] : [])];
+      for (const [verdict, findings] of [["RETHINK", "0 critical, 0 warnings"], ["REVISE", "1 critical, 0 warnings"]]) {
+        const { res, project } = routePlan(reviewText({ verdict, findings }), { plan, log });
+        assert.equal(res.json.action, "halt", res.stdout);
+        assert.match(res.json.reason, /blocks remaining implementation work after implementation started/);
+        assert.equal(readLogEntries(project).length, log.length);
+      }
+    });
+  }
 });

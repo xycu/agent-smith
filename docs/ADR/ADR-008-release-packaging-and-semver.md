@@ -5,6 +5,10 @@
 - **Deciders:** repository owner
 - **Origin:** the `release-packaging` change. Change folder: `context/changes/release-packaging/change.md`. The mechanics are copied from xycu/hegel-skill, with the differences below.
 
+## Rule in force
+
+Release-please runs after green push CI while `main` still points at that commit. The squash PR title supplies the Conventional Commit subject that determines the release. The manifest, plugin version and marketplace metadata share one SemVer value. The marketplace plugin entry omits `version`. [Release workflow](../../.github/workflows/release.yml) · [Version check](../../tools/version-check.mjs)
+
 ## Context
 
 - The plugin had a hand-written version (`0.1.0` in `.claude-plugin/plugin.json`), no tag, no release and no CI.
@@ -42,7 +46,7 @@ Rules, written as scenarios (the form of ADR-004):
 
 > Updated 2026-11-09. Release 1.0.0 superseded the 0.x assumption. The Decision rules above apply a major bump to breaking changes at 1.0.0 and above. [Changelog](../../CHANGELOG.md#100-2026-11-09) · [Release commit 9fceddd](https://github.com/xycu/agent-smith/commit/9fceddd)
 - The release PR is opened with `GITHUB_TOKEN`, so no other workflow runs on it. This is acceptable because `main` has no required checks.
-- The owner must switch on "Allow GitHub Actions to create and approve pull requests" once. Until then `release.yml` fails when it tries to open the PR.
+- The owner enabled "Allow GitHub Actions to create and approve pull requests" for the first release. The archived plan records the setting, the release PR and the resulting `v0.2.0` tag in rows 3.7–3.9. [Release packaging checks](../../context/archive/2026-11-02-release-packaging/plan.md#progress)
 - The commit lint reads subjects only; it does not check the body or the `BREAKING CHANGE:` footer. A breaking change without `!` or a footer is released as the type it was committed with.
 - The workflows run only in GitHub Actions, never locally. Since ADR-020 the CI jobs run on self-hosted TrueNAS runners (hosted for fork pull requests), and `release.yml` stays on GitHub-hosted runners. `ci.yml` and `release.yml` were checked with `actionlint` at implementation time; no workflow runs it, so the first pull request and the first release PR are the real proof.
 
@@ -77,7 +81,7 @@ Rules, written as scenarios (the form of ADR-004):
 - The release PR no longer updates on a red `main`, and it lags a push by the CI duration.
 - The tag and GitHub Release follow the CI run of the release-PR merge commit.
 - GitHub-hosted minutes are unchanged (`release.yml` stays hosted); the TrueNAS runner serialises more CI runs because pushes to `main` are no longer cancelled.
-- The `concurrency` block of `release.yml` moved from the workflow to the job, so a run whose job the `if` skips does not take the pending slot of the group. This and the rerun behaviour are unverified until the live check (rows 3.5 and 3.6 of the plan).
+- The `concurrency` block of `release.yml` moved from the workflow to the job, so a run whose job the `if` skips does not take the pending slot of the group. On 2026-11-15, a green CI rerun triggered release and a skipped job left the queued valid release intact (rows 3.5 and 3.6). [Release acceptance](../../context/archive/2026-11-12-release-after-green-ci/evidence/acceptance-2026-11-15.md)
 - `release-please-action` runs no checked-out code, so the write token never meets code from a pull request. The `event == 'push'` condition keeps a pull request from a fork branch named `main` out.
 
 ### Alternatives considered

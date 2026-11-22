@@ -1,10 +1,12 @@
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { validateRunBranch, validateRunIdentity } from "./run-identity.mjs";
+import { gitOperationProblem } from "./git-operation.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, writeFileAtomic, isFailure, isObject, SHA_RE, runGit,
-  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget, stateTempFiles,
+  ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget, stepPolicy, providersByStep, stateTempFiles,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
@@ -82,11 +84,18 @@ function ruleFilesHash() {
 function hookFilesHash() {
   try {
     const files = {};
-    for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs"]) {
+    for (const name of ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs"]) {
       files[name] = fs.readFileSync(path.join(PLUGIN_ROOT, name), "utf8");
     }
     return hash16(canonicalJson(files));
   } catch { return null; }
+}
+
+// A headless launch needs its guard and agent definitions from the revision that routed the run.
+export function matchesHeadlessGuard(meta) {
+  const sections = meta.provenance?.sections;
+  return typeof sections?.agentFiles === "string" && sections.agentFiles === agentFilesHash()
+    && typeof sections.hookFiles === "string" && sections.hookFiles === hookFilesHash();
 }
 
 // The version of the plugin manifest, only read (release-please owns it). null when the file is unreadable.
@@ -96,11 +105,20 @@ function pluginVersion() {
 }
 
 // One hash per section of the merged policy except the ignored ones, plus agentFiles, ruleFiles and hookFiles, sorted by name.
-function provenanceSections(policy) {
+function provenanceSections(policy, meta) {
   const ignore = new Set(provenanceConfig(policy).ignore);
   const sections = {};
   for (const key of Object.keys(policy)) {
     if (!ignore.has(key)) sections[key] = key === "prompts" ? promptsHash(policy) : hash16(canonicalJson(policy[key]));
+  }
+  if (meta.providerMode && !ignore.has("ladder")) {
+    const assignments = providersByStep(policy, meta);
+    const ladders = {};
+    for (const [template, provider] of Object.entries(assignments)) {
+      const step = policy.splitProviders[meta.chain ?? "10x"].hostTemplates[template] ?? template;
+      if (!Object.hasOwn(ladders, provider)) ladders[provider] = stepPolicy(policy, meta, step, template).ladder;
+    }
+    sections.ladder = hash16(canonicalJson(ladders));
   }
   sections.agentFiles = agentFilesHash();
   sections.ruleFiles = ruleFilesHash();
@@ -114,6 +132,7 @@ function provenanceSections(policy) {
 function provenanceFlags(policy, meta) {
   const minRigor = isObject(policy.score) ? policy.score.minRigor : null;
   return {
+    ...(meta.providerMode ? { providerMode: meta.providerMode } : {}),
     archive: meta.archive === true,
     chrome: meta.chrome !== false,
     "score.minRigor": typeof minRigor === "string" ? minRigor : null,
@@ -127,7 +146,7 @@ function provenanceFlags(policy, meta) {
 // The record init stores. null only if something unexpected throws: a run then has no record and reads as unknown.
 export function provenanceRecord(policy, meta) {
   try {
-    return { schemaVersion: 1, plugin: pluginVersion(), sections: provenanceSections(policy), flags: provenanceFlags(policy, meta) };
+    return { schemaVersion: 1, plugin: pluginVersion(), sections: provenanceSections(policy, meta), flags: provenanceFlags(policy, meta) };
   } catch { return null; }
 }
 
@@ -139,7 +158,7 @@ export function recordDrift(meta, policy) {
   if (!isObject(rec) || !isObject(rec.sections)) return false;
   try {
     const ignore = new Set(provenanceConfig(policy).ignore);
-    const now = provenanceSections(policy);
+    const now = provenanceSections(policy, meta);
     const had = Array.isArray(rec.drift) ? rec.drift.filter((s) => typeof s === "string") : [];
     const changed = [...new Set([...Object.keys(rec.sections), ...Object.keys(now)])]
       .filter((name) => !ignore.has(name) && rec.sections[name] !== now[name]);
@@ -189,7 +208,6 @@ export function authorityLine(p, policy, template) {
 // ---- archive adapter ------------------------------------------------------
 
 const CREATED_RE = /^\d{4}-\d{2}-\d{2}$/;
-const IN_PROGRESS = ["MERGE_HEAD", "REVERT_HEAD", "CHERRY_PICK_HEAD", "rebase-merge", "rebase-apply"];
 const SKIP_COMMITTED = "skipped: pre-archive commit exists; run not archived";
 const SKIP_FAILED = "skipped: pre-archive commit failed";
 
@@ -238,8 +256,8 @@ export function notWorkTree(inside, timeout, need = "--archive needs") {
 }
 
 // The git safety checks shared by the pre-archive commit, the start and step commits of an isolated run and the
-// rollback, all reads: a work tree, git ignoring a router file (only with `id`), a symbolic HEAD, no merge, rebase,
-// cherry-pick or revert in progress and, unless `emptyIndex` is false, an empty index. Returns null or the reason.
+// rollback, all reads: a work tree, git ignoring a router file (only with `id`), a symbolic HEAD, no unfinished
+// operation or unmerged entries and, unless `emptyIndex` is false, no staged changes. Returns null or the reason.
 // `chain` picks the router files probed with `id` (ignoredProbePaths).
 function gitSafety(g, timeout, { id = null, emptyIndex = true, need, chain = "10x" } = {}) {
   const inside = g(["rev-parse", "--is-inside-work-tree"]);
@@ -249,12 +267,8 @@ function gitSafety(g, timeout, { id = null, emptyIndex = true, need, chain = "10
     if (ignoredProbes.length) return `git ignores ${ignoredProbes.join(", ")}, so the change folder cannot be committed.`;
   }
   if (g(["symbolic-ref", "-q", "HEAD"]).status !== 0) return "HEAD is detached; check out a branch first.";
-  for (const name of IN_PROGRESS) {
-    const where = g(["rev-parse", "--git-path", name]);
-    if (where.status === 0 && fs.existsSync(path.resolve(ROOT, where.stdout.trim()))) {
-      return `A merge, rebase, cherry-pick or revert is in progress (${name} exists); finish or abort it first.`;
-    }
-  }
+  const operation = gitOperationProblem((args) => runGit(args, { timeout, encoding: "buffer" }));
+  if (operation) return operation;
   if (emptyIndex) {
     const staged = g(["diff", "--cached", "--quiet"]);
     if (staged.status === 1) {
@@ -532,20 +546,187 @@ const timedFiles = (p) => Object.fromEntries(Object.entries({
 }).filter(([, file]) => typeof file === "string"));
 export const fileTimes = (p) => Object.fromEntries(Object.entries(timedFiles(p)).map(([key, file]) => [key, mtime(file)]));
 
-// Sets each file that exists and has a recorded time above 0 back to that time (fs.utimesSync, no git).
-export function setTimes(p, times) {
-  if (!isObject(times)) return;
-  for (const [key, file] of Object.entries(timedFiles(p))) {
-    const t = times[key];
-    if (typeof t === "number" && Number.isFinite(t) && t > 0 && fs.existsSync(file)) fs.utimesSync(file, t / 1000, t / 1000);
+// Work with a regular file descriptor so a redirected name cannot redirect the timestamp write.
+function timedFile(file, use) {
+  const rel = path.relative(ROOT, file);
+  if (!rel || rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+    throw new Error("path is outside the run worktree");
+  }
+  let checked = fs.realpathSync(ROOT);
+  const parts = rel.split(path.sep);
+  let fd;
+  try {
+    for (const [i, part] of parts.entries()) {
+      checked = path.join(checked, part);
+      const stat = fs.lstatSync(checked);
+      if (i === parts.length - 1 ? !stat.isFile() : !stat.isDirectory()) {
+        throw new Error("expected a regular file with no symlink in its path");
+      }
+    }
+    fd = fs.openSync(checked, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    if (!fs.fstatSync(fd).isFile() || fs.realpathSync(checked) !== checked) {
+      throw new Error("expected a regular file with no symlink in its path");
+    }
+    return use(fd);
+  } finally {
+    fs.closeSync(fd);
   }
 }
 
-// run.jsonl and meta.json as next holds them in memory, written back after a reset changed them on disk.
-export function writeState(p, meta, log) {
-  fs.mkdirSync(p.dir, { recursive: true });
+const fingerprint = (bytes) => crypto.createHash("sha256").update(bytes).digest("hex");
+
+// An empty successful tree lookup proves absence. A Git error is distinct from an absent path.
+function checkoutFile(file, commit, timeout) {
+  if (typeof commit !== "string" || !SHA_RE.test(commit)) throw new Error("missing checkout commit");
+  const git = (args) => {
+    const result = runGit(args, { timeout });
+    if (result.status !== 0) throw new Error(`git ${args[0]} failed: ${gitMessage(result)}`);
+    return result.stdout;
+  };
+  const gitRoot = git(["rev-parse", "--show-toplevel"]).replace(/\r?\n$/, "");
+  const gitPath = git(["rev-parse", "--show-prefix"]).replace(/\r?\n$/, "") +
+    path.relative(ROOT, file).split(path.sep).join("/");
+  const entry = git(["--literal-pathspecs", "ls-tree", "-z", "--full-tree", commit, "--", gitPath]);
+  if (!entry) return null;
+  const match = /^100(?:644|755) blob ([0-9a-f]{40,64})\t/.exec(entry);
+  if (!match || entry.slice(match[0].length) !== gitPath + "\0") {
+    throw new Error("checkout source is not a regular file");
+  }
+  return { gitRoot, gitPath, blob: match[1] };
+}
+
+// Compare without writing the index or checking out the pinned commit. Custom filter output is unproved.
+function matchesCheckout(file, bytes, commit, timeout) {
+  const source = checkoutFile(file, commit, timeout);
+  if (!source) return false;
+  const { gitRoot, gitPath, blob } = source;
+  const filterWords = ["unspecified", "unset", "set"];
+  const attributes = (source) => {
+    const result = runGit(["-C", gitRoot, "check-attr", ...source, "-z",
+      "filter", "ident", "working-tree-encoding", "--", gitPath], { timeout });
+    if (result.status !== 0) throw new Error(`git check-attr failed: ${gitMessage(result)}`);
+    const [, , filter, , , ident, , , encoding] = result.stdout.split("\0");
+    if (!filterWords.includes(filter)) {
+      throw new Error("checkout bytes cannot be verified with a custom Git filter");
+    }
+    return ident === "set" || (encoding !== "unspecified" && encoding !== "unset");
+  };
+  const currentConversion = attributes([]);
+  const indexedConversion = attributes(["--cached"]);
+  const pinnedConversion = attributes([`--source=${commit}`]);
+  // A driver can literally be named after one of check-attr's reserved result words.
+  const config = runGit(["-C", gitRoot, "config", "--list", "--name-only", "--null"], { timeout });
+  if (config.status !== 0) throw new Error(`git config failed: ${gitMessage(config)}`);
+  if (config.stdout.split("\0").some((key) => /^filter\.(unspecified|unset|set)\.(smudge|process|required)$/.test(key))) {
+    throw new Error("checkout bytes cannot be verified with a custom Git filter");
+  }
+  const cat = (args) => execFileSync("git", args, {
+    cwd: gitRoot, stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
+    ...(Number.isInteger(timeout) && timeout > 0 ? { timeout } : {}),
+  });
+  const normalizeEol = (buffer) => buffer.toString("latin1").replaceAll("\r\n", "\n");
+  const normalized = normalizeEol(bytes);
+  const matches = (candidate) => candidate.equals(bytes) || normalizeEol(candidate) === normalized;
+  const filters = ["cat-file", "--filters", `--path=${gitPath}`, blob];
+  return matches(cat(["cat-file", "blob", blob])) ||
+    ((currentConversion || indexedConversion) && matches(cat(filters))) ||
+    (pinnedConversion && matches(cat([`--attr-source=${commit}`, ...filters])));
+}
+
+// Only authoritative legacy failures reach this comparison, after verdict and timestamp validation.
+export function legacyReviewProblem(file, attempt, policy) {
+  const timeout = policy.isolation?.gitTimeoutMs;
+  const rel = path.relative(ROOT, file);
+  const ref = attempt.kept ?? attempt.rolledBack;
+  try {
+    let commit = attempt.startSha;
+    if (attempt.kept) {
+      if (!ref.startsWith("refs/agent-smith/")) throw new Error("invalid snapshot ref");
+      const result = runGit(["rev-parse", "--verify", `${ref}^{commit}`], { timeout });
+      if (result.status !== 0) throw new Error(`cannot read snapshot: ${gitMessage(result)}`);
+      commit = result.stdout.trim();
+    }
+    const same = timedFile(file, (fd) => matchesCheckout(file, fs.readFileSync(fd), commit, timeout));
+    if (same === false) return null;
+    return `Unproved review freshness in ${rel} for step ${attempt.n} (${attempt.step}): the review matches the checkout for ${ref} or is absent. Save a fresh review with corrected contents.`;
+  } catch (error) {
+    return `Unproved review freshness in ${rel} for step ${attempt.n} (${attempt.step}) at ${ref}: ${error.message}. Fix the cause and retry.`;
+  }
+}
+
+const timestampProblem = (last, file, reason) =>
+  `Timestamp restoration for step ${last.n} (${last.step}) at ${path.relative(ROOT, file)} from ${last.kept ?? last.rolledBack}: ${reason}. Fix the cause and retry next.`;
+
+function restoreTimes(p, meta, log, last, g, timeout) {
+  const where = runBranchReason(g, meta);
+  if (where) return timestampProblem(last, p.change, where);
+  const { commit, files } = last.timestamps;
+  for (const [key, file] of Object.entries(timedFiles(p))) {
+    const target = files[key];
+    if (!target || target.absent) continue;
+    try {
+      timedFile(file, (fd) => {
+        const bytes = fs.readFileSync(fd);
+        const matches = target.sha256
+          ? fingerprint(bytes) === target.sha256
+          : matchesCheckout(file, bytes, commit, timeout);
+        if (matches) {
+          if (fs.fstatSync(fd).nlink !== 1) throw new Error("cannot change the time of a hard-linked file");
+          fs.futimesSync(fd, target.time / 1000, target.time / 1000);
+        }
+      });
+    } catch (error) {
+      return timestampProblem(last, file, error.message);
+    }
+  }
+  last.timestamps = "completed";
   writeLog(p.log, log);
+  return null;
+}
+
+// Publish metadata and the pending log before restoring a timestamp. Capture the bytes Git actually checked out,
+// so a subsequent config change cannot turn an unchanged file into an apparent correction.
+function checkpointTimes(p, meta, log, last, g, timeout, commit, times) {
+  const files = {};
+  let problem = null;
+  for (const [key, file] of Object.entries(timedFiles(p))) {
+    const recorded = times?.[key];
+    const missingReview = last.rolledBack && last.verified === false && recorded === 0 &&
+      last.step === (key === "planReview" ? "plan-review" : key === "implReview" ? "impl-review" : null);
+    const time = missingReview ? last.startedAt : recorded;
+    if (!Number.isFinite(time) || time <= 0) continue;
+    const target = files[key] = { time };
+    try {
+      const hash = timedFile(file, (fd) => {
+        if (missingReview && !checkoutFile(file, commit, timeout)) return null;
+        return fingerprint(fs.readFileSync(fd));
+      });
+      if (hash === null) target.absent = true;
+      else target.sha256 = hash;
+    } catch (error) {
+      problem ??= timestampProblem(last, file, error.message);
+    }
+  }
+  last.timestamps = { commit, files };
+  fs.mkdirSync(p.dir, { recursive: true });
   writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
+  writeLog(p.log, log);
+  return problem ?? restoreTimes(p, meta, log, last, g, timeout);
+}
+
+export function resumeTimes(p, id, meta, log, policy) {
+  if (meta.isolated !== true) return;
+  const ran = executed(log);
+  const last = ran.at(-1);
+  if (!isObject(last?.timestamps)) return;
+  const timeout = policy.isolation?.gitTimeoutMs;
+  const reason = restoreTimes(p, meta, log, last, (args) => runGit(args, { timeout }), timeout);
+  if (reason) endRun(p, id, meta, log, { action: "halt", reason, steps: ran.length });
 }
 
 // The run token of the side ref ({run} in policy.isolation.rollback.ref): the first RUN_TOKEN_LENGTH hex characters
@@ -620,9 +801,23 @@ export function rollback(p, id, meta, log, policy) {
   // The reset replaced run.jsonl and meta.json with their startSha versions: write the state back first, so a failure
   // while setting the file times cannot lose the log.
   last.rolledBack = ref;
-  writeState(p, meta, log);
-  setTimes(p, last.before?.mtimes);
-  return { ref, left, last, g };
+  const problem = checkpointTimes(p, meta, log, last, g, timeout, last.startSha, last.before?.mtimes);
+  if (problem) endRun(p, id, meta, log, { action: "halt", reason: problem, steps: ran.length });
+  return { ref, left, last, g, timeout, snapshot };
+}
+
+// A same-call halt restores the failed snapshot. A later process only resumes its checkpoint.
+export function undoRollback(p, meta, log, rb) {
+  const hard = rb.g(["reset", "-q", "--hard", rb.snapshot]);
+  if (hard.status !== 0) return `git reset --hard ${rb.ref} failed: ${gitMessage(hard)}.`;
+  const mixed = rb.g(["reset", "-q", `${rb.snapshot}^`]);
+  if (mixed.status !== 0) {
+    return `git reset ${rb.ref}^ failed: ${gitMessage(mixed)}. The run branch now points at the snapshot commit of ${rb.ref}; ` +
+      `run git reset -q ${rb.ref}^ in the run worktree before resuming.`;
+  }
+  delete rb.last.rolledBack;
+  rb.last.kept = rb.ref;
+  return checkpointTimes(p, meta, log, rb.last, rb.g, rb.timeout, rb.snapshot, rb.left);
 }
 
 const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone by the router. A resume makes no commit, " +
@@ -633,12 +828,16 @@ const COMMIT_EXISTS = "The pre-archive commit exists, is local and is not undone
 export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.level) {
   const openspec = p.chain === "openspec";
   const step = openspec ? "os-archive" : "archive";
-  const settled = tierFor({ step }, executed(log), policy, readPlan(p.plan), meta, level);
-  const target = dispatchTarget(policy, settled.tier);
+  const selected = stepPolicy(policy, meta, step);
+  const settled = tierFor({ step }, executed(log), selected, readPlan(p.plan), meta, level);
+  const target = dispatchTarget(selected, settled.tier);
   const created = openspec ? null : createdValue(path.join(p.change, "change.md"));
-  if (!openspec && (created === null || !CREATED_RE.test(created))) throw new Error("change.md has no valid archive creation date.");
+  if (!openspec && (created === null || !CREATED_RE.test(created))) throw new Error(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
   const archivePath = openspec ? openspecArchivePath(id) : `context/archive/${created}-${id}`;
-  return { ...target, archivePath, tier: settled.tier, tierWhy: settled.tierWhy };
+  const agent = dispatchAgent(policy, target, step);
+  const body = render(promptText(policy, step), { id });
+  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + ruleTail(policy, { chain: p.chain ?? "10x", step, vars: { id } });
+  return { ...target, ...(agent ? { agent } : {}), prompt, archivePath, tier: settled.tier, tierWhy: settled.tierWhy };
 }
 
 // The done branch of a run with --archive. Pre-checks, final report, commit, post-commit checks, then the archive action.
@@ -646,7 +845,7 @@ export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.
 // written as done, a halt only prints (out): rewriting meta.json or report.md would dirty the committed folder.
 // An OpenSpec run (ADR-013 D5) commits openspec/changes/<id>/, needs no created: line, halts on an open task row,
 // names the folder `openspec archive` will create and returns the os-archive prompt at the tier of steps["os-archive"].
-export function archiveDone(p, id, meta, log, policy, level, d) {
+export function archiveDone(p, id, meta, log, policy, level, d, visibility = {}) {
   const openspec = p.chain === "openspec";
   const rel = changeRel(p, id);
   const ran = executed(log);
@@ -675,25 +874,21 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   };
   const unsafe = gitSafety(g, timeout, { id, chain: openspec ? "openspec" : "10x" });
   if (unsafe) precheck(unsafe);
-  let archivePath;
+  let settled;
+  try {
+    settled = archiveDescriptor(p, id, meta, log, policy, level);
+  } catch (e) {
+    precheck(e instanceof Error ? e.message : String(e));
+  }
   if (openspec) {
     const tasks = readOpenspec(p).tasks;
     if (tasks.open > 0) {
       precheck(`${rel}/tasks.md has ${tasks.open} open task row(s) of ${tasks.total}; an OpenSpec change is archived only with every task ticked. Needs a human.`);
     }
-    archivePath = openspecArchivePath(id);
-    if (fs.existsSync(path.join(ROOT, archivePath))) {
-      precheck(`Archive destination ${archivePath} already exists; openspec archive would refuse it (archive_target_exists). Needs a human.`);
-    }
-  } else {
-    const created = createdValue(path.join(p.change, "change.md"));
-    if (created === null || !CREATED_RE.test(created)) {
-      precheck(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
-    }
-    archivePath = `context/archive/${created}-${id}`;
-    if (fs.existsSync(path.join(ROOT, archivePath))) {
-      precheck(`Archive destination ${archivePath} already exists; a reused id on the same date needs a human.`);
-    }
+  }
+  if (fs.existsSync(path.join(ROOT, settled.archivePath))) {
+    const reason = openspec ? "openspec archive would refuse it (archive_target_exists). Needs a human." : "a reused id on the same date needs a human.";
+    precheck(`Archive destination ${settled.archivePath} already exists; ${reason}`);
   }
   const manualPending = Array.isArray(d.manualPending) ? d.manualPending : [];
   if (policy.archive?.haltOnManualPending === true && manualPending.length) {
@@ -707,19 +902,8 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   if (!message) precheck("policy.archive.commitMessage renders to a blank message.");
   const badCoAuthor = coAuthorProblem(policy);
   if (badCoAuthor) precheck(badCoAuthor);
-  let settled;
-  try {
-    settled = archiveDescriptor(p, id, meta, log, policy, level);
-  } catch (e) {
-    precheck(`Cannot pick the archive tier: ${e instanceof Error ? e.message : String(e)}`);
-  }
-  const target = policy.ladder[settled.tier];
-  if (!isObject(target) || typeof target.model !== "string" || typeof target.effort !== "string") {
-    precheck(`policy.ladder has no entry for tier ${settled.tier}, which the archive step is pinned to.`);
-  }
-  const dispatch = dispatchTarget(policy, settled.tier);
   const archiveStep = openspec ? "os-archive" : "archive";
-  const unsupported = dispatchProblem(policy, dispatch, archiveStep, archiveStep);
+  const unsupported = dispatchProblem(policy, settled, archiveStep, archiveStep);
   if (unsupported) precheck(unsupported);
 
   // 3. Ignored files are reported, never a halt.
@@ -751,22 +935,16 @@ export function archiveDone(p, id, meta, log, policy, level, d) {
   // 6. The archive action. No log entry and no resultFile: nothing may be written into the folder that moves.
   // "HEAD" stands for a commit this call made whose hash could not be read; null means no commit was made.
   const commit = res.made ? (res.commit ? res.commit.slice(0, 7) : "HEAD") : null;
-  const body = openspec ? render(promptText(policy, "os-archive"), { id }) : render(promptText(policy, "archive"), { id });
-  // The rule tail of ADR-023, as at the run site; the archive site fills only {id}.
-  const tail = ruleTail(policy, { chain: openspec ? "openspec" : "10x", step: openspec ? "os-archive" : "archive", vars: { id } });
-  const prompt = worktreeLine(policy, meta) + body.trim() + "\n\n" + tail;
-  const agent = dispatchAgent(policy, dispatch, archiveStep);
+  const { tier, tierWhy, ...dispatch } = settled;
   return out({
     action: "archive",
-    ...(agent ? { agent } : {}),
+    ...visibility,
     change: id, root: ROOT, chain: p.chain ?? "10x",
     host: hostOf(meta),
     ...dispatch,
-    reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${settled.tier} (${settled.tierWhy})`,
-    prompt,
+    reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${tier} (${tierWhy})`,
     summary: { reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length },
     report: done.report,
-    archivePath,
     commit,
     ignored,
     ...pr,

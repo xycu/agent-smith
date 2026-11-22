@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   cleanupAll, makeProject, run, git, gitInit, writeOverride, writeResult,
-  readLogEntries, readMetaFile, readReportFile, planText,
+  readLogEntries, readMetaFile, writeMetaFile, readReportFile, planText,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -75,7 +75,7 @@ function finishStep(w) {
   w.action = next.json;
 }
 
-function finishRun(w) {
+function finishRun(w, { mixedScope = false } = {}) {
   for (let remaining = 12; w.action.action === "run" && remaining > 0; remaining--) finishStep(w);
   assert.equal(w.action.action, "done", JSON.stringify(w.action));
   const status = run(w.project, ["status", "demo", "--report", "--chain", w.chain], { env: w.env });
@@ -83,7 +83,11 @@ function finishRun(w) {
   assert.ok(status.json.steps.filter((step) => !step.skipped).every((step) => ["claude", "openai"].includes(step.provider)));
   assert.match(readReportFile(w.project), /openai/);
   const compared = run(w.project, ["compare", "demo", "--chain", w.chain, "--baseline", w.project.root, "--routed", w.project.root, "--unpinned"], { env: w.env });
-  assert.equal(compared.json.comparable, true, compared.stdout);
+  assert.equal(compared.json.comparable, !mixedScope, compared.stdout);
+  if (mixedScope) {
+    assert.ok(compared.json.reasons.includes("usage-scope-mismatch"));
+    assert.equal(compared.json.dropPercent, null);
+  }
   assert.ok(Object.keys(compared.json.routed.tokens.byProviderModel).some((key) => key.startsWith("openai/")));
   assert.deepEqual(runnerLeftovers(w), []);
   return compared.json;
@@ -148,6 +152,7 @@ for (const chain of ["10x", "openspec"]) {
     const ladder = DEFAULT.ladder.map((rung, i) => i < cutoff ? { ...rung, provider: "claude" } : PRESET.ladder[i]);
     const policy = { ladder, codex: { profile: null }, isolation: { require: true } };
     const project = projectFor(chain, policy, true);
+    writeMetaFile(project, { id: project.id, host: "claude", ...(chain === "openspec" ? { chain } : {}) });
     const w = codexFixture(chain, { project, policy, host: "claude", mode: { reply: DONE } });
     const implementation = chain === "10x" ? "implement" : "os-apply";
     for (let remaining = 6; w.action.step !== implementation && remaining > 0; remaining--) finishStep(w);
@@ -176,7 +181,7 @@ for (const chain of ["10x", "openspec"]) {
     for (const key of ["n", "provider", "model", "effort", "profile", "prompt"]) assert.equal(retry.json[key], w.action[key], key);
     assert.equal(calls(w.fixture).filter((call) => call.args[0] === "exec").length, callsBeforeRetry);
     w.action = retry.json;
-    const compared = finishRun(w);
+    const compared = finishRun(w, { mixedScope: true });
     assert.ok(compared.warnings.includes("cross-provider-raw-tokens"));
     assert.ok(readLogEntries(project).some((entry) => entry.provider === "openai" && entry.ok));
   });
@@ -198,7 +203,8 @@ for (const chain of ["10x", "openspec"]) {
     });
     const result = execute(w);
     assert.equal(result.json.completed, true, result.stdout);
-    assert.equal(result.json.usage.totalTokens, undefined);
+    assert.equal(result.json.usage.totalTokens, 132, "failed enclosing result still owns root 110 plus collected child 22");
+    assert.equal(result.json.usageEvidence.status, "verified");
     writeResult(project, result.json.result);
     const retry = run(project, ["next", project.id, "--chain", chain], { env: w.env });
     assert.equal(retry.json.action, "run", retry.stdout);

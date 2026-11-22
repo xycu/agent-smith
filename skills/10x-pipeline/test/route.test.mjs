@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, writeLog, entry,
+  cleanupAll, makeProject, planText, writePlan, writeReview, run, init, next, seedRun, writeLog, entry,
   readLogEntries, readMetaFile, writeMetaFile, skipEntry, writeResult, readReportFile, gitAvailable, gitEnv, gitInit, commitFiles,
   ruleTail,
 } from "./helpers.mjs";
@@ -124,13 +124,13 @@ test("phase count raises rigor: 3 phases standard, 6 phases thorough", () => {
 
 test("one failed step raises rigor to standard, three to thorough", () => {
   const one = makeProject({ plan: planText() });
-  writeLog(one, [entry(1, "plan"), entry(2, "implement", { ok: false, verified: false })]);
+  seedRun(one, [entry(1, "plan"), entry(2, "implement", { ok: false, verified: false })]);
   init(one, "fix typo");
   assert.equal(readMetaFile(one).rigor.level, "standard");
   assert.match(readMetaFile(one).rigor.by, /failed steps 1/);
 
   const three = makeProject({ plan: planText() });
-  writeLog(three, [
+  seedRun(three, [
     entry(1, "plan"),
     entry(2, "implement", { ok: false }),
     entry(3, "implement", { ok: false }),
@@ -173,14 +173,14 @@ test("step budget differs per level: 12, 19, 24", () => {
   ];
   for (const { goal, extra, budget } of cases) {
     const project = makeProject();
-    writeLog(project, Array.from({ length: budget }, (_, i) => entry(i + 1, "plan")));
+    seedRun(project, Array.from({ length: budget }, (_, i) => entry(i + 1, "plan")));
     const res = init(project, goal, extra);
     assert.equal(res.json.action, "halt", `budget ${budget}`);
     assert.match(res.json.reason, new RegExp(`Step budget ${budget} spent`));
   }
   // One entry fewer still runs.
   const project = makeProject();
-  writeLog(project, Array.from({ length: 11 }, (_, i) => entry(i + 1, "plan")));
+  seedRun(project, Array.from({ length: 11 }, (_, i) => entry(i + 1, "plan")));
   assert.equal(init(project, "fix typo").json.action, "run");
 });
 
@@ -192,7 +192,7 @@ test("a complete run at the budget ends done, not halted (issue #87)", () => {
     const steps = ["plan", "plan-review", "implement"];
     while (steps.length < count - 1) steps.push("implement");
     steps.push("impl-review");
-    writeLog(project, steps.map((s, i) => entry(i + 1, s)));
+    seedRun(project, steps.map((s, i) => entry(i + 1, s)));
     assert.equal(init(project, "fix typo").json.action, "done", `${count} entries`);
   }
 });
@@ -203,7 +203,7 @@ test("a decide halt is not masked by the budget text", () => {
   writeReview(project, "impl-review", { verdict: "NEEDS ATTENTION", findings: "1 critical, 0 warnings" });
   const steps = ["plan", "plan-review", "implement", "impl-review", "fix", "impl-review", "fix", "impl-review"];
   while (steps.length < 12) steps.splice(3, 0, "implement");
-  writeLog(project, steps.map((s, i) => entry(i + 1, s)));
+  seedRun(project, steps.map((s, i) => entry(i + 1, s)));
   const res = init(project, "fix typo");
   assert.equal(res.json.action, "halt");
   assert.match(res.json.reason, /Implementation still NEEDS ATTENTION after 2 fix loops/);
@@ -321,13 +321,18 @@ test("simple is false where the lean offset or the clamp absorbed the discount",
 
 // ---- malformed input ---------------------------------------------------------
 
-test("a meta.json that is not an object falls back and the output stays valid JSON", () => {
-  for (const content of ["[]", "5", "not json"]) {
+test("init halts with JSON and preserves malformed or non-object metadata", () => {
+  for (const [content, reason] of [["[]", "Expected a JSON object"], ["5", "Expected a JSON object"], ["not json", "Invalid JSON"]]) {
     const project = makeProject();
+    const file = path.join(project.agentDir, "meta.json");
     writeMetaFile(project, content);
+    const before = fs.readFileSync(file);
     const res = init(project, "fix typo");
-    assert.equal(res.status, 0, content);
-    assert.equal(res.json.action, "run");
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "halt");
+    assert.ok(res.json.reason.includes(`${file}: ${reason}`), res.stdout);
+    assert.equal(res.stderr, "");
+    assert.deepEqual(fs.readFileSync(file), before);
   }
 });
 
@@ -416,7 +421,7 @@ test("after a skip, the next step is not asked for plan-review again", { skip: n
 
 test("next after a skip does not halt with has no result", { skip: noGit }, () => {
   const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1)]);
+  seedRun(project, [entry(1, "plan"), skipEntry("plan-review", 1)]);
   const res = withGit(project, ["init", project.id, "--goal", "fix typo"]);
   assert.equal(res.status, 0);
   assert.equal(res.json.step, "implement");
@@ -426,14 +431,14 @@ test("next after a skip does not halt with has no result", { skip: noGit }, () =
 test("skips do not use budget", { skip: noGit }, () => {
   const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
   const entries = Array.from({ length: 8 }, (_, i) => entry(i + 1, "plan"));
-  writeLog(project, [entries[0], skipEntry("plan-review", 1), skipEntry("plan-review", 1), ...entries.slice(1)]);
+  seedRun(project, [entries[0], skipEntry("plan-review", 1), skipEntry("plan-review", 1), ...entries.slice(1)]);
   const res = withGit(project, ["init", project.id, "--goal", "fix typo"]);
   assert.equal(res.json.action, "run", JSON.stringify(res.json));
 });
 
 test("a skip between failed attempts keeps the failure streak", { skip: noGit }, () => {
   const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(project, [
+  seedRun(project, [
     entry(1, "plan"),
     skipEntry("plan-review", 1),
     entry(2, "implement", { ok: false }),
@@ -484,14 +489,14 @@ test("lean with unmeasured risk runs plan-review and logs no skip", { skip: noGi
 test("a rigor rise before any implement or fix brings plan-review back", { skip: noGit }, () => {
   const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
   // Fixture: a skip with no implement or fix after it (the router itself moves on to implement at once).
-  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1)]);
+  seedRun(project, [entry(1, "plan"), skipEntry("plan-review", 1)]);
   const res = withGit(project, ["init", project.id, "--goal", "fix typo", "--rigor", "standard"]);
   assert.equal(res.json.step, "plan-review");
 });
 
 test("after a failed implement, a rigor rise does not bring plan-review back", { skip: noGit }, () => {
   const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1), entry(2, "implement", { ok: false, verified: false })]);
+  seedRun(project, [entry(1, "plan"), skipEntry("plan-review", 1), entry(2, "implement", { ok: false, verified: false })]);
   const res = withGit(project, ["init", project.id, "--goal", "fix typo", "--rigor", "thorough"]);
   assert.equal(res.json.step, "implement");
   assert.equal(readLogEntries(project).some((e) => e.template === "plan-revise"), false);
@@ -521,7 +526,7 @@ test("a report without skips has no Skipped section", () => {
 
 test("init on a log with a skip resumes cleanly", { skip: noGit }, () => {
   const project = gitProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(project, [entry(1, "plan"), skipEntry("plan-review", 1), entry(2, "implement", { verified: true })]);
+  seedRun(project, [entry(1, "plan"), skipEntry("plan-review", 1), entry(2, "implement", { verified: true })]);
   const res = withGit(project, ["init", project.id]);
   assert.equal(res.status, 0, res.stdout);
   assert.equal(res.json.action, "run");
@@ -629,21 +634,22 @@ test("the plan prompt carries named-skill loading, layered safety rules and the 
   const res = init(project, "fix typo");
   const prompt = res.json.prompt;
   const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
-  // Three defaults, two planning rules, then the shared safety and precedence rules.
-  assert.equal(rules.length, 26);
+  // Three defaults, three planning rules, then the shared safety and precedence rules.
+  assert.equal(rules.length, 27);
+  assert.match(rules[5], /`- \[ \] N\.M title`.*pending row under `#### Automated`/);
   assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
   assert.match(rules[1], /`signals\.needsHuman`/);
   assert.match(rules[2], /\*\*MAY\*\* add `signals\.rigor`/);
-  assert.match(rules[5], /\*\*MUST\*\* load its SKILL\.md through the host/);
-  assert.match(rules[6], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
-  assert.match(rules[7], /\*\*MUST NOT\*\* use `rm -rf`/);
-  assert.match(rules[8], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
-  assert.match(rules[16], /\*\*MAY\*\* start one native child layer/);
-  assert.match(rules[17], /all applicable always-true, chain and step safety rules/);
-  assert.match(rules[20], /delegated leaf.*\*\*MUST NOT\*\* do so/);
-  assert.match(rules[22], /collect every launched child, reconcile edits and failures/);
-  assert.match(rules[24], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
-  assert.match(rules[25], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
+  assert.match(rules[6], /\*\*MUST\*\* load its SKILL\.md through the host/);
+  assert.match(rules[7], /\*\*MUST\*\* keep the text before the RESULT line to a short status/);
+  assert.match(rules[8], /\*\*MUST NOT\*\* use `rm -rf`/);
+  assert.match(rules[9], /\*\*MUST\*\* list its files, .*one by one, and then `rmdir` the empty directories deepest first/);
+  assert.match(rules[17], /\*\*MAY\*\* start one native child layer/);
+  assert.match(rules[18], /all applicable always-true, chain and step safety rules/);
+  assert.match(rules[21], /delegated leaf.*\*\*MUST NOT\*\* do so/);
+  assert.match(rules[23], /collect every launched child, reconcile edits and failures/);
+  assert.match(rules[25], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
+  assert.match(rules[26], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
   const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
   assert.equal(prompt.split("\n").at(-1), result, "the RESULT line of top.md ends the prompt");
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
@@ -693,6 +699,13 @@ test("an argument with no flag name is a leftover word and swallows no word afte
   }
 });
 
+test("CLI usage lists the host and provider-mode choices", () => {
+  const res = run(makeProject(), []);
+  assert.equal(res.status, 1);
+  assert.match(res.json.reason, /\[--host claude\|codex\]/);
+  assert.match(res.json.reason, /\[--provider-mode claude\|codex\|split\]/);
+});
+
 test("a flag init does not read halts at init, is named and writes nothing", () => {
   for (const [args, names] of [
     [["--gaol", "fix the bug"], "--gaol"],
@@ -703,7 +716,7 @@ test("a flag init does not read halts at init, is named and writes nothing", () 
     const res = run(project, ["init", project.id, ...args]);
     assert.equal(res.status, 1);
     assert.equal(res.json.action, "halt");
-    assert.ok(res.json.reason.startsWith(`Unknown flag(s) for init: ${names}. init reads: --goal, --rigor, --archive, --chrome, --chain, --host, --pr-comment. Nothing was written.`), res.json.reason);
+    assert.ok(res.json.reason.startsWith(`Unknown flag(s) for init: ${names}. init reads: --goal, --rigor, --archive, --chrome, --chain, --host, --provider-mode, --pr-comment. Nothing was written.`), res.json.reason);
     assert.equal(fs.existsSync(project.agentDir), false);
   }
 });

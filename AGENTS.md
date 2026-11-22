@@ -19,11 +19,11 @@ Smoke check: in a scratch project that has `context/changes/<id>/change.md` (or,
 
 Router: `node skills/10x-pipeline/scripts/route.mjs <command>`. Every command takes `--chain 10x|openspec` (any other value halts before anything is read); flag details and halt rules are in `docs/REFERENCE.md`.
 
-- `init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive] [--chrome false] [--pr-comment] [--chain openspec]` — start or resume a run. Every flag also reads `--key=value`. It halts, writing nothing, on words that belong to no flag.
+- `init <id> --goal "<text>" [--rigor lean|standard|thorough] [--provider-mode claude|codex|split] [--archive] [--chrome false] [--pr-comment] [--chain openspec]` — start or resume a run. Every flag also reads `--key=value`. It halts, writing nothing, on words that belong to no flag.
 - `next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `status <id> [--report]` — the per-step model and effort log.
 - `risk <id>` — churn hot paths, plan hits and diff hits; writes nothing.
-- `usage <id> <n> --tokens N [--tool-uses N] [--duration-ms N]` — attach a late usage figure to step `<n>` (ADR-019).
+- `usage <id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])` — attach a late usage figure to step `<n>`, using numeric flags only for steps without recorded usage evidence (ADR-019).
 - `verify-archive <id> [--path <p>]` — read-only; prints whether the change is archived.
 - `compare <id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]` — read-only; routed run against a baseline run.
 
@@ -53,7 +53,7 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 - Policy keys are camelCase; step names are kebab-case (`plan-review`, `impl-review`).
 - A policy change belongs in `policy.json`. A per-project override belongs in `context/foundation/agent-smith-policy.json`, never in the router scripts under `scripts/`.
 - When you change tier logic (`tierFor` in `scripts/steps.mjs`, `decide` in `scripts/flow.mjs`), update the routing bullets in `docs/REFERENCE.md`. When you change `decideOpenspec` or the verification in `skills/openspec-pipeline/scripts/openspec.mjs`, update the OpenSpec section of `docs/REFERENCE.md`.
-- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. `route.mjs` keeps `next`, the undo on halt and the commands.
+- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. Only `route.mjs` imports `init-permissions.mjs`, which uses `state.mjs`, the bounded file reader and the shared Codex startup inputs. `route.mjs` keeps `next`, the undo on halt and the commands.
 
 ## Layout
 

@@ -1,6 +1,6 @@
 # ADR-019: Attach a late usage figure with a router command
 
-- **Status:** Accepted (the repository owner accepted it on 2026-11-10; no live run has used the command yet)
+- **Status:** Accepted (owner, 2026-11-10). A legacy late figure was attached in a real run. Structured late attachment shipped with fixture coverage in v1.14.0. [Legacy attachment](#assumptions) · [Outstanding host and output checks](../../context/archive/2026-11-18-delegated-token-accounting/evidence/accounting.md#manual-acceptance-outstanding)
 - **Date:** 2026-11-10
 - **Deciders:** the repository owner (GitHub issue #71, which chose suggestion 2); unattended plan and implementation runs of change `late-step-usage` for the readings below
 - **Origin:** change `late-step-usage` (`context/archive/2026-11-10-late-step-usage/change.md`, `plan.md` and `reviews/plan-review.md`), GitHub issue #71 "late usage figure". It builds on ADR-010 (isolated run, step commits, rollback) and on the archive commit of `docs/REFERENCE.md`; no earlier decision is superseded.
@@ -38,7 +38,7 @@ A run in progress gets no report. A refused call leaves the change folder byte-i
 
 **GIVEN** the run ended in `done`, started with `--archive`, and its folder is committed for the archive **WHEN** a figure is attached **THEN** the router **MUST** commit the change folder again before it answers.
 
-The command checks first, before the first write: a non-blank `archive.usageMessage`, the git safety checks of the archive commit (nothing staged, a symbolic HEAD, no merge, rebase, cherry-pick or revert in progress), the run branch of an isolated run and a clean change folder. It then writes the log and the report and commits the folder as `chore(<id>): add late usage figure of step <n>` (`archive.usageMessage`), with the folder-only checks of the archive commit. This is its only git write. Hooks and signing apply, nothing is pushed, and no `--no-verify` is used. The commit adds one record to the git writes listed next to ADR-010 in `AGENTS.md`.
+Before the first write, the command checks for a non-blank `archive.usageMessage`, the run branch of an isolated run, a clean change folder and the Git safety checks of the archive commit. Those checks require an attached HEAD, successful operation and index probes and a clean index. It then writes the log and the report and commits the folder as `chore(<id>): add late usage figure of step <n>` (`archive.usageMessage`), with the folder-only checks of the archive commit. This is its only git write. Hooks and signing apply. The commit adds one record to the git writes listed next to ADR-010 in `AGENTS.md`.
 
 **GIVEN** the commit does not exist after a failure **WHEN** the command answers **THEN** it **MUST** put the old bytes of `run.jsonl` and `report.md` back, so the change folder is as committed.
 
@@ -52,13 +52,13 @@ Both skills call the command first in the `done` and `halt` branches, before `st
 
 ### Rollback (D6)
 
-The rollback of an isolated run and its undo on halt write the in-memory log back. A figure attached before `next` therefore survives both. The command itself makes no commit in a run outside the archive state: the next step commit, or the leftover commit of the pull request step for an ended run, holds the figure.
+The rollback of an isolated run and its undo on halt write the in-memory log back. A figure attached before `next` therefore survives both. Outside the archive state, the next step commit or a successful leftover commit of the pull request step records the figure. If the publication guard skips the leftover commit, late usage remains in the uncommitted run artifacts in the worktree. See ADR-017 for recovery and publication behavior.
 
 ## Assumptions
 
 - A notification that arrives before the pull request step is the common case. The cut-off points are chosen so a figure that arrives later costs a push or a second archive attempt, not a wrong report.
 - The 7-character `commit` of the output is the short hash of the new commit, or `null` when no commit was made.
-- Not run live: no real orchestrator has called the command from a task notification yet.
+- On 2026-11-13, commit `6f8a5a56` attached the late figure for `proper-structure-of-rules` step 7. The archived entry records `usageLate`. Its notification source was unrecorded. [Attachment commit](https://github.com/xycu/agent-smith/commit/6f8a5a56) · [Step 7 log](../../context/archive/2026-11-13-proper-structure-of-rules/agent-smith/run.jsonl)
 
 ## Consequences
 
@@ -72,3 +72,15 @@ The rollback of an isolated run and its undo on halt write the in-memory log bac
 - **Suggestion 1 of the issue, write the file and wait.** Rejected: the order of messages is not under the orchestrator's control, and waiting for a notification that may not come stalls the run.
 - **Let `next` accept a figure for an earlier step.** Rejected: `next` consumes the result file of the last step, and a second meaning would blur the neutral rerun and the missing-result halt.
 - **Write the figure without a commit in the archive state.** Rejected: the folder would be dirty and the archive would refuse or move an uncommitted log.
+
+## Amendment 1 — Structured missing-token enrichment
+
+**Date** 2026-11-18. Change `delegated-token-accounting` retains the legacy flag mode and its whole-object immutability. It adds a separate mode for a completed invocation whose new evidence contract already records an exact host identity and whose token figure is missing. Historical decisions and cutoffs above remain recorded.
+
+`usage <change-id> <n> --usage-file <path> [--chain 10x|openspec]` reads bounded regular JSON `{ change, chain, n, step, usage: { totalTokens }, usageEvidence }`. Every router identity must match the completed target. Only verified step-tree evidence with the target’s exact initial source, host version and invocation can fill missing tokens and transition unavailable evidence to verified. Existing counters must agree when supplied; this mode does not fill other counters or merge measurements. Recorded numbers and their verified evidence remain immutable. Exact replay is a no-op. Numeric flags and structured mode are mutually exclusive, and numeric flags cannot bypass recorded new evidence. Legacy entries without exact attribution are not upgraded.
+
+The input is at most 64 KiB, normalized evidence 4 KiB. Unsafe numbers, redirects, schema/identity conflict, a pending or archived target and oversized input refuse before writes. Orchestrators use an exclusively created uniquely named transient file outside the change folder and unlink only their owned file in `finally`. No raw transcript, prompt, tool body or source path is persisted.
+
+Both modes retain the run lock, atomic log/report publication, report refresh, archive-state commit and saved-byte recovery. No result rewrite or repeated `next` is introduced. Settlement exclusion applies before either mode. Attach before terminal status/publication or archive launch; later arrivals are dropped. Archive-agent usage is final-message-only. Coverage changes are rendered immediately when an ended report is refreshed; the archive commit/recovery preserves both total and evidence.
+
+[Observed accounting, operator prerequisites and limits](../REFERENCE.md#observed-token-accounting) · [Activation, rollback and pending live acceptance](../../context/archive/2026-11-18-delegated-token-accounting/evidence/accounting.md). All four accounting phases shipped together in v1.14.0 after their Automated gates passed. Retain the enabling revision through settlement and intake. Manual rows 4.3 and 4.4 still require live host qualification and immediate, late and archive output checks. [Release](../../CHANGELOG.md#1140-2026-11-18) No stored-ledger migration or destructive downgrade is required.

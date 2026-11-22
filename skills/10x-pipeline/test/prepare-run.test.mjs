@@ -25,6 +25,15 @@ function linked(p, branch = "agent-smith/demo", name = "custom checkout") {
   return { ...p, root: path.join(top, path.relative(p.base, p.root)), top };
 }
 
+// Refusal inside another change's run worktree: names both ids, no runRoot, nothing written.
+function assertOtherChange(p, args, started, owner) {
+  const before = originalState(p);
+  const out = setup(p, { args });
+  assert.equal(out.runRoot, null, JSON.stringify(out));
+  assert.match(out.reason, new RegExp(`belongs to change ${owner}, not to change ${started}`));
+  assert.deepEqual(originalState(p), before);
+}
+
 function override(p, value) {
   fs.writeFileSync(path.join(p.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(value));
 }
@@ -66,7 +75,13 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(snapshot(dest), before);
     const current = { ...p, root: created.runRoot };
     assert.equal(success(current, "in-run-worktree").branch, "agent-smith/demo");
-    assert.equal(success(current, "in-run-worktree", { args: ["other", "--chain", chain] }).branch, "agent-smith/demo");
+    assertOtherChange(current, ["other", "--chain", chain], "other", "demo");
+    for (const [branch, id] of [["agent-smith/demo-extra", "demo"], ["agent-smith/demo", "demo-extra"]]) {
+      const w = linked(fixture(chain), branch, "other run");
+      assertOtherChange(w, [id, "--chain", chain], id, branch.slice("agent-smith/".length));
+    }
+    const base = linked(fixture(chain), "agent-smith/demo-baseline", "baseline run");
+    assert.equal(success(base, "in-run-worktree").branch, "agent-smith/demo-baseline");
     override(current, { isolation: { require: false } });
     assert.equal(success(current, "opt-out").runRoot, current.root);
 
@@ -292,7 +307,7 @@ test("operational failures return honest JSON and leave created resources intact
     if (match === "worktree list") git(p, ["branch", "agent-smith/demo"]);
     const w = wrapper(p, "fail", match);
     assert.match(setup(p, { env: w.env }).reason, /injected Git failure/);
-    assert.equal(fs.readdirSync(path.join(p.base, ".git")).some((name) => name.endsWith(".lock")), false);
+    assert.equal(fs.readdirSync(path.join(p.base, ".git")).some((name) => /\.(lock|pending)$/.test(name)), false);
   }
   const occupied = fixture();
   const target = path.join(occupied.root, ".claude/worktrees/agent-smith-demo");
@@ -316,24 +331,203 @@ test("operational failures return honest JSON and leave created resources intact
   fs.renameSync(`${missing.changeDir}-saved`, missing.changeDir);
   const resumed = success(missing, "created");
   assert.equal(fs.existsSync(path.join(resumed.runRoot, relChange("10x"), "change.md")), true);
-  const copy = fixture("10x", null, true);
-  fs.unlinkSync(path.join(copy.changeDir, "change.md"));
-  fs.mkdirSync(path.join(copy.changeDir, "change.md"));
-  const failedCopy = setup(copy);
-  assert.equal(failedCopy.case, "created");
-  assert.equal(failedCopy.copied, false);
-  assert.ok(failedCopy.reason);
-  success(copy, "reused");
 });
 
+function setupRecord(p, suffix = "pending") {
+  return path.join(p.base, ".git", `agent-smith-setup-agent-smith%2Fdemo.${suffix}`);
+}
+
+function copyConflict(p) {
+  const source = path.join(p.changeDir, "change.md");
+  const bytes = fs.readFileSync(source);
+  fs.unlinkSync(source);
+  fs.mkdirSync(source);
+  const out = setup(p);
+  assert.equal(out.case, "created");
+  assert.equal(out.copied, false);
+  assert.match(out.reason, /Copy source and destination types differ/);
+  return {
+    out,
+    fix() {
+      fs.rmdirSync(source);
+      fs.writeFileSync(source, bytes);
+    },
+  };
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: failed setup retries the complete copy and initialized reuse preserves both inputs`, () => {
+    const p = fixture(chain, "apps/widget", true);
+    const inputs = ["change.md", ".inputs/notes.md"];
+    fs.mkdirSync(path.join(p.changeDir, ".inputs"));
+    fs.writeFileSync(path.join(p.changeDir, inputs[1]), "additional source input");
+    const failure = copyConflict(p);
+    const pending = setupRecord(p);
+    const intent = fs.readFileSync(pending, "utf8");
+    const top = failure.out.worktree;
+    const runRoot = path.join(top, "apps/widget");
+    const destination = path.join(runRoot, relChange(chain), "change.md");
+    const before = snapshot(destination);
+    assert.deepEqual(JSON.parse(intent), {
+      root: p.root, worktree: top, prefix: "apps/widget/", chain, startCommit: git(p, ["rev-parse", "HEAD"]),
+    });
+    assert.equal(fs.existsSync(setupRecord(p, "lock")), false);
+
+    const stillBroken = setup(p);
+    assert.match(stillBroken.reason, /Copy source and destination types differ/);
+    assert.equal(stillBroken.copied, false);
+    for (const caller of [{ ...p, root: runRoot }, { ...p, root: p.base }, { ...p, chain: chain === "10x" ? "openspec" : "10x" }]) {
+      const refused = setup(caller);
+      assert.match(refused.reason, /original project root/);
+      assert.ok(refused.reason.includes(p.root), refused.reason);
+      assert.equal(refused.copied, false);
+    }
+    assert.deepEqual(snapshot(destination), before);
+    assert.equal(fs.readFileSync(pending, "utf8"), intent);
+
+    failure.fix();
+    const refs = git(p, ["show-ref"]);
+    const registered = git(p, ["worktree", "list", "--porcelain"]);
+    const recovered = success(p, "reused");
+    assert.equal(recovered.branch, failure.out.branch);
+    assert.equal(recovered.runRoot, runRoot);
+    assert.equal(recovered.worktree, top);
+    assert.equal(recovered.copied, true);
+    assert.equal(fs.existsSync(pending), false);
+    assert.equal(git(p, ["show-ref"]), refs);
+    assert.equal(git(p, ["worktree", "list", "--porcelain"]), registered);
+    assert.equal(success(p, "reused").copied, false);
+    for (const file of inputs) {
+      assert.deepEqual(fs.readFileSync(path.join(runRoot, relChange(chain), file)), fs.readFileSync(path.join(p.changeDir, file)));
+    }
+
+    const { res, file } = initialize(p, recovered);
+    assert.equal(res.json.action, "run", res.stdout);
+    const initialized = snapshot(file);
+    fs.writeFileSync(destination, "newer worktree content");
+    // A router identity takes precedence if an interrupted setup still has a pending record.
+    fs.writeFileSync(pending, intent);
+    assert.equal(success(p, "reused").copied, false);
+    assert.equal(fs.existsSync(pending), false);
+    assert.equal(success(p, "reused").copied, false);
+    assert.deepEqual(snapshot(file), initialized);
+    assert.equal(fs.readFileSync(destination, "utf8"), "newer worktree content");
+    cleanSuccess(p, recovered);
+    for (const item of inputs) assert.ok(fs.existsSync(path.join(p.changeDir, item)), item);
+  });
+}
+
 test("unavailable registered worktrees cannot select a replacement repository", () => {
-  const unavailable = fixture("10x", null, true);
-  const wt = linked(unavailable);
+  const p = fixture("10x", null, true);
+  const wt = linked(p);
   fs.renameSync(wt.top, `${wt.top}-moved`);
-  assert.ok(setup(unavailable).reason);
+  const unavailable = setup(p);
+  assert.ok(unavailable.reason.includes(wt.top), unavailable.reason);
+  assert.match(unavailable.reason, /git worktree prune --dry-run/);
   fs.mkdirSync(wt.top);
-  git(unavailable, ["-C", wt.top, "init", "-q"]);
-  assert.match(setup(unavailable).reason, /no longer belongs/);
+  git(p, ["-C", wt.top, "init", "-q"]);
+  assert.match(setup(p).reason, /no longer belongs/);
+});
+
+test("pending setup refuses to copy into a same-branch replacement repository", () => {
+  const p = fixture("10x", null, true);
+  const failure = copyConflict(p);
+  failure.fix();
+  const top = failure.out.worktree;
+  fs.renameSync(top, `${top}-moved`);
+  assert.match(setup(p).reason, /git worktree prune --dry-run/);
+  fs.mkdirSync(top);
+  git(p, ["-C", top, "init", "-q"]);
+  git(p, ["-C", top, "symbolic-ref", "HEAD", "refs/heads/agent-smith/demo"]);
+  const keep = path.join(top, "keep.txt");
+  fs.writeFileSync(keep, "replacement worktree contents");
+  assert.match(setup(p).reason, /no longer belongs/);
+  assert.equal(fs.readFileSync(keep, "utf8"), "replacement worktree contents");
+  assert.equal(fs.existsSync(path.join(top, relChange(p.chain))), false);
+  assert.ok(fs.existsSync(setupRecord(p)));
+});
+
+test("pending setup refuses source changes, ambiguous router state and a changed worktree commit", () => {
+  const p = fixture("10x", null, true);
+  const failure = copyConflict(p);
+  failure.fix();
+  const destination = path.join(failure.out.worktree, relChange(p.chain));
+  const keep = path.join(destination, "change.md");
+  fs.writeFileSync(keep, "preserve destination");
+  const before = snapshot(keep);
+  const pending = setupRecord(p);
+  const intent = fs.readFileSync(pending, "utf8");
+  fs.renameSync(p.changeDir, `${p.changeDir}-saved`);
+  assert.match(setup(p).reason, /Change folder is missing/);
+  fs.renameSync(`${p.changeDir}-saved`, p.changeDir);
+  const sourceState = path.join(p.changeDir, "agent-smith");
+  fs.mkdirSync(sourceState);
+  fs.symlinkSync("missing-log", path.join(sourceState, "run.jsonl"));
+  assert.match(setup(p).reason, /source now contains router state/);
+  fs.unlinkSync(path.join(sourceState, "run.jsonl"));
+
+  const state = path.join(destination, "agent-smith");
+  fs.mkdirSync(state);
+  const meta = path.join(state, "meta.json");
+  const log = path.join(state, "run.jsonl");
+  fs.writeFileSync(meta, "{}");
+  assert.match(setup(p).reason, /router state without a saved run identity/);
+  assert.equal(fs.readFileSync(meta, "utf8"), "{}");
+  fs.writeFileSync(meta, "{");
+  assert.match(setup(p).reason, /Cannot read saved run identity/);
+  assert.equal(fs.readFileSync(meta, "utf8"), "{");
+  fs.unlinkSync(meta);
+  fs.symlinkSync("missing-meta", meta);
+  assert.match(setup(p).reason, /ambiguous router state/);
+  assert.equal(fs.readlinkSync(meta), "missing-meta");
+  fs.unlinkSync(meta);
+  fs.writeFileSync(log, "existing log");
+  assert.match(setup(p).reason, /ambiguous router state/);
+  assert.equal(fs.readFileSync(log, "utf8"), "existing log");
+  fs.unlinkSync(log);
+  git(p, ["-C", failure.out.worktree, "commit", "--allow-empty", "-qm", "advanced worktree"]);
+  assert.match(setup(p).reason, /expected commit.*found/);
+  assert.deepEqual(snapshot(keep), before);
+  assert.equal(fs.readFileSync(pending, "utf8"), intent);
+});
+
+test("pending setup without registration requires a fresh branch and readable intent", () => {
+  for (const topology of ["fresh", "unregistered", "other registration"]) {
+    const p = fixture();
+    const worktree = path.join(p.root, ".claude/worktrees/agent-smith-demo");
+    const file = setupRecord(p);
+    fs.writeFileSync(file, "{");
+    assert.match(setup(p).reason, /Cannot read pending setup.*Inspect/);
+    assert.equal(fs.readFileSync(file, "utf8"), "{");
+    const record = JSON.stringify({ root: p.root, worktree, prefix: "", chain: p.chain, startCommit: git(p, ["rev-parse", "HEAD"]) });
+    fs.writeFileSync(file, record);
+    if (topology === "unregistered") {
+      git(p, ["branch", "agent-smith/demo"]);
+      assert.match(setup(p).reason, /no registered worktree.*Inspect git worktree list/);
+      assert.equal(fs.existsSync(worktree), false);
+      assert.equal(fs.readFileSync(file, "utf8"), record);
+    } else if (topology === "other registration") {
+      git(p, ["worktree", "add", "-qb", "other-branch", worktree]);
+      assert.match(setup(p).reason, /registered to another branch or detached/);
+      assert.equal(fs.readFileSync(file, "utf8"), record);
+    } else {
+      assert.equal(success(p, "created").copied, true);
+      assert.equal(fs.existsSync(file), false);
+    }
+  }
+});
+
+test("an incomplete worktree with a committed opt-out points back to the original project", () => {
+  const p = fixture("10x", null, true);
+  override(p, { isolation: { require: false } });
+  git(p, ["add", "context/foundation/agent-smith-policy.json"]);
+  git(p, ["commit", "-qm", "opt-out policy"]);
+  override(p, { isolation: { require: true } });
+  const failure = copyConflict(p);
+  const out = setup({ ...p, root: failure.out.worktree });
+  assert.match(out.reason, /original project root/);
+  assert.ok(out.reason.includes(p.root), out.reason);
+  assert.ok(fs.existsSync(setupRecord(p)));
 });
 
 test("Git discovery preserves the source index when clean file timestamps changed", () => {
@@ -407,6 +601,42 @@ for (const chain of ["10x", "openspec"]) {
     }
   });
 }
+
+test("interruption after registration can recover a previously untracked nested prefix", async () => {
+  const p = fixture();
+  const root = path.join(p.base, "untracked/project");
+  const changeDir = path.join(root, relChange(p.chain));
+  fs.mkdirSync(changeDir, { recursive: true });
+  fs.writeFileSync(path.join(changeDir, "change.md"), "untracked project inputs");
+  const caller = { ...p, root, changeDir };
+  const w = wrapper(p, "pause");
+  const first = launch(caller, w.env);
+  const stopped = first.done.then(() => false, () => true);
+  try {
+    await waitFor(w.signal);
+    const top = path.join(root, ".claude/worktrees/agent-smith-demo");
+    const runRoot = path.join(top, "untracked/project");
+    assert.equal(fs.existsSync(runRoot), false);
+    assert.equal(JSON.parse(fs.readFileSync(setupRecord(p), "utf8")).worktree, top);
+    assert.ok(first.child.kill("SIGKILL"));
+    fs.writeFileSync(w.release, "continue");
+    assert.equal(await stopped, true);
+    const lock = setupRecord(p, "lock");
+    assert.equal(fs.readFileSync(lock, "utf8"), `${first.child.pid}\n`);
+    assert.match(setup(caller).reason, /Setup lock exists.*inspect/);
+    fs.unlinkSync(lock);
+    assert.match(setup({ ...p, root: top }).reason, /original project root/);
+
+    const recovered = success(caller, "reused");
+    assert.equal(recovered.runRoot, runRoot);
+    assert.equal(recovered.copied, true);
+    assert.equal(fs.readFileSync(path.join(runRoot, relChange(p.chain), "change.md"), "utf8"), "untracked project inputs");
+    assert.equal(fs.existsSync(setupRecord(p)), false);
+  } finally {
+    fs.writeFileSync(w.release, "continue");
+    await stopped;
+  }
+});
 
 test("fresh copy replaces destination symlinks without writing through them", () => {
   const p = fixture("10x", null, true);
@@ -795,7 +1025,7 @@ for (const chain of ["10x", "openspec"]) {
     const attached = success(p, "attached");
     assert.equal(attached.branch, "runs-demo");
     assert.equal(success(p, "reused").runRoot, attached.runRoot);
-    assert.equal(success({ ...p, root: attached.runRoot }, "in-run-worktree", { args: ["other", "--chain", chain] }).branch, "runs-demo");
+    assertOtherChange({ ...p, root: attached.runRoot }, ["other", "--chain", chain], "other", "demo");
     const q = fixture(chain, "apps/widget", true);
     configurePrefix(q);
     const wt = linked(q, "codex/demo");

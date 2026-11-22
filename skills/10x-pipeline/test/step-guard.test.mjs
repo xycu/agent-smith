@@ -17,33 +17,45 @@ const payload = (command, extra = {}) => ({
 });
 function invoke(input, executable = script, options = {}) {
   const result = spawnSync(process.execPath, [executable], {
-    input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8", timeout: 5000, ...options,
+    input: typeof input === "string" || Buffer.isBuffer(input) ? input : JSON.stringify(input),
+    encoding: "utf8", timeout: 5000, ...options,
   });
   assert.equal(result.error, undefined, result.error?.message);
   return { ...result, decision: result.stdout ? JSON.parse(result.stdout).hookSpecificOutput : null };
 }
-function denied(command) {
+function denied(command, reason = /orchestrator|preserv|forbidden/i) {
   const result = invoke(payload(command));
   assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
   assert.deepEqual(Object.keys(result.decision).sort(), ["hookEventName", "permissionDecision", "permissionDecisionReason"]);
   assert.equal(result.decision.hookEventName, "PreToolUse");
   assert.equal(result.decision.permissionDecision, "deny", command);
-  assert.match(result.decision.permissionDecisionReason, /orchestrator|preserv|forbidden/i);
+  assert.match(result.decision.permissionDecisionReason, reason);
 }
 function neutral(input) {
   const result = invoke(input);
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "", "pass-through never grants permission");
+  assert.equal(result.stderr, "");
+}
+
+function failedClosed(input, reason = /failed closed/) {
+  const result = invoke(input);
+  assert.equal(result.status, 2, result.stdout);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /failed closed/);
+  assert.match(result.stderr, reason);
 }
 
 test("shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling", () => {
-  assert.deepEqual(hooks, { hooks: { PreToolUse: [{
-    matcher: "Bash", hooks: [{
-      type: "command", command: "node",
-      args: [pluginPlaceholder + "/skills/10x-pipeline/scripts/step-guard.mjs"],
-      timeout: 5, async: false, onFailure: "block",
-    }],
-  }] } });
+  const command = (file) => ({ type: "command", command: "node",
+    args: [pluginPlaceholder + "/skills/10x-pipeline/scripts/" + file], timeout: 5, async: false, onFailure: "block" });
+  const lifecycle = [{ hooks: [command("claude-hook.mjs")] }];
+  assert.deepEqual(hooks.hooks, {
+    PreToolUse: [{ matcher: "Bash", hooks: [command("step-guard.mjs")] }],
+    SessionStart: [{ matcher: "startup", hooks: [command("claude-hook.mjs")] }],
+    SubagentStart: lifecycle, SubagentStop: lifecycle, Stop: lifecycle,
+  });
 });
 
 test("direct Git discard, hook bypass, unique-ref deletion and publication forms are denied", () => {
@@ -114,6 +126,120 @@ test("literal quotes, escapes and supported shell separators retain command posi
   ]) neutral(payload(command));
 });
 
+const heredocGuidance = /Heredoc.*Write tool/i;
+
+test("heredocs distinguish literal text routes from executable or unresolved recipients", () => {
+  const prose = 'it doesn\'t matter if a "quote remains open\nrm -rf build';
+  for (const command of [
+    "cat<<EOF\n" + prose + "\nEOF",
+    "cat << 'EOF' >notes.txt\n" + prose + "\nEOF\n",
+    "1>notes.txt cat 0<<EOF\n" + prose + "\nEOF\n",
+    "cat <<EOF >/dev/null\n" + prose + "\nEOF\n",
+    'cat <<EOF >"notes$"\n' + prose + "\nEOF\n",
+    'cat <<"EOF" >>"more notes.txt" # a comment\n' + prose + "\nEOF\n",
+    'cat <<EOF >\\\n>"more notes.txt"\n' + prose + "\nEOF\n",
+    "false |\\\n| cat <<EOF\n" + prose + "\nEOF\n",
+    "cat <<EOF | tee -a notes.txt\n" + prose + "\nEOF\n",
+    "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\ntee notes.txt",
+    "cat <<A | tee <<B notes.txt\nfirst\nA\nsecond\nB\n",
+    "note() if true; then :; fi\ncat <<'EOF'\nliteral text\nEOF\n",
+    "if${suffix}\ncat <<'EOF'\nliteral text\nEOF\n",
+  ]) neutral(payload(command));
+  for (const command of [
+    "bash <<'EOF'\n" + prose + "\nEOF",
+    "node <<'EOF'\n" + prose + "\nEOF",
+    "cat <<EOF | tee notes.txt | sh\n" + prose + "\nEOF",
+    "cat <<EOF | # pipeline continues after the heredoc\n" + prose + "\nEOF\nsh",
+    'cat <<EOF >"$destination"\n' + prose + "\nEOF",
+    "cat <<EOF 2>&1\n" + prose + "\nEOF",
+    "cat 3<<EOF\n" + prose + "\nEOF",
+    "cat <<EOF > >(tee notes.txt)\n" + prose + "\nEOF",
+    "if true; then\ncat <<EOF\n" + prose + "\nEOF\nfi",
+    "time -p {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "! {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "coproc WRITER {\ncat <<'EOF'\nliteral text\nEOF\n}",
+    "if true; then if true; then true; fi\ncat <<'EOF'\nliteral text\nEOF\nfi",
+    "note() if true; then\ncat <<'EOF'\nliteral text\nEOF\nfi",
+    "{ { :; }; cat <<'EOF'\nliteral text\nEOF\n}",
+    "(case x in x) :;; esac; cat <<'EOF'\nliteral text\nEOF\n)",
+    "((cat <<'EOF'\nliteral text\nEOF\n) )",
+  ]) denied(command, heredocGuidance);
+  for (const destination of ["/dev/fd/1", "/dev/stdout", "/dev/tcp/example.invalid/1", "/dev/udp/example.invalid/1"]) {
+    denied(`cat <<EOF >${destination}\nliteral text\nEOF\n`, /Heredoc.*literal files.*Write tool/i);
+  }
+  denied("cat <<EOF | tee -a /dev/fd/1\nliteral text\nEOF", /Heredoc.*literal files.*Write tool/i);
+  denied("cat <<EOF\n" + prose + "\nEOF\ngit push");
+  denied("git push; cat <<EOF\n" + prose + "\nEOF");
+});
+
+test("heredoc delimiters and body escapes follow their lexical context", () => {
+  for (const command of [
+    "cat <<-EOF\n\tfirst\n\tEOF\n",
+    "cat <<-'EOF'\n\tEOF \n\tmore text\n\tEOF\n",
+    "cat <<EOF\nEOF \n\tEOF\nmore text\nEOF",
+    "cat <<EOF\nfirst\nEO\\\nF\n",
+    "cat <<EOF\nfirst\nEOF\\\n",
+    "cat <\\\n<EO\\\nF\\\n >notes.txt\nfirst\nEOF\n",
+    'cat << "EO\\\nF"\\\n # trailing comment\nfirst\nEOF',
+    "cat <<EOF\nliteral \\$(echo hi) \\$HOME \\\x60echo hi\\\x60 and $.\nEOF",
+    "cat <<EOF\nliteral \\$\\\n(name)\nEOF",
+    "cat <<'EOF'\n$(echo hi) $((1+2)) $HOME \x60echo hi\x60\nEOF",
+    'echo "<<EOF" \'<<EOF\' \\<\\<EOF # <<IGNORED',
+    'echo "$(printf \'<<EOF\')"',
+    'echo "$(if case x in x) printf %s "<<EOF";; esac; then :; fi)"',
+    'echo "\x60printf \'<<EOF\'\x60"',
+    "echo $((1<<2)); ((1<<2))",
+    "cat <<< 'literal <<EOF'",
+  ]) neutral(payload(command));
+  for (const body of ["$(echo hi)", "$HOME", "\x60echo hi\x60", "$((1+2))", "$\\\n(echo hi)", "\\\\$(echo hi)"]) {
+    denied("cat <<EOF\n" + body + "\nEOF", /active expansion.*quote.*Write tool/i);
+  }
+  for (const command of [
+    "cat <<EOF\nmissing terminator",
+    "cat <<-EOF\n EOF\n",
+    "cat <<EOF\nEOF \n",
+    "cat <<EOF\nEO\\\\\nF\n",
+    "cat <<EOF\nEO\\\n",
+    "cat <<EOF\nfirst\n",
+    'cat <<E"OF"\nfirst\nEOF\n',
+  ]) {
+    const result = invoke(payload(command));
+    assert.equal(result.status, 2, command);
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /heredoc.*Write tool/i);
+  }
+});
+
+test("only an entire separate git commit message operand can capture a literal heredoc", () => {
+  const capture = (body) => '"$(cat <<\'EOF\'\n' + body + "EOF\n)\"";
+  const message = capture('fix: an apostrophe isn\'t a "quote\ngit push\n');
+  for (const command of [
+    "git commit -m " + message,
+    "git commit -m " + message.replace("$(", "$\\\n("),
+    "git commit -m " + message.replace("cat", "ca\\\nt").replace(')"', ')\\\n"'),
+    "git commit -m " + capture(""),
+    "git commit -m " + capture("--no-verify\n"),
+    "git commit -m " + message + " -m " + capture("second paragraph\n"),
+    "git commit -a -m " + message + " -- tracked-file",
+  ]) neutral(payload(command));
+  denied("git commit --no-verify -m " + message);
+  denied("git commit -m " + capture("") + " --no-verify");
+  denied("git commit -m " + message + " && gh --version");
+  for (const command of [
+    "echo " + message,
+    "echo " + capture("literal text\n").replace("$(", "$\\\n("),
+    'echo "$((cat <<\'EOF\'\nliteral text\nEOF\n) )"',
+    "git commit --trailer -m " + message,
+    "git commit -m " + message + ' --author "$author" -m ' + message,
+    "git >notes.txt commit -m " + message,
+    "git commit -- -m " + message,
+    "git commit -m" + message,
+    "git commit -m " + message + "suffix",
+    'git commit -m "$(cat <<\'EOF\'\nmessage\nEOF\necho extra\n)"',
+    "echo $(cat <<'EOF'\nmessage\nEOF\n)",
+  ]) denied(command, heredocGuidance);
+});
+
 test("orchestrator and unrelated agents pass through, including publication script calls", () => {
   for (const extra of [
     { agent_id: undefined, agent_type: undefined }, { agent_id: undefined },
@@ -121,8 +247,146 @@ test("orchestrator and unrelated agents pass through, including publication scri
   ]) neutral(payload("node /plugin/open-pr.mjs demo && gh pr create", extra));
 });
 
-test("dynamic programs and wrappers are outside the documented direct-command subset", () => {
-  for (const command of ["bash -c 'git push'", 'echo "$(git push)"', "custom-helper"]) neutral(payload(command));
+test("interpreter command strings and unknown helpers are outside the documented command subset", () => {
+  for (const command of ["bash -c 'git push'", "custom-helper"]) neutral(payload(command));
+});
+
+const directly = /directly/;
+
+test("command shapes: assignment prefix", () => {
+  for (const command of ["X=1 git push", "GH_TOKEN=x gh api repos/o/r", "TMPDIR=/x rm -rf build"]) denied(command); // Never execute.
+  neutral(payload("X=1 git status"));
+});
+
+test("command shapes: subshell and group", () => {
+  for (const command of [
+    "(git push)", "(cd sub && git reset --hard)", "{ rm -rf build; }", // Never execute.
+    'git add -A && git commit -m "x" && (git push || true)', "function f { git push; }", "f() { git push; }",
+  ]) denied(command);
+  for (const command of ["(cd sub && git status)", "{ ls; }"]) neutral(payload(command));
+});
+
+test("command shapes: reserved words", () => {
+  for (const command of [
+    "if [ -d build ]; then rm -rf build; fi", 'for d in a b; do rm -rf "$d"; done', // Never execute.
+    "while ! git push; do sleep 1; done", "! git push",
+  ]) denied(command);
+  for (const command of ["if [ -d build ]; then ls build; fi", 'for d in a b; do echo "$d"; done']) neutral(payload(command));
+});
+
+test("command shapes: substitutions", () => {
+  for (const command of [
+    "PR_URL=$(gh pr create --fill)", "echo \x60git push\x60", 'git commit -m "fix \x60git push\x60"',
+    'echo "$(git push)"', 'echo "$(echo "$(git push)")"', "cat <(git push)",
+  ]) denied(command);
+  for (const command of [
+    "PR=$(git rev-parse HEAD)", 'echo "$(date +%s)"', "echo $((1+2))", "echo \x60date\x60", "echo '$(git push)'",
+    'echo "\\$(git push)"',
+  ]) neutral(payload(command));
+  for (const command of ["echo $(git push", "echo \x60git push"]) failedClosed(payload(command));
+});
+
+test("command shapes: glued redirects", () => {
+  for (const command of ["git push>/dev/null", "2>/dev/null git push", "git push 2>&1", ">out git push", "<in git push"]) denied(command);
+  for (const command of ["git status>out.txt", "git commit -m x 2>&1", "git status >git", "echo x >push"]) neutral(payload(command));
+});
+
+test("command shapes: wrappers", () => {
+  for (const command of [
+    "env git push", "command git push", "exec git push", "nohup git push", "time git reset --hard",
+    "timeout 60 git push", "nice -n 5 git push", "nice -5 git push", "sudo rm -rf x", "sudo -u root env git push", // Never execute.
+    "env -i PATH=/bin git push", "env - git push", "xargs -n1 git push", "/usr/bin/env git push",
+  ]) denied(command);
+  for (const command of ["env -S 'git push'", "env --split-string='git push'", "sudo -s 'git push'", "sudo -i git push"]) {
+    denied(command, directly);
+  }
+  denied("env ".repeat(9) + "git push", /nested wrappers.*directly/);
+  for (const command of [
+    "command -v gh", "env FOO=1 git status", "env - git status", "timeout 60 git status", "sudo -l", "xargs echo", "exec 3>&1",
+    "env ".repeat(8) + "git status",
+  ]) neutral(payload(command));
+});
+
+test("command shapes: xargs", () => {
+  for (const command of ["find . -name '*.tmp' | xargs rm -rf", "xargs -I{} rm -rf {}", "printf x | xargs -0 git push"]) denied(command); // Never execute.
+  neutral(payload("find . -name '*.tmp' | xargs ls"));
+});
+
+test("command shapes: find -exec", () => {
+  for (const command of ["find build -exec rm -rf {} +", "find . -exec git push \\;", "find . -execdir env git push \\;"]) denied(command); // Never execute.
+  for (const command of ["find . -name '*.tmp' -exec ls {} +", "find . -exec echo {} \\;"]) neutral(payload(command));
+});
+
+test("git options: abbreviations", () => {
+  for (const command of [
+    "git commit --no-verif -m x", "git commit --no-v -m x", "git merge --no-verif b",
+    "git reset --har", "git reset --ha HEAD~1", "git branch --delet old", "git update-ref --del refs/heads/x",
+    "rm --recursiv build", "rm --r build", // Never execute.
+    "git switch --di main", "git branch --fo main HEAD~3",
+    "git clean --exc -n -fd", "git clean --no-d -fd", "git commit --mess -- --no-verify",
+    "git branch --d old", "git tag --d v1", "git rm --f src", "git checkout-index --f -a", // Never execute.
+  ]) denied(command);
+  for (const command of [
+    "git reset --soft HEAD~1", "git branch --list", "rm --force inspected-file", "git switch --detach HEAD",
+    "git clean --exc pattern -n -fd", "git clean --dry -d", "git clean --d", "git commit --mess x -m y", "git diff --no-ver",
+    "git tag -a v1 --mess x", "git tag --fi notes v1",
+  ]) neutral(payload(command));
+});
+
+test("git options: discarding verbs", () => {
+  for (const command of [
+    "git reset --merge", "git reset --keep HEAD~1",
+    "git switch -f main", "git switch --discard-changes main", "git switch -C main origin/main",
+    "git branch -f main HEAD~3", "git branch -M old new", "git branch -C old new", "git tag -f v1 HEAD~1",
+    "git rm -rf src", "git checkout-index -f -a", "git read-tree --reset -u HEAD", // Never execute.
+    "git update-ref --stdin", "git send-pack origin HEAD", "git http-push https://example.invalid/r HEAD",
+  ]) denied(command);
+  for (const command of [
+    "git switch feature", "git switch -c new", "git reset --mixed HEAD", "git branch -m old new",
+    "git branch -c a b", "git branch -a -v", "git tag -l", 'git tag -a v1 -m"fix deploy"', "git rm file",
+    "git checkout-index -a", "git read-tree HEAD", "git update-ref refs/preserve/x HEAD",
+  ]) neutral(payload(command));
+});
+
+test("git options: global options", () => {
+  for (const command of [
+    "git --exec-path /x push", "git --super-prefix p/ push", "git --attr-source HEAD push",
+    "git -c core.hooksPath=/dev/null commit -m x", "git -c core.HooksPath=/x commit -m x",
+    "git --config-env core.hooksPath=ENV commit -m x", "git --config-env=core.hooksPath=ENV commit -m x",
+  ]) denied(command);
+  for (const command of [
+    "git -C sub status", "git -c color.ui=false status", "git -c core.editor=vi commit -m x",
+    "git --config-env=core.pager=ENV status", "git --exec-path /x status",
+  ]) neutral(payload(command));
+});
+
+test("git options: search patterns", () => {
+  for (const command of ['git log -S "--no-verify"', 'git log --grep "--no-verify"', "git grep -e --no-verify"]) {
+    neutral(payload(command));
+  }
+});
+
+test("command shapes: ANSI-C and locale quoting", () => {
+  for (const command of [
+    "$'git' push", '$"git" push', "echo $'\\'' ; git push #'", "echo \"$(echo $'\\'')\" ; git push ; echo \"')\"",
+    "echo $$'\\' ; git push #'",
+  ]) denied(command); // Never execute.
+  for (const command of [
+    "$'git' status", "echo $'it\\'s'", "echo $$'\\'", "git commit -m $'subject\\n\\nbody'", "echo \"$(echo $'it\\'s')\"",
+    "echo \"$'x'\"", "echo $'$(git push)'", "cat > out.txt <<'EOF'\nstray $'x\nEOF\n",
+    // The substitution-end finder and the heredoc lexer read $$ the same way.
+    "echo \"$(echo $$'\\')\"", "cat > out.txt <<'EOF'\nx\nEOF\necho $$'\\'",
+  ]) neutral(payload(command));
+  denied("cat > $'out.txt' <<'EOF'\nbody\nEOF\n", /heredoc/i);
+});
+
+test("command shapes: nesting stays inside the hook timeout", () => {
+  for (const command of ["$(".repeat(30 * 1024), "$(".repeat(20 * 1024) + ")".repeat(20 * 1024), "$(true)".repeat(8 * 1024)]) {
+    const started = Date.now();
+    const result = invoke(payload(command));
+    assert.ok(Date.now() - started < 5000);
+    assert.ok(result.status === 2 || result.status === 0, result.stderr);
+  }
 });
 
 test("malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed", () => {
@@ -133,12 +397,90 @@ test("malformed guarded events deny and malformed JSON, oversized input and quot
   for (const input of [
     "{", "null", "[]", JSON.stringify(payload("x".repeat(65536))),
     JSON.stringify(payload("git 'unterminated")), JSON.stringify(payload("git \\")),
-  ]) {
-    const result = invoke(input);
-    assert.equal(result.status, 2, result.stdout);
-    assert.match(result.stderr, /failed closed/);
-    assert.equal(result.stdout, "");
+  ]) failedClosed(input);
+});
+
+const hookByteCap = 64 * 1024;
+const oversizedCommand = "x".repeat(hookByteCap);
+const oversizedCommandField = '"tool_input":' + JSON.stringify({ command: oversizedCommand });
+const oversized = (...members) => "{" + [oversizedCommandField, ...members].join(",") + "}";
+const stepType = '"agent_type":"agent-smith:step"';
+const stepId = '"agent_id":"step"';
+const sizeDiagnostic = /exceeds 64 KiB/;
+
+test("hook byte cap applies only to guarded steps even with a present invalid ID", () => {
+  for (const extra of [
+    { agent_id: undefined, agent_type: undefined },
+    { agent_id: undefined },
+    { agent_type: "general-purpose" },
+  ]) neutral(payload(oversizedCommand, extra));
+  for (const extra of [{}, { agent_id: null }]) {
+    failedClosed(payload(oversizedCommand, extra), sizeDiagnostic);
   }
+
+  const guarded = JSON.stringify(payload("git push"));
+  const atLimit = guarded + " ".repeat(hookByteCap - Buffer.byteLength(guarded));
+  assert.equal(Buffer.byteLength(atLimit), hookByteCap);
+  const result = invoke(atLimit);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, "");
+  assert.equal(result.decision?.permissionDecision, "deny");
+  assert.match(result.decision.permissionDecisionReason, /orchestrator/i);
+  failedClosed(atLimit + " ", sizeDiagnostic);
+});
+
+test("hook overflow uses decoded top-level identity and the last supplied type", () => {
+  failedClosed(oversized(stepType, stepId), sizeDiagnostic);
+  neutral(oversized(
+    '"nested":{' + stepType + "," + stepId + "}",
+    '"text":' + JSON.stringify("{" + stepType + "," + stepId + "}")
+  ));
+  neutral(oversized(stepType, stepId, '"agent_type":"general-purpose"'));
+  neutral(oversized(stepType, stepId, '"agent_type":{"value":"agent-smith:step"}'));
+  failedClosed(oversized('"agent_type":"general-purpose"', stepId, stepType), sizeDiagnostic);
+
+  const longKey = JSON.stringify("agent_type" + oversizedCommand);
+  const longType = JSON.stringify("agent-smith:step" + oversizedCommand);
+  neutral(oversized(longKey + ':"agent-smith:step"', stepId));
+  neutral(oversized('"agent_type":' + longType, stepId));
+  failedClosed(oversized('"agent_type":' + longType, stepId, stepType), sizeDiagnostic);
+});
+
+test("hook overflow handoff preserves UTF-8 and decoded key escapes at 64 KiB", () => {
+  const commandStart = '{"tool_input":{"command":"';
+  const padding = (beforeSplit) => "x".repeat(hookByteCap - Buffer.byteLength(commandStart + beforeSplit));
+  const multibyte = commandStart + padding("x") + '€"},' + stepType + "," + stepId + "}";
+  assert.equal(Buffer.from(multibyte)[hookByteCap - 1], 0xe2);
+  failedClosed(multibyte, sizeDiagnostic);
+
+  const keyStart = '"},"agent_\\u00';
+  const escaped = commandStart + padding(keyStart) + keyStart + '74ype":"agent-smith:\\u0073tep","agent_\\u0069d":"step"}';
+  assert.equal(escaped.slice(hookByteCap, hookByteCap + 2), "74");
+  failedClosed(escaped, sizeDiagnostic);
+
+  // An invalid continuation inside this command becomes replacement text, as on the Buffer path.
+  const invalidUtf8 = Buffer.from(multibyte);
+  invalidUtf8[hookByteCap] = 0x78;
+  failedClosed(invalidUtf8, sizeDiagnostic);
+});
+
+test("hook overflow validates ignored values, trailing bytes, and 64 open containers", () => {
+  const nonStep = oversized('"agent_type":"general-purpose"', stepId);
+  neutral(nonStep);
+  neutral(oversized('"metadata":[null,true,false,0,-0,12,-1.25e+42,3E-9,{}]'));
+  for (const input of [
+    nonStep + "false", "\uFEFF" + nonStep, nonStep.slice(0, -3),
+    nonStep.slice(0, -1) + ',"bad":[true,]}',
+    nonStep.slice(0, -1) + ',"bad":01}',
+    nonStep.slice(0, -1) + ',"bad":1.e2}',
+    nonStep.slice(0, -1) + ',"bad":"\\u00ZZ"}',
+    nonStep.slice(0, -1) + ',"bad":"\\v"}',
+    "[" + nonStep + "]",
+  ]) failedClosed(input, /Invalid JSON/);
+
+  const nested = (arrayDepth) => oversized('"metadata":' + "[".repeat(arrayDepth) + "{}" + "]".repeat(arrayDepth));
+  neutral(nested(62));
+  failedClosed(nested(63), /64 nested JSON containers/);
 });
 
 test("hook argument vector preserves plugin paths containing spaces and shell metacharacters", () => {
@@ -180,6 +522,8 @@ test("distinct HEAD, index and working-copy versions survive denied staged resto
   }
   guarded("git restore --staged unique.txt");
   guarded("node /plugin/open-pr.mjs demo");
+  guarded("X=1 git restore --staged unique.txt");
+  guarded("(git push)");
   assert.equal(fs.existsSync(calls), false, "denied calls reach no recording executable");
   assert.equal(git(p, ["show", "HEAD:unique.txt"]), "HEAD version");
   assert.equal(git(p, ["show", ":unique.txt"]), "staged-only version");
@@ -208,4 +552,26 @@ test("guarded leaf identities retain denials without broadening the orchestrator
     neutral(payload("git diff", { agent_id }));
   }
   neutral(payload("node /plugin/open-pr.mjs demo", { agent_id: undefined, agent_type: undefined }));
+});
+
+test("headless Bash binds main and leaf identities, including oversized and missing identity events", () => {
+  const env = { ...process.env, AGENT_SMITH_CLAUDE_SESSION: "fixture", AGENT_SMITH_CLAUDE_AGENT: "agent-smith:step", AGENT_SMITH_CLAUDE_COMMIT: "1" };
+  const runHook = (command, extra = {}) => invoke(payload(command, { session_id: "fixture", agent_id: undefined, ...extra }), script, { env });
+  assert.equal(runHook("git status").decision, null);
+  assert.equal(runHook("git add -- proof.txt").decision, null);
+  assert.equal(runHook("git push").decision.permissionDecision, "deny");
+  assert.equal(runHook("git commit -m test", { agent_id: "leaf" }).decision.permissionDecision, "deny");
+  for (const command of ["X=1 git commit -m x", "(git add -- f)"]) {
+    assert.equal(runHook(command, { agent_id: "leaf" }).decision.permissionDecision, "deny");
+    const withoutCommit = invoke(payload(command, { session_id: "fixture", agent_id: undefined }), script,
+      { env: { ...env, AGENT_SMITH_CLAUDE_COMMIT: "0" } });
+    assert.equal(withoutCommit.decision.permissionDecision, "deny");
+  }
+  for (const extra of [{ session_id: "foreign" }, { agent_type: "unmapped" }, { agent_type: undefined }]) {
+    assert.equal(runHook("git status", extra).decision.permissionDecision, "deny");
+    assert.equal(runHook("x".repeat(70000), extra).status, 2);
+  }
+  for (const identity of [{}, { agent_id: "leaf" }]) {
+    assert.equal(runHook(oversizedCommand, identity).status, 2);
+  }
 });

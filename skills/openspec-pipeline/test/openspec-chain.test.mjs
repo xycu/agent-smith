@@ -103,7 +103,7 @@ test("a 10x meta.json has no chain key and its provenance flags no chain", () =>
   const meta = readMetaFile(project);
   assert.equal(Object.hasOwn(meta, "chain"), false);
   assert.equal(Object.hasOwn(meta.provenance.flags, "chain"), false);
-  assert.deepEqual(Object.keys(meta.provenance.flags), ["archive", "chrome", "score.minRigor", "agents.restricted", "advisor.enabled"]);
+  assert.deepEqual(Object.keys(meta.provenance.flags), ["providerMode", "archive", "chrome", "score.minRigor", "agents.restricted", "advisor.enabled"]);
 });
 
 test("next and status detect the chain without the flag", () => {
@@ -222,6 +222,51 @@ test("next and status on a moved OpenSpec run halt as archived without the flag,
   assert.match(again.json.reason, /is archived at openspec\/changes\/archive\/2026-02-03-demo/);
   assert.equal(fs.existsSync(project.changeDir), false);
   assert.equal(exists(project, "context/changes/demo"), false);
+});
+
+test("damaged OpenSpec metadata halts inference while explicit status and archive verification remain available", () => {
+  const project = makeOpenspecProject(PROPOSED);
+  const first = initOpenspec(project, "Add a thing");
+  assert.equal(first.status, 0, first.stdout);
+  assert.equal(first.json.action, "run");
+  const file = path.join(project.agentDir, "meta.json");
+  fs.writeFileSync(file, "[]");
+  for (const args of [["status", "demo"], ["init", "demo"], ["next", "demo", "--chain", "10x"]]) {
+    const res = run(project, args);
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "halt");
+    assert.ok(res.json.reason.includes(`${file}: Expected a JSON object`), res.stdout);
+  }
+  const plain = run(project, ["status", "demo", "--chain", "openspec"]);
+  assert.equal(plain.status, 0, plain.stdout);
+  assert.equal(plain.json.host, null);
+  assert.equal(plain.json.providerMode, null);
+  assert.equal(plain.json.steps[0].step, first.json.step);
+  assert.ok(plain.json.metadataProblem.includes(`${file}: Expected a JSON object`));
+
+  const args = ["verify-archive", "demo"];
+  const live = run(project, [...args, "--chain", "openspec"]);
+  assert.equal(live.status, 1, live.stdout);
+  assert.equal(live.json.archived, false);
+  const archive = "openspec/changes/archive/2026-02-03-demo";
+  moveToArchive(project, "2026-02-03");
+  const inferred = run(project, args);
+  assert.equal(inferred.status, 1, inferred.stdout);
+  assert.equal(inferred.json.action, "halt");
+  assert.ok(inferred.json.reason.includes(`${path.join(project.root, archive, "agent-smith/meta.json")}: Expected a JSON object`));
+  const verified = run(project, [...args, "--chain", "openspec"]);
+  assert.equal(verified.status, 0, verified.stdout);
+  assert.equal(verified.json.archived, true);
+  assert.equal(verified.json.path, archive);
+
+  const tenxArchive = path.join(project.root, "context/archive/2026-02-04-demo");
+  fs.mkdirSync(path.join(tenxArchive, "agent-smith"), { recursive: true });
+  fs.writeFileSync(path.join(tenxArchive, "change.md"), "---\nstatus: archived\narchived_at: 2026-02-04\n---\n");
+  fs.writeFileSync(path.join(tenxArchive, "agent-smith/meta.json"), "[]");
+  const collision = run(project, args);
+  assert.equal(collision.status, 0, collision.stdout);
+  assert.equal(collision.json.archived, true);
+  assert.equal(collision.json.path, "context/archive/2026-02-04-demo");
 });
 
 test("a 10x change that reuses the name of an archived OpenSpec run is a 10x run", () => {
