@@ -322,6 +322,15 @@ for (const [chain, source, id, selector] of [
 ]) {
   const start = source.slice(source.indexOf("## Start"), source.indexOf("## Loop"));
   const setup = start.slice(start.indexOf("\n3. "), start.indexOf("\n4. "));
+  test(`${chain}: shared project gate failures report diagnostics and stop before init`, () => {
+    assert.ok(setup.includes(`cd "<root>" && node "$PREPARE_RUN" <${id}>${selector}`));
+    assert.match(setup, /nonzero exit, missing\/malformed JSON, invalid fields or non-null `reason`, show diagnostics and STOP before `init`/);
+    assert.ok(setup.includes("retry from the original project root after resolving its diagnostic"));
+    const fields = setup.match(/Parse exactly one JSON object and validate ([^.]+)\./)?.[1];
+    assert.match(fields, /`runRoot`.*`reason`$/);
+    assert.doesNotMatch(fields, /`base`/);
+    assert.match(start.slice(start.indexOf("\n4. ")), /node \$ROUTER init /);
+  });
   test(`${chain}: actual branch reporting uses publication, saved setup and unavailable identity`, () => {
     const publication = source.split("## Pull request (always)")[1].split("\n## ")[0];
     assert.ok(setup.includes("name the branch from saved setup `branch`"));

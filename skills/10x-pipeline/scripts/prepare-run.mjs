@@ -3,10 +3,13 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
-import { readPolicyObject, readIsolationPolicy, isolationEnabled, runBranch, runBranchName, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
+import { prepareProjectGates } from "./prepare-run-gates.mjs";
+import { readPolicyObject, readIsolationPolicy, isolationEnabled, integrationBranch, runBranch, runBranchName, validateRunBranch, readRunIdentity, validateRunIdentity } from "./run-identity.mjs";
 
 const USAGE = "Usage: prepare-run.mjs <id> [--chain 10x|openspec] [--cleanup]";
 const GIT_TIMEOUT_MS = 120000;
+const setupDeadline = performance.now() + 590000;
+const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
 function parseArgs(args) {
@@ -23,18 +26,80 @@ function parseArgs(args) {
 }
 
 function git(args, input) {
-  return spawn("git", args, GIT_TIMEOUT_MS, { ...process.env, GIT_OPTIONAL_LOCKS: "0" }, input);
+  const timeoutMs = Math.min(GIT_TIMEOUT_MS, Math.floor(setupDeadline - performance.now()));
+  if (timeoutMs <= 0) throw new Error("Run setup deadline expired before the next Git command");
+  return { ...spawn("git", args, timeoutMs, {
+    ...process.env, GIT_OPTIONAL_LOCKS: "0", GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never", SSH_ASKPASS_REQUIRE: "never",
+  }, input), timeoutMs };
 }
 
 function checked(res, label, allowed = [0]) {
   if (res.missing || res.timedOut || !allowed.includes(res.status)) {
-    throw new Error(`${label}: ${res.timedOut ? "Git timed out after 120000 ms" : firstLine(res.stderr) || `Git exited ${res.status}`}`);
+    throw new Error(`${label}: ${res.timedOut ? `Git timed out after ${res.timeoutMs} ms` : firstLine(res.stderr) || `Git exited ${res.status}`}`);
   }
   return res;
 }
 
 function gitText(args, input) {
   return checked(git(args, input), `git ${args[0]}`).stdout.replace(/\n$/, "");
+}
+
+// Remote helpers can put credentials in stderr. Report outcomes without relaying their output.
+function freshnessGit(args, label) {
+  const res = git(args);
+  if (res.status !== 0) {
+    const detail = res.timedOut ? `Git timed out after ${res.timeoutMs} ms` : `Git exited ${res.status}`;
+    throw new Error(`${label}: ${detail}`);
+  }
+  return res.stdout;
+}
+
+function checkFreshBase(startCommit, branch, result) {
+  const remotes = gitText(["remote"]).split("\n").filter(Boolean);
+  if (!remotes.length) {
+    result.base = { skipped: "no-remote" };
+    return;
+  }
+  const remote = remotes.includes("origin") ? "origin" : remotes[0];
+  if (remote !== "origin" && remotes.length > 1) {
+    throw new Error("Cannot select an integration remote: several remotes are configured and none is origin");
+  }
+  if (gitText(["rev-parse", "--is-shallow-repository"]) !== "false") {
+    throw new Error(`Cannot compare integration history from ${remote} in a shallow repository. Unshallow the original checkout and rerun setup`);
+  }
+
+  const target = branch === null ? "HEAD" : `refs/heads/${branch}`;
+  const flag = branch === null ? "--symref" : "--refs";
+  const advertised = freshnessGit(["ls-remote", flag, "--", remote, target], `Read integration branch ${branch ?? "HEAD"} from ${remote}`);
+  const values = advertised.split("\n").filter(Boolean).map((row) => row.split("\t"))
+    .filter((fields) => fields.length === 2 && fields[1] === target).map(([value]) => value);
+  if (branch === null) {
+    const symbolic = values.filter((value) => value.startsWith("ref: "));
+    const ref = symbolic.length === 1 ? symbolic[0].slice(5) : "";
+    if (!ref.startsWith("refs/heads/")) {
+      throw new Error(`Remote ${remote} did not advertise a default branch via symbolic HEAD. Configure isolation.integrationBranch or repair the remote HEAD`);
+    }
+    freshnessGit(["check-ref-format", ref], `Validate advertised integration branch from ${remote}`);
+    branch = ref.slice("refs/heads/".length);
+  }
+  const commits = values.filter((value) => !value.startsWith("ref: "));
+  const tip = commits.length === 1 ? commits[0] : "";
+  if (!COMMIT_RE.test(tip)) {
+    throw new Error(`Remote ${remote} did not advertise a valid commit for integration branch ${branch}`);
+  }
+  freshnessGit(["fetch", "--no-tags", "--no-recurse-submodules", "--refmap=", "--no-write-fetch-head",
+    "--no-prune", "--no-prune-tags", "--no-auto-maintenance", "--no-write-commit-graph", "--", remote, tip],
+    `Fetch integration branch ${branch} from ${remote}`);
+  const localTip = freshnessGit(["rev-parse", "--verify", `${tip}^{commit}`], `Verify integration commit for ${remote}/${branch}`).trim();
+  if (localTip !== tip) throw new Error(`Invalid integration commit for ${remote}/${branch}`);
+  const counts = freshnessGit(["rev-list", "--left-right", "--count", `${startCommit}...${tip}`],
+    `Compare original HEAD with ${remote}/${branch}`).trim().match(/^\d+\s+(\d+)$/);
+  const behind = counts ? Number(counts[1]) : NaN;
+  if (!Number.isSafeInteger(behind)) throw new Error(`Invalid integration commit count for ${remote}/${branch}`);
+  result.base = { remote, branch, behind };
+  if (behind > 0) {
+    throw new Error(`Original checkout is ${behind} commit${behind === 1 ? "" : "s"} behind ${remote}/${branch}. Update the original checkout and rerun setup`);
+  }
 }
 
 function branchExists(branch) {
@@ -139,7 +204,7 @@ function copyChange(source, destination, worktree) {
   });
 }
 
-function withSetupLock(common, branch, operation) {
+function acquireSetupLock(common, branch) {
   const file = path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}`);
   const lock = `${file}.lock`;
   let fd;
@@ -149,13 +214,27 @@ function withSetupLock(common, branch, operation) {
       throw error;
     }
     fs.writeFileSync(fd, `${process.pid}\n`);
-    return operation(`${file}.pending`);
-  } finally {
+  } catch (error) {
     if (fd !== undefined) {
       fs.closeSync(fd);
       fs.unlinkSync(lock);
     }
+    throw error;
   }
+  return { file: `${file}.pending`, release() {
+    fs.closeSync(fd);
+    fs.unlinkSync(lock);
+  } };
+}
+
+function withSetupLockSync(common, branch, operation) {
+  const { file, release } = acquireSetupLock(common, branch);
+  try { return operation(file); } finally { release(); }
+}
+
+async function withSetupLock(common, branch, operation) {
+  const { file, release } = acquireSetupLock(common, branch);
+  try { return await operation(file); } finally { release(); }
 }
 
 function readPending(file) {
@@ -167,7 +246,8 @@ function readPending(file) {
     if (typeof pending.root !== "string" || !path.isAbsolute(pending.root)
       || typeof pending.worktree !== "string" || !path.isAbsolute(pending.worktree)
       || typeof pending.prefix !== "string" || !["10x", "openspec"].includes(pending.chain)
-      || typeof pending.startCommit !== "string" || !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(pending.startCommit)) {
+      || typeof pending.startCommit !== "string" || !COMMIT_RE.test(pending.startCommit)
+      || (Object.hasOwn(pending, "copyComplete") && pending.copyComplete !== true)) {
       throw new Error("invalid pending copy record");
     }
     return pending;
@@ -219,7 +299,7 @@ function pendingOrigin(pending, file) {
   return `Pending ${pending.chain} setup belongs to the original project root ${pending.root}. Inspect ${file} and retry setup from that root`;
 }
 
-function prepare(opts, result) {
+async function prepare(opts, result, signal) {
   const inside = git(["rev-parse", "--is-inside-work-tree"]);
   if (inside.missing || (inside.status === 128 && /not a git repository/i.test(inside.stderr))) {
     result.case = "opt-out";
@@ -238,7 +318,7 @@ function prepare(opts, result) {
   const current = checked(git(["symbolic-ref", "--quiet", "--short", "HEAD"]), "read current branch", [0, 1]).stdout.replace(/\n$/, "");
   const checkCurrentPending = () => {
     if (gitDir !== common && current) {
-      withSetupLock(common, current, (file) => {
+      withSetupLockSync(common, current, (file) => {
         const pending = readPending(file);
         if (pending) throw new Error(pendingOrigin(pending, file));
       });
@@ -250,6 +330,7 @@ function prepare(opts, result) {
     result.runRoot = result.root;
     return;
   }
+  const baseBranch = integrationBranch(config, git);
   const prefix = gitText(["rev-parse", "--show-prefix"]);
   const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
   let invocation = readRunIdentity(path.join(result.root, change));
@@ -294,7 +375,7 @@ function prepare(opts, result) {
   // An incomplete checkout may carry a different isolation policy than its origin.
   if (!inRun && current !== branch) checkCurrentPending();
   validateRunBranch(config, opts.id, branch, git, savedBranch);
-  withSetupLock(common, branch, (file) => {
+  await withSetupLock(common, branch, async (file) => {
     const registrations = registeredWorktrees();
     const registered = registrations.find((entry) => entry.branch === branch)?.worktree ?? null;
     const exists = branchExists(branch);
@@ -307,7 +388,7 @@ function prepare(opts, result) {
         || pending.prefix !== prefix || pending.chain !== opts.chain) {
         throw new Error(pendingOrigin(pending, file));
       }
-      if (exists && registered === null) {
+      if ((exists || pending.copyComplete) && registered === null) {
         throw new Error(`Pending setup branch ${branch} has no registered worktree at ${expectedWorktree}. Inspect git worktree list and ${file} before recovery`);
       }
       if (registered !== null && (!exists || path.resolve(registered) !== expectedWorktree)) {
@@ -338,10 +419,12 @@ function prepare(opts, result) {
       result.case = "created";
       validateSource(source);
       checkCopyParents(expectedWorktree, result.root);
+      const startCommit = gitText(["rev-parse", "--verify", "HEAD^{commit}"]);
+      if (!COMMIT_RE.test(startCommit)) throw new Error("Cannot verify the original HEAD commit");
+      checkFreshBase(startCommit, baseBranch, result);
       addExclude(prefix, opts.id, result);
       result.notInRun = outsidePaths(prefix, change);
       result.worktree = expectedWorktree;
-      const startCommit = gitText(["rev-parse", "--verify", "HEAD^{commit}"]);
       pending = { root: result.root, worktree: expectedWorktree, prefix, chain: opts.chain, startCommit };
       writePending(file, pending);
       const added = git(["worktree", "add", "--no-track", "-b", branch, expectedWorktree, startCommit]);
@@ -377,38 +460,60 @@ function prepare(opts, result) {
       }
     }
     const runRoot = inRun ? result.root : path.resolve(result.worktree, prefix);
-    let copied = false;
+    let initialized = false;
     if (pending) {
       validateWorktreePath(result.worktree, result.worktree, common, branch);
       if (fs.realpathSync(result.worktree) !== expectedWorktree) {
         throw new Error(`Pending setup worktree is not canonical: ${expectedWorktree}. Inspect ${file} before recovery`);
       }
-      validatePendingSource(source, file);
+      if (!pending.copyComplete || lstat(source)) validatePendingSource(source, file);
       const destination = path.join(runRoot, change);
+      if (pending.copyComplete) {
+        if (fs.realpathSync(runRoot) !== runRoot) {
+          throw new Error(`Pending setup run root is not canonical: ${runRoot}. Inspect ${file} before recovery`);
+        }
+        checkAncestors(runRoot, destination);
+        validateSource(destination);
+        const ancestor = checked(git(["-C", result.worktree, "merge-base", "--is-ancestor", pending.startCommit, "HEAD"]),
+          `Verify pinned start commit ${pending.startCommit} in ${result.worktree}. Inspect ${file} before recovery`, [0, 1]);
+        if (ancestor.status === 1) {
+          throw new Error(`Pending setup expected ${pending.startCommit} to be an ancestor of HEAD in ${result.worktree}. Inspect ${file} and preserve worktree edits before recovery`);
+        }
+      }
       const { meta, log } = routerState(destination);
       if (!meta && !log) {
-        const head = gitText(["-C", result.worktree, "rev-parse", "--verify", "HEAD^{commit}"]);
-        if (head !== pending.startCommit) {
-          throw new Error(`Pending setup expected commit ${pending.startCommit} in ${result.worktree}, found ${head}. Inspect ${file} and preserve worktree edits before recovery`);
+        if (!pending.copyComplete) {
+          const head = gitText(["-C", result.worktree, "rev-parse", "--verify", "HEAD^{commit}"]);
+          if (head !== pending.startCommit) {
+            throw new Error(`Pending setup expected commit ${pending.startCommit} in ${result.worktree}, found ${head}. Inspect ${file} and preserve worktree edits before recovery`);
+          }
+          copyChange(source, destination, result.worktree);
+          result.copied = true;
         }
-        copyChange(source, destination, result.worktree);
-        copied = true;
       } else {
         if (!meta?.isFile() || (log && !log.isFile()) || fs.realpathSync(runRoot) !== runRoot) {
           throw new Error(`Pending setup found ambiguous router state in ${destination}. Inspect ${file} and preserve worktree inputs before recovery`);
         }
         checkAncestors(runRoot, path.join(destination, "agent-smith/meta.json"));
+        initialized = true;
       }
     }
     validateWorktreePath(runRoot, result.worktree, common, branch);
     const identity = validateSelected(result.worktree, branch);
     if (pending) {
-      if (!copied && !identity) {
+      if (initialized && !identity) {
         throw new Error(`Pending setup found router state without a saved run identity in ${runRoot}. Inspect ${file} and preserve worktree inputs before recovery`);
+      }
+      if (!initialized) {
+        if (!pending.copyComplete) writePending(file, { ...pending, copyComplete: true });
+        try {
+          await prepareProjectGates(result.worktree, runRoot, setupDeadline, signal, gitText);
+        } catch (error) {
+          throw new Error(`Retry setup from the original project root ${result.root}. ${error.message}`);
+        }
       }
       fs.unlinkSync(file);
     }
-    result.copied = copied;
     result.runRoot = runRoot;
   });
 }
@@ -499,7 +604,7 @@ function cleanup(opts, result) {
   const original = readRunIdentity(path.join(selectedRoot, change));
   if (original) validateRunIdentity(original, config, opts.id, opts.chain, result.branch, git);
   const branch = runBranch(config, opts.id, git);
-  withSetupLock(common, branch, () => {
+  withSetupLockSync(common, branch, () => {
     if (result.branch !== branch || result.worktree !== expected
       || result.runRoot !== selectedRoot || result.runRoot === result.root
       || fs.realpathSync(result.runRoot) !== result.runRoot) {
@@ -560,7 +665,7 @@ function cleanup(opts, result) {
   });
 }
 
-function main() {
+async function main() {
   let opts;
   let saved;
   try {
@@ -573,12 +678,22 @@ function main() {
   }
   const result = saved ? { ...saved, left: [] } : { root: process.cwd(), runRoot: null, worktree: null, branch: null,
     case: null, copied: false, excludeAdded: false, notInRun: [], left: [], reason: null };
+  const controller = new AbortController();
+  const onInt = () => controller.abort("SIGINT");
+  const onTerm = () => controller.abort("SIGTERM");
   try {
     if (opts.cleanup) cleanup(opts, result);
-    else prepare(opts, result);
+    else {
+      process.on("SIGINT", onInt);
+      process.on("SIGTERM", onTerm);
+      await prepare(opts, result, controller.signal);
+    }
   } catch (error) {
     result.runRoot = null;
     result.reason = firstLine(error.message, 1000) || "Run setup failed";
+  } finally {
+    process.off("SIGINT", onInt);
+    process.off("SIGTERM", onTerm);
   }
   if (opts.cleanup && saved.case === "created" && saved.copied === true) {
     const change = `${opts.chain === "openspec" ? "openspec" : "context"}/changes/${opts.id}`;
@@ -595,4 +710,4 @@ function main() {
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 
-if (isEntryPoint(import.meta.url)) main();
+if (isEntryPoint(import.meta.url)) await main();

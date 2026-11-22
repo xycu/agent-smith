@@ -43,6 +43,20 @@ function branchPrefix(config) {
   return prefix;
 }
 
+export function integrationBranch(config, g) {
+  const branch = config.integrationBranch ?? null;
+  if (branch === null) return null;
+  const label = "isolation.integrationBranch";
+  if (typeof branch !== "string" || !branch.trim()) {
+    throw new Error(`${label} must be null or a non-blank branch name`);
+  }
+  const result = g(["check-ref-format", `refs/heads/${branch}`]);
+  if (result.status !== 0) {
+    throw new Error(`${label} is invalid: ${result.timedOut ? "Git ref validation timed out" : JSON.stringify(branch)}`);
+  }
+  return branch;
+}
+
 function validBranch(branch, g) {
   if (typeof branch !== "string" || !branch || branch.startsWith("-")) throw new Error(`Invalid run branch ${JSON.stringify(branch)}`);
   const result = g(["check-ref-format", `refs/heads/${branch}`]);

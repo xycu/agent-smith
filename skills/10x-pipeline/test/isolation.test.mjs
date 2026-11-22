@@ -61,6 +61,7 @@ test("2.1 policy.json ships the isolation block on, and the worktree prompt wire
     require: true,
     defaultBranches: ["main", "master"],
     branchPrefix: "agent-smith/",
+    integrationBranch: null,
     gitTimeoutMs: 120000,
     commit: { message: "chore({id}): step {n} {step}", startMessage: "chore({id}): start run" },
     rollback: { ref: "refs/agent-smith/{id}/{run}/failed-{n}" },

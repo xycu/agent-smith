@@ -3,10 +3,11 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { spawn, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { cleanupAll, makeProject, run, git, gitEnv, ROUTE, planText, writeReview } from "./helpers.mjs";
-import { PREPARE_RUN, REAL_GIT, relChange, fixture, setup, wrapper } from "./prepare-run-helpers.mjs";
+import { PREPARE_RUN, PROJECT_POLICY, REAL_GIT, relChange, fixture, fixtureRemote, setup, wrapper, commitProjectFiles,
+  projectTools, launchSetup } from "./prepare-run-helpers.mjs";
 
 after(cleanupAll);
 const SCRIPTS = path.dirname(PREPARE_RUN);
@@ -337,6 +338,479 @@ function setupRecord(p, suffix = "pending") {
   return path.join(p.base, ".git", `agent-smith-setup-agent-smith%2Fdemo.${suffix}`);
 }
 
+const dependencyManifest = { dependencies: { fixture: "1.0.0" } };
+const dependencyIgnore = "node_modules/\n.pnp.cjs\n.yarn/install-state.gz\n";
+const installed = 'fs.mkdirSync("node_modules", { recursive: true }); fs.writeFileSync("node_modules/ready", "installed");';
+const hookPolicy = (readiness) => ({ isolation: { require: true }, readiness });
+
+function assertGateRetry(p, out) {
+  assert.equal(out.runRoot, null);
+  assert.ok(out.reason.includes(p.root), out.reason);
+  assert.match(out.reason, /Retry setup from the original project root/);
+  assert.equal(fs.existsSync(setupRecord(p, "lock")), false);
+  assert.equal(JSON.parse(fs.readFileSync(setupRecord(p), "utf8")).copyComplete, true);
+  assert.equal(fs.existsSync(path.join(p.changeDir, "change.md")), true);
+}
+
+for (const [chain, lockfile, manager, declared, detected, args] of [
+  ["10x", "package-lock.json", "npm", "npm@10.2.0", null, ["ci"]],
+  ["openspec", "npm-shrinkwrap.json", "npm", null, null, ["ci"]],
+  ["10x", "pnpm-lock.yaml", "pnpm", "pnpm@9.0.0", null, ["install", "--frozen-lockfile"]],
+  ["openspec", "yarn.lock", "yarn", null, "1.22.22", ["install", "--frozen-lockfile"]],
+  ["10x", "yarn.lock", "yarn", "yarn@4.3.1+sha224.abc", null, ["install", "--immutable"]],
+  ["openspec", "bun.lock", "bun", "bun@1.2.0", null, ["install", "--frozen-lockfile"]],
+  ["10x", "bun.lockb", "bun", null, null, ["install", "--frozen-lockfile"]],
+]) {
+  test(`${chain}: fresh setup runs the locked ${manager} command for ${declared ?? detected ?? lockfile} before readiness`, () => {
+    const p = fixture(chain);
+    const pnp = args[1] === "--immutable";
+    const install = pnp
+      ? 'fs.writeFileSync(".pnp.cjs", "ready"); fs.mkdirSync(".yarn"); fs.writeFileSync(".yarn/install-state.gz", "ready");'
+      : installed;
+    const tools = projectTools(p, {
+      [manager]: `if (args.includes("--version")) { console.log(${JSON.stringify(detected)}); }
+else { ${install} console.log("package stdout"); console.error("package stderr"); }`,
+      "verify-ready": `if (!fs.existsSync(${JSON.stringify(pnp ? ".pnp.cjs" : "node_modules/ready")})) process.exit(25);
+console.log("hook stdout"); console.error("hook stderr");`,
+    });
+    commitProjectFiles(p, {
+      "package.json": { ...dependencyManifest, ...(declared ? { packageManager: declared } : {}) },
+      [lockfile]: "fixture lock",
+      [PROJECT_POLICY]: hookPolicy("verify-ready"),
+      ".gitignore": dependencyIgnore,
+    });
+    // A different working-tree hook must not become the committed run command.
+    override(p, hookPolicy("not-the-committed-hook"));
+    const out = success(p, "created", { env: tools.env });
+    assert.equal(out.runRoot, out.worktree);
+    assert.equal(out.copied, true);
+    assert.deepEqual(tools.calls(), [
+      ...(detected ? [{ name: manager, args: ["--version"], cwd: out.runRoot, stdin: "" }] : []),
+      { name: manager, args, cwd: out.runRoot, stdin: "" },
+      { name: "verify-ready", args: [], cwd: out.runRoot, stdin: "" },
+    ]);
+    assert.equal(fs.existsSync(path.join(p.root, "node_modules")), false);
+    assert.equal(fs.existsSync(setupRecord(p)), false);
+    success(p, "reused", { env: tools.env });
+    assert.equal(tools.calls().length, detected ? 3 : 2, "prepared runs do not repeat the gates");
+  });
+}
+
+test("nested projects install at the nearest locked package root but run readiness in the selected root", () => {
+  for (const ownLock of [false, true]) {
+    const p = fixture("openspec", "apps/[widget]");
+    const tools = projectTools(p, {
+      npm: installed + ' fs.symlinkSync("../apps/[widget]", "node_modules/widget", "dir");',
+      pnpm: installed,
+      "verify-ready": `if (!fs.existsSync(${JSON.stringify(ownLock ? "node_modules/ready" : "../../node_modules/ready")})) process.exit(25);`,
+    });
+    commitProjectFiles({ ...p, root: p.base }, {
+      "package.json": { ...dependencyManifest, workspaces: ["apps/*"] },
+      "package-lock.json": "parent lock",
+      ".gitignore": dependencyIgnore,
+    });
+    commitProjectFiles(p, {
+      "package.json": dependencyManifest,
+      ...(ownLock ? { "pnpm-lock.yaml": "local lock" } : {}),
+      [PROJECT_POLICY]: hookPolicy("verify-ready"),
+    });
+    const out = success(p, "created", { env: tools.env });
+    assert.deepEqual(tools.calls(), [
+      { name: ownLock ? "pnpm" : "npm", args: ownLock ? ["install", "--frozen-lockfile"] : ["ci"],
+        cwd: ownLock ? out.runRoot : out.worktree, stdin: "" },
+      { name: "verify-ready", args: [], cwd: out.runRoot, stdin: "" },
+    ]);
+    assert.equal(fs.existsSync(path.join(p.base, "node_modules")), false);
+  }
+});
+
+test("dependency-free and non-JS projects skip installation and still run committed readiness", () => {
+  for (const manifest of [null, { name: "empty", dependencies: {} }]) {
+    const p = fixture("10x", "apps/project");
+    commitProjectFiles({ ...p, root: p.base }, {
+      "package.json": dependencyManifest, ...(manifest ? {} : { "package-lock.json": "parent lock" }),
+    });
+    commitProjectFiles(p, { [PROJECT_POLICY]: hookPolicy("verify-ready"), ...(manifest ? { "package.json": manifest } : {}) });
+    const tools = projectTools(p, { "verify-ready": "" });
+    const out = success(p, "created", { env: tools.env });
+    assert.deepEqual(tools.calls(), [{ name: "verify-ready", args: [], cwd: out.runRoot, stdin: "" }]);
+  }
+});
+
+test("setup retries lockfile and manager failures without repeating the copy", () => {
+  const p = fixture();
+  commitProjectFiles(p, { "package.json": dependencyManifest, ".gitignore": dependencyIgnore });
+  const tools = projectTools(p, {});
+  const noLock = setup(p, { env: tools.env });
+  assertGateRetry(p, noLock);
+  assert.match(noLock.reason, /No supported lockfile.*package\.json.*package-lock\.json/);
+  assert.equal(noLock.copied, true);
+  const { worktree } = noLock;
+  const edit = path.join(worktree, relChange(p.chain), "change.md");
+  fs.writeFileSync(edit, "retained run edit");
+  fs.writeFileSync(path.join(p.changeDir, "change.md"), "original checkout edit");
+  fs.writeFileSync(path.join(worktree, "package-lock.json"), "locked");
+  fs.writeFileSync(path.join(worktree, "yarn.lock"), "conflicting lock");
+  const conflict = setup(p, { env: tools.env });
+  assertGateRetry(p, conflict);
+  assert.match(conflict.reason, /Conflicting package lockfiles.*package-lock\.json.*yarn\.lock/);
+  fs.unlinkSync(path.join(worktree, "yarn.lock"));
+  const manifest = path.join(worktree, "package.json");
+  fs.writeFileSync(manifest, JSON.stringify({ ...dependencyManifest, packageManager: "yarn@1.0.0" }));
+  const wrongManager = setup(p, { env: tools.env });
+  assertGateRetry(p, wrongManager);
+  assert.match(wrongManager.reason, /npm ci.*Set packageManager.*package\.json.*npm@/);
+  assert.deepEqual(tools.calls(), []);
+  fs.writeFileSync(manifest, JSON.stringify(dependencyManifest));
+  const missing = setup(p, { env: tools.env });
+  assertGateRetry(p, missing);
+  assert.match(missing.reason, /npm ci.*executable not found on PATH/);
+  tools.writeTool("npm", 'console.log("credential in stdout"); console.error("credential in stderr"); process.exit(17);');
+  const failedInstall = setup(p, { env: tools.env });
+  assertGateRetry(p, failedInstall);
+  assert.match(failedInstall.reason, /npm ci.*exited with status 17/);
+  assert.doesNotMatch(failedInstall.reason, /credential/);
+  tools.writeTool("npm", installed);
+  const retried = success(p, "reused", { env: tools.env });
+  assert.equal(retried.runRoot, worktree);
+  assert.equal(retried.copied, false);
+  assert.equal(fs.readFileSync(edit, "utf8"), "retained run edit");
+  assert.equal(fs.readFileSync(path.join(p.changeDir, "change.md"), "utf8"), "original checkout edit");
+  assert.equal(fs.existsSync(setupRecord(p)), false);
+  assert.deepEqual(cleanSuccess(p, retried).left, []);
+  assert.equal(fs.readFileSync(path.join(p.changeDir, "change.md"), "utf8"), "original checkout edit");
+});
+
+test("setup checks dependency links both after install and before retry, then requires ignored artifacts", () => {
+  const p = fixture("openspec");
+  const originalDependencies = path.join(p.root, "node_modules");
+  fs.mkdirSync(originalDependencies);
+  fs.writeFileSync(path.join(originalDependencies, "keep"), "original dependencies");
+  commitProjectFiles(p, {
+    "package.json": dependencyManifest, "package-lock.json": "locked", [PROJECT_POLICY]: hookPolicy("verify-ready"),
+  });
+  const tools = projectTools(p, {
+    npm: `fs.symlinkSync(${JSON.stringify(originalDependencies)}, "node_modules", "dir");`,
+    "verify-ready": "",
+  });
+  const postInstall = setup(p, { env: tools.env });
+  assertGateRetry(p, postInstall);
+  assert.match(postInstall.reason, /npm ci.*external dependency link.*node_modules/);
+  assert.equal(tools.calls().length, 1);
+  const preInstall = setup(p, { env: tools.env });
+  assertGateRetry(p, preInstall);
+  assert.match(preInstall.reason, /npm ci.*external dependency link.*node_modules/);
+  assert.equal(tools.calls().length, 1, "the dependency safety check precedes the installer");
+  const link = path.join(postInstall.worktree, "node_modules");
+  fs.unlinkSync(link);
+  fs.symlinkSync("absent", link, "dir");
+  const dangling = setup(p, { env: tools.env });
+  assertGateRetry(p, dangling);
+  assert.match(dangling.reason, /npm ci.*dangling dependency link.*node_modules/);
+  assert.equal(tools.calls().length, 1);
+  fs.unlinkSync(link);
+  tools.writeTool("npm", installed);
+  const unignored = setup(p, { env: tools.env });
+  assertGateRetry(p, unignored);
+  assert.match(unignored.reason, /node_modules[/\\]ready.*ignore rules/);
+  assert.equal(tools.calls().length, 2);
+  fs.writeFileSync(path.join(postInstall.worktree, ".gitignore"), dependencyIgnore);
+  const retried = success(p, "reused", { env: tools.env });
+  assert.equal(retried.copied, false);
+  assert.deepEqual(tools.calls().map(({ name }) => name), ["npm", "npm", "npm", "verify-ready"]);
+  assert.equal(fs.readFileSync(path.join(originalDependencies, "keep"), "utf8"), "original dependencies");
+});
+
+test("setup protects tracked content behind an internal dependency root link", () => {
+  const p = fixture();
+  commitProjectFiles(p, { "package.json": dependencyManifest, "package-lock.json": "locked",
+    "dependencies/keep": "tracked content", ".gitignore": dependencyIgnore, [PROJECT_POLICY]: hookPolicy("verify-ready") });
+  const tools = projectTools(p, {});
+  const failure = setup(p, { env: tools.env });
+  assertGateRetry(p, failure);
+  const dependencyLink = path.join(failure.worktree, "node_modules");
+  fs.symlinkSync("dependencies", dependencyLink, "dir");
+  tools.writeTool("npm", installed);
+  const protectedLayout = setup(p, { env: tools.env });
+  assertGateRetry(p, protectedLayout);
+  assert.match(protectedLayout.reason, /npm ci.*tracked dependency content.*dependencies[/\\]keep/);
+  assert.deepEqual(tools.calls(), []);
+  assert.equal(fs.readFileSync(path.join(failure.worktree, "dependencies/keep"), "utf8"), "tracked content");
+  fs.unlinkSync(dependencyLink);
+  tools.writeTool("verify-ready", "");
+  success(p, "reused", { env: tools.env });
+});
+
+test("setup validates manifest and lockfile links before invoking a package manager", () => {
+  const p = fixture();
+  commitProjectFiles(p, { "package-lock.json": "locked", "outside.json": dependencyManifest });
+  const originalManifest = path.join(p.root, "outside.json");
+  fs.symlinkSync(originalManifest, path.join(p.root, "package.json"));
+  git(p, ["add", "--", "package.json"]);
+  git(p, ["commit", "-qm", "fixture manifest link"]);
+  const tools = projectTools(p, { npm: "" });
+  const manifestFailure = setup(p, { env: tools.env });
+  assertGateRetry(p, manifestFailure);
+  assert.match(manifestFailure.reason, /regular package manifest.*package\.json/);
+  const root = manifestFailure.worktree;
+  fs.unlinkSync(path.join(root, "package.json"));
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify(dependencyManifest));
+  const lock = path.join(root, "package-lock.json");
+  fs.unlinkSync(lock);
+  fs.symlinkSync(path.join(p.root, "package-lock.json"), lock);
+  const lockFailure = setup(p, { env: tools.env });
+  assertGateRetry(p, lockFailure);
+  assert.match(lockFailure.reason, /npm ci.*regular lockfile.*package-lock\.json/);
+  assert.deepEqual(tools.calls(), []);
+  fs.unlinkSync(lock);
+  fs.writeFileSync(lock, "locked");
+  success(p, "reused", { env: tools.env });
+});
+
+test("readiness must be valid and comes from the retained worktree's committed policy on retry", () => {
+  const p = fixture();
+  commitProjectFiles(p, {
+    "package.json": dependencyManifest, "package-lock.json": "locked",
+    [PROJECT_POLICY]: hookPolicy(" "), ".gitignore": dependencyIgnore,
+  });
+  const tools = projectTools(p, {
+    npm: installed,
+    "bad-ready": 'console.log("credential in stdout"); console.error("credential in stderr"); process.exit(26);',
+    "good-ready": 'if (!fs.existsSync("node_modules/ready")) process.exit(27);',
+  });
+  const invalid = setup(p, { env: tools.env });
+  assertGateRetry(p, invalid);
+  assert.match(invalid.reason, /Set readiness to a non-blank command.*HEAD:context\/foundation/);
+  assert.deepEqual(tools.calls(), []);
+  const run = { ...p, root: invalid.worktree };
+  override(run, hookPolicy("good-ready"));
+  assert.match(setup(p, { env: tools.env }).reason, /Set readiness to a non-blank command/);
+  assert.deepEqual(tools.calls(), []);
+  commitProjectFiles(run, { [PROJECT_POLICY]: hookPolicy("bad-ready") });
+  const failedHook = setup(p, { env: tools.env });
+  assertGateRetry(p, failedHook);
+  assert.match(failedHook.reason, /Readiness command "bad-ready".*exited with status 26/);
+  assert.doesNotMatch(failedHook.reason, /credential/);
+  const retryEdit = path.join(run.root, relChange(p.chain), "change.md");
+  fs.writeFileSync(retryEdit, "preserve between gate retries");
+  commitProjectFiles(run, { [PROJECT_POLICY]: hookPolicy("good-ready") });
+  const out = success(p, "reused", { env: tools.env });
+  assert.equal(out.copied, false);
+  assert.equal(out.runRoot, run.root);
+  assert.equal(fs.readFileSync(retryEdit, "utf8"), "preserve between gate retries");
+  assert.deepEqual(tools.calls().map(({ name }) => name), ["npm", "bad-ready", "npm", "good-ready"]);
+});
+
+test("setup rejects a committed readiness policy link before manager execution", () => {
+  const p = fixture();
+  commitProjectFiles(p, { "package.json": dependencyManifest, "package-lock.json": "locked",
+    "outside-policy.json": hookPolicy("verify-ready") });
+  const policy = path.join(p.root, PROJECT_POLICY);
+  fs.unlinkSync(policy);
+  fs.symlinkSync(path.join(p.root, "outside-policy.json"), policy);
+  git(p, ["add", "--", PROJECT_POLICY]);
+  git(p, ["commit", "-qm", "fixture policy link"]);
+  const tools = projectTools(p, { npm: "", "verify-ready": "" });
+  const failed = setup(p, { env: tools.env });
+  assertGateRetry(p, failed);
+  assert.match(failed.reason, /regular committed policy file.*HEAD:/);
+  assert.deepEqual(tools.calls(), []);
+  fs.unlinkSync(path.join(failed.worktree, PROJECT_POLICY));
+  commitProjectFiles({ ...p, root: failed.worktree }, { [PROJECT_POLICY]: hookPolicy("verify-ready") });
+  success(p, "reused", { env: tools.env });
+});
+
+test("copy-complete recovery refuses a pinned start outside worktree HEAD ancestry", () => {
+  const p = fixture();
+  commitProjectFiles(p, { [PROJECT_POLICY]: hookPolicy("verify-ready") });
+  const tools = projectTools(p, { "verify-ready": "process.exit(1);" });
+  assertGateRetry(p, setup(p, { env: tools.env }));
+  const pendingFile = setupRecord(p);
+  const pending = JSON.parse(fs.readFileSync(pendingFile, "utf8"));
+  const original = pending.startCommit;
+  pending.startCommit = git(p, ["commit-tree", "HEAD^{tree}", "-m", "disjoint fixture start"]);
+  assert.notEqual(pending.startCommit, original);
+  fs.writeFileSync(pendingFile, JSON.stringify(pending));
+  const refused = setup(p, { env: tools.env });
+  assert.match(refused.reason, /expected.*ancestor of HEAD.*preserve worktree edits/);
+  assert.equal(refused.runRoot, null);
+  assert.equal(tools.calls().length, 1);
+  pending.startCommit = original;
+  fs.writeFileSync(pendingFile, JSON.stringify(pending));
+  tools.writeTool("verify-ready", "");
+  success(p, "reused", { env: tools.env });
+});
+
+function freshnessState(p) {
+  return {
+    ...originalState(p),
+    registrations: git(p, ["worktree", "list", "--porcelain"]),
+    exclude: fs.readFileSync(path.join(p.base, ".git/info/exclude")),
+    fetchHead: fs.readFileSync(path.join(p.base, ".git/FETCH_HEAD")),
+    setupFiles: fs.readdirSync(path.join(p.base, ".git")).filter((name) => name.startsWith("agent-smith-setup-")),
+    targetExists: fs.existsSync(path.join(p.root, ".claude/worktrees/agent-smith-demo")),
+  };
+}
+
+test("fresh setup rejects a stale or divergent start without mutating the checkout", () => {
+  for (const diverged of [false, true]) {
+    const p = fixture(diverged ? "openspec" : "10x");
+    const remote = fixtureRemote(p);
+    const start = git(p, ["rev-parse", "HEAD"]);
+    git(p, ["update-ref", "refs/remotes/origin/main", start]);
+    git(p, ["update-ref", "refs/remotes/origin/release", start]);
+    git(p, ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"]);
+    git(p, ["config", "remote.origin.prune", "true"]);
+    remote.advance("first upstream commit");
+    const tip = remote.advance("second upstream commit");
+    if (diverged) {
+      git(p, ["commit", "--allow-empty", "-qm", "local-only commit"]);
+      fs.writeFileSync(path.join(p.root, "tracked.txt"), "staged source edit\n");
+      git(p, ["add", "tracked.txt"]);
+      fs.writeFileSync(path.join(p.root, "tracked.txt"), "working source edit\n");
+    }
+    const fetchHead = path.join(p.base, ".git/FETCH_HEAD");
+    fs.writeFileSync(fetchHead, "preserve existing FETCH_HEAD\n");
+    const before = freshnessState(p);
+
+    const out = setup(p);
+    assert.deepEqual(out.base, { remote: "origin", branch: "release", behind: 2 });
+    assert.match(out.reason, /2 commits behind origin\/release.*Update the original checkout and rerun/);
+    assert.equal(out.worktree, null);
+    assert.equal(out.excludeAdded, false);
+    assert.equal(out.copied, false);
+    assert.deepEqual(freshnessState(p), before);
+    assert.equal(git(p, ["cat-file", "-t", tip]), "commit");
+    if (!diverged) {
+      git(p, ["merge", "--ff-only", tip]);
+      const retried = success(p, "created");
+      assert.deepEqual(retried.base, { remote: "origin", branch: "release", behind: 0 });
+      assert.equal(git(p, ["-C", retried.runRoot, "rev-parse", "HEAD"]), tip);
+    }
+  }
+});
+
+test("fresh setup chooses origin or the sole remote and keeps equal and ahead starts pinned", () => {
+  for (const [remoteName, ahead] of [["origin", false], ["upstream", true]]) {
+    const p = fixture();
+    const remote = fixtureRemote(p, remoteName);
+    const integrationTip = git(p, ["rev-parse", "HEAD"]);
+    if (ahead) git(p, ["commit", "--allow-empty", "-qm", "local-only commit"]);
+    else git(p, ["remote", "add", "extra", `${remote.dir}-unreachable`]);
+    const expected = git(p, ["rev-parse", "HEAD"]);
+    const w = wrapper(p);
+    const out = success(p, "created", { env: w.env });
+    assert.deepEqual(out.base, { remote: remoteName, branch: "release", behind: 0 });
+    assert.equal(git(p, ["-C", out.runRoot, "rev-parse", "HEAD"]), expected);
+    const calls = fs.readFileSync(w.log, "utf8").trim().split("\n").map(JSON.parse);
+    assert.deepEqual(calls.find(([cmd]) => cmd === "ls-remote"), ["ls-remote", "--symref", "--", remoteName, "HEAD"]);
+    const fetch = calls.find(([cmd]) => cmd === "fetch");
+    for (const arg of ["--no-tags", "--no-recurse-submodules", "--refmap=", "--no-write-fetch-head"]) assert.ok(fetch.includes(arg), arg);
+    assert.deepEqual(fetch.slice(-3), ["--", remoteName, integrationTip]);
+    assert.deepEqual(calls.find(([cmd]) => cmd === "rev-list"), ["rev-list", "--left-right", "--count", `${expected}...${integrationTip}`]);
+  }
+});
+
+test("integrationBranch selects an exact named remote ref and validates active overrides", () => {
+  const p = fixture();
+  const remote = fixtureRemote(p);
+  remote.git(["branch", "team/integration", "HEAD"]);
+  remote.advance("named integration change", "team/integration");
+  const w = wrapper(p);
+  override(p, { isolation: { integrationBranch: "team/integration" } });
+  const lagging = setup(p, { env: w.env });
+  assert.deepEqual(lagging.base, { remote: "origin", branch: "team/integration", behind: 1 });
+  assert.match(lagging.reason, /1 commit behind origin\/team\/integration/);
+  const calls = fs.readFileSync(w.log, "utf8").trim().split("\n").map(JSON.parse);
+  assert.deepEqual(calls.find(([cmd]) => cmd === "ls-remote"), ["ls-remote", "--refs", "--", "origin", "refs/heads/team/integration"]);
+
+  override(p, { isolation: { integrationBranch: "missing" } });
+  assert.match(setup(p).reason, /Remote origin did not advertise a valid commit for integration branch missing/);
+  for (const integrationBranch of ["", "  ", 7, ["main"], "release/*", "a..b"]) {
+    override(p, { isolation: { integrationBranch } });
+    assert.match(setup(p).reason, /isolation\.integrationBranch/);
+  }
+  assert.equal(fs.existsSync(setupRecord(p)), false);
+  override(p, { isolation: { require: false, integrationBranch: 7 } });
+  assert.equal(success(p, "opt-out").base, undefined);
+});
+
+test("freshness discovery and transport failures keep the original checkout retryable", () => {
+  const p = fixture();
+  const remote = fixtureRemote(p);
+  const fetchHead = path.join(p.base, ".git/FETCH_HEAD");
+  fs.writeFileSync(fetchHead, "preserve existing FETCH_HEAD\n");
+  for (const [stage, reason] of [["ls-remote", /Read integration branch HEAD from origin/],
+    ["fetch", /Fetch integration branch release from origin/], ["rev-list", /Compare original HEAD with origin\/release/]]) {
+    const before = freshnessState(p);
+    const out = setup(p, { env: wrapper(p, "fail", stage).env });
+    assert.match(out.reason, reason);
+    assert.match(out.reason, /Git exited 70/);
+    assert.doesNotMatch(out.reason, /injected Git failure/);
+    assert.equal(out.base, undefined);
+    assert.deepEqual(freshnessState(p), before);
+  }
+  remote.git(["symbolic-ref", "HEAD", "refs/heads/unborn"]);
+  assert.match(setup(p).reason, /Remote origin did not advertise a default branch/);
+  remote.git(["symbolic-ref", "HEAD", "refs/heads/release"]);
+  git(p, ["remote", "set-url", "origin", `${remote.dir}-unreachable`]);
+  assert.match(setup(p).reason, /Read integration branch HEAD from origin: Git exited/);
+  git(p, ["remote", "set-url", "origin", remote.dir]);
+  git(p, ["remote", "rename", "origin", "upstream"]);
+  git(p, ["remote", "add", "other", remote.dir]);
+  assert.match(setup(p).reason, /several remotes.*none is origin/);
+  git(p, ["remote", "rename", "upstream", "origin"]);
+  success(p, "created");
+});
+
+test("fresh setup refuses shallow history without creating a run", () => {
+  const p = fixture();
+  fixtureRemote(p);
+  git(p, ["fetch", "--depth=1", "origin", "refs/heads/release"]);
+  const before = freshnessState(p);
+  assert.match(setup(p).reason, /shallow repository.*Unshallow the original checkout/);
+  assert.deepEqual(freshnessState(p), before);
+});
+
+test("freshness runs only before a new registration, including an unregistered pending retry", () => {
+  const local = fixture();
+  assert.deepEqual(success(local, "created").base, { skipped: "no-remote" });
+
+  const p = fixture();
+  const remote = fixtureRemote(p);
+  const file = setupRecord(p);
+  const startCommit = git(p, ["rev-parse", "HEAD"]);
+  const worktree = path.join(p.root, ".claude/worktrees/agent-smith-demo");
+  const pending = JSON.stringify({ root: p.root, worktree, prefix: "", chain: p.chain, startCommit });
+  fs.writeFileSync(file, pending);
+  const tip = remote.advance("new upstream commit");
+  assert.equal(setup(p).base.behind, 1);
+  assert.equal(fs.readFileSync(file, "utf8"), pending);
+  git(p, ["merge", "--ff-only", tip]);
+  const saved = success(p, "created");
+  assert.equal(saved.base.behind, 0);
+  initialize(p, saved);
+  assert.equal(fs.existsSync(file), false);
+  remote.advance("a later upstream commit");
+  const w = wrapper(p, "fail", "ls-remote");
+  assert.equal(success(p, "reused", { env: w.env }).base, undefined);
+  assert.equal(success({ ...p, root: saved.runRoot }, "in-run-worktree", { env: w.env }).base, undefined);
+  assert.deepEqual(cleanSuccess(p, saved, { env: w.env }).base, saved.base);
+  override(p, { isolation: { require: false } });
+  assert.equal(success(p, "opt-out", { env: w.env }).base, undefined);
+  assert.ok(!fs.readFileSync(w.log, "utf8").trim().split("\n").map(JSON.parse)
+    .some(([cmd]) => ["remote", "ls-remote", "fetch"].includes(cmd)));
+
+  const retry = fixture("10x", null, true);
+  const retryRemote = fixtureRemote(retry);
+  const conflict = copyConflict(retry);
+  retryRemote.advance("after registration");
+  conflict.fix();
+  const recovered = success(retry, "reused", { env: wrapper(retry, "fail", "ls-remote").env });
+  assert.equal(recovered.runRoot, conflict.out.worktree);
+  assert.equal(recovered.base, undefined);
+});
+
 function copyConflict(p) {
   const source = path.join(p.changeDir, "change.md");
   const bytes = fs.readFileSync(source);
@@ -556,19 +1030,6 @@ test("command allowlist and automatic tracking config remain unchanged", () => {
   assert.doesNotMatch(source, /["'](?:push|config|commit|reset|clean|--force|--no-verify)["']/);
 });
 
-function launch(p, env) {
-  const child = spawn(process.execPath, [PREPARE_RUN, "demo", "--chain", p.chain], { cwd: p.root, env: { ...gitEnv(p), ...env }, stdio: ["ignore", "pipe", "pipe"] });
-  let stdout = "";
-  let stderr = "";
-  child.stdout.on("data", (part) => { stdout += part; });
-  child.stderr.on("data", (part) => { stderr += part; });
-  const done = new Promise((resolve, reject) => {
-    child.on("error", reject);
-    child.on("close", (code) => { if (code === 0) resolve(JSON.parse(stdout)); else reject(new Error(stderr)); });
-  });
-  return { child, done };
-}
-
 async function waitFor(file) {
   const deadline = Date.now() + 60000;
   while (!fs.existsSync(file)) {
@@ -581,7 +1042,7 @@ for (const chain of ["10x", "openspec"]) {
   test(`${chain}: shared lock covers published worktree until copy finishes, across chains and prefixes`, async () => {
     const p = fixture(chain, "apps/widget");
     const w = wrapper(p, "pause");
-    const first = launch(p, w.env);
+    const first = launchSetup(p, w.env);
     try {
       await waitFor(w.signal);
       const top = path.join(p.root, ".claude/worktrees/agent-smith-demo");
@@ -610,7 +1071,7 @@ test("interruption after registration can recover a previously untracked nested 
   fs.writeFileSync(path.join(changeDir, "change.md"), "untracked project inputs");
   const caller = { ...p, root, changeDir };
   const w = wrapper(p, "pause");
-  const first = launch(caller, w.env);
+  const first = launchSetup(caller, w.env);
   const stopped = first.done.then(() => false, () => true);
   try {
     await waitFor(w.signal);
