@@ -21,7 +21,7 @@ A refused Write names the path and the host's reason, tells the operator which s
 | Host rule | Honor the host denial | Desktop applies the worktree rules to the actual Write call. | Frame |
 | Placement | Use the run root selected by existing setup | The setup contract already preserves worktree and branch identity on resume. | Plan |
 | Capability check | Native Write in the live change directory before `init` | This uses the operation the host refused and works before the router creates its runtime directory. | Plan |
-| Refusal recovery | Preserve the prepared run and resume in an authorized session | The frame records successful recovery in the owner session. | Frame and plan |
+| Refusal recovery | Preserve the prepared run and hand it over to one authorized session | The frame records recovery in the owner session, and result intake relies on one sequential producer. | Frame, plan and result intake reference |
 | Verification | Local contract and CLI checks plus live Desktop checks | Tool-level behavior can be established only in the relevant Desktop sessions. | Plan |
 
 ## Scope
@@ -31,7 +31,7 @@ A refused Write names the path and the host's reason, tells the operator which s
 
 ## Architecture / Approach
 
-Each Claude orchestrator checks Write after validating setup output and live inputs. It writes an inert marker to an owned transient path under the selected chain's change directory and removes it before calling `init`. A refusal ends the invocation before source cleanup or dispatch. A later result-write refusal stops before `next`, retaining the pending step and its validated outcome for normal result intake from an authorized session.
+Each Claude orchestrator checks Write after validating setup output and live inputs. It writes an inert marker to a fresh, owned scratch path beneath the verified live change directory and removes it before calling `init`. A refusal ends the invocation before source cleanup or dispatch. A later result-write failure stops intake and preserves the exact intended payload and its originating attempt in the original session. A sole authorized recovery session matches that attempt, including its neutral retry count, and continues from `next` only with the verified payload. See the plan for the ownership, conflict and suspension rules.
 
 ## Phases at a Glance
 
@@ -47,13 +47,14 @@ Each Claude orchestrator checks Write after validating setup output and live inp
 
 - The chosen preflight covers Claude orchestrators regardless of provider, fresh or resumed startup, and the selected isolation mode. The current Write requirement and both observed host denial modes ground this decision. [Frame brief](frame.md) · [10x skill](../../../skills/10x-pipeline/SKILL.md#start)
 - A successful probe does not guarantee that a different path or later call will succeed. The result-write STOP covers a denial after launch.
+- Probe residue or unresolved execution ownership requires reconciliation before retry. The existing sequential producer contract assumes one orchestrator per run.
 - After a blocked fresh invocation, ordinary reuse can retain the original inputs. The prepared checkout and run records stay available to the authorized session. [Setup cleanup contract](../../../skills/10x-pipeline/SKILL.md#start)
 
 ## Success Criteria Summary
 
-- Local tests verify both skill contracts and the existing setup, reuse and result-intake behavior.
+- Local tests verify both skill contracts, with a deliberate break in each chain, and the existing startup, dispatch, setup, reuse and result-intake behavior.
 - Manual Desktop checks reproduce both denial types and confirm an actionable stop before initialization.
-- Manual Desktop recovery reuses the refused run's worktree, removes the probe and completes the first step and result intake.
+- Manual Desktop recovery reuses the refused run's worktree, removes the probe and completes the first step and result intake. A disposable result-only refusal also verifies the STOP and recovery without redispatching the completed child.
 
 ## References
 
