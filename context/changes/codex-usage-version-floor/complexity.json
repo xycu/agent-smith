@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 0,
+      "evidence": "The goal specifies the floor, all three version checks, fail-closed reasons, docs, tests, and commit subject."
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "skills/10x-pipeline/scripts/claude-capture-data.mjs already has claudeCaptureSupported for the same floor rule."
+    },
+    "coupling": {
+      "score": 1,
+      "evidence": "The goal changes codex-usage.mjs and its focused tests plus the named documentation references."
+    },
+    "discovery": {
+      "score": 0,
+      "evidence": "The goal names the implementation, test, README.md, docs/REFERENCE.md, and test README locations."
+    },
+    "volume": {
+      "score": 1,
+      "evidence": "The goal calls for a few focused edits across scripts, tests, and documentation."
+    },
+    "verification": {
+      "score": 1,
+      "evidence": "skills/10x-pipeline/test/codex-usage.test.mjs covers the collector and the goal specifies focused version cases."
+    }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

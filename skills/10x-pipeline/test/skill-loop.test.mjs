@@ -1,6 +1,6 @@
 // Content check of the `## Anti-stall rules` section of SKILL.md. Its rule form is checked in rules.test.mjs.
 // It also pins the `## Pull request (always)` section and its place in the done, archive and halt branches (ADR-017).
-// SKILL_PATH overrides the file, for the deliberate-break check.
+// SKILL_PATH and OPENSPEC_SKILL_PATH override the files for deliberate-break checks.
 import test from "node:test";
 import { createHash } from "node:crypto";
 import { pluginPolicy } from "../scripts/state.mjs";
@@ -269,7 +269,7 @@ for (const [chain, text, id] of [
       "use only the current invocation's matched records",
       "earlier numbered step follows the late-usage path",
       "Leave unmatched or ambiguous figures unattached",
-      "Without a matched figure, attach unavailable evidence and run `next` in the same turn under rule 2",
+      "Without a matched figure, attach unavailable evidence and proceed under rule 2 through the result-write gate",
       "native Agent `tool_use_id` as `runId`",
       "never derive them from a description",
     ]) assert.ok(dispatch.includes(needle), needle);
@@ -330,6 +330,55 @@ for (const [chain, source, id, selector] of [
     assert.match(fields, /`runRoot`.*`reason`$/);
     assert.doesNotMatch(fields, /`base`/);
     assert.match(start.slice(start.indexOf("\n4. ")), /node \$ROUTER init /);
+  });
+  test(`${chain}: Claude Write preflight gates startup and owns its scratch cleanup`, () => {
+    const probeAt = setup.indexOf("\n   - Claude Write preflight:");
+    const missingCheck = setup.indexOf("Setup resolves resumes before this check");
+    assert.ok(missingCheck >= 0 && probeAt > missingCheck, "probe follows live change and archive lookup");
+    const followUp = setup.indexOf("\n   - Run every later router call", probeAt);
+    assert.ok(followUp > probeAt && followUp < setup.indexOf("--cleanup"), "probe precedes init and source cleanup");
+    const probe = setup.slice(probeAt, followUp);
+    assert.match(probe, /before step 4 on the actual Claude host for fresh setup and resume, regardless of provider or isolation\. Codex skips it/);
+    const changeDir = chain === "10x" ? "context/changes/<change-id>" : "openspec/changes/<change-name>";
+    assert.ok(probe.includes("Resolve real paths and require `<run root>/" + changeDir + "` to be a directory strictly beneath the canonical run root"));
+    assert.match(probe, /sole orchestration ownership after setup unlocks/);
+    assert.match(probe, /inspect the run lock and its `\.takeover` guard read-only in the original TMPDIR/i);
+    assert.match(probe, /Confirm settlement of any possibly active native session even if no lock exists/);
+    assert.match(probe, /Stop on overlap, unresolved ownership, unreadable locks or `\.agent-smith-write-probe-\*` residue.*owner reconciliation/);
+    assert.match(probe, /Use `mkdtemp` with that prefix in the live change directory, even before `agent-smith\/` exists/);
+    assert.match(probe, /native Write for a unique inert marker at its absent absolute `write\.txt` path.*tool success and exact readback from a regular file.*Shell only prepares, verifies and cleans up/);
+    assert.match(probe, /finally step, recheck the scratch directory's identity and location.*List and check entries, unlink only its regular probe file.*`rmdir` the owned empty directory.*earlier probes untouched/);
+    assert.match(probe, /Write \(including unavailable or unconfirmed\) or cleanup failure.*absolute path, residue and bounded reason/);
+    assert.match(probe, /different-worktree denial.*session with Write access to the selected root.*protected shared `\.claude\/` denial in the owning session/);
+    assert.match(probe, /STOP before `init`, source cleanup, dispatch or publication\. Preserve worktree, branch, source inputs and run state/);
+  });
+  test(`${chain}: every numbered result goes through the result-write gate before next`, () => {
+    const run = branch("run", source.split("\n"));
+    const gateAt = run.indexOf("\n  5. Result-write gate.");
+    const nextAt = run.indexOf("node $ROUTER next");
+    assert.ok(gateAt > 0 && nextAt > gateAt, "one intake gate precedes the next command");
+    const produce = run.slice(0, gateAt);
+    assert.match(produce, /confirmed evidence that no step child launched[^\n]*"orchestrator-error"[^\n]*result-write gate in step 5/);
+    assert.match(produce, /Apply Suspension STOP if launch or settlement is unresolved\. Treat settled launch failures[^\n]*as `unknown`/);
+    assert.match(produce, /Before any result handling[^\n]*Apply the suspension STOP first/);
+    assert.match(produce, /`completed: true`[^\n]*step 5 must write only `envelope\.result` unchanged/);
+    assert.match(produce, /`completed: false` and `launched: true`[^\n]*`unknown`[^\n]*`usage` and `usageEvidence` when present to step 5/);
+    assert.match(produce, /Only an envelope with `launched: false` permits an `orchestrator-error` result\. Pass that eligible prelaunch result to step 5 too/);
+    assert.match(produce, /4\. For every Agent result[^\n]*Pass the normalized result to step 5/);
+    const gate = run.slice(gateAt);
+    assert.match(gate, /Result-write gate\. Suspension STOP takes precedence/);
+    assert.match(gate, /exact normalized JSON bytes and launch or prelaunch refusal record in the original session.*host, absolute run root, chain, change, step number and name, and `neutralRetry\.count` \(zero initially\)/);
+    assert.match(gate, /result parent to resolve to its expected directory beneath the canonical root.*`lstat` on the absolute `<run root>\/<resultFile>` path and accept only `ENOENT` as absence/);
+    assert.match(gate, /On absence, use native Write on Claude without shell fallback, or Codex's local writer.*success, regular-file `lstat` and exact readback/);
+    assert.match(gate, /Result-write STOP: on an unsafe path, present file, failed or unconfirmed write.*absolute result path, bounded reason and attempt identity.*Leave existing bytes untouched.*STOP before `next`, late `usage` or publication even under anti-stall rule 2/);
+    assert.match(gate, /one authorized session on the recorded host.*Verify settlement, sole ownership, the same result parent and regular, non-symlink `meta\.json` and `run\.jsonl` before plain `status` in the saved root and chain/);
+    assert.match(gate, /matching host and change, no `metadataProblem` or `logProblems`, and no terminal outcome in saved metadata \(`meta\.outcome`\).*latest executed pending row's number, name and `neutralRetries` \(absent means zero\).*Ignore skips and require `ok: null`/);
+    assert.match(gate, /Attribute bytes to the originating record.*exact retained bytes through the host's writer only on confirmed absence.*matching regular file unchanged/);
+    assert.match(gate, /Changed dispatch, lost payload, uncertain ownership, symlink, zero-byte or other conflict needs owner reconciliation/);
+    assert.match(gate, /Resume at `next` without `init` or relaunching a completed child\. Verified prelaunch `orchestrator-error` reroutes neutrally/);
+    assert.ok(gate.includes('Only then run `cd "<run root>" && node $ROUTER next <' + id + '>' + selector + '`'));
+    const rule = source.slice(source.indexOf(HEADING)).split("\n").find(line => line.includes("no usage figure has arrived"));
+    assert.match(rule, /run `next` in the same turn after step 5 confirms the write/);
   });
   test(`${chain}: actual branch reporting uses publication, saved setup and unavailable identity`, () => {
     const publication = source.split("## Pull request (always)")[1].split("\n## ")[0];
@@ -408,6 +457,7 @@ for (const [chain, source] of [
     const digest = createHash("sha256").update(source.slice(start, end + 1)
       .replace("External execution waits", "OpenAI execution waits")
       .replace("a running external runner", "a running OpenAI runner")
+      .replace(" after step 5 confirms the write", "")
       .replace("the suspension STOP for unresolved native ownership or ", "")).digest("hex");
     assert.equal(digest, "9d262e57b558c87ce54b3a258c9454b3eec2eb35b44cc3539a0d1047077b1d44");
   });
@@ -430,8 +480,8 @@ test("AGENTS assigns routing documentation to the reference for both skills", ()
 });
 
 for (const [chain, source, ceiling] of [
-  ["10x", skill, 28760],
-  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36449],
+  ["10x", skill, 32375],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36868],
 ]) {
   test(`${chain}: skill byte budget and single procedure owners`, () => {
     assert.ok(Buffer.byteLength(source, "utf8") <= ceiling, `${chain}: skill exceeds ${ceiling} bytes`);
@@ -444,7 +494,7 @@ for (const [chain, source, ceiling] of [
     const run = branch("run", source.split("\n"));
     for (const text of [
       "prelaunch refusal/error unrelated to the router's `agent`", "incomplete prompt handoff",
-      "neither reply nor error", "no step subagent running", "Launch notices follow the anti-stall rules",
+      "neither reply nor error", "Launch notices follow the anti-stall rules",
       "same step/prompt without a failed attempt", "Cut-off replies are also `unknown`",
       "Replace a child-authored `orchestrator-error` with `unknown`", "preserving other keys",
       "Preserve all keys, including `signals`", "<subagent_tokens>N</subagent_tokens>",
