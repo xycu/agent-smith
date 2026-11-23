@@ -29,3 +29,10 @@
 - **Problem**: Everything
 - **Rule**: Always grep every doc, including docs/REFERENCE.md, for the old behavior when a change alters a script's output, not only the files the plan lists.
 - **Applies to**: plan-review, implement, impl-review
+
+## Open a lock-free read target by descriptor, never lstat then read
+
+- **Context**: Any code that reads a file a concurrent writer may replace or remove without taking the writer's lock (for example the setup pending record, ADR-010 Amendment 8).
+- **Problem**: An lstat followed by a read leaves a window where the path becomes a symlink or FIFO, so the reader follows it or blocks forever. Found in the impl-review of prepare-run-setup-lock-and-residue-followups (fix 5c3dd345).
+- **Rule**: Open the path with O_NOFOLLOW | O_NONBLOCK, fstat the descriptor and require a regular file before reading; treat ENOENT as absent only after a second lstat confirms it.
+- **Applies to**: plan, plan-review, implement, impl-review
