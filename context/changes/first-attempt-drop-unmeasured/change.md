@@ -1,9 +1,9 @@
 ---
 change_id: first-attempt-drop-unmeasured
 title: Measure the first-attempt tier drop or set it to zero as ADR-010 says
-status: new
+status: planned
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-23
 archived_at: null
 ---
 
