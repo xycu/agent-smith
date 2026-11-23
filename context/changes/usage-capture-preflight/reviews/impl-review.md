@@ -1,66 +1,49 @@
 <!-- IMPL-REVIEW-REPORT -->
-# Implementation Review: Usage Capture Preflight Implementation Plan
+# Implementation Review: Usage Capture Preflight
 
 - **Plan**: [Usage Capture Preflight Implementation Plan](../plan.md)
-- **Scope**: Full plan
+- **Scope**: Full plan, confirmation at `779184c6`
 - **Reviewed phases**: 1, 2
 - **Date**: 2026-11-23
-- **Verdict**: REJECTED
-- **Findings**: 1 critical, 1 warning, 0 observations
+- **Verdict**: APPROVED
+- **Findings**: 0 critical, 0 warnings, 0 observations
 
 ## Verdicts
 
 | Dimension | Verdict |
 | --- | --- |
-| Plan Adherence | FAIL |
+| Plan Adherence | PASS |
 | Scope Discipline | PASS |
-| Safety & Quality | FAIL |
+| Safety & Quality | PASS |
 | Architecture | PASS |
 | Pattern Consistency | PASS |
-| Success Criteria | FAIL |
-
-The verdict and counts describe `40a89426` before triage. The review scoped the implementation to `2a5fc3df`, `80bf6f92`, `18adca92` and `22616037` and checked their callers at that revision. Phase 1 uses the effective providers and separates usage advice from permission diagnostics. Phase 2 derives header clauses from settled usage evidence and retains them in capped local comments for both chains. Report rebuilds and verified late usage use the same ledger and preserve legacy accounting.
-
-The plan's Phase 1 regression rows 1.3 and 1.4 refer to F1 and F2 in the earlier report at `94b10c56`. That review covered a missing native Claude capture module and a failure marker created during source probes. Both were fixed in `18adca92` and both regression checks passed on the current revision.
+| Success Criteria | PASS for all seven automated rows. Manual rows 2.4 and 2.5 await owner verification. |
 
 ## Findings
 
-### F1 — The Codex usage collector can prevent router startup
+No findings on the reviewed revision. The preceding review at `777aa131` retains its original verdict and counts. This confirmation verified its two fixes in `0d898a02`. Removing the Codex collector from a scratch plugin leaves native Claude init and status usable, and Codex init still dispatches with a warning. The headless guidance now tells operators to start a fresh Claude session with the launcher.
 
-- **Severity**: ❌ CRITICAL
-- **Impact**: 🏃 LOW — the fix is local to the advisory's module load.
-- **Dimension**: Safety & Quality
-- **Location**: `skills/10x-pipeline/scripts/init-usage.mjs:5` at `40a89426`
-- **Detail**: The advisory imports the entire collector at module initialization for its version pin. If the collector cannot load, Node exits before argument handling or transport selection. A Claude-only init or a status command then fails before emitting JSON. The OpenAI advisory cannot report an indeterminate check either.
-- **Fix**: Import the pin inside the OpenAI advisory and turn import failure into fixed setup guidance. Verify Claude init, Codex init and status through a scratch plugin missing the collector.
-- **Decision**: APPLIED in `0d898a02`. Only the OpenAI advisory loads the collector, and an unavailable collector produces a fixed warning.
+## Phase verification
 
-### F2 — The headless advisory directs users to launch from inside Claude
+**Phase 1.** Both chains select advisories from assigned transports. A neutral replay checks the saved provider. The tests verify one JSON action on stdout, combined guidance on stderr, private launcher files that can grow during the check, and a bounded Codex version probe. The two named regressions confirm that an unavailable native capture module yields a null hook hash and that a launcher failure during the probe yields a warning. Both cases still dispatch.
 
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — the fix aligns the advisory with the launcher's existing entry point.
-- **Dimension**: Plan Adherence
-- **Location**: `skills/10x-pipeline/scripts/init-usage.mjs:37` at `40a89426`
-- **Detail**: The warning tells users to use the launcher “in a fresh Claude session.” Running it from inside that session triggers the launcher's `CLAUDECODE` guard. The launcher itself starts the interactive session. [Launcher guard](../../../../skills/10x-pipeline/scripts/claude-capture.mjs#L27)
-- **Fix**: Tell users to start the fresh session with the launcher, then start or resume a compatible Claude-hosted run from that session. Assert the instruction in the startup fixture.
-- **Decision**: APPLIED in `0d898a02`. Both chains tell users to start the session with the launcher and then start or resume the run.
+**Phase 2.** The report header counts settled steps with applicable evidence. Tests cover missing sources, disabled capture, duration-only headless steps, measured zero, pending rows and legacy data. A verified late figure refreshes the header. The local fake client received the same line in the capped comment payload for both chains.
 
-## Verification before triage
-
-| Planned command or assertion | Result |
+| Focused verification on Node 24.19.0 | Result |
 | --- | --- |
-| `node --test --test-name-pattern='missing or unreadable hook inputs\|native probe opens both sources safely' skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/init-usage.test.mjs` | Both named tests passed |
-| `node --test skills/10x-pipeline/test/init-usage.test.mjs skills/10x-pipeline/test/init-permissions.test.mjs` | 22 passed |
-| `node --test skills/10x-pipeline/test/claude-capture.test.mjs skills/10x-pipeline/test/claude-usage.test.mjs` | 78 passed |
-| `node --test skills/10x-pipeline/test/accounting-readers.test.mjs skills/10x-pipeline/test/late-usage.test.mjs` | 62 passed |
-| `env -u GH_LIVE node --test skills/10x-pipeline/test/pr-comment.test.mjs` | 56 passed, 2 opt-in live cases skipped |
-| README warning and setup-link assertions, reference launcher, pin and deferred rollout assertions, and `git diff --check` | Passed |
+| Plan's named `missing or unreadable hook inputs` and `native probe opens both sources safely` checks | Both executed and passed |
+| `init-usage.test.mjs` and `init-permissions.test.mjs` | 22 passed |
+| `claude-capture.test.mjs` and `claude-usage.test.mjs` | 78 passed |
+| `accounting-readers.test.mjs` and `late-usage.test.mjs` | 62 passed |
+| `pr-comment.test.mjs` with `GH_LIVE` unset | 56 passed, two opt-in live cases skipped |
+| Full `provenance.test.mjs`, including the missing Codex collector regression | 30 passed |
+| README warning and setup link, reference launcher command, Codex pin and deferred rollout assertions, and `git diff --check` | Passed |
 
-- Manual row 2.4 is pending for the owner to verify the warning, quiet startup and verified figures in interactive Claude sessions.
-- Manual row 2.5 is pending for the owner to verify the live comment after orchestrator publication. The local fake client verified the report header for both chains. [Manual verification evidence](../evidence/unproven.md)
+In total, 248 distinct tests passed. The two named regressions also ran separately.
 
-## Verification after triage
+## Pending manual acceptance
 
-The new missing-collector case and the updated headless guidance checks for both chains failed against the original code and passed with the fixes. All seven automated plan rows passed. The planned suites and the full provenance test file passed 248 distinct tests, with two opt-in GitHub cases skipped. The two named Phase 1 regression checks also passed in the plan's filtered command. Documentation assertions and `git diff --check` passed.
+- **2.4** requires a supported interactive Claude host to observe the warning in an ordinary session and then quiet init and verified figures in a fresh launcher session.
+- **2.5** requires the published PR comment and terminal report for a run with capture disabled. The orchestrator owns publication. [Manual verification evidence](../evidence/unproven.md)
 
-The plan's unchecked manual rows remain pending. Token coverage for the two delegated review passes was unavailable.
+The plan-drift and safety review invocations each returned a read-only assessment. Neither supplied a verified token count.
