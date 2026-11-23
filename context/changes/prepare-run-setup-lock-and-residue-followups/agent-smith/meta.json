@@ -45,5 +45,10 @@
       "agents.restricted": false,
       "advisor.enabled": false
     }
+  },
+  "startCommit": "e690aa3c179db77cdf652778a20a26d688c8b619",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain, hot paths skills/10x-pipeline/scripts/prepare-run.mjs, skills/10x-pipeline/test/prepare-run.test.mjs"
   }
 }
