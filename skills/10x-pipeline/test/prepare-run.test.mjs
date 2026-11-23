@@ -143,7 +143,10 @@ for (const chain of ["10x", "openspec"]) {
   test(`${chain}: unrelated linked branch, detached HEAD and other-chain metadata follow later cases`, () => {
     const p = fixture(chain, null, true);
     const wt = linked(p, "feature/demo");
+    const currentLock = path.join(p.base, ".git/agent-smith-setup-feature%2Fdemo.lock");
+    fs.writeFileSync(currentLock, "leave feature lock");
     assert.equal(success(wt, "created").branch, "agent-smith/demo");
+    assert.equal(fs.readFileSync(currentLock, "utf8"), "leave feature lock");
     const q = fixture(chain, null, true);
     git(q, ["checkout", "--detach", "-q"]);
     success(q, "created");
@@ -308,7 +311,7 @@ test("operational failures return honest JSON and leave created resources intact
     if (match === "worktree list") git(p, ["branch", "agent-smith/demo"]);
     const w = wrapper(p, "fail", match);
     assert.match(setup(p, { env: w.env }).reason, /injected Git failure/);
-    assert.equal(fs.readdirSync(path.join(p.base, ".git")).some((name) => /\.(lock|pending)$/.test(name)), false);
+    assert.equal(fs.readdirSync(path.join(p.base, ".git")).some((name) => /\.(lock|pending|tmp)$/.test(name)), false);
   }
   const occupied = fixture();
   const target = path.join(occupied.root, ".claude/worktrees/agent-smith-demo");
@@ -337,6 +340,146 @@ test("operational failures return honest JSON and leave created resources intact
 function setupRecord(p, suffix = "pending") {
   return path.join(p.base, ".git", `agent-smith-setup-agent-smith%2Fdemo.${suffix}`);
 }
+
+function setupPreload(p, code) {
+  const file = path.join(p.base, "setup-preload.mjs");
+  fs.writeFileSync(file, `import fs from "node:fs";\n${code}\n`);
+  return pathToFileURL(file).href;
+}
+
+function linkedOptOut() {
+  const wt = linked(fixture());
+  override(wt, { isolation: { require: false } });
+  return wt;
+}
+
+test("linked opt-out reads pending setup without creating or changing the branch lock", () => {
+  const wt = linkedOptOut();
+  const lock = setupRecord(wt, "lock");
+  const common = path.dirname(lock);
+  const before = fs.readdirSync(common).sort();
+  const preload = setupPreload(wt, `
+    const open = fs.openSync;
+    fs.openSync = (file, flags, ...args) => {
+      if (file === ${JSON.stringify(lock)} && flags !== "r") throw new Error("unexpected lock open");
+      return open(file, flags, ...args);
+    };
+  `);
+  success(wt, "opt-out", { env: { NODE_OPTIONS: `--import=${preload}` } });
+  assert.deepEqual(fs.readdirSync(common).sort(), before);
+
+  fs.writeFileSync(lock, "stale lock");
+  const saved = snapshot(lock);
+  success(wt, "opt-out");
+  assert.deepEqual(snapshot(lock), saved);
+});
+
+for (const kind of ["malformed", "directory"]) {
+  test(`linked opt-out refuses a ${kind} pending record with a stale lock`, () => {
+    const wt = linkedOptOut();
+    const file = setupRecord(wt);
+    const lock = setupRecord(wt, "lock");
+    fs.writeFileSync(lock, "leave stale lock");
+    if (kind === "malformed") fs.writeFileSync(file, "{");
+    else fs.mkdirSync(file);
+    assert.match(setup(wt).reason, /Cannot read pending setup.*Inspect the record/);
+    assert.equal(fs.readFileSync(lock, "utf8"), "leave stale lock");
+    if (kind === "malformed") assert.equal(fs.readFileSync(file, "utf8"), "{");
+    else assert.ok(fs.lstatSync(file).isDirectory());
+  });
+}
+
+for (const code of ["ENOENT", "EIO"]) {
+  test(`linked opt-out handles ${code} while reading a disappearing pending record`, () => {
+    const wt = linkedOptOut();
+    const file = setupRecord(wt);
+    fs.writeFileSync(file, JSON.stringify({
+      root: wt.base, worktree: wt.top, prefix: "", chain: wt.chain, startCommit: git(wt, ["rev-parse", "HEAD"]),
+    }));
+    const preload = setupPreload(wt, `
+      const read = fs.readFileSync;
+      fs.readFileSync = (name, ...args) => {
+        if (name === ${JSON.stringify(file)}) {
+          fs.unlinkSync(name);
+          ${code === "EIO" ? 'throw Object.assign(new Error("injected I/O error"), { code: "EIO" });' : ""}
+        }
+        return read(name, ...args);
+      };
+    `);
+    const options = { env: { NODE_OPTIONS: `--import=${preload}` } };
+    if (code === "ENOENT") success(wt, "opt-out", options);
+    else assert.match(setup(wt, options).reason, /Cannot read pending setup.*injected I\/O error.*Inspect the record/);
+    assert.equal(fs.existsSync(file), false);
+  });
+}
+
+for (const publication of [1, 2]) {
+  test(`interrupted pending publication ${publication} leaves one staging file and retries cleanly`, () => {
+    const p = fixture();
+    const file = setupRecord(p);
+    const temp = `${file}.tmp`;
+    const lock = setupRecord(p, "lock");
+    const preload = setupPreload(p, `
+      const rename = fs.renameSync;
+      let count = 0;
+      fs.renameSync = (from, to) => {
+        if (to === ${JSON.stringify(file)} && ++count === ${publication}) process.kill(process.pid, "SIGKILL");
+        return rename(from, to);
+      };
+    `);
+    const killed = spawnSync(process.execPath, ["--import", preload, PREPARE_RUN, "demo", "--chain", p.chain], {
+      cwd: p.root, env: gitEnv(p), encoding: "utf8", timeout: 120000,
+    });
+    assert.ifError(killed.error);
+    assert.equal(killed.signal, "SIGKILL", killed.stderr);
+    const setupFiles = () => fs.readdirSync(path.dirname(file)).filter((name) => name.startsWith("agent-smith-setup-")).sort();
+    const expected = [path.basename(lock), path.basename(temp)];
+    const registrations = git(p, ["worktree", "list", "--porcelain"]);
+    if (publication === 1) {
+      assert.doesNotMatch(registrations, /branch refs\/heads\/agent-smith\/demo/);
+      assert.equal(git(p, ["branch", "--list", "agent-smith/demo"]), "");
+    } else {
+      expected.push(path.basename(file));
+      const pending = JSON.parse(fs.readFileSync(file, "utf8"));
+      assert.equal(Object.hasOwn(pending, "copyComplete"), false);
+      assert.ok(registrations.includes(`worktree ${pending.worktree}\n`), registrations);
+      assert.match(registrations, /branch refs\/heads\/agent-smith\/demo/);
+    }
+    assert.deepEqual(setupFiles(), expected.sort());
+    fs.unlinkSync(lock);
+    success(p, publication === 1 ? "created" : "reused");
+    assert.deepEqual(setupFiles(), []);
+  });
+}
+
+test("pending publication replaces a stale staging symlink and preserves its target", () => {
+  const p = fixture();
+  const temp = setupRecord(p, "pending.tmp");
+  const outside = path.join(p.root, "keep.txt");
+  fs.writeFileSync(outside, "preserve outside bytes");
+  fs.symlinkSync(outside, temp);
+  success(p, "created");
+  assert.equal(fs.lstatSync(temp, { throwIfNoEntry: false }), undefined);
+  assert.equal(fs.readFileSync(outside, "utf8"), "preserve outside bytes");
+});
+
+test("pending publication preserves a directory at its staging path and the canonical record", () => {
+  const p = fixture();
+  const file = setupRecord(p);
+  const temp = `${file}.tmp`;
+  const record = JSON.stringify({
+    root: p.root, worktree: path.join(p.root, ".claude/worktrees/agent-smith-demo"),
+    prefix: "", chain: p.chain, startCommit: git(p, ["rev-parse", "HEAD"]),
+  });
+  fs.writeFileSync(file, record);
+  fs.mkdirSync(temp);
+  fs.writeFileSync(path.join(temp, "keep"), "preserve contents");
+  const refused = setup(p);
+  assert.equal(refused.runRoot, null);
+  assert.ok(refused.reason.includes(temp), refused.reason);
+  assert.equal(fs.readFileSync(path.join(temp, "keep"), "utf8"), "preserve contents");
+  assert.equal(fs.readFileSync(file, "utf8"), record);
+});
 
 const dependencyManifest = { dependencies: { fixture: "1.0.0" } };
 const dependencyIgnore = "node_modules/\n.pnp.cjs\n.yarn/install-state.gz\n";
@@ -998,10 +1141,15 @@ test("an incomplete worktree with a committed opt-out points back to the origina
   git(p, ["commit", "-qm", "opt-out policy"]);
   override(p, { isolation: { require: true } });
   const failure = copyConflict(p);
+  const file = setupRecord(p);
+  const before = snapshot(file);
+  const lock = setupRecord(p, "lock");
+  fs.writeFileSync(lock, "leave stale lock");
   const out = setup({ ...p, root: failure.out.worktree });
   assert.match(out.reason, /original project root/);
   assert.ok(out.reason.includes(p.root), out.reason);
-  assert.ok(fs.existsSync(setupRecord(p)));
+  assert.deepEqual(snapshot(file), before);
+  assert.equal(fs.readFileSync(lock, "utf8"), "leave stale lock");
 });
 
 test("Git discovery preserves the source index when clean file timestamps changed", () => {

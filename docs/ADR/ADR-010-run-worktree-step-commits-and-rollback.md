@@ -259,3 +259,15 @@ Setup installs supported lockfiles under the registered worktree, rejects unsafe
 A gate failure preserves the worktree, copied inputs and pending record. Retry from the original project root after fixing the diagnostic. The retry verifies the registration and pinned start ancestry, reads the readiness command from the worktree's current committed policy and leaves copied inputs and edits in place. A gate-only retry reports `case: "reused"` and `copied: false`. Valid initialized identity still clears pending setup through the existing recovery path.
 
 Existing pending records with no copy marker can finish through overlay recovery and the new gates. Initialized runs and worktrees without a pending record use ordinary resume. Finish copy-complete pending runs with this executable before downgrading, since older versions can repeat the overlay. After pending setup settles, a normal revert restores the prior setup behavior while preserving the run branches and worktrees.
+
+## Amendment 8 — Read pending intent without locking and bound staging residue (2026-11-23)
+
+**GIVEN** a linked checkout on a named branch **WHEN** setup checks for pending intent before opting out or selecting another branch **THEN** it reads the current branch’s canonical record without taking the branch lock. A valid record directs the caller to its original project root. Worktree selection, registration, copying, validation and project gates on the resolved branch retain their exclusive lock.
+
+**GIVEN** a lock-free reader finds a regular record **WHEN** its payload read fails with `ENOENT` **THEN** the reader treats the record as absent only if a second `lstat` confirms disappearance. If the entry remains, the second check fails, or the payload read reports a different error, setup retains the inspection diagnostic. Malformed, invalid and non-regular records also require inspection. Reads under the resolved branch lock retain strict error handling.
+
+**GIVEN** a writer holds the branch lock **WHEN** it publishes either the initial intent or the copy-complete record **THEN** it stages the new record at `<canonical record>.tmp` before atomically renaming it. It unlinks a stale staging entry, including a symlink, before creating the staging file exclusively. A directory or failed unlink stops publication and preserves the canonical record.
+
+Writers from both versions share the same branch lock, canonical path and record format. A retry that skips publication or uses the older UUID-based writer can leave the fixed temp behind. Legacy UUID staging files also need manual cleanup. Inspect the lock’s PID and verify that setup and its descendants have stopped before removing a stranded temp by its exact path. Keep the canonical record for recovery.
+
+Finish any `copyComplete` recovery with a version that understands it (Amendment 7). Once pending setup settles, a normal revert restores locking during pre-selection and UUID staging while preserving run worktrees, branches and records.
