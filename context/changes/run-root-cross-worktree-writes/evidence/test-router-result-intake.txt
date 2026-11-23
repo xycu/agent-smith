@@ -1,0 +1,11 @@
+skills/10x-pipeline/test/result-persist.test.mjs — a router error after the result is read keeps the result in run.jsonl, and the next call routes on
+Scope: local router result intake and persistence in a disposable non-isolated fixture.
+✔ a router error after the result is read keeps the result in run.jsonl, and the next call routes on (494.054792ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 682.74325
