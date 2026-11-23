@@ -3,9 +3,7 @@
 Recorded 2026-11-15 at HEAD 4c54a4a29cd1c18f95be4b1db17470924f4503b9.
 
 - Row 1.1 is done (2026-11-23): merge commit f81bdb5 integrates the Wave 7 rewrite from main, and command-contracts.md holds the refreshed inventory.
-- Row 1.2 lacks fresh installed-plugin evidence for /agent-smith:10x-pipeline. Archived skill-dir-variable evidence still leaves row 3.5 unproved.
-- Row 1.3 lacks fresh installed-plugin evidence for /agent-smith:openspec-pipeline. Archived skill-dir-variable evidence still leaves row 3.6 unproved.
-- Neither prerequisite has a transcript in this active change identifying installed revision, Claude version, expanded cache path, slash command and successful router initialization with action run and a step.
+- Rows 1.2 and 1.3 are done (2026-11-23), accepted by the owner with a caveat: `evidence/command-installed-plugin-substitution.md` records both installed-plugin runs (Claude Code 2.1.323, plugin 1.16.1, `action: "run"` on both chains). The plugin resolved to the repository checkout because the marketplace is a directory source, so no cache path was exercised.
 - Final acceptance rows 2.6 and 2.7 remain pending. The fix has not begun and neither fixed installed-plugin chain has been exercised under an actual spaced cache path.
 
 The task forbids nested agents and confines project operations to this worktree. The approved plan explicitly places live-host installation outside this unattended step and requires both earlier substitution checks before Phase 2. Shell simulation cannot establish those checks. No installation or nested agent was attempted.

@@ -195,8 +195,8 @@ No data migration. Skills are installed text, so final acceptance must load the 
 
 #### Manual
 
-- [ ] 1.2 Fresh installed-plugin evidence for `/agent-smith:10x-pipeline` proves the prerequisite formerly recorded as skill-dir-variable row 3.5: Claude substitutes the actual plugin cache path and router initialization returns `action: "run"` with a step, without `--plugin-dir`.
-- [ ] 1.3 Fresh installed-plugin evidence for `/agent-smith:openspec-pipeline` proves the prerequisite formerly recorded as skill-dir-variable row 3.6: Claude resolves the sibling shared router and initialization returns `action: "run"` with an OpenSpec step, without `--plugin-dir`.
+- [x] 1.2 Fresh installed-plugin evidence for `/agent-smith:10x-pipeline` proves the prerequisite formerly recorded as skill-dir-variable row 3.5: Claude substitutes the actual plugin cache path and router initialization returns `action: "run"` with a step, without `--plugin-dir`. Accepted by the owner on 2026-11-23 with a caveat: the plugin resolved to the repository checkout (directory marketplace), not a cache path; see `evidence/command-installed-plugin-substitution.md`.
+- [x] 1.3 Fresh installed-plugin evidence for `/agent-smith:openspec-pipeline` proves the prerequisite formerly recorded as skill-dir-variable row 3.6: Claude resolves the sibling shared router and initialization returns `action: "run"` with an OpenSpec step, without `--plugin-dir`. Accepted by the owner on 2026-11-23 with the same caveat as row 1.2.
 
 ### Phase 2: Quote the commands and prove the contract
 
