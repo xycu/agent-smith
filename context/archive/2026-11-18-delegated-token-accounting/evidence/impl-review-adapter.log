@@ -1,0 +1,6 @@
+Synthetic adapter recheck; no model launches, host capture, router intake or settlement proof.
+Codex 0.169.0 shapes: per-thread metadata verified 220; unrelated metadata sessionId => unavailable/missing-identity, no total.
+Claude 2.1.311 shapes (10x): numeric and string event.sequence verified 151 with tool-only requests and out-of-order attachments.
+Claude 2.1.311 shapes (openspec): numeric and string event.sequence verified 151 with tool-only requests and out-of-order attachments.
+PASS: corrected adapters accept the documented formats; positive live paths remain unqualified.
+Scratch removed file by file: 10 files, 7 directories.

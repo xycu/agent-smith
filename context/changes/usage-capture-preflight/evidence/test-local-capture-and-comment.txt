@@ -1,0 +1,15 @@
+init-usage.test.mjs — 10x native init warns without capture and rechecks empty launcher files on resume; init-usage.test.mjs — openspec native init warns without capture and rechecks empty launcher files on resume; claude-capture.test.mjs — fresh launcher binds private, minimized and bounded capture to one Claude process and loopback route; claude-usage.test.mjs — bound capture proves flat step using the checkpoint CLI; pr-comment.test.mjs — 10x: a generated report's token capture limitation survives comment truncation; pr-comment.test.mjs — openspec: a generated report's token capture limitation survives comment truncation
+✔ fresh launcher binds private, minimized and bounded capture to one Claude process and loopback route (1151.920583ms)
+✔ bound capture proves flat step using the checkpoint CLI (150.042208ms)
+✔ 10x native init warns without capture and rechecks empty launcher files on resume (311.450834ms)
+✔ openspec native init warns without capture and rechecks empty launcher files on resume (323.206375ms)
+✔ 10x: a generated report's token capture limitation survives comment truncation (321.545ms)
+✔ openspec: a generated report's token capture limitation survives comment truncation (338.4895ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1253.502209

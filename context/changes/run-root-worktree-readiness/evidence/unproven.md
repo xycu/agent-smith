@@ -1,0 +1,1 @@
+- 2.4 — row requires the owner's real project (real lockfile, committed readiness hook, a deliberately unavailable shared service); the fixture tests of rows 2.1-2.3 use fake package managers and a local hook, so they prove the mechanism but not a real-project run. No command, test or script run unattended can stand in for it.

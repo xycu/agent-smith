@@ -10,7 +10,8 @@ name: CI
 # fork PR, because a fork PR runs the workflow file of its own branch and its author can edit
 # `runs-on`. The boundary is the repository setting "Require approval for all external contributors".
 # The first step of `test` refuses uid 0, because ADR-020 D4 requires a non-root runner user.
-# Each job stops after 15 minutes (a normal suite run takes about 3.5).
+# Six duration-balanced test shards use the six TrueNAS runners, with two concurrent files per shard.
+# Each job stops after 15 minutes.
 on:
   pull_request:
   push:
@@ -25,9 +26,13 @@ concurrency:
 
 jobs:
   test:
-    name: Tests and version check
+    name: Tests and version check (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ${{ (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) && 'ubuntu-latest' || fromJSON('["self-hosted","linux","truenas"]') }}
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
     steps:
       - name: Refuse to run as root (ADR-020)
         run: test "$(id -u)" -ne 0 || { echo "::error::the runner runs this job as uid 0; ADR-020 requires a non-root service user"; exit 1; }
@@ -36,7 +41,7 @@ jobs:
         with:
           node-version: 24
       # Required contract tool, approved CI-only npm exception. Upgrade the pin in a deliberate
-      # commit after all five real contract fixtures pass. Git and OpenSpec failures fail CI.
+      # commit after all real contract fixtures pass. Git and OpenSpec failures fail CI.
       # Expected Linux skips by identity and condition (counts alone cannot identify a regression).
       # - live: a branch with no pull request is skipped — GH_LIVE != 1.
       # - live: the real comment projection is one parseable object per line across pages — GH_LIVE != 1.
@@ -49,21 +54,24 @@ jobs:
         env:
           OPENSPEC_TELEMETRY: "0"
           DO_NOT_TRACK: "1"
+          OPENSPEC_NO_UPDATE_CHECK: "1"
         run: |
           git --version
           prefix="$(mktemp -d "$RUNNER_TEMP/openspec.XXXXXX")"
           export npm_config_cache="$prefix/npm-cache"
           export npm_config_userconfig="$prefix/npmrc"
-          npm install --prefix "$prefix" --no-save --package-lock=false @fission-ai/openspec@1.16.1
+          npm install --prefix "$prefix" --no-save --package-lock=false --ignore-scripts @fission-ai/openspec@2.0.0
           openspec="$prefix/node_modules/.bin/openspec"
           version="$("$openspec" --version)"
-          test "$version" = "1.16.1" || { echo "::error::expected OpenSpec 1.16.1, got $version"; exit 1; }
+          test "$version" = "2.0.0" || { echo "::error::expected OpenSpec 2.0.0, got $version"; exit 1; }
           echo "OpenSpec $version"
           echo "OPENSPEC_BIN=$openspec" >> "$GITHUB_ENV"
       - name: Test suite
+        shell: bash
         env:
           TMPDIR: ${{ runner.temp }}
-        run: node --test --experimental-test-coverage skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+          TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: node --experimental-test-coverage tools/test-shards.mjs "$TEST_SHARD"
       - name: Check version fields are in lockstep
         run: node tools/version-check.mjs
 

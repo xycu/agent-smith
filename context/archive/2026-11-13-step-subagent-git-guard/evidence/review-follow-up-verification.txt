@@ -1,0 +1,76 @@
+Review follow-up verification, 2026-11-15
+
+Phase 4 only. Node v24.19.0.
+Base commit 1d4b4ee8c0d7c12e94bc6520a8244df8645f5a4c.
+Candidate index tree 8c72d772313b5eb8e8e62ce5c5bac649a267ff7c.
+Exported with git archive into worktree-local scratch; recursively inspected 1433 entries with zero .DS_Store basenames.
+
+F1 verification
+TMPDIR was worktree-local .step-guard-follow-up-tmp with an absent-git-dir parent-discovery barrier.
+node --test skills/10x-pipeline/test/step-guard.test.mjs
+✔ shipped hook uses synchronous Bash exec-form Node, bounded timeout and fail-closed handling (1.001083ms)
+✔ direct Git discard, hook bypass, unique-ref deletion and publication forms are denied (1803.413167ms)
+✔ Git option values cannot masquerade as safety flags or hide hook bypass (1112.632542ms)
+✔ recursive shell deletion variants are denied using inert payloads only (365.513667ms)
+✔ literal quotes, escapes and supported shell separators retain command positions (1553.331292ms)
+✔ orchestrator and unrelated agents pass through, including publication script calls (214.862833ms)
+✔ dynamic programs and wrappers are outside the documented direct-command subset (129.58875ms)
+✔ malformed guarded events deny and malformed JSON, oversized input and quote errors fail closed (557.684583ms)
+✔ hook argument vector preserves plugin paths containing spaces and shell metacharacters (44.193875ms)
+✔ distinct HEAD, index and working-copy versions survive denied staged restore before a recording executable (512.5195ms)
+✔ the standalone guard has no execution, filesystem, network or routing dependency (0.390458ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6371.067417
+
+An earlier successful focused invocation used the default temporary directory. The recorded acceptance run above used the required worktree-local scratch.
+No parser or fixture edits were needed. No tests changed, so no new deliberate-break check applies.
+
+F2 tracking and byte preservation
+git ls-files -- .DS_Store "**/.DS_Store" returned no paths.
+.gitignore:2:.DS_Store	.DS_Store
+.gitignore:2:.DS_Store	nested/.DS_Store
+Before SHA-256 c4758bd840da2b4de207b551cf870e645460579059ed95b39e6ebfe2a0a6cbb7
+After SHA-256  c4758bd840da2b4de207b551cf870e645460579059ed95b39e6ebfe2a0a6cbb7
+Only index tracking was removed with git rm --cached -- .DS_Store. The local ignored file is retained.
+The existing .claude/worktrees/ ignore entry is retained.
+
+Clean export validation
+claude plugin validate . --strict
+Working directory was the clean export, not the source worktree with retained local metadata.
+Exit 0. ARCHIVE_OS_METADATA_FILE absent. Existing ICON_MISSING warning remains.
+Validating marketplace manifest: /Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-step-subagent-git-guard/.step-guard-follow-up-tmp/export/.claude-plugin/marketplace.json
+
+Plugin directory checks for /Users/blazej/WebstormProjects/agent-smith/.claude/worktrees/agent-smith-step-subagent-git-guard/.step-guard-follow-up-tmp/export. The plugin directory is the catalog that plugins are submitted to; this is a subset of what it runs.
+
+⚠ Found 1 plugin directory warning:
+
+  ❯ .claude-plugin/plugin.json icon: No icon (ICON_MISSING). No icon found in the plugin. The validator looked for `icon` in plugin.json and for a file at .claude-plugin/icon.png or .svg, assets/icon.png or .svg, or a similar path.
+    Fix: Add a square PNG to the plugin folder at .claude-plugin/icon.png, or set `icon` in plugin.json to the path of a square PNG or JPEG in the plugin: 512 to 2048 px on each side, under 2 MB. SVG and WebP are not accepted. That file may become the listing icon only once: the first time the plugin is saved or submitted in the developer portal. Adding or changing it later does not change the icon.
+
+About these checks:
+
+  ❯ This folder also holds a marketplace manifest. The plugin directory treats such a folder as a plugin, so these checks cover only the plugin in this folder. To check another plugin that the marketplace lists, run validate on that plugin's folder.
+
+These plugin directory checks do not change the result below.
+
+The directory also runs a safety scan and a policy review that this command does not.
+
+✔ Validation passed
+
+Applicable complete-suite evidence
+Reused evidence/impl-review-verification.txt as explicitly permitted by Phase 4.
+node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs
+1573 tests, 1570 passed, zero failed, three expected skips.
+The review evidence covers correction commit 19affb2e3c16a2de2508e5c06be09e2d02be28ab.
+git diff 19affb2 HEAD for both script trees, prompt trees, policies and tools was empty before cleanup. This phase changes only ignore/tracking and change documentation.
+
+ROADMAP lookup found no matching Change ID.
+Assumptions follow the approved Phase 4 contract: reuse the existing F1 correction and complete-suite evidence for unchanged runtime code.
+Manual 2.6, 2.7 and 3.4 remain pending for fresh-host probes and post-publication PR CI acceptance.
+Router-owned pre-existing run.jsonl changes are excluded from staging.

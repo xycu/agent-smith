@@ -2,7 +2,7 @@
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import {
-  cleanupAll, makeProject, init, run, writeLog, entry, readLogEntries,
+  cleanupAll, makeProject, init, run, seedRun, entry, readLogEntries,
   gitAvailable, gitEnv, gitInit, commitFiles, planText,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
@@ -70,7 +70,7 @@ test("planFileTokens ignores a trailing carriage return", () => {
 
 function firstTemplate(text, log = null) {
   const project = makeProject({ plan: text });
-  if (log) writeLog(project, log);
+  if (log) seedRun(project, log);
   const res = init(project, "add a thing");
   assert.equal(res.status, 0, res.stderr || res.stdout);
   assert.doesNotMatch(res.stdout + res.stderr, /Router error/);
@@ -84,7 +84,7 @@ test("init routes a CRLF plan like the LF plan", () => {
   // plan and plan-review done, a row pending: implement, not review or done.
   const log = [entry(1, "plan"), entry(2, "plan-review")];
   const project = makeProject({ plan: crlf(lf) });
-  writeLog(project, log);
+  seedRun(project, log);
   writeReview(project, "plan-review", { verdict: "SOUND" });
   const res = init(project, "add a thing");
   assert.equal(res.status, 0, res.stderr || res.stdout);

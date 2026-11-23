@@ -1,0 +1,25 @@
+Read-only publication verification
+
+Observed at UTC
+2026-11-16T13:59:11Z
+
+Command: git branch --show-current
+agent-smith/run-branch-prefix-consistency
+
+Command: git rev-parse HEAD
+3d470668be4f17d3a90ee199fb53567ca8813b4c
+
+Command: curl --fail --silent --show-error --max-time 30 "https://api.github.com/repos/xycu/agent-smith/pulls?state=all&head=xycu%3Aagent-smith%2Frun-branch-prefix-consistency&per_page=100"
+[]
+
+
+Local change files
+context/changes/run-branch-prefix-consistency/reviews/plan-review.md
+context/changes/run-branch-prefix-consistency/complexity.json
+context/changes/run-branch-prefix-consistency/plan.md
+context/changes/run-branch-prefix-consistency/verification.md
+context/changes/run-branch-prefix-consistency/agent-smith/meta.json
+context/changes/run-branch-prefix-consistency/agent-smith/run.jsonl
+context/changes/run-branch-prefix-consistency/plan-brief.md
+context/changes/run-branch-prefix-consistency/change.md
+context/changes/run-branch-prefix-consistency/evidence/command-publication-lookup.txt

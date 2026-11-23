@@ -1,0 +1,66 @@
+{
+  "id": "usage-capture-preflight",
+  "goal": "Run without any interaction to the user",
+  "host": "claude",
+  "providerMode": "codex",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/usage-capture-preflight",
+  "baseSha": "a86203f3c45934000a6c4d74d6f836b9c7e2d9cc",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.16.1",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "2c10243b953d64dd",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "86b963500aa6f8f6",
+      "complexity": "997fa59224abe417",
+      "escalation": "1222803c4bfef379",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "hookFiles": "b04b2eec3f66ea26",
+      "isolation": "a0a594659b853084",
+      "ladder": "9bc15bfbbc67d9da",
+      "lessons": "92d849fccafd0527",
+      "limits": "ad6be642613c2b99",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "9c76036954770e5b",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "f43edb2ca10e3007",
+      "score": "dc16b78fdf08a0df",
+      "splitProviders": "e23dcbd325996cb7",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "providerMode": "codex",
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  },
+  "startCommit": "aafa97b50612f3ab268e1f56f8d9fc170c6815ac",
+  "rigor": {
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/test/late-usage.test.mjs +1"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 On a supported interactive Claude host, observe the warning before step one in an ordinary session, then use the documented launcher in a fresh session and verify quiet init and captured figures.",
+      "2.5 After authorized orchestrator publication of a run with capture disabled and comment intent, confirm the open PR comment displays the same missing-capture explanation as its report."
+    ],
+    "manualNotProved": [
+      "2.4 On a supported interactive Claude host, observe the warning before step one in an ordinary session, then use the documented launcher in a fresh session and verify quiet init and captured figures. — not proved: Claude Code 2.1.323 meets the launcher floor and the focused startup and capture fixtures passed. The archived Claude capture acceptance predates this change. Observing the new warning before dispatch",
+      "2.5 After authorized orchestrator publication of a run with capture disabled and comment intent, confirm the open PR comment displays the same missing-capture explanation as its report. — not proved: GitHub returned no open PR for this run branch, and the run has no terminal report. The fake-client comment check passed. Live comparison requires authorized orchestrator publication."
+    ]
+  }
+}

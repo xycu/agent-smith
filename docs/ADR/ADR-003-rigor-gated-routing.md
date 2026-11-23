@@ -1,9 +1,13 @@
 # ADR-003: Rigor-gated routing: a per-change rigor level decides optional steps, budget and effort floor
 
-- **Status:** Proposed. Amendment 1 (2026-11-13) stores the `--pr-comment` request in `meta.json`.
+- **Status:** Implemented as amended. The shipped policy and router apply rigor-gated routing.
 - **Date:** 2026-10-30
 - **Deciders:** repository owner
 - **Origin:** research for `rigor-gated-routing`, split into four changes on 2026-10-30, later split into five (S-09 into `archive-adapter` and `lesson-candidates`); change 5 is written up in "Lesson candidates". Research and owner decisions: `context/archive/2026-10-30-rigor-levels/research.md` (Follow-ups 1 to 3). Builds on ADR-001 (cheap deterministic signals first) and ADR-002 (change lifecycle, optional steps).
+
+## Rule in force
+
+Rigor sets the optional steps, budget and interactive effort floor. Measured churn can raise rigor. At all three default levels, Manual verification runs outside the extra-step pool when rows need proof. Isolated runs commit verified steps and publish at terminal actions. Archive remains opt-in, with approval for outstanding Manual checks. The orchestrator honors the PR-comment request saved in `meta.json` across resumes. [Routing reference](../REFERENCE.md) · [Manual verification](ADR-012-automate-manual-checks.md) · [Terminal publication](ADR-017-run-branch-always-pushed-for-review.md)
 
 ## Context
 
@@ -22,7 +26,7 @@ The work is split in five changes. All five changes are written in full below.
 | Rigor levels, churn risk, effort floor, skip entries, `signals` | `rigor-levels` (change 1) | implemented |
 | Pre-plan steps (research, legacy research, domain brief, frame), RETHINK/REVISE loops, frame authority over `needsHuman` | `pre-plan-steps` (change 2) | implemented |
 | Per-phase executors, manual-row automation, tdd/e2e fallback, third-attempt re-plan | `phase-executors` (change 3) | implemented (see "Phase executors and manual verification") |
-| Archive adapter, `verify-archive`, git write decision for the change folder | `archive-adapter` (change 4) | described in "Archive adapter" |
+| Archive adapter, `verify-archive`, git write decision for the change folder | `archive-adapter` (change 4) | implemented (see "Archive adapter") |
 | Lesson candidates from the implementation review | `lesson-candidates` (change 5) | implemented (see "Lesson candidates") |
 
 Design of changes 2, 3 and 5 is in `context/archive/2026-10-30-rigor-levels/research.md`. The git write decision of change 4 is in "Archive adapter" below.
@@ -285,11 +289,11 @@ No human could answer the six open owner questions of the research. Each was dec
 | 13 | A failed re-plan after a good frame round spends a revision, as on main. | Low: the counting rule in `replanNext`. |
 | 14 | A goal with no separate cause is confirmed at LOW and the run goes on. | Low: guide text. |
 
-Three things are still open, and none of them has been verified against the real skills. Whether `/10x-plan` changes its approach to match `frame.md` on a re-plan, or patches the old plan, needs a manual run with a real `RETHINK` (plan row 5.7); if it patches, the authority line gets stronger before merge. Whether the guide holds for every ask point of `/10x-frame` needs unattended runs with a clear, a thin and an empty goal (plan rows 2.9 to 2.11). Neither the word lists nor the tiers have run data behind them. The router side of these paths is covered by tests; the behavior that depends on a real skill or model is not. The plan's Fix pass lists the other unverified behavior: a real `research-revise` round, the second domain brief template, `frame-rethink` when no `frame.md` exists, and a missing `10x-research` or `10x-frame` skill. These manual rows are open and are verified by the owner before merge. The table row above says `implemented` for the code and the tests only.
+The archived pre-plan run checked the clear, thin and empty framing cases (rows 2.9–2.11), the RETHINK re-plan (5.7), both domain templates (5.10) and framing without an existing file (5.11). Two live checks remain open: a second REVISE that invokes research (5.9) and a run missing the research or frame skill (5.12). The word lists and tiers still lack calibration. [Pre-plan Progress](../../context/archive/2026-10-30-pre-plan-steps/plan.md#progress)
 
 ## Phase executors and manual verification
 
-Change 3 (`phase-executors`) lets the router pick a different executor per phase of the plan, checks that an executor really committed code, re-plans after code ran and proves Manual rows with commands (command rows only; ADR-012 later widened this to every Manual row). Plan: `context/changes/phase-executors/plan.md`; research: `context/changes/phase-executors/research.md`. The code is in the sections `extra steps and executor choice`, `manual verification` and `code re-plans` of `route.mjs`; the data is under `executors`, `extraSteps`, `codeReplan` and `manualVerify` in `policy.json`. The word lists, extension lists and thresholds are uncalibrated: no run data exists. Nothing here was run against a live `/10x-e2e`, `/10x-tdd`, `/10x-goal-implement` or Chrome session; the tests drive the router only.
+Change 3 (`phase-executors`) lets the router pick a different executor per phase of the plan, checks that an executor really committed code, re-plans after code ran and proves Manual rows with commands (command rows only; ADR-012 later widened this to every Manual row). Plan: `context/changes/phase-executors/plan.md`; research: `context/changes/phase-executors/research.md`. The code is in the sections `extra steps and executor choice`, `manual verification` and `code re-plans` of `route.mjs`; the data is under `executors`, `extraSteps`, `codeReplan` and `manualVerify` in `policy.json`. The word lists, extension lists and thresholds are uncalibrated: no run data exists. The original tests drove the router. The archived Progress later recorded the unattended TDD check (3.10). The unattended Playwright phase (2.12) and disconnected Chrome check (5.12) remain open. [Executor Progress](../../context/archive/2026-10-30-phase-executors/plan.md#progress)
 
 ### Executor choice and segments
 
@@ -344,6 +348,8 @@ Two triggers run the `plan` step with a new template, at rigor `standard` or abo
 - **GIVEN** a `plan-replan` step fails **WHEN** the router handles the result **THEN** the router **MUST** halt the run.
 
 A re-plan counts against the step budget. A `plan-rejected` re-plan also counts as one fix loop against `maxFixLoops`; a `plan-replan` does not. A `REJECTED` review after a fix keeps today's path, which is another fix. Plan review follows a re-plan like any other plan. Order: the failure re-plan fires at exactly two trailing implement failures and costs nothing from the pool, so when those failures left rows ticked without a commit it takes the turn of the one `implement-retry`, and a failed re-plan then halts the run in a case where the retry would have fitted. This follows the plan and is recorded, not changed.
+
+The `replan-failure-halt-recoverable` change adds an exit from this halt. The owner edits `plan.md` in the run worktree, keeps the checked Automated row IDs listed in the halt and leaves pending Automated work under `## Progress`. In an isolated run the owner commits the repair before resuming the pipeline, `init` or `next`. The router halts again while the plan is unchanged or invalid. After a valid edit, normal review, retry and budget checks apply. The failed re-plan remains in the log and counts against the shared cap. On upgrade, the old halt reason and a valid plan newer than the failed result can establish a repair without a stored content baseline.
 
 ### Manual verification
 

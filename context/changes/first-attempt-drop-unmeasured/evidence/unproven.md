@@ -1,0 +1,3 @@
+- 2.1 — Current run status shows zero verified figures. The prior Claude launcher run does not qualify the exact experiment revision, launch path and provider mode.
+- 2.2 — ADR-010 still marks measurement pending. It records neither the required A/B pairs and A/A control nor exclusions through an exhausted or stopped measurement.
+- 2.3 — Policy and docs agree on interim drop 0. ADR-010 has no final experiment decision, so post-decision closeout tests cannot establish this row.

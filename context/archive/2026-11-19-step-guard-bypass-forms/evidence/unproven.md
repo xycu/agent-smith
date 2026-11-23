@@ -1,0 +1,1 @@
+- 3.4 — needs a live agent-smith:step subagent running the guard from this branch; the installed plugin copy is not provably this branch, and a live `git push` probe must not run in an unattended step, so only the hook CLI probe (evidence/script-guard-probe.mjs) exists and it does not prove the live row

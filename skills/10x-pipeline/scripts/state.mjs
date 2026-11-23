@@ -1,9 +1,11 @@
 import fs from "node:fs";
-import os from "node:os";
+import { liveRunDirectory, lockRunDirectory } from "./run-lock.mjs";
 import path from "node:path";
-import crypto from "node:crypto";
+import { hash } from "node:crypto";
+export { runLockPath } from "./run-lock.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { accountingFor } from "./usage.mjs";
 
 export const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // The OpenSpec chain's skill folder: its policy fragment, prompts, rules and module (ADR-013 Amendment 1).
@@ -76,6 +78,9 @@ function mergedPolicy(onError = halt) {
     const kind = override === null ? "null" : Array.isArray(override) ? "an array" : `a ${typeof override}`;
     onError(`${file} must hold a JSON object of policy keys, not ${kind}. Fix the file or remove it.`);
   }
+  if (Object.hasOwn(override, "splitProviders")) {
+    onError(`${file} cannot replace the chain's splitProviders roles. Remove that key and select a run with --provider-mode. Nothing was written.`);
+  }
   return deepMerge(base, override);
 }
 
@@ -92,6 +97,61 @@ export function loadPolicy(onError = halt) {
 // Missing provider/host fields belong to runs and overrides made before OpenAI support.
 export const providerOf = (target) => target?.provider === undefined ? "claude" : target.provider;
 export const hostOf = (meta) => meta?.host === undefined ? "claude" : meta.host;
+
+const providerForHost = (host) => host === "codex" ? "openai" : "claude";
+
+function assignedProvider(policy, meta, step, template) {
+  if (meta.providerMode !== "split") return providerForHost(meta.providerMode);
+  const rules = policy.splitProviders[meta.chain ?? "10x"];
+  const other = rules.otherSteps.includes(step) && rules.hostTemplates[template] !== step;
+  const host = providerForHost(hostOf(meta));
+  return other ? (host === "claude" ? "openai" : "claude") : host;
+}
+
+export function providersByStep(policy, meta) {
+  const chain = meta.chain ?? "10x";
+  const rules = policy.splitProviders[chain];
+  const entries = Object.keys(policy.steps).filter((s) => s.startsWith("os-") === (chain === "openspec")).map((s) => [s, s]);
+  const legacy = [...new Set(policy.ladder.map(providerOf))];
+  return Object.fromEntries([...entries, ...Object.entries(rules.hostTemplates)].map(([template, step]) =>
+    [template, meta.providerMode ? assignedProvider(policy, meta, step, template) : legacy]));
+}
+
+// The override retains its ordinal positions. Only a homogeneous override replaces a provider's whole ladder.
+function providerLadder(policy, provider) {
+  const custom = policy.ladder;
+  if (custom.every((r) => providerOf(r) === provider)) return custom;
+  const file = provider === "openai" ? "codex-policy.json" : "policy.json";
+  const shipped = readJson(path.join(SKILL_DIR, file), null)?.ladder;
+  if (!Array.isArray(shipped) || !shipped.length || shipped.some((r) => !r || providerOf(r) !== provider)) {
+    throw new Error(`Invalid shipped ${provider} ladder in ${file}`);
+  }
+  const ladder = [...shipped];
+  custom.forEach((r, index) => { if (providerOf(r) === provider) ladder[index] = r; });
+  return ladder;
+}
+
+export function stepPolicy(policy, meta, step, template = step) {
+  if (!meta.providerMode) return policy;
+  return { ...policy, ladder: providerLadder(policy, assignedProvider(policy, meta, step, template)) };
+}
+
+export function selectionProblem(policy, meta, checkBounds = true) {
+  const host = hostOf(meta);
+  if (meta.providerMode === undefined) return policyProblems(policy) ?? hostProblem(policy, host);
+  if (!["claude", "codex", "split"].includes(meta.providerMode)) return "Invalid stored providerMode. Nothing was written.";
+  if (!["claude", "codex"].includes(host)) return "Invalid stored host. Nothing was written.";
+  if (!checkBounds) return null;
+  const rules = policy.splitProviders[meta.chain ?? "10x"];
+  const ladders = new Map();
+  for (const [template, provider] of Object.entries(providersByStep(policy, meta))) {
+    const step = rules.hostTemplates[template] ?? template;
+    if (!ladders.has(provider)) ladders.set(provider, providerLadder(policy, provider));
+    const problem = policyProblems({ ...policy, ladder: ladders.get(provider), steps: { [step]: policy.steps[step] } });
+    if (problem) return `Step ${template} uses ${provider}. Supply contiguous provider tiers or adjust the assigned step bounds. ${problem}`;
+  }
+  return null;
+}
 
 export function dispatchTarget(policy, tier) {
   const rung = policy.ladder[tier];
@@ -152,7 +212,7 @@ export function coAuthorProblem(policy) {
 // The first fault in the keys that cap the spend of a run, as text that names the key and the override file, or null.
 // Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder (model, effort in rigor.effortOrder), steps. Never throws and never halts;
 // main() halts for init, next and usage and status reports it. A baseTier outside [minTier, maxTier] is allowed (tierFor clamps it).
-export function policyProblems(policy) {
+export function policyProblems(policy, checkBounds = true) {
   const bad = (key, rule, v) => `policy.${key} must be ${rule} (got ${v === undefined ? "undefined" : JSON.stringify(v)}). Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`;
   const p = policy ?? {};
   if (Object.hasOwn(p.prompts ?? {}, "byFile") && typeof p.prompts.byFile !== "boolean") {
@@ -193,7 +253,7 @@ export function policyProblems(policy) {
   for (const [name, step] of Object.entries(p.steps)) {
     if (!isObject(step)) return bad(`steps.${name}`, "an object", step);
     for (const field of ["baseTier", "minTier", "maxTier"]) {
-      if (!int(step[field], 0) || step[field] > top) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
+      if (!int(step[field], 0) || (checkBounds && step[field] > top)) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
     }
     if (step.minTier > step.maxTier) return bad(`steps.${name}.minTier`, `at most maxTier ${step.maxTier}`, step.minTier);
   }
@@ -217,7 +277,7 @@ export function estimateCost(entries, table) {
   const unpriced = new Set();
   for (const e of Array.isArray(entries) ? entries : []) {
     if (!isObject(e)) continue;
-    const tokens = isObject(e.usage) ? e.usage.totalTokens : undefined;
+    const tokens = accountingFor(e).usage?.totalTokens;
     const has = Number.isSafeInteger(tokens) && tokens >= 0;
     const model = typeof e.model === "string" && e.model ? e.model : "unknown";
     const price = Object.hasOwn(prices, model) ? prices[model] : undefined;
@@ -227,7 +287,9 @@ export function estimateCost(entries, table) {
       if (price === undefined) unpriced.add(model);
       else {
         usd = (tokens * price) / 1e6;
-        res.usd += usd;
+        if (!Number.isFinite(usd)) usd = (tokens / 1e6) * price;
+        if (!Number.isFinite(usd)) usd = null;
+        res.usd = usd === null || res.usd === null || !Number.isFinite(res.usd + usd) ? null : res.usd + usd;
         res.priced++;
       }
     }
@@ -238,7 +300,7 @@ export function estimateCost(entries, table) {
 }
 
 // A USD figure rounded to `digits` decimals, as a number.
-export const roundUsd = (usd, digits = 4) => Number(usd.toFixed(digits));
+export const roundUsd = (usd, digits = 4) => Number.isFinite(usd) ? Number(usd.toFixed(digits)) : null;
 
 export function mtime(file) {
   try { return fs.statSync(file).mtimeMs; } catch { return 0; }
@@ -254,19 +316,51 @@ function rowId(text) {
   return m ? m[1] : text.replace(ROW_SUFFIX_RE, "");
 }
 
-export function readPlan(file) {
+// Per line, true when the line is a code-fence line or lies inside a fence. A fence opens on up to three spaces then
+// three or more backticks or tildes (a backtick fence's info string holds no backtick) and closes on a line of the same
+// character, at least as long, then blanks only. A trailing \r is ignored. An unclosed fence runs to the end of the text.
+// shortcut: fences indented more than three spaces, inside block quotes or list items, and <pre> blocks are not tracked; upgrade to a Markdown parser if plans or reviews start using them.
+function fencedLines(lines) {
+  const out = [];
+  let open = null;
+  for (const raw of lines) {
+    const line = raw.replace(/\r$/, "");
+    if (open) {
+      const c = line.match(/^ {0,3}(`{3,}|~{3,})[ \t]*$/);
+      if (c && c[1][0] === open[0] && c[1].length >= open.length) open = null;
+      out.push(true);
+      continue;
+    }
+    const o = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
+    if (o && !(o[1][0] === "`" && o[2].includes("`"))) {
+      open = o[1];
+      out.push(true);
+      continue;
+    }
+    out.push(false);
+  }
+  return out;
+}
+
+export function readPlan(file, { fingerprint = false } = {}) {
   const res = { exists: false, hasProgress: false, phases: 0, rows: 0, autoDone: 0, autoPending: 0, manualPending: [], phaseList: [], mtime: 0 };
+  if (fingerprint) res.fingerprint = null;
   // A chain without a plan (OpenSpec: paths().plan is null) reads as a missing plan.
   if (typeof file !== "string" || !fs.existsSync(file)) return res;
   res.exists = true;
   res.mtime = mtime(file);
-  const text = fs.readFileSync(file, "utf8");
-  const idx = text.search(/^## Progress\s*$/m);
+  const bytes = fs.readFileSync(file);
+  if (fingerprint) res.fingerprint = hash("sha256", bytes);
+  const lines = bytes.toString("utf8").split(/\r?\n/);
+  const fenced = fencedLines(lines);
+  const idx = lines.findIndex((line, i) => !fenced[i] && /^## Progress\s*$/.test(line));
   if (idx < 0) return res;
   res.hasProgress = true;
   let section = null;
   let cur = null;
-  for (const line of text.slice(idx).split(/\r?\n/)) {
+  for (let i = idx; i < lines.length; i++) {
+    if (fenced[i]) continue;
+    const line = lines[i];
     if (/^## /.test(line) && !/^## Progress\s*$/.test(line)) break;
     if (/^### Phase \d+/.test(line)) {
       res.phases++;
@@ -315,8 +409,10 @@ function readFindings(text) {
     });
     cur = null;
   };
-  for (const line of text.split("\n")) {
-    if (/^#{2,3}\s/.test(line)) {
+  const lines = text.split("\n");
+  const fenced = fencedLines(lines);
+  for (const [i, line] of lines.entries()) {
+    if (!fenced[i] && /^#{2,3}\s/.test(line)) {
       flush();
       const h = line.match(/^###\s+(F\d+)\b/);
       if (h) cur = { id: h[1], lines: [] };
@@ -326,21 +422,121 @@ function readFindings(text) {
   return findings;
 }
 
+const REVIEW_BODY = /^[ \t]*(?:(?:[-+*]|\d{1,9}[.)])[ \t]+)?(?:#{2,6}(?:[ \t]|$)|\x60{3,}|~{3,}|<(?:pre|code|script|style|textarea)(?=[\s/>]|$))/i;
+const REVIEW_QUOTE = /^ {0,3}>[ \t]?/;
+const REVIEW_TITLE = /^ {0,3}#(?:[ \t]|$)/;
+const REVIEW_BULLET = /^ {0,3}[-+*][ \t]+\S/;
+
+// Index inline delimiters within a paragraph so multiline spans need no repeated lookahead.
+function reviewInlineSpans(lines) {
+  const codeEnds = new Map();
+  const inlineComments = new Set();
+  const nextRun = new Map();
+  let commentCloses = false;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line.trim() || REVIEW_BODY.test(line) || REVIEW_QUOTE.test(line) || REVIEW_TITLE.test(line)) {
+      nextRun.clear();
+      commentCloses = false;
+      continue;
+    }
+    for (const token of [...line.matchAll(/\x60+|<!--|-->/g)].reverse()) {
+      const position = `${i}:${token.index}`;
+      if (token[0] === "-->") commentCloses = true;
+      else if (token[0] === "<!--") {
+        if (commentCloses) inlineComments.add(position);
+      } else {
+        const size = token[0].length;
+        const end = nextRun.get(size);
+        if (end) codeEnds.set(position, end);
+        nextRun.set(size, { line: i, column: token.index + size });
+      }
+    }
+    // A nonempty bullet starts a new paragraph. Its continuation lines can still close spans it opens.
+    if (REVIEW_BULLET.test(line)) {
+      nextRun.clear();
+      commentCloses = false;
+    }
+  }
+  return { codeEnds, inlineComments };
+}
+
+function readReviewVerdict(text) {
+  const lines = text.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const { codeEnds, inlineComments } = reviewInlineSpans(lines);
+  let header = null;
+  let inComment = false;
+  let quoted = false;
+  let codeEnd = null;
+  for (const [i, line] of lines.entries()) {
+    if (!inComment && !(codeEnd?.line >= i)) {
+      if (REVIEW_BODY.test(line)) break;
+      const quote = REVIEW_QUOTE.exec(line);
+      if (quote) {
+        const content = line.slice(quote[0].length);
+        quoted = Boolean(content.trim()) && !REVIEW_BODY.test(content) && !REVIEW_TITLE.test(content);
+        continue;
+      }
+      if (REVIEW_TITLE.test(line)) {
+        quoted = false;
+        continue;
+      }
+      if (!line.trim() || /^ {0,3}[-+*][ \t]+/.test(line)) quoted = false;
+      if (quoted) continue;
+    }
+    const blockComment = /^ {0,3}<!--/.test(line) ? line.indexOf("<") : -1;
+    const skip = inComment || codeEnd?.line >= i || blockComment >= 0;
+    for (const token of line.matchAll(/\\[\\<\x60]|\x60+|<!--|-->/g)) {
+      if (codeEnd && (codeEnd.line > i || (codeEnd.line === i && token.index < codeEnd.column))) continue;
+      if (inComment) inComment = token[0] !== "-->";
+      else if (token[0] === "<!--") inComment = token.index === blockComment || inlineComments.has(`${i}:${token.index}`);
+      else codeEnd = codeEnds.get(`${i}:${token.index}`);
+    }
+    if (skip) continue;
+    // A hyphen underline turns the preceding paragraph into an H2, even if it looks like a verdict line.
+    if (/^ {0,3}-+[ \t]*$/.test(lines[i + 1] ?? "") && /^ {0,3}\S/.test(line)
+      && !/^ {0,3}(?:#{1,6}(?:[ \t]|$)|>|(?:[-+*]|\d{1,9}[.)])(?:[ \t]|$)|(?:[-*_][ \t]*){3,}$)/.test(line)) break;
+    const label = /^ {0,3}(?:[-+*][ \t]+)?\*\*Verdict(?:\*\*:|:\*\*)(.*)$/.exec(line);
+    if (!label) continue;
+    if (header !== null) return null;
+    header = label[1];
+  }
+  if (header === null) return null;
+  let value = header.trim().replace(/^(?:(?:\p{RGI_Emoji}|\p{Extended_Pictographic})\s*)+/v, "");
+  const annotation = /\s(?:-(?=\s+\S)|\()/.exec(value);
+  if (annotation) {
+    const tail = value.slice(annotation.index).trim().replace(/\.$/, "");
+    if (tail.startsWith("-") || completeParenthetical(tail)) value = value.slice(0, annotation.index).trimEnd();
+  }
+  value = value.replace(/\.$/, "");
+  if (/^\[[^[\]]+\]$/.test(value)) value = value.slice(1, -1).trim();
+  return /\p{L}/u.test(value) ? value.toUpperCase() : null;
+}
+
+function completeParenthetical(text) {
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "(") depth++;
+    if (text[i] === ")" && --depth === 0) return i === text.length - 1;
+  }
+  return false;
+}
+
 export function readReview(file) {
   const res = { exists: false, verdict: null, critical: 0, warnings: 0, findings: [], mtime: 0 };
-  if (!fs.existsSync(file)) return res;
-  res.exists = true;
-  res.mtime = mtime(file);
-  const text = fs.readFileSync(file, "utf8");
-  // Header lines read both label forms ("**Verdict**:" and "**Verdict:**") like readFindings. The verdict is the leading
-  // upper-case words after the label (emoji, "[" and text after them ignored), else the first run of letters, upper-cased.
-  const v = text.match(/\*\*Verdict(?:\*\*:|:\*\*)[^A-Za-z\n]*([A-Za-z]+(?: [A-Za-z]+)*)/);
-  if (v) {
-    const words = v[1].split(" ");
-    const lead = [];
-    for (const w of words) { if (w !== w.toUpperCase()) break; lead.push(w); }
-    res.verdict = (lead.length ? lead : words).join(" ").toUpperCase();
+  let text;
+  try {
+    const stat = fs.statSync(file, { throwIfNoEntry: false });
+    if (!stat) return res;
+    res.exists = true;
+    res.mtime = stat.mtimeMs;
+    if (!stat.isFile()) return { ...res, error: "expected a regular file" };
+    text = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return { ...res, exists: false, mtime: 0 };
+    return { ...res, exists: true, error: error.code ?? error.message };
   }
+  res.verdict = readReviewVerdict(text);
   const f = text.match(/\*\*Findings(?:\*\*:|:\*\*)[^\n]*/);
   if (f) {
     res.critical = Number((f[0].match(/(\d+)\s*critical/i) || [0, 0])[1]);
@@ -449,8 +645,8 @@ export function guardArchived(p, id, chain = p.chain ?? "10x") {
 // The OpenSpec chain keeps its run state in openspec/changes/<id>/agent-smith/ and has no plan, reviews or score file.
 export function paths(id, policy = null, chain = "10x") {
   if (chain === "openspec") return openspecPaths(id);
-  const change = path.join(ROOT, "context/changes", id);
-  const dir = path.join(change, "agent-smith");
+  const dir = liveRunDirectory(ROOT, id, chain);
+  const change = path.dirname(dir);
   const score = policy ? scoreConfig(policy) : null;
   return {
     change,
@@ -468,8 +664,8 @@ export function paths(id, policy = null, chain = "10x") {
 
 // The paths of an OpenSpec run. `chain` marks the object, so helpers that take `p` can tell the chains apart.
 function openspecPaths(id) {
-  const change = path.join(ROOT, "openspec/changes", id);
-  const dir = path.join(change, "agent-smith");
+  const dir = liveRunDirectory(ROOT, id, "openspec");
+  const change = path.dirname(dir);
   return {
     chain: "openspec",
     change,
@@ -526,10 +722,37 @@ export function executed(log) {
   return log.filter((e) => !e.skipped);
 }
 
-// meta.json must be a plain object; anything else falls back.
+function damagedMetadata(file, reason) {
+  const absolute = path.resolve(file);
+  const rel = path.relative(ROOT, absolute);
+  const inside = rel && rel !== ".." && !rel.startsWith(".." + path.sep) && !path.isAbsolute(rel);
+  const hint = inside ? ` with git show <sha>:./${rel.split(path.sep).join("/")}` : "";
+  return {
+    meta: null,
+    problem: `${absolute}: ${reason}. Preserve the damaged copy and inspect a verified copy from the same run${hint} `
+      + "before restoring it, then retry. Nothing was written.",
+  };
+}
+
+// Only diagnostic commands opt in to inspecting metadata without throwing on damage.
+export function inspectMeta(file) {
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch (error) {
+    if (error.code === "ENOENT") return { meta: null, problem: null };
+    return damagedMetadata(file, `Cannot read metadata (${error.code ?? "filesystem error"})`);
+  }
+  let meta;
+  try { meta = JSON.parse(text); } catch {
+    return damagedMetadata(file, "Invalid JSON");
+  }
+  if (!isObject(meta)) return damagedMetadata(file, "Expected a JSON object");
+  return { meta, problem: null };
+}
+
 export function readMeta(file, fallback) {
-  const m = readJson(file, null);
-  return m && typeof m === "object" && !Array.isArray(m) ? m : fallback;
+  const { meta, problem } = inspectMeta(file);
+  if (problem) throw new Error(problem);
+  return meta ?? fallback;
 }
 
 // The --pr-comment request of init, as the end-of-run outputs and status carry it: present only as true.
@@ -734,7 +957,7 @@ export const SHA_RE = /^[0-9a-f]{40,64}$/;
 export function runGit(args, opts = {}) {
   try {
     const stdout = execFileSync("git", ["-c", "core.quotePath=false", ...args], {
-      cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
+      cwd: ROOT, encoding: opts.encoding ?? "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: 256 * 1024 * 1024,
       ...(Number.isInteger(opts.timeout) && opts.timeout > 0 ? { timeout: opts.timeout } : {}),
     });
     return { status: 0, stdout, stderr: "", timedOut: false };
@@ -953,89 +1176,7 @@ export function halt(reason) {
   out({ action: "halt", reason }, 1);
 }
 
-// ---- run lock -------------------------------------------------------------
-
-// The lock lives in the OS temp directory, outside the change folder, so no step commit or archive-state check sees it.
-export function runLockPath(dir) {
-  return path.join(os.tmpdir(), `agent-smith-${crypto.createHash("sha256").update(dir).digest("hex").slice(0, 16)}.lock`);
-}
-
-function pidAlive(pid) {
-  try { process.kill(pid, 0); return true; } catch (e) { return e.code !== "ESRCH"; }
-}
-
-// Takes the lock of the run or halts. The pid is in the file from the moment it exists: written to a private temp file,
-// then linked to the lock name, so a second caller never reads an empty lock as stale.
+// Router callers halt on contention. External runners supply their own envelope failure callback.
 export function acquireRunLock(id, chain, onBusy = halt) {
-  const lock = runLockPath(paths(id, null, chain).dir);
-  const tmp = `${lock}.${process.pid}.tmp`;
-  let own = String(process.pid);
-  let execution = null;
-  fs.writeFileSync(tmp, own);
-  const unlinkQuiet = (file) => { try { fs.unlinkSync(file); } catch { /* already gone */ } };
-  // The temp file is always this process's. The lock is removed only while it still holds this pid, so a lock
-  // another process holds, or took over, is never touched.
-  const release = () => {
-    unlinkQuiet(tmp);
-    // An abrupt exit must leave child ownership available to the next caller.
-    if (execution) return;
-    let holder = null;
-    try { holder = fs.readFileSync(lock, "utf8"); } catch { /* already gone */ }
-    if (holder === own) unlinkQuiet(lock);
-  };
-  try {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        fs.linkSync(tmp, lock);
-        break;
-      } catch (e) {
-        if (e.code !== "EEXIST") throw e;
-        let contents = "";
-        try { contents = fs.readFileSync(lock, "utf8").trim(); } catch { /* vanished: retry */ }
-        let owner;
-        try { owner = JSON.parse(contents); } catch { /* legacy malformed locks are stale */ }
-        const pid = isObject(owner) ? owner.pid : Number(contents);
-        if (Number.isInteger(pid) && pid > 0 && pidAlive(pid)) {
-          release();
-          onBusy(`Another init, next or usage of change ${id} is running, or execution/status --report holds its lock (lock file ${lock}, pid ${pid}). Run calls one at a time. Nothing was written.`);
-        }
-        if (isObject(owner) || contents.startsWith("{")) {
-          const groupGone = Number.isSafeInteger(pid) && pid > 0
-            && owner?.processGroup === true && Number.isSafeInteger(owner.childPid)
-            && owner.childPid > 0 && !pidAlive(-owner.childPid);
-          if (!groupGone) {
-            release();
-            onBusy(`Codex execution lock remains for change ${id} (lock file ${lock}, runner ${pid}, child ${owner?.childPid ?? "unknown"}). The child process group is alive or its termination is uncertain. Inspect the execution and confirm its process tree has stopped before removing this lock. Nothing was written.`);
-          }
-        }
-        if (attempt > 0) throw e;
-        unlinkQuiet(lock); // stale: remove it and try once more; another caller may have removed it already
-      }
-    }
-  } catch (e) {
-    release();
-    throw e;
-  }
-  unlinkQuiet(tmp);
-  process.on("exit", release);
-  const replace = (contents) => {
-    fs.writeFileSync(tmp, contents);
-    fs.renameSync(tmp, lock);
-    own = contents;
-  };
-  return {
-    release,
-    setChild(pid) {
-      // null protects the spawn-to-PID-recording window after a supervisor crash.
-      execution = { pid: process.pid, childPid: pid, processGroup: process.platform !== "win32" };
-      replace(JSON.stringify(execution));
-    },
-    clearChild() {
-      if (execution?.processGroup && execution.childPid && pidAlive(-execution.childPid)) {
-        throw new Error(`Codex child process group ${execution.childPid} is still alive. Execution lock retained at ${lock}.`);
-      }
-      replace(String(process.pid));
-      execution = null;
-    },
-  };
+  return lockRunDirectory(ROOT, id, chain, onBusy);
 }

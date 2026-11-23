@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md fixes the wording locations and says numeric flags apply only without recorded evidence" },
+    "novelty": { "score": 0, "evidence": "route.mjs already documents --usage-file in its header and the test suite already covers usage commands" },
+    "coupling": { "score": 1, "evidence": "Goal names route.mjs, AGENTS.md, docs/REFERENCE.md, and openspec-pipeline/SKILL.md plus an existing test" },
+    "discovery": { "score": 0, "evidence": "The goal names each documentation location and requests a usage-message test" },
+    "volume": { "score": 1, "evidence": "change.md calls for text updates in four files and one test assertion" },
+    "verification": { "score": 0, "evidence": "change.md names the existing full Node test suite and the required assertion" }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

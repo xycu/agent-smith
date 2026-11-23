@@ -5,6 +5,10 @@
 - **Deciders:** the repository owner (direction: FR-006, `context/foundation/shape-notes.md:20`; scope request of 2026-11-09); decisions D1 to D12 below accepted as proposed on 2026-11-09
 - **Origin:** change `openspec-pipeline` (`context/changes/openspec-pipeline/research.md`, status `partial`). It un-parks FR-006, which `context/foundation/prd.md:143` listed as a non-goal of the first delivery. It builds on the module split of change `split-route-mjs`, which gave the router the seams used here.
 
+## Rule in force
+
+The shared router reads OpenSpec files directly and merges the chain-local policy, step definitions and prompts. Contract fixtures use exactly OpenSpec 2.0.0. An unavailable executable or failed probe skips locally with `CI` empty or unset and fails in CI. A successful probe reporting any other version fails everywhere. [Contract and pin](#reading-openspec-state-d2) · [2.0 acceptance](../../context/archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md)
+
 ## Context
 
 - FR-006 says "a second pipeline skill sharing the same router and policy". No ADR, slice or design existed for it. ADR-001 states the rule that binds it: the 10x toolkit and OpenSpec are never changed or forked; agent-smith is an add-on.
@@ -51,6 +55,16 @@ Amendment of 2026-11-14 for `ci-fail-on-unexpected-skips`.
 A pin upgrade requires a deliberate commit and successful execution of all five real contract fixtures.
 
 **GIVEN** `CI` is absent or empty **WHEN** the selected binary fails its version probe **THEN** the fixtures **MUST** keep their local skip behavior.
+
+Amendment of 2026-11-16 for `openspec-2-upgrade`, superseding the 2026-11-14 CI pin and version-probe target.
+
+**GIVEN** CI prepares its contract tool **WHEN** installation succeeds **THEN** it **MUST** select its own isolated `@fission-ai/openspec@2.0.0` executable through `OPENSPEC_BIN` after an exact `2.0.0` version assertion.
+
+**GIVEN** the selected executable is unavailable or its version probe fails **WHEN** fixtures load **THEN** they **MUST** skip locally with absent or empty `CI` and fail with nonempty `CI`.
+
+**GIVEN** the selected executable returns a successful version response **WHEN** the response differs from exactly `2.0.0`, including a malformed response **THEN** the fixtures **MUST** fail locally and in CI.
+
+The five original status fixtures retain their names and cover readiness with optional design and every supported task marker. The executable suite additionally covers isolated custom/core setup, twelve-workflow legacy migration, customized-input preservation, read-only dry run, idempotent update, tracked shared targets and fresh-checkout Claude links, validation, archive merge and extra-folder preservation, and validation/collision diagnostics with optional `fix`. Setup/update use scratch-local HOME and XDG paths. A later pin upgrade requires a deliberate commit and all real fixtures passing against the selected version. Historical 1.16.1 observations above retain their original evidence scope.
 
 The reason: the router makes no network or model call and adds no dependency (ADR-006, ADR-009). A subprocess to a binary the project may not have would add one. A drift from OpenSpec's parser is the price; the contract test bounds it.
 

@@ -1,0 +1,43 @@
+skills/10x-pipeline/test/claude-usage.test.mjs — all tests, including immediate, late and archive boundaries use the same read-only collector
+✔ flat multi-request step: exact native request sets count four token buckets once (7.253459ms)
+✔ step and leaf: exact native request sets count four token buckets once (5.255208ms)
+✔ streamed updates and stable transcript/export duplicates do not become separate requests (3.789834ms)
+✔ a missing process attribute is unavailable rather than inferred from the session (2.8805ms)
+✔ a zero requires explicit matching native and telemetry request counters (2.465208ms)
+✔ late exports remain unavailable until terminal and exact request membership reconcile (5.986458ms)
+✔ unsupported host omits tokens and preserves independent counters (1.784958ms)
+✔ missing process provenance omits tokens and preserves independent counters (1.609959ms)
+✔ resumed process omits tokens and preserves independent counters (2.25025ms)
+✔ missing native stop omits tokens and preserves independent counters (1.976834ms)
+✔ resumed agent omits tokens and preserves independent counters (2.961334ms)
+✔ superseded run omits tokens and preserves independent counters (2.351125ms)
+✔ wrong native session omits tokens and preserves independent counters (2.019416ms)
+✔ wrong native agent omits tokens and preserves independent counters (1.943334ms)
+✔ foreign event session omits tokens and preserves independent counters (2.066708ms)
+✔ wrong child parent omits tokens and preserves independent counters (2.154792ms)
+✔ internal unexplained agent omits tokens and preserves independent counters (3.177417ms)
+✔ missing terminal export omits tokens and preserves independent counters (3.381417ms)
+✔ missing Agent tool result omits tokens and preserves independent counters (2.654041ms)
+✔ failed Agent tool result omits tokens and preserves independent counters (2.234708ms)
+✔ conflicting snapshot omits tokens and preserves independent counters (3.22625ms)
+✔ unknown transcript lineage omits tokens and preserves independent counters (3.043459ms)
+✔ wrong final UUID omits tokens and preserves independent counters (2.868ms)
+✔ equal sums with different request membership are unavailable (2.751709ms)
+✔ an extra assistant response cannot hide an unaccounted request (2.879834ms)
+✔ request and message identity are a bijection, not just equal counters (2.354583ms)
+✔ a selected child identity reused by another launch is ambiguous (2.180375ms)
+✔ conflicting exports and new-sequence terminal replays never move the boundary (3.33025ms)
+✔ missing and unsafe sources, malformed records and resource exhaustion never expose a subtotal (8.129166ms)
+✔ agent count, arithmetic overflow and the invocation-wide read budget fail closed (15.568542ms)
+✔ immediate, late and archive boundaries use the same read-only collector (255.124667ms)
+✔ unavailable CLI and malformed import boundaries are successful measurements without step-authored tokens (105.999791ms)
+✔ the CLI decodes a Unicode source path across arbitrary descriptor chunk boundaries (63.982292ms)
+✔ an unfinished descriptor stream reaches the fixed deadline without waiting for telemetry (2056.911ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2712.340834

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  cleanupAll, makeProject, planText, writeReview, init, next, run, writeLog, entry, writeResult, readLogEntries, readMetaFile,
+  cleanupAll, makeProject, planText, writeReview, init, next, run, seedRun, entry, writeResult, readLogEntries, readMetaFile,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -17,7 +17,7 @@ test("verdict on the entry: plan-revise and fix keep the review verdict, plan ke
   // A plan-revise step caused by a RETHINK review.
   const rethink = makeProject({ plan: planText() });
   writeReview(rethink, "plan-review", { verdict: "RETHINK", findings: "2 critical, 0 warnings" });
-  writeLog(rethink, [entry(1, "plan"), entry(2, "plan-review")]);
+  seedRun(rethink, [entry(1, "plan"), entry(2, "plan-review")]);
   const a = init(rethink, GOAL, ["--rigor", "standard"]);
   assert.equal(a.json.step, "plan");
   const reviseEntry = readLogEntries(rethink).pop();
@@ -28,7 +28,7 @@ test("verdict on the entry: plan-revise and fix keep the review verdict, plan ke
   const rejected = makeProject({ plan: planText({ done: 1 }) });
   writeReview(rejected, "plan-review", { verdict: "SOUND" });
   writeReview(rejected, "impl-review", { verdict: "REJECTED", findings: "1 critical, 0 warnings" });
-  writeLog(rejected, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
+  seedRun(rejected, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review")]);
   const b = init(rejected, GOAL, ["--rigor", "standard"]);
   assert.equal(b.json.step, "plan");
   assert.equal(readLogEntries(rejected).pop().template, "plan-rejected");
@@ -37,7 +37,7 @@ test("verdict on the entry: plan-revise and fix keep the review verdict, plan ke
   const again = makeProject({ plan: planText({ done: 1 }) });
   writeReview(again, "plan-review", { verdict: "SOUND" });
   writeReview(again, "impl-review", { verdict: "REJECTED", findings: "1 critical, 0 warnings" });
-  writeLog(again, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), entry(5, "plan", { template: "plan-rejected" }), entry(6, "plan-review"), entry(7, "implement"), entry(8, "impl-review")]);
+  seedRun(again, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement"), entry(4, "impl-review"), entry(5, "plan", { template: "plan-rejected" }), entry(6, "plan-review"), entry(7, "implement"), entry(8, "impl-review")]);
   assert.equal(init(again, GOAL, ["--rigor", "standard"]).json.step, "fix");
   assert.equal(readLogEntries(again).pop().verdict, "REJECTED");
 
@@ -83,7 +83,7 @@ const researchRound = (n, over = {}) => entry(n, "research", { template: "resear
 function reviewed(verdict, findings, log, { plan = planText(), policy: override = null } = {}) {
   const project = makeProject({ plan, policy: override });
   review(project, "plan-review", verdict, findings);
-  writeLog(project, log);
+  seedRun(project, log);
   return project;
 }
 

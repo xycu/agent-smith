@@ -57,10 +57,10 @@ test("CI installs and selects the pinned contract CLI between Node setup and the
   assert.match(step, /mktemp -d "\$RUNNER_TEMP\/openspec\.XXXXXX"/);
   assert.match(step, /npm_config_cache="\$prefix\/npm-cache"/);
   assert.match(step, /npm_config_userconfig="\$prefix\/npmrc"/);
-  assert.match(step, /npm install --prefix "\$prefix" --no-save --package-lock=false @fission-ai\/openspec@1\.16\.1\n/);
+  assert.match(step, /npm install --prefix "\$prefix" --no-save --package-lock=false --ignore-scripts @fission-ai\/openspec@2\.0\.0\n/);
   assert.match(step, /openspec="\$prefix\/node_modules\/\.bin\/openspec"/);
   assert.match(step, /version="\$\("\$openspec" --version\)"/);
-  assert.match(step, /test "\$version" = "1\.16\.1"/);
+  assert.match(step, /test "\$version" = "2\.0\.0"/);
   assert.match(step, /echo "OPENSPEC_BIN=\$openspec" >> "\$GITHUB_ENV"/);
 });
 
@@ -86,12 +86,12 @@ npm() {
 `;
     const exported = [];
     for (const [name, gitExit, installExit, versionExit, version, expected] of [
-      ["git-fails", "3", "0", "0", "1.16.1", 3],
-      ["install-fails", "0", "19", "0", "1.16.1", 19],
-      ["version-fails", "0", "0", "7", "1.16.1", 7],
-      ["wrong-version", "0", "0", "0", "2.0.0", 1],
-      ["success", "0", "0", "0", "1.16.1", 0],
-      ["fresh-prefix", "0", "0", "0", "1.16.1", 0],
+      ["git-fails", "3", "0", "0", "2.0.0", 3],
+      ["install-fails", "0", "19", "0", "2.0.0", 19],
+      ["version-fails", "0", "0", "7", "2.0.0", 7],
+      ["wrong-version", "0", "0", "0", "1.16.1", 1],
+      ["success", "0", "0", "0", "2.0.0", 0],
+      ["fresh-prefix", "0", "0", "0", "2.0.0", 0],
     ]) {
       const envFile = `${scratch}/${name}.env`;
       const npmLog = `${scratch}/${name}.npm`;
@@ -110,10 +110,10 @@ npm() {
         assert.ok(selected.startsWith(`OPENSPEC_BIN=${scratch}/openspec.`), selected);
         assert.ok(selected.endsWith("/node_modules/.bin/openspec"), selected);
         assert.ok(fs.existsSync(selected.slice("OPENSPEC_BIN=".length)));
-        assert.match(result.stdout, /OpenSpec 1\.16\.1/);
+        assert.match(result.stdout, /OpenSpec 2\.0\.0/);
         const prefix = selected.slice("OPENSPEC_BIN=".length, -"/node_modules/.bin/openspec".length);
         assert.deepEqual(fs.readFileSync(npmLog, "utf8").trim().split("\n"),
-          ["install", "--prefix", prefix, "--no-save", "--package-lock=false", "@fission-ai/openspec@1.16.1"]);
+          ["install", "--prefix", prefix, "--no-save", "--package-lock=false", "--ignore-scripts", "@fission-ai/openspec@2.0.0"]);
         exported.push(selected);
       } else {
         assert.equal(fs.existsSync(envFile), false, `${name}: failed setup must not publish a binary`);
@@ -132,11 +132,19 @@ test("the suite step uses the runner temporary directory", () => {
   assert.match(suite, /^ {8}env:\n(?: {10}[^\n]*\n)*? {10}TMPDIR: \$\{\{ runner\.temp \}\}$/m);
 });
 
+test("CI runs the complete suite across six shards with bounded concurrency", () => {
+  const job = testJob();
+  assert.match(job, /^ {4}strategy:\n {6}fail-fast: false\n {6}matrix:\n {8}shard: \[1, 2, 3, 4, 5, 6\]$/m);
+  assert.match(job, /^ {4}name: Tests and version check \(\$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}\)$/m);
+  assert.ok(job.includes('          TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}'));
+  assert.ok(job.includes('        run: node --experimental-test-coverage tools/test-shards.mjs "$TEST_SHARD"'));
+});
+
 test("the first step of job test is the uid guard, before the suite", () => {
   const job = testJob();
   const first = job.split("\n").find((l) => l.trimStart().startsWith("- "));
   assert.match(first, /name: Refuse to run as root \(ADR-020\)/);
-  assert.ok(job.indexOf('test "$(id -u)" -ne 0') < job.indexOf("node --test"));
+  assert.ok(job.indexOf('test "$(id -u)" -ne 0') < job.indexOf("tools/test-shards.mjs"));
 });
 
 test("the uid guard command fails for uid 0 and passes for another uid", { skip: process.platform === "win32" }, () => {
@@ -182,22 +190,30 @@ childProcess.spawnSync = (command, args, options) => {
   if (args[0] === "--version") {
     assert.deepEqual(args, ["--version"]);
     assert.equal(options.timeout, process.env.PROBE_TOOL === "git" ? 120000 : 20000);
-    const result = { status: 0, signal: null, stdout: "1.16.1\\n", stderr: "" };
+    const result = { status: 0, signal: null, stdout: "2.0.0\\n", stderr: "" };
     switch (process.env.PROBE_RESULT) {
       case "missing": return original(command, args, options);
       case "exit": return { ...result, status: 17 };
       case "signal": return { ...result, status: null, signal: "SIGTERM" };
       case "timeout": return { ...result, status: null, signal: "SIGTERM", error: { code: "ETIMEDOUT" } };
       case "spawn": return { ...result, status: null, error: { code: "EACCES", message: "EACCES" } };
+      case "wrong-version": return { ...result, stdout: "1.16.1\\n" };
+      case "malformed": return { ...result, stdout: "OpenSpec 2.0.0\\n" };
+      case "empty-version": return { ...result, stdout: "" };
       case "ok": return result;
       default: throw new Error("unknown probe result");
     }
   }
   assert.deepEqual(args, ["instructions", "apply", "--change", "demo", "--json"]);
+  assert.ok(process.env.CODEX_HOME);
+  assert.ok(process.env.USERPROFILE);
+  assert.equal(Object.hasOwn(options.env, "CODEX_HOME"), false);
+  assert.equal(options.env.USERPROFILE, options.env.HOME);
+  assert.notEqual(options.env.HOME, process.env.USERPROFILE);
   const [state, total, complete] = [
     ["blocked", 0, 0], ["blocked", 0, 0], ["ready", 3, 0], ["ready", 3, 1], ["ready", 8, 2],
   ][fixture++];
-  return { status: 0, stdout: JSON.stringify({ state, progress: { total, complete } }), stderr: "" };
+  return { status: 0, signal: null, stdout: JSON.stringify({ state, progress: { total, complete } }), stderr: "" };
 };
 syncBuiltinESMExports();
 `;
@@ -218,20 +234,22 @@ for (const tool of ["git", "openspec"]) {
       fs.writeFileSync(preload, PROBE_STUB);
       const preloadUrl = pathToFileURL(preload).href;
       for (const ci of [undefined, "", "1", "false"]) {
-        for (const outcome of ["ok", "missing", "exit", "signal", "timeout", "spawn"]) {
+        for (const outcome of ["ok", "missing", "exit", "signal", "timeout", "spawn", ...(tool === "openspec" ? ["wrong-version", "malformed", "empty-version"] : [])]) {
           const selected = `${scratch}/selected-openspec`;
           const env = childEnv({ CI: ci, PROBE_TOOL: tool, PROBE_RESULT: outcome,
+            CODEX_HOME: `${scratch}/ambient-codex`, USERPROFILE: `${scratch}/ambient-profile`,
             OPENSPEC_BIN: selected, PATH: outcome === "missing" ? scratch : parent.PATH });
           const args = tool === "git"
             ? ["--import", preloadUrl, "--input-type=module", "-e",
               `import { gitAvailable } from ${JSON.stringify(HELPERS)}; console.log(gitAvailable());`]
-            : ["--import", preloadUrl, "--test", "--test-reporter=tap", CONTRACT];
+            : ["--import", preloadUrl, "--test", "--test-reporter=tap", "--test-name-pattern=^status --chain openspec matches openspec instructions apply:", CONTRACT];
           const result = spawnSync(process.execPath, args, { cwd: ROOT, env, encoding: "utf8", timeout: 15000 });
           const output = `${result.stdout}\n${result.stderr}`;
           const label = `${tool}, CI=${ci}, ${outcome}\n${output}`;
           assert.equal(result.error, undefined, label);
           assert.equal(result.signal, null, label);
-          const fails = Boolean(ci) && outcome !== "ok";
+          const incompatible = ["wrong-version", "malformed", "empty-version"].includes(outcome);
+          const fails = incompatible || (Boolean(ci) && outcome !== "ok");
           if (fails) {
             assert.notEqual(result.status, 0, label);
             assert.ok(output.includes(tool === "git" ? "git --version" : selected), label);
@@ -249,7 +267,9 @@ for (const tool of ["git", "openspec"]) {
           }
           if (outcome !== "ok" && (fails || tool === "openspec")) {
             const diagnostic = { missing: /ENOENT/, exit: /exited 17/, signal: /SIGTERM/,
-              timeout: tool === "git" ? /timed out after 120000 ms/ : /ETIMEDOUT/, spawn: /EACCES/ }[outcome];
+              timeout: tool === "git" ? /timed out after 120000 ms/ : /ETIMEDOUT/, spawn: /EACCES/,
+              "wrong-version": /expected OpenSpec 2\.0\.0/, malformed: /expected OpenSpec 2\.0\.0/,
+              "empty-version": /expected OpenSpec 2\.0\.0/ }[outcome];
             assert.match(output, diagnostic, label);
           }
         }

@@ -12,6 +12,8 @@ import {
   verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS, render,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "../../openspec-pipeline/scripts/openspec.mjs";
+import { normalizeAccounting, accountingFor, usageCoverage, usageFigure } from "./usage.mjs";
+export { cleanUsage } from "./usage.mjs";
 
 // ---- report ---------------------------------------------------------------
 
@@ -96,15 +98,46 @@ function complexityLines(fullLog) {
 }
 
 // The Cost (estimate) line under the totals line: a blended rate over the steps that have a token figure and a price.
-function costLine(cost) {
+function costLine(cost, verified) {
+  const scope = verified ? " · routing-rate approximation: child usage can be priced at the enclosing dispatch rate" : "";
   const missing = cost.unpriced.length ? ` · no price for: ${cost.unpriced.join(", ")}` : "";
-  if (cost.priced === 0) return `Cost (estimate): - (no step with a token figure has a price) at a blended rate${missing}`;
-  return `Cost (estimate): $${cost.usd.toFixed(2)} at a blended rate (USD per million tokens, no input/output split) · priced ${cost.priced} of ${cost.withFigures} steps with a token figure${missing}`;
+  if (cost.priced > 0 && !Number.isFinite(cost.usd)) return `Cost (estimate): - (aggregate unavailable)${scope}${missing}`;
+  if (cost.priced === 0) return `Cost (estimate): - (no step with a token figure has a price) at a blended rate${missing}${scope}`;
+  return `Cost (estimate): $${cost.usd.toFixed(2)} at a blended rate (USD per million tokens, no input/output split) · priced ${cost.priced} of ${cost.withFigures} steps with a token figure${missing}${scope}`;
+}
+
+const USAGE_SOURCE_NAMES = { "claude-native": "Claude", "codex-rollout": "Codex", unknown: "Host" };
+
+// Use normalized evidence and fixed labels so this line stays short even on mixed runs.
+function usageLimitations(log, host) {
+  const counts = new Map();
+  for (const entry of log) {
+    const evidence = entry.usageEvidence;
+    if (!isObject(entry.result) || evidence?.status !== "unavailable" || entry.usage?.totalTokens !== undefined) continue;
+    const { reason, source } = evidence;
+    const nativeClaude = source === "claude-native" && providerOf(entry) === "claude";
+    let label;
+    if (reason === "capture-disabled" && nativeClaude && host === "claude") {
+      label = "Native Claude token capture was off";
+    } else if (reason === "incomplete-capture" && nativeClaude && host === "codex" && entry.usage?.durationMs !== undefined) {
+      label = "Headless Claude on Codex recorded duration only";
+    } else if (reason === "missing-source") {
+      label = `${USAGE_SOURCE_NAMES[source]} usage source unavailable`;
+    } else if (reason === "unsupported-host") {
+      label = `${USAGE_SOURCE_NAMES[source]} version unqualified for token accounting`;
+    }
+    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  if (!counts.size) return null;
+  const clauses = [...counts].map(([label, count]) => `${label} (${count} ${count === 1 ? "step" : "steps"})`);
+  return `Token capture limitations: ${clauses.join(" · ")}`;
 }
 
 function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
-  const log = executed(fullLog);
+  const log = executed(fullLog).map((entry) => ({ ...entry, ...accountingFor(entry) }));
+  const coverage = usageCoverage(log);
+  const limitations = usageLimitations(log, hostOf(meta));
   const skips = fullLog.filter((e) => e.skipped);
   const o = meta.outcome;
   const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
@@ -125,12 +158,15 @@ function buildReport(id, meta, fullLog) {
     return `| ${e.n} | ${e.step === "implement" && e.template !== e.step ? `implement (${e.template})` : e.step} | ${providerOf(e)} | ${e.model} | ${e.effort} | ${e.tier} | ${e.simple ? "yes" : "no"} | ${result} | ${t === null ? "-" : t} |${costCell}`;
   });
   const withTokens = log.filter((e) => tokens(e) !== null);
-  const total = withTokens.reduce((sum, e) => sum + tokens(e), 0);
+  const total = usageFigure(log, "totalTokens").total;
+  const subtotal = withTokens.length > 0 && withTokens.length < log.length ? " · subtotal" : "";
   return [
     `# Run report: ${id}`,
     "",
+    ...(limitations ? [limitations, ""] : []),
     `Goal: ${oneLine(meta.goal) || "-"}`,
     ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
+    `Provider mode: ${meta.providerMode ?? "legacy (ladder-driven)"}`,
     `Outcome: ${outcome}`,
     ...archiveLines(id, meta, oneLine),
     ...sweptHeader(log),
@@ -139,8 +175,15 @@ function buildReport(id, meta, fullLog) {
     `| --- | --- | --- | --- | --- | --- | --- | --- | --- |${cost ? " --- |" : ""}`,
     ...rows,
     "",
-    `Steps: ${log.length} · Tokens: ${withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
-    ...(cost ? [costLine(cost)] : []),
+    `Steps: ${log.length} · Tokens: ${total === null ? "unavailable (overflow)" : withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${subtotal}${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
+    ...(cost ? [costLine(cost, coverage.verified > 0)] : []),
+    "",
+    "## Token coverage",
+    "",
+    `Verified observed host usage: ${coverage.verified} · Unavailable: ${coverage.unavailable} · Legacy/unverified scope: ${coverage.legacy} · Missing figures: ${coverage.missing}`,
+    "Provider, model and tier groups describe the enclosing dispatch.",
+    ...(coverage.legacy ? ["Legacy figures retain their original unverified scope."] : []),
+    ...log.filter((entry) => entry.usageEvidence?.status === "unavailable").map((entry) => `- Step ${entry.n} ${entry.step}: ${entry.usageEvidence.reason} — ${entry.usageEvidence.explanation}`),
     "",
     ...(skips.length ? [
       "## Skipped steps",
@@ -373,7 +416,6 @@ export function cleanupHandoff(p, log) {
   const last = executed(log).at(-1);
   if (!last?.result || !last.pendingHandoff) return;
   removeHandoffFile(p, last);
-  try { fs.unlinkSync(p.result); } catch (error) { if (error.code !== "ENOENT") throw error; }
   delete last.pendingHandoff;
   writeLog(p.log, log);
 }
@@ -402,14 +444,17 @@ export function maxNeutralRetries(policy) {
 // orchestrator-error, the same entry is returned again: same n, tier, prompt, startedAt, startSha and before, so no
 // failed attempt, tier bump, rigor rise, rollback or budget use follows. At the cap the run halts. Prints and exits in
 // those cases; returns (and changes nothing) in every other case, so the caller goes on as before.
-export function neutralRetry(p, id, meta, log, policy) {
+export function neutralPending(p, log, policy) {
+  const last = executed(log).at(-1);
+  return last && !last.result && maxNeutralRetries(policy) > 0 && readJson(p.result, null)?.status === ORCHESTRATOR_ERROR;
+}
+
+export function neutralRetry(p, id, meta, log, policy, visibility = {}) {
+  if (!neutralPending(p, log, policy)) return;
   const ran = executed(log);
-  const last = ran[ran.length - 1];
-  if (!last || last.result || !fs.existsSync(p.result)) return;
+  const last = ran.at(-1);
   const result = readJson(p.result, null);
-  if (!isObject(result) || result.status !== ORCHESTRATOR_ERROR) return;
   const cap = maxNeutralRetries(policy);
-  if (cap === 0) return;
   const resultFile = path.relative(ROOT, p.result);
   // An entry logged before this feature has no stored prompt; the file stays so the orchestrator can replace it.
   if (typeof last.pendingPrompt !== "string") {
@@ -428,6 +473,11 @@ export function neutralRetry(p, id, meta, log, policy) {
       steps: ran.length,
     });
   }
+  if (meta.providerMode && visibility.providersByStep) {
+    const templates = policy.splitProviders[meta.chain ?? "10x"].hostTemplates;
+    const role = templates[last.template] === last.step ? last.template : last.step;
+    visibility.providersByStep[role] = providerOf(last);
+  }
   const handoff = publishHandoff(p, last);
   const note = typeof result.note === "string" ? Array.from(result.note.replace(/\s+/g, " ").trim()).slice(0, NEUTRAL_NOTE_MAX).join("") : "";
   fs.rmSync(p.result);
@@ -441,6 +491,7 @@ export function neutralRetry(p, id, meta, log, policy) {
   out({
     action: "run",
     change: id, root: ROOT, chain: p.chain ?? "10x",
+    ...visibility,
     n: last.n,
     step: last.step,
     ...(typeof last.agent === "string" ? { agent: last.agent } : {}),
@@ -457,17 +508,6 @@ export function neutralRetry(p, id, meta, log, policy) {
 }
 
 // ---- result intake + verification ---------------------------------------
-
-// Keep only non-negative safe integers. Returns null when nothing survives.
-export function cleanUsage(raw) {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const clean = {};
-  for (const key of ["totalTokens", "toolUses", "durationMs"]) {
-    const v = raw[key];
-    if (Number.isSafeInteger(v) && v >= 0) clean[key] = v;
-  }
-  return Object.keys(clean).length ? clean : null;
-}
 
 // Keep only known signal keys with valid types: rigor (a level; never for a score entry), needsHuman (a short text) and,
 // for an impl-review entry only, lessonCandidates (a few short one-line rules).
@@ -541,10 +581,43 @@ function reviewRecord(read, policy) {
   return rec;
 }
 
+const REVIEW_VERDICTS = {
+  "plan-review": new Set(["SOUND", "REVISE", "RETHINK"]),
+  "impl-review": new Set(["APPROVED", "NEEDS ATTENTION", "REJECTED"]),
+};
+
+function reviewProblem(step, file, read, attempt) {
+  const rel = path.relative(ROOT, file);
+  const expected = `Expected ${joinWords([...REVIEW_VERDICTS[step]])}.`;
+  if (!read.exists) return `Missing review artifact ${rel}. ${expected}`;
+  if (read.error) return `Cannot read review artifact ${rel}: ${read.error}. ${expected}`;
+  if (read.verdict === null) return `Missing review verdict in ${rel}. ${expected}`;
+  if (!REVIEW_VERDICTS[step].has(read.verdict)) {
+    return `Unknown review verdict ${JSON.stringify(read.verdict)} in ${rel}. ${expected}`;
+  }
+  if (attempt) {
+    const timeKey = step === "plan-review" ? "planReview" : "implReview";
+    // A rollback restores the dispatch timestamp, with possible sub-millisecond rounding by the filesystem.
+    const unchanged = Math.round(read.mtime) === Math.round(attempt.before?.mtimes?.[timeKey]);
+    if (unchanged || read.mtime <= attempt.startedAt) {
+      return `Stale review artifact ${rel} for step ${attempt.n} (${step}). Save a fresh review.`;
+    }
+  }
+  return null;
+}
+
+function removeResult(p) {
+  try { fs.unlinkSync(p.result); } catch (error) { if (error.code !== "ENOENT") throw error; }
+}
+
 export function attachResult(p, log, policy) {
   const ran = executed(log);
   const last = ran[ran.length - 1];
-  if (!last || last.result) return;
+  if (!last) return;
+  if (last.result) {
+    removeResult(p);
+    return;
+  }
   if (!fs.existsSync(p.result)) {
     out({
       action: "halt",
@@ -560,13 +633,16 @@ export function attachResult(p, log, policy) {
   const plan = readPlan(p.plan);
   let verified;
   switch (last.step) {
-    case "plan": verified = plan.hasProgress && plan.mtime > last.startedAt && (!CODE_REPLANS.includes(last.template) || verifyCodeReplan(last, plan)); break;
+    // A plan verifies only with a pending Automated row: zero readable rows would read as finished work and skip implement.
+    case "plan": verified = plan.mtime > last.startedAt && (CODE_REPLANS.includes(last.template) ? verifyCodeReplan(last, plan) : plan.autoPending > 0); break;
     case "plan-review":
     case "impl-review": {
       const file = last.step === "plan-review" ? p.planReview : p.implReview;
       const read = readReview(file);
-      verified = mtime(file) > last.startedAt && read.verdict !== null;
+      const problem = reviewProblem(last.step, file, read, last);
+      verified = problem === null;
       if (verified) last.review = reviewRecord(read, policy);
+      else last.invalid = problem;
       break;
     }
     case "research": {
@@ -603,10 +679,10 @@ export function attachResult(p, log, policy) {
     default: verified = true; // fix: trust status, the next impl-review checks the code
   }
   // The raw signals object never reaches run.jsonl; only the cleaned one does.
-  const { signals: rawSignals, ...stored } = result;
-  last.result = stored;
-  const usage = cleanUsage(result.usage);
-  if (usage) last.usage = usage;
+  const { signals: rawSignals, usage: rawUsage, usageEvidence: rawEvidence, ...stored } = result;
+  const accounting = normalizeAccounting(rawUsage, rawEvidence);
+  last.result = { ...stored, ...accounting };
+  Object.assign(last, accounting);
   const signals = cleanSignals(rawSignals, policy, last.step);
   if (signals) last.signals = signals;
   last.verified = verified;
@@ -614,7 +690,8 @@ export function attachResult(p, log, policy) {
   last.finishedAt = Date.now();
   // Persist before deleting: a router error later in `next` must not lose the result.
   writeLog(p.log, log);
-  fs.rmSync(p.result);
+  removeResult(p);
+  return Object.hasOwn(REVIEW_VERDICTS, last.step) && last.invalid ? last : null;
 }
 
 // The open findings of an aware review are over the line when one is critical or the open warnings exceed the shared
@@ -669,6 +746,51 @@ function openFindingsHalt(label, skillName, file, oc, policy, meta) {
   return { halt: text };
 }
 
+// An invalid intake remains authoritative until a later review, a new plan or code state, or a fresh valid artifact.
+function reviewRecovery(step, file, read, log, sourceAt, ctx) {
+  const i = lastIdx(log, [step], false);
+  const attempt = log[i];
+  if (i <= sourceAt || attempt?.ok !== false || attempt.verified !== false) return null;
+  let problem = attempt === ctx.justFailedReview ? attempt.invalid : reviewProblem(step, file, read, attempt);
+  if (problem === null && !Object.hasOwn(attempt, "timestamps") && (attempt.rolledBack || attempt.kept)) {
+    problem = ctx.legacyReviewCheck?.(file, attempt) ?? null;
+  }
+  if (problem === null) return { recovered: true };
+  const reason = attempt.invalid && problem !== attempt.invalid ? `${attempt.invalid} Current artifact: ${problem}` : problem;
+  return {
+    problem: reason,
+    confirmation: attempt.template === `${step}-confirm`,
+  };
+}
+
+function implReviewNext(log, plan, policy, reviewFailure) {
+  const struggled = log.some((e) => e.step === "fix" || (e.step === "implement" && !e.ok && !e.fallback));
+  return {
+    step: "impl-review",
+    ...reviewWarning(log, plan, policy),
+    bump: struggled ? policy.escalation.hardChangeReviewerBump : 0,
+    reason: reviewFailure ?? (struggled ? "implementation needed retries or fixes" : "implementation complete"),
+    ...(reviewFailure ? { reviewFailure } : {}),
+  };
+}
+
+export const LEGACY_REPLAN_HALT_PREFIX = "The re-plan after";
+
+export function replanRecoveryProblem(last, plan, previousOutcome) {
+  const legacyEdit = !Object.hasOwn(last, "planBaseline") && Number.isFinite(last.finishedAt) &&
+    previousOutcome?.action === "halt" && typeof previousOutcome.reason === "string" &&
+    previousOutcome.reason.startsWith(LEGACY_REPLAN_HALT_PREFIX) && plan.mtime > last.finishedAt;
+  if (!last.replanAck && !legacyEdit) return "The re-plan failed.";
+  if (!plan.exists) return "plan.md is missing.";
+  if (plan.fingerprint === last.planBaseline) return "plan.md content is unchanged.";
+  if (!plan.hasProgress) return "plan.md has no ## Progress section.";
+  if (plan.autoPending <= 0) return "plan.md has no pending Automated rows.";
+  if (verifyCodeReplan(last, plan)) return null;
+  const checked = new Set(plan.phaseList.flatMap((phase) => phase.auto.filter((row) => row.done).map((row) => row.id)));
+  const missing = last.before.done.filter((id) => !checked.has(id));
+  return `plan.md is missing previously checked Automated row IDs: ${missing.join(", ")}.`;
+}
+
 export function decide(p, fullLog, policy, meta, ctx) {
   const E = policy.escalation;
   const L = policy.limits;
@@ -681,7 +803,26 @@ export function decide(p, fullLog, policy, meta, ctx) {
   if (!fs.existsSync(path.join(p.change, "change.md"))) {
     return { halt: `No change folder. Run /10x-new ${meta.id} first.` };
   }
-  if (!plan.exists || !plan.hasProgress) {
+
+  // A review can also have edited Progress. Resolve outstanding failures before scheduling from those edits.
+  const lp = lastIdx(log, ["plan"]);
+  const lcode = lastIdx(log, ["implement", "fix"]);
+  const planRecovery = reviewRecovery("plan-review", p.planReview, pr, log, lp, ctx);
+  const implRecovery = reviewRecovery("impl-review", p.implReview, ir, log, lcode, ctx);
+  if (planRecovery?.confirmation) return { halt: planRecovery.problem };
+  if (implRecovery?.confirmation) return { halt: implRecovery.problem };
+  if (planRecovery?.problem) {
+    return { step: "plan-review", bump: 0, reason: planRecovery.problem, reviewFailure: planRecovery.problem };
+  }
+  if (implRecovery?.problem) return implReviewNext(log, plan, policy, implRecovery.problem);
+
+  // A failed first plan that left no pending Automated row is asked for again, so a non-isolated run (no rollback of
+  // plan.md) never reads its empty Progress as finished work. A plan supplied at init has no plan entry and routes as before.
+  const codeRan = log.some((e) => e.step === "implement" || e.step === "fix");
+  const lastPlan = [...log].reverse().find((e) => e.step === "plan");
+  const planRetry = lp < 0 && lastPlan?.template === "plan" && !lastPlan.ok && !lastPlan.verified &&
+    plan.autoPending === 0 && !codeRan;
+  if (!plan.exists || !plan.hasProgress || planRetry) {
     const pre = preplanNext(p, fullLog, policy, meta, ctx);
     if (pre) return pre;
     const score = scoreNext(p, fullLog, policy, meta, ctx);
@@ -693,23 +834,23 @@ export function decide(p, fullLog, policy, meta, ctx) {
       template: "plan",
       bump: kind === "hard" ? B.hard : B.plain,
       bumpWhy: `goal class ${kind}`,
-      reason: `${plan.exists ? "plan.md has no ## Progress" : "no plan yet"} (goal: ${kind}${keyword ? `, "${keyword}"` : ""})`,
+      reason: `${!plan.exists ? "no plan yet" : !plan.hasProgress ? "plan.md has no ## Progress" : `plan.md has no pending Automated Progress row (read ${plan.rows} rows)`} (goal: ${kind}${keyword ? `, "${keyword}"` : ""})`,
     };
   }
 
+  const workStarted = codeRan || plan.autoDone > 0;
+
   // Plan review is fresh if it ran after the last successful plan step.
-  const lp = lastIdx(log, ["plan"]);
   const lpr = lastIdx(log, ["plan-review"]);
-  const prFresh = lp >= 0 || lpr >= 0
+  const prFresh = planRecovery?.recovered || (lp >= 0 || lpr >= 0
     ? pr.exists && lpr > lp
-    : pr.exists && (plan.autoDone > 0 || pr.mtime >= plan.mtime);
+    : pr.exists && (plan.autoDone > 0 || pr.mtime >= plan.mtime));
   if (!prFresh) {
     // A plan-review skip written after the last successful plan step counts as handled.
     // It holds while the level can still skip, and for good once implement or fix has run.
     const skipAt = fullLog.map((e, i) => (e.skipped && e.step === "plan-review" ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     const planAt = fullLog.map((e, i) => (!e.skipped && e.step === "plan" && e.ok ? i : -1)).reduce((a, b) => Math.max(a, b), -1);
     const skippable = (policy.rigor.skipPlanReviewAt ?? []).includes(ctx.level);
-    const codeRan = log.some((e) => e.step === "implement" || e.step === "fix");
     if (skipAt > planAt && (skippable || codeRan)) {
       pr = { exists: false, verdict: null, critical: 0, warnings: 0, mtime: 0 }; // absent after a skip
     } else {
@@ -729,6 +870,9 @@ export function decide(p, fullLog, policy, meta, ctx) {
       const why = skippable && !measured ? `plan changed since last review; risk not measured (${source}, ${planPathCount} plan paths${unclassified ? `, ${unclassified} unclassified` : ""})` : "plan changed since last review";
       return { step: "plan-review", bump: 0, reason: why };
     }
+  } else {
+    const problem = reviewProblem("plan-review", p.planReview, pr);
+    if (problem) return { halt: problem };
   }
 
   // A REVISE with Decision lines routes on its open findings: nothing open (within the tolerance) goes on, anything else
@@ -741,7 +885,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
     (pr.verdict === "REVISE" && (prAware
       ? openOverTolerance(prOpen, policy)
       : pr.critical > 0 || pr.warnings > policy.review.reviseToleranceWarnings));
-  if (needsReplan && plan.autoDone === 0) {
+  if (needsReplan && !workStarted) {
     if (prAware) {
       if (openFindingsConfig(policy).onOpen !== "retry") {
         return openFindingsHalt("Plan review REVISE", "10x-plan-review", p.planReview, prOpen, policy, meta);
@@ -751,17 +895,16 @@ export function decide(p, fullLog, policy, meta, ctx) {
     return replanNext(log, pr, policy, ctx.level);
   }
   // Nothing open after a REVISE that applied fixes: with review.confirmRounds above 0, a confirmation review first.
-  if (prAware && plan.autoDone === 0 && prOpen.applied > 0 && prOpen.openCritical === 0 && prOpen.openWarnings === 0) {
+  if (prAware && !workStarted && prOpen.applied > 0 && prOpen.openCritical === 0 && prOpen.openWarnings === 0) {
     const confirm = confirmNext("plan", `plan review ${pr.verdict}`, log, policy, ctx.level, prOpen);
     if (confirm) return confirm;
   }
 
-  const lastRan = log[log.length - 1];
-  if (lastRan?.template === "plan-replan" && !lastRan.ok) {
-    return { halt: `The re-plan after ${policy.codeReplan?.afterFailures} failed implement attempts did not produce a valid plan. Needs a human.` };
-  }
   const reopen = retryRows(log, plan, policy);
   if (plan.autoPending > 0 || reopen.length) {
+    if (needsReplan) {
+      return { halt: `Plan review ${pr.verdict} blocks remaining implementation work after implementation started. Needs a human.` };
+    }
     const replan = codeReplanNext("failure", log, policy, ctx);
     if (replan) return replan;
     let bump = 0;
@@ -776,21 +919,17 @@ export function decide(p, fullLog, policy, meta, ctx) {
 
   // All automated rows done. Review is stale if code moved after the last review.
   const lir = lastIdx(log, ["impl-review"]);
-  const lcode = lastIdx(log, ["implement", "fix"]);
-  const irFresh = lir >= 0 || lcode >= 0
+  const irFresh = implRecovery?.recovered || (lir >= 0 || lcode >= 0
     ? ir.exists && lir > lcode
-    : ir.exists && ir.mtime >= plan.mtime;
+    : ir.exists && ir.mtime >= plan.mtime);
   if (!irFresh) {
     const verify = manualVerifyNext(plan, log, policy, ctx, meta);
     if (verify) return verify;
-    const struggled = log.some((e) => (e.step === "implement" || e.step === "fix") && !e.ok && !e.fallback) || count("fix") > 0;
-    return {
-      step: "impl-review",
-      ...reviewWarning(log, plan, policy),
-      bump: struggled ? E.hardChangeReviewerBump : 0,
-      reason: struggled ? "implementation needed retries or fixes" : "implementation complete",
-    };
+    return implReviewNext(log, plan, policy);
   }
+
+  const problem = reviewProblem("impl-review", p.implReview, ir);
+  if (problem) return { halt: problem };
 
   // A NEEDS ATTENTION with Decision lines routes on its open findings: nothing open (within the tolerance) is done, anything
   // else halts, or runs fix under onOpen "retry". review.fixOnNeedsAttention applies only to a review without Decision
@@ -829,7 +968,7 @@ export function decide(p, fullLog, policy, meta, ctx) {
 
   return {
     done: true,
-    reason: `impl review ${ir.verdict ?? "APPROVED"}`,
+    reason: `impl review ${ir.verdict}`,
     manualPending: plan.manualPending,
     ...doneNotes({
       uncommittedTicks: unprovenTicks(log, plan, policy),
@@ -978,14 +1117,21 @@ export function artifactsLine(p, policy) {
 
 // ---- restricted step agents -------------------------------------------------------
 
-// The agent type the orchestrator dispatches a step with: the value of agents.steps.<step> when agents.restricted is
+// The opt-in restricted agent type for a step: the value of agents.steps.<step> when agents.restricted is
 // the boolean true and that value is a non-blank string, else null. A malformed block reads as off and never throws.
-// There is no fallback to another type: a step without an agent gets no `agent` field at all.
+// Keep this lookup separate from the Claude default so OpenAI capability rejection sees only explicit restrictions.
 export function stepAgent(policy, step) {
   const c = policy.agents;
   if (!isObject(c) || c.restricted !== true || !isObject(c.steps) || !Object.hasOwn(c.steps, step)) return null;
   const name = c.steps[step];
   return typeof name === "string" && name.trim() ? name : null;
+}
+
+// Archive dispatch historically ignores restricted mappings. Both Claude assembly sites share the guarded default.
+export function dispatchAgent(policy, target, step) {
+  if (providerOf(target) !== "claude") return null;
+  const restricted = ["archive", "os-archive"].includes(step) ? null : stepAgent(policy, step);
+  return restricted ?? "agent-smith:step";
 }
 
 // ---- opt-in advisor ---------------------------------------------------------------
@@ -999,14 +1145,15 @@ export function advisorOn(policy, template) {
   if (!isObject(c) || c.enabled !== true) return false;
   const list = c.templates;
   if (!Array.isArray(list) || !list.every((t) => typeof t === "string")) return false;
-  return list.includes(template);
+  return list.includes(template)
+    || (["manual-verify-openai", "manual-verify-headless"].includes(template) && list.includes("manual-verify"));
 }
 
 // Native Claude capabilities cannot be honored by an OpenAI child; never silently drop the opt-in.
 export function dispatchProblem(policy, target, step, template) {
   if (providerOf(target) !== "openai") return null;
   if (stepAgent(policy, step)) return `OpenAI step ${step} cannot use the configured restricted agent. Disable agents.restricted or route this step to Claude.`;
-  if (advisorOn(policy, template) || (template === "manual-verify-openai" && advisorOn(policy, "manual-verify"))) {
+  if (advisorOn(policy, template)) {
     return `OpenAI step ${step} cannot use the native Claude advisor. Disable advisor.enabled or route this step to Claude.`;
   }
   return null;

@@ -1,4 +1,5 @@
 {
+  "splitProviders": { "openspec": { "otherSteps": ["os-propose", "os-apply"], "hostTemplates": { "os-apply-fix": "os-apply" } } },
   "steps": {
     "os-propose":    { "skill": "openspec-propose",       "baseTier": 5, "minTier": 2, "maxTier": 7, "interactive": true },
     "os-apply":      { "skill": "openspec-apply-change",  "baseTier": 3, "minTier": 2, "maxTier": 7 },

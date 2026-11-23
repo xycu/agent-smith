@@ -4,7 +4,7 @@ agent-smith is a Claude Code plugin that runs 10xDevs and OpenSpec skill chains.
 
 ## Hard Rules
 
-- Keep routing decisions in `skills/10x-pipeline/scripts/route.mjs` and the modules it imports (under `scripts/`, and `skills/openspec-pipeline/scripts/openspec.mjs`), and in `skills/10x-pipeline/policy.json` and `skills/openspec-pipeline/policy.json`. `SKILL.md` must not name models, effort levels or tiers beyond what it already documents, and `skills/openspec-pipeline/SKILL.md` names none beyond what `skills/10x-pipeline/SKILL.md` documents.
+- Keep routing decisions in `skills/10x-pipeline/scripts/route.mjs` and the modules it imports (under `scripts/`, and `skills/openspec-pipeline/scripts/openspec.mjs`), and in `skills/10x-pipeline/policy.json` and `skills/openspec-pipeline/policy.json`. Both `skills/10x-pipeline/SKILL.md` and `skills/openspec-pipeline/SKILL.md` name no literal models, effort levels or tiers. Routing documentation belongs in `docs/REFERENCE.md`.
 - `route.mjs` and the modules it imports (under `scripts/`, and `skills/openspec-pipeline/scripts/openspec.mjs`) own `context/changes/<change-id>/agent-smith/run.jsonl` and `meta.json`, and for the OpenSpec chain `openspec/changes/<change-id>/agent-smith/run.jsonl` and `meta.json`. Never edit them by hand or from a skill.
 - Git and GitHub: only operations that cannot be undone are forbidden. Code, skills and prompts may commit, branch, add worktrees, write refs, push a branch and create, edit or comment on pull requests and issues. They never: force-push or rewrite pushed history; delete a branch, tag, ref or worktree that holds commits reachable from nowhere else; discard uncommitted work that no commit or ref holds (`git reset --hard`, `git checkout -- <path>`, `git clean`, `git stash drop` or `clear`); pass `--no-verify`; delete a repository, release, tag, issue or comment on GitHub, or change repository settings or branch protection. The router's current git writes and their recovery paths are in ADR-010 (the rollback snapshots the worktree under `refs/agent-smith/` before its `git reset --hard`), and the one commit of the `usage` command for a run in the archive state is in ADR-019; `skills/10x-pipeline/scripts/pr-comment.mjs` posts the run report and `skills/10x-pipeline/scripts/open-pr.mjs` pushes the run branch and opens its pull request at every end of a run, never with force and never merging (ADR-017; see Commands). The router never pushes and never calls `gh`.
 - Add no npm dependencies. The router uses only `node:` built-ins and must run on Node 24+ (ADR-006).
@@ -13,17 +13,17 @@ agent-smith is a Claude Code plugin that runs 10xDevs and OpenSpec skill chains.
 
 ## Commands
 
-Run the tests after any change to `route.mjs`, a module under `scripts/`, `policy.json`, a prompt or `tools/`: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects.
+Run only the test files that cover what you changed; CI runs the full suite. Run the full suite only when the user asks or to reproduce a CI failure: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` (shell glob, Node 24 and later). The suite drives the real router through the CLI in scratch projects.
 
 Smoke check: in a scratch project that has `context/changes/<id>/change.md` (or, for the OpenSpec chain, `openspec/config.yaml` and `openspec/changes/<id>/`), put `{ "isolation": { "require": false } }` in `context/foundation/agent-smith-policy.json`, then run `init <id> --goal "<text>"` (`--chain openspec` for that chain) and `status <id>`. It works when `init` returns `action: "run"` with a step; a halt is valid JSON too and proves nothing.
 
 Router: `node skills/10x-pipeline/scripts/route.mjs <command>`. Every command takes `--chain 10x|openspec` (any other value halts before anything is read); flag details and halt rules are in `docs/REFERENCE.md`.
 
-- `init <id> --goal "<text>" [--rigor lean|standard|thorough] [--archive] [--chrome false] [--pr-comment] [--chain openspec]` — start or resume a run. Every flag also reads `--key=value`. It halts, writing nothing, on words that belong to no flag.
+- `init <id> --goal "<text>" [--rigor lean|standard|thorough] [--provider-mode claude|codex|split] [--archive] [--chrome false] [--pr-comment] [--chain openspec]` — start or resume a run. Every flag also reads `--key=value`. It halts, writing nothing, on words that belong to no flag.
 - `next <id>` — consume `agent-smith/last-result.json`, return the next step.
 - `status <id> [--report]` — the per-step model and effort log.
 - `risk <id>` — churn hot paths, plan hits and diff hits; writes nothing.
-- `usage <id> <n> --tokens N [--tool-uses N] [--duration-ms N]` — attach a late usage figure to step `<n>` (ADR-019).
+- `usage <id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])` — attach a late usage figure to step `<n>`, using numeric flags only for steps without recorded usage evidence (ADR-019).
 - `verify-archive <id> [--path <p>]` — read-only; prints whether the change is archived.
 - `compare <id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]` — read-only; routed run against a baseline run.
 
@@ -52,8 +52,8 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 - Plain JavaScript ES modules, 2-space indent, double quotes, semicolons, as in `route.mjs`.
 - Policy keys are camelCase; step names are kebab-case (`plan-review`, `impl-review`).
 - A policy change belongs in `policy.json`. A per-project override belongs in `context/foundation/agent-smith-policy.json`, never in the router scripts under `scripts/`.
-- When you change tier logic (`tierFor` in `scripts/steps.mjs`, `decide` in `scripts/flow.mjs`), update the "How the tier moves" list in `SKILL.md` and the routing bullets in `docs/REFERENCE.md`. When you change `decideOpenspec` or the verification in `skills/openspec-pipeline/scripts/openspec.mjs`, update the OpenSpec section of `docs/REFERENCE.md`.
-- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. `route.mjs` keeps `next`, the undo on halt and the commands.
+- When you change tier logic (`tierFor` in `scripts/steps.mjs`, `decide` in `scripts/flow.mjs`), update the routing bullets in `docs/REFERENCE.md`. When you change `decideOpenspec` or the verification in `skills/openspec-pipeline/scripts/openspec.mjs`, update the OpenSpec section of `docs/REFERENCE.md`.
+- Router modules: `state.mjs`, `preplan.mjs`, `steps.mjs`, `openspec.mjs` (in `skills/openspec-pipeline/scripts/`), `flow.mjs` and `isolation.mjs` each import only from the ones before it in that list, and none imports `route.mjs`, which runs `main()` on import. Only `route.mjs` imports `init-permissions.mjs`, which uses `state.mjs`, the bounded file reader and the shared Codex startup inputs. `route.mjs` keeps `next`, the undo on halt and the commands.
 
 ## Layout
 
@@ -64,7 +64,7 @@ Add a `Co-Authored-By:` trailer for AI-assisted commits.
 - `skills/10x-pipeline/prompts/` — prompt files, indexed in `skills/10x-pipeline/prompts/README.md`.
 - `skills/10x-pipeline/rules/` — the always-true rule files that no override reaches (`top.md`, `steps/<step>.md`; ADR-023), indexed with the OpenSpec one in `skills/10x-pipeline/rules/README.md`.
 - `skills/10x-pipeline/test/` — the suite and its helpers, indexed in `skills/10x-pipeline/test/README.md`.
-- `tools/` and `tools/test/` — `version-check.mjs`, `commit-lint.mjs` and `workflow-pins.mjs` (every remote action in `.github/` is pinned to a 40-hex SHA with a version comment); tests are in the test index.
+- `tools/` and `tools/test/` — `version-check.mjs`, `commit-lint.mjs` and `workflow-pins.mjs` (checks `.github/`, root metadata and recursively referenced local actions for remote 40-hex SHA pins with version comments and fails on missing local targets); tests are in the test index.
 - `agents/` — `score.md`, the restricted agent of the `score` step.
 - `docs/REFERENCE.md` — routing behavior; read it only when the task needs it.
 - `docs/ADR/` — architecture decisions, indexed in `docs/ADR/README.md`.

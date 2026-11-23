@@ -10,8 +10,11 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | --- | --- |
 | `change-id.test.mjs` | Both-chain init boundaries, pre-read refusal, PR-pattern parity and legacy longer-id command compatibility |
 | `route.test.mjs` | `init`, `next`, `status` and the main routing paths |
+| `init-permissions.test.mjs` | Codex configuration diagnostics and Claude worktree Git advice on init, provider and resume scoping, and stderr/stdout separation |
+| `init-usage.test.mjs` | Both-chain usage capture advisories, private launcher source probes, bounded model-free Codex version checks, split and legacy provider selection, and neutral replay scoping |
 | `churn.test.mjs` | `risk` command: churn hot paths, plan hits and diff hits |
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |
+| `step-safety.test.mjs` | shared Git/deletion/publication safety in all step tails, planning variants, overrides, file handoff, isolated runs and both archive paths |
 | `rules.test.mjs` | rule form of every prompt and rule file (GIVEN/WHEN/THEN, one RFC 2119 keyword; ADR-004) |
 | `rule-levels.test.mjs` | rule levels (ADR-023): the order after the template (chain defaults, suffix, step file, chain file, `rules/top.md`), a suffix override keeps `top.md`, `ruleTail` on a scratch rule tree, the halts on a missing or unreadable rule file, the archive prompts of both chains, the placeholder limits, the `ruleFiles` provenance section and the precedence rules. A test that changes a rule file uses a scratch copy of the plugin tree |
 | `compare.test.mjs` | `compare`: totals, coverage, tokens by model and tier, verdict, `--unpinned`, failure classification in JSON and Markdown |
@@ -19,7 +22,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `at-or-above.test.mjs` | `atOrAbove` rigor comparison; an unknown level fails closed |
 | `override-json.test.mjs` | a project override that does not parse, or is not an object, halts every command with the file name; a missing file is no override |
 | `file-guard.test.mjs` | `guardedStat`, `readGuarded` and `planFileTokens` of `state.mjs`, and two symlink cases of their callers (a symlinked score file, a symlinked evidence file); calls the modules directly |
-| `provenance.test.mjs` | run provenance: the record in `meta.json`, hash stability, drift, legacy runs, `compare` warnings. A test that changes a plugin file copies the plugin tree to a scratch directory and spawns the copy's `route.mjs`; it never edits a repository file |
+| `provenance.test.mjs` | run provenance: the record in `meta.json`, hash stability, independent hook/agent/rule drift, legacy runs, `compare` warnings. A test that changes a plugin file copies the plugin tree to a scratch directory and spawns the copy's `route.mjs`; it never edits a repository file |
 | `helpers-env.test.mjs` | inherited Git prefix stripping, fixture override precedence and hostile child suites with byte-identical victim repositories |
 | `helpers-timeout.test.mjs` | the `run` and `git` helpers of `helpers.mjs` time out or die on a signal and throw a clear error naming the command; the fast path keeps its return shape |
 
@@ -28,18 +31,19 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `preplan.test.mjs` | pre-plan gates and prompt wiring |
-| `loops-existing.test.mjs` | the characterized RETHINK/REVISE loop. Never edit it; the one exception is the two tier literals renumbered by ADR-010's ladder change |
+| `loops-existing.test.mjs` | the characterized RETHINK/REVISE loop. Keep it stable. ADR-010 renumbered two tier literals, and verdict validation changes the partial-implementation RETHINK fixture to expect a halt |
 | `loops.test.mjs` | the new loops and the budget reference paths |
 | `score.test.mjs` | complexity score step (ADR-007): policy data, gate, file validation, failure skip, tier shift, report and status. Turn on with `score: { minRigor: "standard" }` |
 | `advisor.test.mjs` | opt-in advisor (ADR-009): no advisor text by default, its place in the listed prompts, the `advisor` log flag, malformed `advisor` blocks, the prompt file, the provenance link, and the pin that the indexes describe the advisor flag. Turn on with `advisor: { enabled: true }` |
-| `agents.test.mjs` | restricted step agents (ADR-009): the `agent` field of the run output, log entry and `status`, malformed `agents` blocks, the agent definition file, the provenance link, the `SKILL.md` dispatch line. Turn on with `score: { minRigor: "standard" }, agents: { restricted: true }`; a test that edits `agents/score.md` uses a scratch copy of the plugin tree |
+| `step-guard.test.mjs` | scoped plugin Bash hook, registration, fail-closed input, direct-command denial, command shapes, wrappers, ANSI-C quoting, Git option abbreviations, safe commands, recording clients, side-effect boundaries and paths with spaces |
+| `agents.test.mjs` | guarded Claude default and restricted step agents (ADR-009): the `agent` field of the run output, log entry and `status`, malformed `agents` blocks, inherited-tool/restricted definitions, the provenance link, the `SKILL.md` dispatch line. Turn on with `score: { minRigor: "standard" }, agents: { restricted: true }`; a test that edits `agents/score.md` uses a scratch copy of the plugin tree |
 
 ## Phase executors
 
 | File | Scope |
 | --- | --- |
 | `executors.test.mjs` | commit check, fallback, executor routing, retry, the report label |
-| `codereplan.test.mjs` | code re-plans |
+| `codereplan.test.mjs` | code re-plans, failed re-plan repair and resume, legacy halt recovery, review and budget gates |
 | `manualverify.test.mjs` | `manual-verify` and `--chrome` (ADR-012): every row in scope at every level, outside the pool, browser rows and their proof kinds, the reason in the outputs, report marks, tier and retry, evidence kinds, `evidence/unproven.md` reasons, the prompt and the Chrome default. Turn the step on with `manualVerify: { minRigor: "lean" }` |
 | `budget-executors.test.mjs` | the budget derived from the longest legal path, `manual-verify` and its retry included, at `lean`, `standard` and `thorough`: longest legal path, failure path, lean without a pool step |
 | `budget-pool-score.test.mjs` | the budget with a raised pool allowance and with scorer failures skipped |
@@ -53,40 +57,54 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | File | Scope |
 | --- | --- |
 | `ladder.test.mjs` | the 8-rung ladder and the effort floor on the rung's effort (ADR-010) |
-| `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp/copy and resume preservation, concurrent setup exclusion, runtime failures and command restrictions |
-| `isolation.test.mjs` | the isolation gate of `init`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
+| `prepare-run.test.mjs` | Both-chain real setup, policy parity, timestamp and resume preservation, pending-copy recovery after failure or interruption, ownership and stale registration checks, concurrent setup exclusion, runtime failures and command restrictions |
+| `prepare-run-timeout.test.mjs` | The real two-minute Git deadline, isolated so it runs alongside the other setup checks |
+| `prepare-run-helpers.mjs` | Shared setup fixtures, JSON assertions and Git wrapper for both pre-init test files |
+| `isolation.test.mjs` | the isolation gate of `init` and `next`. Builds real linked worktrees with hermetic git; turn on with `isolation: { require: true }` |
 | `stepcommit.test.mjs` | the start and step commits (ADR-010) |
-| `rollback.test.mjs` | the failed-step rollback and its undo on halt (ADR-010) |
+| `rollback.test.mjs` | failed-step rollback, preserved interrupted index-snapshot ancestry, undo on halt, and committed re-plan repair through rollback (ADR-010) |
 | `firstattempt.test.mjs` | the cheaper first implement attempt (ADR-010) |
 | `coauthor.test.mjs` | the `coAuthor` trailer (ADR-021): start commit, step commit, rollback snapshot, pre-archive and late-usage commits carry it; `coAuthor: null` gives none; a malformed value halts; parity of `coAuthorProblem`/`coAuthorTrailer` in `state.mjs` with `coAuthorLine` in `open-pr.mjs` |
-| `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight refusal, RESULT/completion/usage boundaries, cancellation, cleanup and archive moves on both chains |
-| `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd and a controllable child lifetime |
+| `codex-usage.test.mjs` | hand-authored accounting fixtures for strict releases 0.169.0 or later across root and child metadata and rollout headers, evidence version bounds, schema and reconciliation failures, copied-child boundaries, cache subsets, duplicates and safe bounded sources |
+| `claude-capture.test.mjs` | fake Claude launcher and passive hook: consent, fresh session and process binding, private loopback destination, minimized bounded logs, settings conflicts, preserved guards and exit/signal cleanup |
+| `claude-usage.test.mjs` | native 2.1.311 capture: authorized descriptors and launcher-bound checkpoint attribution, process-qualified event prefix, transcript/request membership, cache buckets, late exports, duplicate/conflicting records and safe bounded reads; interactive async-launch settlement of the root run (launch-only status, result before completion, null stop hash, tool-only final request, branch attachments, telemetry-only requests) and its fail-closed boundaries; synthetic fixtures do not qualify live hosts |
+| `claude-helpers.mjs` | hand-authored native hooks, transcript and OTLP JSON fixtures shared by collector and producer-to-reader integration checks, in two shapes: the default synchronous Agent shape and an `async` option that follows the live 2.1.323 interactive wire shape; registers no tests |
+| `claude-runner.test.mjs` | guarded headless CLI discovery, exact run and archive handoffs, foreground leaf collection, cancellation, retained ownership, and unavailable token evidence through intake and reporting |
+| `fake-claude.mjs` | model-free stream-json CLI peer exercising the candidate's real hook scripts and bounded permission fixture |
+| `codex-runner.test.mjs` | fake Codex CLI execution, exact dispatch validation, optional profiles, permission preflight, RESULT/completion/usage boundaries, settled failure intake and retry on both chains, retained ownership for uncertain closure and archive failure, held-descendant collection, recursive metadata, cancellation with SIGKILL escalation, temporary-file cleanup, archive moves and GitHub-token-free child environments (`codexChildEnv`) |
+| `codex-helpers.mjs` | external-command fixture shared by Codex runner and process-contention tests, with fragmented JSONL, recorded argv/stdin/cwd, recorded token-like environment of each fake process, a controllable child lifetime and a model-free descendant with readiness, termination, release and collection barriers |
+| `codex-rules.test.mjs` | `.codex/rules/project.rules` refuses `git push` and every `gh` form by a table checked with an in-test prefix evaluator and, when Codex is installed, with `codex execpolicy check`; no `gh` or `git push` allow remains |
+| `result-persist.test.mjs` | persist-before-unlink, both-chain inline/file crash recovery, cleanup errors, result ownership boundaries, isolated success commits and failure snapshots, pending neutral retry and late-usage preservation |
 | `run-state.test.mjs` | atomic log, metadata and report publication, failure and process-termination boundaries, permission preservation, exact owned-temp cleanup, strict log guards and read-only diagnostics, both-chain CLI smoke checks and byte-exact late-usage recovery |
-| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, crash exclusion until the child process group exits, uncertain-child refusal, release on success and halt, read-only commands, both chains. `TMPDIR` points the lock into a scratch directory |
+| `run-lock.test.mjs` | the per-run lock of execution, `status --report`, `init`, `next` and `usage`: live-owner refusal, legacy stale-lock recovery, native crash exclusion after group exit and surviving out-of-group child writes, unchanged staged/working edits and late results while blocked, uncertain-child refusal, cancellation retention through held-descendant collection, release on success and halt, read-only commands, both chains, stale-takeover exclusion across processes (guard held by a live or dead pid, native lock untouched, no overlapping holds over 120 stale locks). `TMPDIR` points the lock into a scratch directory |
+| `run-lock-worker.mjs` | one process of the multi-process stale-takeover test: spins to a shared time slot, takes a run lock, holds it, prints its hold intervals; `LOCK_MODULE` swaps the module under test; registers no tests |
 
 ## Reviews, cost, retries and policy
 
 | File | Scope |
 | --- | --- |
 | `openfindings.test.mjs` | routing of reviews on open findings (ADR-011): the `### F<n>` and `Decision` parser, policy keys, the `review` field of the log and `status`, the review gates and halt texts, the confirmation round, the `## Review findings` report section. It writes its own Decision-bearing reviews |
+| `plan-rows.test.mjs` | the fence-aware Progress and finding readers, archived plans read as by the old reader, and a `plan` or `plan-revise` step that leaves no pending `- [ ] N.M` Automated row fails and is asked for again |
 | `cost.test.mjs` | the run cost estimate: the `prices` block and its validation, `estimateCost`, the `Cost (est.)` column and `Cost (estimate)` line of `report.md`, the `cost` object of `status` for both chains, and `compare` cost rows and the `cost-incomplete` warning. Turn on with `prices: { usdPerMillionTokens: { ... } }` |
 | `neutral.test.mjs` | the `orchestrator-error` rerun (ADR-015): same prompt and tier on both chains and in an isolated run, with no failed attempt, rigor rise, budget use or rollback; the `limits.maxNeutralRetries` cap; the `neutralRetries` field of `status`; the `## Neutral reruns` report section |
-| `prompt-handoff.test.mjs` | opt-in task files: exact dispatch, replay, cleanup recovery, Codex validation, commit hygiene and synthetic byte measurements |
+| `prompt-handoff.test.mjs` | opt-in task files: exact dispatch and saved flat/delegated replay across settings drift, cleanup recovery, Codex validation, commit hygiene and synthetic byte measurements |
+| `accounting-readers.test.mjs` | normalized coverage and safe aggregates, zero/missing/subtotals, scope verdicts, routing-rate estimates, late refresh/archive exclusion, byte-identical ledgers and both-chain real Codex/Claude producer-to-intake-to-reader fixtures; no live qualification |
+| `usage-evidence.test.mjs` | Additive bounded evidence normalization, safe counters and zero, privacy, exact host identities and guarded local input reads |
 | `late-usage.test.mjs` | the `usage` command (ADR-019): arguments and refusals that leave the change folder byte-identical, attaching on both chains, an unchanged and a refused second figure, the rewritten report and cost of an ended run, `compare`, survival of an isolated rollback, and the archive state (folder commit of `archive.usageMessage`, restore after a hook failure, `next` resume with `commit: null`) |
 | `policy-validate.test.mjs` | the policy check at load (ADR-022): `init`, `next` and `usage` halt with the key name and write nothing on a malformed limit, ladder, step tier or prompt placeholder; `status` reports `policyProblem`; the shipped `policy.json` and `baseline-policy.json` pass |
 | `providers.test.mjs` | per-rung provider and fixed run host: legacy Claude defaults, GPT overlay/profile validation, exact neutral retry, capability refusals, both archive actions, provenance and provider-aware report/comparison aggregates |
 | `host-integration.test.mjs` | Shared host instruction and packaging contracts, OpenAI manual template selection and truthful browser evidence kinds |
-| `codex-chain.test.mjs` | Both-chain runner/result/router matrix, completion/report/comparison, typed child commits, guarded archive and isolated mixed-provider rollback/neutral retry |
+| `codex-chain.test.mjs` | Both-chain runner/result/router matrix, completion/report/comparison, typed child commits, guarded archive and isolated mixed-provider rollback/neutral retry and distinct staged/working versions after collected child failure |
 | `pr-comment-intent.test.mjs` | Router-owned boolean opt-in/reset/resume intent and terminal done/halt/archive propagation on both chains |
 
 ## Orchestrator skills and pull-request scripts
 
 | File | Scope |
 | --- | --- |
-| `skill-loop.test.mjs` | the `## Anti-stall rules` section of `SKILL.md`: six rules in order, placement outside the Loop branches, no model, effort or tier word; pins rule 3 and the call places of `usage` in the `done`, `halt` and `archive` branches; pins the `Bash timeout:` line (presence, content, placement after the `Pull request script:` line) |
+| `skill-loop.test.mjs` | cross-chain Claude Write preflight and result-write recovery, including owned scratch cleanup, startup and intake ordering, and STOP precedence. `SKILL_PATH` and `OPENSPEC_SKILL_PATH` select deliberate-break copies. Also checks the anti-stall digest and rule order, routing literals, late usage, Bash timeout, byte ceilings, publication and archive ordering, and split dispatch/setup contracts. |
 | `archive-gate.test.mjs` | the Manual gate in the `archive` branch of both `SKILL.md` files (ADR-014): `AskUserQuestion` in `allowed-tools`, placement, labels, fail-closed text, six `**GIVEN**` lines, no `AskUserQuestion` in the router scripts |
-| `nested-subagents.test.mjs` | no nested subagents (ADR-018): the project settings depth cap, the `rules/top.md` rule and its place before the `RESULT:` line, the same-subagent lines of the executor prompts, the sixth anti-stall rule of both skills, the `docs/REFERENCE.md` and ADR-018 checks |
-| `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `README.md` and `AGENTS.md`; checks the rule stays in `rules/top.md` and out of `prompts.suffix`, in `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
+| `nested-subagents.test.mjs` | bounded native children (ADR-018 Amendment 3): depth two, the shared child contract before `RESULT:`, enclosing executor ownership, the sixth anti-stall rule of both skills, the `docs/REFERENCE.md` and ADR-018 checks |
+| `no-recursive-delete.test.mjs` | `removeTree` (ADR-016) and the guard that keeps recursive or forced deletes out of `skills/`, `agents/`, `docs/`, `tools/`, `.github/`, `hooks/`, `README.md` and `AGENTS.md`; checks the rule stays in `rules/top.md` and out of `prompts.suffix`, in `manual-verify.md` and both `SKILL.md` files, and the test of `cleanupAll`. The scan reads every `.md` there, this file's folder included: name the ban in words, never write a banned command form |
 | `open-pr.test.mjs` | `open-pr.mjs` (ADR-017): a real bare remote, a real linked worktree, a logging `git` shim and a fake `gh`; also checks that no router module pushes or calls `gh` |
 | `pr-comment.test.mjs` | `pr-comment.mjs`; `GH_LIVE=1` enables the read-only live tests, which a human runs. Also pins that `AGENTS.md` names the script in Hard Rules and Commands |
 | `pr-comment-flag.test.mjs` | `init --pr-comment` stores, keeps and clears `prComment` in `meta.json` on both chains; the `done`, `archive` and `halt` outputs and `status` carry `prComment: true` only when it is set |
@@ -105,11 +123,14 @@ The OpenSpec tests and `openspec-helpers.mjs` live in `skills/openspec-pipeline/
 
 ## tools/test
 
+CI calls `tools/test-shards.mjs <index>/<total>` to select files by longest-first duration balancing. It discovers the same three test globs as the full-suite command. `tools/test-durations.json` seeds per-file seconds from the top-level case durations in [CI run 43973074457](https://github.com/xycu/agent-smith/actions/runs/43973074457), with the real deadline separated from the other setup cases. Refresh these estimates when test workloads change. Files without a timing receive a five-second estimate and are included automatically. Each shard starts its longest files first and runs two files concurrently. Coverage appears in each shard's log.
+
 | File | Scope |
 | --- | --- |
 | `agents-md-no-imports.test.mjs` | `AGENTS.md`, and `CLAUDE.md` when present, has no `@path` import outside a code span |
 | `agents-md-size.test.mjs` | `AGENTS.md` stays at or under 12288 bytes; new detail goes into the index files |
-| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, that the suite step sets `TMPDIR` to `${{ runner.temp }}`, and that `release.yml` stays hosted |
+| `ci-runner.test.mjs` | `runs-on` lines of `ci.yml` and `pr-title.yml` (self-hosted with the fork fallback; ADR-020), the uid guard as the first step of the `test` job and of `pr-title.yml`, that each job of `ci.yml` and the job of `pr-title.yml` has `timeout-minutes: 15`, that the suite step sets `TMPDIR` to `${{ runner.temp }}`, six duration-balanced test shards with two concurrent files each and fail-fast disabled, and that `release.yml` stays hosted |
+| `test-shards.test.mjs` | Duration balancing, deterministic assignments, complete discovery including new files, timing data, invalid shard arguments, runner order, coverage reporting and failure exit status |
 | `commit-lint.test.mjs` | `tools/commit-lint.mjs`: accepted and rejected subjects (no `Merge ` exemption), range mode with a real merge commit, title mode, CLI exit codes |
 | `pr-title-workflow.test.mjs` | `.github/workflows/pr-title.yml` as text: the four `types`, no `pull_request_target`, concurrency group by PR number, title passed through `env:`, name not `CI`; `ci.yml` has no `edited` (ADR-008, Amendment 2) |
 | `release-gate.test.mjs` | a release needs a green CI run of `main`; the CI concurrency rule (ADR-008, Amendment 1) |

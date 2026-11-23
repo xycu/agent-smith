@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 0, "evidence": "change.md fixes the outcome and acceptance conditions, including both chains and --unpinned." },
+    "novelty": { "score": 1, "evidence": "route.mjs already has a shared comparePair eligibility and verdict path to extend." },
+    "coupling": { "score": 2, "evidence": "The goal spans route.mjs, paired tests in compare.test.mjs and run-state.test.mjs, and docs/REFERENCE.md." },
+    "discovery": { "score": 1, "evidence": "change.md names route.mjs, state.mjs, compare.test.mjs, run-state.test.mjs and REFERENCE.md." },
+    "volume": { "score": 1, "evidence": "The goal calls for a focused eligibility edit, regression coverage and matching reference documentation in a few files." },
+    "verification": { "score": 1, "evidence": "change.md requires focused tests and the repository's required Node test suite." }
+  },
+  "unknowns": ["The sibling run-branch-prefix-consistency change's exact files are not listed in this change artifact, so ownership overlap is not yet confirmed."],
+  "confidence": "medium"
+}

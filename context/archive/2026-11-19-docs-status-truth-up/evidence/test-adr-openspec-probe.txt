@@ -1,0 +1,18 @@
+tools/test/ci-runner.test.mjs — openspec availability preserves local skips and requires successful probes in CI
+
+TAP version 13
+# Subtest: openspec availability preserves local skips and requires successful probes in CI
+ok 1 - openspec availability preserves local skips and requires successful probes in CI
+  ---
+  duration_ms: 13780.11775
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13952.737958

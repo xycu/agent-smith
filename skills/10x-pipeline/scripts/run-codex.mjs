@@ -6,12 +6,14 @@ import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import {
-  ROOT, acquireRunLock, archiveDirs, paths, readMeta, readLog, executed, hostOf, providerOf,
-  loadPolicy, policyProblems, parseFlags, isObject, guardedStat,
+  ROOT, acquireRunLock, parseFlags, isObject,
 } from "./state.mjs";
-import { dispatchProblem, promptFilePath } from "./flow.mjs";
-import { archiveDescriptor } from "./isolation.mjs";
+import { validateAction, readResult } from "./runner-dispatch.mjs";
+import { PERMISSION_PROBE } from "./permission-probe.mjs";
 import { removeTree } from "./remove-tree.mjs";
+import { collectCodexUsage, CODEX_USAGE_LIMITS } from "./codex-usage.mjs";
+import { codexChildEnv, codexProfileArgs } from "./codex-startup.mjs";
+export { codexChildEnv } from "./codex-startup.mjs";
 
 const MAX_MESSAGE = 1024 * 1024;
 const MAX_EVENT = 8 * 1024 * 1024;
@@ -22,138 +24,132 @@ function failureReason(error) {
   return message.slice(0, 2048);
 }
 
-function validateAction(action, id, chain, policy) {
-  if (!isObject(action) || !["run", "archive"].includes(action.action) || action.provider !== "openai") {
-    refuse("Expected an OpenAI run or archive action from the router.");
-  }
-  if (action.change !== id || action.chain !== chain || typeof action.root !== "string"
-    || fs.realpathSync(action.root) !== fs.realpathSync(ROOT)) refuse("Action belongs to another change, chain or run root.");
-  const p = paths(id, policy, chain);
-  // Inspect only the selected chain. An archived name in the other chain cannot claim this live run.
-  if (!fs.existsSync(p.change)) {
-    refuse(archiveDirs(id, chain).length ? "This change has already moved to its archive." : "The run's change folder is missing.");
-  }
-  if (fs.realpathSync(p.change) !== path.join(fs.realpathSync(ROOT), path.relative(ROOT, p.change))) {
-    refuse("The change folder must belong to the run root without symlink redirects.");
-  }
-  if (fs.realpathSync(p.dir) !== path.join(fs.realpathSync(p.change), "agent-smith")
-    || !guardedStat(p.meta, p.change) || !guardedStat(p.log, p.change)) refuse("Run state must be regular files inside this change.");
-  const meta = readMeta(p.meta, null);
-  if (!meta || meta.id !== id || (meta.chain ?? "10x") !== chain || hostOf(meta) !== action.host) {
-    refuse("Action does not match the stored run identity and host.");
-  }
-  if (typeof action.prompt !== "string" || !action.prompt.trim() || action.prompt.includes("\0")) refuse("Action has no usable prompt.");
-  if (!["model", "effort"].every((key) => typeof action[key] === "string" && action[key].trim() && !/[\0\r\n]/.test(action[key]))) {
-    refuse("Action has an invalid model or effort.");
-  }
-  if (action.profile !== null && (typeof action.profile !== "string" || !action.profile.trim() || /[\0\r\n]/.test(action.profile))) {
-    refuse("Action profile must be null or an existing configuration profile name.");
-  }
-  const { entries: log } = readLog(p.log);
-  if (action.action === "run") {
-    const entry = executed(log).at(-1);
-    if (meta.outcome || !entry || entry.result !== undefined || fs.existsSync(p.result)
-      || !Number.isSafeInteger(action.n) || action.n < 1 || entry.n !== action.n || entry.step !== action.step
-      || providerOf(entry) !== "openai" || entry.model !== action.model || entry.effort !== action.effort
-      || entry.profile !== action.profile
-      || action.resultFile !== path.relative(ROOT, p.result) || action.agent !== entry.agent) {
-      refuse("Run action is stale, already consumed, or differs from the exact pending dispatch.");
-    }
-    if (entry.pendingHandoff) {
-      const file = promptFilePath(p);
-      if (entry.pendingHandoff.promptFile !== path.relative(ROOT, file)
-        || action.promptFile !== entry.pendingHandoff.promptFile || action.prompt !== entry.pendingHandoff.prompt
-        || !guardedStat(file, p.dir) || !fs.readFileSync(file).equals(Buffer.from(entry.pendingPrompt))) {
-        refuse("File handoff differs from the exact pending dispatch or task bytes.");
-      }
-    } else if (Object.hasOwn(action, "promptFile") || entry.pendingPrompt !== action.prompt) {
-      refuse("Run action differs from the exact inline pending dispatch.");
-    }
-    const unsupported = dispatchProblem(policy, entry, entry.step, entry.template ?? entry.step);
-    if (unsupported) refuse(unsupported);
-  } else {
-    if (meta.archive !== true || meta.outcome?.action !== "done" || Object.hasOwn(action, "resultFile") || Object.hasOwn(action, "promptFile") || Object.hasOwn(action, "pendingHandoff")) {
-      refuse("Archive action requires an ended archive run and no result destination.");
-    }
-    const expected = archiveDescriptor(p, id, meta, log, policy);
-    for (const key of ["provider", "model", "effort", "profile", "archivePath"]) {
-      if (action[key] !== expected[key]) refuse(`Archive action has a stale ${key}. Resume the router for a current action.`);
-    }
-    if (fs.existsSync(path.join(ROOT, expected.archivePath))) refuse("The archive destination already exists.");
-    const step = chain === "openspec" ? "os-archive" : "archive";
-    const unsupported = dispatchProblem(policy, expected, step, step);
-    if (unsupported) refuse(unsupported);
-  }
-  return p;
-}
-
-// Native sandbox uses the same config selection and cwd. Legacy sandbox_mode can be forced read-only, so failure
-// cannot establish exec's effective permissions. Exec retains its hooks and execpolicy, which this filesystem proof
-// does not exercise. Probe files have invalid ref names and are removed immediately. Commit proof uses an unrelated repo.
-const PERMISSION_PROBE = `
-import fs from "node:fs";
-import path from "node:path";
-import crypto from "node:crypto";
-import { execFileSync } from "node:child_process";
-import { removeTree } from ${JSON.stringify(new URL("./remove-tree.mjs", import.meta.url).href)};
-const [root, scratch] = process.argv.slice(2);
-const git = (args, cwd = root) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
-const gitDir = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-dir"]));
-const common = fs.realpathSync(git(["rev-parse", "--path-format=absolute", "--git-common-dir"]));
-const dirs = [...new Set([gitDir, common, path.join(common, "objects"), path.join(common, "refs"), path.join(common, "refs/heads")])];
-for (const dir of dirs) {
-  const file = path.join(fs.realpathSync(dir), ".agent-smith-probe-" + crypto.randomUUID());
-  let fd;
-  try { fd = fs.openSync(file, "wx", 0o600); fs.writeSync(fd, "permission probe"); }
-  finally { if (fd !== undefined) { fs.closeSync(fd); fs.unlinkSync(file); } }
-}
-const fixture = path.join(scratch, "git-proof");
-fs.mkdirSync(fixture);
-try {
-  git(["init", "--quiet", "--initial-branch=main", fixture]);
-  const identity = ["-c", "user.name=Agent Smith permission probe", "-c", "user.email=agent-smith@example.invalid"];
-  git([...identity, "commit", "--quiet", "--allow-empty", "-m", "chore: initialize permission proof"], fixture);
-  const linked = path.join(fixture, "linked");
-  git(["worktree", "add", "--quiet", "--detach", linked, "HEAD"], fixture);
-  fs.writeFileSync(path.join(linked, "proof.txt"), "child-owned commit proof\\n");
-  git(["add", "--", "proof.txt"], linked);
-  git([...identity, "commit", "--quiet", "-m", "test: prove child commit permissions", "-m", "Co-Authored-By: Agent Smith <agent-smith@example.invalid>"], linked);
-  if (git(["log", "-1", "--format=%s"], linked) !== "test: prove child commit permissions") throw new Error("Commit proof was not retained");
-  if (git(["status", "--porcelain"], linked)) throw new Error("Commit proof left uncommitted changes");
-  process.stdout.write(JSON.stringify({ gitDir, commonDir: common, commit: git(["rev-parse", "HEAD"], linked) }) + "\\n");
-} finally { removeTree(fixture); }
-`;
-
 function configArgs(action) {
-  return ["-C", ROOT, ...(action.profile === null ? [] : ["-p", action.profile]),
-    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=false", "--disable", "multi_agent_v2"];
+  return ["-C", ROOT, ...codexProfileArgs(action.profile),
+    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2"];
 }
 
-function readResult(message) {
-  const lines = message.split(/\r?\n/).filter((line) => /^RESULT:/.test(line));
-  if (!lines.length) refuse("The final assistant message has no RESULT line.");
-  let result;
-  try { result = JSON.parse(lines.at(-1).slice("RESULT:".length).trim()); }
-  catch { refuse("The last RESULT line is invalid JSON."); }
-  if (!isObject(result) || typeof result.status !== "string" || !result.status.trim()) refuse("RESULT must be an object with a status.");
-  if (result.status === "orchestrator-error") result.status = "unknown";
-  return result;
-}
-
-function tokenTotal(usage) {
-  if (usage === undefined || usage === null) return undefined;
-  if (!isObject(usage)) refuse("Codex returned malformed usage counters.");
-  for (const key of ["input_tokens", "output_tokens", "cached_input_tokens", "cache_write_input_tokens", "reasoning_output_tokens"]) {
-    const value = usage[key];
-    if (value !== undefined && (!Number.isSafeInteger(value) || value < 0)) refuse("Codex returned unsafe usage counters.");
+// Model-free, bounded metadata reads: inactive labels and reconstructed interrupted turns prove no closure.
+async function settledDescendants(threadId, rejectedResult, onSettled) {
+  const server = spawn("codex", ["app-server", "--stdio"], { cwd: ROOT, env: codexChildEnv(), stdio: ["pipe", "pipe", "pipe"] });
+  let sequence = 0;
+  let waiting;
+  let failure;
+  let buffer = "";
+  const decoder = new StringDecoder("utf8");
+  const fail = (message) => {
+    failure ??= new Error(message);
+    waiting?.reject(failure);
+    waiting = null;
+  };
+  const closed = new Promise((resolve) => server.once("close", resolve));
+  server.on("error", () => fail("Native metadata service could not start."));
+  server.on("close", () => fail("Native metadata service closed before reconciliation."));
+  server.stdin.on("error", () => fail("Native metadata service input failed."));
+  server.stderr.resume();
+  server.stdout.on("data", (chunk) => {
+    buffer += decoder.write(chunk);
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    if (Buffer.byteLength(buffer) > MAX_EVENT) fail("Native metadata response is oversized.");
+    for (const line of lines) {
+      if (!line.trim() || failure) continue;
+      try {
+        if (Buffer.byteLength(line) > MAX_EVENT) throw new Error();
+        const response = JSON.parse(line);
+        if (!isObject(response)) throw new Error();
+        if (!Object.hasOwn(response, "id")) continue; // host notifications carry no response
+        if (!waiting || response.id !== waiting.id || response.error || !isObject(response.result)) throw new Error();
+        const current = waiting;
+        waiting = null;
+        current.resolve(response.result);
+      } catch { fail("Native metadata response is malformed or mismatched."); }
+    }
+  });
+  let timer = setTimeout(() => fail("Native metadata reconciliation timed out."), 30000);
+  const request = (method, params) => new Promise((resolve, reject) => {
+    if (failure) { reject(failure); return; }
+    const id = ++sequence;
+    waiting = { id, resolve, reject };
+    server.stdin.write(JSON.stringify({ id, method, params }) + "\n");
+  });
+  try {
+    await request("initialize", { clientInfo: { name: "agent-smith", version: "1" }, capabilities: { experimentalApi: true } });
+    server.stdin.write(JSON.stringify({ method: "initialized", params: {} }) + "\n");
+    const settledTurn = async (id, allowFailed) => {
+      const page = await request("thread/turns/list", { threadId: id, limit: 1, sortDirection: "desc", itemsView: "notLoaded" });
+      const turn = page.data?.[0];
+      const terminal = turn?.status === "completed" || (allowFailed && turn?.status === "failed");
+      if (!Array.isArray(page.data) || page.data.length !== 1 || !terminal
+        || !Number.isSafeInteger(turn.completedAt) || turn.completedAt <= 0
+        || (turn.startedAt != null && (!Number.isSafeInteger(turn.startedAt) || turn.startedAt > turn.completedAt))) {
+        refuse(allowFailed ? "Native parent has no proven terminal latest turn."
+          : "Native parent or descendant has no proven completed latest turn.");
+      }
+      return { id, turn };
+    };
+    const threads = [await settledTurn(threadId, rejectedResult)];
+    const enumerate = async () => {
+      const descendants = new Set();
+      for (const archived of [false, true]) {
+        let cursor = null;
+        const cursors = new Set();
+        do {
+          const page = await request("thread/list", { ancestorThreadId: threadId, archived, cursor, limit: 100,
+            sourceKinds: ["cli", "vscode", "exec", "appServer", "subAgent", "subAgentReview", "subAgentCompact", "subAgentThreadSpawn", "subAgentOther", "unknown"] });
+          if (!Array.isArray(page.data) || !Object.hasOwn(page, "nextCursor")
+            || (page.nextCursor !== null && (typeof page.nextCursor !== "string" || !page.nextCursor))) {
+            refuse("Native descendant enumeration is incomplete.");
+          }
+          for (const entry of page.data) {
+            if (typeof entry?.id !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(entry.id) || entry.id === threadId) {
+              refuse("Native descendant identity is invalid.");
+            }
+            descendants.add(entry.id);
+          }
+          cursor = page.nextCursor;
+          if (cursor !== null && (cursors.has(cursor) || cursors.size >= 1000)) refuse("Native descendant pagination did not complete.");
+          cursors.add(cursor);
+        } while (cursor !== null);
+      }
+      return descendants;
+    };
+    const descendants = await enumerate();
+    for (const id of descendants) threads.push(await settledTurn(id, false));
+    // A child may have spawned another child while its first metadata read was in flight.
+    const finalDescendants = await enumerate();
+    if (finalDescendants.size !== descendants.size || [...finalDescendants].some(id => !descendants.has(id))) {
+      refuse("Native descendant membership changed during reconciliation.");
+    }
+    if (failure) throw failure;
+    onSettled();
+    if (rejectedResult) return;
+    // Closure is already proved. Optional accounting metadata cannot retain native execution ownership.
+    clearTimeout(timer);
+    const deadline = Date.now() + CODEX_USAGE_LIMITS.readMs;
+    let metadataReason;
+    timer = setTimeout(() => fail("Native usage metadata read timed out."), CODEX_USAGE_LIMITS.readMs);
+    try {
+      if (threads.length > CODEX_USAGE_LIMITS.sessions) metadataReason = "resource-limit";
+      else for (const item of threads) {
+        const response = await request("thread/read", { threadId: item.id, includeTurns: false });
+        item.metadata = response.thread;
+      }
+    } catch {
+      metadataReason = Date.now() >= deadline ? "resource-limit" : "missing-source";
+    }
+    return { threads, metadataReason, deadline };
+  } finally {
+    clearTimeout(timer);
+    server.stdin.end();
+    server.kill("SIGTERM");
+    const kill = setTimeout(() => server.kill("SIGKILL"), 1000);
+    await closed;
+    clearTimeout(kill);
   }
-  if (usage.input_tokens === undefined || usage.output_tokens === undefined) return undefined;
-  const total = usage.input_tokens + usage.output_tokens;
-  if (!Number.isSafeInteger(total)) refuse("Codex token total overflowed.");
-  return total;
 }
 
-export async function runCodex(id, chain, action) {
+export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } = {}) {
   const envelope = { action: "codex-result", launched: false, completed: false, result: null };
   let lock;
   let temp;
@@ -168,7 +164,7 @@ export async function runCodex(id, chain, action) {
       catch (error) { if (error.code !== "ESRCH") throw error; }
     };
     kill(signal);
-    killTimer ??= setTimeout(() => kill("SIGKILL"), 5000);
+    killTimer ??= setTimeout(() => kill("SIGKILL"), terminationGraceMs);
   };
   const onInt = () => terminate("SIGINT");
   const onTerm = () => terminate("SIGTERM");
@@ -178,17 +174,17 @@ export async function runCodex(id, chain, action) {
   const launch = (args, input, onStdout, model = false) => new Promise((resolve) => {
     let error;
     let streamError;
-    lock.setChild(null);
+    lock.setChild(null, model);
     try {
-      child = spawn("codex", args, { cwd: ROOT, stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
+      child = spawn("codex", args, { cwd: ROOT, env: codexChildEnv(), stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
     } catch (cause) {
-      lock.clearChild();
+      lock.clearChild(true); // synchronous spawn failure created no process
       resolve({ error: cause.code ?? "spawn error" });
       return;
     }
     child.on("spawn", () => {
       if (model) envelope.launched = true;
-      try { lock.setChild(child.pid); }
+      try { lock.setChild(child.pid, model); }
       catch { error = "child ownership could not be recorded"; terminate("SIGTERM"); }
       if (cancelled) terminate(cancelled);
     });
@@ -197,33 +193,32 @@ export async function runCodex(id, chain, action) {
       try { onStdout(chunk); }
       catch { streamError = "Codex output could not be captured."; terminate("SIGTERM"); }
     });
+    child.stdout.on("error", () => { streamError ??= "Codex output could not be captured."; });
+    child.stderr.on("error", () => { streamError ??= "Codex error output could not be drained."; });
     child.stderr.resume();
-    child.stdin.on("error", () => { /* close carries early exit and broken-pipe failures */ });
+    child.stdin.on("error", () => { streamError ??= "Codex input could not be sent."; });
     child.on("close", (code, signal) => {
       child = null;
       clearTimeout(killTimer);
       killTimer = null;
-      try { lock.clearChild(); }
+      try { if (!model || !envelope.launched) lock.clearChild(true); }
       catch (cause) { error = failureReason(cause); }
-      resolve({ code, signal, error: error ?? streamError });
+      resolve({ code, signal, error, streamError });
     });
     child.stdin.end(input);
   });
   try {
     if (!/^[a-z0-9][a-z0-9-]*$/.test(id ?? "") || !["10x", "openspec"].includes(chain)) refuse("Invalid change ID or chain.");
     lock = acquireRunLock(id, chain, refuse);
-    const policy = loadPolicy(refuse);
-    const bad = policyProblems(policy);
-    if (bad) refuse(bad);
-    validateAction(action, id, chain, policy);
+    const required = validateAction(action, id, chain, "openai");
     const tempRoot = fs.realpathSync(os.tmpdir());
-    const relativeTemp = path.relative(fs.realpathSync(ROOT), tempRoot);
-    if (relativeTemp === "" || (!relativeTemp.startsWith(".." + path.sep) && relativeTemp !== ".." && !path.isAbsolute(relativeTemp))) {
-      refuse("The OS temporary directory must be outside the run worktree. Select an external TMPDIR before retrying.");
-    }
     temp = fs.mkdtempSync(path.join(tempRoot, "agent-smith-codex-"));
     const probe = path.join(temp, "permission-probe.mjs");
-    fs.writeFileSync(probe, PERMISSION_PROBE, { mode: 0o600 });
+    fs.writeFileSync(probe, `import { proveCodexToolkit } from ${JSON.stringify(new URL("./runner-toolkit.mjs", import.meta.url).href)};
+`
+      + `try { await proveCodexToolkit(${JSON.stringify({ skill: required.skill ?? null, openspec: required.openspec, profile: action.profile })}); } catch { process.stdout.write(JSON.stringify({ toolkitUnavailable: true })); process.exit(1); }
+`
+      + PERMISSION_PROBE, { mode: 0o600 });
     let proofText = "";
     let preflightExpired = false;
     const preflightTimer = setTimeout(() => { preflightExpired = true; terminate("SIGTERM"); }, 30000);
@@ -234,7 +229,10 @@ export async function runCodex(id, chain, action) {
     } finally { clearTimeout(preflightTimer); }
     if (preflightExpired) refuse("Codex permission preflight timed out. Resolve pending Git hooks, signing or approvals before retrying. No model launched.");
     if (cancelled) refuse(`Execution cancelled by ${cancelled} during permission preflight.`);
-    if (preflight.error || preflight.code !== 0) {
+    if (preflight.code !== 0 && proofText.trim() === '{"toolkitUnavailable":true}') {
+      refuse(`Codex cannot verify ${required.skill ?? "the required toolkit"} for ${required.template}${required.openspec ? " and OpenSpec CLI 2.0.0" : ""} inside its sandbox. No model launched.`);
+    }
+    if (preflight.error || preflight.streamError || preflight.code !== 0) {
       refuse("Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox support. The native sandbox can force legacy sandbox_mode configuration to read-only, preventing proof of permission parity with exec. Resolve the unavailable or inconsistent preflight before retrying. No model launched.");
     }
     let proof;
@@ -242,21 +240,42 @@ export async function runCodex(id, chain, action) {
     if (!isObject(proof) || !/^[a-f0-9]{40,64}$/.test(proof.commit ?? "")) refuse("Codex permission proof is incomplete.");
     envelope.preflight = proof;
     // Recheck after preflight without releasing the shared lock.
-    validateAction(action, id, chain, policy);
+    validateAction(action, id, chain, "openai", required);
     const finalFile = path.join(temp, "final.txt");
     const transcript = fs.openSync(path.join(temp, "events.jsonl"), "wx", 0o600);
-    let pending = "";
-    const decoder = new StringDecoder("utf8");
+    let fragments = [];
+    let pendingBytes = 0;
+    const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
     let protocolError;
     let terminal;
+    let interrupted = false;
     let latestUsage;
     let finalMessage;
-    const event = (line) => {
-      if (!line.trim() || protocolError) return;
-      if (Buffer.byteLength(line) > MAX_EVENT) { protocolError = "Codex emitted an oversized event."; return; }
+    let delegated = false;
+    let rootThread;
+    const finishEvent = () => {
+      const bytes = Buffer.concat(fragments, pendingBytes);
+      fragments = [];
+      pendingBytes = 0;
+      let line;
+      try { line = decoder.decode(bytes); }
+      catch { protocolError = "Codex emitted invalid UTF-8 JSONL."; return; }
+      if (!line.trim()) return;
       try {
         const e = JSON.parse(line);
-        if (e.type === "turn.started") terminal = "started";
+        if (!isObject(e)) throw new Error();
+        if (e.item?.type === "collab_tool_call") delegated = true;
+        if (e.type === "thread.started" && rootThread === undefined) {
+          if (typeof e.thread_id !== "string" || !/^[a-zA-Z0-9_/-]{1,128}$/.test(e.thread_id)) throw new Error();
+          lock.setThread(e.thread_id);
+          rootThread = e.thread_id;
+        }
+        if (e.thread_id !== undefined && e.thread_id !== rootThread) return;
+        if (e.type === "turn.interrupted") interrupted = true;
+        if (e.type === "turn.started") {
+          terminal = "started";
+          finalMessage = undefined;
+        }
         if (["turn.completed", "turn.failed", "turn.interrupted", "error"].includes(e.type)) terminal = e.type;
         if (e.type === "turn.completed") latestUsage = e.usage;
         if (e.type === "item.completed" && e.item?.type === "agent_message") finalMessage = e.item.text;
@@ -265,33 +284,72 @@ export async function runCodex(id, chain, action) {
     const start = process.hrtime.bigint();
     let completion;
     try {
-      completion = await launch(["exec", ...configArgs(action), "-m", action.model, "--json", "--ephemeral", "-o", finalFile, "-"], action.prompt, (chunk) => {
+      completion = await launch(["exec", ...configArgs(action), "-m", action.model, "--json", "-o", finalFile, "-"], action.prompt, (chunk) => {
         fs.writeSync(transcript, chunk);
-        if (protocolError) return;
-        pending += decoder.write(chunk);
-        const lines = pending.split("\n");
-        pending = lines.pop();
-        for (const line of lines) event(line);
-        if (Buffer.byteLength(pending) > MAX_EVENT) { protocolError = "Codex emitted an oversized event."; pending = ""; }
+        for (let start = 0; start < chunk.length && !protocolError;) {
+          const newline = chunk.indexOf(0x0a, start);
+          const end = newline < 0 ? chunk.length : newline;
+          pendingBytes += end - start;
+          if (pendingBytes > MAX_EVENT) { protocolError = "Codex emitted an oversized event."; break; }
+          fragments.push(chunk.subarray(start, end));
+          if (newline < 0) break;
+          finishEvent();
+          start = newline + 1;
+        }
       }, true);
     } finally { fs.closeSync(transcript); }
     envelope.usage = { durationMs: Number((process.hrtime.bigint() - start) / 1000000n) };
     envelope.exitCode = completion.code;
     envelope.signal = completion.signal;
-    pending += decoder.end();
-    if (pending) event(pending);
-    const total = tokenTotal(latestUsage);
-    if (total !== undefined) envelope.usage.totalTokens = total;
-    if (cancelled) refuse(`Execution cancelled by ${cancelled}. The child has closed.`);
+    if (!protocolError && pendingBytes) finishEvent();
+    if (cancelled) refuse(`Execution cancelled by ${cancelled}. Native settlement is unverified.`);
     if (completion.error) refuse(`Codex launch failed (${completion.error}).`);
-    if (completion.code !== 0) refuse("Codex exited unsuccessfully. The child result was not accepted.");
+    if (completion.streamError) refuse(completion.streamError);
+    if (completion.signal) refuse(`Codex exited on signal ${completion.signal}. The child result was not accepted.`);
     if (protocolError) refuse(protocolError);
-    if (terminal !== "turn.completed") refuse("Codex has no final successful completed turn.");
-    const stat = fs.lstatSync(finalFile);
-    if (!stat.isFile() || stat.size > MAX_MESSAGE) refuse("Codex final message file is missing or oversized.");
-    const reply = fs.readFileSync(finalFile, "utf8");
-    if (typeof finalMessage !== "string" || finalMessage !== reply) refuse("Codex final file does not match the final assistant message.");
-    envelope.result = { ...readResult(reply), usage: envelope.usage };
+    if (interrupted && action.action === "run") refuse("The Codex root turn was interrupted.");
+    if (!rootThread) refuse("Missing native parent identity.");
+    const canSettleFailure = envelope.launched && action.action === "run";
+    let rejection;
+    let result;
+    let reply;
+    if (completion.code !== 0) {
+      rejection = "Codex exited unsuccessfully. The child result was not accepted.";
+      if (!canSettleFailure || !Number.isInteger(completion.code)) refuse(rejection);
+    } else if (canSettleFailure && terminal === "turn.failed") {
+      rejection = "Codex has no final successful completed turn.";
+    } else {
+      if (terminal !== "turn.completed") refuse("Codex has no final successful completed turn.");
+      const stat = fs.lstatSync(finalFile);
+      if (!stat.isFile() || stat.size > MAX_MESSAGE) refuse("Codex final message file is missing or oversized.");
+      reply = fs.readFileSync(finalFile, "utf8");
+      if (typeof finalMessage !== "string" || finalMessage !== reply) refuse("Codex final file does not match the final assistant message.");
+      try { result = readResult(reply, action); }
+      catch (error) {
+        if (!canSettleFailure) throw error;
+        rejection = failureReason(error);
+      }
+    }
+    let settled;
+    try {
+      settled = await settledDescendants(rootThread, Boolean(rejection), () => {
+        if (cancelled) refuse(`Execution cancelled by ${cancelled} during native reconciliation.`);
+        lock.clearChild(true);
+      });
+    } catch (error) {
+      if (rejection) refuse(`${rejection} Native settlement failed: ${failureReason(error)}`);
+      throw error;
+    }
+    if (rejection) refuse(rejection);
+    const accounting = collectCodexUsage({ rootThreadId: rootThread, ...settled, delegated, execUsage: latestUsage });
+    Object.assign(envelope.usage, accounting.usage);
+    envelope.usageEvidence = accounting.usageEvidence;
+    envelope.result = { ...result, usage: envelope.usage, usageEvidence: envelope.usageEvidence };
+    if (accounting.usageEvidence.status === "unavailable") {
+      const assumptions = Array.isArray(result.assumptions) ? result.assumptions : [];
+      envelope.result.assumptions = [...assumptions,
+        `Codex observed step-tree token coverage is unavailable (${accounting.usageEvidence.reason}); totalTokens omitted. Duration measures the enclosing exec including child waits.`];
+    }
     envelope.completed = true;
     if (action.action === "archive") envelope.reply = reply;
   } catch (error) {
@@ -301,7 +359,16 @@ export async function runCodex(id, chain, action) {
     clearTimeout(killTimer);
     if (temp) {
       try { removeTree(temp); }
-      catch { envelope.completed = false; envelope.reason = "Codex temporary-file cleanup failed."; }
+      catch {
+        envelope.completed = false;
+        envelope.reason = [envelope.reason, "Codex temporary-file cleanup failed."].filter(Boolean).join(" ").slice(0, 2048);
+      }
+    }
+    const retained = lock?.retainedReason();
+    if (retained) {
+      envelope.completed = false;
+      envelope.result = null;
+      envelope.reason = (retained + " " + (envelope.reason ?? "")).slice(0, 2048);
     }
     lock?.release();
     process.removeListener("SIGINT", onInt);

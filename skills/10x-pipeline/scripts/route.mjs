@@ -11,7 +11,7 @@
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
 //   node route.mjs compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]   # read-only: usage of a routed run against a baseline run
 //                                      # --unpinned: the baseline is a routed run too (scorer off), for the scorer A/B
-//   node route.mjs usage  <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N]   # attach a late usage figure to executed step <n>
+//   node route.mjs usage  <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])   # late usage
 //   Every command takes --chain 10x|openspec. Without it, a run whose openspec/changes/<id>/agent-smith/meta.json
 //   (or that of its archive folder) holds chain "openspec" is an OpenSpec run; any other run is 10x.
 //
@@ -20,48 +20,32 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
+import { normalizeAccounting, cleanInvocation, readBoundedFile, accountingFor, usageCoverage, usageFigure, addFigures } from "./usage.mjs";
 import {
   ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
-  readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
+  inspectMeta, readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
-  providerOf, hostOf, hostProblem, dispatchTarget,
+  providerOf, hostOf, selectionProblem, providersByStep, stepPolicy, dispatchTarget,
   prCommentField,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
 import { beforeExtra, doneNotes, manualRows, tierFor, render } from "./steps.mjs";
 import { readOpenspec, decideOpenspec, missingChangeReason } from "../../openspec-pipeline/scripts/openspec.mjs";
 import {
-  writeReport, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, stepAgent,
-  advisorOn, neutralRetry, cleanUsage, dispatchProblem, ruleTail, checkRules, prepareHandoff, publishHandoff, cleanupHandoff,
+  writeReport, finishRun, endRun, lessonLimits, attachResult, decide, promptText, checkPrompts, promptProblem, artifactsLine, dispatchAgent,
+  advisorOn, neutralRetry, neutralPending, cleanUsage, dispatchProblem, ruleTail, checkRules, prepareHandoff, publishHandoff, cleanupHandoff,
+  replanRecoveryProblem,
 } from "./flow.mjs";
 import {
   provenanceConfig, provenanceRecord, recordDrift, provenanceWarnings, authorityLine, gitMessage, notWorkTree,
-  isolationOn, isolationCheck, worktreeLine, startCommit, stepCommit, fileTimes, setTimes, writeState, rollback,
+  isolationOn, isolationCheck, worktreeLine, startCommit, stepCommit, fileTimes, resumeTimes, rollback, undoRollback, legacyReviewProblem,
   archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
+import { initPermissionWarnings } from "./init-permissions.mjs";
+import { initUsageWarning } from "./init-usage.mjs";
 
-// The undo on halt: the next call that rolled back ends in a halt, so the final failure keeps its partial edits for a
-// human. The branch goes back to the head the failed step left, the worktree holds the snapshot (files the step added
-// are untracked again, staged files come back unstaged), the router state and the file times the step left are
-// written back, and the entry says `kept`. Returns null or the git failure.
-// The undo of a rollback made by this call of next, for main's catch: set after the rollback, cleared by every halt
-// that runs the undo itself.
+// Only the call that made a rollback can undo it on halt. Recovery in a new process restores timestamps only.
 let undoOnError = null;
-
-function undoRollback(p, meta, log, rb) {
-  const hard = rb.g(["reset", "-q", "--hard", rb.ref]);
-  if (hard.status !== 0) return `git reset --hard ${rb.ref} failed: ${gitMessage(hard)}.`;
-  const mixed = rb.g(["reset", "-q", `${rb.ref}^`]);
-  if (mixed.status !== 0) {
-    return `git reset ${rb.ref}^ failed: ${gitMessage(mixed)}. The run branch now points at the snapshot commit of ${rb.ref}; ` +
-      `run git reset -q ${rb.ref}^ in the run worktree before resuming.`;
-  }
-  delete rb.last.rolledBack;
-  rb.last.kept = rb.ref;
-  writeState(p, meta, log);
-  setTimes(p, rb.left);
-  return null;
-}
 
 // A 10x run needs change.md (same text as decide in flow.mjs); halt before any write of init, next and status --report.
 function haltNoChangeMd(p, id) {
@@ -79,6 +63,20 @@ function ruleProblem(policy) {
   }
 }
 
+// A logged run's host and mode cannot be recovered without its metadata.
+function missingMetadataProblem(p, meta) {
+  return meta === null && fs.existsSync(p.log)
+    ? `Cannot read an object from ${p.meta} for the existing run. Recover its metadata before continuing. Nothing was written.`
+    : null;
+}
+
+function mutationMeta(p) {
+  const meta = readMeta(p.meta, null);
+  const problem = missingMetadataProblem(p, meta);
+  if (problem) halt(problem);
+  return meta;
+}
+
 function next(id, policy, chain = "10x", validatedLog = null) {
   const p = paths(id, policy, chain);
   const openspec = chain === "openspec";
@@ -86,33 +84,62 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   // The router never creates an OpenSpec change (D3), so a missing folder halts before agent-smith/ is made.
   if (openspec && !fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
   if (!openspec) haltNoChangeMd(p, id);
-  const meta = readMeta(p.meta, { id, goal: "" });
+  const meta = mutationMeta(p) ?? { id, goal: "" };
+  if (isolationOn(policy) && meta.isolated !== true) {
+    halt("isolation.require is on and meta.json does not record an isolated run. Run init first, in the run worktree. Nothing was written.");
+  }
   const log = validatedLog ?? readLog(p.log).entries;
+  const visibility = { providerMode: meta.providerMode ?? "legacy", providersByStep: providersByStep(policy, meta) };
+  const bad = selectionProblem(policy, meta, !neutralPending(p, log, policy));
+  if (bad) halt(bad);
   checkPrompts(policy);
   cleanupStateTemps(p.dir);
   fs.mkdirSync(p.dir, { recursive: true });
+  resumeTimes(p, id, meta, log, policy);
   // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
   // any other case returns here and goes on as before.
-  neutralRetry(p, id, meta, log, policy);
-  attachResult(p, log, policy);
+  neutralRetry(p, id, meta, log, policy, visibility);
+  const ranNow = executed(log);
+  const lastRan = ranNow.at(-1);
+  const previousOutcome = lastRan?.result ? meta.outcome : null;
+  const justFailedReview = attachResult(p, log, policy);
   cleanupHandoff(p, log);
+  const failedReplan = !openspec && lastRan?.template === "plan-replan" && isFailure(lastRan);
+  const replanPlan = failedReplan ? readPlan(p.plan, { fingerprint: true }) : null;
+  const replanProblem = failedReplan ? replanRecoveryProblem(lastRan, replanPlan, previousOutcome) : null;
+  // A first halt restores the failed step's partial edits. Compare future repairs with those bytes, before rollback.
+  if (replanProblem && !lastRan.replanAck && !Object.hasOwn(lastRan, "planBaseline")) {
+    lastRan.planBaseline = replanPlan.fingerprint;
+  }
   // An isolated run commits what a successful step left before risk, rigor and decide read the files.
   stepCommit(p, id, meta, log, policy);
   // An isolated run rolls a failed step back before risk, rigor and decide read the files. When this call ends in a
   // halt instead of a next step, the rollback is undone first, so the partial edits stay for a human.
-  const rb = rollback(p, id, meta, log, policy);
-  // A router error later in this call ends it in main's catch, which runs the same undo.
-  if (rb) undoOnError = () => undoRollback(p, meta, log, rb);
+  const rb = failedReplan && !replanProblem ? null : rollback(p, id, meta, log, policy);
+  const undoFailure = () => {
+    const failure = undoRollback(p, meta, log, rb);
+    if (!failure || rb.last.kept) return failure;
+    return `The rollback was not undone: ${failure} The partial edits are kept under ${rb.ref}.`;
+  };
+  // A router error later in this call runs the same undo. Finalize any incomplete timestamp restoration.
+  if (rb) undoOnError = (reason) => {
+    const failure = undoFailure();
+    const updated = `${reason} ${failure ?? "The rollback of the failed step was undone; its partial edits are back in the worktree."}`;
+    if (isObject(rb.last.timestamps)) {
+      out(finishRun(p, id, meta, log, { action: "halt", reason: updated, steps: executed(log).length }), 1);
+    }
+    return updated;
+  };
   const end = (result) => {
     undoOnError = null;
     if (rb && result.action === "halt") {
-      const failed = undoRollback(p, meta, log, rb);
-      if (failed) result = { ...result, reason: `${result.reason} The rollback was not undone: ${failed} The partial edits are kept under ${rb.ref}.` };
+      const failure = undoFailure();
+      if (failure) result = { ...result, reason: `${result.reason} ${failure}` };
     }
-    return endRun(p, id, meta, log, result);
+    return endRun(p, id, meta, log, { ...visibility, ...result });
   };
 
-  const planNow = readPlan(p.plan);
+  const planNow = (!rb && replanPlan) || readPlan(p.plan);
   const risk = planNow.exists ? measureRisk(p, meta, log, policy) : null;
   const { level, changed } = resolveRigor(meta, log, policy, planNow, risk);
   // A policy, prompt or agent edit since the record adds its section to provenance.drift; meta.json is written only then.
@@ -120,16 +147,25 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   if (changed || drifted) writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
 
   // A subagent that cannot decide from evidence stops the run once. The ack lives on the log entry.
-  const ranNow = executed(log);
-  const lastRan = ranNow[ranNow.length - 1];
+  let humanReason = "";
   if (lastRan?.signals?.needsHuman && !lastRan.needsHumanAck) {
     lastRan.needsHumanAck = true;
-    return end({
-      action: "halt",
-      reason: `Step ${lastRan.n} (${lastRan.step}) needs a human: ${lastRan.signals.needsHuman}`,
-      steps: ranNow.length,
-    });
+    humanReason = `Step ${lastRan.n} (${lastRan.step}) needs a human: ${lastRan.signals.needsHuman}`;
   }
+  if (failedReplan) {
+    // An acknowledgement without a baseline records a qualifying legacy edit. Later halts can replace meta.outcome.
+    lastRan.replanAck = true;
+    if (replanProblem) {
+      const checked = lastRan.before?.done;
+      const keep = Array.isArray(checked) && checked.length ? ` (${checked.join(", ")})` : "";
+      const commit = meta.isolated === true ? " Commit the repair before resuming so a later rollback preserves it." : "";
+      const reason = `${replanProblem} Needs a human.${humanReason ? ` ${humanReason}.` : ""} ` +
+        `Edit plan.md in the run worktree, keep the previously checked Automated rows${keep}, and leave at least one pending Automated row under ## Progress.` +
+        `${commit} Rerun the pipeline or resume with init or next.`;
+      return end({ action: "halt", reason, steps: ranNow.length });
+    }
+  }
+  if (humanReason) return end({ action: "halt", reason: humanReason, steps: ranNow.length });
 
   const budget = Math.max(1, policy.limits.maxTotalSteps + (policy.rigor.budgetDelta?.[level] ?? 0));
 
@@ -139,9 +175,10 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   const skippedNow = new Set();
   const loggedBefore = log.length;
   let d;
+  const legacyReviewCheck = meta.isolated === true ? (file, attempt) => legacyReviewProblem(file, attempt, policy) : null;
   for (;;) {
     // The OpenSpec chain has its own order (ADR-013 D4) and no score, pre-plan, executor or manual-verify step.
-    d = openspec ? decideOpenspec(p, log, policy, meta) : decide(p, log, policy, meta, { level, risk });
+    d = openspec ? decideOpenspec(p, log, policy, meta) : decide(p, log, policy, meta, { level, risk, justFailedReview, legacyReviewCheck });
     if (!d.skip) break;
     if (skippedNow.has(d.skip.step)) {
       return end({ action: "halt", reason: "Router error: skip loop", steps: executed(log).length });
@@ -160,7 +197,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
     writeLog(p.log, log);
   }
   const ran = executed(log);
-  if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d);
+  if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d, visibility);
   if (d.halt || d.done) {
     return end(d.done
       ? {
@@ -170,6 +207,8 @@ function next(id, policy, chain = "10x", validatedLog = null) {
       : { action: "halt", reason: d.halt, steps: ran.length });
   }
 
+  const reviewDiagnostic = d.reviewFailure ? " " + d.reviewFailure : "";
+
   // The budget halts only a run that still has a step to run; done and decide's own halts win (issue #87).
   if (budgetSteps(log) >= budget) {
     // This halt decides nothing: the skips logged above are dropped, so the resumed run decides them again from the
@@ -178,16 +217,17 @@ function next(id, policy, chain = "10x", validatedLog = null) {
       log.length = loggedBefore;
       writeLog(p.log, log);
     }
-    return end({ action: "halt", reason: `Step budget ${budget} spent.` });
+    return end({ action: "halt", reason: `Step budget ${budget} spent.${reviewDiagnostic}` });
   }
 
   // An OpenSpec run has no plan (p.plan is null), so tierFor gets the empty summary: no phase bump, no simple discount.
   const plan = readPlan(p.plan);
   // The score shift reads the summary from the log, never complexity.json.
   const riskClear = riskMeasured(risk) && risk.hits.length === 0;
-  const { tier, fails, simple, cheap, tierWhy, scoreShift: shifted } = tierFor(d, ran, policy, plan, meta, level, { summary: scoreSummary(log), riskClear });
+  const selected = stepPolicy(policy, meta, d.step, d.template);
+  const { tier, fails, simple, cheap, tierWhy, scoreShift: shifted } = tierFor(d, ran, selected, plan, meta, level, { summary: scoreSummary(log), riskClear });
   if (fails >= policy.escalation.maxAttemptsPerStep) {
-    return end({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}` });
+    return end({ action: "halt", reason: `${d.step} failed ${fails} times in a row. Last note: ${ran[ran.length - 1]?.result?.note ?? "none"}${reviewDiagnostic ? "." + reviewDiagnostic : ""}` });
   }
 
   // A continued run must not keep the outcome of an earlier end.
@@ -196,9 +236,12 @@ function next(id, policy, chain = "10x", validatedLog = null) {
     writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
 
-  const target = dispatchTarget(policy, tier);
-  const template = d.step === "manual-verify" && target.provider === "openai" && meta.chrome !== false
-    ? "manual-verify-openai" : d.template ?? d.step;
+  const target = dispatchTarget(selected, tier);
+  let template = d.template ?? d.step;
+  if (d.step === "manual-verify" && meta.chrome !== false) {
+    if (target.provider === "openai") template = "manual-verify-openai";
+    else if (hostOf(meta) === "codex") template = "manual-verify-headless";
+  }
   const unsupported = dispatchProblem(policy, target, d.step, template);
   if (unsupported) return end({ action: "halt", reason: unsupported, steps: ran.length });
   const vars = {
@@ -216,7 +259,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   const prompt = worktreeLine(policy, meta) + render(promptText(policy, template), vars).trim()
     + (advisor ? "\n\n" + render(promptText(policy, "advisor"), vars).trim() : "")
     + "\n\n" + ruleTail(policy, { chain, step: d.step, vars });
-  const agent = stepAgent(policy, d.step);
+  const agent = dispatchAgent(policy, target, d.step);
   const entry = {
     n: ran.length + 1,
     step: d.step,
@@ -245,12 +288,12 @@ function next(id, policy, chain = "10x", validatedLog = null) {
       return end({ action: "halt", reason: `Cannot read the start commit of step ${entry.n} (${d.step}) of an isolated run: ${why}. Fix git in the run worktree, then run next again.`, steps: ran.length });
     }
     entry.startSha = startSha;
-    // The file times decide compares, so a rollback can set them back after the reset (0 when a file is absent).
-    entry.before.mtimes = fileTimes(p);
   }
+  // Rollback restores these times. Review verification also uses them to detect an untouched artifact.
+  if (meta.isolated === true || d.step === "plan-review" || d.step === "impl-review") entry.before.mtimes = fileTimes(p);
   if (d.verdict) entry.verdict = d.verdict; // the review verdict that caused this step
   if (d.step === "score") entry.advisory = true; // the score only advises: a failed attempt is neutral and uses no budget
-  if (agent) entry.agent = agent; // the restricted agent type the step was dispatched with (agents.restricted)
+  if (agent) entry.agent = agent; // the selected Claude agent type, retained for exact neutral replay
   if (advisor) entry.advisor = true; // the prompt carried the advisor rules (advisor.enabled); no consult is verified
   if (shifted) entry.scoreShift = shifted;
   if (cheap) entry.cheap = true; // the first-attempt drop survived the score shift, the clamp and the floor
@@ -259,6 +302,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   if (Array.isArray(d.retry)) entry.retry = d.retry;
   if (d.step === "manual-verify") {
     const copy = (rows) => rows.map(({ id: rid, text, done }) => ({ id: rid, text, done }));
+    entry.browserEvidence = template === "manual-verify" ? "chrome" : "local";
     entry.before.manual = copy(manualRows(plan));
     entry.before.auto = copy(plan.phaseList.flatMap((ph) => ph.auto));
   }
@@ -269,6 +313,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   writeLog(p.log, log);
   out({
     action: "run",
+    ...visibility,
     change: id, root: ROOT, chain,
     n: entry.n,
     step: d.step,
@@ -427,53 +472,49 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
   const found = locateSide(dirArg, id, side, chain);
   const { entries: log, logProblems } = readLog(path.join(found.dir, "run.jsonl"), { tolerant: true });
   const meta = readMeta(path.join(found.dir, "meta.json"), {});
-  const steps = executed(log);
+  const steps = executed(log).map((entry) => ({ ...entry, ...accountingFor(entry) }));
+  const coverage = usageCoverage(steps);
   const skipped = log.filter((e) => e.skipped).map((e) => (typeof e.step === "string" ? e.step : "unknown"));
-  const figure = (key) => {
-    let total = 0;
-    let withFigures = 0;
-    for (const e of steps) {
-      const v = e.usage?.[key];
-      // A running total past the safe-integer range counts as a missing figure, so the pair is not comparable.
-      if (validFigure(v) && !Number.isSafeInteger(total + v)) continue;
-      if (validFigure(v)) { total += v; withFigures++; }
-    }
-    return { total, stepsWithFigures: withFigures };
-  };
+  const figure = (key) => usageFigure(steps, key);
   // Tokens per model alias, and per tier as <model>/<effort>: byModel cannot show an effort move.
-  const byModel = {};
-  const byTier = {};
-  const byProviderModel = {};
-  const byProviderTier = {};
+  const byModel = Object.create(null);
+  const byTier = Object.create(null);
+  const byProviderModel = Object.create(null);
+  const byProviderTier = Object.create(null);
+  const group = (groups, key, value) => { groups[key] = addFigures(Object.hasOwn(groups, key) ? groups[key] : 0, value); };
   for (const e of steps) {
     const v = e.usage?.totalTokens;
     if (!validFigure(v)) continue;
     const model = typeof e.model === "string" && e.model ? e.model : "unknown";
     const effort = typeof e.effort === "string" && e.effort ? e.effort : "unknown";
-    byModel[model] = (byModel[model] ?? 0) + v;
-    byTier[`${model}/${effort}`] = (byTier[`${model}/${effort}`] ?? 0) + v;
+    group(byModel, model, v);
+    group(byTier, `${model}/${effort}`, v);
     const providerModel = `${providerOf(e)}/${model}`;
-    byProviderModel[providerModel] = (byProviderModel[providerModel] ?? 0) + v;
-    byProviderTier[`${providerModel}/${effort}`] = (byProviderTier[`${providerModel}/${effort}`] ?? 0) + v;
+    group(byProviderModel, providerModel, v);
+    group(byProviderTier, `${providerModel}/${effort}`, v);
   }
   // The cost estimate at a blended rate: USD in total and per alias over priced steps, summed before rounding.
   let cost = null;
   if (prices) {
     const est = estimateCost(steps, prices);
-    const usdByModel = {};
-    const usdByProviderModel = {};
+    const usdByModel = Object.create(null);
+    const usdByProviderModel = Object.create(null);
     for (const e of steps) {
       const usd = est.perEntry[e.n];
-      if (typeof usd !== "number") continue;
       const model = typeof e.model === "string" && e.model ? e.model : "unknown";
-      usdByModel[model] = (usdByModel[model] ?? 0) + usd;
-      const providerModel = `${providerOf(e)}/${model}`;
-      usdByProviderModel[providerModel] = (usdByProviderModel[providerModel] ?? 0) + usd;
+      if (!validFigure(e.usage?.totalTokens) || !Object.hasOwn(prices.usdPerMillionTokens, model)) continue;
+      const addCost = (groups, key) => {
+        const current = Object.hasOwn(groups, key) ? groups[key] : 0;
+        groups[key] = current === null || usd === null || !Number.isFinite(current + usd) ? null : current + usd;
+      };
+      addCost(usdByModel, model);
+      addCost(usdByProviderModel, `${providerOf(e)}/${model}`);
     }
     cost = {
       usd: est.priced ? roundUsd(est.usd) : null, priced: est.priced, withFigures: est.withFigures, unpriced: est.unpriced,
       byModel: Object.fromEntries(Object.entries(usdByModel).map(([m, v]) => [m, roundUsd(v)])),
       byProviderModel: Object.fromEntries(Object.entries(usdByProviderModel).map(([m, v]) => [m, roundUsd(v)])),
+      ...(coverage.verified ? { scope: "enclosing-dispatch-routing-rate" } : {}),
     };
   }
   const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
@@ -501,6 +542,9 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
     outcome: meta.outcome?.action ?? null,
     provenance: isObject(meta.provenance) ? meta.provenance : null,
     steps: steps.length,
+    usageCoverage: coverage,
+    usageSteps: steps.map((entry) => ({ n: entry.n, step: entry.step, usage: entry.usage, tokenScope: entry.tokenScope, usageEvidence: entry.usageEvidence ?? null })),
+    groupingScope: "enclosing-dispatch",
     skipped,
     failedAttempts: steps.filter(isFailure).length,
     plan,
@@ -566,9 +610,11 @@ function comparePair(id, flags, policy, chain = "10x") {
   const providers = new Set(sides.flatMap(([, side]) => Object.keys(side.tokens.byProviderModel).map((key) => key.split("/")[0])));
   if (providers.size > 1) warnings.push("cross-provider-raw-tokens");
   for (const [name, s] of sides) {
+    if (s.logProblems?.length) reasons.push(`log-problems:${name}`);
     if (s.steps === 0) reasons.push(`no-steps:${name}`);
     if (s.outcome !== "done") reasons.push(`outcome-not-done:${name}`);
     if (s.steps > 0 && s.tokens.stepsWithFigures < s.steps) reasons.push(`usage-incomplete:${name}`);
+    if ([s.tokens, s.toolUses, s.durationMs].some((figure) => figure.total === null)) reasons.push(`usage-overflow:${name}`);
   }
   const baselineComplete = baseline.steps > 0 && baseline.tokens.stepsWithFigures === baseline.steps;
   if (baselineComplete && baseline.tokens.total === 0) reasons.push("baseline-total-zero");
@@ -590,6 +636,10 @@ function comparePair(id, flags, policy, chain = "10x") {
   const expected = provenanceConfig(policy).expected[unpinned ? "unpinned" : "pinned"];
   warnings.push(...provenanceWarnings(sides.map(([name, s]) => [name, s.provenance]), expected));
 
+  const verified = sides.some(([, side]) => side.usageCoverage.verified > 0);
+  const legacy = sides.some(([, side]) => side.usageCoverage.legacy > 0);
+  if (verified && legacy) reasons.push("usage-scope-mismatch");
+  else if (legacy) warnings.push("legacy-usage-scope");
   const comparable = reasons.length === 0;
   let dropPercent = null;
   let verdict = "not comparable";
@@ -619,21 +669,22 @@ function compareMarkdown(pair) {
   const { baseline: b, routed: r } = pair;
   const row = (label, f) => `| ${label} | ${f(b)} | ${f(r)} |`;
   const list = (a) => (a.length ? a.join(", ") : "none");
-  const withSteps = (key) => (s) => `${s[key].total} (${s[key].stepsWithFigures} of ${s.steps})`;
+  const shown = (value) => value === null ? "- (overflow)" : value;
+  const withSteps = (key) => (s) => `${s[key].stepsWithFigures ? shown(s[key].total) : "-"} (${s[key].stepsWithFigures} of ${s.steps})`;
   const models = (s) => {
     const names = Object.keys(s.tokens.byModel).sort();
-    return names.length ? names.map((m) => `${m} ${s.tokens.byModel[m]}`).join(", ") : "none";
+    return names.length ? names.map((m) => `${m} ${shown(s.tokens.byModel[m])}`).join(", ") : "none";
   };
   const tiers = (s) => {
     const names = Object.keys(s.tokens.byTier).sort();
-    return names.length ? names.map((t) => `${t} ${s.tokens.byTier[t]}`).join(", ") : "none";
+    return names.length ? names.map((t) => `${t} ${shown(s.tokens.byTier[t])}`).join(", ") : "none";
   };
   // Cost rows print only when compare ran with prices; both sides are priced from the same table.
   const priced = b.cost !== null && r.cost !== null;
   const costCell = (s) => `${s.cost.usd === null ? "-" : `$${s.cost.usd.toFixed(2)}`} (${s.cost.priced} of ${s.cost.withFigures} priced)`;
   const costModels = (s) => {
     const names = Object.keys(s.cost.byModel).sort();
-    return names.length ? names.map((m) => `${m} $${s.cost.byModel[m].toFixed(2)}`).join(", ") : "none";
+    return names.length ? names.map((m) => `${m} ${s.cost.byModel[m] === null ? "-" : `$${s.cost.byModel[m].toFixed(2)}`}`).join(", ") : "none";
   };
   return [
     `# Usage comparison: ${pair.change}`,
@@ -651,14 +702,20 @@ function compareMarkdown(pair) {
     row("Duration (ms)", withSteps("durationMs")),
     row("Plan phases and rows", (s) => (s.plan ? `${s.plan.phases} and ${s.plan.rows}` : "none")),
     row("Source", (s) => s.source),
+    row("Token coverage (verified / unavailable / legacy / missing)", (s) => { const c = s.usageCoverage; return `${c.verified} / ${c.unavailable} / ${c.legacy} / ${c.missing}`; }),
     "",
+    "Provider/model/tier groups describe the enclosing dispatch.",
+    ...[["baseline", b], ["routed", r]].filter(([, s]) => s.tokens.stepsWithFigures > 0 && s.tokens.stepsWithFigures < s.steps).map(([name]) => `Token total for ${name} is a subtotal (incomplete coverage).`),
+    ...[["baseline", b], ["routed", r]].flatMap(([name, s]) => s.usageSteps.filter((entry) => entry.usageEvidence?.status === "unavailable").map((entry) => `Unavailable ${name} step ${entry.n}: ${entry.usageEvidence.reason} — ${entry.usageEvidence.explanation}`)),
+    ...(priced && (b.usageCoverage.verified || r.usageCoverage.verified) ? ["Cost is a routing-rate approximation: child usage can be priced at the enclosing dispatch rate."] : []),
+    ...(pair.warnings.includes("legacy-usage-scope") ? ["Legacy token figures have unverified scope."] : []),
     `Tokens by model, baseline: ${models(b)}`,
     `Tokens by model, routed: ${models(r)}`,
     `Tokens by tier, baseline: ${tiers(b)}`,
     `Tokens by tier, routed: ${tiers(r)}`,
     ...(priced ? [`Cost by model, baseline: ${costModels(b)}`, `Cost by model, routed: ${costModels(r)}`] : []),
-    `Tokens by provider/model, baseline: ${Object.entries(b.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${value}`).join(", ") || "none"}`,
-    `Tokens by provider/model, routed: ${Object.entries(r.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${value}`).join(", ") || "none"}`,
+    `Tokens by provider/model, baseline: ${Object.entries(b.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${shown(value)}`).join(", ") || "none"}`,
+    `Tokens by provider/model, routed: ${Object.entries(r.tokens.byProviderModel).sort().map(([key, value]) => `${key} ${shown(value)}`).join(", ") || "none"}`,
     "",
     `Baseline pinned to sonnet at high effort: ${pair.pinned ? "yes" : "no"}`,
     `Drop: ${pair.dropPercent === null ? "none" : `${pair.dropPercent}%`} (rounded down to 2 decimals; the verdict uses exact tokens)`,
@@ -684,18 +741,33 @@ function compareCommand(id, flags, policy, chain = "10x") {
 
 function status(id, flags, chain = "10x", policy = null) {
   const p = paths(id, null, chain);
-  // A moved OpenSpec run halts as archived instead of printing an empty log.
-  if (chain === "openspec") guardArchived(p, id);
+  // Plain OpenSpec status also reports a moved run as archived instead of printing an empty log.
+  if (chain === "openspec" || flags.report) guardArchived(p, id);
+  if (flags.report) {
+    if (chain === "openspec") {
+      if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
+    } else haltNoChangeMd(p, id);
+  }
+  const { meta: stored, problem } = flags.report ? { meta: mutationMeta(p), problem: null } : inspectMeta(p.meta);
+  const recovery = problem ?? missingMetadataProblem(p, stored);
   const { entries: log, logProblems } = readLog(p.log, { tolerant: !flags.report });
   // The cost estimate, only when the merged policy prices a model; without prices status has no cost key.
   const prices = loadPrices();
-  const cost = prices ? estimateCost(executed(log), prices) : null;
-  const stored = readMeta(p.meta, {});
+  const normalized = executed(log).map((entry) => ({ ...entry, ...accountingFor(entry) }));
+  const coverage = usageCoverage(normalized);
+  const cost = prices ? estimateCost(normalized, prices) : null;
   const res = {
     change: id,
     ...(logProblems.length ? { logProblems } : {}),
-    host: hostOf(stored),
-    rigor: stored.rigor?.level ?? null,
+    host: recovery ? null : hostOf(stored),
+    providerMode: recovery ? null : stored?.providerMode ?? "legacy",
+    ...(recovery ? { metadataProblem: recovery } : {}),
+    usageCoverage: coverage,
+    tokens: usageFigure(normalized, "totalTokens"),
+    toolUses: usageFigure(normalized, "toolUses"),
+    durationMs: usageFigure(normalized, "durationMs"),
+    groupingScope: "enclosing-dispatch",
+    rigor: stored?.rigor?.level ?? null,
     ...prCommentField(stored),
     steps: log.map((e) => e.skipped ? {
       skipped: true, step: e.step, reason: e.reason, rigor: e.rigor ?? null, afterN: e.afterN ?? null, risk: e.risk ?? null,
@@ -704,7 +776,8 @@ function status(id, flags, chain = "10x", policy = null) {
       n: e.n, step: e.step, template: e.template ?? null, provider: providerOf(e), model: e.model, effort: e.effort, simple: e.simple ?? null,
       ...(providerOf(e) === "openai" ? { profile: e.profile ?? null } : {}),
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
-      usage: e.usage ?? null,
+      ...accountingFor(e),
+      usageEvidence: accountingFor(e).usageEvidence ?? null,
       ...(cost ? { cost: typeof cost.perEntry[e.n] === "number" ? roundUsd(cost.perEntry[e.n]) : null } : {}),
       ...(e.step === "manual-verify" ? {
         ticked: e.ticked?.length ?? 0,
@@ -732,12 +805,13 @@ function status(id, flags, chain = "10x", policy = null) {
     })),
   };
   // status stays usable on a broken policy; the fault shows here, and init, next and usage halt on it.
-  const policyProblem = policyProblems(policy) ?? promptProblem(policy);
+  const policyProblem = policyProblems(policy, false) ?? (recovery ? null : selectionProblem(policy, stored ?? {})) ?? promptProblem(policy);
   if (policyProblem) res.policyProblem = policyProblem;
   if (cost) {
     res.cost = {
       usd: cost.priced ? roundUsd(cost.usd) : null, currency: "USD", rate: "blended",
       priced: cost.priced, withFigures: cost.withFigures, unpriced: cost.unpriced,
+      ...(coverage.verified ? { scope: "enclosing-dispatch-routing-rate" } : {}),
     };
   }
   // The OpenSpec state the router reads from files, as the contract test compares it with `openspec instructions apply`.
@@ -746,13 +820,8 @@ function status(id, flags, chain = "10x", policy = null) {
     res.openspec = { planningComplete: os.planningComplete, tasks: { total: os.tasks.total, complete: os.tasks.complete } };
   }
   if (flags.report) {
-    guardArchived(p, id);
-    if (chain === "openspec") {
-      if (!fs.existsSync(p.change)) halt(`No change folder openspec/changes/${id}.`);
-    } else haltNoChangeMd(p, id);
-    const meta = readMeta(p.meta, { id, goal: "" });
     cleanupStateTemps(p.dir);
-    res.report = writeReport(p, id, meta, log);
+    res.report = writeReport(p, id, stored ?? { id, goal: "" }, log);
   }
   out(res);
 }
@@ -764,25 +833,47 @@ const USAGE_FLAGS = [["tokens", "totalTokens"], ["tool-uses", "toolUses"], ["dur
 
 // Attaches a usage figure that reached the orchestrator after `next` ran to executed step <n>. A refusal prints
 // { action: "usage", attached: false, n, reason }, exits 1 and writes nothing. A figure is never overwritten.
-function usageCommand(id, rest, flags, policy, chain = "10x") {
+function usageCommand(id, rest, flags, policy, chain, meta) {
   const refuse = (reason, n = null) => out({ action: "usage", attached: false, n, reason }, 1);
   // Arguments first, before anything is read. <n> directly follows the change id; a flag there is no step number.
   const rawN = rest[0];
   if (typeof rawN !== "string" || !/^[1-9]\d*$/.test(rawN) || !Number.isSafeInteger(Number(rawN))) {
-    refuse("Usage: route.mjs usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] [--chain 10x|openspec]; <n> is the step number, a positive integer that directly follows the change id.");
+    refuse("Usage: route.mjs usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) [--chain 10x|openspec]; <n> is the step number, a positive integer that directly follows the change id.");
   }
   const n = Number(rawN);
-  const raw = {};
-  for (const [flag, key] of USAGE_FLAGS) {
-    if (flags[flag] === undefined) continue;
-    const v = flags[flag];
-    if (typeof v !== "string" || !/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) {
-      refuse(`--${flag} needs a non-negative integer, got ${v === true ? "no value" : JSON.stringify(v)}.`, n);
+  const structured = flags["usage-file"] !== undefined;
+  let payload;
+  let accounting;
+  let usage;
+  if (structured) {
+    if (typeof flags["usage-file"] !== "string" || !flags["usage-file"].trim()) refuse("--usage-file needs a local file path.", n);
+    if (USAGE_FLAGS.some(([flag]) => flags[flag] !== undefined)) refuse("--usage-file cannot be mixed with numeric usage flags.", n);
+    try {
+      payload = JSON.parse(readBoundedFile(path.resolve(ROOT, flags["usage-file"]), { root: ROOT }));
+    } catch {
+      refuse("--usage-file must be a bounded, stable regular JSON file within the run root.", n);
     }
-    raw[key] = Number(v);
+    if (!isObject(payload) || payload.change !== id || payload.chain !== chain || payload.n !== n || typeof payload.step !== "string") {
+      refuse("--usage-file change, chain, n and step must identify this completed invocation.", n);
+    }
+    accounting = normalizeAccounting(payload.usage, payload.usageEvidence);
+    if (!isDeepStrictEqual(cleanUsage(payload.usage), payload.usage) || accounting.usageEvidence?.status !== "verified") {
+      refuse("--usage-file requires valid numeric usage and verified accounting evidence.", n);
+    }
+    usage = accounting.usage;
+  } else {
+    const raw = {};
+    for (const [flag, key] of USAGE_FLAGS) {
+      if (flags[flag] === undefined) continue;
+      const v = flags[flag];
+      if (typeof v !== "string" || !/^\d+$/.test(v) || !Number.isSafeInteger(Number(v))) {
+        refuse(`--${flag} needs a non-negative integer, got ${v === true ? "no value" : JSON.stringify(v)}.`, n);
+      }
+      raw[key] = Number(v);
+    }
+    usage = cleanUsage(raw);
+    if (!usage) refuse("Give at least one of --tokens, --tool-uses and --duration-ms, or --usage-file.", n);
   }
-  const usage = cleanUsage(raw);
-  if (!usage) refuse("Give at least one of --tokens, --tool-uses and --duration-ms.", n);
 
   const p = paths(id, policy, chain);
   guardArchived(p, id, chain);
@@ -792,12 +883,38 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   const entry = executed(log).find((e) => e.n === n);
   if (!entry) refuse(`Step ${n} is not logged.`, n);
   if (!isObject(entry.result)) refuse(`Step ${n} (${entry.step}) has no result yet; put the figure in its result file.`, n);
-  const base = { action: "usage", attached: true, n, step: entry.step, usage };
-  if (entry.usage !== undefined) {
-    if (isDeepStrictEqual(entry.usage, usage)) out({ ...base, unchanged: true, report: null, commit: null });
-    refuse(`Step ${n} (${entry.step}) already has the figure ${JSON.stringify(entry.usage)}; a figure is never overwritten.`, n);
+  let evidence;
+  if (structured) {
+    const recorded = normalizeAccounting(entry.usage, entry.usageEvidence).usageEvidence;
+    const identity = cleanInvocation(recorded?.invocation);
+    if (payload.step !== entry.step || !identity || !isDeepStrictEqual(identity, accounting.usageEvidence.invocation)
+        || recorded.source !== accounting.usageEvidence.source || recorded.hostVersion !== accounting.usageEvidence.hostVersion) {
+      refuse("Structured usage must match the recorded host invocation and step exactly.", n);
+    }
+    for (const key of ["toolUses", "durationMs"]) {
+      if (Object.hasOwn(usage, key) && usage[key] !== entry.usage?.[key]) {
+        refuse(`Structured usage cannot fill or replace ${key}.`, n);
+      }
+    }
+    if (entry.usage?.totalTokens !== undefined && entry.usage.totalTokens !== usage.totalTokens) {
+      refuse("A recorded token total is never overwritten.", n);
+    }
+    evidence = accounting.usageEvidence;
+    usage = { ...entry.usage, totalTokens: usage.totalTokens };
+    if (entry.usage?.totalTokens !== undefined) {
+      if (isDeepStrictEqual(entry.usage, usage) && isDeepStrictEqual(entry.usageEvidence, evidence)) {
+        out({ action: "usage", attached: true, n, step: entry.step, usage, usageEvidence: evidence, unchanged: true, report: null, commit: null });
+      }
+      refuse("An existing token measurement and its evidence are immutable.", n);
+    }
+  } else {
+    if (entry.usageEvidence !== undefined) refuse("A recorded evidence contract requires --usage-file.", n);
+    if (entry.usage !== undefined) {
+      if (isDeepStrictEqual(entry.usage, usage)) out({ action: "usage", attached: true, n, step: entry.step, usage, unchanged: true, report: null, commit: null });
+      refuse(`Step ${n} (${entry.step}) already has the figure ${JSON.stringify(entry.usage)}; a figure is never overwritten.`, n);
+    }
   }
-  const meta = readMeta(p.meta, { id, goal: "" });
+  const base = { action: "usage", attached: true, n, step: entry.step, usage, ...(evidence ? { usageEvidence: evidence } : {}) };
   const ended = isObject(meta.outcome);
   // The archive state: the run is done, started with --archive, and the folder is committed for /10x-archive. Everything
   // is checked before the first write, because the write dirties the folder and only a commit cleans it again.
@@ -809,6 +926,7 @@ function usageCommand(id, rest, flags, policy, chain = "10x") {
   const oldBytes = archiveState ? [p.log, p.report].map((file) => [file, fs.existsSync(file) ? fs.readFileSync(file) : null]) : [];
   cleanupStateTemps(p.dir);
   entry.usage = usage;
+  if (evidence) entry.usageEvidence = evidence;
   entry.usageLate = true;
   writeLog(p.log, log);
   // An ended run has a report; rewrite it so the Tokens column, the totals and the cost include the figure.
@@ -856,9 +974,9 @@ const CHAINS = ["10x", "openspec"];
 // `tenx` is true when a live 10x run holds its own agent-smith/meta.json, and only then does --chain openspec contradict it.
 // An archived OpenSpec run does not claim a name that a 10x change uses, live (context/changes/<id>/) or archived
 // (context/archive/<date>-<id>/), so the 10x skill, which never passes --chain, keeps reaching its own change.
-function storedChain(id) {
+function storedChain(id, allowDamaged) {
   const p = paths(id, null, "openspec");
-  const isOpenspec = (file) => readMeta(file, {}).chain === "openspec";
+  const isOpenspec = (file) => (allowDamaged ? inspectMeta(file).meta : readMeta(file, null))?.chain === "openspec";
   const tenx = fs.existsSync(paths(id, null, "10x").meta);
   if (fs.existsSync(p.change)) return { chain: isOpenspec(p.meta) ? "openspec" : null, live: true, tenx };
   if (fs.existsSync(path.join(ROOT, "context/changes", id)) || archiveDirs(id, "10x").length) return { chain: null, live: false, tenx };
@@ -871,7 +989,8 @@ function storedChain(id) {
 // applies, else 10x. init without the flag halts on a live OpenSpec run; on a name only an archived OpenSpec run
 // holds it resolves to openspec, so the archive guard halts it as archived.
 function resolveChain(cmd, id, flags) {
-  const stored = storedChain(id);
+  const allowDamaged = flags.chain === "openspec" && (cmd === "verify-archive" || (cmd === "status" && !flags.report));
+  const stored = storedChain(id, allowDamaged);
   if (flags.chain === undefined) {
     if (cmd === "init" && stored.chain === "openspec" && stored.live) {
       halt(`Change ${id} is an OpenSpec run: openspec/changes/${id}/agent-smith/meta.json holds chain "openspec". A 10x init does not apply; resume it with --chain openspec. Nothing was written.`);
@@ -890,12 +1009,12 @@ function resolveChain(cmd, id, flags) {
 // ---- main -----------------------------------------------------------------
 
 // The flags init reads; any other flag halts it.
-const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "pr-comment"];
+const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "provider-mode", "pr-comment"];
 
-function main() {
+async function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> --tokens N [--tool-uses N] [--duration-ms N] | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
+    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--host claude|codex] [--provider-mode claude|codex|split] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest, ["goal"]);
   // --chain is checked before anything is read.
@@ -911,26 +1030,20 @@ function main() {
   if (flags["pr-comment"] !== undefined && cmd !== "init") {
     halt("--pr-comment is an init option. Nothing was written.");
   }
+  const requestedMode = flags["provider-mode"];
+  if (requestedMode !== undefined && (cmd !== "init" || !["claude", "codex", "split"].includes(requestedMode))) {
+    halt("--provider-mode is an init option and needs claude, codex or split. Nothing was written.");
+  }
   const policy = loadPolicy();
   // A malformed cap, ladder or tier halts before the chain, the run lock or any write.
   if (["init", "next", "usage"].includes(cmd)) {
-    const bad = policyProblems(policy) ?? promptProblem(policy) ?? ruleProblem(policy);
+    const bad = policyProblems(policy, false) ?? promptProblem(policy) ?? ruleProblem(policy);
     if (bad) halt(bad);
   }
   const chain = resolveChain(cmd, id, flags);
   // openspec/changes/archive/ is OpenSpec's archive root, so the name archive cannot be an OpenSpec change.
   if (chain === "openspec" && id === "archive") {
     halt("The change name archive is reserved: openspec/changes/archive/ is OpenSpec's archive folder. Use another name. Nothing was written.");
-  }
-  if (["init", "next", "usage"].includes(cmd)) {
-    const p = paths(id, null, chain);
-    const stored = readMeta(p.meta, {});
-    const host = cmd === "init" ? flags.host ?? hostOf(stored) : hostOf(stored);
-    if (cmd === "init" && fs.existsSync(p.meta) && host !== hostOf(stored)) {
-      halt(`Run host is ${hostOf(stored)}; --host ${host} cannot resume it. Use the original host or a new change. Nothing was written.`);
-    }
-    const incompatible = hostProblem(policy, host);
-    if (incompatible) halt(incompatible);
   }
   if (["next", "usage"].includes(cmd) || (cmd === "status" && flags.report)) acquireRunLock(id, chain);
 
@@ -986,8 +1099,21 @@ function main() {
       }
     }
     if (chain !== "openspec") haltNoChangeMd(p, id);
+    const stored = mutationMeta(p);
     const { entries: log } = readLog(p.log);
-    const prev = readMeta(p.meta, {});
+    const prev = stored ?? {};
+    const host = flags.host ?? hostOf(prev);
+    const existing = stored !== null;
+    if (existing && host !== hostOf(prev)) {
+      halt(`Run host is ${hostOf(prev)}; --host ${host} cannot resume it. Use the original host or a new change. Nothing was written.`);
+    }
+    if (existing && requestedMode !== undefined && requestedMode !== prev.providerMode) {
+      halt(`Run provider mode is ${prev.providerMode ?? "legacy (ladder-driven)"}; --provider-mode ${requestedMode} cannot resume it. Nothing was written.`);
+    }
+    const selection = { ...prev, host, chain, ...(existing ? {} : { providerMode: requestedMode ?? host }) };
+    const neutralReplay = neutralPending(p, log, policy) ? executed(log).at(-1) : null;
+    const incompatible = selectionProblem(policy, selection, !neutralReplay);
+    if (incompatible) halt(incompatible);
     // No flag keeps the stored value, so a resume of an archive run is checked again.
     if ((archive ?? prev.archive) === true) {
       const timeout = policy.archive?.gitTimeoutMs;
@@ -1004,12 +1130,14 @@ function main() {
     // set only at an init whose log has no executed entry, so a run is isolated from its first step or not at all.
     const fresh = executed(log).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
+    initPermissionWarnings(policy, selection, neutralReplay);
+    await initUsageWarning(policy, selection, neutralReplay);
     cleanupStateTemps(p.dir);
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
     const goal = typeof flags.goal === "string" && flags.goal.trim() ? flags.goal : typeof prev.goal === "string" ? prev.goal : "";
     // Keep every stored field (rigor and whatever later changes add); a stored rigor that is no object is dropped.
-    const meta = { ...prev, id, goal, host: flags.host ?? hostOf(prev) };
+    const meta = { ...prev, id, goal, host, ...(existing ? {} : { providerMode: selection.providerMode }) };
     if (!isObject(prev.rigor)) delete meta.rigor;
     if (archive !== undefined) meta.archive = archive;
     if (chrome !== undefined) meta.chrome = chrome;
@@ -1047,7 +1175,10 @@ function main() {
   } else if (cmd === "risk") {
     riskCommand(id, policy, chain);
   } else if (cmd === "usage") {
-    usageCommand(id, rest, flags, policy, chain);
+    const stored = mutationMeta(paths(id, policy, chain)) ?? { id, goal: "" };
+    const bad = selectionProblem(policy, stored, false);
+    if (bad) halt(bad);
+    usageCommand(id, rest, flags, policy, chain, stored);
   } else if (cmd === "verify-archive") {
     verifyArchive(id, flags, chain);
   } else if (cmd === "compare") {
@@ -1058,7 +1189,7 @@ function main() {
 }
 
 try {
-  main();
+  await main();
 } catch (e) {
   // Never a stack trace: a bad policy or a bad file ends the run with JSON.
   let reason = `Router error: ${e instanceof Error ? e.message : String(e)}`;
@@ -1066,9 +1197,9 @@ try {
   if (undoOnError) {
     const undo = undoOnError;
     undoOnError = null;
-    let failed;
-    try { failed = undo(); } catch (u) { failed = u instanceof Error ? u.message : String(u); }
-    reason += failed ? ` The rollback was not undone: ${failed}` : " The rollback of the failed step was undone; its partial edits are back in the worktree.";
+    try { reason = undo(reason); } catch (u) {
+      reason += ` The rollback was not undone: ${u instanceof Error ? u.message : String(u)}`;
+    }
   }
   halt(reason);
 }

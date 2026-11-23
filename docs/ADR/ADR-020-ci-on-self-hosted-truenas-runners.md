@@ -1,6 +1,6 @@
 # ADR-020: Run CI on self-hosted TrueNAS runners
 
-- **Status:** Accepted (unattended plan and implementation runs of change `ci-self-hosted-truenas` for the readings below; CI has run on the runners since, as uid 0, so the non-root prerequisite is not met yet); amended (Amendment 1)
+- **Status:** Accepted, amended (Amendments 1 through 3)
 - **Date:** 2026-11-11
 - **Deciders:** the repository owner (goal of change `ci-self-hosted-truenas`)
 - **Origin:** change `ci-self-hosted-truenas` (`context/changes/ci-self-hosted-truenas/plan.md`). It touches the CI job of ADR-008; no earlier decision is superseded.
@@ -46,8 +46,8 @@ The repository holds no runner setup. A runner for this repository needs:
 
 ## Assumptions
 
-- The runners provide the prerequisites above. The owner has not confirmed this against the real hosts yet (Progress row 2.3). The uid part did not hold on the first reading: CI run 43134692634 ran as uid 0 (Amendment 1).
-- The fork approval setting is "Require approval for all external contributors". No file of the repository can check it, and no Progress row covers it; `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval` reads it, and `approval_policy` must be `all_external_contributors`. On 2026-11-11 it read `first_time_contributors`, so this assumption does not hold until the owner changes the setting.
+- The owner confirmed the operational TrueNAS setup on 2026-11-15 (Progress row 2.3). Main CI run 43703539173 on that date recorded runner version 2.338.2, Node 24.22.3, Git 2.53.0, writable test scratch storage and the passing non-root guard. CI run 43134692634 ran as uid 0 on the first historical reading (Amendment 1).
+- The fork approval setting is "Require approval for all external contributors". On 2026-11-15 the read-only command `gh api repos/xycu/agent-smith/actions/permissions/fork-pr-contributor-approval --jq .approval_policy` returned `all_external_contributors`. Progress row 3.5 records this check. The 2026-11-11 reading was `first_time_contributors`.
 
 ## Consequences
 
@@ -70,3 +70,22 @@ The repository holds no runner setup. A runner for this repository needs:
 - **Decision:** the first step of job `test` in `ci.yml`, `Refuse to run as root (ADR-020)`, runs `test "$(id -u)" -ne 0` and fails the job with an `::error::` line at uid 0, before checkout and before any model-written code runs. A root runner fails closed. The hosted fallback (`ubuntu-latest`, fork pull requests) runs as the non-root user `runner` and passes. `tools/test/ci-runner.test.mjs` pins the step as first in the job and proves that its command fails for uid 0 and passes for another uid.
 - **Owner action:** run the runner service as a non-root user, or run each job in a fresh non-root container. The work dataset path (`/mnt/main/lake/github/agent-smith-<n>/`) must be writable by that user. Whether uid 0 came from the host service or from a container is unknown. Do this before merging, because after the merge a root runner fails every `test` run and `release.yml` waits for a green `main` run.
 - **Not claimed:** this amendment does not say the runners are fixed. The proof is a CI run on the TrueNAS runner that passes the uid step (Progress rows 2.2 to 2.4 of change `ci-runner-non-root`).
+
+
+## Amendment 2 — acceptance verified on 2026-11-15
+
+The owner confirmed that the TrueNAS installation works. Read-only API evidence reports six online labelled runners and the required fork approval policy. Same-repository PR CI run 43701664098 passed both jobs on TrueNAS. Main CI run 43703539173 passed the non-root guard and complete test suite on TrueNAS. Its logs show runner version 2.338.2, Node 24.22.3, Git 2.53.0 and the configured writable scratch directory.
+
+On 2026-11-15, none of the 177 pull requests examined came from a fork. All eight automated cases evaluating the two runner-selection expressions at that revision passed, including fork fallback to `ubuntu-latest`. The conditional live-fork check is recorded as not applicable to the available PRs. Historical findings remain in Amendment 1 and the original implementation review. [TrueNAS runner and fork-fallback evidence](../../context/archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md)
+
+## Amendment 3 — OpenSpec install and runner trust boundary
+
+All six CI test shards install OpenSpec 2.0.0 in a fresh prefix with `--ignore-scripts`, which suppresses npm lifecycle scripts during installation. The dependency tree remains unlocked, so transitive versions can change between runs. Running the CLI for the version check and contract fixtures still executes package and dependency code. [CI install step](../../.github/workflows/ci.yml#L52)
+
+Same-repository pull requests run CI and PR title jobs on TrueNAS. Pushes to `main` run the six test shards there. Fork pull requests select `ubuntu-latest` under the repository's workflow, and release jobs run on `ubuntu-latest`. A fork can change its proposed workflow, including runner selection, so the owner reviews workflow changes before approving an external run. [CI](../../.github/workflows/ci.yml) · [PR title](../../.github/workflows/pr-title.yml) · [Release](../../.github/workflows/release.yml)
+
+The fork approval gate is **Settings → Actions → General → Fork pull request workflows from outside collaborators**. The required value is **Require approval for all external contributors**, which holds their fork workflow runs for review before execution. The read-only GitHub API check recorded on 2026-11-15 returned `all_external_contributors`, which matches the required value. The earlier reading of `first_time_contributors` on 2026-11-11 fell short of this requirement. On 2026-11-22 the owner stated that the setting "Require approval for all external contributors" is still true today. This is the owner's statement, relayed through the maintaining session, and no API reading was taken on that date. [Archived acceptance, rows 3.5 and 3.6](../../context/archive/2026-11-11-ci-self-hosted-truenas/evidence/acceptance-2026-11-15.md#rows-35-and-36)
+
+The owner accepted on 2026-11-21 that people, tokens and automation with write access to this repository can cause code to run on TrueNAS via a same-repository pull request without fork approval. This includes branches published by Agent Smith. [Owner decision and accepted residual risk](../../context/changes/ci-self-hosted-runner-exposure/frame.md#accepted-residual-risk)
+
+D4 requires limiting LAN routes to what CI needs. On 2026-11-22 the owner stated that the runner can reach nothing else on the home network: no other hosts or services. This is the owner's statement, relayed through the maintaining session; no network test in this repository supports it. Manual acceptance also requires green published PR CI across all six shards, with OpenSpec 2.0.0 verified and all five real contract cases passing without skips. [Manual acceptance checklist](../../context/changes/ci-self-hosted-runner-exposure/plan.md#manual)

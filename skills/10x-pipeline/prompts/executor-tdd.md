@@ -1,6 +1,6 @@
 Unattended rules for /10x-tdd. No human answers, so every ask point of the skill has a fixed answer here. You drive phase {phase} to phase {lastPhase} of context/changes/{id}/plan.md test-first and stop there. A redirect, a stop or a refusal of the skill is a normal ending: report it as status `blocked`, never as `failed`, and never set `signals.needsHuman` for it.
 
-Load the installed `10x-tdd` skill through the host's native skill mechanism. The suffix forbids every delegation tool, including `spawn_agent`.
+Load the installed `10x-tdd` skill through the host's native skill mechanism. Delegation follows the shared child contract; the enclosing step retains gates, Progress and authorized commits.
 
 ## Rules
 
@@ -17,5 +17,5 @@ Load the installed `10x-tdd` skill through the host's native skill mechanism. Th
 - **GIVEN** the skill asks whether to run /10x-impl-review between phases **WHEN** you answer **THEN** you **MUST** skip it, because the router runs the review.
 - **GIVEN** the skill would copy a command to the clipboard **WHEN** you hand off or stop **THEN** you **MUST NOT** run pbcopy, clip.exe, xclip or Set-Clipboard.
 - **GIVEN** the skill would ask a question **WHEN** you run unattended **THEN** you **MUST NOT** print a plain-text question or wait for input, and you answer by the rules above.
-- **GIVEN** `/10x-tdd` would hand a search, an analysis, a test or the code of a phase to a subagent **WHEN** you run it in this step **THEN** you **MUST** do that work yourself in this subagent and call no Agent or Task tool.
+- **GIVEN** `/10x-tdd` delegates bounded work **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract and collect every child before the enclosing step verifies and reports its outcome.
 - **GIVEN** a test stays red after the skill's fix attempts **WHEN** you cannot make it pass **THEN** you **MUST** finish with status `failed` and a note that names the test, and you do not skip, delete or weaken it.

@@ -113,7 +113,7 @@ Open findings decide the route. The measured header counts remain the fallback a
 
 ## Unverified assumptions
 
-- No live run has used the halt text, `onOpen: "retry"` or a confirmation round. The wording of the way back in is checked by tests and by reading, not by an owner on a halted run.
+- The original run checked the halt wording and scratch confirmation route in rows 2.6 and 3.6. S-19 owns current live qualification for owner-decision halts. [Original checks](../../context/archive/2026-11-04-review-open-findings/plan.md#progress) · [S-19](../../context/foundation/roadmap.md#s-19-truthful-verification-and-owner-decision-halts)
 - The word lists are the ones the review skills write today. A skill that changes its triage words needs `review.openFindings.closedDecisions` updated; an unknown word reads as open and halts.
 - Whether a confirmation round finds problems that the first round missed, and whether that is worth its tokens, is not measured. The default stays 0 until a project reports a run.
 - The tolerance of 1 for both reviews is the plan review's shipped value. Whether the implementation review wants a different tolerance is the owner's call; the shared key is the smaller change.

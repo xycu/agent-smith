@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md 'Direction (for the plan to confirm)' offers two fixes (second exclusive takeover link vs. re-read after a wait); the fix shape is open, though the outcome is fixed" },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/scripts/run-lock.mjs already uses temp-file plus fs.linkSync exclusivity; the takeover guard adapts that same pattern" },
+    "coupling": { "score": 2, "evidence": "lock path and format in skills/10x-pipeline/scripts/run-lock.mjs are read by state.mjs, route.mjs, run-claude.mjs, run-codex.mjs and pr-common.mjs, and must stay compatible across plugin versions (change.md Constraints)" },
+    "discovery": { "score": 1, "evidence": "goal and change.md name the lock code; one grep for lockRunDirectory and acquireRunLock located it. change.md line numbers (state.mjs:990-1021) are stale: the logic now lives in run-lock.mjs lockRunDirectory" },
+    "volume": { "score": 1, "evidence": "a few edits in run-lock.mjs, its message text, and a new multi-process test in skills/10x-pipeline/test/run-lock.test.mjs" },
+    "verification": { "score": 2, "evidence": "goal requires a multi-process test asserting non-overlapping hold intervals over enough rounds; the existing run-lock.test.mjs has no such harness part, so a new one is needed and timing-sensitive" }
+  },
+  "unknowns": [
+    "change.md line references (state.mjs:990-1021, state.mjs:1001-1004, 1018-1019) no longer match the code; the plan must confirm the current location in run-lock.mjs",
+    "round count and timing budget needed for the overlap test to fail reliably before the fix",
+    "whether the 'native' ownership check and the busy message wording are covered by existing tests that pin exact text"
+  ],
+  "confidence": "medium"
+}

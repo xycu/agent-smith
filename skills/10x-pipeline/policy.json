@@ -9,6 +9,7 @@
     { "model": "opus",   "effort": "xhigh" },
     { "model": "opus",   "effort": "max" }
   ],
+  "splitProviders": { "10x": { "otherSteps": ["plan", "implement"], "hostTemplates": {} } },
   "codex": { "profile": null },
   "steps": {
     "plan":        { "skill": "10x-plan",           "baseTier": 5, "minTier": 2, "maxTier": 7, "interactive": true },
@@ -47,7 +48,7 @@
     "noisyPlanReviewBump": 1,
     "hardChangeReviewerBump": 1,
     "cleanReviewDrop": 1,
-    "firstAttempt": { "drop": 1, "templates": ["implement", "implement-segment", "implement-tdd", "implement-e2e"] }
+    "firstAttempt": { "drop": 0, "templates": ["implement", "implement-segment", "implement-tdd", "implement-e2e"] }
   },
   "review": {
     "reviseToleranceWarnings": 1,
@@ -118,6 +119,7 @@
     "require": true,
     "defaultBranches": ["main", "master"],
     "branchPrefix": "agent-smith/",
+    "integrationBranch": null,
     "gitTimeoutMs": 120000,
     "commit": { "message": "chore({id}): step {n} {step}", "startMessage": "chore({id}): start run" },
     "rollback": { "ref": "refs/agent-smith/{id}/{run}/failed-{n}" }
@@ -219,13 +221,13 @@
       "@prompts/plan-review-confirm.md",
       "@prompts/plan-review-apply.md"
     ],
-    "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md.\n- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.\n- **GIVEN** a phase changed files outside `context/changes/{id}/` **WHEN** its gates pass **THEN** you **MUST** commit those files before you write the RESULT line, under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`.",
+    "implement": "Run /10x-goal-implement {id}\nImplement every pending #### Automated row of context/changes/{id}/plan.md.\n- **GIVEN** `/10x-goal-implement` delegates phase code or a gate fix **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract, collect the work and retain gates, Progress and authorized commits in this enclosing step.\n- **GIVEN** a phase changed files outside `context/changes/{id}/` **WHEN** its gates pass **THEN** you **MUST** commit those files before you write the RESULT line, under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`.",
     "impl-review": [
       "Run /10x-impl-review context/changes/{id}/plan.md\nReview the full plan. Save the report to context/changes/{id}/reviews/impl-review.md.",
       "@prompts/impl-review-apply.md",
       "@prompts/impl-review-lessons.md"
     ],
-    "fix": "Fix the findings in context/changes/{id}/reviews/impl-review.md (verdict: {verdict}). Fix every CRITICAL finding, then every WARNING with a clear fix. Stay inside the plan's scope. Run the plan's automated success criteria and the test suite. Commit with Conventional Commits (fix: ...). Do not edit ## Progress or the review file.",
+    "fix": "Fix the findings in context/changes/{id}/reviews/impl-review.md (verdict: {verdict}). Fix every CRITICAL finding, then every WARNING with a clear fix. Stay inside the plan's scope. Run the plan's automated success criteria and the test files that cover the files you changed (not the full suite, CI runs it). Commit with Conventional Commits (fix: ...). Do not edit ## Progress or the review file.",
     "archive": "Run /10x-archive {id}\n- **GIVEN** `/10x-archive` would ask its warnings question and every warning is pending Manual Progress rows only, Progress rows without a SHA suffix, a status other than `implemented` or `impl_reviewed`, or a SHA history diagnostic **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Continue archiving` (the label may read `Continue archiving (Recommended)`; match the prefix).\n- **GIVEN** `/10x-archive` would ask its repoint question (`Update and archive`, `Archive without repointing`, `Cancel`) and no listed warning is a blocking warning **WHEN** you are an unattended subagent **THEN** you **MUST** proceed as if the answer were `Archive without repointing` (the Polish label `Archiwizuj bez podmiany` is the same answer).\n- **GIVEN** the SHA history check finds no remote, integration branch, implementation PR or integrating commit, or its `git fetch` fails, or it reports SHAs outside the target history **WHEN** the skill would ask you to identify, confirm or choose any of them **THEN** you **MUST** skip repointing, treat the diagnostics as warnings and answer the warnings question by the rules here, without asking.\n- **GIVEN** `/10x-archive` tells you to ask a question as plain text and wait because no question tool exists **WHEN** the question is the warnings question, the repoint question or a SHA history question **THEN** you **MUST NOT** ask it or end your turn to wait, and you continue in the same turn with the answer given here.\n- **GIVEN** the warnings include `Uncertain review coverage`, `Missing review coverage for phases`, `No impl-review found`, `No plan.md found`, a pending Automated row or pending Progress rows with no Automated and Manual breakdown (these are the blocking warnings), or `/10x-archive` stops on a hard block or asks a question not covered here **WHEN** you cannot continue **THEN** you **MUST** finish with status `blocked` and the printed reason in `note`.\n- **GIVEN** a blocking warning is listed **WHEN** the skill also shows its repoint question or its warnings question **THEN** the blocking rule above **MUST** win over the answers given here, and you answer neither question.\n- **GIVEN** `/10x-archive` prints a warning, a SHA diagnostic or a roadmap notice **WHEN** you write the RESULT line **THEN** you **MUST** copy each one into `assumptions`.\n- **GIVEN** `/10x-archive` has finished or stopped **WHEN** you have more to do **THEN** you **MUST NOT** write any file under `context/changes/{id}/` or `context/archive/`.",
     "research": [
       "Run /10x-research {id} {goal}\nWrite the findings to context/changes/{id}/research.md."
@@ -258,7 +260,7 @@
     "implement-segment": [
       "Run /10x-goal-implement {id} phase {phase}\nImplement every pending #### Automated row of phases {phase} to {lastPhase} in context/changes/{id}/plan.md.",
       "- **GIVEN** phase {lastPhase} is done **WHEN** later phases still have pending rows **THEN** you **MUST NOT** start them.",
-      "- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.",
+      "- **GIVEN** `/10x-goal-implement` delegates phase code or a gate fix **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract, collect the work and retain gates, Progress and authorized commits in this enclosing step.",
       "- **GIVEN** a phase changed files outside `context/changes/{id}/` **WHEN** its gates pass **THEN** you **MUST** commit those files before you write the RESULT line, under a Conventional Commits subject `<type>({id}): <summary>` whose type is `feat`, `fix`, `refactor`, `perf`, `test` or `docs`, never `chore`."
     ],
     "implement-e2e": [
@@ -321,6 +323,13 @@
       "- **GIVEN** this step runs through the OpenAI runner **WHEN** a row needs a browser **THEN** you **MUST NOT** call Claude-in-Chrome tools or invent browser calls, screenshots or browser evidence.",
       "- **GIVEN** a covering test, command or script proves a Browser row **WHEN** you save its evidence **THEN** you **MUST** use test-, command- or script-prefixed evidence and begin it with `Browser: unavailable (OpenAI runner has no Claude-in-Chrome integration)`.",
       "- **GIVEN** no covering test, command or script proves a Browser row **WHEN** you update plan.md **THEN** you **MUST** leave it at `[ ]` and record `- <row id> — Browser unavailable (OpenAI runner has no Claude-in-Chrome integration), no covering proof` in `evidence/unproven.md`."
+    ],
+    "manual-verify-headless": [
+      "Prove the pending #### Manual rows of context/changes/{id}/plan.md on your own, and tick only the rows you proved. Rows rejected by the router last time: {unproven}. Browser rows: {browserRows}",
+      "@prompts/manual-verify.md",
+      "- **GIVEN** this step runs through the headless Claude runner **WHEN** a row needs a browser **THEN** you **MUST NOT** call Claude-in-Chrome tools or invent browser calls, screenshots or browser evidence.",
+      "- **GIVEN** a covering test, command or script proves a Browser row **WHEN** you save its evidence **THEN** you **MUST** use test-, command- or script-prefixed evidence and begin it with `Browser: unavailable (headless Claude runner has no Claude-in-Chrome integration)`.",
+      "- **GIVEN** no covering test, command or script proves a Browser row **WHEN** you update plan.md **THEN** you **MUST** leave it at `[ ]` and record `- <row id> — Browser unavailable (headless Claude runner has no Claude-in-Chrome integration), no covering proof` in `evidence/unproven.md`."
     ],
     "manual-verify-nochrome": [
       "Prove the pending #### Manual rows of context/changes/{id}/plan.md on your own, and tick only the rows you proved. Rows rejected by the router last time: {unproven}. Browser rows: {browserRows}",

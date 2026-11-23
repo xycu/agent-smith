@@ -210,6 +210,12 @@ export function writeLog(project, entries) {
   fs.writeFileSync(path.join(project.agentDir, "run.jsonl"), entries.map((e) => JSON.stringify(e)).join("\n") + "\n");
 }
 
+// Seed an initialized run. Use writeLog alone to replace entries or model a missing metadata file.
+export function seedRun(project, entries, meta = {}) {
+  writeMetaFile(project, { id: project.id, goal: "", host: "claude", providerMode: "claude", ...meta });
+  writeLog(project, entries);
+}
+
 // ---- git -------------------------------------------------------------------
 
 export function gitAvailable() {

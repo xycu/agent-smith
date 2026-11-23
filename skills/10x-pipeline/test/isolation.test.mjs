@@ -61,6 +61,7 @@ test("2.1 policy.json ships the isolation block on, and the worktree prompt wire
     require: true,
     defaultBranches: ["main", "master"],
     branchPrefix: "agent-smith/",
+    integrationBranch: null,
     gitTimeoutMs: 120000,
     commit: { message: "chore({id}): step {n} {step}", startMessage: "chore({id}): start run" },
     rollback: { ref: "refs/agent-smith/{id}/{run}/failed-{n}" },
@@ -68,6 +69,10 @@ test("2.1 policy.json ships the isolation block on, and the worktree prompt wire
   assert.equal(POLICY.prompts.worktree, "@prompts/worktree.md");
   assert.ok(RULES.includes("{workdir}"));
   assert.doesNotMatch(RULES, /\b(sonnet|opus|haiku|fable|effort|tier|model)\b/i);
+  // A Codex child read the old blanket rule as a ban on reading installed skills outside the worktree.
+  assert.match(RULES, /installed skill, plugin or tool file lies outside `\{workdir\}`.*\*\*MAY\*\* read it where it lies/);
+  assert.match(RULES, /a file lies outside `\{workdir\}`.*\*\*WHEN\*\* you would change it \*\*THEN\*\* you \*\*MUST NOT\*\* change it/);
+  assert.doesNotMatch(RULES, /\*\*WHEN\*\* you read, create, edit or delete a file \*\*THEN\*\*/);
 });
 
 test("2.1 the main checkout halts, names the override and writes nothing", { skip }, () => {
@@ -215,6 +220,45 @@ test("2.2 next puts the worktree rules before every prompt of an isolated run on
   assert.equal(plainRetry.json.prompt.includes("Working directory rules"), false);
 });
 
+test("next halts and writes nothing when isolation is required and init never ran", { skip }, () => {
+  const main = repo();
+  const branch = git(main, ["branch", "--show-current"]);
+  const res = nextIn(main);
+  assertHalt(res, /isolation\.require/, main);
+  assert.match(res.json.reason, /run init first/i);
+  assert.equal(git(main, ["branch", "--show-current"]), branch);
+  assert.equal(git(main, ["status", "--porcelain"]), "");
+});
+
+test("next halts and leaves meta.json and run.jsonl byte-identical when meta.json lacks isolated", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  writeMetaFile(wt, { id: wt.id, goal: GOAL });
+  writeLog(wt, [entry(1, "score", { result: { status: "done", note: "ok" } })]);
+  const read = (f) => fs.readFileSync(path.join(wt.agentDir, f), "utf8");
+  const before = [read("meta.json"), read("run.jsonl")];
+  assertHalt(nextIn(wt), /run init first/i);
+  assert.deepEqual([read("meta.json"), read("run.jsonl")], before);
+});
+
+test("next advances a run that init recorded as isolated", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main);
+  assert.equal(initIn(wt).status, 0);
+  writeResult(wt, { status: "failed", note: "no plan" });
+  const res = nextIn(wt);
+  assert.equal(res.json.action, "run", res.stdout);
+  assert.ok(readLogEntries(wt).length >= 2);
+  assert.equal(readMetaFile(wt).isolated, true);
+});
+
+test("next without meta.json keeps today's behavior when isolation is off", { skip }, () => {
+  const main = repo({ policy: {} });
+  const res = nextIn(main);
+  assert.equal(res.json.action, "run", res.stdout);
+  assert.equal(Object.hasOwn(readMetaFile(main), "isolated"), false);
+});
+
 test("2.1 init without change.md halts and makes no start commit (missing change.md)", { skip }, () => {
   const main = makeProject({ policy: ON, change: false });
   gitInit(main);
@@ -228,4 +272,84 @@ test("2.1 init without change.md halts and makes no start commit (missing change
   assert.match(res.json.reason, /No change folder\. Run \/10x-new demo first\./);
   assert.equal(fs.existsSync(wt.agentDir), false);
   assert.equal(git(wt, ["rev-parse", "HEAD"]), before);
+});
+
+for (const prefix of ["codex/", "runs-"]) {
+  test(`configured isolation accepts literal ${prefix} and keeps saved identity with zero or executed entries`, { skip }, () => {
+    for (const executed of [false, true]) {
+      const main = repo({ policy: { isolation: { require: true, branchPrefix: prefix } }, nest: "apps/widget" });
+      const branch = `${prefix}demo-baseline`;
+      const wt = worktree(main, branch);
+      if (executed) assert.equal(initIn(wt).json.action, "run");
+      else writeMetaFile(wt, { id: "demo", isolated: true, branch, goal: GOAL });
+      const policy = path.join(wt.root, "context/foundation/agent-smith-policy.json");
+      const original = fs.readFileSync(policy, "utf8");
+      const before = fs.readFileSync(path.join(wt.agentDir, "meta.json"));
+      const head = git(wt, ["-C", wt.root, "rev-parse", "HEAD"]);
+      for (const changedPrefix of ["changed/", null, "", "bad..ref/"]) {
+        fs.writeFileSync(policy, JSON.stringify({ isolation: { require: true, branchPrefix: changedPrefix } }));
+        const refused = initIn(wt);
+        assertHalt(refused, /isolation.branchPrefix.*recorded branch/);
+        assert.ok(refused.json.reason.includes(branch), refused.stdout);
+        assert.match(refused.json.reason, /restore.*resume/i);
+        assert.deepEqual(fs.readFileSync(path.join(wt.agentDir, "meta.json")), before);
+        assert.equal(git(wt, ["-C", wt.root, "rev-parse", "HEAD"]), head);
+      }
+      fs.writeFileSync(policy, original);
+      const result = initIn(wt);
+      if (!executed) assert.equal(result.json.action, "run", result.stdout);
+      assert.equal(readMetaFile(wt).branch, branch);
+    }
+  });
+}
+
+test("configured isolation rejects invalid prefixes before state writes and retains explicit opt-out", { skip }, () => {
+  for (const prefix of [null, "", " ", [], {}, 1, "-option/", "bad..ref/", "@{-1}"]) {
+    const main = repo({ policy: { isolation: { require: true, branchPrefix: prefix } } });
+    const wt = worktree(main, "codex/demo");
+    assertHalt(initIn(wt), /branchPrefix|Invalid run branch/, wt);
+    const policy = path.join(wt.root, "context/foundation/agent-smith-policy.json");
+    fs.writeFileSync(policy, JSON.stringify({ isolation: { require: false, branchPrefix: prefix }, score: { minRigor: null } }));
+    assert.equal(initIn(wt).json.action, "run");
+  }
+});
+
+test("configured isolation protects main checkout, detached HEAD, defaults and wrong saved branch", { skip }, () => {
+  const main = repo({ policy: { isolation: { require: true, branchPrefix: "codex/", defaultBranches: ["codex/default"] } } });
+  assertHalt(initIn(main), /main checkout/, main);
+  const defaults = worktree(main, "codex/default", "default");
+  assertHalt(initIn(defaults), /default branch/, defaults);
+  const wt = worktree(main, "codex/demo");
+  git(main, ["-C", wt.root, "checkout", "-q", "--detach"]);
+  assertHalt(initIn(wt), /HEAD is detached/, wt);
+  git(main, ["-C", wt.root, "checkout", "-q", "codex/demo"]);
+  writeMetaFile(wt, { id: "demo", isolated: true, branch: "codex/demo-other" });
+  const before = fs.readFileSync(path.join(wt.agentDir, "meta.json"));
+  assertHalt(initIn(wt), /started on branch codex\/demo-other/);
+  assert.deepEqual(fs.readFileSync(path.join(wt.agentDir, "meta.json")), before);
+});
+
+test("init refuses another change's run branch and names both ids", { skip }, () => {
+  const main = repo();
+  for (const branch of ["agent-smith/other", "agent-smith/demo-baselines", "agent-smith/demo-baseline-2", "agent-smith/demo-extra"]) {
+    const wt = worktree(main, branch, branch.replace("/", "-"));
+    const owner = branch.slice("agent-smith/".length);
+    assertHalt(initIn(wt), new RegExp(`belongs to change ${owner}, not to change demo`), wt);
+    assert.equal(fs.existsSync(path.join(wt.root, "context/changes/demo/agent-smith")), false);
+  }
+});
+
+test("init accepts the baseline branch of the change", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main, "agent-smith/demo-baseline");
+  assert.equal(initIn(wt).json.action, "run");
+});
+
+test("a saved identity on another change's branch halts with the other-change message only", { skip }, () => {
+  const main = repo();
+  const wt = worktree(main, "agent-smith/other");
+  writeMetaFile(wt, { id: "demo", isolated: true, branch: "agent-smith/other" });
+  const res = initIn(wt);
+  assertHalt(res, /belongs to change other, not to change demo/);
+  assert.doesNotMatch(res.json.reason, /Restore isolation\.branchPrefix/);
 });

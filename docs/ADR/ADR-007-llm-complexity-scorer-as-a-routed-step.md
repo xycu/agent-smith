@@ -4,7 +4,7 @@
 - **Date:** 2026-10-31
 - **Deciders:** repository owner
 - **Supersedes in part:** the Phase 2 deferral of `docs/ADR/ADR-001-phased-complexity-routing.md`
-- **Origin:** roadmap slice S-11 (`context/foundation/roadmap.md`) and PRD FR-011 (`context/foundation/prd.md`). On 2026-10-31 the owner moved FR-011 from nice-to-have to must-have and into milestone M-1, and chose a cheap-model LLM step. The change folder for S-11 does not exist yet.
+- **Origin:** roadmap slice S-11 (`context/foundation/roadmap.md`) and PRD FR-011 (`context/foundation/prd.md`). On 2026-10-31 the owner moved FR-011 from nice-to-have to must-have and into milestone M-1, and chose a cheap-model LLM step. S-11 subsequently shipped. [Archived change](../../context/archive/2026-11-02-llm-complexity-scorer/change.md)
 
 ## Context
 
@@ -40,7 +40,7 @@ Rules, written as scenarios (the form of ADR-004):
 
 **GIVEN** a tier shift from the score **WHEN** the router applies it **THEN** the shift **MUST NOT** take an interactive step below the effort floor in `rigor.minEffort` (ADR-003), override the churn risk axis or lower the rigor level.
 
-Amended 2026-11-02 (S-11 plan, default reading taken in an unattended run; the owner has not confirmed it yet). The rule first named `rigor.minEffort` with no scope. ADR-003 ("Effort floor") puts the floor on interactive steps only, and `route.mjs` applies it there (`settle` in `tierFor`). So the floor bounds a shift on `plan`, `implement-tdd` and `implement-e2e`. A down shift on plain `implement` or a goal segment can reach the step's `minTier`, as the simple-change discount already can. The S-11 plan asked the owner to confirm this reading at the pause before Phase 3; until the owner does, it is the plan's default. The other reading, a floor on every shifted step, would turn the `implement` down shift off (`score.shift.implement.down: null`). "Override the churn risk axis" is read as: a down shift needs measured churn risk with no hot path. See "S-11 decisions".
+Amended 2026-11-02 (S-11 plan, default reading taken in an unattended run; the owner has not confirmed it yet). The rule first named `rigor.minEffort` with no scope. ADR-003 ("Effort floor") puts the floor on interactive steps only, and `route.mjs` applies it there (`settle` in `tierFor`). So the floor bounds a shift on `plan`, `implement-tdd` and `implement-e2e`. A down shift on plain `implement` or a goal segment can reach the step's `minTier`, as the simple-change discount already can. The S-11 plan asked the owner to confirm this reading at the pause before Phase 3; until the owner does, it is the plan's default. The other reading, a floor on every shifted step, would turn the `implement` down shift off (`score.shift.implement.down: null`). "Override the churn risk axis" is read as: a down shift needs measured churn risk with no hot path. The archived Phase 3 implementation note records the proposed owner confirmation. [S-11 plan](../../context/archive/2026-11-02-llm-complexity-scorer/plan.md)
 
 **GIVEN** a `score` step that fails three times, or a `complexity.json` that fails validation after the retry **WHEN** the router decides the next step **THEN** it **MUST** skip scoring with the reason logged and go on with the deterministic signals.
 
@@ -131,4 +131,4 @@ Any other outcome sets `score.minRigor` to `null` in `policy.json`, with no rout
 
 ### A/B result
 
-Pending. A human runs the pairs and records here, per pair, `dropPercent`, `byModel` and `byTier` of both arms, and the reasons of every pair that is not comparable, then the keep or turn-off decision.
+Pending. This experiment varies `score.minRigor`. A human runs the pairs and records here, per pair, `dropPercent`, `byModel` and `byTier` of both arms, and the reasons of every pair that is not comparable, then the keep or turn-off decision. The owner deferred FR-017 measurement on 2026-11-15. ADR-010 has its own experiment for `escalation.firstAttempt.drop`. [First-attempt experiment](ADR-010-run-worktree-step-commits-and-rollback.md#first-attempt-experiment-protocol) · [Open roadmap question 9](../../context/foundation/roadmap.md#open-roadmap-questions) · [Original Manual row 5.5](../../context/archive/2026-11-02-llm-complexity-scorer/plan.md#progress) · [FR-017 deferral](../../context/foundation/roadmap.md#parked)

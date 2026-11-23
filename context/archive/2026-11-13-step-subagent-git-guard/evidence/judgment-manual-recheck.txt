@@ -1,0 +1,19 @@
+Manual verification recheck
+
+- [ ] 2.6 A fresh supported Claude host reports the dedicated agent identity in PreToolUse for both chains, blocks inert attempted breach commands before fake executables run, permits typed/archive commits, and allows the orchestrator's recording publication-script calls.
+
+The guard test payload explicitly sets agent_id to test-step and agent_type to agent-smith:step. Eight non-fixture tests passed now in test-step-guard-recheck.txt. These exercise classification and registration but contain no host-generated identity delivery for either chain. The change folder contains no fresh-host transcripts or host-mediated fake-executable logs. The plan requires host transcripts and fake-executable logs for live acceptance. Launching another Claude agent would violate this step’s flat-delegation rule. Leave 2.6 pending.
+
+- [ ] 2.7 A live planning/review probe moves a PR-CI-dependent Automated criterion to Manual while retaining a valid local fake-client test criterion and the original Progress identities.
+
+Checked shipped plan-review wording, including these exact instructions.
+Always-true rules of the step `plan-review`:
+- **GIVEN** implementation finishes before orchestrator publication **WHEN** you review phase Success Criteria and canonical Progress **THEN** you **MUST** flag any Automated criterion requiring a pushed branch, an open PR, PR CI or an external PR comment, while retaining valid local fake Git/GitHub client checks.
+- **GIVEN** an actionable pending Automated row depends on publication **WHEN** you apply the finding **THEN** you **MUST** move the row intact to Manual, preserve its id, title and tick state, synchronize phase Success Criteria and the plan brief, and add a separate local row only when it proves a distinct claim.
+- **GIVEN** a ticked row or another immutable contradiction prevents that correction **WHEN** you record the finding **THEN** you **MUST** preserve the immutable row, use the existing PENDING finding handling and report blocked with signals.needsHuman explaining the owner decision.
+
+Seven planning-carrier tests passed now in test-planning-carriers-recheck.txt. They assert that planning/review prompts contain the required phrases. They execute no live planning/review model and perform no model-directed criterion movement. Existing plan-review.md reports that its Progress section remained byte-identical and explicitly reserves live Claude probes for future acceptance. These records cannot prove the specified live movement with identity preservation. This step cannot launch that probe under the flat-delegation rule. Leave 2.7 pending.
+
+- [ ] 3.4 On the resulting run PR after orchestrator publication, a human records PR CI acceptance and reviews any live host checks still pending.
+
+Read-only GitHub inspection found open PR #184 with successful checks for dd4fa8b0f07babb88b1f8e58ce7e82cd6b37bbc5. The current local HEAD is 56fc79d67cb3c7b96cf059837becce3a286987d6. The Git log and diff in command-pr-ci-head-recheck.txt show that the guard implementation, identity agent, hook registration and planning-review rule were added after the PR-tested commit. I reviewed the remaining live checks above under the instruction to judge owner-review rows autonomously. PR CI acceptance for this implementation cannot be established by the older tested commit. Updating the remote branch would require publication, which this step forbids. Leave 3.4 pending.

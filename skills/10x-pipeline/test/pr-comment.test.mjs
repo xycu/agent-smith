@@ -9,9 +9,12 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { cleanEnv, makeProject, cleanupAll } from "./helpers.mjs";
+import { cleanEnv, makeProject, cleanupAll, seedRun, entry as runEntry, run, readReportFile } from "./helpers.mjs";
+import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { COMMENT_JQ } from "../scripts/pr-comment.mjs";
+import { runLockPath } from "../scripts/run-lock.mjs";
 import { removeTree } from "../scripts/remove-tree.mjs";
+import { unavailableEvidence } from "../scripts/usage.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/pr-comment.mjs");
 const win = process.platform === "win32";
@@ -34,6 +37,7 @@ function tmpDir(prefix) {
 // Without --paginate the comments call prints comments.firstpage (one page) when that file exists; without --jq it
 // prints comments.nojq (raw JSON) when that file exists. Both fall back to comments.out.
 const SHIM = `#!/bin/sh
+if [ -n "$EXPECTED_RUN_LOCK" ] && [ ! -s "$EXPECTED_RUN_LOCK" ]; then exit 91; fi
 D="$FAKE_GH_DIR"
 n=$(( $(cat "$D/count" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$D/count"
@@ -81,8 +85,7 @@ const PR_URL = "https://github.com/acme/widgets/pull/7";
 const PR_OPEN = JSON.stringify({ number: 7, url: PR_URL, state: "OPEN", isDraft: false });
 
 // A scratch world: project, fake bin, canned answers. `answers` maps kind to { out, err, code, sleep }.
-function world({ id = "demo", report = `# Run report: ${id}\n\nGoal: x\n`, answers = {}, withGh = true } = {}) {
-  const project = makeProject({ id });
+function world({ id = "demo", project = makeProject({ id }), report = `# Run report: ${id}\n\nGoal: x\n`, answers = {}, withGh = true } = {}) {
   if (report !== null) {
     fs.mkdirSync(project.agentDir, { recursive: true });
     fs.writeFileSync(path.join(project.agentDir, "report.md"), report);
@@ -326,9 +329,10 @@ const markerOf = (id) => `<!-- agent-smith:pr-report change=${id} -->`;
 const entry = (id, login, head) => JSON.stringify({ id, login, head });
 const postable = { "pr-view": { out: PR_OPEN }, user: { out: "bot\n" }, post: { out: `${COMMENT_URL}\n` }, patch: { out: `${COMMENT_URL}\n` } };
 
-function postWorld({ id = "demo", report, comments = [], answers = {} } = {}) {
+function postWorld({ id = "demo", project, report, comments = [], answers = {} } = {}) {
   return world({
     id,
+    project,
     report,
     answers: { ...postable, comments: { out: comments.length ? `${comments.join("\n")}\n` : "" }, ...answers },
   });
@@ -534,6 +538,28 @@ test("body: mentions are neutralized, emails are not", { skip: win }, () => {
 
 const TRUNCATED = /\n\nReport truncated: (\d+) characters omitted\.$/;
 
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: a generated report's token capture limitation survives comment truncation`, { skip: win }, () => {
+    const project = chain === "openspec" ? makeOpenspecProject() : makeProject();
+    const step = chain === "openspec" ? "os-propose" : "plan";
+    seedRun(project, [runEntry(1, step, { usageEvidence: unavailableEvidence("capture-disabled", { source: "claude-native" }) })],
+      { chain, goal: "a".repeat(70000), outcome: { action: "done" } });
+    const status = run(project, ["status", project.id, "--report", "--chain", chain]);
+    assert.equal(status.status, 0, status.stdout + status.stderr);
+    const report = readReportFile(project);
+    const summary = report.split("\n")[2];
+    assert.match(summary, /^Token capture limitations: Native Claude token capture was off \(1 step\)$/);
+
+    const w = postWorld({ id: project.id, project, report: null });
+    const args = chain === "openspec" ? [project.id, "--report", status.json.report] : [project.id];
+    const result = runScript(w, args);
+    assert.equal(result.json?.action, "created", result.stdout + result.stderr);
+    const body = capturedBody(w);
+    assert.match(body, TRUNCATED);
+    assert.ok(body.startsWith(`${markerOf(project.id)}\n\n# Run report: ${project.id}\n\n${summary}\n\nGoal: `));
+  });
+}
+
 test("body: 70000 ASCII characters are cut to exactly 60000 code units with the omitted count", { skip: win }, () => {
   const report = `# Run report: demo\n${"a".repeat(70000 - 19)}`;
   const w = postWorld({ report });
@@ -644,7 +670,7 @@ test("mutation: without the author comparison a foreign marker comment would be 
   const dir = tmpDir("as-prc-mut-");
   const mutant = path.join(dir, "pr-comment.mjs");
   fs.writeFileSync(mutant, source.replace(needle, "true"));
-  for (const f of ["remove-tree.mjs", "pr-common.mjs"]) fs.copyFileSync(path.join(path.dirname(SCRIPT), f), path.join(dir, f));
+  for (const f of ["remove-tree.mjs", "run-lock.mjs", "pr-common.mjs"]) fs.copyFileSync(path.join(path.dirname(SCRIPT), f), path.join(dir, f));
   const scenario = () => postWorld({ comments: [entry(5, "mallory", `${markerOf("demo")}\n\nold`)] });
   const original = scenario();
   runScript(original, ["demo"]);
@@ -657,7 +683,8 @@ test("mutation: without the author comparison a foreign marker comment would be 
 
 test("guard: router scripts never call gh and policy.json has no prComment key", () => {
   const skill = path.resolve(path.dirname(SCRIPT), "..");
-  const scripts = fs.readdirSync(path.join(skill, "scripts")).filter((f) => f.endsWith(".mjs") && f !== "pr-comment.mjs" && f !== "open-pr.mjs" && f !== "pr-common.mjs");
+  // The standalone hook classifies literal gh commands. step-guard.test.mjs pins its side-effect boundary.
+  const scripts = fs.readdirSync(path.join(skill, "scripts")).filter((f) => f.endsWith(".mjs") && f !== "pr-comment.mjs" && f !== "open-pr.mjs" && f !== "pr-common.mjs" && f !== "step-guard.mjs");
   assert.ok(scripts.includes("route.mjs"));
   for (const file of scripts) {
     const source = fs.readFileSync(path.join(skill, "scripts", file), "utf8");
@@ -694,7 +721,11 @@ test("real gh without a login is not authenticated", { skip: win || !realGh }, (
 // ---- Phase 3: docs consistency -----------------------------------------------------
 
 const REPO = path.resolve(path.dirname(SCRIPT), "../../..");
-const readRepo = (rel) => fs.readFileSync(path.join(REPO, rel), "utf8");
+const readRepo = (rel) => {
+  const override = rel === "skills/10x-pipeline/SKILL.md" ? process.env.SKILL_PATH
+    : rel === "skills/openspec-pipeline/SKILL.md" ? process.env.OPENSPEC_SKILL_PATH : null;
+  return fs.readFileSync(override || path.join(REPO, rel), "utf8");
+};
 
 // A SKILL.md loop branch: from the line starting `- **`<name>`**` to the next line that starts with `- **` or `## `.
 function branch(skill, name) {
@@ -729,19 +760,25 @@ test("SKILL.md: explicit invocation forwards durable opt-in or reset to the rout
   assert.doesNotMatch(start, /TaskList|TaskCreate|task list unavailable/);
 });
 
-test("SKILL.md: every terminal branch requires strict durable PR-comment intent", () => {
-  const skill = readRepo("skills/10x-pipeline/SKILL.md");
-  for (const name of ["done", "archive", "halt"]) {
-    const text = branch(skill, name);
-    assert.equal(countOf(text, "PR comment step"), 1, name);
-    assert.match(text, /terminal action has `prComment: true`/, name);
-    assert.match(text, /missing field or any other value authorizes no comment/, name);
-    assert.doesNotMatch(text, /TaskList|TaskCreate/, name);
+test("SKILL.md: every terminal branch reaches the strict durable PR-comment owner through publication", () => {
+  for (const chain of ["10x", "openspec"]) {
+    const skill = readRepo(`skills/${chain}-pipeline/SKILL.md`);
+    for (const name of ["done", "archive", "halt"]) {
+      const text = branch(skill, name);
+      assert.equal(countOf(text, "do the pull request step"), 1, name);
+      assert.doesNotMatch(text, /TaskList|TaskCreate/, name);
+      assert.equal(countOf(text, "prComment: true"), 0, name);
+    }
+    const owner = skill.split("## PR comment (opt-in)")[1].split("\n## ")[0];
+    assert.equal(countOf(skill, "`prComment: true`"), 1);
+    assert.match(owner, /terminal router action has `prComment: true`/);
+    assert.match(owner, /missing field or any other value authorizes no comment/);
+    assert.match(owner, /Keep that action's intent across status and archive verification calls/);
+    const publication = skill.split("## Pull request (always)")[1].split("\n## ")[0];
+    assert.ok(publication.indexOf("node $OPEN_PR") < publication.indexOf("do the PR comment step"));
+    assert.match(publication, /saved terminal intent applies even when publication skips or fails/);
+    assert.match(branch(skill, "halt"), /Before you STOP/);
   }
-  const archive = branch(skill, "archive");
-  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("verify-archive"));
-  assert.ok(archive.indexOf("PR comment step") > archive.indexOf("do the pull request step"));
-  assert.match(branch(skill, "halt"), /Before you STOP/);
 });
 
 test("SKILL.md: PR comment section retains strict authorization and script-error fallbacks", () => {
@@ -752,7 +789,8 @@ test("SKILL.md: PR comment section retains strict authorization and script-error
     assert.match(section, /Legacy or missing intent reads false/);
     assert.match(section, /If the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error`/);
     assert.doesNotMatch(section, /100 characters|router does not/);
-    assert.match(section, /Quote the script path and the change (?:id|name) for the shell/);
+    const comment = section.split("\n## ")[0];
+    assert.match(comment, /Quote the script path(?: and the change id for the shell, and the url and the report path too|, the change name, the url and the report path for the shell)/);
     assert.ok(section.includes("PR comment: skipped, no report"));
   }
 });
@@ -781,7 +819,8 @@ test("SKILL.md: lines about the PR comment name no model, effort or tier", () =>
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   const banned = /\b(sonnet|opus|haiku|fable|effort|tier|model)\b/i;
   const lines = skill.split("\n").filter((l) => /PR_COMMENT|--pr-comment|PR comment/.test(l));
-  assert.ok(lines.length >= 16, "expected the PR comment lines");
+  assert.ok(lines.length >= 12, "expected the PR comment procedure and call sites");
+  assert.ok(skill.includes('do the PR comment step under "PR comment (opt-in)"'));
   for (const line of lines) assert.doesNotMatch(line, banned, line);
 });
 
@@ -872,3 +911,31 @@ test("live: the real comment projection is one parseable object per line across 
     assert.ok([...c.head].length <= 200);
   }
 });
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: an archived comment respects the live lock through the final request`, { skip: win }, () => {
+    const w = postWorld();
+    const root = fs.realpathSync(w.project.root);
+    const live = path.join(root, chain === "10x" ? "context/changes" : "openspec/changes", w.id, "agent-smith");
+    const archive = path.join(root, chain === "10x" ? "context/archive" : "openspec/changes/archive", "2026-11-19-demo", "agent-smith");
+    fs.mkdirSync(path.dirname(archive), { recursive: true });
+    fs.renameSync(w.project.agentDir, archive);
+    const lock = path.join(w.fake, path.basename(runLockPath(live)));
+    const args = [w.id, "--report", path.join(archive, "report.md")];
+    const env = { TMPDIR: w.fake, EXPECTED_RUN_LOCK: lock };
+    const owner = JSON.stringify({ pid: process.pid, native: { claudeSessionId: "pending" } });
+    fs.writeFileSync(lock, owner);
+    const refused = runScript(w, args, { env });
+    assertSkip(refused, /^Execution suspended:/);
+    assert.ok(refused.json.reason.includes(lock));
+    assert.deepEqual(calls(w), []);
+    assert.deepEqual(fs.readdirSync(w.fake).filter(f => f.endsWith(".lock")), [path.basename(lock)]);
+    assert.equal(fs.readFileSync(lock, "utf8"), owner);
+
+    fs.unlinkSync(lock); // Fixture owner releases its lock.
+    const result = runScript(w, args, { env }).json;
+    assert.equal(result.action, "created", JSON.stringify(result));
+    assert.deepEqual(methodsOf(w), ["POST"]);
+    assert.deepEqual(fs.readdirSync(w.fake).filter(f => f.endsWith(".lock")), []);
+  });
+}

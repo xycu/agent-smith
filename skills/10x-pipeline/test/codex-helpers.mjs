@@ -10,28 +10,151 @@ import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpe
 export const RUNNER = fileURLToPath(new URL("../scripts/run-codex.mjs", import.meta.url));
 const PRESET = JSON.parse(fs.readFileSync(new URL("../codex-policy.json", import.meta.url), "utf8"));
 
+// Hand-authored 0.169.0 protocol records, never captured real-user telemetry.
+export function codexUsageRecords({ id = "root-fixture", rootId = id, turnId = `turn-${id}`,
+  rootTurnId = `turn-${rootId}`, parentId = null, version = "0.169.0",
+  usages = [{ input_tokens: 100, output_tokens: 10, cached_input_tokens: 40, cache_write_input_tokens: 60, reasoning_output_tokens: 5 }] } = {}) {
+  const keys = ["input_tokens", "output_tokens", "cached_input_tokens", "cache_write_input_tokens", "reasoning_output_tokens", "total_tokens"];
+  let sum = Object.fromEntries(keys.map(key => [key, 0]));
+  const records = [
+    { type: "session_meta", payload: { id, session_id: rootId, cli_version: version, parent_thread_id: parentId, history_mode: "legacy" } },
+    { type: "event_msg", payload: { type: "task_started", turn_id: turnId, root_turn_id: rootTurnId } },
+  ];
+  usages.forEach((raw, i) => {
+    const usage = Object.fromEntries(keys.map(key => [key, raw[key] ?? (key === "total_tokens" ? raw.input_tokens + raw.output_tokens : 0)]));
+    sum = Object.fromEntries(keys.map(key => [key, sum[key] + usage[key]]));
+    records.push({ type: "token_usage_record", payload: { thread_id: id, session_id: rootId, turn_id: turnId,
+      root_turn_id: rootTurnId, response_id: `${id}-response-${i}`, usage, turn_token_usage: { ...sum }, thread_token_usage: { ...sum } } });
+  });
+  records.push({ type: "event_msg", payload: { type: "token_count", info: { total_token_usage: sum, last_token_usage: usages.at(-1) ?? sum } } },
+    { type: "event_msg", payload: { type: "task_complete", turn_id: turnId, root_turn_id: rootTurnId } });
+  return records;
+}
+
 const FAKE = `#!${process.execPath}
 const fs = require("node:fs");
 const path = require("node:path");
 const args = process.argv.slice(2);
+// The init advisory runs a fixed no-op. Runtime fixtures count and configure only the runner's sandbox probe.
+if (args[0] === "sandbox" && args.at(-2) === "-e" && args.at(-1) === "") return;
 const fixture = process.env.CODEX_FIXTURE;
+// Token-like names only, never their values: host credentials must not land in fixture files.
+const seenEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => /TOKEN/i.test(name) || name === "CODEX_TEST_KEEP")
+  .map(([name, value]) => [name, name === "CODEX_TEST_KEEP" ? value : "set"]));
 const mode = JSON.parse(fs.readFileSync(path.join(fixture, "mode.json"), "utf8"));
+// Init's usage preflight reads the version only; answer it model-free, like the sandbox no-op above.
+if (args.length === 1 && args[0] === "--version") {
+  process.stdout.write("codex-cli " + (mode.hostVersion ?? "0.169.0") + "\\n");
+  return;
+}
+const rootId = mode.threadId ?? "root-fixture";
+const rootTurnId = mode.rootTurnId ?? "turn-" + rootId;
+const archivedIds = new Set(Object.values(mode.pages?.true ?? {}).flatMap(page => (page.data ?? []).map(item => item.id)));
+const sourcePath = id => path.join(process.env.CODEX_HOME, archivedIds.has(id) ? "archived_sessions" : "sessions", id + ".jsonl");
+if (args.includes("app-server")) {
+  const readline = require("node:readline");
+  let archivedLists = 0;
+  fs.writeFileSync(path.join(fixture, "server-env.json"), JSON.stringify(seenEnv));
+  readline.createInterface({ input: process.stdin }).on("line", line => {
+    const request = JSON.parse(line);
+    fs.appendFileSync(path.join(fixture, "metadata-calls.jsonl"), JSON.stringify(request) + "\\n");
+    if (request.id === undefined) return;
+    if (mode.metadataFailure || (mode.usageMetadataFailure && request.method === "thread/read")) {
+      process.stdout.write(JSON.stringify({ id: request.id, error: { message: "fixture failure" } }) + "\\n");
+      return;
+    }
+    if (mode.usageMetadataHang && request.method === "thread/read") return;
+    let result = {};
+    if (request.method === "skills/list") {
+      if (mode.oversizedDiscovery) {
+        process.stdout.write(" ".repeat(4 * 1024 * 1024 + 1));
+        return;
+      }
+      result = { data: [{ cwd: process.cwd(), skills: [{ name: mode.discoveredSkill, enabled: true, path: path.join(fixture, "SKILL.md") }] }] };
+    }
+    if (request.method === "thread/list") {
+      const pages = mode.pages?.[String(request.params.archived)];
+      result = pages?.[request.params.cursor ?? "first"] ?? { data: [], nextCursor: null };
+    }
+    if (request.method === "thread/turns/list") {
+      result = mode.turns?.[request.params.threadId] ?? { data: [{ id: "turn-" + request.params.threadId, rootTurnId,
+        status: "completed", startedAt: 10, completedAt: 20 }], nextCursor: null };
+    }
+    if (request.method === "thread/read") {
+      const id = request.params.threadId;
+      result = { thread: { id, path: sourcePath(id), cliVersion: mode.hostVersion ?? "0.169.0", sessionId: id,
+        parentThreadId: id === rootId ? null : rootId, forkedFromId: null, ...mode.threadMetadata?.[id] } };
+    }
+    const badTrailer = mode.malformedFinalMetadata && request.method === "thread/list" && request.params.archived && ++archivedLists === 2;
+    process.stdout.write(JSON.stringify({ id: mode.mismatchedResponse ? request.id + 1 : request.id, result }) + "\\n"
+      + (badTrailer ? "not-json\\n" : ""));
+  });
+  return;
+}
+if (args[0] === "--fixture-descendant") {
+  const terminate = () => fs.writeFileSync(path.join(fixture, "descendant-terminating"), "yes");
+  process.on("SIGTERM", terminate);
+  process.on("SIGINT", terminate);
+  fs.writeFileSync(path.join(fixture, "descendant-ready"), String(process.pid));
+  setInterval(() => {
+    if (fs.existsSync(path.join(fixture, "descendant-release"))) {
+      if (mode.outOfGroup) fs.writeFileSync(path.join(fixture, "late-write"), "child work");
+      fs.writeFileSync(path.join(fixture, "descendant-exited"), String(process.pid));
+      process.exit(0);
+    }
+  }, 10);
+  return;
+}
+if (args[0] === "exec" && mode.rejectInput) {
+  process.stdin.destroy();
+  process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: rootId }) + "\\n", () => process.exit(1));
+  return;
+}
 let input = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("data", chunk => input += chunk);
 process.stdin.on("end", async () => {
-  fs.appendFileSync(path.join(fixture, "calls.jsonl"), JSON.stringify({ args, input, cwd: process.cwd(), pid: process.pid }) + "\\n");
+  fs.appendFileSync(path.join(fixture, "calls.jsonl"), JSON.stringify({ args, input, cwd: process.cwd(), pid: process.pid, env: seenEnv }) + "\\n");
   if (args[0] === "sandbox") {
     if (mode.preflightFailure || args.includes("missing-profile")) { process.exitCode = 1; return; }
+    if (mode.checkToolkit) {
+      const index = args.indexOf("--");
+      const proof = require("node:child_process").spawnSync(args[index + 1], args.slice(index + 2), { timeout: 20000, encoding: "utf8" });
+      process.stdout.write(proof.stdout ?? "");
+      process.exitCode = proof.status ?? 1;
+      return;
+    }
+    if (mode.changeAfterPreflight) fs.writeFileSync(mode.changeAfterPreflight.file, mode.changeAfterPreflight.content);
     if (mode.removeExecutableAfterPreflight) fs.unlinkSync(process.argv[1]);
     process.stdout.write(JSON.stringify({ gitDir: "/fixture/git", commonDir: "/fixture/common", commit: "a".repeat(40) }) + "\\n");
     return;
   }
   if (mode.moveFrom) fs.renameSync(mode.moveFrom, mode.moveTo);
+  if (!mode.noThread) {
+    const started = JSON.stringify({ type: "thread.started", thread_id: rootId }) + "\\n";
+    process.stdout.write(mode.invalidUtf8
+      ? Buffer.concat([Buffer.from(started), Buffer.from('{"type":"error","message":"\\xff"}\\n', "latin1")])
+      : started);
+  }
   if (mode.commitPaths) {
     const { execFileSync } = require("node:child_process");
     execFileSync("git", ["add", "--", ...mode.commitPaths], { cwd: process.cwd() });
     execFileSync("git", ["commit", "-m", mode.commitMessage, "-m", "Co-Authored-By: Codex <noreply@openai.com>"], { cwd: process.cwd(), stdio: ["ignore", "ignore", "pipe"] });
+  }
+  let descendantClosed;
+  if (mode.descendant) {
+    const { spawn } = require("node:child_process");
+    const descendant = spawn(process.execPath, [__filename, "--fixture-descendant"], {
+      detached: mode.outOfGroup === true, stdio: mode.outOfGroup ? "ignore" : ["ignore", "inherit", "inherit"],
+    });
+    descendantClosed = new Promise((resolve, reject) => {
+      descendant.on("error", reject);
+      descendant.on("close", (code, signal) => {
+        fs.writeFileSync(path.join(fixture, "descendant-collected"), JSON.stringify({ code, signal }));
+        if (code === 0) resolve();
+        else reject(new Error("Fixture descendant exited unsuccessfully"));
+      });
+    });
   }
   if (mode.hold) {
     await new Promise(resolve => {
@@ -51,6 +174,10 @@ process.stdin.on("end", async () => {
     });
     clearInterval(global.keepAlive);
   }
+  if (descendantClosed) {
+    fs.writeFileSync(path.join(fixture, "descendant-waiting"), "yes");
+    await descendantClosed;
+  }
   const reply = mode.reply ?? 'RESULT: {"status":"done","note":"zażółć","signals":{"rigor":"thorough"},"custom":true}';
   fs.writeFileSync(args[args.indexOf("-o") + 1], mode.fileReply ?? reply);
   const events = mode.events ?? [
@@ -59,12 +186,29 @@ process.stdin.on("end", async () => {
     { type: "item.completed", item: { type: "agent_message", text: reply } },
     { type: "turn.completed", usage: { input_tokens: 100, cached_input_tokens: 40, cache_write_input_tokens: 60, output_tokens: 10, reasoning_output_tokens: 5 } }
   ];
+  if (!mode.noUsageSource) {
+    const ids = new Set([rootId, ...Object.values(mode.pages ?? {}).flatMap(pages => Object.values(pages).flatMap(page => (page.data ?? []).map(item => item.id)))]);
+    const execUsage = events.filter(event => event.type === "turn.completed" && (event.thread_id === undefined || event.thread_id === rootId)).at(-1)?.usage;
+    for (const id of ids) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(id)) continue;
+      const usages = mode.rolloutUsages?.[id] ?? (id === rootId ? (execUsage ? [execUsage] : null) : [{ input_tokens: 20, output_tokens: 2 }]);
+      if (!usages && !mode.sourceRecords?.[id]) continue;
+      const file = sourcePath(id);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      const records = mode.sourceRecords?.[id] ?? (${codexUsageRecords.toString()})({ id, rootId, rootTurnId,
+        turnId: mode.turns?.[id]?.data?.[0]?.id ?? "turn-" + id, parentId: mode.threadMetadata?.[id]?.parentThreadId ?? (id === rootId ? null : rootId),
+        version: mode.hostVersion ?? "0.169.0", usages });
+      fs.writeFileSync(file, records.map(record => JSON.stringify(record)).join("\\n") + "\\n");
+    }
+  }
+  if (mode.malformedJson) process.stdout.write("not-json\\n");
   const bytes = Buffer.from(events.map(e => JSON.stringify(e)).join("\\n") + "\\n");
   const fragment = mode.fragmentSize ?? 7;
   for (let i = 0; i < bytes.length; i += fragment) {
     process.stdout.write(bytes.subarray(i, i + fragment));
     await new Promise(resolve => setImmediate(resolve));
   }
+  if (mode.exitSignal) process.kill(process.pid, mode.exitSignal);
   process.exitCode = mode.code ?? 0;
 });
 `;
@@ -80,7 +224,7 @@ export function codexFixture(chain = "10x", { profile = null, mode = {}, project
   fs.mkdirSync(tmp);
   fs.writeFileSync(path.join(bin, "codex"), FAKE, { mode: 0o755 });
   fs.writeFileSync(path.join(fixture, "mode.json"), JSON.stringify(mode));
-  const env = { ...gitEnv(project), TMPDIR: tmp, PATH: `${bin}${path.delimiter}${process.env.PATH}`, CODEX_FIXTURE: fixture };
+  const env = { ...gitEnv(project), TMPDIR: tmp, PATH: `${bin}${path.delimiter}${process.env.PATH}`, CODEX_FIXTURE: fixture, CODEX_HOME: path.join(fixture, "home") };
   const first = run(project, ["init", project.id, "--goal", "fix typo", "--host", host, "--chain", chain], { env });
   if (first.json?.action !== "run") throw new Error(first.stdout + first.stderr);
   return { project, action: first.json, env, fixture, tmp, chain };
@@ -88,6 +232,11 @@ export function codexFixture(chain = "10x", { profile = null, mode = {}, project
 
 export function calls(fixture) {
   const file = path.join(fixture, "calls.jsonl");
+  return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : [];
+}
+
+export function metadataCalls(fixture) {
+  const file = path.join(fixture, "metadata-calls.jsonl");
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : [];
 }
 
@@ -107,8 +256,18 @@ export function execute(w, action = w.action) {
   return { ...result, json: JSON.parse(result.stdout) };
 }
 
-export function startRunner(w) {
-  const child = spawn(process.execPath, [RUNNER, w.project.id, "--chain", w.chain], {
+export function startRunner(w, { terminationGraceMs } = {}) {
+  const args = terminationGraceMs === undefined ? [RUNNER, w.project.id, "--chain", w.chain] : [
+    "--input-type=module", "-e", `
+      import { text } from "node:stream/consumers";
+      import { runCodex } from ${JSON.stringify(new URL("../scripts/run-codex.mjs", import.meta.url).href)};
+      const [id, chain, grace] = process.argv.slice(1);
+      const result = await runCodex(id, chain, JSON.parse(await text(process.stdin)), { terminationGraceMs: Number(grace) });
+      process.stdout.write(JSON.stringify(result));
+      process.exitCode = result.completed ? 0 : 1;
+    `, w.project.id, w.chain, String(terminationGraceMs),
+  ];
+  const child = spawn(process.execPath, args, {
     cwd: w.project.root, env: w.env, stdio: ["pipe", "pipe", "pipe"],
   });
   let stdout = "";

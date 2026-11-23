@@ -1,0 +1,2 @@
+- 1.3 — Twelve-cell capability proof remains incomplete for usage, cancellation and effective child restrictions; matching smoke-tested source hashes confirm only bounded prior observations, and this step prohibits child launches. See judgment-manual-retry.md.
+- 3.4 — All twelve final-candidate matrix cells remain pending; retained headless smoke checks and deterministic tests do not establish the complete live matrix, and this step prohibits child launches. See judgment-manual-retry.md.

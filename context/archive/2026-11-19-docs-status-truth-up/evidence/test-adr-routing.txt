@@ -1,0 +1,3146 @@
+skills/10x-pipeline/test/churn.test.mjs — a repo with 10 or more recent commits reports source window | skills/10x-pipeline/test/route.test.mjs — short goal starts lean; plain and hard goals start standard | skills/10x-pipeline/test/score.test.mjs — score data: step pins a cheap tier and is not interactive | skills/10x-pipeline/test/compare.test.mjs — 1.1 baseline file has exactly ladder, rigor and score, all sonnet/high, standard rigor, no plan-review skip, no scorer | skills/10x-pipeline/test/cost.test.mjs — 1.1 policy.json ships prices null and lists prices in provenance.ignore | skills/10x-pipeline/test/firstattempt.test.mjs — 5.1 the first implement attempt of an isolated run runs one tier lower and is marked cheap | skills/10x-pipeline/test/preplan.test.mjs — preplan data: steps, gates, artifacts and loops | skills/10x-pipeline/test/executors.test.mjs — plain implement keeps count rule | skills/10x-pipeline/test/openfindings.test.mjs — parser: findings, decisions and open counts | skills/10x-pipeline/test/neutral.test.mjs — a rerun returns the identical step and keeps one entry without a result | skills/10x-pipeline/test/manualverify.test.mjs — manual verify placement
+
+## skills/10x-pipeline/test/churn.test.mjs — a repo with 10 or more recent commits reports source window
+Exit 0
+TAP version 13
+# Subtest: a repo with 10 or more recent commits reports source window
+ok 1 - a repo with 10 or more recent commits reports source window
+  ---
+  duration_ms: 1280.319417
+  type: 'test'
+  ...
+# Subtest: counts [1,1,1,1,4,9] give threshold 4 and two hot paths
+ok 2 - counts [1,1,1,1,4,9] give threshold 4 and two hot paths
+  ---
+  duration_ms: 1260.248875
+  type: 'test'
+  ...
+# Subtest: the plan paths are read from both **File**: and **Files**: lines
+ok 3 - the plan paths are read from both **File**: and **Files**: lines
+  ---
+  duration_ms: 1164.350417
+  type: 'test'
+  ...
+# Subtest: a plan path that is a directory matches the hot files below it
+ok 4 - a plan path that is a directory matches the hot files below it
+  ---
+  duration_ms: 5089.520125
+  type: 'test'
+  ...
+# Subtest: a plan path that is a glob matches through the glob matcher
+ok 5 - a plan path that is a glob matches through the glob matcher
+  ---
+  duration_ms: 5784.085166
+  type: 'test'
+  ...
+# Subtest: an absolute path under the project root is matched; one outside is not classified
+ok 6 - an absolute path under the project root is matched; one outside is not classified
+  ---
+  duration_ms: 3166.315292
+  type: 'test'
+  ...
+# Subtest: a differently cased path matches the hot file
+ok 7 - a differently cased path matches the hot file
+  ---
+  duration_ms: 1280.829208
+  type: 'test'
+  ...
+# Subtest: an unbackticked path with a trailing note or a line number is matched
+ok 8 - an unbackticked path with a trailing note or a line number is matched
+  ---
+  duration_ms: 5186.027042
+  type: 'test'
+  ...
+# Subtest: a token that cannot be classified is not a measured path
+ok 9 - a token that cannot be classified is not a measured path
+  ---
+  duration_ms: 3927.98575
+  type: 'test'
+  ...
+# Subtest: lean plus a directory naming a hot file runs plan-review and raises rigor
+ok 10 - lean plus a directory naming a hot file runs plan-review and raises rigor
+  ---
+  duration_ms: 1495.668125
+  type: 'test'
+  ...
+# Subtest: lean with an unclassified plan path runs plan-review and never skips
+ok 11 - lean with an unclassified plan path runs plan-review and never skips
+  ---
+  duration_ms: 4085.68325
+  type: 'test'
+  ...
+# Subtest: hotMinCommits blocks a young repo
+ok 12 - hotMinCommits blocks a young repo
+  ---
+  duration_ms: 1167.416834
+  type: 'test'
+  ...
+# Subtest: excluded globs never count
+ok 13 - excluded globs never count
+  ---
+  duration_ms: 1743.204875
+  type: 'test'
+  ...
+# Subtest: fewer than minCommitsInWindow in the window falls back to all history
+ok 14 - fewer than minCommitsInWindow in the window falls back to all history
+  ---
+  duration_ms: 1735.834917
+  type: 'test'
+  ...
+# Subtest: still fewer commits gives no hot paths and unavailable
+ok 15 - still fewer commits gives no hot paths and unavailable
+  ---
+  duration_ms: 1017.753334
+  type: 'test'
+  ...
+# Subtest: a project root in a subdirectory of the git repo still matches plan paths
+ok 16 - a project root in a subdirectory of the git repo still matches plan paths
+  ---
+  duration_ms: 1314.293625
+  type: 'test'
+  ...
+# Subtest: a mistyped risk.churn.since gives unavailable
+ok 17 - a mistyped risk.churn.since gives unavailable
+  ---
+  duration_ms: 1052.652833
+  type: 'test'
+  ...
+# Subtest: an unreachable baseSha gives unavailable
+ok 18 - an unreachable baseSha gives unavailable
+  ---
+  duration_ms: 1666.617667
+  type: 'test'
+  ...
+# Subtest: a baseSha that looks like an option is rejected
+ok 19 - a baseSha that looks like an option is rejected
+  ---
+  duration_ms: 1054.404792
+  type: 'test'
+  ...
+# Subtest: init stores baseSha once; later commits do not change the hot set
+ok 20 - init stores baseSha once; later commits do not change the hot set
+  ---
+  duration_ms: 2392.356417
+  type: 'test'
+  ...
+# Subtest: a plan naming one hot file raises rigor to standard, three to thorough
+ok 21 - a plan naming one hot file raises rigor to standard, three to thorough
+  ---
+  duration_ms: 3309.866209
+  type: 'test'
+  ...
+# Subtest: a diff hit after implement raises rigor
+ok 22 - a diff hit after implement raises rigor
+  ---
+  duration_ms: 2175.311333
+  type: 'test'
+  ...
+# Subtest: a directory that is not a git repo gives unavailable, no flag, no exception
+ok 23 - a directory that is not a git repo gives unavailable, no flag, no exception
+  ---
+  duration_ms: 399.688584
+  type: 'test'
+  ...
+# Subtest: an exclude override that is not an array is ignored without a stack trace
+ok 24 - an exclude override that is not an array is ignored without a stack trace
+  ---
+  duration_ms: 1121.018
+  type: 'test'
+  ...
+# Subtest: risk writes nothing
+ok 25 - risk writes nothing
+  ---
+  duration_ms: 1136.700292
+  type: 'test'
+  ...
+1..25
+# tests 25
+# suites 0
+# pass 25
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 56166.25
+
+## skills/10x-pipeline/test/route.test.mjs — short goal starts lean; plain and hard goals start standard
+Exit 0
+TAP version 13
+# Subtest: short goal starts lean; plain and hard goals start standard
+ok 1 - short goal starts lean; plain and hard goals start standard
+  ---
+  duration_ms: 782.625042
+  type: 'test'
+  ...
+# Subtest: --rigor sets the start level
+ok 2 - --rigor sets the start level
+  ---
+  duration_ms: 253.386625
+  type: 'test'
+  ...
+# Subtest: an array suffix override joins with newlines in a step prompt
+ok 3 - an array suffix override joins with newlines in a step prompt
+  ---
+  duration_ms: 249.011958
+  type: 'test'
+  ...
+# Subtest: a string suffix override that starts with @prompts/ is a file reference in a step prompt
+ok 4 - a string suffix override that starts with @prompts/ is a file reference in a step prompt
+  ---
+  duration_ms: 416.320041
+  type: 'test'
+  ...
+# Subtest: --rigor with a bad or missing value halts with JSON and writes nothing
+ok 5 - --rigor with a bad or missing value halts with JSON and writes nothing
+  ---
+  duration_ms: 344.42575
+  type: 'test'
+  ...
+# Subtest: a second init without the flag keeps the level
+ok 6 - a second init without the flag keeps the level
+  ---
+  duration_ms: 493.120958
+  type: 'test'
+  ...
+# Subtest: --rigor lean on resume does not lower standard
+ok 7 - --rigor lean on resume does not lower standard
+  ---
+  duration_ms: 986.557667
+  type: 'test'
+  ...
+# Subtest: init keeps every stored meta field
+ok 8 - init keeps every stored meta field
+  ---
+  duration_ms: 310.367125
+  type: 'test'
+  ...
+# Subtest: phase count raises rigor: 3 phases standard, 6 phases thorough
+ok 9 - phase count raises rigor: 3 phases standard, 6 phases thorough
+  ---
+  duration_ms: 658.079167
+  type: 'test'
+  ...
+# Subtest: one failed step raises rigor to standard, three to thorough
+ok 10 - one failed step raises rigor to standard, three to thorough
+  ---
+  duration_ms: 605.887041
+  type: 'test'
+  ...
+# Subtest: rigor never falls: the stored level wins over a lower input
+ok 11 - rigor never falls: the stored level wins over a lower input
+  ---
+  duration_ms: 301.317458
+  type: 'test'
+  ...
+# Subtest: a stored rigor with an unknown level is ignored
+ok 12 - a stored rigor with an unknown level is ignored
+  ---
+  duration_ms: 336.085958
+  type: 'test'
+  ...
+# Subtest: step budget differs per level: 12, 19, 24
+ok 13 - step budget differs per level: 12, 19, 24
+  ---
+  duration_ms: 900.116958
+  type: 'test'
+  ...
+# Subtest: a complete run at the budget ends done, not halted (issue \#87)
+ok 14 - a complete run at the budget ends done, not halted (issue \#87)
+  ---
+  duration_ms: 754.916833
+  type: 'test'
+  ...
+# Subtest: a decide halt is not masked by the budget text
+ok 15 - a decide halt is not masked by the budget text
+  ---
+  duration_ms: 379.606333
+  type: 'test'
+  ...
+# Subtest: an override that drives the budget below 1 still gives a positive budget
+ok 16 - an override that drives the budget below 1 still gives a positive budget
+  ---
+  duration_ms: 252.884334
+  type: 'test'
+  ...
+# Subtest: plan-review never gets a tier below the floor
+ok 17 - plan-review never gets a tier below the floor
+  ---
+  duration_ms: 698.733709
+  type: 'test'
+  ...
+# Subtest: impl-review never gets a tier below the floor; implement is unaffected
+ok 18 - impl-review never gets a tier below the floor; implement is unaffected
+  ---
+  duration_ms: 930.121166
+  type: 'test'
+  ...
+# Subtest: tierWhy names the floor for plan even when it changes nothing
+ok 19 - tierWhy names the floor for plan even when it changes nothing
+  ---
+  duration_ms: 208.182583
+  type: 'test'
+  ...
+# Subtest: simple is false where the floor undid the discount and true where it survived
+ok 20 - simple is false where the floor undid the discount and true where it survived
+  ---
+  duration_ms: 868.003
+  type: 'test'
+  ...
+# Subtest: the effort floor beats maxTier
+ok 21 - the effort floor beats maxTier
+  ---
+  duration_ms: 441.876666
+  type: 'test'
+  ...
+# Subtest: simple is false where the lean offset or the clamp absorbed the discount
+ok 22 - simple is false where the lean offset or the clamp absorbed the discount
+  ---
+  duration_ms: 1036.431375
+  type: 'test'
+  ...
+# Subtest: a meta.json that is not an object falls back and the output stays valid JSON
+ok 23 - a meta.json that is not an object falls back and the output stays valid JSON
+  ---
+  duration_ms: 776.013667
+  type: 'test'
+  ...
+# Subtest: a malformed rigor policy block gives a JSON halt, not a stack trace
+ok 24 - a malformed rigor policy block gives a JSON halt, not a stack trace
+  ---
+  duration_ms: 168.6525
+  type: 'test'
+  ...
+# Subtest: report and status show the rigor level
+ok 25 - report and status show the rigor level
+  ---
+  duration_ms: 469.830958
+  type: 'test'
+  ...
+# Subtest: lean plus a fresh plan skips plan-review and logs one skip entry
+ok 26 - lean plus a fresh plan skips plan-review and logs one skip entry
+  ---
+  duration_ms: 2207.570792
+  type: 'test'
+  ...
+# Subtest: after a skip, the next step is not asked for plan-review again
+ok 27 - after a skip, the next step is not asked for plan-review again
+  ---
+  duration_ms: 2074.659583
+  type: 'test'
+  ...
+# Subtest: next after a skip does not halt with has no result
+ok 28 - next after a skip does not halt with has no result
+  ---
+  duration_ms: 1502.335709
+  type: 'test'
+  ...
+# Subtest: skips do not use budget
+ok 29 - skips do not use budget
+  ---
+  duration_ms: 1298.981083
+  type: 'test'
+  ...
+# Subtest: a skip between failed attempts keeps the failure streak
+ok 30 - a skip between failed attempts keeps the failure streak
+  ---
+  duration_ms: 1446.799583
+  type: 'test'
+  ...
+# Subtest: standard still returns plan-review
+ok 31 - standard still returns plan-review
+  ---
+  duration_ms: 1714.475667
+  type: 'test'
+  ...
+# Subtest: a plan that names a hot path never skips
+ok 32 - a plan that names a hot path never skips
+  ---
+  duration_ms: 1401.308625
+  type: 'test'
+  ...
+# Subtest: lean with unmeasured risk runs plan-review and logs no skip
+ok 33 - lean with unmeasured risk runs plan-review and logs no skip
+  ---
+  duration_ms: 1681.847
+  type: 'test'
+  ...
+# Subtest: a rigor rise before any implement or fix brings plan-review back
+ok 34 - a rigor rise before any implement or fix brings plan-review back
+  ---
+  duration_ms: 1629.345584
+  type: 'test'
+  ...
+# Subtest: after a failed implement, a rigor rise does not bring plan-review back
+ok 35 - after a failed implement, a rigor rise does not bring plan-review back
+  ---
+  duration_ms: 1315.6565
+  type: 'test'
+  ...
+# Subtest: report lists the skipped step and keeps Steps as the executed count
+ok 36 - report lists the skipped step and keeps Steps as the executed count
+  ---
+  duration_ms: 1583.295917
+  type: 'test'
+  ...
+# Subtest: a report without skips has no Skipped section
+ok 37 - a report without skips has no Skipped section
+  ---
+  duration_ms: 373.089042
+  type: 'test'
+  ...
+# Subtest: init on a log with a skip resumes cleanly
+ok 38 - init on a log with a skip resumes cleanly
+  ---
+  duration_ms: 1613.891041
+  type: 'test'
+  ...
+# Subtest: signals keep known keys and drop the rest
+ok 39 - signals keep known keys and drop the rest
+  ---
+  duration_ms: 542.264417
+  type: 'test'
+  ...
+# Subtest: bad signal values are dropped or cut
+ok 40 - bad signal values are dropped or cut
+  ---
+  duration_ms: 5043.352541
+  type: 'test'
+  ...
+# Subtest: run.jsonl holds no raw signals
+ok 41 - run.jsonl holds no raw signals
+  ---
+  duration_ms: 472.070209
+  type: 'test'
+  ...
+# Subtest: signals.rigor raises the level; a lower value changes nothing
+ok 42 - signals.rigor raises the level; a lower value changes nothing
+  ---
+  duration_ms: 1119.318667
+  type: 'test'
+  ...
+# Subtest: signals.needsHuman halts once with a report and the ack lives on the log entry
+ok 43 - signals.needsHuman halts once with a report and the ack lives on the log entry
+  ---
+  duration_ms: 477.297333
+  type: 'test'
+  ...
+# Subtest: a RESULT without signals behaves as before
+ok 44 - a RESULT without signals behaves as before
+  ---
+  duration_ms: 429.862541
+  type: 'test'
+  ...
+# Subtest: the plan prompt carries named-skill loading, layered safety rules and the RESULT line with signals
+ok 45 - the plan prompt carries named-skill loading, layered safety rules and the RESULT line with signals
+  ---
+  duration_ms: 195.22325
+  type: 'test'
+  ...
+# Subtest: a goal that starts with -- is stored verbatim
+ok 46 - a goal that starts with -- is stored verbatim
+  ---
+  duration_ms: 237.609625
+  type: 'test'
+  ...
+# Subtest: an unquoted goal halts at init, names the leftover words and writes nothing
+ok 47 - an unquoted goal halts at init, names the leftover words and writes nothing
+  ---
+  duration_ms: 490.593708
+  type: 'test'
+  ...
+# Subtest: an argument with no flag name is a leftover word and swallows no word after it
+ok 48 - an argument with no flag name is a leftover word and swallows no word after it
+  ---
+  duration_ms: 422.052042
+  type: 'test'
+  ...
+# Subtest: a flag init does not read halts at init, is named and writes nothing
+ok 49 - a flag init does not read halts at init, is named and writes nothing
+  ---
+  duration_ms: 243.103875
+  type: 'test'
+  ...
+# Subtest: --goal=<text> stores the text after the first =
+ok 50 - --goal=<text> stores the text after the first =
+  ---
+  duration_ms: 212.418667
+  type: 'test'
+  ...
+# Subtest: --goal=<text> takes no following word: an unquoted rest halts and an empty value keeps the stored goal
+ok 51 - --goal=<text> takes no following word: an unquoted rest halts and an empty value keeps the stored goal
+  ---
+  duration_ms: 496.9725
+  type: 'test'
+  ...
+# Subtest: the --key=value form works for the other commands and the openspec chain
+ok 52 - the --key=value form works for the other commands and the openspec chain
+  ---
+  duration_ms: 645.729209
+  type: 'test'
+  ...
+# Subtest: a quoted goal followed by another flag still works
+ok 53 - a quoted goal followed by another flag still works
+  ---
+  duration_ms: 216.795042
+  type: 'test'
+  ...
+# Subtest: a bare or empty --goal on a resume keeps the stored goal
+ok 54 - a bare or empty --goal on a resume keeps the stored goal
+  ---
+  duration_ms: 639.802167
+  type: 'test'
+  ...
+# Subtest: --goal --archive stores --archive as the goal and leaves archive off
+ok 55 - --goal --archive stores --archive as the goal and leaves archive off
+  ---
+  duration_ms: 150.536375
+  type: 'test'
+  ...
+# Subtest: usage still reads its positional step number
+ok 56 - usage still reads its positional step number
+  ---
+  duration_ms: 300.146834
+  type: 'test'
+  ...
+# Subtest: the leftover-word halt applies to the openspec chain too
+ok 57 - the leftover-word halt applies to the openspec chain too
+  ---
+  duration_ms: 84.945833
+  type: 'test'
+  ...
+# Subtest: init and next without change.md halt and write nothing (missing change.md)
+ok 58 - init and next without change.md halt and write nothing (missing change.md)
+  ---
+  duration_ms: 219.9655
+  type: 'test'
+  ...
+# Subtest: status, risk, usage, verify-archive and compare write nothing without change.md (missing change.md)
+ok 59 - status, risk, usage, verify-archive and compare write nothing without change.md (missing change.md)
+  ---
+  duration_ms: 1363.149792
+  type: 'test'
+  ...
+1..59
+# tests 59
+# suites 0
+# pass 59
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 48185.932541
+
+## skills/10x-pipeline/test/score.test.mjs — score data: step pins a cheap tier and is not interactive
+Exit 0
+TAP version 13
+# Subtest: score data: step pins a cheap tier and is not interactive
+ok 1 - score data: step pins a cheap tier and is not interactive
+  ---
+  duration_ms: 1.420958
+  type: 'test'
+  ...
+# Subtest: score data: score block ships on at standard with the shift thresholds
+ok 2 - score data: score block ships on at standard with the shift thresholds
+  ---
+  duration_ms: 0.350792
+  type: 'test'
+  ...
+# Subtest: score data: prompts.score names the change, the goal and the artifacts, and refers to score.md
+ok 3 - score data: prompts.score names the change, the goal and the artifacts, and refers to score.md
+  ---
+  duration_ms: 0.145917
+  type: 'test'
+  ...
+# Subtest: score data: prompts.score resolves through the router
+ok 4 - score data: prompts.score resolves through the router
+  ---
+  duration_ms: 180.470167
+  type: 'test'
+  ...
+# Subtest: score data: prompts/score.md is listed as wired
+ok 5 - score data: prompts/score.md is listed as wired
+  ---
+  duration_ms: 0.737833
+  type: 'test'
+  ...
+# Subtest: score data: scorer prompt carries the rules and a four-level rubric per factor
+ok 6 - score data: scorer prompt carries the rules and a four-level rubric per factor
+  ---
+  duration_ms: 0.516875
+  type: 'test'
+  ...
+# Subtest: score data: makeProject keeps plan as the first step at standard
+ok 7 - score data: makeProject keeps plan as the first step at standard
+  ---
+  duration_ms: 229.554667
+  type: 'test'
+  ...
+# Subtest: score data: an override replaced through writeOverride keeps plan first
+ok 8 - score data: an override replaced through writeOverride keeps plan first
+  ---
+  duration_ms: 227.072041
+  type: 'test'
+  ...
+# Subtest: score data: a test-provided score block wins whole
+ok 9 - score data: a test-provided score block wins whole
+  ---
+  duration_ms: 1.597416
+  type: 'test'
+  ...
+# Subtest: score gate: the shipped default runs score at standard; lean and minRigor null run no score and log no skip
+ok 10 - score gate: the shipped default runs score at standard; lean and minRigor null run no score and log no skip
+  ---
+  duration_ms: 1232.307333
+  type: 'test'
+  ...
+# Subtest: score gate: with the opt-in, standard returns score first on the pinned tier
+ok 11 - score gate: with the opt-in, standard returns score first on the pinned tier
+  ---
+  duration_ms: 210.806292
+  type: 'test'
+  ...
+# Subtest: score gate: at thorough the score step follows research
+ok 12 - score gate: at thorough the score step follows research
+  ---
+  duration_ms: 466.670458
+  type: 'test'
+  ...
+# Subtest: score gate: the score step runs once
+ok 13 - score gate: the score step runs once
+  ---
+  duration_ms: 683.698
+  type: 'test'
+  ...
+# Subtest: score gate: a plan with a Progress section gets no score step and no skip entry
+ok 14 - score gate: a plan with a Progress section gets no score step and no skip entry
+  ---
+  duration_ms: 360.920458
+  type: 'test'
+  ...
+# Subtest: score gate: a valid file skips with a logged reason and the summary
+ok 15 - score gate: a valid file skips with a logged reason and the summary
+  ---
+  duration_ms: 496.958083
+  type: 'test'
+  ...
+# Subtest: score gate: an invalid file does not skip
+ok 16 - score gate: an invalid file does not skip
+  ---
+  duration_ms: 201.930333
+  type: 'test'
+  ...
+# Subtest: score validation: a missing file fails the step and retries
+ok 17 - score validation: a missing file fails the step and retries
+  ---
+  duration_ms: 340.613583
+  type: 'test'
+  ...
+# Subtest: score validation: a stale valid file fails the step and retries
+ok 18 - score validation: a stale valid file fails the step and retries
+  ---
+  duration_ms: 302.71725
+  type: 'test'
+  ...
+# Subtest: score validation: bad JSON fails the step and retries
+ok 19 - score validation: bad JSON fails the step and retries
+  ---
+  duration_ms: 768.781167
+  type: 'test'
+  ...
+# Subtest: score validation: a wrong schemaVersion fails the step and retries
+ok 20 - score validation: a wrong schemaVersion fails the step and retries
+  ---
+  duration_ms: 264.910333
+  type: 'test'
+  ...
+# Subtest: score validation: a missing factor fails the step and retries
+ok 21 - score validation: a missing factor fails the step and retries
+  ---
+  duration_ms: 375.054833
+  type: 'test'
+  ...
+# Subtest: score validation: a score outside the scale or not an integer fails the step and retries
+ok 22 - score validation: a score outside the scale or not an integer fails the step and retries
+  ---
+  duration_ms: 1322.117208
+  type: 'test'
+  ...
+# Subtest: score validation: empty evidence fails the step and retries
+ok 23 - score validation: empty evidence fails the step and retries
+  ---
+  duration_ms: 618.65325
+  type: 'test'
+  ...
+# Subtest: score validation: unknowns not an array fails the step and retries
+ok 24 - score validation: unknowns not an array fails the step and retries
+  ---
+  duration_ms: 415.216542
+  type: 'test'
+  ...
+# Subtest: score validation: an unknown confidence fails the step and retries
+ok 25 - score validation: an unknown confidence fails the step and retries
+  ---
+  duration_ms: 309.492333
+  type: 'test'
+  ...
+# Subtest: score validation: a symlink fails the step and retries
+ok 26 - score validation: a symlink fails the step and retries
+  ---
+  duration_ms: 307.346208
+  type: 'test'
+  ...
+# Subtest: score validation: an oversize file fails the step and retries
+ok 27 - score validation: an oversize file fails the step and retries
+  ---
+  duration_ms: 345.811375
+  type: 'test'
+  ...
+# Subtest: score validation: false evidence text is accepted and the summary lands on the ok entry
+ok 28 - score validation: false evidence text is accepted and the summary lands on the ok entry
+  ---
+  duration_ms: 338.320875
+  type: 'test'
+  ...
+# Subtest: score failure: three failed attempts skip, the plan follows and nothing halts
+ok 29 - score failure: three failed attempts skip, the plan follows and nothing halts
+  ---
+  duration_ms: 610.583792
+  type: 'test'
+  ...
+# Subtest: score failure: two invalid files skip
+ok 30 - score failure: two invalid files skip
+  ---
+  duration_ms: 363.560834
+  type: 'test'
+  ...
+# Subtest: score failure: the simple-change discount survives failed score attempts
+ok 31 - score failure: the simple-change discount survives failed score attempts
+  ---
+  duration_ms: 1026.563792
+  type: 'test'
+  ...
+# Subtest: score failure: a score result's signals.rigor leaves the level unchanged
+ok 32 - score failure: a score result's signals.rigor leaves the level unchanged
+  ---
+  duration_ms: 305.391166
+  type: 'test'
+  ...
+# Subtest: score failure: failed score attempts use no step budget
+ok 33 - score failure: failed score attempts use no step budget
+  ---
+  duration_ms: 1074.888208
+  type: 'test'
+  ...
+# Subtest: score failure: a score result with needsHuman halts once with a report
+ok 34 - score failure: a score result with needsHuman halts once with a report
+  ---
+  duration_ms: 426.466083
+  type: 'test'
+  ...
+# Subtest: score shift: a cognitive sum of 7 moves a plain-goal first plan from 3 to 5
+ok 35 - score shift: a cognitive sum of 7 moves a plain-goal first plan from 3 to 5
+  ---
+  duration_ms: 608.3245
+  type: 'test'
+  ...
+# Subtest: score shift: a hard-keyword first plan moves from 5 to 6
+ok 36 - score shift: a hard-keyword first plan moves from 5 to 6
+  ---
+  duration_ms: 642.75425
+  type: 'test'
+  ...
+# Subtest: score shift: the up shift has no guards: low confidence and 3 unknowns
+ok 37 - score shift: the up shift has no guards: low confidence and 3 unknowns
+  ---
+  duration_ms: 413.444291
+  type: 'test'
+  ...
+# Subtest: score shift: an execution sum of 7 moves implement up one rung
+ok 38 - score shift: an execution sum of 7 moves implement up one rung
+  ---
+  duration_ms: 1595.197708
+  type: 'test'
+  ...
+# Subtest: score shift: the implement up shift also applies with a hot path, unmeasured risk, a phase bump or a discount
+ok 39 - score shift: the implement up shift also applies with a hot path, unmeasured risk, a phase bump or a discount
+  ---
+  duration_ms: 5897.992958
+  type: 'test'
+  ...
+# Subtest: score shift: a low cognitive sum never moves the first plan down
+ok 40 - score shift: a low cognitive sum never moves the first plan down
+  ---
+  duration_ms: 647.019125
+  type: 'test'
+  ...
+# Subtest: score shift: a low execution sum moves plain implement from 3 to 2 with measured risk and no hot path
+ok 41 - score shift: a low execution sum moves plain implement from 3 to 2 with measured risk and no hot path
+  ---
+  duration_ms: 1970.763458
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift on confidence low
+ok 42 - score shift: no implement down shift on confidence low
+  ---
+  duration_ms: 1995.183709
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift on 3 unknowns
+ok 43 - score shift: no implement down shift on 3 unknowns
+  ---
+  duration_ms: 2119.244417
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift on a hot plan path
+ok 44 - score shift: no implement down shift on a hot plan path
+  ---
+  duration_ms: 1837.043917
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift on risk unavailable (no git)
+ok 45 - score shift: no implement down shift on risk unavailable (no git)
+  ---
+  duration_ms: 701.228375
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift on a plan that names no path
+ok 46 - score shift: no implement down shift on a plan that names no path
+  ---
+  duration_ms: 2093.931417
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift on an unclassified plan token
+ok 47 - score shift: no implement down shift on an unclassified plan token
+  ---
+  duration_ms: 2357.89425
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift after a failed step
+ok 48 - score shift: no implement down shift after a failed step
+  ---
+  duration_ms: 1864.21275
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift with a simple-change discount or a phase-count bump
+ok 49 - score shift: no implement down shift with a simple-change discount or a phase-count bump
+  ---
+  duration_ms: 3470.307542
+  type: 'test'
+  ...
+# Subtest: score shift: no implement down shift once the diff touches a hot path
+ok 50 - score shift: no implement down shift once the diff touches a hot path
+  ---
+  duration_ms: 2447.002333
+  type: 'test'
+  ...
+# Subtest: score shift: an implement-tdd step at thorough never goes below the effort floor
+ok 51 - score shift: an implement-tdd step at thorough never goes below the effort floor
+  ---
+  duration_ms: 2155.169209
+  type: 'test'
+  ...
+# Subtest: score shift: maxTier bounds the up shift and records effective 0
+ok 52 - score shift: maxTier bounds the up shift and records effective 0
+  ---
+  duration_ms: 449.802875
+  type: 'test'
+  ...
+# Subtest: score shift: plan reads cognitive only and implement reads execution only
+ok 53 - score shift: plan reads cognitive only and implement reads execution only
+  ---
+  duration_ms: 3712.970125
+  type: 'test'
+  ...
+# Subtest: score shift: a plan-revise step and the review and fix steps get no shift
+ok 54 - score shift: a plan-revise step and the review and fix steps get no shift
+  ---
+  duration_ms: 2325.287042
+  type: 'test'
+  ...
+# Subtest: score shift: a retried first plan and a repeated implement keep the up shift on top of the failure bump
+ok 55 - score shift: a retried first plan and a repeated implement keep the up shift on top of the failure bump
+  ---
+  duration_ms: 993.683875
+  type: 'test'
+  ...
+# Subtest: score shift: editing or deleting complexity.json after the score step changes neither tiers nor the report
+ok 56 - score shift: editing or deleting complexity.json after the score step changes neither tiers nor the report
+  ---
+  duration_ms: 887.500167
+  type: 'test'
+  ...
+# Subtest: score shift: a run without a score summary has today's tiers and the same rigor
+ok 57 - score shift: a run without a score summary has today's tiers and the same rigor
+  ---
+  duration_ms: 1834.603042
+  type: 'test'
+  ...
+# Subtest: score report: the section lists the sums, the factors and every shift, and an absorbed shift reads not applied
+ok 58 - score report: the section lists the sums, the factors and every shift, and an absorbed shift reads not applied
+  ---
+  duration_ms: 2366.895084
+  type: 'test'
+  ...
+# Subtest: score report: no section without a score, a section from a skip with a valid file
+ok 59 - score report: no section without a score, a section from a skip with a valid file
+  ---
+  duration_ms: 1634.880292
+  type: 'test'
+  ...
+# Subtest: score report: status shows the score, the skip summary, invalid and scoreShift
+ok 60 - score report: status shows the score, the skip summary, invalid and scoreShift
+  ---
+  duration_ms: 1131.765042
+  type: 'test'
+  ...
+1..60
+# tests 60
+# suites 0
+# pass 60
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 62791.354708
+
+## skills/10x-pipeline/test/compare.test.mjs — 1.1 baseline file has exactly ladder, rigor and score, all sonnet/high, standard rigor, no plan-review skip, no scorer
+Exit 0
+TAP version 13
+# Subtest: 1.1 baseline file has exactly ladder, rigor and score, all sonnet/high, standard rigor, no plan-review skip, no scorer
+ok 1 - 1.1 baseline file has exactly ladder, rigor and score, all sonnet/high, standard rigor, no plan-review skip, no scorer
+  ---
+  duration_ms: 2.233834
+  type: 'test'
+  ...
+# Subtest: 1.2 baseline file starts a hard-keyword goal and a short goal at sonnet/high and standard
+ok 2 - 1.2 baseline file starts a hard-keyword goal and a short goal at sonnet/high and standard
+  ---
+  duration_ms: 797.7315
+  type: 'test'
+  ...
+# Subtest: 1.3 plan review is skipped under the default policy and runs at sonnet/high under the baseline file
+ok 3 - 1.3 plan review is skipped under the default policy and runs at sonnet/high under the baseline file
+  ---
+  duration_ms: 2778.326
+  type: 'test'
+  ...
+# Subtest: 1.4 usage intake keeps valid figures, drops invalid ones, leaves no key when absent
+ok 4 - 1.4 usage intake keeps valid figures, drops invalid ones, leaves no key when absent
+  ---
+  duration_ms: 1685.310833
+  type: 'test'
+  ...
+# Subtest: 1.5 policy.json ships compare.targetDropPercent as null
+ok 5 - 1.5 policy.json ships compare.targetDropPercent as null
+  ---
+  duration_ms: 0.18175
+  type: 'test'
+  ...
+# Subtest: 2.1 a complete done pair gives the drop, and the default policy leaves the target unset
+ok 6 - 2.1 a complete done pair gives the drop, and the default policy leaves the target unset
+  ---
+  duration_ms: 116.181291
+  type: 'test'
+  ...
+# Subtest: 2.2 the target verdict is decided on exact tokens and the printed drop never reads above a missed target
+ok 7 - 2.2 the target verdict is decided on exact tokens and the printed drop never reads above a missed target
+  ---
+  duration_ms: 1034.088375
+  type: 'test'
+  ...
+# Subtest: 2.2 boundary sweep: printed drop is at least the target exactly when the verdict is met
+ok 8 - 2.2 boundary sweep: printed drop is at least the target exactly when the verdict is met
+  ---
+  duration_ms: 7416.113375
+  type: 'test'
+  ...
+# Subtest: 2.2 a null target and a compare block of null or without the key do not halt
+ok 9 - 2.2 a null target and a compare block of null or without the key do not halt
+  ---
+  duration_ms: 221.195
+  type: 'test'
+  ...
+# Subtest: 2.3 missing or invalid usage on any executed entry makes the pair not comparable and keeps the partial sums
+ok 10 - 2.3 missing or invalid usage on any executed entry makes the pair not comparable and keeps the partial sums
+  ---
+  duration_ms: 760.167084
+  type: 'test'
+  ...
+# Subtest: 2.4 the baseline pin looks at executed entries; skip entries only warn
+ok 11 - 2.4 the baseline pin looks at executed entries; skip entries only warn
+  ---
+  duration_ms: 465.615
+  type: 'test'
+  ...
+# Subtest: 2.5 a side that did not end done is not comparable and lists its outcome
+ok 12 - 2.5 a side that did not end done is not comparable and lists its outcome
+  ---
+  duration_ms: 195.655208
+  type: 'test'
+  ...
+# Subtest: 2.6 mismatches only warn and the numbers are kept
+ok 13 - 2.6 mismatches only warn and the numbers are kept
+  ---
+  duration_ms: 268.024084
+  type: 'test'
+  ...
+# Subtest: 2.7 a zero baseline, an empty log and garbage lines do not throw
+ok 14 - 2.7 a zero baseline, an empty log and garbage lines do not throw
+  ---
+  duration_ms: 341.916125
+  type: 'test'
+  ...
+# Subtest: 2.8 side lookup: archive, agent-smith folder, relative dir, ambiguity, near misses and a missing log
+ok 15 - 2.8 side lookup: archive, agent-smith folder, relative dir, ambiguity, near misses and a missing log
+  ---
+  duration_ms: 714.327
+  type: 'test'
+  ...
+# Subtest: 2.9 compare writes nothing and rejects missing flag values and an invalid target
+ok 16 - 2.9 compare writes nothing and rejects missing flag values and an invalid target
+  ---
+  duration_ms: 1054.37425
+  type: 'test'
+  ...
+# Subtest: 2.10 a routed folder moved with git mv is read from the archive, ignored or tracked run.jsonl
+ok 17 - 2.10 a routed folder moved with git mv is read from the archive, ignored or tracked run.jsonl
+  ---
+  duration_ms: 592.017625
+  type: 'test'
+  ...
+# Subtest: 2.11 a log written by the real router under the baseline file is read with the written total
+ok 18 - 2.11 a log written by the real router under the baseline file is read with the written total
+  ---
+  duration_ms: 500.414833
+  type: 'test'
+  ...
+# Subtest: 2.2 a target with 3 or more decimals takes the float branch with a tight slack
+ok 19 - 2.2 a target with 3 or more decimals takes the float branch with a tight slack
+  ---
+  duration_ms: 1092.226375
+  type: 'test'
+  ...
+# Subtest: 2.2 a negative drop that does not divide evenly is floored, not truncated
+ok 20 - 2.2 a negative drop that does not divide evenly is floored, not truncated
+  ---
+  duration_ms: 566.504959
+  type: 'test'
+  ...
+# Subtest: 2.4 a baseline is pinned only when every executed entry is pinned
+ok 21 - 2.4 a baseline is pinned only when every executed entry is pinned
+  ---
+  duration_ms: 466.279209
+  type: 'test'
+  ...
+# Subtest: 2.6 an input file on the routed side only is also reported, and a prefixed archive name is not an archive
+ok 22 - 2.6 an input file on the routed side only is also reported, and a prefixed archive name is not an archive
+  ---
+  duration_ms: 226.036042
+  type: 'test'
+  ...
+# Subtest: 2.8 an archive folder with a prefix before the date is ignored
+ok 23 - 2.8 an archive folder with a prefix before the date is ignored
+  ---
+  duration_ms: 100.658292
+  type: 'test'
+  ...
+# Subtest: 2.1 failed attempts and the plan size are reported per side, in JSON and Markdown
+ok 24 - 2.1 failed attempts and the plan size are reported per side, in JSON and Markdown
+  ---
+  duration_ms: 240.9965
+  type: 'test'
+  ...
+# Subtest: 2.1 advisory score and fallback failures are neutral on either compare arm
+ok 25 - 2.1 advisory score and fallback failures are neutral on either compare arm
+  ---
+  duration_ms: 433.627333
+  type: 'test'
+  ...
+# Subtest: 2.1 compare classifies cheap, legacy, successful, pending and skipped entries
+ok 26 - 2.1 compare classifies cheap, legacy, successful, pending and skipped entries
+  ---
+  duration_ms: 1321.805
+  type: 'test'
+  ...
+# Subtest: 2.1 pinned baseline keeps ordinary failures, token totals and verdict
+ok 27 - 2.1 pinned baseline keeps ordinary failures, token totals and verdict
+  ---
+  duration_ms: 184.373792
+  type: 'test'
+  ...
+# Subtest: 2.3 neutral advisory failure still requires usage on either compare arm
+ok 28 - 2.3 neutral advisory failure still requires usage on either compare arm
+  ---
+  duration_ms: 373.335708
+  type: 'test'
+  ...
+# Subtest: 2.3 a token sum past the safe-integer range is unavailable, not an inexact total
+ok 29 - 2.3 a token sum past the safe-integer range is unavailable, not an inexact total
+  ---
+  duration_ms: 91.692416
+  type: 'test'
+  ...
+# Subtest: 3.1 --format md prints the table, per-model lines, drop, target, verdict, reasons and warnings
+ok 30 - 3.1 --format md prints the table, per-model lines, drop, target, verdict, reasons and warnings
+  ---
+  duration_ms: 429.473584
+  type: 'test'
+  ...
+# Subtest: 4.2 a baseline-policy run at standard starts with plan, the shipped default with score
+ok 31 - 4.2 a baseline-policy run at standard starts with plan, the shipped default with score
+  ---
+  duration_ms: 420.217917
+  type: 'test'
+  ...
+# Subtest: 4.3 --unpinned waives only the pin, warns and reports the unpinned verdict
+ok 32 - 4.3 --unpinned waives only the pin, warns and reports the unpinned verdict
+  ---
+  duration_ms: 898.686375
+  type: 'test'
+  ...
+# Subtest: 4.3 --unpinned false behaves as without the flag, and an invalid value halts before anything is read
+ok 33 - 4.3 --unpinned false behaves as without the flag, and an invalid value halts before anything is read
+  ---
+  duration_ms: 1204.0935
+  type: 'test'
+  ...
+# Subtest: 4.3 tokens.byTier sums per model and effort, beside byModel, in JSON and Markdown
+ok 34 - 4.3 tokens.byTier sums per model and effort, beside byModel, in JSON and Markdown
+  ---
+  duration_ms: 440.102916
+  type: 'test'
+  ...
+# Subtest: 4.3 a pair whose only file difference is complexity.json has no input-files-differ warning
+ok 35 - 4.3 a pair whose only file difference is complexity.json has no input-files-differ warning
+  ---
+  duration_ms: 574.341583
+  type: 'test'
+  ...
+# Subtest: damaged skipped records retain integrity reasons beside pin, outcome and usage failures
+ok 36 - damaged skipped records retain integrity reasons beside pin, outcome and usage failures
+  ---
+  duration_ms: 444.095666
+  type: 'test'
+  ...
+1..36
+# tests 36
+# suites 0
+# pass 36
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29407.948583
+
+## skills/10x-pipeline/test/cost.test.mjs — 1.1 policy.json ships prices null and lists prices in provenance.ignore
+Exit 0
+TAP version 13
+# Subtest: 1.1 policy.json ships prices null and lists prices in provenance.ignore
+ok 1 - 1.1 policy.json ships prices null and lists prices in provenance.ignore
+  ---
+  duration_ms: 0.749209
+  type: 'test'
+  ...
+# Subtest: 1.2 priceTable reads a malformed block as off and drops malformed entries, without throwing
+ok 2 - 1.2 priceTable reads a malformed block as off and drops malformed entries, without throwing
+  ---
+  duration_ms: 0.635583
+  type: 'test'
+  ...
+# Subtest: 1.2 estimateCost sums priced steps, counts coverage, lists unpriced aliases and maps each entry
+ok 3 - 1.2 estimateCost sums priced steps, counts coverage, lists unpriced aliases and maps each entry
+  ---
+  duration_ms: 0.466209
+  type: 'test'
+  ...
+# Subtest: 1.2 estimateCost never throws on a hand-edited log
+ok 4 - 1.2 estimateCost never throws on a hand-edited log
+  ---
+  duration_ms: 0.14025
+  type: 'test'
+  ...
+# Subtest: 1.2 a prices override merges over the shipped null, and a malformed override reads as no prices
+ok 5 - 1.2 a prices override merges over the shipped null, and a malformed override reads as no prices
+  ---
+  duration_ms: 327.862083
+  type: 'test'
+  ...
+# Subtest: 2.1 with the shipped policy report.md and status carry no cost text or key
+ok 6 - 2.1 with the shipped policy report.md and status carry no cost text or key
+  ---
+  duration_ms: 118.437833
+  type: 'test'
+  ...
+# Subtest: 2.2 with prices set the report has the Cost (est.) column and the Cost (estimate) line with the exact total
+ok 7 - 2.2 with prices set the report has the Cost (est.) column and the Cost (estimate) line with the exact total
+  ---
+  duration_ms: 320.670916
+  type: 'test'
+  ...
+# Subtest: 2.3 a step with no token figure shows - in the cost column and is not counted in M
+ok 8 - 2.3 a step with no token figure shows - in the cost column and is not counted in M
+  ---
+  duration_ms: 101.269792
+  type: 'test'
+  ...
+# Subtest: 2.4 status prints the top-level cost object and a per-step cost when prices are set
+ok 9 - 2.4 status prints the top-level cost object and a per-step cost when prices are set
+  ---
+  duration_ms: 166.987958
+  type: 'test'
+  ...
+# Subtest: 2.4 a real step with a usage figure is priced in status and status --report
+ok 10 - 2.4 a real step with a usage figure is priced in status and status --report
+  ---
+  duration_ms: 480.098208
+  type: 'test'
+  ...
+# Subtest: 2.5 an OpenSpec run gets the same report line and status object
+ok 11 - 2.5 an OpenSpec run gets the same report line and status object
+  ---
+  duration_ms: 824.068083
+  type: 'test'
+  ...
+# Subtest: 3.1 with the shipped policy the compare JSON has cost null on both sides and the Markdown no cost row
+ok 12 - 3.1 with the shipped policy the compare JSON has cost null on both sides and the Markdown no cost row
+  ---
+  duration_ms: 216.222959
+  type: 'test'
+  ...
+# Subtest: 3.2 with prices set both sides carry cost with the exact USD, coverage and USD per alias, and the Markdown prints the rows
+ok 13 - 3.2 with prices set both sides carry cost with the exact USD, coverage and USD per alias, and the Markdown prints the rows
+  ---
+  duration_ms: 185.035
+  type: 'test'
+  ...
+# Subtest: 3.3 verdict, comparable, reasons and dropPercent are identical with and without prices, also for a pair that is not comparable
+ok 14 - 3.3 verdict, comparable, reasons and dropPercent are identical with and without prices, also for a pair that is not comparable
+  ---
+  duration_ms: 909.252583
+  type: 'test'
+  ...
+# Subtest: 3.4 an unpriced alias on a side gives cost-incomplete:<side> and does not change comparable
+ok 15 - 3.4 an unpriced alias on a side gives cost-incomplete:<side> and does not change comparable
+  ---
+  duration_ms: 367.9275
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 15
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4201.339375
+
+## skills/10x-pipeline/test/firstattempt.test.mjs — 5.1 the first implement attempt of an isolated run runs one tier lower and is marked cheap
+Exit 0
+TAP version 13
+# Subtest: 5.1 the first implement attempt of an isolated run runs one tier lower and is marked cheap
+ok 1 - 5.1 the first implement attempt of an isolated run runs one tier lower and is marked cheap
+  ---
+  duration_ms: 921.976417
+  type: 'test'
+  ...
+# Subtest: 5.1 no drop on top of the simple-change discount
+ok 2 - 5.1 no drop on top of the simple-change discount
+  ---
+  duration_ms: 735.923417
+  type: 'test'
+  ...
+# Subtest: 5.1 the retry of a failed cheap attempt runs two tiers above it
+ok 3 - 5.1 the retry of a failed cheap attempt runs two tiers above it
+  ---
+  duration_ms: 2050.01975
+  type: 'test'
+  ...
+# Subtest: 5.1 a later implement step of a run with one implement failure gets no drop
+ok 4 - 5.1 a later implement step of a run with one implement failure gets no drop
+  ---
+  duration_ms: 554.088708
+  type: 'test'
+  ...
+# Subtest: 5.1 a lean run whose cheap attempt fails stays lean and keeps its budget of 10
+ok 5 - 5.1 a lean run whose cheap attempt fails stays lean and keeps its budget of 10
+  ---
+  duration_ms: 2306.883667
+  type: 'test'
+  ...
+# Subtest: 5.1 a cheap fallback is no failure: it uses step budget
+ok 6 - 5.1 a cheap fallback is no failure: it uses step budget
+  ---
+  duration_ms: 653.700375
+  type: 'test'
+  ...
+# Subtest: 5.1 a drop that the clamp absorbed sets no cheap flag and its failure counts for rigor
+ok 7 - 5.1 a drop that the clamp absorbed sets no cheap flag and its failure counts for rigor
+  ---
+  duration_ms: 2044.860542
+  type: 'test'
+  ...
+# Subtest: 5.1 the effort floor holds for a tdd step at thorough: no cheap flag
+ok 8 - 5.1 the effort floor holds for a tdd step at thorough: no cheap flag
+  ---
+  duration_ms: 787.257375
+  type: 'test'
+  ...
+# Subtest: 5.1 drop 0 turns it off
+ok 9 - 5.1 drop 0 turns it off
+  ---
+  duration_ms: 655.770334
+  type: 'test'
+  ...
+# Subtest: 5.1 the score down shift does not stack on the first-attempt drop
+ok 10 - 5.1 the score down shift does not stack on the first-attempt drop
+  ---
+  duration_ms: 12112.102833
+  type: 'test'
+  ...
+# Subtest: 5.1 an up shift that cancels the drop sets no cheap flag and names the score shift
+ok 11 - 5.1 an up shift that cancels the drop sets no cheap flag and names the score shift
+  ---
+  duration_ms: 5753.405542
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 29253.3095
+
+## skills/10x-pipeline/test/preplan.test.mjs — preplan data: steps, gates, artifacts and loops
+Exit 0
+TAP version 13
+# Subtest: preplan data: steps, gates, artifacts and loops
+ok 1 - preplan data: steps, gates, artifacts and loops
+  ---
+  duration_ms: 1.686208
+  type: 'test'
+  ...
+# Subtest: preplan data: aggregateGap files, statuses, word length and stopwords
+ok 2 - preplan data: aggregateGap files, statuses, word length and stopwords
+  ---
+  duration_ms: 0.28875
+  type: 'test'
+  ...
+# Subtest: every @prompts reference in policy.prompts resolves to a file
+ok 3 - every @prompts reference in policy.prompts resolves to a file
+  ---
+  duration_ms: 1.613875
+  type: 'test'
+  ...
+# Subtest: every prompt file is wired or documented as not wired
+ok 4 - every prompt file is wired or documented as not wired
+  ---
+  duration_ms: 1.046709
+  type: 'test'
+  ...
+# Subtest: research templates ask for status frontmatter through the always-true step file
+ok 5 - research templates ask for status frontmatter through the always-true step file
+  ---
+  duration_ms: 0.277875
+  type: 'test'
+  ...
+# Subtest: frame guide covers each ask point
+ok 6 - frame guide covers each ask point
+  ---
+  duration_ms: 0.245958
+  type: 'test'
+  ...
+# Subtest: loader joins array parts and resolves a file reference
+ok 7 - loader joins array parts and resolves a file reference
+  ---
+  duration_ms: 217.166708
+  type: 'test'
+  ...
+# Subtest: a goal text never resolves a prompt reference
+ok 8 - a goal text never resolves a prompt reference
+  ---
+  duration_ms: 182.712166
+  type: 'test'
+  ...
+# Subtest: a missing or malformed prompt reference ends in a JSON halt
+ok 9 - a missing or malformed prompt reference ends in a JSON halt
+  ---
+  duration_ms: 1011.792291
+  type: 'test'
+  ...
+# Subtest: a bad prompt reference halts before the subagent result is consumed
+ok 10 - a bad prompt reference halts before the subagent result is consumed
+  ---
+  duration_ms: 622.698834
+  type: 'test'
+  ...
+# Subtest: plan prompt without artifacts equals today's text
+ok 11 - plan prompt without artifacts equals today's text
+  ---
+  duration_ms: 233.706083
+  type: 'test'
+  ...
+# Subtest: plan-revise prompt without artifacts equals today's text
+ok 12 - plan-revise prompt without artifacts equals today's text
+  ---
+  duration_ms: 274.183834
+  type: 'test'
+  ...
+# Subtest: plan prompt lists the artifacts that exist
+ok 13 - plan prompt lists the artifacts that exist
+  ---
+  duration_ms: 1230.580916
+  type: 'test'
+  ...
+# Subtest: plan-revise prompt lists the artifacts that exist on its second line
+ok 14 - plan-revise prompt lists the artifacts that exist on its second line
+  ---
+  duration_ms: 401.039292
+  type: 'test'
+  ...
+# Subtest: frame authority rule only with frame.md
+ok 15 - frame authority rule only with frame.md
+  ---
+  duration_ms: 851.020291
+  type: 'test'
+  ...
+# Subtest: frame authority line names the real change id and leaves no braces
+ok 16 - frame authority line names the real change id and leaves no braces
+  ---
+  duration_ms: 672.027375
+  type: 'test'
+  ...
+# Subtest: frame authority rule wins over the Progress titles line and keeps the contract
+ok 17 - frame authority rule wins over the Progress titles line and keeps the contract
+  ---
+  duration_ms: 240.802625
+  type: 'test'
+  ...
+# Subtest: default policy keeps the first step at lean and standard
+ok 18 - default policy keeps the first step at lean and standard
+  ---
+  duration_ms: 714.224583
+  type: 'test'
+  ...
+# Subtest: thorough opens the pre-plan gates
+ok 19 - thorough opens the pre-plan gates
+  ---
+  duration_ms: 338.434292
+  type: 'test'
+  ...
+# Subtest: research skipped when research.md exists
+ok 20 - research skipped when research.md exists
+  ---
+  duration_ms: 202.517916
+  type: 'test'
+  ...
+# Subtest: repo map selects research-with-map
+ok 21 - repo map selects research-with-map
+  ---
+  duration_ms: 961.075416
+  type: 'test'
+  ...
+# Subtest: aggregateGap on the reference template
+ok 22 - aggregateGap on the reference template
+  ---
+  duration_ms: 1591.158333
+  type: 'test'
+  ...
+# Subtest: aggregateGap on multi-candidate sections
+ok 23 - aggregateGap on multi-candidate sections
+  ---
+  duration_ms: 1313.595125
+  type: 'test'
+  ...
+# Subtest: aggregateGap on a policy (quoted) table
+ok 24 - aggregateGap on a policy (quoted) table
+  ---
+  duration_ms: 465.311458
+  type: 'test'
+  ...
+# Subtest: aggregateGap heading word does not hit rows
+ok 25 - aggregateGap heading word does not hit rows
+  ---
+  duration_ms: 667.169416
+  type: 'test'
+  ...
+# Subtest: aggregateGap matches whole words
+ok 26 - aggregateGap matches whole words
+  ---
+  duration_ms: 797.756
+  type: 'test'
+  ...
+# Subtest: aggregateGap qualified status
+ok 27 - aggregateGap qualified status
+  ---
+  duration_ms: 1632.166041
+  type: 'test'
+  ...
+# Subtest: aggregateGap ignores stopwords and short words
+ok 28 - aggregateGap ignores stopwords and short words
+  ---
+  duration_ms: 588.096542
+  type: 'test'
+  ...
+# Subtest: aggregateGap with no file, no section or no usable table is no hit and no halt
+ok 29 - aggregateGap with no file, no section or no usable table is no hit and no halt
+  ---
+  duration_ms: 1705.357708
+  type: 'test'
+  ...
+# Subtest: aggregateGap wins when both hit
+ok 30 - aggregateGap wins when both hit
+  ---
+  duration_ms: 197.258083
+  type: 'test'
+  ...
+# Subtest: domain brief by dependencyLeak
+ok 31 - domain brief by dependencyLeak
+  ---
+  duration_ms: 240.165958
+  type: 'test'
+  ...
+# Subtest: domain brief skipped with no signal
+ok 32 - domain brief skipped with no signal
+  ---
+  duration_ms: 701.149209
+  type: 'test'
+  ...
+# Subtest: briefExists and the frame authority line follow the policy, not fixed names
+ok 33 - briefExists and the frame authority line follow the policy, not fixed names
+  ---
+  duration_ms: 844.938708
+  type: 'test'
+  ...
+# Subtest: framing doubt by cause-shaped goal
+ok 34 - framing doubt by cause-shaped goal
+  ---
+  duration_ms: 697.978709
+  type: 'test'
+  ...
+# Subtest: framing doubt by signals.rigor of an earlier step
+ok 35 - framing doubt by signals.rigor of an earlier step
+  ---
+  duration_ms: 499.411625
+  type: 'test'
+  ...
+# Subtest: framing doubt: any valid signals.rigor of an earlier step counts, as the plan says
+ok 36 - framing doubt: any valid signals.rigor of an earlier step counts, as the plan says
+  ---
+  duration_ms: 1557.657875
+  type: 'test'
+  ...
+# Subtest: framing doubt does not fire on fix typo
+ok 37 - framing doubt does not fire on fix typo
+  ---
+  duration_ms: 1075.227292
+  type: 'test'
+  ...
+# Subtest: three skips in one call
+ok 38 - three skips in one call
+  ---
+  duration_ms: 358.186125
+  type: 'test'
+  ...
+# Subtest: a budget halt logs no skip, and the resumed run decides the skips again
+ok 39 - a budget halt logs no skip, and the resumed run decides the skips again
+  ---
+  duration_ms: 380.1015
+  type: 'test'
+  ...
+# Subtest: pre-plan skip row in status and report
+ok 40 - pre-plan skip row in status and report
+  ---
+  duration_ms: 416.249583
+  type: 'test'
+  ...
+# Subtest: failed research is retried at the next tier and halts after three failures
+ok 41 - failed research is retried at the next tier and halts after three failures
+  ---
+  duration_ms: 1016.601458
+  type: 'test'
+  ...
+# Subtest: a failed pre-plan step is retried before skipIf, when and the rigor check
+ok 42 - a failed pre-plan step is retried before skipIf, when and the rigor check
+  ---
+  duration_ms: 2832.956125
+  type: 'test'
+  ...
+# Subtest: a missing 10x-research or 10x-frame skill fails the step three times and halts
+ok 43 - a missing 10x-research or 10x-frame skill fails the step three times and halts
+  ---
+  duration_ms: 4516.39325
+  type: 'test'
+  ...
+# Subtest: both domain prompt templates name their artifact file and type refactor-plan
+ok 44 - both domain prompt templates name their artifact file and type refactor-plan
+  ---
+  duration_ms: 903.693125
+  type: 'test'
+  ...
+# Subtest: frame stays at opus/high on retry
+ok 45 - frame stays at opus/high on retry
+  ---
+  duration_ms: 1257.767042
+  type: 'test'
+  ...
+# Subtest: frame blocked with needsHuman halts and writes the report
+ok 46 - frame blocked with needsHuman halts and writes the report
+  ---
+  duration_ms: 669.522292
+  type: 'test'
+  ...
+# Subtest: needsHuman wins over a frame.md that says Confidence HIGH
+ok 47 - needsHuman wins over a frame.md that says Confidence HIGH
+  ---
+  duration_ms: 1412.821833
+  type: 'test'
+  ...
+# Subtest: frame done with Confidence LOW does not raise rigor and the plan step follows
+ok 48 - frame done with Confidence LOW does not raise rigor and the plan step follows
+  ---
+  duration_ms: 545.308959
+  type: 'test'
+  ...
+# Subtest: verification by artifact: research
+ok 49 - verification by artifact: research
+  ---
+  duration_ms: 3024.156
+  type: 'test'
+  ...
+# Subtest: verification by artifact: frame
+ok 50 - verification by artifact: frame
+  ---
+  duration_ms: 2155.9435
+  type: 'test'
+  ...
+# Subtest: verification by artifact: both domain templates
+ok 51 - verification by artifact: both domain templates
+  ---
+  duration_ms: 6111.485541
+  type: 'test'
+  ...
+# Subtest: plan runs after the pre-plan steps with the artifacts listed
+ok 52 - plan runs after the pre-plan steps with the artifacts listed
+  ---
+  duration_ms: 663.9505
+  type: 'test'
+  ...
+# Subtest: a plan attempt closes the pre-plan phase
+ok 53 - a plan attempt closes the pre-plan phase
+  ---
+  duration_ms: 279.572334
+  type: 'test'
+  ...
+# Subtest: malformed preplan config never throws
+ok 54 - malformed preplan config never throws
+  ---
+  duration_ms: 6666.838042
+  type: 'test'
+  ...
+1..54
+# tests 54
+# suites 0
+# pass 54
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 56632.2435
+
+## skills/10x-pipeline/test/executors.test.mjs — plain implement keeps count rule
+Exit 0
+TAP version 13
+# gateCheck phase 1: cannot read <worktree>/skills/10x-pipeline/test/no-such-plan.md
+# Subtest: plain implement keeps count rule
+ok 1 - plain implement keeps count rule
+  ---
+  duration_ms: 439.019083
+  type: 'test'
+  ...
+# Subtest: strict verify rejects skip flip
+ok 2 - strict verify rejects skip flip
+  ---
+  duration_ms: 980.075208
+  type: 'test'
+  ...
+# Subtest: strict verify accepts new commit
+ok 3 - strict verify accepts new commit
+  ---
+  duration_ms: 1215.710541
+  type: 'test'
+  ...
+# Subtest: strict verify checks sha suffix
+ok 4 - strict verify checks sha suffix
+  ---
+  duration_ms: 1846.250458
+  type: 'test'
+  ...
+# Subtest: strict verify without git
+ok 5 - strict verify without git
+  ---
+  duration_ms: 386.080792
+  type: 'test'
+  ...
+# Subtest: fallback is neutral
+ok 6 - fallback is neutral
+  ---
+  duration_ms: 1923.736791
+  type: 'test'
+  ...
+# Subtest: blocked plain implement fails
+ok 7 - blocked plain implement fails
+  ---
+  duration_ms: 1121.878333
+  type: 'test'
+  ...
+# Subtest: entry records before state
+ok 8 - entry records before state
+  ---
+  duration_ms: 1260.417458
+  type: 'test'
+  ...
+# Subtest: strict verify rejects forged evidence
+ok 9 - strict verify rejects forged evidence
+  ---
+  duration_ms: 2490.8435
+  type: 'test'
+  ...
+# Subtest: strict failure records uncommitted
+ok 10 - strict failure records uncommitted
+  ---
+  duration_ms: 1436.199625
+  type: 'test'
+  ...
+# Subtest: strict verify git edge cases
+ok 11 - strict verify git edge cases
+  ---
+  duration_ms: 3183.452292
+  type: 'test'
+  ...
+# Subtest: commit evidence honours a custom exclude when another churn key is invalid
+ok 12 - commit evidence honours a custom exclude when another churn key is invalid
+  ---
+  duration_ms: 1549.284584
+  type: 'test'
+  ...
+# Subtest: e2e setup predicate
+ok 13 - e2e setup predicate
+  ---
+  duration_ms: 3342.824125
+  type: 'test'
+  ...
+# Subtest: no e2e rows keeps plain prompt
+ok 14 - no e2e rows keeps plain prompt
+  ---
+  duration_ms: 465.613959
+  type: 'test'
+  ...
+# Subtest: e2e phase routes to e2e
+ok 15 - e2e phase routes to e2e
+  ---
+  duration_ms: 1243.690667
+  type: 'test'
+  ...
+# Subtest: e2e rows without setup
+ok 16 - e2e rows without setup
+  ---
+  duration_ms: 369.46025
+  type: 'test'
+  ...
+# Subtest: mixed plan segments
+ok 17 - mixed plan segments
+  ---
+  duration_ms: 1385.015375
+  type: 'test'
+  ...
+# Subtest: e2e blocked falls back
+ok 18 - e2e blocked falls back
+  ---
+  duration_ms: 1412.164416
+  type: 'test'
+  ...
+# Subtest: e2e failed not repeated
+ok 19 - e2e failed not repeated
+  ---
+  duration_ms: 2638.021041
+  type: 'test'
+  ...
+# Subtest: e2e effort floor
+ok 20 - e2e effort floor
+  ---
+  duration_ms: 1955.094708
+  type: 'test'
+  ...
+# Subtest: e2e prompt rules
+ok 21 - e2e prompt rules
+  ---
+  duration_ms: 438.451917
+  type: 'test'
+  ...
+# Subtest: retry after uncommitted ticks
+ok 22 - retry after uncommitted ticks
+  ---
+  duration_ms: 2039.603667
+  type: 'test'
+  ...
+# Subtest: retry prompt rules
+ok 23 - retry prompt rules
+  ---
+  duration_ms: 1348.8705
+  type: 'test'
+  ...
+# Subtest: retry once then warn
+ok 24 - retry once then warn
+  ---
+  duration_ms: 6573.700417
+  type: 'test'
+  ...
+# Subtest: retry without commit evidence warns
+ok 25 - retry without commit evidence warns
+  ---
+  duration_ms: 4394.518
+  type: 'test'
+  ...
+# Subtest: warning names a check that ran
+ok 26 - warning names a check that ran
+  ---
+  duration_ms: 727.356042
+  type: 'test'
+  ...
+# Subtest: extra steps pool
+ok 27 - extra steps pool
+  ---
+  duration_ms: 2722.070208
+  type: 'test'
+  ...
+# Subtest: lean keeps plain implement
+ok 28 - lean keeps plain implement
+  ---
+  duration_ms: 1888.814209
+  type: 'test'
+  ...
+# Subtest: e2e setup path containment
+ok 29 - e2e setup path containment
+  ---
+  duration_ms: 2499.068708
+  type: 'test'
+  ...
+# Subtest: no phase list stays plain
+ok 30 - no phase list stays plain
+  ---
+  duration_ms: 477.575625
+  type: 'test'
+  ...
+# Subtest: entry skill names executor
+ok 31 - entry skill names executor
+  ---
+  duration_ms: 2309.118916
+  type: 'test'
+  ...
+# Subtest: uncommitted ticks reach outputs
+ok 32 - uncommitted ticks reach outputs
+  ---
+  duration_ms: 3485.164333
+  type: 'test'
+  ...
+# Subtest: phase files reader
+ok 33 - phase files reader
+  ---
+  duration_ms: 3226.918625
+  type: 'test'
+  ...
+# Subtest: tdd phase at thorough
+ok 34 - tdd phase at thorough
+  ---
+  duration_ms: 1735.104834
+  type: 'test'
+  ...
+# Subtest: tdd gated by rigor
+ok 35 - tdd gated by rigor
+  ---
+  duration_ms: 1315.292042
+  type: 'test'
+  ...
+# Subtest: tdd predicate rejects
+ok 36 - tdd predicate rejects
+  ---
+  duration_ms: 4270.713667
+  type: 'test'
+  ...
+# Subtest: e2e wins over tdd
+ok 37 - e2e wins over tdd
+  ---
+  duration_ms: 1037.54275
+  type: 'test'
+  ...
+# Subtest: tdd blocked falls back
+ok 38 - tdd blocked falls back
+  ---
+  duration_ms: 1978.593083
+  type: 'test'
+  ...
+# Subtest: tdd prompt rules
+ok 39 - tdd prompt rules
+  ---
+  duration_ms: 398.222833
+  type: 'test'
+  ...
+# Subtest: tdd entry skill
+ok 40 - tdd entry skill
+  ---
+  duration_ms: 949.01175
+  type: 'test'
+  ...
+# Subtest: gate check fails when nothing is checked
+ok 41 - gate check fails when nothing is checked
+  ---
+  duration_ms: 588.923
+  type: 'test'
+  ...
+# Subtest: report shows fallback
+ok 42 - report shows fallback
+  ---
+  duration_ms: 205.23675
+  type: 'test'
+  ...
+# Subtest: executors smoke
+ok 43 - executors smoke
+  ---
+  duration_ms: 607.291708
+  type: 'test'
+  ...
+1..43
+# tests 43
+# suites 0
+# pass 43
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 77164.649083
+
+## skills/10x-pipeline/test/openfindings.test.mjs — parser: findings, decisions and open counts
+Exit 0
+TAP version 13
+# Subtest: parser: findings, decisions and open counts
+    # Subtest: severities with emoji, decisions with trailing text, an observation never counts
+    ok 1 - severities with emoji, decisions with trailing text, an observation never counts
+      ---
+      duration_ms: 358.190083
+      type: 'test'
+      ...
+    # Subtest: a PENDING critical is open critical
+    ok 2 - a PENDING critical is open critical
+      ---
+      duration_ms: 285.869958
+      type: 'test'
+      ...
+    # Subtest: severity is case-insensitive and the first word on the line wins
+    ok 3 - severity is case-insensitive and the first word on the line wins
+      ---
+      duration_ms: 351.504833
+      type: 'test'
+      ...
+    # Subtest: a block with no recognizable severity reads as a warning
+    ok 4 - a block with no recognizable severity reads as a warning
+      ---
+      duration_ms: 315.017
+      type: 'test'
+      ...
+    # Subtest: FIXED, SKIPPED, DISMISSED and Accepted. are closed
+    ok 5 - FIXED, SKIPPED, DISMISSED and Accepted. are closed
+      ---
+      duration_ms: 302.343708
+      type: 'test'
+      ...
+    # Subtest: ACCEPTED-AS-RULE and FIXED + ACCEPTED-AS-RULE are closed
+    ok 6 - ACCEPTED-AS-RULE and FIXED + ACCEPTED-AS-RULE are closed
+      ---
+      duration_ms: 159.117959
+      type: 'test'
+      ...
+    # Subtest: an unknown word such as Fix (abc1234): is open, and so is a block without a Decision line
+    ok 7 - an unknown word such as Fix (abc1234): is open, and so is a block without a Decision line
+      ---
+      duration_ms: 203.622541
+      type: 'test'
+      ...
+    # Subtest: a Decision word is read from the first letters after the colon, in any case
+    ok 8 - a Decision word is read from the first letters after the colon, in any case
+      ---
+      duration_ms: 346.082083
+      type: 'test'
+      ...
+    # Subtest: a Decision word in bold or backticks and a **Severity:** label are read
+    ok 9 - a Decision word in bold or backticks and a **Severity:** label are read
+      ---
+      duration_ms: 257.3435
+      type: 'test'
+      ...
+    # Subtest: a block ends at the next heading, so a later block's Decision is not read into an earlier one
+    ok 10 - a block ends at the next heading, so a later block's Decision is not read into an earlier one
+      ---
+      duration_ms: 274.349875
+      type: 'test'
+      ...
+    # Subtest: a \#\#\#\# sub-heading stays inside its block
+    ok 11 - a \#\#\#\# sub-heading stays inside its block
+      ---
+      duration_ms: 246.03425
+      type: 'test'
+      ...
+    # Subtest: a \#\#\# W1 block is not parsed: the header count adds it as unlisted open
+    ok 12 - a \#\#\# W1 block is not parsed: the header count adds it as unlisted open
+      ---
+      duration_ms: 256.774209
+      type: 'test'
+      ...
+    # Subtest: a header count above the parsed blocks adds the difference as open
+    ok 13 - a header count above the parsed blocks adds the difference as open
+      ---
+      duration_ms: 240.967792
+      type: 'test'
+      ...
+    # Subtest: a header count below the parsed blocks adds nothing
+    ok 14 - a header count below the parsed blocks adds nothing
+      ---
+      duration_ms: 360.402542
+      type: 'test'
+      ...
+    # Subtest: a SOUND review with only a pending observation logs zero open
+    ok 15 - a SOUND review with only a pending observation logs zero open
+      ---
+      duration_ms: 265.261125
+      type: 'test'
+      ...
+    1..15
+ok 1 - parser: findings, decisions and open counts
+  ---
+  duration_ms: 4224.35975
+  type: 'suite'
+  ...
+# Subtest: fallback: a review without Decision lines is unaware
+    # Subtest: no \#\#\# F block at all: verdict and measured pair only
+    ok 1 - no \#\#\# F block at all: verdict and measured pair only
+      ---
+      duration_ms: 211.862791
+      type: 'test'
+      ...
+    # Subtest: \#\#\# F blocks that carry no Decision line at all stay unaware
+    ok 2 - \#\#\# F blocks that carry no Decision line at all stay unaware
+      ---
+      duration_ms: 376.079208
+      type: 'test'
+      ...
+    # Subtest: an all-APPLIED REVISE goes on to implement; the same header without Decision lines still re-plans
+    ok 3 - an all-APPLIED REVISE goes on to implement; the same header without Decision lines still re-plans
+      ---
+      duration_ms: 592.511542
+      type: 'test'
+      ...
+    # Subtest: an all-APPLIED NEEDS ATTENTION is done, with no fix step
+    ok 4 - an all-APPLIED NEEDS ATTENTION is done, with no fix step
+      ---
+      duration_ms: 311.871084
+      type: 'test'
+      ...
+    # Subtest: openFindings.enabled false reads the review as unaware
+    ok 5 - openFindings.enabled false reads the review as unaware
+      ---
+      duration_ms: 237.44775
+      type: 'test'
+      ...
+    # Subtest: a step other than a review keeps its entry shape
+    ok 6 - a step other than a review keeps its entry shape
+      ---
+      duration_ms: 284.112625
+      type: 'test'
+      ...
+    # Subtest: an unverified review (no verdict) logs no review field
+    ok 7 - an unverified review (no verdict) logs no review field
+      ---
+      duration_ms: 334.763125
+      type: 'test'
+      ...
+    1..7
+ok 2 - fallback: a review without Decision lines is unaware
+  ---
+  duration_ms: 2349.021208
+  type: 'suite'
+  ...
+# Subtest: policy keys
+    # Subtest: the shipped policy carries the review keys
+    ok 1 - the shipped policy carries the review keys
+      ---
+      duration_ms: 0.406083
+      type: 'test'
+      ...
+    # Subtest: a closedDecisions override changes which words close a finding
+    ok 2 - a closedDecisions override changes which words close a finding
+      ---
+      duration_ms: 240.771334
+      type: 'test'
+      ...
+    # Subtest: closedDecisions words are matched case-insensitively and trimmed
+    ok 3 - closedDecisions words are matched case-insensitively and trimmed
+      ---
+      duration_ms: 315.288375
+      type: 'test'
+      ...
+    # Subtest: closedDecisions that is a string reads as the shipped list and does not halt
+    ok 4 - closedDecisions that is a string reads as the shipped list and does not halt
+      ---
+      duration_ms: 227.359333
+      type: 'test'
+      ...
+    # Subtest: closedDecisions that is an object reads as the shipped list and does not halt
+    ok 5 - closedDecisions that is an object reads as the shipped list and does not halt
+      ---
+      duration_ms: 284.96525
+      type: 'test'
+      ...
+    # Subtest: closedDecisions that is a list with a number reads as the shipped list and does not halt
+    ok 6 - closedDecisions that is a list with a number reads as the shipped list and does not halt
+      ---
+      duration_ms: 182.01025
+      type: 'test'
+      ...
+    # Subtest: closedDecisions that is a list with a blank string reads as the shipped list and does not halt
+    ok 7 - closedDecisions that is a list with a blank string reads as the shipped list and does not halt
+      ---
+      duration_ms: 365.951917
+      type: 'test'
+      ...
+    # Subtest: closedDecisions that is null reads as the shipped list and does not halt
+    ok 8 - closedDecisions that is null reads as the shipped list and does not halt
+      ---
+      duration_ms: 226.587333
+      type: 'test'
+      ...
+    # Subtest: a non-boolean enabled (a string) reads as off and does not halt
+    ok 9 - a non-boolean enabled (a string) reads as off and does not halt
+      ---
+      duration_ms: 361.913458
+      type: 'test'
+      ...
+    # Subtest: a non-boolean enabled (a number) reads as off and does not halt
+    ok 10 - a non-boolean enabled (a number) reads as off and does not halt
+      ---
+      duration_ms: 264.4265
+      type: 'test'
+      ...
+    # Subtest: a non-boolean enabled (null) reads as off and does not halt
+    ok 11 - a non-boolean enabled (null) reads as off and does not halt
+      ---
+      duration_ms: 284.250125
+      type: 'test'
+      ...
+    # Subtest: an openFindings that is a string reads as the shipped default and does not halt
+    ok 12 - an openFindings that is a string reads as the shipped default and does not halt
+      ---
+      duration_ms: 273.114916
+      type: 'test'
+      ...
+    # Subtest: an openFindings that is a list reads as the shipped default and does not halt
+    ok 13 - an openFindings that is a list reads as the shipped default and does not halt
+      ---
+      duration_ms: 228.26375
+      type: 'test'
+      ...
+    # Subtest: an openFindings that is null reads as the shipped default and does not halt
+    ok 14 - an openFindings that is null reads as the shipped default and does not halt
+      ---
+      duration_ms: 179.508916
+      type: 'test'
+      ...
+    # Subtest: an openFindings that is a number reads as the shipped default and does not halt
+    ok 15 - an openFindings that is a number reads as the shipped default and does not halt
+      ---
+      duration_ms: 321.735916
+      type: 'test'
+      ...
+    # Subtest: malformed onOpen and confirmRounds values never halt in this phase
+    ok 16 - malformed onOpen and confirmRounds values never halt in this phase
+      ---
+      duration_ms: 348.930959
+      type: 'test'
+      ...
+    1..16
+ok 3 - policy keys
+  ---
+  duration_ms: 4106.389042
+  type: 'suite'
+  ...
+# Subtest: log entry and status
+    # Subtest: impl-review entries carry the same review field
+    ok 1 - impl-review entries carry the same review field
+      ---
+      duration_ms: 265.239209
+      type: 'test'
+      ...
+    # Subtest: status shows review on a review row and on no other row
+    ok 2 - status shows review on a review row and on no other row
+      ---
+      duration_ms: 422.151292
+      type: 'test'
+      ...
+    # Subtest: status shows the measured pair for a review without Decision lines
+    ok 3 - status shows the measured pair for a review without Decision lines
+      ---
+      duration_ms: 133.388375
+      type: 'test'
+      ...
+    # Subtest: status ignores a review value that is not an object
+    ok 4 - status ignores a review value that is not an object
+      ---
+      duration_ms: 113.559917
+      type: 'test'
+      ...
+    # Subtest: a round-4 style review (pre-edit header counts, every finding applied) reads as nothing open
+    ok 5 - a round-4 style review (pre-edit header counts, every finding applied) reads as nothing open
+      ---
+      duration_ms: 249.99575
+      type: 'test'
+      ...
+    1..5
+ok 4 - log entry and status
+  ---
+  duration_ms: 1184.554292
+  type: 'suite'
+  ...
+# Subtest: plan review routing on open findings
+    # Subtest: every finding APPLIED: REVISE goes on to implement in one call
+    ok 1 - every finding APPLIED: REVISE goes on to implement in one call
+      ---
+      duration_ms: 389.64825
+      type: 'test'
+      ...
+    # Subtest: an open critical halts, and names the finding
+    ok 2 - an open critical halts, and names the finding
+      ---
+      duration_ms: 342.764375
+      type: 'test'
+      ...
+    # Subtest: open warnings at the tolerance go on, above it halt
+    ok 3 - open warnings at the tolerance go on, above it halt
+      ---
+      duration_ms: 576.658291
+      type: 'test'
+      ...
+    # Subtest: a project tolerance of 0 halts on one open warning
+    ok 4 - a project tolerance of 0 halts on one open warning
+      ---
+      duration_ms: 321.875583
+      type: 'test'
+      ...
+    # Subtest: a pending observation is ignored
+    ok 5 - a pending observation is ignored
+      ---
+      duration_ms: 306.96975
+      type: 'test'
+      ...
+    # Subtest: a block without a Decision line is open when a sibling has one
+    ok 6 - a block without a Decision line is open when a sibling has one
+      ---
+      duration_ms: 365.140958
+      type: 'test'
+      ...
+    # Subtest: retry mode re-plans on an open critical, with the open counts in the reason
+    ok 7 - retry mode re-plans on an open critical, with the open counts in the reason
+      ---
+      duration_ms: 376.096042
+      type: 'test'
+      ...
+    # Subtest: retry mode does not re-plan an all-applied REVISE
+    ok 8 - retry mode does not re-plan an all-applied REVISE
+      ---
+      duration_ms: 269.299042
+      type: 'test'
+      ...
+    # Subtest: retry mode puts the same suffix on the research-revise reason
+    ok 9 - retry mode puts the same suffix on the research-revise reason
+      ---
+      duration_ms: 448.415666
+      type: 'test'
+      ...
+    # Subtest: an onOpen that is a string reads halt
+    ok 10 - an onOpen that is a string reads halt
+      ---
+      duration_ms: 336.757459
+      type: 'test'
+      ...
+    # Subtest: an onOpen that is a number reads halt
+    ok 11 - an onOpen that is a number reads halt
+      ---
+      duration_ms: 288.8495
+      type: 'test'
+      ...
+    # Subtest: an onOpen that is null reads halt
+    ok 12 - an onOpen that is null reads halt
+      ---
+      duration_ms: 319.78325
+      type: 'test'
+      ...
+    # Subtest: an onOpen that is upper case reads halt
+    ok 13 - an onOpen that is upper case reads halt
+      ---
+      duration_ms: 344.911167
+      type: 'test'
+      ...
+    # Subtest: RETHINK keeps its routing whatever the Decision lines say, in halt and retry mode
+    ok 14 - RETHINK keeps its routing whatever the Decision lines say, in halt and retry mode
+      ---
+      duration_ms: 654.913458
+      type: 'test'
+      ...
+    # Subtest: a review without Decision lines keeps the old routing and the exact reason prefix
+    ok 15 - a review without Decision lines keeps the old routing and the exact reason prefix
+      ---
+      duration_ms: 617.676375
+      type: 'test'
+      ...
+    # Subtest: openFindings.enabled false routes on the header counts
+    ok 16 - openFindings.enabled false routes on the header counts
+      ---
+      duration_ms: 287.986334
+      type: 'test'
+      ...
+    # Subtest: a header count above the parsed blocks counts as open
+    ok 17 - a header count above the parsed blocks counts as open
+      ---
+      duration_ms: 318.821166
+      type: 'test'
+      ...
+    # Subtest: a \#\#\# W1 block is unlisted and halts through the header count
+    ok 18 - a \#\#\# W1 block is unlisted and halts through the header count
+      ---
+      duration_ms: 345.495667
+      type: 'test'
+      ...
+    # Subtest: the gate acts only before any automated row is done
+    ok 19 - the gate acts only before any automated row is done
+      ---
+      duration_ms: 337.222584
+      type: 'test'
+      ...
+    1..19
+ok 5 - plan review routing on open findings
+  ---
+  duration_ms: 7250.169792
+  type: 'suite'
+  ...
+# Subtest: plan review halt text
+    # Subtest: names the review path, the closed words and the skill to triage with
+    ok 1 - names the review path, the closed words and the skill to triage with
+      ---
+      duration_ms: 398.059458
+      type: 'test'
+      ...
+    # Subtest: a closedDecisions override changes the listed words
+    ok 2 - a closedDecisions override changes the listed words
+      ---
+      duration_ms: 663.70525
+      type: 'test'
+      ...
+    # Subtest: a run that is not isolated gets no commit sentence
+    ok 3 - a run that is not isolated gets no commit sentence
+      ---
+      duration_ms: 369.520083
+      type: 'test'
+      ...
+    # Subtest: an unlisted-count sentence sits before the way back in
+    ok 4 - an unlisted-count sentence sits before the way back in
+      ---
+      duration_ms: 297.119417
+      type: 'test'
+      ...
+    1..4
+ok 6 - plan review halt text
+  ---
+  duration_ms: 1728.601541
+  type: 'suite'
+  ...
+# Subtest: implementation review routing on open findings
+    # Subtest: every finding APPLIED: NEEDS ATTENTION is done, with no fix step
+    ok 1 - every finding APPLIED: NEEDS ATTENTION is done, with no fix step
+      ---
+      duration_ms: 264.825792
+      type: 'test'
+      ...
+    # Subtest: an open critical halts and names the finding
+    ok 2 - an open critical halts and names the finding
+      ---
+      duration_ms: 321.952291
+      type: 'test'
+      ...
+    # Subtest: open warnings at the tolerance are done (even with fixOnNeedsAttention on), above it halt
+    ok 3 - open warnings at the tolerance are done (even with fixOnNeedsAttention on), above it halt
+      ---
+      duration_ms: 537.025666
+      type: 'test'
+      ...
+    # Subtest: a pending observation is ignored
+    ok 4 - a pending observation is ignored
+      ---
+      duration_ms: 272.6415
+      type: 'test'
+      ...
+    # Subtest: retry mode runs fix on an open critical, with the open counts appended to the reason
+    ok 5 - retry mode runs fix on an open critical, with the open counts appended to the reason
+      ---
+      duration_ms: 294.169709
+      type: 'test'
+      ...
+    # Subtest: retry mode does not bring back a fix for nothing open or for tolerated warnings
+    ok 6 - retry mode does not bring back a fix for nothing open or for tolerated warnings
+      ---
+      duration_ms: 576.347667
+      type: 'test'
+      ...
+    # Subtest: fixOnNeedsAttention false changes nothing for an aware review
+    ok 7 - fixOnNeedsAttention false changes nothing for an aware review
+      ---
+      duration_ms: 320.11175
+      type: 'test'
+      ...
+    # Subtest: REJECTED keeps its fix, with no open suffix, in halt and retry mode
+    ok 8 - REJECTED keeps its fix, with no open suffix, in halt and retry mode
+      ---
+      duration_ms: 703.824458
+      type: 'test'
+      ...
+    # Subtest: a review without Decision lines keeps the old routing and the exact reason prefix
+    ok 9 - a review without Decision lines keeps the old routing and the exact reason prefix
+      ---
+      duration_ms: 605.258583
+      type: 'test'
+      ...
+    # Subtest: openFindings.enabled false routes on the header counts
+    ok 10 - openFindings.enabled false routes on the header counts
+      ---
+      duration_ms: 315.701084
+      type: 'test'
+      ...
+    # Subtest: an unparsed header count is open and halts, FIXED and ACCEPTED are closed
+    ok 11 - an unparsed header count is open and halts, FIXED and ACCEPTED are closed
+      ---
+      duration_ms: 562.417833
+      type: 'test'
+      ...
+    # Subtest: the halt text names the review path, the effective words and /10x-impl-review
+    ok 12 - the halt text names the review path, the effective words and /10x-impl-review
+      ---
+      duration_ms: 531.857208
+      type: 'test'
+      ...
+    1..12
+ok 7 - implementation review routing on open findings
+  ---
+  duration_ms: 5306.858333
+  type: 'suite'
+  ...
+# Subtest: halt text in an isolated run
+    # Subtest: the text ends with the commit sentence
+    ok 1 - the text ends with the commit sentence
+      ---
+      duration_ms: 4516.01175
+      type: 'test'
+      ...
+    1..1
+ok 8 - halt text in an isolated run
+  ---
+  duration_ms: 4516.126875
+  type: 'suite'
+  ...
+# Subtest: plan review confirmation round
+    # Subtest: off by default: an all-applied REVISE goes straight on to implement
+    ok 1 - off by default: an all-applied REVISE goes straight on to implement
+      ---
+      duration_ms: 291.418042
+      type: 'test'
+      ...
+    # Subtest: confirmRounds 1 runs one confirmation review under the plan-review step, with the confirm prompt
+    ok 2 - confirmRounds 1 runs one confirmation review under the plan-review step, with the confirm prompt
+      ---
+      duration_ms: 317.14925
+      type: 'test'
+      ...
+    # Subtest: the confirmation runs on the tier of a plan review, with no bump
+    ok 3 - the confirmation runs on the tier of a plan review, with no bump
+      ---
+      duration_ms: 293.87275
+      type: 'test'
+      ...
+    # Subtest: with confirmRounds 1 the confirmation's own entry exhausts the cap: a second all-applied REVISE goes on
+    ok 4 - with confirmRounds 1 the confirmation's own entry exhausts the cap: a second all-applied REVISE goes on
+      ---
+      duration_ms: 278.904875
+      type: 'test'
+      ...
+    # Subtest: confirmRounds 2 chains a second confirmation after one that applied fixes and left nothing open, then stops
+    ok 5 - confirmRounds 2 chains a second confirmation after one that applied fixes and left nothing open, then stops
+      ---
+      duration_ms: 954.751459
+      type: 'test'
+      ...
+    # Subtest: a confirmation that applied nothing does not chain a second one
+    ok 6 - a confirmation that applied nothing does not chain a second one
+      ---
+      duration_ms: 408.308709
+      type: 'test'
+      ...
+    # Subtest: a confirmation that applies fixes and leaves nothing open goes on once the cap is spent
+    ok 7 - a confirmation that applies fixes and leaves nothing open goes on once the cap is spent
+      ---
+      duration_ms: 356.963667
+      type: 'test'
+      ...
+    # Subtest: a failed confirmation still counts toward the cap
+    ok 8 - a failed confirmation still counts toward the cap
+      ---
+      duration_ms: 684.3245
+      type: 'test'
+      ...
+    # Subtest: an open critical after a confirmation halts, and retry mode re-plans
+    ok 9 - an open critical after a confirmation halts, and retry mode re-plans
+      ---
+      duration_ms: 664.174917
+      type: 'test'
+      ...
+    # Subtest: open findings on the first review skip the confirmation
+    ok 10 - open findings on the first review skip the confirmation
+      ---
+      duration_ms: 655.154917
+      type: 'test'
+      ...
+    # Subtest: RETHINK skips the confirmation
+    ok 11 - RETHINK skips the confirmation
+      ---
+      duration_ms: 300.552917
+      type: 'test'
+      ...
+    # Subtest: a SOUND review with applied findings skips the confirmation
+    ok 12 - a SOUND review with applied findings skips the confirmation
+      ---
+      duration_ms: 341.347375
+      type: 'test'
+      ...
+    # Subtest: an unaware review (no Decision lines) skips the confirmation
+    ok 13 - an unaware review (no Decision lines) skips the confirmation
+      ---
+      duration_ms: 530.584917
+      type: 'test'
+      ...
+    # Subtest: the round is read per rigor level
+    ok 14 - the round is read per rigor level
+      ---
+      duration_ms: 655.315333
+      type: 'test'
+      ...
+    # Subtest: the gate acts only before any automated row is done
+    ok 15 - the gate acts only before any automated row is done
+      ---
+      duration_ms: 247.873417
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is negative reads 0 and never halts
+    ok 16 - a confirmRounds that is negative reads 0 and never halts
+      ---
+      duration_ms: 269.534708
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is a string reads 0 and never halts
+    ok 17 - a confirmRounds that is a string reads 0 and never halts
+      ---
+      duration_ms: 209.945958
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is a fraction reads 0 and never halts
+    ok 18 - a confirmRounds that is a fraction reads 0 and never halts
+      ---
+      duration_ms: 177.750584
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is null reads 0 and never halts
+    ok 19 - a confirmRounds that is null reads 0 and never halts
+      ---
+      duration_ms: 201.565333
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is a list reads 0 and never halts
+    ok 20 - a confirmRounds that is a list reads 0 and never halts
+      ---
+      duration_ms: 292.975125
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is a string block reads 0 and never halts
+    ok 21 - a confirmRounds that is a string block reads 0 and never halts
+      ---
+      duration_ms: 275.827292
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is null block reads 0 and never halts
+    ok 22 - a confirmRounds that is null block reads 0 and never halts
+      ---
+      duration_ms: 363.753375
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is a list block reads 0 and never halts
+    ok 23 - a confirmRounds that is a list block reads 0 and never halts
+      ---
+      duration_ms: 328.23375
+      type: 'test'
+      ...
+    1..23
+ok 9 - plan review confirmation round
+  ---
+  duration_ms: 9101.441709
+  type: 'suite'
+  ...
+# Subtest: implementation review confirmation round
+    # Subtest: off by default: an all-applied NEEDS ATTENTION is done
+    ok 1 - off by default: an all-applied NEEDS ATTENTION is done
+      ---
+      duration_ms: 303.729959
+      type: 'test'
+      ...
+    # Subtest: confirmRounds 1 runs one confirmation review under the impl-review step, with the confirm prompt
+    ok 2 - confirmRounds 1 runs one confirmation review under the impl-review step, with the confirm prompt
+      ---
+      duration_ms: 521.3025
+      type: 'test'
+      ...
+    # Subtest: with confirmRounds 1 the confirmation's own entry exhausts the cap: the run is done
+    ok 3 - with confirmRounds 1 the confirmation's own entry exhausts the cap: the run is done
+      ---
+      duration_ms: 235.989292
+      type: 'test'
+      ...
+    # Subtest: confirmRounds 2 chains a second confirmation after one that applied fixes and left nothing open, then stops
+    ok 4 - confirmRounds 2 chains a second confirmation after one that applied fixes and left nothing open, then stops
+      ---
+      duration_ms: 692.357875
+      type: 'test'
+      ...
+    # Subtest: a failed confirmation still counts toward the cap
+    ok 5 - a failed confirmation still counts toward the cap
+      ---
+      duration_ms: 568.009291
+      type: 'test'
+      ...
+    # Subtest: an open critical after a confirmation halts, and retry mode runs fix
+    ok 6 - an open critical after a confirmation halts, and retry mode runs fix
+      ---
+      duration_ms: 472.800875
+      type: 'test'
+      ...
+    # Subtest: open findings on the first review skip the confirmation
+    ok 7 - open findings on the first review skip the confirmation
+      ---
+      duration_ms: 623.74575
+      type: 'test'
+      ...
+    # Subtest: REJECTED skips the confirmation and keeps its routing (the code re-plan at standard, fix at lean)
+    ok 8 - REJECTED skips the confirmation and keeps its routing (the code re-plan at standard, fix at lean)
+      ---
+      duration_ms: 536.24675
+      type: 'test'
+      ...
+    # Subtest: an APPROVED review with applied findings skips the confirmation
+    ok 9 - an APPROVED review with applied findings skips the confirmation
+      ---
+      duration_ms: 299.524417
+      type: 'test'
+      ...
+    # Subtest: an unaware review (no Decision lines) skips the confirmation
+    ok 10 - an unaware review (no Decision lines) skips the confirmation
+      ---
+      duration_ms: 292.107709
+      type: 'test'
+      ...
+    # Subtest: a confirmRounds that is malformed reads 0 and never halts
+    ok 11 - a confirmRounds that is malformed reads 0 and never halts
+      ---
+      duration_ms: 1661.493541
+      type: 'test'
+      ...
+    1..11
+ok 10 - implementation review confirmation round
+  ---
+  duration_ms: 6207.811292
+  type: 'suite'
+  ...
+# Subtest: confirm templates
+    # Subtest: the shipped confirm templates exist and carry the base review text, the confirm rules and the apply rules
+    ok 1 - the shipped confirm templates exist and carry the base review text, the confirm rules and the apply rules
+      ---
+      duration_ms: 0.175458
+      type: 'test'
+      ...
+    1..1
+ok 11 - confirm templates
+  ---
+  duration_ms: 0.218667
+  type: 'suite'
+  ...
+# Subtest: report: Review findings section
+    # Subtest: one line per review entry, with the open part only for an aware review
+    ok 1 - one line per review entry, with the open part only for an aware review
+      ---
+      duration_ms: 142.107625
+      type: 'test'
+      ...
+    # Subtest: a confirmation review is labelled
+    ok 2 - a confirmation review is labelled
+      ---
+      duration_ms: 167.719958
+      type: 'test'
+      ...
+    # Subtest: the section says in one line that later edits of a review file are not reflected
+    ok 3 - the section says in one line that later edits of a review file are not reflected
+      ---
+      duration_ms: 101.896667
+      type: 'test'
+      ...
+    # Subtest: no review entry gives no section
+    ok 4 - no review entry gives no section
+      ---
+      duration_ms: 153.351458
+      type: 'test'
+      ...
+    # Subtest: a review value that is not an object adds no line and no section
+    ok 5 - a review value that is not an object adds no line and no section
+      ---
+      duration_ms: 139.707958
+      type: 'test'
+      ...
+    # Subtest: the section follows Rolled-back steps
+    ok 6 - the section follows Rolled-back steps
+      ---
+      duration_ms: 128.518459
+      type: 'test'
+      ...
+    # Subtest: the section names no tier, model or effort
+    ok 7 - the section names no tier, model or effort
+      ---
+      duration_ms: 98.644834
+      type: 'test'
+      ...
+    # Subtest: a review step run through next lands in the report with the counts stored at that time
+    ok 8 - a review step run through next lands in the report with the counts stored at that time
+      ---
+      duration_ms: 397.263584
+      type: 'test'
+      ...
+    # Subtest: a run that ends in done writes the section into report.md
+    ok 9 - a run that ends in done writes the section into report.md
+      ---
+      duration_ms: 349.855083
+      type: 'test'
+      ...
+    1..9
+ok 12 - report: Review findings section
+  ---
+  duration_ms: 1679.374375
+  type: 'suite'
+  ...
+# Subtest: readReview header label forms
+    # Subtest: **Verdict:** APPROVED / **Findings:** 1 critical, 2 warnings
+    ok 1 - **Verdict:** APPROVED / **Findings:** 1 critical, 2 warnings
+      ---
+      duration_ms: 216.80225
+      type: 'test'
+      ...
+    # Subtest: - **Verdict**: APPROVED. / - **Findings**: 0 critical, 0 warnings
+    ok 2 - - **Verdict**: APPROVED. / - **Findings**: 0 critical, 0 warnings
+      ---
+      duration_ms: 264.821583
+      type: 'test'
+      ...
+    # Subtest: **Verdict**: ✅ APPROVED / **Findings**: 0 critical, 0 warnings
+    ok 3 - **Verdict**: ✅ APPROVED / **Findings**: 0 critical, 0 warnings
+      ---
+      duration_ms: 299.640333
+      type: 'test'
+      ...
+    # Subtest: **Verdict**: [NEEDS ATTENTION] / **Findings**: 0 critical, 1 warnings
+    ok 4 - **Verdict**: [NEEDS ATTENTION] / **Findings**: 0 critical, 1 warnings
+      ---
+      duration_ms: 318.589416
+      type: 'test'
+      ...
+    # Subtest: **Verdict:** NEEDS ATTENTION - see F1 / **Findings:** 1 critical, 0 warnings
+    ok 5 - **Verdict:** NEEDS ATTENTION - see F1 / **Findings:** 1 critical, 0 warnings
+      ---
+      duration_ms: 286.381333
+      type: 'test'
+      ...
+    # Subtest: - **Verdict**: REVISE / - **Findings**: 1 critical, 1 warnings
+    ok 6 - - **Verdict**: REVISE / - **Findings**: 1 critical, 1 warnings
+      ---
+      duration_ms: 244.567833
+      type: 'test'
+      ...
+    # Subtest: a verdict line with no letters reads as no verdict (step fails)
+    ok 7 - a verdict line with no letters reads as no verdict (step fails)
+      ---
+      duration_ms: 306.386
+      type: 'test'
+      ...
+    # Subtest: a NEEDS ATTENTION review in the colon-inside form routes to fix
+    ok 8 - a NEEDS ATTENTION review in the colon-inside form routes to fix
+      ---
+      duration_ms: 307.999208
+      type: 'test'
+      ...
+    1..8
+ok 13 - readReview header label forms
+  ---
+  duration_ms: 2245.574084
+  type: 'suite'
+  ...
+1..13
+# tests 131
+# suites 13
+# pass 131
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 50629.402916
+
+## skills/10x-pipeline/test/neutral.test.mjs — a rerun returns the identical step and keeps one entry without a result
+Exit 0
+TAP version 13
+# Subtest: a rerun returns the identical step and keeps one entry without a result
+ok 1 - a rerun returns the identical step and keeps one entry without a result
+  ---
+  duration_ms: 363.333084
+  type: 'test'
+  ...
+# Subtest: the note is one line cut to 200 characters and empty when absent
+ok 2 - the note is one line cut to 200 characters and empty when absent
+  ---
+  duration_ms: 514.150458
+  type: 'test'
+  ...
+# Subtest: no tier bump: a done result after the rerun continues as without the fault
+ok 3 - no tier bump: a done result after the rerun continues as without the fault
+  ---
+  duration_ms: 1093.621792
+  type: 'test'
+  ...
+# Subtest: a failed result after the rerun is the first failed attempt
+ok 4 - a failed result after the rerun is the first failed attempt
+  ---
+  duration_ms: 1004.197708
+  type: 'test'
+  ...
+# Subtest: the maximum reruns of several steps raise no rigor and use no budget
+ok 5 - the maximum reruns of several steps raise no rigor and use no budget
+  ---
+  duration_ms: 1101.522666
+  type: 'test'
+  ...
+# Subtest: the original startedAt stays, so a file the lost run wrote still verifies the step
+ok 6 - the original startedAt stays, so a file the lost run wrote still verifies the step
+  ---
+  duration_ms: 711.513875
+  type: 'test'
+  ...
+# Subtest: the third fault of one step halts with a report and meta.outcome and consumes the file
+ok 7 - the third fault of one step halts with a report and meta.outcome and consumes the file
+  ---
+  duration_ms: 1118.4765
+  type: 'test'
+  ...
+# Subtest: a raised cap lets the rerun go on after the halt
+ok 8 - a raised cap lets the rerun go on after the halt
+  ---
+  duration_ms: 731.943416
+  type: 'test'
+  ...
+# Subtest: maxNeutralRetries 0 reads the status as a failed attempt
+ok 9 - maxNeutralRetries 0 reads the status as a failed attempt
+  ---
+  duration_ms: 328.046542
+  type: 'test'
+  ...
+# Subtest: a malformed maxNeutralRetries halts init with the key
+ok 10 - a malformed maxNeutralRetries halts init with the key
+  ---
+  duration_ms: 399.240166
+  type: 'test'
+  ...
+# Subtest: an entry without a stored prompt halts plainly and leaves the file
+ok 11 - an entry without a stored prompt halts plainly and leaves the file
+  ---
+  duration_ms: 336.020375
+  type: 'test'
+  ...
+# Subtest: a completed owner cleans a stray orchestrator-error file without recording a retry
+ok 12 - a completed owner cleans a stray orchestrator-error file without recording a retry
+  ---
+  duration_ms: 531.994375
+  type: 'test'
+  ...
+# Subtest: pendingPrompt is stored while the step is pending and gone once the real result is consumed
+ok 13 - pendingPrompt is stored while the step is pending and gone once the real result is consumed
+  ---
+  duration_ms: 818.004875
+  type: 'test'
+  ...
+# Subtest: status shows neutralRetries on the row of a rerun step only
+ok 14 - status shows neutralRetries on the row of a rerun step only
+  ---
+  duration_ms: 570.12025
+  type: 'test'
+  ...
+# Subtest: status of a run without reruns has no neutralRetries field
+ok 15 - status of a run without reruns has no neutralRetries field
+  ---
+  duration_ms: 318.646125
+  type: 'test'
+  ...
+# Subtest: report.md marks the Result cell and lists the reruns with cleaned notes
+ok 16 - report.md marks the Result cell and lists the reruns with cleaned notes
+  ---
+  duration_ms: 928.693875
+  type: 'test'
+  ...
+# Subtest: report.md of a run without reruns has no section and no cell suffix
+ok 17 - report.md of a run without reruns has no section and no cell suffix
+  ---
+  duration_ms: 773.834416
+  type: 'test'
+  ...
+# Subtest: OpenSpec chain: an os-apply rerun keeps the prompt, the tier and the pre-fault ticks
+ok 18 - OpenSpec chain: an os-apply rerun keeps the prompt, the tier and the pre-fault ticks
+  ---
+  duration_ms: 543.148333
+  type: 'test'
+  ...
+# Subtest: OpenSpec chain: an archived-run report keeps the Neutral reruns section
+ok 19 - OpenSpec chain: an archived-run report keeps the Neutral reruns section
+  ---
+  duration_ms: 1324.956458
+  type: 'test'
+  ...
+# Subtest: isolated run: a rerun makes no ref, no commit and no reset; a later failure rolls back to the original startSha
+ok 20 - isolated run: a rerun makes no ref, no commit and no reset; a later failure rolls back to the original startSha
+  ---
+  duration_ms: 3078.91575
+  type: 'test'
+  ...
+# Subtest: 10x: neutral replay preserves the exact historical agent field undefined
+ok 21 - 10x: neutral replay preserves the exact historical agent field undefined
+  ---
+  duration_ms: 423.41075
+  type: 'test'
+  ...
+# Subtest: 10x: neutral replay preserves the exact historical agent field custom:historical
+ok 22 - 10x: neutral replay preserves the exact historical agent field custom:historical
+  ---
+  duration_ms: 455.117667
+  type: 'test'
+  ...
+# Subtest: openspec: neutral replay preserves the exact historical agent field undefined
+ok 23 - openspec: neutral replay preserves the exact historical agent field undefined
+  ---
+  duration_ms: 357.169917
+  type: 'test'
+  ...
+# Subtest: openspec: neutral replay preserves the exact historical agent field custom:historical
+ok 24 - openspec: neutral replay preserves the exact historical agent field custom:historical
+  ---
+  duration_ms: 321.3245
+  type: 'test'
+  ...
+1..24
+# tests 24
+# suites 0
+# pass 24
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18522.062
+
+## skills/10x-pipeline/test/manualverify.test.mjs — manual verify placement
+Exit 0
+TAP version 13
+# Subtest: manual verify placement
+ok 1 - manual verify placement
+  ---
+  duration_ms: 3294.20575
+  type: 'test'
+  ...
+# Subtest: manual verify attempts
+ok 2 - manual verify attempts
+  ---
+  duration_ms: 2325.846667
+  type: 'test'
+  ...
+# Subtest: manual verify before impl review
+ok 3 - manual verify before impl review
+  ---
+  duration_ms: 1124.223
+  type: 'test'
+  ...
+# Subtest: manual verify every row eligible
+ok 4 - manual verify every row eligible
+  ---
+  duration_ms: 6345.489375
+  type: 'test'
+  ...
+# Subtest: evidence suffix required
+ok 5 - evidence suffix required
+  ---
+  duration_ms: 1943.9345
+  type: 'test'
+  ...
+# Subtest: mangled evidence suffix is unproven
+ok 6 - mangled evidence suffix is unproven
+  ---
+  duration_ms: 2467.495625
+  type: 'test'
+  ...
+# Subtest: zero ticks is done
+ok 7 - zero ticks is done
+  ---
+  duration_ms: 754.443042
+  type: 'test'
+  ...
+# Subtest: manual verify guards plan edits
+ok 8 - manual verify guards plan edits
+  ---
+  duration_ms: 2059.647
+  type: 'test'
+  ...
+# Subtest: evidence hardening
+ok 9 - evidence hardening
+  ---
+  duration_ms: 1620.0525
+  type: 'test'
+  ...
+# Subtest: manual verify retry baseline
+ok 10 - manual verify retry baseline
+  ---
+  duration_ms: 1177.853333
+  type: 'test'
+  ...
+# Subtest: chrome flag
+ok 11 - chrome flag
+  ---
+  duration_ms: 2333.543916
+  type: 'test'
+  ...
+# Subtest: neither manual verify template is charged to the pool
+ok 12 - neither manual verify template is charged to the pool
+  ---
+  duration_ms: 2773.950166
+  type: 'test'
+  ...
+# Subtest: chrome flag value
+ok 13 - chrome flag value
+  ---
+  duration_ms: 103.353041
+  type: 'test'
+  ...
+# Subtest: manual verify prompts
+ok 14 - manual verify prompts
+  ---
+  duration_ms: 874.432042
+  type: 'test'
+  ...
+# Subtest: browser rows in the prompt
+ok 15 - browser rows in the prompt
+  ---
+  duration_ms: 1271.108
+  type: 'test'
+  ...
+# Subtest: browser row words and proof kinds
+ok 16 - browser row words and proof kinds
+  ---
+  duration_ms: 8634.174208
+  type: 'test'
+  ...
+# Subtest: browser row judgment tick is unproven
+ok 17 - browser row judgment tick is unproven
+  ---
+  duration_ms: 2591.061791
+  type: 'test'
+  ...
+# Subtest: browser row proved by browser test command or script
+ok 18 - browser row proved by browser test command or script
+  ---
+  duration_ms: 1783.267834
+  type: 'test'
+  ...
+# Subtest: evidence file name does not make a browser row
+ok 19 - evidence file name does not make a browser row
+  ---
+  duration_ms: 544.600792
+  type: 'test'
+  ...
+# Subtest: manual unproven reaches outputs
+ok 20 - manual unproven reaches outputs
+  ---
+  duration_ms: 3587.082709
+  type: 'test'
+  ...
+# Subtest: unproven why reaches outputs
+ok 21 - unproven why reaches outputs
+  ---
+  duration_ms: 3517.423375
+  type: 'test'
+  ...
+# Subtest: manual checks report marks browser rows
+ok 22 - manual checks report marks browser rows
+  ---
+  duration_ms: 340.467625
+  type: 'test'
+  ...
+# Subtest: manual verify evidence kind
+ok 23 - manual verify evidence kind
+  ---
+  duration_ms: 5156.284292
+  type: 'test'
+  ...
+# Subtest: manual verify unproven ledger
+ok 24 - manual verify unproven ledger
+  ---
+  duration_ms: 4897.892792
+  type: 'test'
+  ...
+# Subtest: manual verify reasons merge
+ok 25 - manual verify reasons merge
+  ---
+  duration_ms: 859.015791
+  type: 'test'
+  ...
+# Subtest: manual checks report section
+ok 26 - manual checks report section
+  ---
+  duration_ms: 202.219625
+  type: 'test'
+  ...
+# Subtest: manual not proved reaches outputs
+ok 27 - manual not proved reaches outputs
+  ---
+  duration_ms: 3264.942291
+  type: 'test'
+  ...
+1..27
+# tests 27
+# suites 0
+# pass 27
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 67046.912583

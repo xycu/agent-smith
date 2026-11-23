@@ -1,0 +1,23 @@
+Manual verification preflight, read-only checks
+Candidate 684621fad9ffbada7f20b30b6a70f8997837b996
+Branch agent-smith/openspec-2-upgrade
+Node v24.19.0
+Pending Manual rows
+- [ ] 3.4 Fresh upgraded OpenSpec pipeline runs revalidate discovery, awaited child/result ownership, recovery, restrictions and usage coverage for the six OpenSpec host/provider/launch cells, with any unavailable cell retained as pending and its prerequisite recorded.
+- [ ] 3.5 The enclosing orchestrator pushes the run branch, opens the reviewable PR, obtains successful PR CI and posts the requested run report as a PR comment reflecting the actual outcome and pending live proof.
+openspec-apply-change generatedBy=2.0.0 relativeLink=true
+openspec-archive-change generatedBy=2.0.0 relativeLink=true
+openspec-bulk-archive-change generatedBy=2.0.0 relativeLink=true
+openspec-continue-change generatedBy=2.0.0 relativeLink=true
+openspec-explore generatedBy=2.0.0 relativeLink=true
+openspec-ff-change generatedBy=2.0.0 relativeLink=true
+openspec-new-change generatedBy=2.0.0 relativeLink=true
+openspec-onboard generatedBy=2.0.0 relativeLink=true
+openspec-propose generatedBy=2.0.0 relativeLink=true
+openspec-sync-specs generatedBy=2.0.0 relativeLink=true
+openspec-update-change generatedBy=2.0.0 relativeLink=true
+openspec-verify-change generatedBy=2.0.0 relativeLink=true
+Existing fixture scope
+// Real router and Git recovery through the fake Codex process. Native Claude dispatch remains live acceptance.
+    // This is an artifact/result fixture for native dispatch, with no assertion that Agent was called.
+Partial discovery metadata check passed. No live matrix cell or external handoff was proved.

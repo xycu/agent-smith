@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { removeTree } from "../scripts/remove-tree.mjs";
+import { collectClaudeUsage } from "../scripts/claude-usage.mjs";
 import {
   cleanupAll, makeProject, planText, writePlan, run, init, next, writeResult, readLogEntries, readMetaFile,
   gitAvailable, gitEnv, gitInit, commitFiles, git, entry, skipEntry, writeLog, writeMetaFile,
@@ -166,6 +167,23 @@ function side({ totals = [], over = {}, meta = {}, files = {}, policy = null, id
 // `compare` run from the routed project against the baseline project.
 const compare = (routed, baseline, extra = []) => run(routed, ["compare", routed.id, "--baseline", baseline.root, ...extra]);
 const targetPolicy = (t) => ({ compare: { targetDropPercent: t } });
+
+test("capture off keeps comparison incomplete and supplies one canonical launcher instruction", () => {
+  const { usageEvidence } = collectClaudeUsage({}, {});
+  const routed = side({ totals: [null], over: { usageEvidence: { ...usageEvidence, explanation: "Obsolete stored wording" } } });
+  const baseline = side({ totals: [100] });
+  const res = compare(routed, baseline);
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.json.comparable, false);
+  assert.deepEqual(res.json.reasons, ["usage-incomplete:routed"]);
+  assert.equal(res.json.dropPercent, null);
+  assert.deepEqual(res.json.routed.usageSteps[0].usageEvidence, usageEvidence);
+  const md = compare(routed, baseline, ["--format", "md"]);
+  assert.equal(md.status, 0, md.stderr);
+  const guidance = md.stdout.split("\n").filter(line => line.startsWith("Unavailable routed step 1:"));
+  assert.equal(guidance.length, 1);
+  assert.match(guidance[0], /capture-disabled — Claude token capture is off\. Run `node <absolute-plugin-scripts>\/claude-capture\.mjs`/);
+});
 
 test("2.1 a complete done pair gives the drop, and the default policy leaves the target unset", () => {
   const res = compare(side({ totals: [250, 350] }), side({ totals: [400, 600] }));
@@ -328,7 +346,7 @@ test("2.6 mismatches only warn and the numbers are kept", () => {
   assert.equal(res.json.dropPercent, 40);
   for (const w of ["goal-mismatch", "baseSha-mismatch", "input-files-differ:research.md"]) assert.ok(res.json.warnings.includes(w), w);
   const same = compare(side({ totals: [600] }), side({ totals: [1000], files: { "plan.md": "x\n", "plan-brief.md": "y\n" } }));
-  assert.deepEqual(same.json.warnings, []);
+  assert.deepEqual(same.json.warnings, ["legacy-usage-scope"]);
 
   // A live folder and an archived folder for one side: the live one is read.
   const both = side({ totals: [600] });
@@ -358,6 +376,10 @@ test("2.7 a zero baseline, an empty log and garbage lines do not throw", () => {
   assert.equal(res.status, 0, res.stderr);
   assert.equal(res.json.baseline.steps, 1);
   assert.equal(res.json.baseline.tokens.total, 500);
+  assert.deepEqual(res.json.reasons, ["log-problems:baseline"]);
+  assert.equal(res.json.comparable, false);
+  assert.equal(res.json.dropPercent, null);
+  assert.equal(res.json.verdict, "not comparable");
 });
 
 // A project whose routed run lives only in context/archive/<name>, with an optional log.
@@ -658,7 +680,7 @@ test("2.3 neutral advisory failure still requires usage on either compare arm", 
   }
 });
 
-test("2.3 a token sum past the safe-integer range is a missing figure, not an inexact total", () => {
+test("2.3 a token sum past the safe-integer range is unavailable, not an inexact total", () => {
   const huge = side({ totals: [100] });
   writeLog(huge, [
     entry(1, "plan", { usage: { totalTokens: Number.MAX_SAFE_INTEGER } }),
@@ -668,9 +690,10 @@ test("2.3 a token sum past the safe-integer range is a missing figure, not an in
   assert.equal(res.status, 0, res.stderr);
   assert.equal(res.json.comparable, false);
   assert.equal(res.json.dropPercent, null);
-  assert.ok(res.json.reasons.includes("usage-incomplete:baseline"));
-  assert.equal(res.json.baseline.tokens.total, Number.MAX_SAFE_INTEGER);
-  assert.equal(res.json.baseline.tokens.stepsWithFigures, 1);
+  assert.ok(res.json.reasons.includes("usage-overflow:baseline"));
+  assert.equal(res.json.baseline.tokens.total, null);
+  assert.equal(res.json.baseline.tokens.stepsWithFigures, 2);
+  assert.equal(res.json.baseline.tokens.byModel.sonnet, null);
 });
 
 // ---- Phase 3: --format md ---------------------------------------------------------
@@ -694,7 +717,7 @@ test("3.1 --format md prints the table, per-model lines, drop, target, verdict, 
     "Verdict: target not set",
     "raw tokens, a proxy for the weekly limit",
     "Reasons: none",
-    "Warnings: none",
+    "Warnings: legacy-usage-scope",
   ]) assert.ok(md.includes(text), text);
   assert.equal(compare(routed, baseline, ["--format", "json"]).json.verdict, "target not set");
 
@@ -773,7 +796,7 @@ test("4.3 --unpinned waives only the pin, warns and reports the unpinned verdict
   // A pinned baseline under --unpinned also gets the warning and the verdict.
   const pinned = compare(side({ totals: [600] }), side({ totals: [1000] }), ["--unpinned"]).json;
   assert.equal(pinned.pinned, true);
-  assert.deepEqual(pinned.warnings, ["baseline-unpinned"]);
+  assert.deepEqual(pinned.warnings, ["baseline-unpinned", "legacy-usage-scope"]);
   assert.equal(pinned.verdict, "unpinned");
   // Every other reason stays.
   const halted = compare(side({ totals: [50], meta: { outcome: { action: "halt" } } }), baseline, ["--unpinned"]).json;
@@ -847,14 +870,39 @@ test("4.3 a pair whose only file difference is complexity.json has no input-file
   const on = side({ totals: [600], files: { "research.md": "r\n", "complexity.json": score } });
   const off = side({ totals: [1000], files: { "research.md": "r\n" } });
   const res = compare(on, off, ["--unpinned"]);
-  assert.deepEqual(res.json.warnings, ["baseline-unpinned"]);
+  assert.deepEqual(res.json.warnings, ["baseline-unpinned", "legacy-usage-scope"]);
   assert.equal(res.json.routed.inputFiles.includes("complexity.json"), false);
-  assert.deepEqual(compare(on, off).json.warnings, []);
+  assert.deepEqual(compare(on, off).json.warnings, ["legacy-usage-scope"]);
   // The file name comes from the score block of the policy compare loads.
   const renamed = side({ totals: [600], files: { "research.md": "r\n", "score.json": score, "complexity.json": score }, policy: { score: { file: "score.json" } } });
   const w = compare(renamed, off).json.warnings;
-  assert.deepEqual(w, ["input-files-differ:complexity.json"]);
+  assert.deepEqual(w, ["input-files-differ:complexity.json", "legacy-usage-scope"]);
   // A malformed score block falls back to complexity.json.
   const broken = side({ totals: [600], files: { "complexity.json": score }, policy: { score: { file: "../x" } } });
-  assert.deepEqual(compare(broken, off).json.warnings, ["input-files-differ:research.md"]);
+  assert.deepEqual(compare(broken, off).json.warnings, ["input-files-differ:research.md", "legacy-usage-scope"]);
+});
+
+
+test("damaged skipped records retain integrity reasons beside pin, outcome and usage failures", () => {
+  const baseline = side({ totals: [1000], over: { model: "haiku" }, skips: ["plan-review"] });
+  const routed = side({ totals: [null], meta: { outcome: { action: "halt" } }, policy: targetPolicy(30) });
+  const skipped = JSON.stringify(skipEntry("research", 1, { reason: "private skipped record" })).slice(0, -1);
+  for (const project of [baseline, routed]) fs.appendFileSync(path.join(project.agentDir, "run.jsonl"), `${skipped}\n`);
+  for (const flags of [[], ["--unpinned"]]) {
+    const res = compare(routed, baseline, flags);
+    assert.equal(res.status, 0, res.stderr);
+    const expected = ["log-problems:baseline", "log-problems:routed", "outcome-not-done:routed", "usage-incomplete:routed"];
+    if (!flags.length) expected.unshift("baseline-not-pinned");
+    assert.deepEqual(res.json.reasons, expected);
+    assert.equal(res.json.comparable, false);
+    assert.equal(res.json.dropPercent, null);
+    assert.equal(res.json.verdict, "not comparable");
+    assert.ok(res.json.warnings.includes("baseline-skipped-steps:1"));
+    assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+    const md = compare(routed, baseline, [...flags, "--format", "md"]);
+    assert.equal(md.status, 0, md.stderr);
+    for (const reason of expected) assert.ok(md.stdout.includes(reason), md.stdout);
+    assert.match(md.stdout, /Verdict: not comparable/);
+    for (const result of [res, md]) assert.doesNotMatch(result.stdout + result.stderr, /private skipped record/);
+  }
 });

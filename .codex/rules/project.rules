@@ -1,6 +1,6 @@
-# Git and GitHub operations are generally authorized by AGENTS.md.
+# Local git operations are generally authorized by AGENTS.md. Publication is not:
+# only open-pr.mjs and pr-comment.mjs push and call gh, outside the Codex child (ADR-017).
 prefix_rule(pattern = ["git"], decision = "allow")
-prefix_rule(pattern = ["gh"], decision = "allow")
 
 # State-dependent operations go to auto-review to verify recoverability.
 # Preserve affected work in a commit, ref, or snapshot before discarding it.
@@ -20,6 +20,8 @@ prefix_rule(pattern = ["git", "reflog", ["expire", "delete", "drop"]], decision 
 
 # Explicit repository prohibitions. Prefix guards cover direct forms only.
 # AGENTS.md also governs reordered flags, wrappers, and API equivalents.
+prefix_rule(pattern = ["git", "push"], decision = "forbidden", justification = "Only open-pr.mjs pushes the run branch (ADR-017); a step never publishes.")
+prefix_rule(pattern = ["gh"], decision = "forbidden", justification = "Only open-pr.mjs and pr-comment.mjs call gh (ADR-017); a step never touches GitHub.")
 prefix_rule(pattern = ["git", "push", ["--force", "--force-with-lease", "-f", "--mirror"]], decision = "forbidden", justification = "AGENTS.md forbids force-pushing or rewriting pushed history.")
 prefix_rule(pattern = ["git", "commit", "--no-verify"], decision = "forbidden", justification = "AGENTS.md requires repository hooks to run.")
 prefix_rule(pattern = ["gh", ["repo", "release", "issue"], "delete"], decision = "forbidden", justification = "AGENTS.md forbids permanent GitHub deletion.")

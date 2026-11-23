@@ -1,9 +1,13 @@
 # ADR-009: Record run provenance, opt in to tool-restricted step agents and to an advisor prompt rule, and keep the router a script
 
-- **Status:** Accepted (the repository owner confirmed the unattended readings on 2026-11-08; the live checks and the A/B result below are still pending)
+- **Status:** Accepted (owner, 2026-11-08). Live checks 1 and 2 have recorded results for background calls. The advisor precondition and both flag experiments remain open. [Checks](#live-checks) · [Experiment rules](#decision-rules)
 - **Date:** 2026-11-02
 - **Deciders:** unattended pipeline run of change `managed-agent-patterns`; the repository owner confirms or changes the readings below
 - **Origin:** change `managed-agent-patterns` (`context/changes/managed-agent-patterns/change.md`, `plan.md` and `research.md`). Three patterns from the Managed Agents docs, adapted to a local Claude Code plugin: run provenance, tool-restricted agents and the advisor.
+
+## Rule in force
+
+The router records plugin, flags and hashes for policy and shipped inputs, including agents, rules and hooks. By default, `provenance.ignore` excludes `compare`, `provenance`, `prices` and `coAuthor` from policy hashes. A project can replace that list. New Claude steps default to guarded `agent-smith:step`. Normal steps can opt into supported restricted mappings, and archive uses the fixed guarded identity. The advisor flag adds consult guidance for selected templates and the host setting selects the advisor. OpenAI and custom Claude identities use their own permission controls and the shared rules. [Provenance rules](#what-each-feature-covers) · [Guard coverage](#amendment-1--guarded-claude-dispatch-2026-11-15)
 
 ## Context
 
@@ -41,6 +45,8 @@ Rules, written as scenarios (the form of ADR-004):
 
 ### Restricted step agents
 
+The original absent-agent rule below describes the pre-guard release. Amendment 1 defines the current guarded Claude default.
+
 **GIVEN** an `agents` block whose `restricted` is not the boolean `true` **WHEN** the router returns a step **THEN** the run output **MUST NOT** carry `agent`.
 
 **GIVEN** `agents.restricted` is `true` and `agents.steps` maps the step to a non-blank string **WHEN** the router returns that step **THEN** it **MUST** add `agent` with that type to the run output and to the log entry.
@@ -64,13 +70,13 @@ Rules, written as scenarios (the form of ADR-004):
 - Provenance: `meta.provenance` holds `schemaVersion` 1, `plugin`, `sections` and `flags` (`archive`, `chrome`, `score.minRigor`, `agents.restricted`, `advisor.enabled`). `provenance.ignore` (default `compare` and `provenance`) names the sections that are not hashed, so the compare target in the project override changes no hash. `provenance.expected` names the sections a pinned pair (`ladder`, `rigor`, `score`) and an `--unpinned` pair (`score`) are expected to differ in.
 
 > Updated 2026-11-09 by run-cost-estimate for `prices`, and amended by ADR-021 for `coAuthor`. The current `provenance.ignore` list is `compare`, `provenance`, `prices`, `coAuthor`. [Pricing commit 6a906fb](https://github.com/xycu/agent-smith/commit/6a906fb) · [ADR-005 cost consequence](ADR-005-baseline-usage-comparison.md#consequences) · [ADR-021](ADR-021-agent-smith-co-author.md)
-- Restricted agents: the shipped map names only `score` (`agent-smith:score`, `agents/score.md`, tools `Read`, `Grep`, `Glob` and `Write`). `Write` cannot be scoped to one path and plugin agents ignore `hooks`, so the prompt rule and the router's check of `complexity.json` are what keep the scorer to that file.
+- Restricted agents: the shipped map names only `score` (`agent-smith:score`, `agents/score.md`, tools `Read`, `Grep`, `Glob` and `Write`). `Write` cannot be scoped to one path and plugin agent-frontmatter ignores `hooks`, so the prompt rule and the router's check of `complexity.json` are what keep the scorer to that file.
 - Advisor: `advisor.templates` ships as `plan`, `implement` and `implement-segment`. Re-plans, `implement-retry`, the tdd and e2e executors, reviews, `fix`, `score` and the pre-plan steps get no advisor text. The flag asks for a consult; the user's `advisorModel` decides whether an advisor exists and which model it is.
 
 ## Consequences
 
 - `compare` now says when two arms ran with different policy sections, prompt texts, agent files, plugin versions or flags. It still cannot see a user setting such as `advisorModel`, so both arms of an advisor pair record that setting by hand.
-- With both flags at their defaults, every prompt and every run output is byte-identical to the router before this change; only `meta.json` gains `provenance`.
+- At this decision’s original release, both default flags preserved prompt and run-output bytes while adding provenance. Amendment 1 supersedes the original absent-agent default.
 - A restricted `score` step that cannot resolve its agent type fails like any failed scorer: neutral, retried one tier up, skipped after three attempts. The run goes on.
 - The advisor arm can only add tokens at an unchanged tier, so its decision rule weighs quality proxies (`steps`, `failedAttempts`) against a token allowance, not a token drop.
 - With `advisorModel` set, every subagent of the session that passes the pairing check may consult the advisor, not only `plan` and `implement`. The flag changes what the prompt asks, not what the session allows.
@@ -83,7 +89,7 @@ Rules, written as scenarios (the form of ADR-004):
 | The router reads `advisorModel` from the settings files and `CLAUDE_CODE_DISABLE_ADVISOR_TOOL` from the environment | rejected | It would be the router's first read of a user-level file, and it still could not tell whether a consult happened. Provenance records only what the policy and `meta.json` hold. |
 | Restricted agent definitions for `research` and `frame` | not adopted | They need `Write`, `Bash`, `Skill` and `Agent`, so the restriction would remove only `Edit`, `NotebookEdit` and web tools, while a type that does not resolve costs them retries and a halt (they are not advisory like `score`). The policy map makes adding them later a data change. |
 | A router-side fallback to `general-purpose` when an agent type does not resolve | rejected | A silent fallback makes a run labelled restricted run unrestricted, and `compare` could not tell. |
-| A hook that guards the paths a restricted agent writes | rejected | Plugin agents ignore `hooks`, so a write guard for `complexity.json` cannot be set from the plugin. |
+| A hook that guards the paths a restricted agent writes | rejected | Agent-frontmatter hooks are ignored. This original decision did not evaluate plugin-level hooks. Amendment 1 adds a scoped plugin-level Bash guard. |
 | The Managed Agents advisor (`multiagent.advisor`) | rejected | It needs the Managed Agents API and a `multiagent` agent config, which a local Claude Code plugin does not use. It is the source of the idea only. |
 
 ## Live checks
@@ -95,6 +101,8 @@ Checks 1 and 2 are done; check P0 is pending. A human runs each check with the p
 | Live check 1 | With `agents.restricted: true` in a scratch project override, a `standard` run starts the `score` step as `agent-smith:score` and it writes a valid `complexity.json`. If the type does not resolve, record the Agent error text and correct `agents.steps.score`. | Done 2026-11-08 with plugin 0.7.0 from the plugin cache, scratch project, `standard` rigor: the router returned `agent: "agent-smith:score"` for step 1 and logged it; the Agent call resolved the type and the subagent wrote a `complexity.json` the router verified (`ok`, `verified`), then returned `plan`. The Agent tool returned a launch notice, so the call ran in the background. |
 | Live check 2 | In that restricted run the subagent cannot call `Bash`, `Edit` or an MCP tool. Record the observed behavior for MCP tools in a foreground subagent; the docs describe only the background case. | Done 2026-11-08, by a probe call of the same agent type: the subagent reported the tools Read, Write, Grep, Glob and the hand-back tool, and no Bash, Edit, ToolSearch or `mcp__*` tool, so it could call none. This is the subagent's own report. The call returned a launch notice, so this is the background case; the foreground case was not observed. |
 | Live check P0 | With `advisorModel` set, one `plan` step with `advisor.enabled: true`: did the step consult, and does the Agent result's `totalTokens` include the advisor's tokens? | Pending |
+
+The original plan records the observed background restriction and the open advisor-token precondition in rows 2.8–2.9 and 3.7. [Manual checks](../../context/archive/2026-11-02-managed-agent-patterns/plan.md#progress)
 
 ## Decision rules
 
@@ -122,3 +130,17 @@ The same pairs with `agents.restricted` `false` and `true`, the scorer on in bot
 ### A/B result
 
 Pending. A human runs the pairs and records here, per pair, `dropPercent`, `steps`, `failedAttempts`, `byModel` and `byTier` of both arms, the failed `score` attempts of the restricted pairs, and the reasons of every pair that is not comparable, then the decision for each flag.
+
+The advisor flag and restricted-agent flag each require their own pairs under the rules above. FR-017 separately defers the savings and scorer experiments. [Flag experiments](#decision-rules) · [Deferred measurements](../../context/foundation/roadmap.md#parked)
+
+## Amendment 1 — Guarded Claude dispatch (2026-11-15)
+
+New Claude actions use the inherited-tool `agent-smith:step` identity. The original absent-agent default is superseded. Enabled restricted mappings select their configured type for normal Claude steps. Claude archive actions select the fixed guarded type, preserving the archive mapping contract. OpenAI dispatch uses its provider-specific execution boundary and capability checks. Historical neutral retries replay exact stored dispatches.
+
+**GIVEN** a newly assembled Claude dispatch **WHEN** no supported restricted mapping selects its type **THEN** the router **MUST** select `agent-smith:step` through the shared provider-aware dispatch helper.
+
+**GIVEN** a hook for routed Claude Bash calls **WHEN** it is shipped **THEN** it **MUST** live in the plugin-level `hooks/hooks.json`, because settings and plugin hooks run inside subagents while plugin agent-frontmatter hooks are ignored.
+
+The hook filters host-provided scoped identity and emits a deny decision or neutral pass-through. Its fixed hook JSON and script receive an independent `hookFiles` provenance hash. An unreadable input records null, following existing hashing conventions. Stored provenance stays immutable and records drift at later calls.
+
+The plugin baseline is 2.1.292+. Fail-closed `onFailure: block` handling requires 2.1.295+. Older supported hosts have unverified runtime enforcement. Payload tests and strict plugin validation passed, with fresh-host identity and blocking still pending. The reference documents the direct-command subset and custom-agent/provider limits. [Guard plan, Manual rows 2.6–2.7](../../context/archive/2026-11-13-step-subagent-git-guard/plan.md#progress) · [S-18 effective protection](../../context/foundation/roadmap.md#s-18-effective-step-protection-in-the-supported-environment) [Hooks](https://code.claude.com/docs/en/hooks) · [Subagents](https://code.claude.com/docs/en/sub-agents)

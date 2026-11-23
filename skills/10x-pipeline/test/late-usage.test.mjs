@@ -6,11 +6,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeResult, writeLog,
+  cleanupAll, makeProject, commitFiles, run, git, gitAvailable, gitEnv, gitInit, writeResult, seedRun, writeLog,
   writeMetaFile, readLogEntries, readMetaFile, readReportFile, entry, planText
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, moveToArchive } from "../../openspec-pipeline/test/openspec-helpers.mjs";
+import { boundClaudeFixture } from "./claude-helpers.mjs";
+import { claudeCaptureCheckpoint, collectClaudeUsage } from "../scripts/claude-usage.mjs";
+import { unavailableEvidence } from "../scripts/usage.mjs";
 
 after(cleanupAll);
 
@@ -87,6 +90,25 @@ test("1.1 a bad step number, no flag, a flag without a value and a bad value exi
   assert.deepEqual(snapshot(project.changeDir), before);
 });
 
+test("1.1 usage help advertises --usage-file", () => {
+  const project = makeProject();
+  const synopsis = "usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N])";
+
+  const refused = usage(project, null, []);
+  assert.equal(refused.status, 1, refused.stdout);
+  assert.equal(refused.json.action, "usage");
+  assert.equal(refused.json.attached, false);
+  assert.equal(refused.json.n, null);
+  assert.ok(refused.json.reason.startsWith(`Usage: route.mjs ${synopsis} [--chain 10x|openspec]; <n> is the step number`), refused.stdout);
+
+  const halted = run(project, []);
+  assert.equal(halted.status, 1, halted.stdout);
+  assert.equal(halted.json.action, "halt");
+  assert.ok(halted.json.reason.startsWith("Usage: route.mjs init|next|status|risk "), halted.stdout);
+  assert.ok(halted.json.reason.includes(` | ${synopsis} | verify-archive `), halted.stdout);
+  assert.ok(halted.json.reason.endsWith("; every command takes [--chain 10x|openspec]"), halted.stdout);
+});
+
 // ---- 1.2 refusals -----------------------------------------------------------------------------
 
 test("1.2 a step that is not logged, a pending step and no run log are refused and write nothing", () => {
@@ -109,7 +131,7 @@ test("1.2 a step that is not logged, a pending step and no run log are refused a
 
 test("1.2 a skip entry is never matched", () => {
   const project = makeProject();
-  writeLog(project, [{ skipped: true, step: "research", reason: "fixture", rigor: "lean", afterN: 0, at: 1 }, entry(1, "plan")]);
+  seedRun(project, [{ skipped: true, step: "research", reason: "fixture", rigor: "lean", afterN: 0, at: 1 }, entry(1, "plan")]);
   const before = snapshot(project.changeDir);
   const res = usage(project, 2);
   assert.equal(res.status, 1, res.stdout);
@@ -557,3 +579,216 @@ test("2.3 OpenSpec --archive: the commit holds only openspec/changes/demo/ and t
   assert.equal(folderStatus(project), "");
   assert.match(blob(project, "agent-smith/report.md"), /\| 2 \| os-verify \| .* \| 1200 \|/);
 });
+
+// Hand-authored invocation evidence, independent of live telemetry availability.
+const TREE_EVIDENCE = {
+  schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+  invocation: { host: "codex", rootThreadId: "root", rootTurnId: "turn" },
+  sessionCount: 2, requestCount: 4, reconciliation: "response-snapshot",
+};
+const WAITING_EVIDENCE = {
+  schemaVersion: 1, status: "unavailable", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+  invocation: TREE_EVIDENCE.invocation, reason: "incomplete-capture",
+  explanation: "The captured records do not prove complete invocation coverage.",
+};
+
+function treeProject(chain) {
+  const p = chain === "openspec" ? openspecRun() : running();
+  const log = readLogEntries(p);
+  log[0].usage = { durationMs: 45, toolUses: 7 };
+  log[0].usageEvidence = WAITING_EVIDENCE;
+  // Matching descriptions and neutral reruns cannot substitute for the host invocation.
+  log[0].neutralRetries = [{ at: 1, note: "repeated description" }];
+  writeLog(p, log);
+  return p;
+}
+
+function treePayload(p, chain, over = {}) {
+  const first = readLogEntries(p)[0];
+  return { change: p.id, chain, n: 1, step: first.step,
+    usage: { totalTokens: 123, durationMs: 45 }, usageEvidence: TREE_EVIDENCE, ...over };
+}
+
+function treeFile(p, payload) {
+  const file = path.join(p.root, "late-usage.json");
+  fs.writeFileSync(file, JSON.stringify(payload));
+  return file;
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: a delayed bound Claude export supplies the recorded step total only once`, () => {
+    const project = chain === "openspec" ? openspecRun() : running();
+    const log = readLogEntries(project);
+    const [first, pending] = log;
+    const capture = boundClaudeFixture({ project, chain, n: first.n, step: first.step });
+    const checkpoint = claudeCaptureCheckpoint(capture.env);
+    const terminal = capture.events.pop();
+    capture.write();
+    const awaiting = collectClaudeUsage({ ...capture.descriptor, checkpoint }, capture.env);
+    assert.equal(awaiting.usageEvidence.reason, "incomplete-capture");
+    assert.equal(awaiting.usageEvidence.invocation.sessionId, capture.binding.sessionId);
+    assert.equal(awaiting.usage.totalTokens, undefined);
+    Object.assign(first, awaiting);
+    writeLog(project, log);
+
+    capture.events.push(terminal);
+    capture.write();
+    const { invocation, hostVersion } = awaiting.usageEvidence;
+    const { router } = capture.descriptor;
+    const completed = collectClaudeUsage({ router, invocation, hostVersion }, capture.env);
+    assert.equal(completed.usage.totalTokens, 151);
+    assert.equal(completed.usageEvidence.status, "verified");
+    const { totalTokens } = completed.usage;
+    const file = treeFile(project, { ...router, usage: { totalTokens }, usageEvidence: completed.usageEvidence });
+    const args = ["--usage-file", file, "--chain", chain];
+    const attached = usage(project, first.n, args);
+    assert.equal(attached.status, 0, attached.stdout + attached.stderr);
+    assert.equal(attached.json.unchanged, false);
+    const [updated, later] = readLogEntries(project);
+    assert.deepEqual(updated.usage, { ...awaiting.usage, totalTokens });
+    assert.deepEqual(updated.usageEvidence, completed.usageEvidence);
+    assert.equal(updated.usageLate, true);
+    assert.deepEqual(later, pending);
+    const bytes = snapshot(project.changeDir);
+    const replay = usage(project, first.n, args);
+    assert.equal(replay.json.unchanged, true, replay.stdout);
+    assert.deepEqual(snapshot(project.changeDir), bytes);
+  });
+
+  test(`${chain}: structured late tokens fill duration-only usage once for the exact invocation`, () => {
+    const p = treeProject(chain);
+    const pending = readLogEntries(p)[1];
+    const file = treeFile(p, treePayload(p, chain));
+    const args = ["--usage-file", file, "--chain", chain];
+    const res = usage(p, 1, args);
+    assert.equal(res.status, 0, res.stdout);
+    assert.equal(res.json.unchanged, false);
+    const [first, later] = readLogEntries(p);
+    assert.deepEqual(first.usage, { durationMs: 45, toolUses: 7, totalTokens: 123 });
+    assert.deepEqual(first.usageEvidence, TREE_EVIDENCE);
+    assert.deepEqual(later, pending);
+    const bytes = snapshot(p.changeDir);
+    const replay = usage(p, 1, args);
+    assert.equal(replay.json.unchanged, true, replay.stdout);
+    assert.deepEqual(snapshot(p.changeDir), bytes);
+  });
+
+  test(`${chain}: late verification removes the usage limitation from an ended run's report`, () => {
+    const project = chain === "openspec" ? makeOpenspecProject() : makeProject();
+    const step = chain === "openspec" ? "os-propose" : "plan";
+    seedRun(project, [entry(1, step, { provider: "openai", usage: { durationMs: 45 },
+      usageEvidence: unavailableEvidence("missing-source", TREE_EVIDENCE) })],
+    { chain, host: "codex", providerMode: "codex", outcome: { action: "done" } });
+    const status = run(project, ["status", project.id, "--report", "--chain", chain]);
+    assert.equal(status.status, 0, status.stdout + status.stderr);
+    assert.match(readReportFile(project), /^Token capture limitations: Codex usage source unavailable \(1 step\)$/m);
+    assert.match(readReportFile(project), /Tokens: - \(figures for 0 of 1 steps\)/);
+
+    const file = treeFile(project, treePayload(project, chain));
+    const result = usage(project, 1, ["--usage-file", file, "--chain", chain]);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(result.json.report, status.json.report);
+    const refreshed = readReportFile(project);
+    assert.doesNotMatch(refreshed, /^Token capture limitations:/m);
+    assert.match(refreshed, /Tokens: 123 \(figures for 1 of 1 steps\)/);
+    assert.match(refreshed, /Verified observed host usage: 1 · Unavailable: 0/);
+  });
+
+  test(`${chain}: structured late refusals preserve every run file and legacy flags cannot bypass evidence`, () => {
+    const p = treeProject(chain);
+    const payload = treePayload(p, chain);
+    const before = snapshot(p.changeDir);
+    for (const over of [
+      { change: "another" }, { chain: chain === "10x" ? "openspec" : "10x" },
+      { n: 2 }, { step: "same description" },
+      { usageEvidence: { ...TREE_EVIDENCE, invocation: { ...TREE_EVIDENCE.invocation, rootTurnId: "other-turn" } } },
+      { usageEvidence: { ...TREE_EVIDENCE, schemaVersion: 2 } },
+      { usageEvidence: { ...TREE_EVIDENCE, hostVersion: "0.170.0" } },
+      { usageEvidence: { ...TREE_EVIDENCE, source: "unknown" } },
+      { usageEvidence: WAITING_EVIDENCE },
+      { usageEvidence: { ...TREE_EVIDENCE, invocation: undefined } },
+      { usage: { totalTokens: 123, durationMs: 46 } },
+      { usage: { totalTokens: 123, toolUses: 8 } },
+      { usage: { totalTokens: Number.MAX_SAFE_INTEGER + 1 } },
+      { usage: { totalTokens: 123, raw: "ignored" } },
+    ]) {
+      const file = treeFile(p, { ...payload, ...over });
+      const res = usage(p, 1, ["--usage-file", file, "--chain", chain]);
+      assert.equal(res.status, 1, JSON.stringify(over) + res.stdout);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+    const file = treeFile(p, payload);
+    for (const extra of [["--tokens", "123"], ["--tool-uses", "7"], ["--duration-ms", "45"]]) {
+      const res = usage(p, 1, ["--usage-file", file, ...extra]);
+      assert.equal(res.status, 1, res.stdout);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+    assert.equal(usage(p, 1, ["--tokens", "123"]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    assert.equal(usage(p, 2, ["--usage-file", file]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    fs.writeFileSync(file, "x".repeat(65537));
+    const oversized = usage(p, 1, ["--usage-file", file]);
+    assert.equal(oversized.status, 1, oversized.stdout);
+    assert.doesNotMatch(oversized.stdout, /x{20}/);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  });
+
+  test(`${chain}: structured late input cannot upgrade legacy attribution or fill other missing counters`, () => {
+    const p = treeProject(chain);
+    const log = readLogEntries(p);
+    delete log[0].usageEvidence;
+    writeLog(p, log);
+    const payload = treePayload(p, chain);
+    const file = treeFile(p, payload);
+    const before = snapshot(p.changeDir);
+    assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    log[0].usageEvidence = WAITING_EVIDENCE;
+    delete log[0].usage.toolUses;
+    writeLog(p, log);
+    treeFile(p, { ...payload, usage: { totalTokens: 123, toolUses: 7 } });
+    const missing = snapshot(p.changeDir);
+    assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), missing);
+  });
+
+  test(`${chain}: verified zero can arrive late, but neither that total nor its evidence can be replaced`, () => {
+    const p = treeProject(chain);
+    const payload = treePayload(p, chain, { usage: { totalTokens: 0 } });
+    const file = treeFile(p, payload);
+    assert.equal(usage(p, 1, ["--usage-file", file]).status, 0);
+    assert.equal(readLogEntries(p)[0].usage.totalTokens, 0);
+    const before = snapshot(p.changeDir);
+    for (const over of [{ usage: { totalTokens: 1 } }, { usageEvidence: { ...TREE_EVIDENCE, requestCount: 5 } }]) {
+      treeFile(p, { ...payload, ...over });
+      assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+  });
+}
+
+
+for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: structured file redirects and archived targets refuse without changing run files`, () => {
+    const p = treeProject(chain);
+    const file = treeFile(p, treePayload(p, chain));
+    const link = path.join(p.root, "late-redirect.json");
+    fs.symlinkSync(file, link);
+    const before = snapshot(p.changeDir);
+    const res = usage(p, 1, ["--usage-file", link, "--chain", chain]);
+    assert.equal(res.status, 1, res.stdout);
+    assert.deepEqual(snapshot(p.changeDir), before);
+    if (chain === "10x") {
+      fs.writeFileSync(path.join(p.changeDir, "change.md"), "---\nchange_id: demo\nstatus: archived\n---\n");
+      const stamped = snapshot(p.changeDir);
+      assert.equal(usage(p, 1, ["--usage-file", file]).status, 1);
+      assert.deepEqual(snapshot(p.changeDir), stamped);
+    } else {
+      const target = moveToArchive(p);
+      const archived = snapshot(target);
+      assert.equal(usage(p, 1, ["--usage-file", file, "--chain", chain]).status, 1);
+      assert.deepEqual(snapshot(target), archived);
+    }
+  });
+}

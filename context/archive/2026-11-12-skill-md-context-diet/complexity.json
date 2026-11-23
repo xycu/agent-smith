@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": {
+      "score": 0,
+      "evidence": "change.md Done when fixes the outcome and required contracts"
+    },
+    "novelty": {
+      "score": 1,
+      "evidence": "skills/openspec-pipeline/SKILL.md already uses the short Tuning pattern"
+    },
+    "coupling": {
+      "score": 2,
+      "evidence": "Goal spans both SKILL.md files, docs/REFERENCE.md, AGENTS.md and text-contract tests"
+    },
+    "discovery": {
+      "score": 0,
+      "evidence": "Goal names the skill files, docs/REFERENCE.md, AGENTS.md and affected tests"
+    },
+    "volume": {
+      "score": 2,
+      "evidence": "change.md Tests names six existing test files and requests one new check"
+    },
+    "verification": {
+      "score": 1,
+      "evidence": "change.md Tests and repository commands specify the existing full automated suite"
+    }
+  },
+  "unknowns": [],
+  "confidence": "high"
+}

@@ -23,7 +23,7 @@ const BASELINE = readJson(path.join(SKILL_DIR, "baseline-policy.json"));
 const PLUGIN = readJson(path.join(REPO, ".claude-plugin/plugin.json"));
 const HEX16 = /^[0-9a-f]{16}$/;
 // chrome is the effective setting: on unless the run stored --chrome false.
-const NO_FLAGS = { archive: false, chrome: true, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
+const NO_FLAGS = { providerMode: "claude", archive: false, chrome: true, "score.minRigor": null, "agents.restricted": false, "advisor.enabled": false };
 
 const copies = [];
 after(() => {
@@ -68,6 +68,7 @@ function pluginCopy() {
   fs.cpSync(osSkill, path.join(root, "skills/openspec-pipeline"), { recursive: true, filter: (src) => src !== osTests });
   fs.cpSync(path.join(REPO, ".claude-plugin"), path.join(root, ".claude-plugin"), { recursive: true });
   if (fs.existsSync(path.join(REPO, "agents"))) fs.cpSync(path.join(REPO, "agents"), path.join(root, "agents"), { recursive: true });
+  fs.cpSync(path.join(REPO, "hooks"), path.join(root, "hooks"), { recursive: true });
   return { root, skill, route: path.join(skill, "scripts/route.mjs") };
 }
 
@@ -97,7 +98,7 @@ test("1.1 a fresh init writes schemaVersion, plugin, a hash per section except t
   assert.deepEqual(Object.keys(rec).sort(), ["flags", "plugin", "schemaVersion", "sections"]);
   assert.equal(rec.schemaVersion, 1);
   assert.equal(rec.plugin, PLUGIN.version);
-  const want = [...Object.keys(DEFAULT).filter((k) => !["compare", "provenance", "prices", "coAuthor"].includes(k)), "agentFiles", "ruleFiles"].sort();
+  const want = [...Object.keys(DEFAULT).filter((k) => !["compare", "provenance", "prices", "coAuthor"].includes(k)), "agentFiles", "ruleFiles", "hookFiles"].sort();
   assert.ok(want.includes("prompts"));
   assert.deepEqual(Object.keys(rec.sections), want, "every section but compare, provenance, prices and coAuthor, sorted");
   for (const [name, hash] of Object.entries(rec.sections)) {
@@ -113,7 +114,7 @@ test("1.1 flags read the stored meta values and the merged policy, and a missing
   const on = makeProject({ policy: { score: { minRigor: "thorough" }, agents: { restricted: true }, advisor: { enabled: true } } });
   assert.equal(init(on, "fix typo", ["--chrome"]).status, 0);
   assert.deepEqual(readMetaFile(on).provenance.flags, {
-    archive: false, chrome: true, "score.minRigor": "thorough", "agents.restricted": true, "advisor.enabled": true,
+    providerMode: "claude", archive: false, chrome: true, "score.minRigor": "thorough", "agents.restricted": true, "advisor.enabled": true,
   });
   assert.match(readMetaFile(on).provenance.sections.agents, HEX16);
   assert.match(readMetaFile(on).provenance.sections.advisor, HEX16);
@@ -124,12 +125,29 @@ test("1.1 flags read the stored meta values and the merged policy, and a missing
   assert.equal(shipped.flags["score.minRigor"], DEFAULT.score.minRigor);
 });
 
+test("changing a shipped fallback rung is visible as split-run ladder drift", () => {
+  const copy = pluginCopy();
+  const project = makeProject();
+  const first = runCopy(copy, project, ["init", project.id, "--goal", "fix typo", "--provider-mode", "split"]);
+  assert.equal(first.json.action, "run", first.stdout);
+  const file = path.join(copy.skill, "codex-policy.json");
+  const preset = readJson(file);
+  preset.ladder[2].model = "changed-model";
+  fs.writeFileSync(file, JSON.stringify(preset));
+  writeResult(project, { status: "failed", note: "fixture" });
+  const retry = runCopy(copy, project, ["next", project.id]);
+  assert.equal(retry.json.action, "run", retry.stdout);
+  assert.deepEqual(readMetaFile(project).provenance.drift, ["ladder"]);
+});
+
 test("1.1 a run with no executed step and no record gets one at init", () => {
   const project = makeProject();
   writeMetaFile(project, { id: project.id, goal: "fix typo" });
   const res = init(project, "fix typo");
   assert.equal(res.status, 0, res.stdout);
-  assert.deepEqual(readMetaFile(project).provenance, freshRecord());
+  const record = readMetaFile(project).provenance;
+  assert.equal(record.flags.providerMode, undefined);
+  assert.match(record.sections.ladder, HEX16);
 });
 
 test("1.1 computing the record never halts: a bad prompt reference records prompts null and checkPrompts halts as before", () => {
@@ -325,15 +343,16 @@ test("1.4 a run whose log holds executed steps and has no record gets none, and 
   assert.ok(res.json.warnings.includes("provenance-unknown:routed"), res.json.warnings.join(","));
 });
 
-test("1.4 a log with executed steps and no meta.json at all gets no record", () => {
+test("1.4 a log with executed steps and no meta.json halts for recovery", () => {
   const project = makeProject();
   // A plan step that started and has no result yet: JSON drops the undefined fields.
   writeLog(project, [entry(1, "plan", { result: undefined, ok: undefined, verified: undefined, finishedAt: undefined })]);
   finishPlan(project);
   const res = init(project, "fix typo");
-  assert.equal(res.status, 0, res.stdout);
-  assert.equal(res.json.action, "run");
-  assert.equal(Object.hasOwn(readMetaFile(project), "provenance"), false);
+  assert.equal(res.status, 1, res.stdout);
+  assert.equal(res.json.action, "halt");
+  assert.match(res.json.reason, /Recover its metadata/);
+  assert.equal(fs.existsSync(path.join(project.agentDir, "meta.json")), false);
 });
 
 // ---- 1.5 and 1.6 compare ---------------------------------------------------------------------
@@ -357,31 +376,31 @@ test("1.5 compare stays silent when both sides lack provenance and warns provena
   const rec = freshRecord();
   const none = compare(side(), side({ totals: [1000] }));
   assert.equal(none.status, 0, none.stdout);
-  assert.deepEqual(none.json.warnings, []);
+  assert.deepEqual(none.json.warnings, ["legacy-usage-scope"]);
   assert.equal(none.json.baseline.provenance, null);
   assert.equal(none.json.routed.provenance, null);
 
   const baselineUnknown = compare(side({ meta: { provenance: rec } }), side({ totals: [1000] }));
-  assert.deepEqual(baselineUnknown.json.warnings, ["provenance-unknown:baseline"]);
+  assert.deepEqual(baselineUnknown.json.warnings, ["provenance-unknown:baseline", "legacy-usage-scope"]);
   assert.deepEqual(baselineUnknown.json.routed.provenance, rec);
   assert.equal(baselineUnknown.json.baseline.provenance, null);
 
   const routedUnknown = compare(side(), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(routedUnknown.json.warnings, ["provenance-unknown:routed"]);
+  assert.deepEqual(routedUnknown.json.warnings, ["provenance-unknown:routed", "legacy-usage-scope"]);
 
   // A stored value that is not an object is no record.
   const broken = compare(side({ meta: { provenance: "x" } }), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(broken.json.warnings, ["provenance-unknown:routed"]);
+  assert.deepEqual(broken.json.warnings, ["provenance-unknown:routed", "legacy-usage-scope"]);
   assert.equal(broken.json.routed.provenance, null);
 
   const both = compare(side({ meta: { provenance: rec } }), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(both.json.warnings, []);
+  assert.deepEqual(both.json.warnings, ["legacy-usage-scope"]);
   for (const res of [baselineUnknown, routedUnknown, both]) assert.deepEqual(verdictOf(res.json), verdictOf(none.json));
   assert.equal(none.json.verdict, "target not set");
   assert.equal(none.json.comparable, true);
 
   const md = compare(side(), side({ totals: [1000], meta: { provenance: rec } }), ["--format", "md"]);
-  assert.ok(md.stdout.includes("Warnings: provenance-unknown:routed\n"), md.stdout);
+  assert.ok(md.stdout.includes("Warnings: provenance-unknown:routed, legacy-usage-scope\n"), md.stdout);
 });
 
 // A copy of `rec` with some sections, flags or top-level keys replaced.
@@ -403,29 +422,29 @@ test("1.6 compare warns provenance-differs, flags-differ and provenance-drift ou
   // Pinned pair: ladder, rigor and score are expected to differ, and so is score.minRigor.
   const pinned = compare(routed, baseline);
   assert.equal(pinned.status, 0, pinned.stdout);
-  assert.deepEqual(pinned.json.warnings, ["provenance-differs:plugin,prompts,steps", "flags-differ:archive"]);
+  assert.deepEqual(pinned.json.warnings, ["provenance-differs:plugin,prompts,steps", "flags-differ:archive", "legacy-usage-scope"]);
   // --unpinned: only score is expected to differ.
   const unpinned = compare(routed, baseline, ["--unpinned"]);
-  assert.deepEqual(unpinned.json.warnings, ["baseline-unpinned", "provenance-differs:ladder,plugin,prompts,rigor,steps", "flags-differ:archive"]);
+  assert.deepEqual(unpinned.json.warnings, ["baseline-unpinned", "provenance-differs:ladder,plugin,prompts,rigor,steps", "flags-differ:archive", "legacy-usage-scope"]);
 
   // A section on one side only differs; a flag on one side only differs.
   const extra = changed(rec, { sections: { agents: h("5") }, flags: { "agents.restricted": undefined } });
   delete extra.flags["agents.restricted"];
   const oneSided = compare(side({ meta: { provenance: extra } }), side({ totals: [1000], meta: { provenance: rec } }));
-  assert.deepEqual(oneSided.json.warnings, ["provenance-differs:agents", "flags-differ:agents.restricted"]);
+  assert.deepEqual(oneSided.json.warnings, ["provenance-differs:agents", "flags-differ:agents.restricted", "legacy-usage-scope"]);
 
   // Drift is reported per side, sorted, whatever the other side holds.
   const drifted = { ...rec, drift: ["prompts", "limits"] };
   assert.deepEqual(compare(side({ meta: { provenance: drifted } }), side({ totals: [1000], meta: { provenance: rec } })).json.warnings,
-    ["provenance-drift:routed:limits,prompts"]);
+    ["provenance-drift:routed:limits,prompts", "legacy-usage-scope"]);
   assert.deepEqual(compare(side({ meta: { provenance: drifted } }), side({ totals: [1000], meta: { provenance: drifted } })).json.warnings,
-    ["provenance-drift:baseline:limits,prompts", "provenance-drift:routed:limits,prompts"]);
+    ["provenance-drift:baseline:limits,prompts", "provenance-drift:routed:limits,prompts", "legacy-usage-scope"]);
   assert.deepEqual(compare(side({ meta: { provenance: drifted } }), side({ totals: [1000] })).json.warnings,
-    ["provenance-unknown:baseline", "provenance-drift:routed:limits,prompts"]);
+    ["provenance-unknown:baseline", "provenance-drift:routed:limits,prompts", "legacy-usage-scope"]);
 
   // The md output prints the same warnings.
   const md = compare(routed, baseline, ["--format", "md"]).stdout;
-  assert.ok(md.includes("Warnings: provenance-differs:plugin,prompts,steps, flags-differ:archive\n"), md);
+  assert.ok(md.includes("Warnings: provenance-differs:plugin,prompts,steps, flags-differ:archive, legacy-usage-scope\n"), md);
 });
 
 test("1.6 the expected set comes from the policy of the project that runs compare; a malformed set reads as the default", () => {
@@ -433,9 +452,9 @@ test("1.6 the expected set comes from the policy of the project that runs compar
   const other = changed(rec, { sections: { ladder: "0".repeat(16), steps: "3".repeat(16) }, flags: { "score.minRigor": "standard" } });
   const baseline = side({ totals: [1000], meta: { provenance: other } });
   const own = compare(side({ meta: { provenance: rec }, policy: { provenance: { expected: { pinned: ["steps"] } } } }), baseline);
-  assert.deepEqual(own.json.warnings, ["provenance-differs:ladder", "flags-differ:score.minRigor"]);
+  assert.deepEqual(own.json.warnings, ["provenance-differs:ladder", "flags-differ:score.minRigor", "legacy-usage-scope"]);
   const bad = compare(side({ meta: { provenance: rec }, policy: { provenance: { expected: { pinned: "steps" } } } }), baseline);
-  assert.deepEqual(bad.json.warnings, ["provenance-differs:steps"]);
+  assert.deepEqual(bad.json.warnings, ["provenance-differs:steps", "legacy-usage-scope"]);
 });
 
 test("1.6 provenance never changes comparable, reasons, dropPercent or the verdict", () => {
@@ -466,19 +485,19 @@ test("1.6 records the real router writes: the pinned baseline file differs only 
   const routed = freshRecord();
   const pinnedBase = freshRecord(BASELINE);
   const pair = (r, b, extra = []) => compare(side({ meta: { provenance: r } }), side({ totals: [1000], meta: { provenance: b } }), extra).json.warnings;
-  assert.deepEqual(pair(routed, pinnedBase), []);
-  assert.deepEqual(pair(routed, pinnedBase, ["--unpinned"]), ["baseline-unpinned", "provenance-differs:ladder,rigor"]);
+  assert.deepEqual(pair(routed, pinnedBase), ["legacy-usage-scope"]);
+  assert.deepEqual(pair(routed, pinnedBase, ["--unpinned"]), ["baseline-unpinned", "provenance-differs:ladder,rigor", "legacy-usage-scope"]);
 
   // The routing-only additions of README "Baseline comparison" turn features off on one arm only.
   const routingOnly = freshRecord({ ...BASELINE, extraSteps: { allowance: { lean: 0, standard: 0, thorough: 0 } }, codeReplan: { afterFailures: 0 } });
-  assert.deepEqual(pair(routed, routingOnly), ["provenance-differs:codeReplan,extraSteps"]);
+  assert.deepEqual(pair(routed, routingOnly), ["provenance-differs:codeReplan,extraSteps", "legacy-usage-scope"]);
 
   // Scorer A/B: the arms differ in score only, which both modes expect.
   const scorerOff = freshRecord({ score: { minRigor: null } });
   const scorerOn = freshRecord({ score: { minRigor: "standard" } });
   assert.notEqual(scorerOn.sections.score, scorerOff.sections.score);
-  assert.deepEqual(pair(scorerOn, scorerOff, ["--unpinned"]), ["baseline-unpinned"]);
-  assert.deepEqual(pair(scorerOn, scorerOff), []);
+  assert.deepEqual(pair(scorerOn, scorerOff, ["--unpinned"]), ["baseline-unpinned", "legacy-usage-scope"]);
+  assert.deepEqual(pair(scorerOn, scorerOff), ["legacy-usage-scope"]);
 });
 
 // ---- prices are display-only (run-cost-estimate 1.3) -------------------------------------
@@ -493,6 +512,75 @@ test("1.3 a run with an override that sets prices records no prices section, and
   const baseline = side({ totals: [1000], meta: { provenance: otherPrices } });
   const res = compare(routed, baseline);
   assert.equal(res.status, 0, res.stdout);
-  assert.deepEqual(res.json.warnings, []);
+  assert.deepEqual(res.json.warnings, ["legacy-usage-scope"]);
   assert.ok(!res.json.warnings.some((w) => w.includes("prices")));
+});
+
+const captureData = "skills/10x-pipeline/scripts/claude-capture-data.mjs";
+const hookFiles = ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs",
+  "skills/10x-pipeline/scripts/claude-capture-hook.mjs", captureData];
+for (const name of [...hookFiles, "agents/step.md", "skills/10x-pipeline/rules/steps/plan.md"]) {
+  test(name + " changes only its independent provenance section and records immutable drift", () => {
+    const copy = pluginCopy();
+    const project = makeProject();
+    const call = (args) => runCopy(copy, project, args);
+    assert.equal(call(["init", project.id, "--goal", "fix typo"]).json.action, "run");
+    const before = readMetaFile(project).provenance;
+    const section = name.startsWith("agents/") ? "agentFiles" : name.includes("/rules/") ? "ruleFiles" : "hookFiles";
+    assert.match(before.sections[section], HEX16);
+    fs.appendFileSync(path.join(copy.root, name), "\n");
+    const after = copyRecord(copy);
+    assert.deepEqual(Object.keys(before.sections).filter((key) => before.sections[key] !== after.sections[key]), [section]);
+    finishPlan(project);
+    assert.equal(call(["next", project.id]).json.action, "run");
+    assert.deepEqual(readMetaFile(project).provenance, { ...before, drift: [section] });
+  });
+}
+
+test("missing or unreadable hook inputs yield a null hook hash", () => {
+  for (const name of hookFiles) {
+    const copy = pluginCopy();
+    const file = path.join(copy.root, name);
+    fs.unlinkSync(file);
+    for (const variant of ["missing", "directory"]) {
+      if (variant === "directory") fs.mkdirSync(file);
+      const project = makeProject();
+      const res = runCopy(copy, project, ["init", project.id, "--goal", "fix typo", "--host", "claude", "--provider-mode", "claude"]);
+      assert.equal(res.status, 0, res.stderr || res.stdout);
+      assert.equal(readMetaFile(project).provenance.sections.hookFiles, null, `${name} (${variant})`);
+      if (name === captureData) {
+        assert.equal(res.json?.action, "run", res.stdout);
+        const warnings = res.stderr.split("\n").filter(line => line.startsWith("Warning: Usage capture preflight."));
+        assert.equal(warnings.length, 1, res.stderr);
+        assert.match(warnings[0], /Could not check native Claude token capture.*documented launcher/);
+        assert.match(warnings[0], /docs\/REFERENCE\.md#accounting-activation-and-rollback/);
+      }
+    }
+  }
+});
+
+test("missing Codex usage collector stays advisory and transport-specific", () => {
+  const copy = pluginCopy();
+  fs.unlinkSync(path.join(copy.skill, "scripts/codex-usage.mjs"));
+  const claude = makeProject();
+  const nativeInit = runCopy(copy, claude, ["init", claude.id, "--goal", "fix typo", "--host", "claude", "--provider-mode", "claude"]);
+  assert.equal(nativeInit.status, 0, nativeInit.stderr);
+  assert.equal(nativeInit.json?.action, "run", nativeInit.stdout);
+  assert.doesNotMatch(nativeInit.stderr, /Codex token capture readiness/);
+  const status = runCopy(copy, claude, ["status", claude.id]);
+  assert.equal(status.status, 0, status.stderr);
+  assert.ok(status.json, status.stdout);
+
+  const codex = makeProject();
+  const bin = path.join(codex.base, "bin");
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, "codex"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
+  const codexInit = run(codex, ["init", codex.id, "--goal", "fix typo", "--host", "codex", "--provider-mode", "codex"], {
+    script: copy.route,
+    env: { PATH: bin + path.delimiter + process.env.PATH },
+  });
+  assert.equal(codexInit.status, 0, codexInit.stderr);
+  assert.equal(codexInit.json?.action, "run", codexInit.stdout);
+  assert.equal(codexInit.stderr, "Warning: Usage capture preflight. Could not check Codex token capture readiness. " +
+    "Verify the installed agent-smith plugin. See docs/REFERENCE.md#accounting-activation-and-rollback.\n");
 });

@@ -1,0 +1,17 @@
+skills/10x-pipeline/test/providers.test.mjs — the GPT overlay preserves all eight tier/effort positions without changing Claude defaults
+skills/10x-pipeline/test/providers.test.mjs — 10x and openspec: neutral rerun preserves provider/profile/model/effort/prompt after policy changes
+skills/10x-pipeline/test/provenance.test.mjs — a resume keeps the record, and a policy edit between steps adds its section to drift once and keeps the hashes
+skills/10x-pipeline/test/provenance.test.mjs — compare warns provenance-differs, flags-differ and provenance-drift outside the expected set of the mode
+✔ 1.3 a resume keeps the record, and a policy edit between steps adds its section to drift once and keeps the hashes (588.755666ms)
+✔ 1.6 compare warns provenance-differs, flags-differ and provenance-drift outside the expected set of the mode (540.774458ms)
+✔ the GPT overlay preserves all eight tier/effort positions without changing Claude defaults (1.629708ms)
+✔ 10x: neutral rerun preserves provider/profile/model/effort/prompt after policy changes (183.99175ms)
+✔ openspec: neutral rerun preserves provider/profile/model/effort/prompt after policy changes (196.129875ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1237.710542

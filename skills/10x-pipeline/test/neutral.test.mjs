@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  cleanupAll, makeProject, planText, init, next, writeLog, entry, readLogEntries, readMetaFile, writeResult, run,
+  cleanupAll, makeProject, planText, init, next, seedRun, writeLog, entry, readLogEntries, readMetaFile, writeResult, run,
   readReportFile, writeMetaFile, gitAvailable, gitEnv, gitInit, git, commitFiles
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
@@ -43,7 +43,7 @@ test("a rerun returns the identical step and keeps one entry without a result", 
   const res = fault(project);
   assert.equal(res.status, 0);
   assert.equal(res.json.action, "run");
-  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+  for (const key of ["n", "step", "agent", "model", "effort", "reason", "prompt", "resultFile"]) {
     assert.deepEqual(res.json[key], first.json[key], key);
   }
   assert.deepEqual(res.json.neutralRetry, { count: 1, cap: 2 });
@@ -247,19 +247,19 @@ test("an entry without a stored prompt halts plainly and leaves the file", () =>
   assert.equal(Object.hasOwn(after[0], "result"), false);
 });
 
-test("a stray orchestrator-error file with no pending entry is not consumed and changes nothing", () => {
+test("a completed owner cleans a stray orchestrator-error file without recording a retry", () => {
   const control = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(control, [entry(1, "plan")]);
+  seedRun(control, [entry(1, "plan")]);
   const want = init(control, "fix typo");
 
   const project = makeProject({ plan: planText({ files: ["**File**: `x.js`"] }) });
-  writeLog(project, [entry(1, "plan")]);
+  seedRun(project, [entry(1, "plan")]);
   writeResult(project, FAULT);
   const got = init(project, "fix typo");
   assert.equal(got.json.action, "run");
   for (const key of ["n", "step", "model", "effort", "reason", "prompt"]) assert.deepEqual(got.json[key], want.json[key], key);
   assert.equal(Object.hasOwn(got.json, "neutralRetry"), false);
-  assert.equal(fs.existsSync(resultPath(project)), true);
+  assert.equal(fs.existsSync(resultPath(project)), false);
   const log = readLogEntries(project);
   assert.equal(log.length, 2);
   assert.equal(log.some((e) => Object.hasOwn(e, "neutralRetries")), false);
@@ -356,7 +356,7 @@ test("OpenSpec chain: an os-apply rerun keeps the prompt, the tier and the pre-f
   writeResult(project, FAULT);
   const res = run(project, ["next", project.id, "--chain", "openspec"]);
   assert.equal(res.json.action, "run", res.stdout);
-  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+  for (const key of ["n", "step", "agent", "model", "effort", "reason", "prompt", "resultFile"]) {
     assert.deepEqual(res.json[key], first.json[key], key);
   }
   assert.deepEqual(res.json.neutralRetry, { count: 1, cap: 2 });
@@ -424,7 +424,7 @@ test("isolated run: a rerun makes no ref, no commit and no reset; a later failur
   writeResult(wt, FAULT);
   const res = run(wt, ["next", wt.id], { env: gitEnv(wt) });
   assert.equal(res.json.action, "run", res.stdout);
-  for (const key of ["n", "step", "model", "effort", "reason", "prompt", "resultFile"]) {
+  for (const key of ["n", "step", "agent", "model", "effort", "reason", "prompt", "resultFile"]) {
     assert.deepEqual(res.json[key], first.json[key], key);
   }
   assert.equal(gw(["for-each-ref", "refs/agent-smith/"]), "");
@@ -447,3 +447,25 @@ test("isolated run: a rerun makes no ref, no commit and no reset; a later failur
   assert.equal(gw(["show", `${later[0].rolledBack}:partial.txt`]), "half");
   assert.match(retry.json.reason, /\+1 for 1 failed attempt\(s\)/);
 });
+
+for (const chain of ["10x", "openspec"]) {
+  for (const agent of [undefined, "custom:historical"]) {
+    test(chain + ": neutral replay preserves the exact historical agent field " + String(agent), () => {
+      const project = chain === "10x" ? makeProject() : makeOpenspecProject();
+      assert.equal(init(project, "fix typo", ["--chain", chain]).json.action, "run");
+      const [logged] = readLogEntries(project).filter((e) => !e.skipped);
+      if (agent === undefined) delete logged.agent;
+      else logged.agent = agent;
+      logged.pendingPrompt = "Historical task before safety upgrade.\nRESULT: historical";
+      writeLog(project, [logged]);
+      const prompt = logged.pendingPrompt;
+      writeResult(project, FAULT);
+      const replay = run(project, ["next", project.id, "--chain", chain]).json;
+      assert.equal(replay.action, "run");
+      assert.equal(replay.prompt, prompt);
+      assert.equal(Object.hasOwn(replay, "agent"), agent !== undefined);
+      assert.equal(replay.agent, agent);
+      assert.equal(readLogEntries(project)[0].agent, agent);
+    });
+  }
+}

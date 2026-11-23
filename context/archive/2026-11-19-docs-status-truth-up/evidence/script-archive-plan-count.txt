@@ -1,0 +1,2 @@
+Archived 10x plan recount using the production readPlan reader
+{"plans":92,"withOpenRows":35,"manualPending":58,"autoPending":0}

@@ -23,6 +23,13 @@ const PASS = "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warni
 const TICKED = { proposal: true, specs: 1, tasks: { done: 2, open: 0 } };
 const noGit = !gitAvailable() && "git is not available";
 
+test("the archive prompt quotes error code/message and an optional diagnostic fix", () => {
+  const prompt = fs.readFileSync(path.join(SKILL_DIR, "prompts/os-archive.md"), "utf8");
+  const errorRule = prompt.split("\n").find((line) => line.includes("command exits non-zero"));
+  assert.match(errorRule, /status `blocked` and `signals\.needsHuman`/);
+  assert.match(errorRule, /`code` and `message` of each error, plus its `fix` when supplied/);
+});
+
 // The local date, as `openspec archive` names its folder.
 function today() {
   const d = new Date();

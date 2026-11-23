@@ -82,7 +82,7 @@ test("score data: prompts.score resolves through the router", () => {
   const res = init(project, "fix typo");
   assert.equal(res.status, 0, res.stdout);
   const guide = fs.readFileSync(path.join(PROMPTS_DIR, "score.md"), "utf8").trim().replaceAll("{id}", "demo");
-  assert.equal(res.json.prompt, `Score the complexity of change demo before it is planned. Goal: fix typo\n${guide}\n\n${ruleTail(SUFFIX)}`);
+  assert.equal(res.json.prompt, `Score the complexity of change demo before it is planned. Goal: fix typo\n${guide}\n\n${ruleTail(SUFFIX, { step: "plan" })}`);
 });
 
 test("score data: prompts/score.md is listed as wired", () => {

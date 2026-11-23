@@ -1,6 +1,4 @@
-// No nested subagents (ADR-018): a step subagent never calls the Agent or Task tool, because a nested subagent's
-// report goes to the top session and never reaches its parent. Pins the always-true rule of rules/top.md (ADR-023), the "same subagent" lines of the
-// implement templates and the executor guides, the research prompt without subagents, and the router's delivery.
+// Bounded native children retain parent ownership and exact invocation matching (ADR-018).
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -34,26 +32,30 @@ function ruleProblems(line) {
 
 // The rule lives in the always-true rules/top.md (ADR-023), which no policy key or project override changes.
 const TOP = fs.readFileSync(path.join(SKILL_DIR, "rules/top.md"), "utf8").split("\n");
-const suffixRules = () => TOP.filter((l) => l.includes("**GIVEN**") && l.includes("Agent tool"));
-const IMPLEMENT_RULE = "- **GIVEN** `/10x-goal-implement` would dispatch a subagent for the code of a phase or for the fix of a failed gate **WHEN** you run it in this step **THEN** you **MUST** write that code and those fixes yourself in this subagent, for every phase, and call no Agent or Task tool.";
+const suffixRules = () => TOP.filter((l) => l.includes("**GIVEN**") && l.includes("calls for delegation"));
+const IMPLEMENT_RULE = "- **GIVEN** `/10x-goal-implement` delegates phase code or a gate fix **WHEN** you run it in this step **THEN** you **MUST** apply the shared child contract, collect the work and retain gates, Progress and authorized commits in this enclosing step.";
 
-test("top.md has exactly one rule that bans the Agent tool, in rule form, before the RESULT line", () => {
+test("top.md permits exactly one child layer with parent-owned gates and safety", () => {
   const rules = suffixRules();
-  assert.equal(rules.length, 1, "exactly one top.md line names the Agent tool");
-  assert.ok(!POLICY.prompts.suffix.includes("Agent tool"), "the overridable suffix no longer carries the rule");
-  const [rule] = rules;
-  assert.ok(rule.includes("**MUST NOT**"), rule);
-  assert.match(rule, /Task tool/);
-  assert.match(rule, /spawn_agent or any other delegation tool/);
-  assert.match(rule, /top session/);
-  assert.deepEqual(ruleProblems(rule), []);
-  const at = TOP.indexOf(rule);
-  assert.ok(at < TOP.findIndex((l) => l.startsWith("RESULT:")), "the rule comes before the RESULT line");
-  assert.ok(at > TOP.findIndex((l) => l.includes("deepest first")), "the rule comes after the deletion rules");
-  assert.doesNotMatch(rule, /advisor|\bRead\b|\bGrep\b|\bGlob\b/, "the rule forbids subagents only");
+  assert.equal(rules.length, 1);
+  assert.match(rules[0], /\*\*MAY\*\* start one native child layer/);
+  const text = TOP.join("\n");
+  for (const needle of ["historical flat-delegation lessons", "absolute run root", "invocation identity",
+    "always-true, chain and step safety rules", "stricter task restriction", "agent-smith:step",
+    "awaited foreground call", "run_in_background", "depth two", "signals.needsHuman",
+    "restricted scoring tools", "read-only verification", "archive restrictions", "custom agent mappings",
+    "delegated leaf", "no further delegation", "update Progress, stage or commit, publish, invoke the router",
+    "last-result.json", "findings, touched paths and failures", "disjoint write ownership",
+    "overlapping writes sequentially", "collect every launched child", "reconcile edits and failures",
+    "run gates", "authorized commits yourself", "no result intake, rollback or relaunch",
+    "verified child-inclusive token snapshot once", "partial or unknown token coverage"]) {
+    assert.ok(text.includes(needle), needle);
+    assert.ok(text.indexOf(needle) < text.indexOf("\nRESULT:"), needle);
+  }
+  for (const line of TOP.filter(l => l.includes("**GIVEN**"))) assert.deepEqual(ruleProblems(line), []);
 });
 
-test("implement, implement-segment and executor-retry.md carry the same subagent line", () => {
+test("implement, implement-segment and executor-retry.md retain enclosing step ownership", () => {
   assert.equal(typeof POLICY.prompts.implement, "string", "implement stays a string");
   assert.ok(flat(POLICY.prompts.implement).includes(IMPLEMENT_RULE), "implement");
   assert.ok(flat(POLICY.prompts["implement-segment"]).includes(IMPLEMENT_RULE), "implement-segment");
@@ -62,20 +64,20 @@ test("implement, implement-segment and executor-retry.md carry the same subagent
   assert.deepEqual(ruleProblems(IMPLEMENT_RULE), []);
 });
 
-test("the tdd and e2e guides each forbid the skill's own delegation", () => {
+test("the tdd and e2e guides apply the shared child contract", () => {
   for (const [file, skill] of [["executor-tdd.md", "`/10x-tdd`"], ["executor-e2e.md", "`/10x-e2e`"]]) {
-    const rules = prompt(file).split("\n").filter((l) => l.includes("**GIVEN**") && l.includes(skill) && /Agent or Task tool/.test(l));
+    const rules = prompt(file).split("\n").filter((l) => l.includes("**GIVEN**") && l.includes(skill) && /shared child contract/.test(l));
     assert.equal(rules.length, 1, file);
-    assert.match(rules[0], /subagent/);
+    assert.match(rules[0], /collect every child/);
     assert.deepEqual(ruleProblems(rules[0]), [], file);
   }
 });
 
-test("research-with-map.md asks for no subagent and keeps the three analyses", () => {
+test("research-with-map.md delegates read-only analyses and retains synthesis", () => {
   const text = prompt("research-with-map.md");
-  assert.doesNotMatch(text, /subagent/i);
+  assert.match(text, /delegate independent read-only analyses under the shared child contract/);
   for (const name of ["e2e trace", "test gaps", "blast radius"]) assert.ok(text.includes(name), name);
-  assert.match(text, /\*\*MUST\*\* work through three analyses yourself, one after the other/);
+  assert.match(text, /synthesize their collected findings in this step/);
 });
 
 test("the router returns an implement prompt with the top.md rule and the implement rule, once each", () => {
@@ -97,7 +99,7 @@ test("the new lines name no model, effort or tier", () => {
   const added = [
     ...suffixRules(),
     IMPLEMENT_RULE,
-    ...["executor-tdd.md", "executor-e2e.md"].flatMap((f) => prompt(f).split("\n").filter((l) => /Agent or Task tool/.test(l))),
+    ...["executor-tdd.md", "executor-e2e.md"].flatMap((f) => prompt(f).split("\n").filter((l) => /shared child contract/.test(l))),
     // The blast radius line names the data model of the target project, so only the new split line is checked.
     ...prompt("research-with-map.md").split("\n").filter((l) => l.includes("three analyses")),
   ];
@@ -139,6 +141,16 @@ test("the sixth rule is the same line in both skills", () => {
   assert.equal(sixthRule(SKILLS["10x"]), sixthRule(SKILLS.openspec));
 });
 
+test("child notifications never certify a whole native step token total", () => {
+  for (const file of Object.values(SKILLS)) {
+    const source = fs.readFileSync(file, "utf8");
+    assert.match(source, /never map it to `totalTokens`, even for a flat step/);
+    assert.match(source, /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
+    assert.match(source, /Missing sources produce unavailable evidence through the same reader/);
+    assert.match(source, /child notifications never complete the step/);
+  }
+});
+
 test("the intro of both anti-stall sections names the sixth rule", () => {
   for (const [chain, file] of Object.entries(SKILLS)) {
     const intro = antiStall(file).find((l) => l.startsWith("Rules "));
@@ -152,26 +164,26 @@ test("the intro of both anti-stall sections names the sixth rule", () => {
 
 const REPO = path.resolve(SKILL_DIR, "../..");
 
-test("project settings cap Claude Code subagent depth at the string 1", () => {
+test("project settings cap Claude Code subagent depth at the string 2", () => {
   const settings = JSON.parse(fs.readFileSync(path.join(REPO, ".claude/settings.json"), "utf8"));
-  assert.equal(settings.env?.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, "1");
+  assert.equal(settings.env?.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, "2");
 });
 
 test("the reference documents the depth cap and optional plugin-user setup", () => {
   const text = fs.readFileSync(path.join(REPO, "docs/REFERENCE.md"), "utf8");
-  const block = text.split("- A step subagent starts no subagent of its own.")[1]?.split("\n- ")[0];
+  const block = text.split("- A step may collect one native child layer.")[1]?.split("\n- ")[0];
   assert.ok(block, "the nesting Limits bullet exists");
-  assert.match(block, /Plugin users can optionally merge/);
-  assert.match(block, /"CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH":"1"/);
-  assert.match(block, /CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1 claude/);
-  assert.match(block, /2\.1\.217/);
-  assert.match(block, /top-level orchestrator can launch step agents/);
+  assert.match(block, /Plugin users enable delegation by merging/);
+  assert.match(block, /"CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH":"2"/);
+  assert.match(block, /CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2 claude/);
+  assert.match(block, /2\.1\.311/);
+  assert.match(block, /orchestrator → step → child/);
   assert.match(block, /Higher-precedence settings can override/);
   for (const url of [
     "https://code.claude.com/docs/en/env-vars",
     "https://code.claude.com/docs/en/sub-agents#let-subagents-spawn-their-own-subagents",
     "https://code.claude.com/docs/en/settings#settings-precedence",
-    "ADR/ADR-018-no-nested-subagents.md#amendment-2--harness-depth-cap",
+    "ADR/ADR-018-no-nested-subagents.md#amendment-3--bounded-native-children",
   ]) assert.ok(block.includes(url), url);
   assert.doesNotMatch(text, /CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` of \d+ or more/);
 });
@@ -184,8 +196,8 @@ test("the README offers optional string-valued project setup and a fresh session
   assert.ok(text.indexOf("### Claude Code subagent depth") < text.indexOf("## 📚 More"));
   const example = block.match(/```json\n([\s\S]*?)\n```/);
   assert.ok(example, "a mergeable JSON example exists");
-  assert.equal(JSON.parse(example[1]).env.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, "1");
-  assert.match(block, /Plugin users can optionally merge/);
+  assert.equal(JSON.parse(example[1]).env.CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH, "2");
+  assert.match(block, /Plugin users enable delegation by merging/);
   assert.match(block, /every Claude session/);
   assert.match(block, /Commit the setting before creating run worktrees/);
   assert.match(block, /fresh Claude session/);

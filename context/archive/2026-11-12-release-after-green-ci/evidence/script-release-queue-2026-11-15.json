@@ -1,0 +1,122 @@
+[
+  {
+    "event": "active-release-started",
+    "snapshot": {
+      "observedAt": "2026-11-15T11:14:48.330735+00:00",
+      "run": 43704056262,
+      "attempt": 2,
+      "status": "in_progress",
+      "conclusion": null,
+      "jobs": [
+        {
+          "id": 132793105233,
+          "name": "Maintain release PR / publish release",
+          "status": "in_progress",
+          "conclusion": null,
+          "created_at": "2026-11-15T11:14:44Z",
+          "started_at": "2026-11-15T11:14:45Z",
+          "completed_at": null,
+          "runner_name": "GitHub Actions 1000004480"
+        }
+      ]
+    }
+  },
+  {
+    "event": "before-skipped-rerun",
+    "active": {
+      "observedAt": "2026-11-15T11:14:50.176585+00:00",
+      "run": 43704056262,
+      "attempt": 2,
+      "status": "in_progress",
+      "conclusion": null,
+      "jobs": [
+        {
+          "id": 132793105233,
+          "name": "Maintain release PR / publish release",
+          "status": "in_progress",
+          "conclusion": null,
+          "created_at": "2026-11-15T11:14:44Z",
+          "started_at": "2026-11-15T11:14:45Z",
+          "completed_at": null,
+          "runner_name": "GitHub Actions 1000004480"
+        }
+      ]
+    },
+    "pending": {
+      "observedAt": "2026-11-15T11:14:50.139806+00:00",
+      "run": 43703229308,
+      "attempt": 1,
+      "status": "queued",
+      "conclusion": null,
+      "jobs": []
+    }
+  },
+  {
+    "event": "skipped-release-completed",
+    "snapshot": {
+      "observedAt": "2026-11-15T11:14:53.461377+00:00",
+      "run": 43657545608,
+      "attempt": 2,
+      "status": "completed",
+      "conclusion": "skipped",
+      "jobs": [
+        {
+          "id": 132793141163,
+          "name": "Maintain release PR / publish release",
+          "status": "completed",
+          "conclusion": "skipped",
+          "created_at": "2026-11-15T11:14:52Z",
+          "started_at": "2026-11-15T11:14:52Z",
+          "completed_at": "2026-11-15T11:14:51Z",
+          "runner_name": null
+        }
+      ]
+    }
+  },
+  {
+    "event": "valid-releases-completed",
+    "active": {
+      "observedAt": "2026-11-15T11:14:55.836269+00:00",
+      "run": 43704056262,
+      "attempt": 2,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132793105233,
+          "name": "Maintain release PR / publish release",
+          "status": "completed",
+          "conclusion": "success",
+          "created_at": "2026-11-15T11:14:44Z",
+          "started_at": "2026-11-15T11:14:45Z",
+          "completed_at": "2026-11-15T11:14:54Z",
+          "runner_name": "GitHub Actions 1000004480"
+        }
+      ]
+    },
+    "pending": {
+      "observedAt": "2026-11-15T11:15:04.190438+00:00",
+      "run": 43703229308,
+      "attempt": 2,
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 132793131789,
+          "name": "Maintain release PR / publish release",
+          "status": "completed",
+          "conclusion": "success",
+          "created_at": "2026-11-15T11:14:50Z",
+          "started_at": "2026-11-15T11:14:55Z",
+          "completed_at": "2026-11-15T11:15:02Z",
+          "runner_name": "GitHub Actions 1000004481"
+        }
+      ]
+    }
+  },
+  {
+    "event": "proof-passed",
+    "pendingRun": 43703229308,
+    "skippedRun": 43657545608
+  }
+]

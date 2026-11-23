@@ -11,7 +11,7 @@ import {
 } from "./helpers.mjs";
 import { writePlan } from "./ahead.mjs";
 import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
-import { writeFileAtomic, stateTempFiles, cleanupStateTemps, runLockPath, readLog } from "../scripts/state.mjs";
+import { writeFileAtomic, stateTempFiles, cleanupStateTemps, runLockPath, readLog, readMeta } from "../scripts/state.mjs";
 
 import { codexFixture, execute, calls } from "./codex-helpers.mjs";
 
@@ -362,7 +362,75 @@ test("log read failures identify the file with a null line and strict reads refu
   t.mock.restoreAll();
 });
 
+test("metadata reader reserves its fallback for absence and preserves legacy fields", () => {
+  const p = makeProject();
+  const file = path.join(p.changeDir, "meta.json");
+  const fallback = { absent: true };
+  assert.equal(readMeta(file, fallback), fallback);
+  const legacy = { custom: { value: 4 } };
+  for (const object of [{}, legacy]) {
+    fs.writeFileSync(file, JSON.stringify(object));
+    assert.deepEqual(readMeta(file, fallback), object);
+  }
+  for (const [reason, samples] of [
+    ["Invalid JSON", ["", " \r\n\t", '{"private-marker":', "<<<<<<< private-marker\n{}\n======="]],
+    ["Expected a JSON object", ["null", "[]", "42", "true", '"private-marker"']],
+  ]) {
+    for (const text of samples) {
+      fs.writeFileSync(file, text);
+      assert.throws(() => readMeta(file, fallback), (error) => {
+        assert.ok(error.message.includes(`${file}: ${reason}`));
+        assert.doesNotMatch(error.message, /private-marker/);
+        return true;
+      });
+    }
+  }
+});
+
+test("metadata reader reports non-ENOENT read failures without exposing filesystem error text", (t) => {
+  const file = path.join(makeProject().changeDir, "meta.json");
+  t.mock.method(fs, "readFileSync", () => { throw Object.assign(new Error("private content"), { code: "EACCES" }); });
+  assert.throws(() => readMeta(file, {}), (error) => {
+    assert.ok(error.message.includes(`${file}: Cannot read metadata (EACCES)`));
+    assert.doesNotMatch(error.message, /private content/);
+    return true;
+  });
+});
+
 for (const chain of ["10x", "openspec"]) {
+  for (const logged of [false, true]) {
+    test(`${chain}: damaged metadata halts every writer ${logged ? "with" : "without"} a log`, () => {
+      const p = isolatedProject(chain);
+      if (logged) {
+        const started = runIn(p, ["init", p.id, "--goal", GOAL, "--chain", chain]);
+        assert.equal(started.json.action, "run", started.stdout);
+        writeLog(p, [
+          entry(1, "fix", { usage: { totalTokens: 4 } }),
+          entry(2, "fix", { result: undefined, pendingPrompt: "pending" }),
+        ]);
+      }
+      writeMetaFile(p, '<<<<<<< private-marker\n{"goal":"private-marker"}\n=======\n{}\n>>>>>>> branch\n');
+      writeResult(p, { status: "orchestrator-error", note: "must be retained" });
+      fs.writeFileSync(path.join(p.agentDir, "report.md"), "original report\n");
+      addTemps(p);
+      const file = path.join(p.agentDir, "meta.json");
+      const before = gitSnapshot(p);
+      for (const args of [
+        ["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens", "4"],
+        ["usage", p.id, "1", "--tokens", "5"], ["status", p.id, "--report"],
+      ]) {
+        const res = runIn(p, [...args, "--chain", chain]);
+        assert.equal(res.status, 1, res.stdout);
+        assert.equal(res.json.action, "halt");
+        assert.ok(res.json.reason.includes(`${file}: Invalid JSON`), res.stdout);
+        assert.ok(res.json.reason.includes(`git show <sha>:./${path.relative(p.root, file)}`), res.stdout);
+        assert.match(res.json.reason, /Preserve the damaged copy.*verified copy from the same run.*before restoring/);
+        assert.doesNotMatch(res.json.reason, /private-marker/);
+        assert.deepEqual(gitSnapshot(p), before);
+      }
+    });
+  }
+
   for (const damaged of ["middle", "final"]) {
     test(`${chain}: damaged ${damaged} log halts every writer before cleanup, result intake or git writes`, () => {
       const p = isolatedProject(chain);
@@ -411,6 +479,10 @@ for (const chain of ["10x", "openspec"]) {
     const args = ["compare", p.id, "--chain", chain, "--baseline", b.root];
     const cmp = runIn(p, args);
     assert.equal(cmp.status, 0, cmp.stdout);
+    assert.equal(cmp.json.comparable, false);
+    assert.equal(cmp.json.dropPercent, null);
+    assert.equal(cmp.json.verdict, "not comparable");
+    assert.deepEqual(cmp.json.reasons.filter((reason) => reason.startsWith("log-problems:")), ["log-problems:baseline", "log-problems:routed"]);
     assert.deepEqual(cmp.json.routed.logProblems.map((problem) => problem.line), [2, 4]);
     assert.deepEqual(cmp.json.baseline.logProblems, [{ file: baselineFile, line: 2, reason: "Expected a JSON object" }]);
     const md = runIn(p, [...args, "--format", "md"]);
@@ -476,23 +548,26 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(Object.hasOwn(cmp.json.routed, "logProblems"), false);
   });
 
-  test(`${chain}: Codex validation refuses damage before any permission probe or child launch`, () => {
-    const fixture = codexFixture(chain);
-    const p = fixture.project;
-    const file = path.join(p.agentDir, "run.jsonl");
-    fs.appendFileSync(file, "{private damage\n");
-    addTemps(p);
-    const before = snapshot(p.changeDir);
-    const res = execute(fixture);
-    assert.equal(res.status, 1, res.stdout);
-    assert.equal(res.json.action, "codex-result");
-    assert.equal(res.json.launched, false);
-    assert.equal(res.json.completed, false);
-    assert.equal(res.json.result, null);
-    assert.ok(res.json.reason.includes(`${file} line 2`), res.stdout);
-    assert.deepEqual(calls(fixture.fixture), []);
-    assert.deepEqual(snapshot(p.changeDir), before);
-  });
+  for (const [name, location] of [["run.jsonl", " line 2"], ["meta.json", ""]]) {
+    test(`${chain}: Codex validation refuses damaged ${name} before any permission probe or child launch`, () => {
+      const fixture = codexFixture(chain);
+      const p = fixture.project;
+      const file = path.join(p.agentDir, name);
+      fs.appendFileSync(file, "{private damage\n");
+      addTemps(p);
+      const before = snapshot(p.changeDir);
+      const res = execute(fixture);
+      assert.equal(res.status, 1, res.stdout);
+      assert.equal(res.json.action, "codex-result");
+      assert.equal(res.json.launched, false);
+      assert.equal(res.json.completed, false);
+      assert.equal(res.json.result, null);
+      assert.ok(res.json.reason.includes(`${file}${location}: Invalid JSON`), res.stdout);
+      assert.doesNotMatch(res.json.reason, /private damage/);
+      assert.deepEqual(calls(fixture.fixture), []);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    });
+  }
 }
 
 test("nested project recovery uses a project-relative Git revision path", () => {
@@ -515,6 +590,30 @@ function faultScript(p, body) {
   fs.writeFileSync(file, `import fs from "node:fs";\n${body}\nawait import(${JSON.stringify(new URL("../scripts/route.mjs", import.meta.url).href)});\n`);
   return file;
 }
+
+test("OpenSpec writers revalidate selected metadata while holding the run lock", () => {
+  const p = seed(makeOpenspecProject(), "openspec");
+  const file = path.join(p.agentDir, "meta.json");
+  const lock = runLockPath(p.agentDir);
+  const script = faultScript(p, `
+    const read = fs.readFileSync;
+    fs.readFileSync = (file, ...args) => {
+      if (file === ${JSON.stringify(file)} && fs.existsSync(${JSON.stringify(lock)})) return "{private damage";
+      return read(file, ...args);
+    };
+  `);
+  addTemps(p);
+  const before = snapshot(p.changeDir);
+  for (const args of [
+    ["init", p.id], ["next", p.id], ["usage", p.id, "1", "--tokens", "4"], ["status", p.id, "--report"],
+  ]) {
+    const res = runIn(p, [...args, "--chain", "openspec"], { script });
+    assert.equal(res.status, 1, res.stdout);
+    assert.equal(res.json.action, "halt");
+    assert.ok(res.json.reason.includes(`${file}: Invalid JSON`), res.stdout);
+    assert.deepEqual(snapshot(p.changeDir), before);
+  }
+});
 
 function rejectCommit(p) {
   const hooks = path.resolve(p.base, git(p, ["rev-parse", "--git-path", "hooks"]));
@@ -676,4 +775,246 @@ for (const chain of ["10x", "openspec"]) {
     assert.match(res.json.reason, /not on the run branch agent-smith\/other/);
     assert.deepEqual(gitSnapshot(p), before);
   });
+}
+
+
+function comparisonPair(chain) {
+  const pair = {};
+  for (const [side, totals] of [["baseline", [1000]], ["routed", [500, 600]]]) {
+    const project = seed(projectFor(chain, { policy: { compare: { targetDropPercent: 30 } } }), chain, {
+      baseSha: "a".repeat(40), outcome: { action: "done" },
+    });
+    writeLog(project, totals.map((totalTokens, i) => entry(i + 1, chain === "openspec" ? "os-apply" : "implement", {
+      usage: { totalTokens, toolUses: 2, durationMs: 100 },
+    })));
+    fs.writeFileSync(path.join(project.agentDir, "report.md"), Buffer.from([0xff, 0, 13, 10, 0x80]));
+    addTemps(project);
+    pair[side] = project;
+  }
+  return pair;
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const side of ["baseline", "routed"]) {
+    test(`${chain}: risk and both comparison formats refuse damaged ${side} metadata`, () => {
+      const caller = projectFor(chain);
+      const pair = comparisonPair(chain);
+      const file = path.join(pair[side].agentDir, "meta.json");
+      writeMetaFile(pair[side], "null");
+      const before = [snapshot(pair.baseline.changeDir), snapshot(pair.routed.changeDir)];
+      const risk = runIn(pair[side], ["risk", caller.id, "--chain", chain]);
+      assert.equal(risk.status, 1, risk.stdout);
+      assert.equal(risk.json.action, "halt");
+      assert.ok(risk.json.reason.includes(`${file}: Expected a JSON object`));
+      for (const format of ["json", "md"]) {
+        const res = runIn(caller, ["compare", caller.id, "--chain", chain, "--baseline", pair.baseline.root,
+          "--routed", pair.routed.root, "--format", format]);
+        assert.equal(res.status, 1, res.stdout);
+        assert.equal(res.json.action, "halt");
+        assert.ok(res.json.reason.includes(`${file}: Expected a JSON object`), res.stdout);
+        assert.doesNotMatch(res.json.reason, /git show/, "the compared file is outside the caller project");
+      }
+      assert.deepEqual([snapshot(pair.baseline.changeDir), snapshot(pair.routed.changeDir)], before);
+    });
+  }
+
+  test(`${chain}: truncating the 600-token record cannot turn a missed target into savings`, () => {
+    const { baseline, routed } = comparisonPair(chain);
+    const args = ["compare", routed.id, "--baseline", baseline.root, "--chain", chain];
+    const clean = runIn(routed, args);
+    assert.equal(clean.status, 0, clean.stderr);
+    assert.equal(clean.json.comparable, true);
+    assert.deepEqual(clean.json.reasons, []);
+    assert.equal(clean.json.routed.tokens.total, 1100);
+    assert.equal(clean.json.dropPercent, -10);
+    assert.equal(clean.json.verdict, "not met");
+    const cleanMd = runIn(routed, [...args, "--format", "md"]);
+    assert.equal(cleanMd.status, 0, cleanMd.stderr);
+    assert.match(cleanMd.stdout, /Verdict: not met/);
+    const file = path.join(routed.agentDir, "run.jsonl");
+    const [first, second] = fs.readFileSync(file, "utf8").trimEnd().split("\n");
+    fs.writeFileSync(file, `${first}\n${second.slice(0, -1)}\n`);
+    const before = [snapshot(baseline.changeDir), snapshot(routed.changeDir)];
+    for (const flags of [[], ["--unpinned"]]) {
+      const res = runIn(routed, [...args, ...flags]);
+      assert.equal(res.status, 0, res.stderr);
+      assert.equal(res.json.comparable, false);
+      assert.deepEqual(res.json.reasons, ["log-problems:routed"]);
+      assert.equal(res.json.dropPercent, null);
+      assert.equal(res.json.verdict, "not comparable");
+      assert.deepEqual(res.json.routed.logProblems, [{ file, line: 2, reason: "Invalid JSON" }]);
+      assert.equal(res.json.routed.steps, 1);
+      assert.equal(res.json.routed.tokens.total, 500);
+      assert.equal(res.json.routed.tokens.stepsWithFigures, 1);
+      assert.deepEqual(res.json.routed.tokens.byModel, { sonnet: 500 });
+      assert.deepEqual(res.json.routed.tokens.byTier, { "sonnet/high": 500 });
+      assert.deepEqual(res.json.routed.toolUses, { total: 2, stepsWithFigures: 1 });
+      assert.deepEqual(res.json.routed.durationMs, { total: 100, stepsWithFigures: 1 });
+      assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+      const md = runIn(routed, [...args, ...flags, "--format", "md"]);
+      assert.equal(md.status, 0, md.stderr);
+      for (const text of ["Verdict: not comparable", "Drop: none", "log-problems:routed", "| Tokens | 1000 (1 of 1) | 500 (1 of 1) |"]) {
+        assert.ok(md.stdout.includes(text), md.stdout);
+      }
+      assert.deepEqual([snapshot(baseline.changeDir), snapshot(routed.changeDir)], before);
+    }
+  });
+
+  for (const damagedSides of [["baseline"], ["routed"], ["baseline", "routed"]]) {
+    for (const [label, damage, reason] of [
+      ["invalid JSON", "{private-damage-contents", "Invalid JSON"],
+      ["string", JSON.stringify("private-damage-contents"), "Expected a JSON object"],
+      ["number", "42", "Expected a JSON object"],
+      ["boolean", "true", "Expected a JSON object"],
+      ["null", "null", "Expected a JSON object"],
+      ["array", JSON.stringify(["private-damage-contents"]), "Expected a JSON object"],
+      ["whitespace", " \t", "Invalid JSON"],
+      ["damaged skipped record", JSON.stringify({ skipped: true, step: "research", reason: "private-damage-contents" }).slice(0, -1), "Invalid JSON"],
+    ]) {
+      test(`${chain}: ${label} on ${damagedSides.join("+")} disqualifies pinned and unpinned comparisons`, () => {
+        const pair = comparisonPair(chain);
+        const { baseline, routed } = pair;
+        const args = ["compare", routed.id, "--baseline", baseline.root, "--chain", chain];
+        for (const project of Object.values(pair)) {
+          const file = path.join(project.agentDir, "run.jsonl");
+          const lines = fs.readFileSync(file, "utf8").trimEnd().split("\n");
+          fs.writeFileSync(file, `\r\n${lines.join("\r\n\r\n")}\r\n`);
+        }
+        const clean = runIn(routed, args);
+        assert.equal(clean.status, 0, clean.stderr);
+        assert.equal(clean.json.comparable, true);
+        assert.deepEqual(clean.json.reasons, []);
+        assert.equal(clean.json.dropPercent, -10);
+        assert.equal(clean.json.verdict, "not met");
+        const expectedProblems = {};
+        for (const side of damagedSides) {
+          const file = path.join(pair[side].agentDir, "run.jsonl");
+          const line = fs.readFileSync(file, "utf8").split("\n").length + 1;
+          fs.appendFileSync(file, `\r\n${damage}\r\n`);
+          expectedProblems[side] = [{ file, line, reason }];
+        }
+        const before = [snapshot(baseline.changeDir), snapshot(routed.changeDir)];
+        for (const flags of [[], ["--unpinned"]]) {
+          const res = runIn(routed, [...args, ...flags]);
+          assert.equal(res.status, 0, res.stderr);
+          assert.equal(res.json.comparable, false);
+          assert.deepEqual(res.json.reasons, damagedSides.map((side) => `log-problems:${side}`));
+          assert.equal(res.json.dropPercent, null);
+          assert.equal(res.json.verdict, "not comparable");
+          assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+          for (const [side, total, steps] of [["baseline", 1000, 1], ["routed", 1100, 2]]) {
+            assert.deepEqual(res.json[side].logProblems, expectedProblems[side]);
+            assert.equal(res.json[side].steps, steps);
+            assert.equal(res.json[side].tokens.total, total);
+            assert.equal(res.json[side].tokens.stepsWithFigures, steps);
+            assert.deepEqual(res.json[side].tokens.byModel, { sonnet: total });
+            assert.deepEqual(res.json[side].tokens.byTier, { "sonnet/high": total });
+          }
+          const md = runIn(routed, [...args, ...flags, "--format", "md"]);
+          assert.equal(md.status, 0, md.stderr);
+          assert.match(md.stdout, /Verdict: not comparable/);
+          assert.match(md.stdout, /Drop: none/);
+          for (const side of damagedSides) {
+            const problem = expectedProblems[side][0];
+            assert.ok(md.stdout.includes(`log-problems:${side}`), md.stdout);
+            assert.ok(md.stdout.includes(`Partial-log warning for ${side} at ${problem.file} line ${problem.line} — ${reason}`), md.stdout);
+          }
+          for (const result of [res, md]) assert.doesNotMatch(result.stdout + result.stderr, /private-damage-contents/);
+          assert.deepEqual([snapshot(baseline.changeDir), snapshot(routed.changeDir)], before);
+        }
+      });
+    }
+
+    test(`${chain}: log read failure on ${damagedSides.join("+")} remains attributed and ineligible`, () => {
+      const pair = comparisonPair(chain);
+      const { baseline, routed } = pair;
+      const args = ["compare", routed.id, "--baseline", baseline.root, "--chain", chain];
+      const clean = runIn(routed, args);
+      assert.equal(clean.status, 0, clean.stderr);
+      assert.equal(clean.json.comparable, true);
+      assert.deepEqual(clean.json.reasons, []);
+      const files = damagedSides.map((side) => path.join(pair[side].agentDir, "run.jsonl"));
+      const script = faultScript(routed, `
+        const read = fs.readFileSync;
+        fs.readFileSync = (file, ...options) => {
+          if (${JSON.stringify(files)}.includes(file)) throw Object.assign(new Error("private-read-failure"), { code: "EACCES" });
+          return read(file, ...options);
+        };
+      `);
+      const before = [snapshot(baseline.changeDir), snapshot(routed.changeDir)];
+      for (const flags of [[], ["--unpinned"]]) {
+        const res = runIn(routed, [...args, ...flags], { script });
+        assert.equal(res.status, 0, res.stderr);
+        assert.equal(res.json.comparable, false);
+        assert.deepEqual(res.json.reasons, damagedSides.flatMap((side) => [`log-problems:${side}`, `no-steps:${side}`]));
+        assert.equal(res.json.dropPercent, null);
+        assert.equal(res.json.verdict, "not comparable");
+        assert.equal(res.json.warnings.includes("baseline-unpinned"), flags.length > 0);
+        const md = runIn(routed, [...args, ...flags, "--format", "md"], { script });
+        assert.equal(md.status, 0, md.stderr);
+        assert.match(md.stdout, /Verdict: not comparable/);
+        assert.match(md.stdout, /Drop: none/);
+        for (const side of damagedSides) {
+          const file = path.join(pair[side].agentDir, "run.jsonl");
+          assert.deepEqual(res.json[side].logProblems, [{ file, line: null, reason: "Cannot read log (EACCES)" }]);
+          assert.equal(res.json[side].steps, 0);
+          assert.equal(res.json[side].tokens.total, 0);
+          assert.equal(res.json[side].tokens.stepsWithFigures, 0);
+          assert.ok(md.stdout.includes(`log-problems:${side}`), md.stdout);
+          assert.ok(md.stdout.includes(`Partial-log warning for ${side} at ${file} — Cannot read log (EACCES)`), md.stdout);
+        }
+        for (const result of [res, md]) assert.doesNotMatch(result.stdout + result.stderr, /private-read-failure/);
+        assert.deepEqual([snapshot(baseline.changeDir), snapshot(routed.changeDir)], before);
+      }
+    });
+  }
+}
+
+for (const chain of ["10x", "openspec"]) {
+  for (const rejected of [false, true]) {
+    test(`${chain}: structured pre-archive evidence ${rejected ? "restores bytes after rejected commit" : "commits with counters and report"}`, () => {
+      const p = archivedState(chain);
+      const invocation = { host: "codex", rootThreadId: "root", rootTurnId: "turn" };
+      const waiting = {
+        schemaVersion: 1, status: "unavailable", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+        invocation, reason: "incomplete-capture", explanation: "The captured records do not prove complete invocation coverage.",
+      };
+      const evidence = {
+        schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
+        invocation, sessionCount: 2, requestCount: 3, reconciliation: "response-snapshot",
+      };
+      const step = chain === "openspec" ? "os-apply" : "implement";
+      const first = entry(1, step, { usage: { durationMs: 42, toolUses: 5 }, usageEvidence: waiting });
+      const log = path.join(p.agentDir, "run.jsonl");
+      fs.writeFileSync(log, ` \t${JSON.stringify(first)} \r\n\r\n`);
+      commitAll(p);
+      const before = gitSnapshot(p);
+      if (rejected) rejectCommit(p);
+      const file = path.join(p.root, "late-usage.json");
+      fs.writeFileSync(file, JSON.stringify({ change: p.id, chain, n: 1, step,
+        usage: { totalTokens: 7 }, usageEvidence: evidence }));
+      const args = ["usage", p.id, "1", "--usage-file", file, "--chain", chain];
+      const res = runIn(p, args);
+      assert.equal(res.status, rejected ? 1 : 0, res.stdout);
+      if (rejected) {
+        assert.equal(res.json.attached, false);
+        assert.match(res.json.reason, /figure was not kept/);
+        const after = gitSnapshot(p);
+        assert.deepEqual(after.files, before.files);
+        assert.equal(after.head, before.head);
+        assert.equal(after.refs, before.refs);
+        git(p, ["diff", "--cached", "--quiet"]);
+        assert.deepEqual(readLog(log).entries[0].usageEvidence, waiting);
+      } else {
+        assert.equal(typeof res.json.commit, "string");
+        assert.deepEqual(readLogEntries(p)[0].usage, { durationMs: 42, toolUses: 5, totalTokens: 7 });
+        assert.deepEqual(readLogEntries(p)[0].usageEvidence, evidence);
+        assert.match(fs.readFileSync(path.join(p.agentDir, "report.md"), "utf8"), /\| 7 \|/);
+        const committed = gitSnapshot(p);
+        const replay = runIn(p, args);
+        assert.equal(replay.json.unchanged, true);
+        assert.deepEqual(gitSnapshot(p), committed);
+      }
+    });
+  }
 }

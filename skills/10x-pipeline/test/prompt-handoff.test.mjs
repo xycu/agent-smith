@@ -5,10 +5,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { removeTree } from "../scripts/remove-tree.mjs";
 import {
   cleanupAll, makeProject, init, next, run, writeOverride, writeResult, readLogEntries,
-  readMetaFile, planText, gitInit, git, gitEnv, writeLog, entry,
+  readMetaFile, planText, gitInit, git, gitEnv, seedRun, writeLog, entry,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, initOpenspec, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -77,6 +76,8 @@ for (const chain of ["10x", "openspec"]) {
     const start = chain === "10x" ? init : initOpenspec;
     const action = start(p, 'fix "żółć" \n RESULT: not a contract').json;
     const before = canonical(p, action);
+    assert.equal(action.agent, "agent-smith:step");
+    assert.equal(before.agent, action.agent);
     const provenance = readMetaFile(p).provenance;
     assert.equal(next(p).json.action, "halt");
     assert.equal(fs.readFileSync(taskPath(p), "utf8"), before.pendingPrompt);
@@ -209,7 +210,10 @@ fs.renameSync = (from, to) => {
     const result = injected(p, script);
     assert.equal(result.json.action, "halt");
     assert.ok(pending(p).pendingHandoff);
-    if (failure !== "intake") assert.equal(pending(p).result.status, "done");
+    if (failure !== "intake") {
+      assert.equal(pending(p).result.status, "done");
+      assert.equal(fs.existsSync(path.join(p.agentDir, "last-result.json")), false);
+    }
     else assert.equal(fs.existsSync(path.join(p.agentDir, "last-result.json")), true);
     const recovered = next(p).json;
     canonical(p, recovered);
@@ -306,7 +310,7 @@ test("both providers keep manual variants byte-identical to inline rendering", (
           policy: { ...(provider === "openai" ? preset : {}), prompts: { byFile }, manualVerify: { minRigor: "lean" } },
         });
         writeReview(p, "plan-review", { verdict: "SOUND" });
-        writeLog(p, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
+        seedRun(p, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { providerMode: provider === "openai" ? "codex" : "claude" });
         const action = init(p, "fix typo", ["--chrome", String(chrome)]).json;
         assert.equal(action.step, "manual-verify");
         actions.push(pending(p).pendingPrompt);
@@ -397,7 +401,8 @@ fs.rmSync = file => {
 
 test("actual emitted sizes fit normal roots and quantify long path/reason overhead", () => {
   const repo = fileURLToPath(new URL("../../../", import.meta.url));
-  const shortRoot = path.join(repo, "p");
+  const normalCeilingBytes = 1536;
+  const normalRoot = "/" + "r".repeat(99);
   const cases = [
     { label: "10x-claude", chain: "10x" },
     { label: "10x-openai", chain: "10x", openai: true },
@@ -408,12 +413,20 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
     { label: "manual-openai", chain: "10x", manual: true, openai: true },
   ];
   const rows = [];
-  function record(p, result, label, policy) {
+  function record(p, result, label, policy, expectedProvider) {
     const action = result.json;
     canonical(p, action);
     const row = { ...measure(p, action, label), policy };
     assert.equal(row.actionBytes, bytes(result.stdout), "measure actual pretty-printed CLI bytes");
-    if (row.rootBytes <= 100) assert.ok(row.actionBytes <= 1280, JSON.stringify(row));
+    if (expectedProvider) {
+      assert.equal(action.provider, expectedProvider, label);
+      // Measure the maximum ordinary root independently of the checkout or TMPDIR length.
+      const task = JSON.stringify(path.join(normalRoot, action.promptFile));
+      const prompt = action.prompt.replace(JSON.stringify(taskPath(p)), task);
+      row.normalActionBytes = bytes(JSON.stringify({ ...action, root: normalRoot, prompt }, null, 2) + "\n");
+      assert.ok(row.normalActionBytes <= normalCeilingBytes, JSON.stringify(row));
+      if (row.rootBytes <= bytes(normalRoot)) assert.ok(row.actionBytes <= normalCeilingBytes, JSON.stringify(row));
+    }
     rows.push(row);
   }
   for (const c of cases) {
@@ -422,29 +435,23 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
       ...(c.manual ? { manualVerify: { minRigor: "lean" } } : {}),
     };
     const p = c.chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
-    // A short real root permits the normal-fixture budget even when TMPDIR is inside a long checkout.
-    fs.mkdirSync(shortRoot);
-    try {
-      fs.cpSync(p.root, shortRoot, { recursive: true });
-      const remap = value => path.join(shortRoot, path.relative(p.root, value));
-      const q = { ...p, base: shortRoot, root: shortRoot, changeDir: remap(p.changeDir), agentDir: remap(p.agentDir),
-        planFile: p.planFile ? remap(p.planFile) : null };
-      if (c.manual) {
-        writePlan(q, buildPlan([{ auto: [{ text: "implemented", done: true }], manual: ["Browser displays saved result"] }]));
-        writeReview(q, "plan-review", { verdict: "SOUND" });
-        writeLog(q, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")]);
-      }
-      const first = run(q, ["init", q.id, "--chain", c.chain, "--goal", "fix typo"]);
-      record(q, first, c.label + "-initial", policy);
-      writeResult(q, FAULT);
-      record(q, next(q), c.label + "-retry", policy);
-      if (!c.manual) {
-        if (c.chain === "10x") writePlan(q, planText());
-        else writeArtifacts(q, { proposal: true, specs: 1, tasks: { open: 1 } });
-        writeResult(q, { status: "done" });
-        record(q, next(q), c.label + "-next", policy);
-      }
-    } finally { removeTree(shortRoot); }
+    const provider = c.openai ? "openai" : "claude";
+    const mode = c.openai ? "codex" : "claude";
+    if (c.manual) {
+      writePlan(p, buildPlan([{ auto: [{ text: "implemented", done: true }], manual: ["Browser displays saved result"] }]));
+      writeReview(p, "plan-review", { verdict: "SOUND" });
+      seedRun(p, [entry(1, "plan"), entry(2, "plan-review"), entry(3, "implement")], { providerMode: mode });
+    }
+    const first = run(p, ["init", p.id, "--chain", c.chain, "--provider-mode", mode, "--goal", "fix typo"]);
+    record(p, first, c.label + "-initial", policy, provider);
+    writeResult(p, FAULT);
+    record(p, next(p), c.label + "-retry", policy, provider);
+    if (!c.manual) {
+      if (c.chain === "10x") writePlan(p, planText());
+      else writeArtifacts(p, { proposal: true, specs: 1, tasks: { open: 1 } });
+      writeResult(p, { status: "done" });
+      record(p, next(p), c.label + "-next", policy, provider);
+    }
   }
   const long = makeProject({ policy: ON, nest: "long-root-".repeat(12) });
   record(long, init(long, "fix typo"), "long-path", ON);
@@ -460,7 +467,7 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
     sourceState: "working tree; final phase commit records the test source",
     node: process.version,
     command: 'TMPDIR="$PWD/.agent-smith-test-tmp" HANDOFF_MEASUREMENTS=context/changes/step-prompt-by-file/evidence/size-measurements.json node --test --test-name-pattern="actual emitted sizes" skills/10x-pipeline/test/prompt-handoff.test.mjs',
-    goal: "fix typo", id: "demo", normalCeilingBytes: 1280, normalRootLimitBytes: 100,
+    goal: "fix typo", id: "demo", normalCeilingBytes, normalRootLimitBytes: bytes(normalRoot),
     archive: "excluded; inline by contract", livePairs: 0,
     fixtureDefaults: { score: { minRigor: null }, isolation: { require: false }, manualVerify: { minRigor: null } },
     rows,
@@ -471,3 +478,46 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
     fs.writeFileSync(output, JSON.stringify(evidence, null, 2) + "\n");
   }
 });
+
+for (const chain of ["10x", "openspec"]) {
+  for (const byFile of [false, true]) {
+    for (const flat of [false, true]) {
+      test(`${chain}: saved ${flat ? "flat" : "delegated"} ${byFile ? "file" : "inline"} dispatch survives settings drift exactly`, () => {
+        const w = codexFixture(chain, { policy: { ...preset, prompts: { byFile } } });
+        const p = w.project;
+        if (flat) {
+          const entries = readLogEntries(p);
+          const saved = entries.filter(e => !e.skipped).at(-1);
+          saved.pendingPrompt = "Historical flat dispatch: do all work yourself; never start a subagent.\n"
+            + saved.pendingPrompt.slice(saved.pendingPrompt.lastIndexOf("\nRESULT:"));
+          writeLog(p, entries);
+          if (byFile) fs.writeFileSync(taskPath(p), saved.pendingPrompt);
+          else w.action.prompt = saved.pendingPrompt;
+        }
+        const saved = pending(p);
+        assert.equal(saved.pendingPrompt.includes("one native child layer"), !flat);
+        const prompt = saved.pendingPrompt;
+        const first = w.action;
+        fs.mkdirSync(path.join(p.root, ".claude"), { recursive: true });
+        fs.writeFileSync(path.join(p.root, ".claude/settings.json"), JSON.stringify({ env: { CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH: "2" } }));
+        writeOverride(p, { ...preset, codex: { profile: "changed-profile" }, prompts: { byFile: !byFile } });
+        writeResult(p, FAULT);
+        const retry = run(p, ["next", p.id, "--chain", chain], { env: w.env }).json;
+        assert.ok(retry.neutralRetry);
+        for (const key of ["n", "step", "agent", "provider", "model", "effort", "profile", "prompt", "promptFile"]) {
+          assert.equal(retry[key], first[key], key);
+          assert.equal(Object.hasOwn(retry, key), Object.hasOwn(first, key), key);
+        }
+        assert.equal(pending(p).pendingPrompt, prompt);
+        assert.deepEqual(pending(p).pendingHandoff, saved.pendingHandoff);
+        if (byFile) assert.equal(fs.readFileSync(taskPath(p), "utf8"), prompt);
+        const result = execute(w, retry);
+        assert.equal(result.json.completed, true, result.stdout);
+        const model = calls(w.fixture).find(call => call.args[0] === "exec");
+        assert.equal(model.input, first.prompt);
+        assert.ok(model.args.includes("agents.enabled=true"), "effective launch, not old prompt text, owns native capability");
+        assert.equal(model.args.includes("--ephemeral"), false);
+      });
+    }
+  }
+}
