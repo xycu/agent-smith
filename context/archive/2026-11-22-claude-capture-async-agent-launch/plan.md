@@ -277,28 +277,28 @@ No stored data changes. A figure already recorded unavailable stays unavailable;
 
 #### Automated
 
-- [x] 1.1 The live-shaped async fixture settles to verified — 5c4efda5
-- [x] 1.2 The synchronous fixtures still verify and keep their failure reasons — 5c4efda5
-- [x] 1.3 Negative async cases stay unavailable with bounded reasons — 5c4efda5
-- [x] 1.4 Producer-to-reader, launcher, late-usage, intake and comparison paths pass — 5c4efda5
-- [x] 1.5 No recursive delete was introduced — 5c4efda5
+- [x] 1.1 The live-shaped async fixture settles to verified — 3d8e0cee
+- [x] 1.2 The synchronous fixtures still verify and keep their failure reasons — 3d8e0cee
+- [x] 1.3 Negative async cases stay unavailable with bounded reasons — 3d8e0cee
+- [x] 1.4 Producer-to-reader, launcher, late-usage, intake and comparison paths pass — 3d8e0cee
+- [x] 1.5 No recursive delete was introduced — 3d8e0cee
 
 #### Manual
 
-- [x] 1.6 Replaying the saved live 2.1.323 capture verifies all six steps — 5c4efda5
+- [x] 1.6 Replaying the saved live 2.1.323 capture verifies all six steps — 3d8e0cee
 
 ### Phase 2: Docs match the evidence
 
 #### Automated
 
-- [x] 2.1 No claim of headless evidence as the floor's basis remains — 971f29eb
-- [x] 2.2 Amendment 7 exists after Amendment 6 — 971f29eb
-- [x] 2.3 Version fields stay equal — 971f29eb
-- [x] 2.4 Commit subjects lint — 971f29eb
+- [x] 2.1 No claim of headless evidence as the floor's basis remains — 3d8e0cee
+- [x] 2.2 Amendment 7 exists after Amendment 6 — 3d8e0cee
+- [x] 2.3 Version fields stay equal — 3d8e0cee
+- [x] 2.4 Commit subjects lint — 3d8e0cee
 
 #### Manual
 
-- [x] 2.5 The three documents read consistently with each other and with the collector rules — 971f29eb
+- [x] 2.5 The three documents read consistently with each other and with the collector rules — 3d8e0cee
 
 ### Phase 3: Live requalification
 
@@ -308,4 +308,4 @@ No stored data changes. A figure already recorded unavailable stays unavailable;
 - [x] 3.2 Each step's verified total is explained by its completion figure plus counted telemetry-only requests
 - [x] 3.3 The late recheck returns verified, or its unsupported-schema is recorded with a raising line
 - [x] 3.4 README and REFERENCE state the recorded live qualification
-- [ ] 3.5 The owner has the evidence note to decide rows 2.4 and 2.5 and the archive of claude-token-figures-default
+- [x] 3.5 The owner has the evidence note to decide rows 2.4 and 2.5 and the archive of claude-token-figures-default
