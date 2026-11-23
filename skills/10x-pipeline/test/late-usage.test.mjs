@@ -13,6 +13,7 @@ import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, moveToArchive } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { boundClaudeFixture } from "./claude-helpers.mjs";
 import { claudeCaptureCheckpoint, collectClaudeUsage } from "../scripts/claude-usage.mjs";
+import { unavailableEvidence } from "../scripts/usage.mjs";
 
 after(cleanupAll);
 
@@ -670,6 +671,27 @@ for (const chain of ["10x", "openspec"]) {
     const replay = usage(p, 1, args);
     assert.equal(replay.json.unchanged, true, replay.stdout);
     assert.deepEqual(snapshot(p.changeDir), bytes);
+  });
+
+  test(`${chain}: late verification removes the usage limitation from an ended run's report`, () => {
+    const project = chain === "openspec" ? makeOpenspecProject() : makeProject();
+    const step = chain === "openspec" ? "os-propose" : "plan";
+    seedRun(project, [entry(1, step, { provider: "openai", usage: { durationMs: 45 },
+      usageEvidence: unavailableEvidence("missing-source", TREE_EVIDENCE) })],
+    { chain, host: "codex", providerMode: "codex", outcome: { action: "done" } });
+    const status = run(project, ["status", project.id, "--report", "--chain", chain]);
+    assert.equal(status.status, 0, status.stdout + status.stderr);
+    assert.match(readReportFile(project), /^Token capture limitations: Codex usage source unavailable \(1 step\)$/m);
+    assert.match(readReportFile(project), /Tokens: - \(figures for 0 of 1 steps\)/);
+
+    const file = treeFile(project, treePayload(project, chain));
+    const result = usage(project, 1, ["--usage-file", file, "--chain", chain]);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.equal(result.json.report, status.json.report);
+    const refreshed = readReportFile(project);
+    assert.doesNotMatch(refreshed, /^Token capture limitations:/m);
+    assert.match(refreshed, /Tokens: 123 \(figures for 1 of 1 steps\)/);
+    assert.match(refreshed, /Verified observed host usage: 1 · Unavailable: 0/);
   });
 
   test(`${chain}: structured late refusals preserve every run file and legacy flags cannot bypass evidence`, () => {

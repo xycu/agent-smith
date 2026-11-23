@@ -154,16 +154,16 @@ Rollback uses the previous router revision after the active invocation settles. 
 
 #### Automated
 
-- [x] 1.1 Both chains route normally and issue one actionable, transport-specific init warning when capture prerequisites fail.
-- [x] 1.2 Existing Claude launcher and collector fixtures still verify the same evidence and reject unsafe or incomplete capture.
+- [x] 1.1 Both chains route normally and issue one actionable, transport-specific init warning when capture prerequisites fail. — 2a5fc3df
+- [x] 1.2 Existing Claude launcher and collector fixtures still verify the same evidence and reject unsafe or incomplete capture. — 2a5fc3df
 
 ### Phase 2: Explain missing figures in reports
 
 #### Automated
 
-- [ ] 2.1 Reports for both chains explain missing capture near the header, retain step reasons and keep mixed, legacy and late-verified figures accurate.
-- [ ] 2.2 A local fake GitHub client receives the same summary in the report comment payload.
-- [ ] 2.3 Active operator docs agree on the shared warning and supported setup.
+- [x] 2.1 Reports for both chains explain missing capture near the header, retain step reasons and keep mixed, legacy and late-verified figures accurate.
+- [x] 2.2 A local fake GitHub client receives the same summary in the report comment payload.
+- [x] 2.3 Active operator docs agree on the shared warning and supported setup.
 
 #### Manual
 

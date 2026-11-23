@@ -23,10 +23,10 @@ const TREE = { schemaVersion: 1, status: "verified", scope: "step-tree", source:
 const measured = (n, totalTokens, over = {}) => entry(n, "plan", { usage: { totalTokens }, usageEvidence: TREE, ...over });
 const omitted = (n, reason = "incomplete-capture") => entry(n, "plan", { usage: { totalTokens: 999, durationMs: 3 },
   usageEvidence: unavailableEvidence(reason, TREE) });
-function fixture(entries, { chain = "10x", policy = PRICES } = {}) {
+function fixture(entries, { chain = "10x", policy = PRICES, host = "claude" } = {}) {
   const project = chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
   writeLog(project, entries);
-  writeMetaFile(project, { id: project.id, goal: "fixture", host: "claude", baseSha: "a".repeat(40),
+  writeMetaFile(project, { id: project.id, goal: "fixture", host, baseSha: "a".repeat(40),
     rigor: { level: "standard" }, outcome: { action: "done" }, ...(chain === "openspec" ? { chain } : {}) });
   return project;
 }
@@ -89,6 +89,48 @@ test("mixed and unavailable coverage keeps measured zero, labels subtotals, and 
   const md = compare(project, project, "10x", ["--format", "md"]);
   assert.match(md, /Token total for routed is a subtotal/);
   assert.match(md, /Unavailable routed step 2: incomplete-capture/);
+});
+
+const native = (reason) => unavailableEvidence(reason, { source: "claude-native", hostVersion: "2.1.323" });
+
+test("the report header groups settled usage limitations by source and reason", () => {
+  const project = fixture([
+    measured(1, 0),
+    entry(2, "plan", { usage: { totalTokens: 5 } }),
+    entry(3, "plan", { usageEvidence: native("capture-disabled") }),
+    entry(4, "plan", { usageEvidence: native("capture-disabled") }),
+    entry(5, "plan", { usageEvidence: native("incomplete-capture"), usage: { durationMs: 2 } }),
+    entry(6, "plan", { usageEvidence: native("missing-source") }),
+    omitted(7, "missing-source"),
+    omitted(8, "unsupported-host"),
+    entry(9, "plan", { result: undefined, usageEvidence: native("capture-disabled") }),
+    entry(10, "plan", { provider: "openai", usageEvidence: native("capture-disabled") }),
+    skipEntry("research", 10, { result: {}, usageEvidence: native("capture-disabled") }),
+  ]);
+  assert.deepEqual(status(project).tokens, { total: 5, stepsWithFigures: 2 });
+  const report = readReportFile(project);
+  const header = "Token capture limitations: Native Claude token capture was off (2 steps) · Claude usage source unavailable (1 step) · " +
+    "Codex usage source unavailable (1 step) · Codex version unqualified for token accounting (1 step)";
+  assert.ok(report.startsWith(`# Run report: ${project.id}\n\n${header}\n\nGoal: `), report);
+  assert.equal(report.match(/^Token capture limitations:/gm)?.length, 1);
+  assert.match(report, /^- Step 5 plan: incomplete-capture — The captured records do not prove complete invocation coverage\.$/m);
+  assert.match(report, /^- Step 6 plan: missing-source — The required host usage source is unavailable\.$/m);
+  assert.match(report, /^- Step 8 plan: unsupported-host — The host version is not qualified for accounting\.$/m);
+});
+
+test("OpenSpec report requires the saved Codex host, Claude dispatch, and duration for headless attribution", () => {
+  const chain = "openspec";
+  const project = fixture([
+    entry(1, "os-propose", { usageEvidence: native("incomplete-capture"), usage: { durationMs: 0 } }),
+    entry(2, "os-verify", { usageEvidence: native("incomplete-capture") }),
+    entry(3, "os-verify", { provider: "openai", usageEvidence: native("incomplete-capture"), usage: { durationMs: 6 } }),
+    entry(4, "os-verify", { usageEvidence: native("capture-disabled") }),
+    entry(5, "os-verify", { result: undefined, usageEvidence: native("incomplete-capture"), usage: { durationMs: 2 } }),
+  ], { chain, host: "codex" });
+  status(project, chain);
+  const report = readReportFile(project);
+  assert.match(report, /^Token capture limitations: Headless Claude on Codex recorded duration only \(1 step\)$/m);
+  assert.match(report, /^- Step 2 os-verify: incomplete-capture — The captured records do not prove complete invocation coverage\.$/m);
 });
 
 for (const chain of ["10x", "openspec"]) {
@@ -286,9 +328,11 @@ for (const chain of ["10x", "openspec"]) {
       assert.equal(end.json?.action, "done", end.stdout + end.stderr);
       const initial = readReportFile(project);
       if (enabled) {
+        assert.doesNotMatch(initial, /^Token capture limitations:/m);
         assert.match(initial, /^Steps: 1 · Tokens: 151 \(figures for 1 of 1 steps\)/m);
         assert.match(initial, /^Verified observed host usage: 1 · Unavailable: 0/m);
       } else {
+        assert.match(initial, /^Token capture limitations: Native Claude token capture was off \(1 step\)$/m);
         assert.match(initial, /^Steps: 1 · Tokens: - \(figures for 0 of 1 steps\)/m);
         assert.match(initial, /^- Step 1 \S+: capture-disabled — Claude token capture is off\. Run `node <absolute-plugin-scripts>\/claude-capture\.mjs`[^\n]*$/m);
       }
