@@ -1,0 +1,548 @@
+
+=== Unmodified code, exit 0 ===
+TAP version 13
+# Subtest: 10x: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+ok 1 - 10x: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+  ---
+  duration_ms: 1952.371625
+  type: 'test'
+  ...
+# Subtest: openspec: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+ok 2 - openspec: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+  ---
+  duration_ms: 1926.441583
+  type: 'test'
+  ...
+# Subtest: linked opt-out reads pending setup without creating or changing the branch lock
+ok 3 - linked opt-out reads pending setup without creating or changing the branch lock
+  ---
+  duration_ms: 374.354709
+  type: 'test'
+  ...
+# Subtest: linked opt-out refuses a malformed pending record with a stale lock
+ok 4 - linked opt-out refuses a malformed pending record with a stale lock
+  ---
+  duration_ms: 233.717167
+  type: 'test'
+  ...
+# Subtest: linked opt-out refuses a directory pending record with a stale lock
+ok 5 - linked opt-out refuses a directory pending record with a stale lock
+  ---
+  duration_ms: 258.834875
+  type: 'test'
+  ...
+# Subtest: linked opt-out handles ENOENT while reading a disappearing pending record
+ok 6 - linked opt-out handles ENOENT while reading a disappearing pending record
+  ---
+  duration_ms: 339.720584
+  type: 'test'
+  ...
+# Subtest: linked opt-out handles EIO while reading a disappearing pending record
+ok 7 - linked opt-out handles EIO while reading a disappearing pending record
+  ---
+  duration_ms: 253.336542
+  type: 'test'
+  ...
+# Subtest: interrupted pending publication 1 leaves one staging file and retries cleanly
+ok 8 - interrupted pending publication 1 leaves one staging file and retries cleanly
+  ---
+  duration_ms: 1090.311208
+  type: 'test'
+  ...
+# Subtest: interrupted pending publication 2 leaves one staging file and retries cleanly
+ok 9 - interrupted pending publication 2 leaves one staging file and retries cleanly
+  ---
+  duration_ms: 1412.973125
+  type: 'test'
+  ...
+# Subtest: pending publication replaces a stale staging symlink and preserves its target
+ok 10 - pending publication replaces a stale staging symlink and preserves its target
+  ---
+  duration_ms: 764.709542
+  type: 'test'
+  ...
+# Subtest: pending publication preserves a directory at its staging path and the canonical record
+ok 11 - pending publication preserves a directory at its staging path and the canonical record
+  ---
+  duration_ms: 447.13675
+  type: 'test'
+  ...
+# Subtest: an incomplete worktree with a committed opt-out points back to the original project
+ok 12 - an incomplete worktree with a committed opt-out points back to the original project
+  ---
+  duration_ms: 647.985458
+  type: 'test'
+  ...
+# Subtest: a preexisting setup lock is preserved for inspection
+ok 13 - a preexisting setup lock is preserved for inspection
+  ---
+  duration_ms: 277.223667
+  type: 'test'
+  ...
+1..13
+# tests 13
+# suites 0
+# pass 13
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10221.004917
+
+
+=== Restore the pre-selection lock, exit 1 ===
+TAP version 13
+# Subtest: 10x: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+not ok 1 - 10x: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+  ---
+  duration_ms: 323.280833
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:143:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"root":"<scratch>/as-UENZ3F/custom checkout","runRoot":null,"worktree":null,"branch":null,"case":null,"copied":false,"excludeAdded":false,"notInRun":[],"left":[],"reason":"Setup lock exists at <scratch>/as-UENZ3F/.git/agent-smith-setup-feature%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal."}
+    + actual - expected
+    
+    + 'Setup lock exists at <scratch>/as-UENZ3F/.git/agent-smith-setup-feature%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: 'Setup lock exists at <scratch>/as-UENZ3F/.git/agent-smith-setup-feature%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+  operator: 'strictEqual'
+  stack: |-
+    success (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:18:10)
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:148:18)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: openspec: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+not ok 2 - openspec: unrelated linked branch, detached HEAD and other-chain metadata follow later cases
+  ---
+  duration_ms: 346.567042
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:143:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"root":"<scratch>/as-7OK5B9/custom checkout","runRoot":null,"worktree":null,"branch":null,"case":null,"copied":false,"excludeAdded":false,"notInRun":[],"left":[],"reason":"Setup lock exists at <scratch>/as-7OK5B9/.git/agent-smith-setup-feature%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal."}
+    + actual - expected
+    
+    + 'Setup lock exists at <scratch>/as-7OK5B9/.git/agent-smith-setup-feature%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: 'Setup lock exists at <scratch>/as-7OK5B9/.git/agent-smith-setup-feature%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+  operator: 'strictEqual'
+  stack: |-
+    success (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:18:10)
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:148:18)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+  ...
+# Subtest: linked opt-out reads pending setup without creating or changing the branch lock
+not ok 3 - linked opt-out reads pending setup without creating or changing the branch lock
+  ---
+  duration_ms: 215.916958
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:356:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"root":"<scratch>/as-cxHMqk/custom checkout","runRoot":null,"worktree":null,"branch":null,"case":null,"copied":false,"excludeAdded":false,"notInRun":[],"left":[],"reason":"unexpected lock open"}
+    + actual - expected
+    
+    + 'unexpected lock open'
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: 'unexpected lock open'
+  operator: 'strictEqual'
+  stack: |-
+    success (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:18:10)
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:368:3)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+  ...
+# Subtest: linked opt-out refuses a malformed pending record with a stale lock
+not ok 4 - linked opt-out refuses a malformed pending record with a stale lock
+  ---
+  duration_ms: 214.731125
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:378:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Cannot read pending setup.*Inspect the record/. Input:
+    
+    'Setup lock exists at <scratch>/as-UJnUH2/.git/agent-smith-setup-agent-smith%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 'Setup lock exists at <scratch>/as-UJnUH2/.git/agent-smith-setup-agent-smith%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:385:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: linked opt-out refuses a directory pending record with a stale lock
+not ok 5 - linked opt-out refuses a directory pending record with a stale lock
+  ---
+  duration_ms: 224.840042
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:378:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /Cannot read pending setup.*Inspect the record/. Input:
+    
+    'Setup lock exists at <scratch>/as-ZouBjW/.git/agent-smith-setup-agent-smith%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 'Setup lock exists at <scratch>/as-ZouBjW/.git/agent-smith-setup-agent-smith%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:385:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: linked opt-out handles EIO while reading a disappearing pending record
+ok 6 - linked opt-out handles EIO while reading a disappearing pending record
+  ---
+  duration_ms: 229.130833
+  type: 'test'
+  ...
+# Subtest: an incomplete worktree with a committed opt-out points back to the original project
+not ok 7 - an incomplete worktree with a committed opt-out points back to the original project
+  ---
+  duration_ms: 761.557042
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:1137:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /original project root/. Input:
+    
+    'Setup lock exists at <scratch>/as-NyfSfj/.git/agent-smith-setup-agent-smith%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 'Setup lock exists at <scratch>/as-NyfSfj/.git/agent-smith-setup-agent-smith%2Fdemo.lock. Wait for setup to finish; after an interruption inspect it before manual removal.'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:1149:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    node:internal/test_runner/test:1285:31
+    node:internal/process/task_queues:151:7
+    AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+    AsyncResource.runMicrotask (node:internal/process/task_queues:148:8)
+  ...
+# Subtest: a preexisting setup lock is preserved for inspection
+ok 8 - a preexisting setup lock is preserved for inspection
+  ---
+  duration_ms: 359.332083
+  type: 'test'
+  ...
+1..8
+# tests 8
+# suites 0
+# pass 2
+# fail 6
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2826.574958
+
+
+=== Restore strict payload reads for a disappearing record, exit 1 ===
+TAP version 13
+# Subtest: linked opt-out handles ENOENT while reading a disappearing pending record
+not ok 1 - linked opt-out handles ENOENT while reading a disappearing pending record
+  ---
+  duration_ms: 242.893417
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:393:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    {"root":"<scratch>/as-S3fukV/custom checkout","runRoot":null,"worktree":null,"branch":null,"case":null,"copied":false,"excludeAdded":false,"notInRun":[],"left":[],"reason":"Cannot read pending setup at <scratch>/as-S3fukV/.git/agent-smith-setup-agent-smith%2Fdemo.pending: ENOENT: no such file or directory, open '<scratch>/as-S3fukV/.git/agent-smith-setup-agent-smith%2Fdemo.pending'. Inspect the record and registered worktree before retrying"}
+    + actual - expected
+    
+    + "Cannot read pending setup at <scratch>/as-S3fukV/.git/agent-smith-setup-agent-smith%2Fdemo.pending: ENOENT: no such file or directory, open '<scratch>/as-S3fukV/.git/agent-smith-setup-agent-smith%2Fdemo.pending'. Inspect the record and registered worktree before retrying"
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: "Cannot read pending setup at <scratch>/as-S3fukV/.git/agent-smith-setup-agent-smith%2Fdemo.pending: ENOENT: no such file or directory, open '<scratch>/as-S3fukV/.git/agent-smith-setup-agent-smith%2Fdemo.pending'. Inspect the record and registered worktree before retrying"
+  operator: 'strictEqual'
+  stack: |-
+    success (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:18:10)
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:410:28)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: linked opt-out handles EIO while reading a disappearing pending record
+ok 2 - linked opt-out handles EIO while reading a disappearing pending record
+  ---
+  duration_ms: 243.937917
+  type: 'test'
+  ...
+# Subtest: a preexisting setup lock is preserved for inspection
+ok 3 - a preexisting setup lock is preserved for inspection
+  ---
+  duration_ms: 277.738541
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 2
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 861.830708
+
+
+=== Allow disappearance fallback after every payload error, exit 1 ===
+TAP version 13
+# Subtest: linked opt-out handles ENOENT while reading a disappearing pending record
+ok 1 - linked opt-out handles ENOENT while reading a disappearing pending record
+  ---
+  duration_ms: 236.1385
+  type: 'test'
+  ...
+# Subtest: linked opt-out handles EIO while reading a disappearing pending record
+not ok 2 - linked opt-out handles EIO while reading a disappearing pending record
+  ---
+  duration_ms: 233.281041
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:393:3'
+  failureType: 'testCodeFailure'
+  error: 'The "string" argument must be of type string. Received type object (null)'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: ~
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:411:17)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: a preexisting setup lock is preserved for inspection
+ok 3 - a preexisting setup lock is preserved for inspection
+  ---
+  duration_ms: 273.555709
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 2
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 840.719417
+
+
+=== Restore UUID staging, exit 1 ===
+TAP version 13
+# Subtest: interrupted pending publication 1 leaves one staging file and retries cleanly
+not ok 1 - interrupted pending publication 1 leaves one staging file and retries cleanly
+  ---
+  duration_ms: 418.117458
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:417:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'agent-smith-setup-agent-smith%2Fdemo.lock',
+    +   'agent-smith-setup-agent-smith%2Fdemo.pending.003939ab-def7-4883-ae9a-e938c069c82a.tmp'
+    -   'agent-smith-setup-agent-smith%2Fdemo.pending.tmp'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'agent-smith-setup-agent-smith%2Fdemo.lock'
+    1: 'agent-smith-setup-agent-smith%2Fdemo.pending.tmp'
+  actual:
+    0: 'agent-smith-setup-agent-smith%2Fdemo.lock'
+    1: 'agent-smith-setup-agent-smith%2Fdemo.pending.003939ab-def7-4883-ae9a-e938c069c82a.tmp'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:448:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.start (node:internal/test_runner/test:1242:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+# Subtest: interrupted pending publication 2 leaves one staging file and retries cleanly
+not ok 2 - interrupted pending publication 2 leaves one staging file and retries cleanly
+  ---
+  duration_ms: 530.41725
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:417:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+      [
+        'agent-smith-setup-agent-smith%2Fdemo.lock',
+        'agent-smith-setup-agent-smith%2Fdemo.pending',
+    +   'agent-smith-setup-agent-smith%2Fdemo.pending.a3e4c37b-f81c-4bc4-86a2-c4619a0bf9c1.tmp'
+    -   'agent-smith-setup-agent-smith%2Fdemo.pending.tmp'
+      ]
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    0: 'agent-smith-setup-agent-smith%2Fdemo.lock'
+    1: 'agent-smith-setup-agent-smith%2Fdemo.pending'
+    2: 'agent-smith-setup-agent-smith%2Fdemo.pending.tmp'
+  actual:
+    0: 'agent-smith-setup-agent-smith%2Fdemo.lock'
+    1: 'agent-smith-setup-agent-smith%2Fdemo.pending'
+    2: 'agent-smith-setup-agent-smith%2Fdemo.pending.a3e4c37b-f81c-4bc4-86a2-c4619a0bf9c1.tmp'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:448:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: pending publication replaces a stale staging symlink and preserves its target
+not ok 3 - pending publication replaces a stale staging symlink and preserves its target
+  ---
+  duration_ms: 567.889375
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:455:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + Stats {
+    +   atimeMs: 1795443983960.5798,
+    +   birthtimeMs: 1795443983960.5798,
+    +   blksize: 4096,
+    +   blocks: 0,
+    +   ctimeMs: 1795443983960.623,
+    +   dev: 16777229,
+    +   gid: 20,
+    +   ino: 288284753,
+    +   mode: 41453,
+    +   mtimeMs: 1795443983960.5798,
+    +   nlink: 1,
+    +   rdev: 0,
+    +   size: 90,
+    +   uid: 501
+    + }
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+    dev: 16777229
+    mode: 41453
+    nlink: 1
+    uid: 501
+    gid: 20
+    rdev: 0
+    blksize: 4096
+    ino: 288284753
+    size: 90
+    blocks: 0
+    atimeMs: 1795443983960.5798
+    mtimeMs: 1795443983960.5798
+    ctimeMs: 1795443983960.623
+    birthtimeMs: 1795443983960.5798
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:462:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: pending publication preserves a directory at its staging path and the canonical record
+not ok 4 - pending publication preserves a directory at its staging path and the canonical record
+  ---
+  duration_ms: 559.692833
+  type: 'test'
+  location: '<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:466:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + '<scratch>/as-CJX6Cd/.claude/worktrees/agent-smith-demo'
+    - null
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: ~
+  actual: '<scratch>/as-CJX6Cd/.claude/worktrees/agent-smith-demo'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<scratch>/skills/10x-pipeline/test/prepare-run.test.mjs:478:10)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1382:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+    Test.postRun (node:internal/test_runner/test:1522:19)
+    Test.run (node:internal/test_runner/test:1447:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+  ...
+# Subtest: a preexisting setup lock is preserved for inspection
+ok 5 - a preexisting setup lock is preserved for inspection
+  ---
+  duration_ms: 277.529042
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 1
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2471.436542
+

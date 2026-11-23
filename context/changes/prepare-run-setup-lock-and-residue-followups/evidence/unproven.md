@@ -1,0 +1,1 @@
+- 2.2 — The plan requires a full-suite CI result after publication. The run commit has no upstream or containing remote-tracking branch, and publication is prohibited in this step.

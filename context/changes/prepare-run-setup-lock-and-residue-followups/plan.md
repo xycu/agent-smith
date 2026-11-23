@@ -191,8 +191,8 @@ Finish any `copyComplete` recovery on a version that understands it, as required
 
 #### Manual
 
-- [ ] 1.3 Frame F2 repro: in a scratch repo, a linked worktree with `isolation.require: false` and a stale `agent-smith-setup-agent-smith%2Fdemo.lock` returns `case: "opt-out"`, the lock file is unchanged
-- [ ] 1.4 Frame F3 repro: SIGKILL at the temp-to-pending rename, then remove the lock and rerun setup; setup succeeds and no `.tmp` remains in the Git common directory
+- [x] 1.3 Frame F2 repro: in a scratch repo, a linked worktree with `isolation.require: false` and a stale `agent-smith-setup-agent-smith%2Fdemo.lock` returns `case: "opt-out"`, the lock file is unchanged — evidence: evidence/test-f2-stale-lock.txt
+- [x] 1.4 Frame F3 repro: SIGKILL at the temp-to-pending rename, then remove the lock and rerun setup; setup succeeds and no `.tmp` remains in the Git common directory — evidence: evidence/test-f3-first-publication.txt
 
 ### Phase 2: Regression tests and docs
 
@@ -203,6 +203,6 @@ Finish any `copyComplete` recovery on a version that understands it, as required
 #### Manual
 
 - [ ] 2.2 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 2.3 Each new F2/F3 test fails when its matching change in a scratch copy of `prepare-run.mjs` is reverted
-- [ ] 2.4 `grep -rniE "setup lock|\.pending" docs README.md skills --include=*.md` shows no remaining text that says the opt-out or pre-selection check takes the lock, or that names the UUID temp as current behavior
-- [ ] 2.5 The ADR-010 Amendment 8 text and the `REFERENCE.md` bullets read correctly against the code
+- [x] 2.3 Each new F2/F3 test fails when its matching change in a scratch copy of `prepare-run.mjs` is reverted — evidence: evidence/script-regression-reverts.txt
+- [x] 2.4 `grep -rniE "setup lock|\.pending" docs README.md skills --include=*.md` shows no remaining text that says the opt-out or pre-selection check takes the lock, or that names the UUID temp as current behavior — evidence: evidence/command-setup-doc-search.txt
+- [x] 2.5 The ADR-010 Amendment 8 text and the `REFERENCE.md` bullets read correctly against the code — evidence: evidence/judgment-setup-docs.md
