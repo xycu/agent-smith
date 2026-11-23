@@ -1,0 +1,2 @@
+- 2.4 — Claude Code 2.1.323 meets the launcher floor, and local fixtures pass for the warning, quiet init and token collection. The required ordinary and launcher-bound interactive sessions wait for input, so the unattended step did not observe a live dispatch or its verified token figures.
+- 2.5 — A read-only GitHub lookup found no open PR for the run branch, and the run has no terminal report yet. The local fake-client test passed, but the live comparison requires orchestrator publication.
