@@ -50,5 +50,19 @@
   "rigor": {
     "level": "standard",
     "by": "hot paths skills/10x-pipeline/test/skill-loop.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "1.3 Reproduce the sibling-worktree Write denial in Claude Desktop and verify the new path-specific recovery message stops before `init` or dispatch.",
+      "1.4 Reproduce the linked-session `.claude/` Write denial in Claude Desktop and verify the new path-specific recovery message stops before `init` or dispatch.",
+      "1.5 Resume a refused run in a Claude Desktop session with Write access and verify the probe is removed, the same prepared worktree is reused, and the first step and its result intake succeed."
+    ],
+    "manualNotProved": [
+      "1.3 Reproduce the sibling-worktree Write denial in Claude Desktop and verify the new path-specific recovery message stops before `init` or dispatch. — not proved: Computer Use did not approve access to Claude Desktop, and Orca reported 'runtime_unavailable'. The skill contract passed, but a live sibling-worktree denial and the path-specific stop before init or",
+      "1.4 Reproduce the linked-session `.claude/` Write denial in Claude Desktop and verify the new path-specific recovery message stops before `init` or dispatch. — not proved: Computer Use did not approve access to Claude Desktop, and Orca reported 'runtime_unavailable'. The skill contract passed, but a live linked-session '.claude/' denial, owning-session guidance and stop",
+      "1.5 Resume a refused run in a Claude Desktop session with Write access and verify the probe is removed, the same prepared worktree is reused, and the first step and its result intake succeed. — not proved: Computer Use did not approve access to Claude Desktop, and Orca reported 'runtime_unavailable'. Local tests passed for the skill contract, worktree reuse and result intake. They could not establish th"
+    ]
   }
 }
