@@ -38,6 +38,83 @@ const unavailable = (value, reason) => {
   assert.doesNotMatch(JSON.stringify(value), /private-source|private-prompt|\.jsonl|\/Users\//);
 };
 
+function assertVerified(input, totalTokens, hostVersion) {
+  const measured = collectCodexUsage(input);
+  assert.deepEqual(measured.usage, { totalTokens });
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usageEvidence.hostVersion, hostVersion);
+}
+
+test("root metadata accepts only strict releases at or above the accounting floor", () => {
+  const f = fixture();
+  const root = f.input.threads[0].metadata;
+  for (const version of ["0.169.0", "0.169.1", "0.170.0", "0.171.0", "1.0.0"]) {
+    root.cliVersion = version;
+    assertVerified(f.input, 110, version);
+  }
+  for (const version of ["0.168.99", "0.99.99", "v0.171.0", "0.171.0-rc.1", "0.171.0+build", "0.0171.0",
+    "0.171.0\n", ["0.171.0"]]) {
+    root.cliVersion = version;
+    unavailable(collectCodexUsage(f.input), "unsupported-host");
+  }
+});
+
+test("rollout headers have their own accounting version check", () => {
+  const f = fixture();
+  const header = f.records["root-fixture"][0].payload;
+  for (const version of ["0.169.0", "0.171.0"]) {
+    header.cli_version = version;
+    f.write();
+    assertVerified(f.input, 110, "0.169.0");
+  }
+  for (const version of ["0.168.99", "v0.171.0"]) {
+    header.cli_version = version;
+    f.write();
+    unavailable(collectCodexUsage(f.input), "unsupported-host");
+  }
+});
+
+test("child metadata has its own accounting version check", () => {
+  const f = fixture({ children: ["child"] });
+  const child = f.input.threads[1].metadata;
+  child.cliVersion = "0.171.0";
+  assertVerified(f.input, 132, "0.169.0");
+  for (const version of ["0.168.99", "v0.171.0"]) {
+    child.cliVersion = version;
+    unavailable(collectCodexUsage(f.input), "unsupported-host");
+  }
+});
+
+test("a supported root version must still fit in the evidence envelope", () => {
+  const f = fixture();
+  const root = f.input.threads[0].metadata;
+  const version = "0.169." + "1".repeat(26);
+  root.cliVersion = version;
+  assertVerified(f.input, 110, version);
+  root.cliVersion = version + "1";
+  unavailable(collectCodexUsage(f.input), "invalid-evidence");
+});
+
+test("a later supported release still requires valid and complete records", () => {
+  const f = fixture();
+  const records = f.records["root-fixture"];
+  f.input.threads[0].metadata.cliVersion = "0.171.0";
+  records[0].payload.cli_version = "0.171.0";
+  f.write();
+  assertVerified(f.input, 110, "0.171.0");
+
+  const usage = records[2].payload.usage;
+  const inputTokens = usage.input_tokens;
+  usage.input_tokens = String(inputTokens);
+  f.write();
+  unavailable(collectCodexUsage(f.input), "unsupported-schema");
+
+  usage.input_tokens = inputTokens;
+  records.pop();
+  f.write();
+  unavailable(collectCodexUsage(f.input), "incomplete-capture");
+});
+
 test("flat and multi-request archived child records reconcile once with cache/reasoning as subsets", () => {
   const f = fixture({ children: ["child", "archived-child"], usages: { child: [small, { input_tokens: 30, output_tokens: 3 }] } });
   const measured = collectCodexUsage(f.input);
@@ -100,7 +177,6 @@ for (const [label, alter, reason] of [
   ["foreign actual thread", f => { f.records["root-fixture"][2].payload.thread_id = "foreign"; }, "missing-identity"],
   ["foreign session", f => { f.records["root-fixture"][2].payload.session_id = "foreign"; }, "missing-identity"],
   ["inherited root history", f => { f.input.threads[0].metadata.forkedFromId = "old"; }, "ambiguous-history"],
-  ["unsupported version", f => { f.input.threads[0].metadata.cliVersion = "0.170.0"; }, "unsupported-host"],
   ["unsupported record schema", f => { f.records["root-fixture"][2].payload.usage.input_tokens = "100"; }, "unsupported-schema"],
   ["snapshot conflict", f => { f.records["root-fixture"].at(-2).payload.info.total_token_usage.output_tokens = 1; }, "snapshot-mismatch"],
   ["resumed root turn", f => { f.records["root-fixture"].push(...f.records["root-fixture"].slice(1)); }, "ambiguous-history"],

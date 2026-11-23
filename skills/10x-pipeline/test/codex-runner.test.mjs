@@ -624,7 +624,7 @@ for (const chain of ["10x", "openspec"]) {
   for (const [label, mode, reason] of [
     ["optional native metadata error", { usageMetadataFailure: true }, "missing-source"],
     ["optional native metadata timeout", { usageMetadataHang: true }, "resource-limit"],
-    ["unsupported host", { hostVersion: "0.170.0" }, "unsupported-host"],
+    ["unsupported host", { hostVersion: "0.168.99" }, "unsupported-host"],
     ["missing source", { noUsageSource: true }, "missing-source"],
   ]) {
     test(`${chain}: ${label} leaves completed execution accepted and releases its lock`, () => {
