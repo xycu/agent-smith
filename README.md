@@ -16,7 +16,7 @@ A Claude Code plugin that runs 10xDevs and OpenSpec workflows end to end through
 - 🎚️ **Rigor that fits.** `lean`, `standard` or `thorough`, rising with risk: more research, scoring and checks where they pay off.
 - 🔍 **Proof for manual checks.** Evidence saved for every Manual row it proves (10xDevs).
 - 📊 **A report to share.** Model, tokens and result per step, posted to your PR with `--pr-comment`.
-- 📉 **Measure your savings.** `compare` puts a routed run next to a single-model baseline.
+- 📉 **Compare token usage.** Use `compare` to measure a routed run against a baseline. The first-attempt discount defaults to `0` while its experiment is pending. [First-attempt experiment](docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md#ab-result)
 - ⏯️ **Resume anytime.** Run the same command again and it picks up where it stopped.
 - 🔧 **Yours to tune.** Dependency-free Node.js router, every threshold in one policy file.
 

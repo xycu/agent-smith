@@ -1,7 +1,6 @@
-// Cheaper first implement attempt (worktree-step-commits, Phase 5): escalation.firstAttempt drops the first attempt of
-// a listed implement template one tier in an isolated run. A failed cheap attempt is neutral for rigor and the step
-// budget; the retry pays the failure bump on the base tier. An isolated fixture walks a real linked worktree, because
-// an isolated run halts when it cannot read the start commit of a step; the router's git runs in the hermetic gitEnv.
+// With drop: 1, escalation.firstAttempt drops the first attempt of a listed implement template one tier in an
+// isolated run. A failed cheap attempt is neutral for rigor and the step budget. The retry pays the failure bump on
+// the base tier. An isolated fixture uses a real linked worktree so the router can read the start commit of a step.
 import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -17,6 +16,7 @@ after(cleanupAll);
 const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
 const ONE_WARNING = { findings: "0 critical, 1 warnings" };
 const TWO_PHASES = planText({ phases: 2 });
+const ENABLE_FIRST_ATTEMPT_DROP = { escalation: { firstAttempt: { drop: 1 } } };
 const lastRan = (project) => readLogEntries(project).filter((e) => !e.skipped).at(-1);
 const gitSkip = gitAvailable() ? false : "git is not available";
 
@@ -65,12 +65,12 @@ function firstImplement(opts) {
 }
 
 test("5.1 the first implement attempt of an isolated run runs one tier lower and is marked cheap", { skip: gitSkip }, () => {
-  const control = firstImplement({ isolated: false }).e;
+  const control = firstImplement({ isolated: false, policy: ENABLE_FIRST_ATTEMPT_DROP }).e;
   assert.equal(control.tier, 3, control.tierWhy);
   assert.equal(Object.hasOwn(control, "cheap"), false);
   assert.doesNotMatch(control.tierWhy, /first attempt/);
 
-  const { res, e } = firstImplement();
+  const { res, e } = firstImplement({ policy: ENABLE_FIRST_ATTEMPT_DROP });
   assert.equal(e.template, "implement");
   assert.equal(e.tier, 2, e.tierWhy);
   assert.equal(e.cheap, true);
@@ -79,7 +79,7 @@ test("5.1 the first implement attempt of an isolated run runs one tier lower and
 });
 
 test("5.1 no drop on top of the simple-change discount", { skip: gitSkip }, () => {
-  const { e } = firstImplement({ plan: planText({ phases: 1 }) });
+  const { e } = firstImplement({ plan: planText({ phases: 1 }), policy: ENABLE_FIRST_ATTEMPT_DROP });
   assert.equal(e.tier, 2, e.tierWhy);
   assert.equal(e.simple, true);
   assert.equal(Object.hasOwn(e, "cheap"), false);
@@ -87,7 +87,7 @@ test("5.1 no drop on top of the simple-change discount", { skip: gitSkip }, () =
 });
 
 test("5.1 the retry of a failed cheap attempt runs two tiers above it", { skip: gitSkip }, () => {
-  const { project, e: first } = firstImplement();
+  const { project, e: first } = firstImplement({ policy: ENABLE_FIRST_ATTEMPT_DROP });
   writeResult(project, { status: "failed", note: "tests red" });
   const res = nextStep(project);
   assert.equal(res.json.step, "implement", res.stdout);
@@ -107,7 +107,7 @@ test("5.1 a later implement step of a run with one implement failure gets no dro
     entry(3, "implement", { commit: null, ok: false, verified: false, result: { status: "failed", note: "red" } }),
     pendingEntry(4, "implement", { commit: null }),
   ];
-  const project = fixture({ log, plan: planText({ phases: 2, done: 1 }) });
+  const project = fixture({ log, plan: planText({ phases: 2, done: 1 }), policy: ENABLE_FIRST_ATTEMPT_DROP });
   writeResult(project, { status: "done", note: "phase 1" });
   const res = nextStep(project);
   assert.equal(res.json.step, "implement", res.stdout);
@@ -122,7 +122,9 @@ test("5.1 a lean run whose cheap attempt fails stays lean and keeps its budget o
   const log = [entry(1, "plan", { commit: null }), entry(2, "plan-review", { commit: null })];
   for (let n = 3; n <= 8; n++) log.push(entry(n, "implement", { commit: null }));
   log.push(pendingEntry(9, "implement", { commit: null }));
-  const project = fixture({ rigor: "lean", log, plan: planText({ phases: 2, rowsPerPhase: 2, done: 1 }) });
+  const project = fixture({
+    rigor: "lean", log, plan: planText({ phases: 2, rowsPerPhase: 2, done: 1 }), policy: ENABLE_FIRST_ATTEMPT_DROP,
+  });
   writeResult(project, { status: "done", note: "one row" });
   const cheapRes = nextStep(project);
   assert.equal(cheapRes.json.step, "implement", cheapRes.stdout);
@@ -145,7 +147,9 @@ test("5.1 a cheap fallback is no failure: it uses step budget", { skip: gitSkip 
   log.push(entry(3, "implement", { commit: null, template: "implement-tdd", cheap: true, ok: false, fallback: true, result: { status: "blocked", note: "no runner" } }));
   for (let n = 4; n <= 11; n++) log.push(entry(n, "implement", { commit: null }));
   log.push(pendingEntry(12, "implement", { commit: null }));
-  const project = fixture({ rigor: "lean", log, plan: planText({ phases: 2, rowsPerPhase: 2, done: 1 }) });
+  const project = fixture({
+    rigor: "lean", log, plan: planText({ phases: 2, rowsPerPhase: 2, done: 1 }), policy: ENABLE_FIRST_ATTEMPT_DROP,
+  });
   writeResult(project, { status: "done", note: "one row" });
   const res = nextStep(project);
   assert.equal(res.json.action, "halt", res.stdout);
@@ -154,7 +158,9 @@ test("5.1 a cheap fallback is no failure: it uses step budget", { skip: gitSkip 
 
 test("5.1 a drop that the clamp absorbed sets no cheap flag and its failure counts for rigor", { skip: gitSkip }, () => {
   // A clean plan review already moves implement to its minTier of 2.
-  const { project, e } = firstImplement({ rigor: "lean", review: { findings: "0 critical, 0 warnings" } });
+  const { project, e } = firstImplement({
+    rigor: "lean", review: { findings: "0 critical, 0 warnings" }, policy: ENABLE_FIRST_ATTEMPT_DROP,
+  });
   assert.equal(e.tier, 2, e.tierWhy);
   assert.match(e.tierWhy, /-1 first attempt not applied \(clamp or floor\)/);
   assert.equal(Object.hasOwn(e, "cheap"), false);
@@ -170,7 +176,7 @@ test("5.1 the effort floor holds for a tdd step at thorough: no cheap flag", { s
     { name: "Parser", files: ["`src/parser.mjs`"], auto: [row, `${row} again`] },
     { name: "Printer", files: ["`src/printer.mjs`"], auto: [row, `${row} twice`] },
   ]);
-  const { e } = firstImplement({ rigor: "thorough", plan });
+  const { e } = firstImplement({ rigor: "thorough", plan, policy: ENABLE_FIRST_ATTEMPT_DROP });
   assert.equal(e.template, "implement-tdd");
   assert.equal(e.tier, 3, e.tierWhy);
   assert.match(e.tierWhy, /-1 first attempt not applied \(clamp or floor\)/);
@@ -178,7 +184,14 @@ test("5.1 the effort floor holds for a tdd step at thorough: no cheap flag", { s
   assert.equal(Object.hasOwn(e, "cheap"), false);
 });
 
-test("5.1 drop 0 turns it off", { skip: gitSkip }, () => {
+test("5.1 the shipped policy gives an isolated run's first implement attempt its base tier", { skip: gitSkip }, () => {
+  const { e } = firstImplement();
+  assert.equal(e.tier, 3, e.tierWhy);
+  assert.doesNotMatch(e.tierWhy, /first attempt/);
+  assert.equal(Object.hasOwn(e, "cheap"), false);
+});
+
+test("5.1 explicit drop 0 turns it off", { skip: gitSkip }, () => {
   const { e } = firstImplement({ policy: { escalation: { firstAttempt: { drop: 0 } } } });
   assert.equal(e.tier, 3, e.tierWhy);
   assert.doesNotMatch(e.tierWhy, /first attempt/);
@@ -213,7 +226,7 @@ function put(wt, file, text) {
 }
 
 // Score with a low execution sum, plan naming the cold g1.js, a plan review with one warning: the first implement.
-function scoredImplement(policy = {}, scores = {}) {
+function scoredImplement(policy, scores = {}) {
   const wt = scoredWorktree(policy);
   const step = (result = { status: "done", note: "ok" }) => {
     writeResult(wt, result);
@@ -245,7 +258,7 @@ test("5.1 the score down shift does not stack on the first-attempt drop", { skip
   assert.equal(control.scoreShift?.shift, -1, control.tierWhy);
 
   // The drop takes the place of the down shift: tier 2, not 1.
-  const e = scoredImplement();
+  const e = scoredImplement(ENABLE_FIRST_ATTEMPT_DROP);
   assert.equal(e.tier, 2, e.tierWhy);
   assert.equal(e.cheap, true);
   assert.equal(e.scoreShift, undefined);
@@ -256,7 +269,7 @@ test("5.1 the score down shift does not stack on the first-attempt drop", { skip
 test("5.1 an up shift that cancels the drop sets no cheap flag and names the score shift", { skip: gitSkip }, () => {
   // Execution sum 7: the up shift (+1) and the drop (-1) cancel, so the attempt runs on the base tier and is no cheap
   // attempt: its failure counts for rigor and the step budget like any other.
-  const e = scoredImplement({}, { discovery: 3, volume: 3, verification: 1 });
+  const e = scoredImplement(ENABLE_FIRST_ATTEMPT_DROP, { discovery: 3, volume: 3, verification: 1 });
   assert.equal(e.tier, 3, e.tierWhy);
   assert.equal(e.scoreShift?.shift, 1, e.tierWhy);
   assert.equal(Object.hasOwn(e, "cheap"), false, e.tierWhy);
