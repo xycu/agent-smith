@@ -22,6 +22,8 @@
 
 Until 5 pairs exist, `drop: 1` contradicts the rule at ADR-010 line 171. The plan either sets the drop to `0` while the measurement runs, or amends ADR-010 to say that the rule applies once the measurement window closes, with a date. The owner picks one when the plan is reviewed.
 
+**Owner decision (2026-11-23):** ship `drop: 0` now, while the measurement runs. ADR-010 keeps its decision rule unamended, and `1` returns only if the pairs prove the saving.
+
 ## Schedule
 
 Wave 5, after `claude-token-figures-default` (Wave 4). A measurement is live work with paid runs; a passing fixture does not replace it.

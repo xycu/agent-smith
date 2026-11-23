@@ -1,0 +1,14 @@
+skills/10x-pipeline/test/skill-loop.test.mjs — 10x and openspec: Claude Write preflight gates startup and owns its scratch cleanup; every numbered result goes through the result-write gate before next
+Scope: skill text contracts. These assertions do not invoke Claude Desktop Write or verify session behavior.
+✔ 10x: Claude Write preflight gates startup and owns its scratch cleanup (1.724458ms)
+✔ 10x: every numbered result goes through the result-write gate before next (0.740584ms)
+✔ openspec: Claude Write preflight gates startup and owns its scratch cleanup (0.096917ms)
+✔ openspec: every numbered result goes through the result-write gate before next (0.176792ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 4
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 89.764166

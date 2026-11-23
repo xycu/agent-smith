@@ -16,7 +16,7 @@ A Claude Code plugin that runs 10xDevs and OpenSpec workflows end to end through
 - 🎚️ **Rigor that fits.** `lean`, `standard` or `thorough`, rising with risk: more research, scoring and checks where they pay off.
 - 🔍 **Proof for manual checks.** Evidence saved for every Manual row it proves (10xDevs).
 - 📊 **A report to share.** Model, tokens and result per step, posted to your PR with `--pr-comment`.
-- 📉 **Measure your savings.** `compare` puts a routed run next to a single-model baseline.
+- 📉 **Compare token usage.** Use `compare` to measure a routed run against a baseline. The first-attempt discount defaults to `0` while its experiment is pending. [First-attempt experiment](docs/ADR/ADR-010-run-worktree-step-commits-and-rollback.md#ab-result)
 - ⏯️ **Resume anytime.** Run the same command again and it picks up where it stopped.
 - 🔧 **Yours to tune.** Dependency-free Node.js router, every threshold in one policy file.
 
@@ -49,6 +49,8 @@ Use the existing compatibility package for a Claude-plugin archive import into O
 The shipped Claude policy and Codex preset provide the two default ladders automatically. A single-provider project ladder tunes that provider alone. In a mixed override, each rung tunes its declared provider at its original position. The other provider keeps its shipped rung there. The router validates the effective bounds for each routed role. [Custom ladders and split assignments](docs/REFERENCE.md#codex-and-provider-dispatch)
 
 Both hosts need Node.js 24+ and Git. Each executing provider needs authenticated access, project trust and discovery of the routed toolkit skill from the run worktree. OpenAI uses the Codex CLI 0.169.0 contract and existing configuration, optionally an existing `codex.profile`. Native Claude uses Agent on Claude Code. On Codex, Claude uses a guarded POSIX Claude Code print session that verifies capabilities before task handoff. This path records elapsed time with unavailable token coverage. Fresh authenticated execution for all six host/mode combinations on each chain remains a Manual check. [Execution, permission limits and recovery](docs/REFERENCE.md#codex-and-provider-dispatch)
+
+Codex token accounting accepts strict CLI releases 0.169.0 or later. Verified totals still require valid records and reconciliation across the complete step tree. [Accounting evidence and qualification](docs/REFERENCE.md#observed-token-accounting)
 
 ## 🏁 Quick start
 
