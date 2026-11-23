@@ -1,11 +1,12 @@
-skills/10x-pipeline/test/result-persist.test.mjs — a router error after the result is read keeps the result in run.jsonl, and the next call routes on
-Scope: local router result intake and persistence in a disposable non-isolated fixture.
-✔ a router error after the result is read keeps the result in run.jsonl, and the next call routes on (494.054792ms)
-ℹ tests 1
+skills/10x-pipeline/test/result-persist.test.mjs — a router error after the result is read keeps the result in run.jsonl, and the next call routes on; the same in an isolated run with a failed advisory score entry
+Scope: local router result intake and persistence in disposable fixtures. These tests do not invoke the Claude Desktop result writer.
+✔ a router error after the result is read keeps the result in run.jsonl, and the next call routes on (355.192167ms)
+✔ the same in an isolated run with a failed advisory score entry (1006.01025ms)
+ℹ tests 2
 ℹ suites 0
-ℹ pass 1
+ℹ pass 2
 ℹ fail 0
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 682.74325
+ℹ duration_ms 1482.479584
