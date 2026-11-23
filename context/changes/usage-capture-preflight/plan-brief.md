@@ -18,7 +18,7 @@ An ordinary Claude session shows one actionable usage warning at startup. A comp
 
 | Decision | Choice | Why |
 | --- | --- | --- |
-| Warning policy | One advisory per eligible init, including resumes | Usage is opt-in. Operators can launch with capture for later work without losing progress. |
+| Warning policy | One advisory per eligible init, including resumes | Usage is opt-in. Operators can start a fresh launcher session and resume the same Claude-hosted run with its saved host and mode. |
 | Native Claude evidence | Validate the private launcher binding and both source files | The launcher creates the files before step one. The collector still verifies each invocation. |
 | Codex evidence | Check the installed CLI version, then verify rollout records after execution | The fresh thread and its rollout path are identified after launch. |
 | Claude on Codex | Explain duration-only headless coverage | The headless runner has no verified token total. |
@@ -27,11 +27,11 @@ An ordinary Claude session shows one actionable usage warning at startup. A comp
 
 ## Scope
 
-Startup guidance covers both chains, their assigned transports and neutral replay. Report changes cover terminal output and the comment that carries it. The issue's optional strict flag and any new capture transport are outside this change.
+Startup guidance covers the distinct assigned transports in both chains. On neutral replay it checks the saved provider for that dispatch. Report changes cover terminal output and the comment that carries it. The issue's optional strict flag and any new capture transport are outside this change.
 
 ## Architecture / Approach
 
-The router evaluates the current selection after init guards and sends one bounded advisory to stderr. The shared report renderer reads normalized usage evidence and renders the corresponding reason above the step table. Existing PR scripts reuse that output. The same ledger and capture files work across upgrades and rollback.
+The router evaluates the current selection after init guards and sends one bounded advisory to stderr. The shared report renderer uses normalized, settled evidence and places the corresponding reason immediately after the title so it survives the comment cap. Existing PR scripts reuse that output. The same ledger and capture files work across upgrades and rollback.
 
 ## Phases at a Glance
 
@@ -53,7 +53,7 @@ The router evaluates the current selection after init guards and sends one bound
 ## Success Criteria (Summary)
 
 - Automated checks run locally for both chains, include safe and missing capture fixtures and use a fake Codex CLI for the version probe.
-- Shared reports explain missing figures and update when late verified evidence arrives. A local fake GitHub client receives the same explanation in the comment payload.
+- Shared reports explain missing figures and update when late verified evidence arrives. A local fake GitHub client receives the same explanation from the generated report in the comment payload.
 - Manual acceptance observes ordinary and launcher startup on a supported Claude host and confirms the report explanation in an authorized published PR comment.
 
 ## References
