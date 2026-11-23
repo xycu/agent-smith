@@ -191,7 +191,7 @@ No data migration. Skills are installed text, so final acceptance must load the 
 
 #### Automated
 
-- [ ] 1.1 The completed Wave 7 rewrite is integrated on this run branch, and `evidence/command-contracts.md` records its commit, the current invocation inventory and all affected test locations without changing `WAVES.md` or archives.
+- [x] 1.1 The completed Wave 7 rewrite is integrated on this run branch, and `evidence/command-contracts.md` records its commit, the current invocation inventory and all affected test locations without changing `WAVES.md` or archives. — f81bdb5
 
 #### Manual
 

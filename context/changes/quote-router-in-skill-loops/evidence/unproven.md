@@ -2,7 +2,7 @@
 
 Recorded 2026-11-15 at HEAD 4c54a4a29cd1c18f95be4b1db17470924f4503b9.
 
-- Row 1.1 awaits the completed Wave 7 rewrite on main and integration on this run branch. Current refs and provisional inventory appear in command-contracts.md.
+- Row 1.1 is done (2026-11-23): merge commit f81bdb5 integrates the Wave 7 rewrite from main, and command-contracts.md holds the refreshed inventory.
 - Row 1.2 lacks fresh installed-plugin evidence for /agent-smith:10x-pipeline. Archived skill-dir-variable evidence still leaves row 3.5 unproved.
 - Row 1.3 lacks fresh installed-plugin evidence for /agent-smith:openspec-pipeline. Archived skill-dir-variable evidence still leaves row 3.6 unproved.
 - Neither prerequisite has a transcript in this active change identifying installed revision, Claude version, expanded cache path, slash command and successful router initialization with action run and a step.
