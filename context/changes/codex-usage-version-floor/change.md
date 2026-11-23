@@ -1,7 +1,7 @@
 ---
 change_id: codex-usage-version-floor
 title: Accept Codex releases at or above the reviewed usage floor
-status: implemented
+status: impl_reviewed
 created: 2026-11-23
 updated: 2026-11-23
 archived_at: null
