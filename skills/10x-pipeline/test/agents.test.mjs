@@ -371,7 +371,7 @@ test("2.6 SKILL.md dispatches with the router's agent when present, else general
   const fallbackAt = line.indexOf("else `general-purpose`");
   assert.ok(agentAt >= 0 && fallbackAt > agentAt, line);
   const dispatch = loop.split("\n  2. ")[1].split("\n  3. ")[0];
-  assert.match(dispatch, /do not call it again with another type/);
+  assert.match(dispatch, /Never retry with another agent type/);
   assert.ok(line.includes('description: "agent-smith <change-id> step <n> <step>"'));
   assert.match(line, /`model: <model>`, `effort: <effort>`/);
   assert.ok(line.includes("`prompt` set to the router's `prompt`, copied verbatim"));

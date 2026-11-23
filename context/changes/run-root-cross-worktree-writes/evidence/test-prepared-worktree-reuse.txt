@@ -1,0 +1,12 @@
+skills/10x-pipeline/test/prepare-run.test.mjs — 10x and openspec: six cases, precedence and immutable resumes
+Scope: local prepare-run reuse in disposable Git projects. Both chain tests assert that reuse returns the original run root and preserves its change file.
+✔ 10x: six cases, precedence and immutable resumes (3361.631875ms)
+✔ openspec: six cases, precedence and immutable resumes (3685.054375ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7209.923916
