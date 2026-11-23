@@ -121,8 +121,8 @@ The pipeline skills own the transient probe and the router continues to own the 
 
 #### Automated
 
-- [x] 1.1 Both skill contracts pass the startup and result-write ordering checks in `node --test skills/10x-pipeline/test/skill-loop.test.mjs`, and a local deliberate removal of the gate fails the new contract assertion.
-- [x] 1.2 Existing setup, reuse and result-intake contracts pass `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/result-persist.test.mjs`.
+- [x] 1.1 Both skill contracts pass the startup and result-write ordering checks in `node --test skills/10x-pipeline/test/skill-loop.test.mjs`, and a local deliberate removal of the gate fails the new contract assertion. — f7ee2dbd
+- [x] 1.2 Existing setup, reuse and result-intake contracts pass `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/result-persist.test.mjs`. — f7ee2dbd
 
 #### Manual
 

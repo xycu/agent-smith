@@ -1,7 +1,7 @@
 ---
 change_id: run-root-cross-worktree-writes
 title: Stop a write hook from silently blocking step 1 in the run root
-status: implementing
+status: implemented
 created: 2026-11-21
 updated: 2026-11-23
 archived_at: null
