@@ -11,6 +11,7 @@ A test turns an opt-in policy block on with `policy: { ... }` in `makeProject`; 
 | `change-id.test.mjs` | Both-chain init boundaries, pre-read refusal, PR-pattern parity and legacy longer-id command compatibility |
 | `route.test.mjs` | `init`, `next`, `status` and the main routing paths |
 | `init-permissions.test.mjs` | Codex configuration diagnostics and Claude worktree Git advice on init, provider and resume scoping, and stderr/stdout separation |
+| `init-usage.test.mjs` | Both-chain usage capture advisories, private launcher source probes, bounded model-free Codex version checks, split and legacy provider selection, and neutral replay scoping |
 | `churn.test.mjs` | `risk` command: churn hot paths, plan hits and diff hits |
 | `archive.test.mjs` | archive adapter, `verify-archive`, the `--archive` run |
 | `step-safety.test.mjs` | shared Git/deletion/publication safety in all step tails, planning variants, overrides, file handoff, isolated runs and both archive paths |

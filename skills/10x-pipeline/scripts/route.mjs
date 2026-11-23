@@ -42,6 +42,7 @@ import {
   archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
 import { initPermissionWarnings } from "./init-permissions.mjs";
+import { initUsageWarning } from "./init-usage.mjs";
 
 // Only the call that made a rollback can undo it on halt. Recovery in a new process restores timestamps only.
 let undoOnError = null;
@@ -1010,7 +1011,7 @@ function resolveChain(cmd, id, flags) {
 // The flags init reads; any other flag halts it.
 const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "provider-mode", "pr-comment"];
 
-function main() {
+async function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
     halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--host claude|codex] [--provider-mode claude|codex|split] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
@@ -1130,6 +1131,7 @@ function main() {
     const fresh = executed(log).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
     initPermissionWarnings(policy, selection, neutralReplay);
+    await initUsageWarning(policy, selection, neutralReplay);
     cleanupStateTemps(p.dir);
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.
@@ -1187,7 +1189,7 @@ function main() {
 }
 
 try {
-  main();
+  await main();
 } catch (e) {
   // Never a stack trace: a bad policy or a bad file ends the run with JSON.
   let reason = `Router error: ${e instanceof Error ? e.message : String(e)}`;

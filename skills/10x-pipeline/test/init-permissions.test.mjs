@@ -2,6 +2,8 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { CAPTURE_ENV } from "../scripts/claude-capture-data.mjs";
+import { CODEX_USAGE_FLOOR } from "../scripts/codex-usage.mjs";
 import {
   cleanupAll, makeProject, git, gitEnv, gitAvailable, run, writeMetaFile, writeOverride, writeResult, seedRun, entry,
 } from "./helpers.mjs";
@@ -13,6 +15,7 @@ const MISSING_TABLE = 'Error: default_permissions requires a `[permissions]` tab
 const undefinedProfile = name => `Error: default_permissions refers to undefined profile \`${name}\``;
 const CLAUDE_WARNING = /Warning: .*Claude sandbox write.list/;
 const CODEX_WARNING = /Warning: Codex could not resolve its default_permissions profile/;
+const permissionStderr = stderr => stderr.replace(/^Warning: Usage capture preflight\.[^\n]*\n/gm, "");
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -33,6 +36,7 @@ function assertRun(result) {
 function codex(project) {
   const home = path.join(project.base, "codex-home");
   const log = path.join(home, "calls.jsonl");
+  const versionLog = path.join(home, "version-calls.jsonl");
   const mode = write(path.join(home, "mode.json"), "{}");
   const executable = write(path.join(project.base, "init-bin", "codex"), `#!${process.execPath}
 const fs = require("node:fs");
@@ -41,31 +45,39 @@ const home = process.env.CODEX_HOME;
 const args = process.argv.slice(2);
 const config = JSON.parse(fs.readFileSync(path.join(home, "mode.json"), "utf8"));
 const scrubbed = !Object.keys(process.env).some(name => /^(GH|GITHUB)_([A-Z0-9]+_)*TOKEN$/i.test(name));
-fs.appendFileSync(path.join(home, "calls.jsonl"), JSON.stringify({
+const version = args[0] === "--version";
+fs.appendFileSync(path.join(home, version ? "version-calls.jsonl" : "calls.jsonl"), JSON.stringify({
   args, cwd: process.cwd(), scrubbed, keep: process.env.CODEX_TEST_KEEP,
 }) + "\\n");
-const message = args.includes("permissions={}") ? config.retry : config.message;
-if (config.timeout) {
-  if (message) process.stderr.write(message + "\\n");
-  setInterval(() => {}, 1000);
+if (version) {
+  console.log("codex-cli ${CODEX_USAGE_FLOOR}");
 } else {
-  if (message) process.stderr.write(message + "\\n");
-  process.exitCode = config.status ?? (message ? 1 : 0);
+  const message = args.includes("permissions={}") ? config.retry : config.message;
+  if (config.timeout) {
+    if (message) process.stderr.write(message + "\\n");
+    setInterval(() => {}, 1000);
+  } else {
+    if (message) process.stderr.write(message + "\\n");
+    process.exitCode = config.status ?? (message ? 1 : 0);
+  }
 }
 `);
   fs.chmodSync(executable, 0o755);
+  const calls = file => fs.existsSync(file) ? fs.readFileSync(file, "utf8").trim().split("\n").map(JSON.parse) : [];
   return {
     env: {
       ...gitEnv(project),
       PATH: path.dirname(executable) + path.delimiter + process.env.PATH,
       CODEX_HOME: home,
       CLAUDE_CONFIG_DIR: path.join(project.base, "claude-user"),
+      [CAPTURE_ENV]: "",
       GH_TOKEN: "fixture-token",
       GITHUB_ENTERPRISE_TOKEN: "fixture-token",
       CODEX_TEST_KEEP: "retained",
     },
     setMode(value) { fs.writeFileSync(mode, JSON.stringify(value)); },
-    calls() { return fs.existsSync(log) ? fs.readFileSync(log, "utf8").trim().split("\n").map(JSON.parse) : []; },
+    calls() { return calls(log); },
+    versionCalls() { return calls(versionLog); },
   };
 }
 
@@ -109,6 +121,9 @@ test("passes the selected Codex overlay and scrubbed environment to a model-free
     cwd: project.root,
     scrubbed: true,
     keep: "retained",
+  }]);
+  assert.deepEqual(fixture.versionCalls(), [{
+    args: ["--version"], cwd: project.root, scrubbed: true, keep: "retained",
   }]);
   assert.deepEqual(fs.readFileSync(config), before);
 });
@@ -156,7 +171,7 @@ test("fails advisory profile detection conservatively on unrelated, oversized an
   const project = makeProject();
   const missing = launch(project, { ...gitEnv(project), PATH: path.join(project.base, "missing") }, ["--host", "codex"]);
   assertRun(missing);
-  assert.equal(missing.stderr, "");
+  assert.equal(permissionStderr(missing.stderr), "");
 });
 
 test("substitutes unsafe text in a recognized profile diagnostic", () => {
@@ -199,7 +214,7 @@ test("split init on both chains warns about the real shared Git directory withou
     writeResult(worktree, { status: "orchestrator-error", note: "no child started" });
     const repaired = launch(worktree, fixture.env);
     assert.deepEqual(assertRun(repaired), { ...action, neutralRetry: { count: 1, cap: 2 } });
-    assert.equal(repaired.stderr, "");
+    assert.equal(permissionStderr(repaired.stderr), "");
     assert.equal(fixture.calls().length, 2);
     assert.deepEqual(fs.readFileSync(codexConfig), contentsBefore[0]);
     assert.equal(git(main, ["show-ref"]), refsBefore);
@@ -236,7 +251,7 @@ test("checks Claude's explicit user, project and local write entries with each s
     fixture.setMode({ message: undefinedProfile("must-not-probe") });
     const result = launch(worktree, fixture.env);
     assert.equal(assertRun(result).provider, "claude");
-    assert.equal(result.stderr, "", `${scope}: ${before}`);
+    assert.equal(permissionStderr(result.stderr), "", `${scope}: ${before}`);
     assert.deepEqual(fixture.calls(), []);
     assert.deepEqual(fs.readFileSync(file), before);
   }
@@ -261,7 +276,7 @@ test("Claude reports a clear missing entry only for resolved and uncovered lists
     }
     const mainResult = launch(main, fixture.env);
     assertRun(mainResult);
-    assert.equal(mainResult.stderr, "");
+    assert.equal(permissionStderr(mainResult.stderr), "");
   }
 });
 
@@ -274,6 +289,7 @@ test("invalid init never probes and a Codex-only run omits the Claude advisory",
   assert.equal(JSON.parse(invalid.stdout).action, "halt");
   assert.equal(invalid.stderr, "");
   assert.deepEqual(fixture.calls(), []);
+  assert.deepEqual(fixture.versionCalls(), []);
   assert.equal(fs.existsSync(worktree.agentDir), false);
 
   const valid = launch(worktree, fixture.env, ["--host", "codex"]);

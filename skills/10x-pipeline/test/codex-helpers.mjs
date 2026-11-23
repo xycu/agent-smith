@@ -42,6 +42,11 @@ const fixture = process.env.CODEX_FIXTURE;
 const seenEnv = Object.fromEntries(Object.entries(process.env).filter(([name]) => /TOKEN/i.test(name) || name === "CODEX_TEST_KEEP")
   .map(([name, value]) => [name, name === "CODEX_TEST_KEEP" ? value : "set"]));
 const mode = JSON.parse(fs.readFileSync(path.join(fixture, "mode.json"), "utf8"));
+// Init's usage preflight reads the version only; answer it model-free, like the sandbox no-op above.
+if (args.length === 1 && args[0] === "--version") {
+  process.stdout.write("codex-cli " + (mode.hostVersion ?? "0.169.0") + "\\n");
+  return;
+}
 const rootId = mode.threadId ?? "root-fixture";
 const rootTurnId = mode.rootTurnId ?? "turn-" + rootId;
 const archivedIds = new Set(Object.values(mode.pages?.true ?? {}).flatMap(page => (page.data ?? []).map(item => item.id)));

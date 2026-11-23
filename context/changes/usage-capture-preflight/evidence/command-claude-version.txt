@@ -1,0 +1,4 @@
+$ claude --version
+2.1.323 (Claude Code)
+$ node skills/10x-pipeline/scripts/claude-capture.mjs --versions
+2.1.311 or later

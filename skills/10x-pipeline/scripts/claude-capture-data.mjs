@@ -38,10 +38,13 @@ export const validProcess = (value) => object(value) && integer(value.pid) && va
   && Number.isFinite(Date.parse(value.createdAt));
 export const endpointPattern = /^http:\/\/127\.0\.0\.1:[1-9]\d{0,4}\/[a-f0-9]{48}\/v1\/logs$/;
 
+const privateOwner = stat => (stat.mode & 0o077) === 0 && stat.uid === process.getuid();
+const singleFile = stat => stat.isFile() && stat.nlink === 1;
+const sameInode = (left, right) => left.dev === right.dev && left.ino === right.ino;
+
 function privateStat(file, isDirectory) {
   const stat = fs.lstatSync(file);
-  if ((isDirectory ? !stat.isDirectory() : !stat.isFile() || stat.nlink !== 1)
-      || (stat.mode & 0o077) !== 0 || stat.uid !== process.getuid()
+  if ((isDirectory ? !stat.isDirectory() : !singleFile(stat)) || !privateOwner(stat)
       || fs.realpathSync(file) !== file) fail("unsafe-path");
   return stat;
 }
@@ -78,6 +81,36 @@ export function captureStat(root, kind) {
   const stat = privateStat(captureFile(root, kind), false);
   if (stat.size > CAPTURE_LIMITS[kind + "Bytes"]) fail("resource-limit");
   return stat;
+}
+
+function probeCaptureFile(root, kind) {
+  const before = captureStat(root, kind);
+  const fd = fs.openSync(captureFile(root, kind), fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  try {
+    const opened = fs.fstatSync(fd);
+    const current = captureStat(root, kind);
+    // Live capture can append between these checks. Identity and the limit matter, exact sizes do not.
+    if (!singleFile(opened) || !privateOwner(opened) || !sameInode(before, opened) || !sameInode(opened, current)) {
+      fail("unsafe-path");
+    }
+    if (opened.size > CAPTURE_LIMITS[kind + "Bytes"]) fail("resource-limit");
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+export function claudeCaptureReadiness(env = process.env) {
+  const root = env[CAPTURE_ENV];
+  if (!root || env.AGENT_SMITH_CLAUDE_SESSION) return "disabled";
+  try {
+    const binding = readCaptureBinding(root);
+    probeCaptureFile(root, "native");
+    probeCaptureFile(root, "telemetry");
+    assertCaptureAvailable(root, binding);
+    return "ready";
+  } catch {
+    return "unusable";
+  }
 }
 
 export function markCaptureFailure(root) {

@@ -6,8 +6,9 @@ import { isDeepStrictEqual } from "node:util";
 import { cleanInvocation, normalizeAccounting, unavailableEvidence, readBoundedLines, USAGE_LIMITS } from "./usage.mjs";
 
 const CODEX_USAGE_MIN_VERSION = [0, 169, 0];
+export const CODEX_USAGE_FLOOR = CODEX_USAGE_MIN_VERSION.join(".");
 
-function codexUsageSupported(version) {
+export function codexUsageSupported(version) {
   if (typeof version !== "string" || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(version)) return false;
   const components = version.split(".").map(Number);
   for (const [index, floor] of CODEX_USAGE_MIN_VERSION.entries()) {

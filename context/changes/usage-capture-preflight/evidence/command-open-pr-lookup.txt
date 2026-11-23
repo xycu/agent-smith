@@ -1,0 +1,3 @@
+GET https://api.github.com/repos/xycu/agent-smith/pulls?state=open&head=xycu%3Aagent-smith%2Fusage-capture-preflight
+Open pull requests for the exact run branch: none
+No terminal report for this change.

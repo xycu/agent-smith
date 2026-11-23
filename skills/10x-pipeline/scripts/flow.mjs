@@ -106,10 +106,38 @@ function costLine(cost, verified) {
   return `Cost (estimate): $${cost.usd.toFixed(2)} at a blended rate (USD per million tokens, no input/output split) · priced ${cost.priced} of ${cost.withFigures} steps with a token figure${missing}${scope}`;
 }
 
+const USAGE_SOURCE_NAMES = { "claude-native": "Claude", "codex-rollout": "Codex", unknown: "Host" };
+
+// Use normalized evidence and fixed labels so this line stays short even on mixed runs.
+function usageLimitations(log, host) {
+  const counts = new Map();
+  for (const entry of log) {
+    const evidence = entry.usageEvidence;
+    if (!isObject(entry.result) || evidence?.status !== "unavailable" || entry.usage?.totalTokens !== undefined) continue;
+    const { reason, source } = evidence;
+    const nativeClaude = source === "claude-native" && providerOf(entry) === "claude";
+    let label;
+    if (reason === "capture-disabled" && nativeClaude && host === "claude") {
+      label = "Native Claude token capture was off";
+    } else if (reason === "incomplete-capture" && nativeClaude && host === "codex" && entry.usage?.durationMs !== undefined) {
+      label = "Headless Claude on Codex recorded duration only";
+    } else if (reason === "missing-source") {
+      label = `${USAGE_SOURCE_NAMES[source]} usage source unavailable`;
+    } else if (reason === "unsupported-host") {
+      label = `${USAGE_SOURCE_NAMES[source]} version unqualified for token accounting`;
+    }
+    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  if (!counts.size) return null;
+  const clauses = [...counts].map(([label, count]) => `${label} (${count} ${count === 1 ? "step" : "steps"})`);
+  return `Token capture limitations: ${clauses.join(" · ")}`;
+}
+
 function buildReport(id, meta, fullLog) {
   const oneLine = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
   const log = executed(fullLog).map((entry) => ({ ...entry, ...accountingFor(entry) }));
   const coverage = usageCoverage(log);
+  const limitations = usageLimitations(log, hostOf(meta));
   const skips = fullLog.filter((e) => e.skipped);
   const o = meta.outcome;
   const outcome = o ? `${o.action}${o.reason ? ` - ${oneLine(o.reason)}` : ""}` : "not ended";
@@ -135,6 +163,7 @@ function buildReport(id, meta, fullLog) {
   return [
     `# Run report: ${id}`,
     "",
+    ...(limitations ? [limitations, ""] : []),
     `Goal: ${oneLine(meta.goal) || "-"}`,
     ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
     `Provider mode: ${meta.providerMode ?? "legacy (ladder-driven)"}`,
