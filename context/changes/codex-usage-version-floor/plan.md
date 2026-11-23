@@ -93,6 +93,6 @@ The collector reads native metadata and rollout records and returns the existing
 
 #### Automated
 
-- [ ] 1.1 Verify all three version checks and the failure reasons with `node --test skills/10x-pipeline/test/codex-usage.test.mjs`.
-- [ ] 1.2 Verify both chains still settle on an unsupported host with `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs`.
-- [ ] 1.3 Confirm all three documentation entries describe the accounting floor with `rg -n '0\.169\.0 or later' README.md docs/REFERENCE.md skills/10x-pipeline/test/README.md` (one accounting match per file).
+- [x] 1.1 Verify all three version checks and the failure reasons with `node --test skills/10x-pipeline/test/codex-usage.test.mjs`.
+- [x] 1.2 Verify both chains still settle on an unsupported host with `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs`.
+- [x] 1.3 Confirm all three documentation entries describe the accounting floor with `rg -n '0\.169\.0 or later' README.md docs/REFERENCE.md skills/10x-pipeline/test/README.md` (one accounting match per file).

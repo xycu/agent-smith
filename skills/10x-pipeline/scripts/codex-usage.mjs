@@ -1,11 +1,21 @@
-// Pinned observed-usage adapter, not billing reconciliation. It never resumes a thread or writes run state.
+// Observed-usage adapter. It never resumes a thread or writes run state.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { cleanInvocation, normalizeAccounting, unavailableEvidence, readBoundedLines, USAGE_LIMITS } from "./usage.mjs";
 
-export const CODEX_USAGE_VERSION = "0.169.0";
+const CODEX_USAGE_MIN_VERSION = [0, 169, 0];
+
+function codexUsageSupported(version) {
+  if (typeof version !== "string" || !/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.test(version)) return false;
+  const components = version.split(".").map(Number);
+  for (const [index, floor] of CODEX_USAGE_MIN_VERSION.entries()) {
+    if (components[index] !== floor) return components[index] > floor;
+  }
+  return true;
+}
+
 // Invocation-wide limits, including ignored transcript records; exhaustion never yields a partial total.
 export const CODEX_USAGE_LIMITS = { recordBytes: 1024 * 1024, bytes: 32 * 1024 * 1024,
   sessions: USAGE_LIMITS.sessions, requests: USAGE_LIMITS.requests, readMs: USAGE_LIMITS.readMs };
@@ -64,7 +74,7 @@ export function collectCodexUsage({ rootThreadId, threads, delegated = false, ex
     if (metadataReason) fail(metadataReason);
     if (!Array.isArray(threads) || !threads.length) fail("missing-identity");
     if (threads.length > CODEX_USAGE_LIMITS.sessions) fail("resource-limit");
-    if (hostVersion !== CODEX_USAGE_VERSION) fail("unsupported-host");
+    if (!codexUsageSupported(hostVersion)) fail("unsupported-host");
     const ids = new Set(threads.map(item => item.id));
     if (ids.size !== threads.length || !ids.has(rootThreadId)) fail("missing-identity");
     if (delegated && threads.length === 1) fail("incomplete-capture");
@@ -73,7 +83,7 @@ export function collectCodexUsage({ rootThreadId, threads, delegated = false, ex
       const meta = item.metadata;
       if (!identifier(item.id) || !object(meta) || meta.id !== item.id || meta.sessionId !== item.id
           || !identifier(item.turn?.id) || item.turn.rootTurnId !== invocation.rootTurnId) fail("missing-identity");
-      if (meta.cliVersion !== CODEX_USAGE_VERSION) fail("unsupported-host");
+      if (!codexUsageSupported(meta.cliVersion)) fail("unsupported-host");
       if (meta.forkedFromId != null && (item.id === rootThreadId || meta.forkedFromId !== meta.parentThreadId)) fail("ambiguous-history");
       const seen = new Set([item.id]);
       let current = item;
@@ -115,7 +125,7 @@ export function collectCodexUsage({ rootThreadId, threads, delegated = false, ex
         if (!header && record.type !== "session_meta") fail("unsupported-schema");
         if (!header) {
           if (p.id !== item.id || p.session_id !== rootThreadId) fail("missing-identity");
-          if (p.cli_version !== CODEX_USAGE_VERSION) fail("unsupported-host");
+          if (!codexUsageSupported(p.cli_version)) fail("unsupported-host");
           if ((p.parent_thread_id ?? null) !== (item.metadata.parentThreadId ?? null)
               || (p.forked_from_id ?? null) !== (item.metadata.forkedFromId ?? null)) fail("missing-identity");
           if (p.history_base != null || !["legacy", "paginated"].includes(p.history_mode)) fail("ambiguous-history");
