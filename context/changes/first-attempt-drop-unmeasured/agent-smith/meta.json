@@ -50,5 +50,19 @@
   "rigor": {
     "level": "standard",
     "by": "failed steps 1"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "2.1 Qualify the exact live host and provider mode with verified step-tree figures",
+      "2.2 Record the five eligible A/B pairs and A/A control in ADR-010, or document exclusions and an exhausted or stopped measurement",
+      "2.3 Apply the ADR-010 decision rule, reconcile policy and docs, and record passing local closeout tests"
+    ],
+    "manualNotProved": [
+      "2.1 Qualify the exact live host and provider mode with verified step-tree figures — not proved: Current run status shows zero verified figures. The prior Claude launcher run does not qualify the exact experiment revision, launch path and provider mode.",
+      "2.2 Record the five eligible A/B pairs and A/A control in ADR-010, or document exclusions and an exhausted or stopped measurement — not proved: ADR-010 still marks measurement pending. It records neither the required A/B pairs and A/A control nor exclusions through an exhausted or stopped measurement.",
+      "2.3 Apply the ADR-010 decision rule, reconcile policy and docs, and record passing local closeout tests — not proved: Policy and docs agree on interim drop 0. ADR-010 has no final experiment decision, so post-decision closeout tests cannot establish this row."
+    ]
   }
 }
