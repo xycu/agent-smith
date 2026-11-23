@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.16.1](https://github.com/xycu/agent-smith/compare/v1.16.0...v1.16.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **claude-capture-async-agent-launch:** Settle asynchronously launched Agent runs in Claude capture ([#274](https://github.com/xycu/agent-smith/issues/274)) ([3d8e0ce](https://github.com/xycu/agent-smith/commit/3d8e0ceeb39089e078080e0e9002707e637033d8))
+* **claude-capture-version-floor:** Accept Claude Code releases at or above the reviewed floor ([#272](https://github.com/xycu/agent-smith/issues/272)) ([fdf6a7e](https://github.com/xycu/agent-smith/commit/fdf6a7e406368e177d60bd1141751859004111da))
+
 ## [1.16.0](https://github.com/xycu/agent-smith/compare/v1.15.4...v1.16.0) (2026-11-22)
 
 
