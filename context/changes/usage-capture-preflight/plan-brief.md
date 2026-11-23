@@ -53,6 +53,7 @@ The router evaluates the current selection after init guards and sends one bound
 ## Success Criteria (Summary)
 
 - Automated checks run locally for both chains, include safe and missing capture fixtures and use a fake Codex CLI for the version probe.
+- Phase 1 also checks the two review regressions. Native Claude init must dispatch with a warning and a null hook hash if the optional capture module cannot load. A launcher failure reported while init probes telemetry must produce a warning even when both source files are readable. [Implementation review](reviews/impl-review.md)
 - Shared reports explain missing figures and update when late verified evidence arrives. A local fake GitHub client receives the same explanation from the generated report in the comment payload.
 - Manual acceptance observes ordinary and launcher startup on a supported Claude host and confirms the report explanation in an authorized published PR comment.
 

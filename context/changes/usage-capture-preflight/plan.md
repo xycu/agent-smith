@@ -37,6 +37,7 @@ Add a shared init advisory alongside the existing permission advisory. For ordin
 - Apply the warning to startup for the effective selection, on fresh init and resume. Recheck current capture state on each invocation. This follows permissions preflight and accounts for users relaunching Claude with capture after an earlier warning. Explicit Claude source descriptors remain supported at collection time. The startup diagnostic describes the default session only. [Permission advisory](../../../skills/10x-pipeline/scripts/init-permissions.mjs#L143) · [Explicit sources](../../../docs/REFERENCE.md#observed-token-accounting)
 - Treat Codex CLI version as a prerequisite. A known mismatch means unsupported capture. A missing, failed, timed-out or unrecognized version probe means readiness could not be checked. A matching version is enough for quiet startup, with invocation evidence still authoritative. [Codex collector](../../../skills/10x-pipeline/scripts/codex-usage.mjs#L57) · [Bounded model-free precedent](../../../skills/10x-pipeline/scripts/init-permissions.mjs#L32)
 - Describe persisted `capture-disabled` as disabled native capture and qualify `missing-source` as unavailable source evidence. The latter also covers source loss and cannot prove configuration. Summarize headless coverage using the saved run host and normalized evidence. [Evidence reasons](../../../skills/10x-pipeline/scripts/usage.mjs#L8) · [Headless settlement](../../../skills/10x-pipeline/scripts/run-claude.mjs#L363)
+- Treat review findings F1 and F2 as Phase 1 regression checks. The review records both fixes in `18adca92`. Use that implementation and its fixtures as the starting point for rows 1.3 and 1.4. [Implementation review](reviews/impl-review.md)
 
 ## Phase 1: Warn before step dispatch
 
@@ -70,12 +71,22 @@ Surface a single advisory using the router's existing stdout/stderr contract.
 
 **Contract** Cover both chains, all three transports, split and legacy selection plus saved neutral replay. Include a neutral replay whose saved provider differs from the current selection, and assert that only the saved transport receives the usage check. Include fresh and resumed init, empty valid capture files, absent binding and invalid binding, age or failure marker, missing native or telemetry file, unreadable or unsafe source and resource cap. Prefer deterministic inaccessible-file simulation where privileged test users could read a permission-denied fixture. For Codex cover the pinned version in a fresh home, mismatch, unrecognized successful output, nonzero exit, timeout and output cap. Assert version probe count, cwd and credential scrub, and that no accounting process starts. Extend the permission test's fake CLI to recognize and log `--version` separately while retaining exact `sandbox` argv assertions. Verify one combined warning, independent permission diagnostics and exactly one JSON stdout action. Check that unrelated transports produce no warning text and raw fixture paths or probe output stay private.
 
+#### 4. Verify the two startup regressions from implementation review
+
+**F1 — Optional capture module.** Only the native Claude advisory loads `claude-capture-data.mjs`. It catches a failed dynamic import, and the router awaits the advisory before dispatch. Use the existing provenance fixture's scratch plugin copy with the module missing and with a directory in its place. For those cases, assert the CLI exits zero, stdout parses as one `run` action, stderr carries the native capture-check warning and setup guidance, and `provenance.sections.hookFiles` is null. The fixture already checks the hash. Extend its assertions to cover the action and warning. [Advisory](../../../skills/10x-pipeline/scripts/init-usage.mjs#L35) · [Init call](../../../skills/10x-pipeline/scripts/route.mjs#L1134) · [Provenance fixture](../../../skills/10x-pipeline/test/provenance.test.mjs#L539)
+
+**F2 — Launcher failure during the probe.** After opening both sources, `claudeCaptureReadiness` calls `assertCaptureAvailable(root, binding)` with the binding it initially validated. Run the existing preload fixture that creates the failure marker when the telemetry file opens. Both sources remain readable. Init must still dispatch and warn that launcher capture is unavailable. The same fixture verifies that ordinary append growth within the size cap produces quiet init. [Readiness check](../../../skills/10x-pipeline/scripts/claude-capture-data.mjs#L102) · [Collector recheck](../../../skills/10x-pipeline/scripts/claude-usage.mjs#L388) · [Probe fixture](../../../skills/10x-pipeline/test/init-usage.test.mjs#L195)
+
 ### Success Criteria
 
 #### Automated Verification
 
 - Both chains route normally and issue one actionable, transport-specific init warning when capture prerequisites fail.
 - Existing Claude launcher and collector fixtures still verify the same evidence and reject unsafe or incomplete capture.
+- When the optional capture module cannot load, native Claude init returns one run action, warns on stderr and records a null hook hash.
+- A launcher failure marker created during the telemetry probe produces an unavailable-capture warning and init still returns a run action.
+
+For the two review checks, run `node --test --test-name-pattern='missing or unreadable hook inputs|native probe opens both sources safely' skills/10x-pipeline/test/provenance.test.mjs skills/10x-pipeline/test/init-usage.test.mjs`. Confirm both named tests execute and pass.
 
 Run `node --test skills/10x-pipeline/test/init-usage.test.mjs skills/10x-pipeline/test/init-permissions.test.mjs`.
 
@@ -156,6 +167,8 @@ Rollback uses the previous router revision after the active invocation settles. 
 
 - [x] 1.1 Both chains route normally and issue one actionable, transport-specific init warning when capture prerequisites fail. — 2a5fc3df
 - [x] 1.2 Existing Claude launcher and collector fixtures still verify the same evidence and reject unsafe or incomplete capture. — 2a5fc3df
+- [ ] 1.3 When the optional capture module cannot load, native Claude init returns one run action, warns on stderr and records a null hook hash.
+- [ ] 1.4 A launcher failure marker created during the telemetry probe produces an unavailable-capture warning and init still returns a run action.
 
 ### Phase 2: Explain missing figures in reports
 
