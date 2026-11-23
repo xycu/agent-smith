@@ -50,5 +50,17 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/test/late-usage.test.mjs +1"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.4 On a supported interactive Claude host, observe the warning before step one in an ordinary session, then use the documented launcher in a fresh session and verify quiet init and captured figures.",
+      "2.5 After authorized orchestrator publication of a run with capture disabled and comment intent, confirm the open PR comment displays the same missing-capture explanation as its report."
+    ],
+    "manualNotProved": [
+      "2.4 On a supported interactive Claude host, observe the warning before step one in an ordinary session, then use the documented launcher in a fresh session and verify quiet init and captured figures. — not proved: Claude Code 2.1.323 meets the launcher floor and the focused startup and capture fixtures passed. The archived Claude capture acceptance predates this change. Observing the new warning before dispatch",
+      "2.5 After authorized orchestrator publication of a run with capture disabled and comment intent, confirm the open PR comment displays the same missing-capture explanation as its report. — not proved: GitHub returned no open PR for this run branch, and the run has no terminal report. The fake-client comment check passed. Live comparison requires authorized orchestrator publication."
+    ]
   }
 }
