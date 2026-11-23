@@ -186,8 +186,8 @@ Finish any `copyComplete` recovery on a version that understands it, as required
 
 #### Automated
 
-- [ ] 1.1 Existing setup suites pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/prepare-run-timeout.test.mjs`
-- [ ] 1.2 The recursive-delete guard passes: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 1.1 Existing setup suites pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs skills/10x-pipeline/test/prepare-run-timeout.test.mjs`
+- [x] 1.2 The recursive-delete guard passes: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
 
 #### Manual
 

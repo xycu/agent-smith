@@ -1,5 +1,4 @@
 // Shared pre-init setup. Router state and recovery remain owned by the router.
-import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { ID_RE, firstLine, spawn, isEntryPoint } from "./pr-common.mjs";
@@ -204,8 +203,12 @@ function copyChange(source, destination, worktree) {
   });
 }
 
+function setupMarkerBase(common, branch) {
+  return path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}`);
+}
+
 function acquireSetupLock(common, branch) {
-  const file = path.join(common, `agent-smith-setup-${encodeURIComponent(branch)}`);
+  const file = setupMarkerBase(common, branch);
   const lock = `${file}.lock`;
   let fd;
   try {
@@ -237,12 +240,18 @@ async function withSetupLock(common, branch, operation) {
   try { return await operation(file); } finally { release(); }
 }
 
-function readPending(file) {
+function readPending(file, { lockFree = false } = {}) {
   try {
     const stat = lstat(file);
     if (!stat) return null;
     if (!stat.isFile()) throw new Error("expected a regular file");
-    const pending = readPolicyObject(file);
+    let pending;
+    try { pending = readPolicyObject(file); } catch (error) {
+      if (lockFree && error.code === "ENOENT") {
+        try { if (!lstat(file)) return null; } catch { /* Preserve the original read error. */ }
+      }
+      throw error;
+    }
     if (typeof pending.root !== "string" || !path.isAbsolute(pending.root)
       || typeof pending.worktree !== "string" || !path.isAbsolute(pending.worktree)
       || typeof pending.prefix !== "string" || !["10x", "openspec"].includes(pending.chain)
@@ -257,7 +266,9 @@ function readPending(file) {
 }
 
 function writePending(file, pending) {
-  const temp = `${file}.${randomUUID()}.tmp`;
+  const temp = `${file}.tmp`;
+  // The branch lock makes any existing staging entry stale.
+  if (lstat(temp)) fs.unlinkSync(temp);
   const fd = fs.openSync(temp, "wx", 0o600);
   try {
     try { fs.writeFileSync(fd, `${JSON.stringify(pending)}\n`); } finally { fs.closeSync(fd); }
@@ -318,10 +329,9 @@ async function prepare(opts, result, signal) {
   const current = checked(git(["symbolic-ref", "--quiet", "--short", "HEAD"]), "read current branch", [0, 1]).stdout.replace(/\n$/, "");
   const checkCurrentPending = () => {
     if (gitDir !== common && current) {
-      withSetupLockSync(common, current, (file) => {
-        const pending = readPending(file);
-        if (pending) throw new Error(pendingOrigin(pending, file));
-      });
+      const file = `${setupMarkerBase(common, current)}.pending`;
+      const pending = readPending(file, { lockFree: true });
+      if (pending) throw new Error(pendingOrigin(pending, file));
     }
   };
   if (!isolationEnabled(config)) {
