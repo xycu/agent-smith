@@ -1,8 +1,10 @@
 # Run report: quote-router-in-skill-loops
 
-Goal: Quote every router, PR-comment and open-PR script invocation in both pipeline skills so installed plugin paths containing spaces work. Preserve run-root prefixes, OpenSpec chain flags, usage ordering and identical anti-stall rules. Update pinned content tests and add regression coverage. Investigate the recorded skill-dir-variable live-check prerequisite and keep unavailable installed-plugin acceptance explicit. Follow this change.md against current layered architecture and reconcile overlap with the concurrent Wave 7 skill rewrite during planning. Leave WAVES.md and context/archive untouched.
+Goal: Resume Phase 2 rows 2.1 to 2.5 only; Phase 1 is done and its evidence is in evidence/command-installed-plugin-substitution.md. Quote $ROUTER, $PR_COMMENT and $OPEN_PR as node "$VAR" in every call of both SKILL.md loops, re-pin skill-loop.test.mjs, openspec-skill.test.mjs, archive-gate.test.mjs and init-permissions tests to the quoted form, add the mutation regression and the spaced-path fixture test, keep the two Anti-stall sections equal. If SKILL.md grows, raise the byte ceiling in skill-loop.test.mjs and say so in the PR. Leave rows 2.6 and 2.7 as Manual.
 Rigor: thorough (hot paths skills/10x-pipeline/test/pr-comment.test.mjs, skills/10x-pipeline/test/skill-loop.test.mjs, skills/openspec-pipeline/test/openspec-skill.test.mjs)
-Outcome: halt - Step 4 (implement) needs a human: Provide both live substitution transcripts and the completed rewrite on main before resuming.
+Provider mode: legacy (ladder-driven)
+Outcome: not ended
+Code under chore commits: 1 path(s) in 1 step commit(s); see "Code committed by the router"
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -10,8 +12,23 @@ Outcome: halt - Step 4 (implement) needs a human: Provide both live substitution
 | 2 | plan | openai | gpt-6-astra | high | 5 | no | ok (775376c) | 1431696 |
 | 3 | plan-review | openai | gpt-6.1-sol | high | 3 | no | ok (4c54a4a) | 1569615 |
 | 4 | implement | openai | gpt-6.1-sol | medium | 2 | no | failed | 567896 |
+| 5 | implement | openai | gpt-6.2-astra | medium | 4 | no | ok (4c8c4c5), 1 neutral rerun | 7191550 |
+| 6 | manual-verify | openai | gpt-6.2-sol | medium | 2 | no | - | - |
 
-Steps: 4 · Tokens: 3767363 (figures for 4 of 4 steps)
+Steps: 6 · Tokens: 10958913 (figures for 5 of 6 steps) · subtotal
+
+## Token coverage
+
+Verified observed host usage: 1 · Unavailable: 0 · Legacy/unverified scope: 4 · Missing figures: 1
+Provider, model and tier groups describe the enclosing dispatch.
+Legacy figures retain their original unverified scope.
+
+## Code committed by the router
+
+These paths sat uncommitted when a step ended and went into the router's `chore` step commit, so release-please lists no changelog line for them.
+
+- step 5 implement (4c8c4c5):
+  - `skills/10x-pipeline/test/skill-loop.test.mjs`
 
 ## Neutral reruns
 
@@ -22,12 +39,22 @@ Steps returned again unchanged (same prompt, model and effort) after the orchest
   - Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox
   - Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox
   - User approved scoped Git metadata permissions and resumption. All three exact run-root Git probes now pass. Allow one neutral rerun after repairing harness permissions.
+- step 5 implement: 1 rerun after an orchestrator fault
+  - Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox
 
 ## Review findings
 
 Counts as recorded when each review step ended; later edits of a review file are not reflected.
 
 - step 3 plan-review: SOUND, 0 critical, 0 warnings measured
+
+## Manual checks
+
+Rows as recorded when the last manual-verify step ended. The kind comes from the evidence file name; the router never reads the content. Only browser, test, command or script evidence proves a browser row.
+
+Proved: 0
+
+Not proved: 0
 
 ## Complexity score
 
