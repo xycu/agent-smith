@@ -169,8 +169,8 @@ The change to `claude-capture-data.mjs` changes the hook provenance hash compute
 
 - [x] 1.1 Both chains route normally and issue one actionable, transport-specific init warning when capture prerequisites fail. — 2a5fc3df
 - [x] 1.2 Existing Claude launcher and collector fixtures still verify the same evidence and reject unsafe or incomplete capture. — 2a5fc3df
-- [ ] 1.3 When the optional capture module cannot load, native Claude init returns one run action, warns on stderr and records a null hook hash.
-- [ ] 1.4 A launcher failure marker created during the telemetry probe produces an unavailable-capture warning and init still returns a run action.
+- [x] 1.3 When the optional capture module cannot load, native Claude init returns one run action, warns on stderr and records a null hook hash.
+- [x] 1.4 A launcher failure marker created during the telemetry probe produces an unavailable-capture warning and init still returns a run action.
 
 ### Phase 2: Explain missing figures in reports
 

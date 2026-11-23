@@ -516,8 +516,9 @@ test("1.3 a run with an override that sets prices records no prices section, and
   assert.ok(!res.json.warnings.some((w) => w.includes("prices")));
 });
 
+const captureData = "skills/10x-pipeline/scripts/claude-capture-data.mjs";
 const hookFiles = ["hooks/hooks.json", "skills/10x-pipeline/scripts/step-guard.mjs", "skills/10x-pipeline/scripts/claude-hook.mjs",
-  "skills/10x-pipeline/scripts/claude-capture-hook.mjs", "skills/10x-pipeline/scripts/claude-capture-data.mjs"];
+  "skills/10x-pipeline/scripts/claude-capture-hook.mjs", captureData];
 for (const name of [...hookFiles, "agents/step.md", "skills/10x-pipeline/rules/steps/plan.md"]) {
   test(name + " changes only its independent provenance section and records immutable drift", () => {
     const copy = pluginCopy();
@@ -541,8 +542,19 @@ test("missing or unreadable hook inputs yield a null hook hash", () => {
     const copy = pluginCopy();
     const file = path.join(copy.root, name);
     fs.unlinkSync(file);
-    assert.equal(copyRecord(copy).sections.hookFiles, null);
-    fs.mkdirSync(file);
-    assert.equal(copyRecord(copy).sections.hookFiles, null);
+    for (const variant of ["missing", "directory"]) {
+      if (variant === "directory") fs.mkdirSync(file);
+      const project = makeProject();
+      const res = runCopy(copy, project, ["init", project.id, "--goal", "fix typo", "--host", "claude", "--provider-mode", "claude"]);
+      assert.equal(res.status, 0, res.stderr || res.stdout);
+      assert.equal(readMetaFile(project).provenance.sections.hookFiles, null, `${name} (${variant})`);
+      if (name === captureData) {
+        assert.equal(res.json?.action, "run", res.stdout);
+        const warnings = res.stderr.split("\n").filter(line => line.startsWith("Warning: Usage capture preflight."));
+        assert.equal(warnings.length, 1, res.stderr);
+        assert.match(warnings[0], /Could not check native Claude token capture.*documented launcher/);
+        assert.match(warnings[0], /docs\/REFERENCE\.md#accounting-activation-and-rollback/);
+      }
+    }
   }
 });
