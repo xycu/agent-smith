@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { CAPTURE_ENV } from "../scripts/claude-capture-data.mjs";
-import { CODEX_USAGE_VERSION } from "../scripts/codex-usage.mjs";
+import { CODEX_USAGE_FLOOR } from "../scripts/codex-usage.mjs";
 import {
   cleanupAll, makeProject, git, gitEnv, gitAvailable, run, writeMetaFile, writeOverride, writeResult, seedRun, entry,
 } from "./helpers.mjs";
@@ -50,7 +50,7 @@ fs.appendFileSync(path.join(home, version ? "version-calls.jsonl" : "calls.jsonl
   args, cwd: process.cwd(), scrubbed, keep: process.env.CODEX_TEST_KEEP,
 }) + "\\n");
 if (version) {
-  console.log("codex-cli ${CODEX_USAGE_VERSION}");
+  console.log("codex-cli ${CODEX_USAGE_FLOOR}");
 } else {
   const message = args.includes("permissions={}") ? config.retry : config.message;
   if (config.timeout) {

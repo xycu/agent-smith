@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_CAPTURE_MIN_VERSION, captureFile } from "../scripts/claude-capture-data.mjs";
-import { CODEX_USAGE_VERSION } from "../scripts/codex-usage.mjs";
+import { CODEX_USAGE_FLOOR } from "../scripts/codex-usage.mjs";
 import { cleanupAll, entry, gitEnv, makeProject, run, seedRun, writeMetaFile, writeResult } from "./helpers.mjs";
 import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
@@ -18,7 +18,7 @@ const HEADLESS = /Headless Claude on Codex records duration only.*Start a fresh 
 const UNKNOWN_VERSION = /Could not check Codex token capture readiness/;
 const WRONG_VERSION = /Codex CLI version is unsupported for verified token capture/;
 const PRIVATE = "private-fixture-details";
-const PIN = "codex-cli " + CODEX_USAGE_VERSION;
+const PIN = "codex-cli " + CODEX_USAGE_FLOOR;
 const PERMISSION_MESSAGE = 'Error: default_permissions refers to undefined profile `fixture`\n';
 
 function fakeCodex(project, config = {}) {
@@ -238,10 +238,10 @@ fs.openSync = (file, flags, ...args) => {
   }
 });
 
-test("Codex startup requires only the pinned version on either host and keeps probing model-free", () => {
-  for (const host of ["claude", "codex"]) {
+test("Codex startup accepts the floor and later releases on either host and keeps probing model-free", () => {
+  for (const [host, stdout] of [["claude", PIN + "\r\n"], ["codex", PIN + "\r\n"], ["codex", "codex-cli 0.171.0\n"], ["claude", "codex-cli 1.0.0\n"]]) {
     const project = makeProject();
-    const fake = fakeCodex(project, { stdout: PIN + "\r\n" });
+    const fake = fakeCodex(project, { stdout });
     const { action, warning } = init(project, fake.env, ["--host", host, "--provider-mode", "codex"]);
     assert.equal(action.provider, "openai");
     assert.equal(warning, "");
@@ -253,6 +253,7 @@ test("Codex startup requires only the pinned version on either host and keeps pr
 test("Codex startup distinguishes known mismatches from failures and hides command output", () => {
   const cases = [
     [{ stdout: PIN + "-beta\n" }, WRONG_VERSION],
+    [{ stdout: "codex-cli 0.168.9\n" }, WRONG_VERSION],
     [{ stdout: PRIVATE + "\n" + PIN + "\n" }, UNKNOWN_VERSION],
     [{ stdout: PIN + "\n\n" }, UNKNOWN_VERSION],
     [{ stdout: "codex-cli 00.169.0\n" }, UNKNOWN_VERSION],
@@ -281,7 +282,7 @@ test("legacy provider arrays check each assigned transport once", () => {
   ladder.at(-1).provider = "openai";
   const project = makeProject({ policy: { ladder } });
   writeMetaFile(project, { host: "claude" });
-  const fake = fakeCodex(project, { stdout: "codex-cli 99.0.0" });
+  const fake = fakeCodex(project, { stdout: "codex-cli 0.168.9" });
   const { action, warning } = init(project, fake.env);
   assert.deepEqual(action.providersByStep.plan, ["claude", "openai"]);
   assert.match(warning, OFF);
@@ -292,7 +293,7 @@ test("legacy provider arrays check each assigned transport once", () => {
 test("neutral replay checks usage only for its saved dispatch while permission selection stays independent", () => {
   for (const provider of ["claude", "openai"]) {
     const project = makeProject();
-    const fake = fakeCodex(project, { stdout: "codex-cli 99.0.0" });
+    const fake = fakeCodex(project, { stdout: "codex-cli 0.168.9" });
     const otherMode = provider === "claude" ? "codex" : "claude";
     seedRun(project, [entry(1, "plan", {
       provider, model: "saved-model", effort: "high", profile: null, result: undefined, pendingPrompt: "saved prompt",

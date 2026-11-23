@@ -22,18 +22,18 @@ function codexVersion() {
 
 async function codexWarning() {
   const adapter = await import("./codex-usage.mjs").catch(() => null);
-  if (typeof adapter?.CODEX_USAGE_VERSION !== "string") {
+  if (typeof adapter?.CODEX_USAGE_FLOOR !== "string" || typeof adapter.codexUsageSupported !== "function") {
     return "Could not check Codex token capture readiness. Verify the installed agent-smith plugin.";
   }
-  const { CODEX_USAGE_VERSION } = adapter;
+  const { CODEX_USAGE_FLOOR, codexUsageSupported } = adapter;
   const version = codexVersion();
-  if (version === CODEX_USAGE_VERSION) return null;
+  if (version && codexUsageSupported(version)) return null;
   if (!version) {
     return "Could not check Codex token capture readiness. Verify that codex --version on the run's PATH " +
-      "reports codex-cli " + CODEX_USAGE_VERSION + ".";
+      "reports codex-cli " + CODEX_USAGE_FLOOR + " or later.";
   }
   return "Codex CLI version is unsupported for verified token capture. Use codex-cli " +
-    CODEX_USAGE_VERSION + " on the run's PATH.";
+    CODEX_USAGE_FLOOR + " or later on the run's PATH.";
 }
 
 async function claudeWarning(host) {
