@@ -50,5 +50,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain, hot paths skills/10x-pipeline/scripts/prepare-run.mjs, skills/10x-pipeline/test/prepare-run.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "2.2 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`"
+    ],
+    "manualNotProved": [
+      "2.2 The full suite passes: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs` — not proved: The plan calls for full-suite CI after publication. The GitHub Actions API returned zero runs for both the run head (4ee113b7) and the Phase 2 verification commit (aeff5382). Publication is prohibited"
+    ]
   }
 }
