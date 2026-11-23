@@ -12,7 +12,7 @@ The collector checks the root app-server version, each thread’s metadata and e
 
 ## Desired End State
 
-A complete 0.169.0 or 0.171.0 tree with reconcilable evidence reports verified tokens. Below-floor and malformed versions report `unsupported-host`. Malformed counters on supported versions report `unsupported-schema`, and incomplete captures retain their specific reason.
+A complete tree that passes all three version checks, reconciles and fits the version-1 envelope reports verified tokens. Below-floor and malformed versions report `unsupported-host` when the relevant check is reached. Malformed counters on eligible versions report `unsupported-schema`, and incomplete captures retain their specific reason.
 
 ## Key Decisions Made
 
@@ -40,10 +40,10 @@ Use built-in JavaScript to compare numeric release components. Eligible input pr
 
 ## Open Risks & Assumptions
 
-Strict X.Y.Z excludes prefixes, leading zeroes, whitespace and prerelease/build suffixes. Later releases may change their record shape. The collector must continue to return unavailable evidence when it cannot reconcile a tree.
+Strict X.Y.Z excludes prefixes, leading zeroes, whitespace, prerelease/build suffixes and non-strings. The existing 32-character root version limit in the version-1 evidence envelope still applies. An otherwise reconcilable capture with a longer eligible root version yields `invalid-evidence`. Later releases may change their record shape. The collector must continue to return unavailable evidence when it cannot reconcile a tree.
 
 ## Success Criteria (Summary)
 
-- The collector suite verifies exact totals at and above the floor, version refusals, and specific failure reasons for damaged newer captures.
+- The collector suite verifies exact totals at and above the floor, including a higher patch on `0.169`, version refusals, the evidence length boundary and specific failure reasons for damaged newer captures.
 - The runner suite preserves settlement and cleanup on both chains for an unsupported release.
-- All three documentation entries state the inclusive accounting floor. Verification uses the two touched test files and a local documentation check.
+- Each of the three documentation files contains exactly one line stating the inclusive accounting floor. Verification uses the two touched test files and a local per-file documentation check.
