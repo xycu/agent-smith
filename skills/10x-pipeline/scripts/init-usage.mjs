@@ -2,7 +2,6 @@ import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { ROOT, hostOf, providerOf, providersByStep } from "./state.mjs";
 import { codexChildEnv } from "./codex-startup.mjs";
-import { CODEX_USAGE_VERSION } from "./codex-usage.mjs";
 
 // SemVer 2.0.0 version fields, as used by the release version check.
 const SEMVER =
@@ -21,7 +20,12 @@ function codexVersion() {
   return version && SEMVER.test(version) ? version : null;
 }
 
-function codexWarning() {
+async function codexWarning() {
+  const adapter = await import("./codex-usage.mjs").catch(() => null);
+  if (typeof adapter?.CODEX_USAGE_VERSION !== "string") {
+    return "Could not check Codex token capture readiness. Verify the installed agent-smith plugin.";
+  }
+  const { CODEX_USAGE_VERSION } = adapter;
   const version = codexVersion();
   if (version === CODEX_USAGE_VERSION) return null;
   if (!version) {
@@ -34,8 +38,8 @@ function codexWarning() {
 
 async function claudeWarning(host) {
   if (host === "codex") {
-    return "Headless Claude on Codex records duration only. For verified token totals, use the capture launcher " +
-      "in a fresh Claude session and start a new Claude-hosted run or resume an existing Claude-hosted run " +
+    return "Headless Claude on Codex records duration only. Start a fresh Claude session with the capture launcher. " +
+      "From that session, start a new Claude-hosted run or resume an existing Claude-hosted run " +
       "with its saved provider mode.";
   }
   let readiness;
@@ -60,7 +64,7 @@ export async function initUsageWarning(policy, selection, neutralReplay) {
     : new Set(Object.values(providersByStep(policy, selection)).flat());
   const warnings = [];
   if (providers.has("claude")) warnings.push(await claudeWarning(hostOf(selection)));
-  if (providers.has("openai")) warnings.push(codexWarning());
+  if (providers.has("openai")) warnings.push(await codexWarning());
   const message = warnings.filter(Boolean).join(" ");
   if (message) {
     // init exits synchronously with the action, so finish the advisory write before dispatch.

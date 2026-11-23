@@ -558,3 +558,29 @@ test("missing or unreadable hook inputs yield a null hook hash", () => {
     }
   }
 });
+
+test("missing Codex usage collector stays advisory and transport-specific", () => {
+  const copy = pluginCopy();
+  fs.unlinkSync(path.join(copy.skill, "scripts/codex-usage.mjs"));
+  const claude = makeProject();
+  const nativeInit = runCopy(copy, claude, ["init", claude.id, "--goal", "fix typo", "--host", "claude", "--provider-mode", "claude"]);
+  assert.equal(nativeInit.status, 0, nativeInit.stderr);
+  assert.equal(nativeInit.json?.action, "run", nativeInit.stdout);
+  assert.doesNotMatch(nativeInit.stderr, /Codex token capture readiness/);
+  const status = runCopy(copy, claude, ["status", claude.id]);
+  assert.equal(status.status, 0, status.stderr);
+  assert.ok(status.json, status.stdout);
+
+  const codex = makeProject();
+  const bin = path.join(codex.base, "bin");
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, "codex"), "#!/bin/sh\nexit 0\n", { mode: 0o700 });
+  const codexInit = run(codex, ["init", codex.id, "--goal", "fix typo", "--host", "codex", "--provider-mode", "codex"], {
+    script: copy.route,
+    env: { PATH: bin + path.delimiter + process.env.PATH },
+  });
+  assert.equal(codexInit.status, 0, codexInit.stderr);
+  assert.equal(codexInit.json?.action, "run", codexInit.stdout);
+  assert.equal(codexInit.stderr, "Warning: Usage capture preflight. Could not check Codex token capture readiness. " +
+    "Verify the installed agent-smith plugin. See docs/REFERENCE.md#accounting-activation-and-rollback.\n");
+});
