@@ -304,8 +304,8 @@ No stored data changes. A figure already recorded unavailable stays unavailable;
 
 #### Manual
 
-- [ ] 3.1 An interactive launcher run ends every step with verified evidence
-- [ ] 3.2 Each step's verified total is explained by its completion figure plus counted telemetry-only requests
-- [ ] 3.3 The late recheck returns verified, or its unsupported-schema is recorded with a raising line
-- [ ] 3.4 README and REFERENCE state the recorded live qualification
+- [x] 3.1 An interactive launcher run ends every step with verified evidence
+- [x] 3.2 Each step's verified total is explained by its completion figure plus counted telemetry-only requests
+- [x] 3.3 The late recheck returns verified, or its unsupported-schema is recorded with a raising line
+- [x] 3.4 README and REFERENCE state the recorded live qualification
 - [ ] 3.5 The owner has the evidence note to decide rows 2.4 and 2.5 and the archive of claude-token-figures-default
