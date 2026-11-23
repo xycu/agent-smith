@@ -126,7 +126,7 @@ All four phases shipped together in v1.14.0 after the Automated producer-to-read
 
 Both native Agent loops checkpoint the launcher-bound capture before each dispatch. After settlement the collector uses matched launch evidence, including supported descendants, to prove the whole step tree. It accepts the existing explicit-source descriptor as well. Carry a verified total once. If proof is incomplete, retain the bounded reason and exact observed invocation for eligible late intake under ADR-019. Archive capture remains final-message-only. Default-off native entries carry `capture-disabled` with the launcher command.
 
-The exact 2.1.311 registry entry is supported by the retained headless format and sanitized replay. An authorized native interactive workflow and qualification of a later release remain pending. S-20 still owns the wider host/mode matrix. [Operator setup, cleanup and rollback](../REFERENCE.md#accounting-activation-and-rollback) · [Claude capture acceptance](../../context/changes/claude-token-figures-default/evidence/acceptance.md)
+The exact 2.1.311 registry entry is supported by the retained headless format and sanitized replay. An authorized native interactive workflow and qualification of a later release remain pending. S-20 still owns the wider host/mode matrix. [Operator setup, cleanup and rollback](../REFERENCE.md#accounting-activation-and-rollback) · [Claude capture acceptance](../../context/archive/2026-11-19-claude-token-figures-default/evidence/acceptance.md)
 
 ## Amendment 6 — Version floor for Claude capture
 
