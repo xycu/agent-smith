@@ -1,0 +1,3 @@
+- 2.1 — Exact-setup qualification is missing. The archived Claude Code 2.1.323 launcher run establishes prior qualification. Phase 2 requires a fresh, completed 10x run on the pinned experiment revision, launch path and explicit provider mode, with verified step-tree figures for every executed step. The plan reserves this live check for the authorized operator.
+- 2.2 — ADR-010 marks the result pending and records no pairs, A/A control, or exclusions through an exhausted or stopped measurement. The authorized live cohort remains pending.
+- 2.3 — The policy, ADR-010, routing reference and README support the interim drop of 0. The final measured or inconclusive decision and its passing closeout test record are absent. Local fixture runs alone cannot close this row.
