@@ -157,16 +157,16 @@ Existing accounting records and explicit-source descriptors remain readable with
 
 #### Automated
 
-- [x] 1.1 Launcher and hook fixtures prove consent gating, private bounded local capture, process and session isolation, content minimization, failure handling and unchanged guard behavior. — f87f9aec
-- [x] 1.2 Collector fixtures verify flat and descendant totals, preserve the authorized descriptor, and reject unsupported versions, incomplete or conflicting provenance, symlink escape and ambiguous retries. — f87f9aec
+- [x] 1.1 Launcher and hook fixtures prove consent gating, private bounded local capture, process and session isolation, content minimization, failure handling and unchanged guard behavior. — 72c957cb
+- [x] 1.2 Collector fixtures verify flat and descendant totals, preserve the authorized descriptor, and reject unsupported versions, incomplete or conflicting provenance, symlink escape and ambiguous retries. — 72c957cb
 
 ### Phase 2: Integrate both pipelines and qualify the user workflow
 
 #### Automated
 
-- [x] 2.1 Both pipeline skill checks prove immediate and late attachment use the existing cutoffs and preserve equal anti-stall rules and guard provenance. — 0835a9d0
-- [x] 2.2 Router fixtures prove verified figures and default-off guidance in status --report, the run report and compare, including late evidence and historical comparison behavior. — 0835a9d0
-- [x] 2.3 The required Node test suite passes and operator docs agree with the launcher, supported-release registry and pending live qualification. — 0835a9d0
+- [x] 2.1 Both pipeline skill checks prove immediate and late attachment use the existing cutoffs and preserve equal anti-stall rules and guard provenance. — 72c957cb
+- [x] 2.2 Router fixtures prove verified figures and default-off guidance in status --report, the run report and compare, including late evidence and historical comparison behavior. — 72c957cb
+- [x] 2.3 The required Node test suite passes and operator docs agree with the launcher, supported-release registry and pending live qualification. — 72c957cb
 
 #### Manual
 
