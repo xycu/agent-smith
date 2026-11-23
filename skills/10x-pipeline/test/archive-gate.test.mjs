@@ -41,7 +41,8 @@ for (const [chain, rel] of Object.entries(SKILLS)) {
     for (const k of ["manualPending", "manualUnproven", "uncommittedTicks"]) assert.ok(archive.includes(`summary.${k}`), k);
     const ask = archive.indexOf("AskUserQuestion");
     // ADR-017 moved the PR comment step to step 5, after the move; the question follows the status report of step 1.
-    assert.ok(ask > archive.indexOf("node $ROUTER status"), "after the status report");
+    const status = archive.indexOf('node "$ROUTER" status');
+    assert.ok(status >= 0 && ask > status, "after the status report");
     assert.ok(ask < archive.indexOf("Call the Agent tool"), "before the Agent call");
   });
 

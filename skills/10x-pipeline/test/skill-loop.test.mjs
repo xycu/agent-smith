@@ -2,6 +2,9 @@
 // It also pins the `## Pull request (always)` section and its place in the done, archive and halt branches (ADR-017).
 // SKILL_PATH and OPENSPEC_SKILL_PATH override the files for deliberate-break checks.
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import os from "node:os";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import { createHash } from "node:crypto";
 import { pluginPolicy } from "../scripts/state.mjs";
 import assert from "node:assert/strict";
@@ -154,7 +157,7 @@ test("the pull request section follows ## PR comment (opt-in) and runs the scrip
   const p = lines.indexOf(PR_HEADING);
   assert.ok(c >= 0 && p > c, "pull request section is not after the PR comment section");
   const text = sectionOf(PR_HEADING);
-  assert.match(text, /`cd "<run root>" && node \$OPEN_PR <change-id>`/);
+  assert.match(text, /`cd "<run root>" && node "\$OPEN_PR" <change-id>`/);
   assert.match(text, /Pull request: NOT pushed, <reason>\. Branch <branch> is local only: <manual>/);
   assert.match(text, /never merges/);
   assert.match(text, /isolation\.require: false/);
@@ -171,13 +174,15 @@ test("done, archive and halt reach publication before STOP, with comments owned 
   }
   const archive = branch("archive");
   assert.match(archive, /\n {2}4\. Write no result file and do not call `next`/);
-  assert.match(archive, /\n {2}5\. Run `cd "<run root>" && node \$ROUTER verify-archive/);
+  assert.match(archive, /\n {2}5\. Run `cd "<run root>" && node "\$ROUTER" verify-archive/);
   const step5 = archive.slice(archive.indexOf("\n  5. "));
   assert.ok(step5.includes("do the pull request step"));
   assert.ok(step5.indexOf("do the pull request step") < step5.indexOf("On `archived: false`"));
   assert.match(branch("halt"), /Before you STOP, do the pull request step/);
   const publication = sectionOf(PR_HEADING);
-  assert.ok(publication.indexOf("node $OPEN_PR") < publication.indexOf("do the PR comment step"));
+  const open = publication.indexOf('node "$OPEN_PR"');
+  const comment = publication.indexOf("do the PR comment step");
+  assert.ok(open >= 0 && comment >= 0 && open < comment);
   assert.match(publication, /saved terminal intent applies even when publication skips or fails/);
 });
 
@@ -185,7 +190,7 @@ test("done, archive and halt reach publication before STOP, with comments owned 
 
 test("late usage has one owner and precedes terminal status, publication and archive launch", () => {
   const owner = sectionOf("## Late usage (before every end)");
-  const call = "node $ROUTER usage <change-id> <n> --usage-file <usage-file>";
+  const call = 'node "$ROUTER" usage <change-id> <n> --usage-file <usage-file>';
   assert.equal(skill.split(call).length - 1, 1);
   assert.ok(owner.includes(call));
   assert.match(owner, /Usage: step <n> <attached\|not attached>/);
@@ -195,7 +200,7 @@ test("late usage has one owner and precedes terminal status, publication and arc
     const late = text.indexOf('follow "Late usage (before every end)"');
     assert.ok(late >= 0, `${name}: missing late-usage call site`);
     assert.equal(text.split('follow "Late usage (before every end)"').length - 1, 1);
-    assert.ok(late < text.indexOf("node $ROUTER status"), `${name}: late usage before status`);
+    assert.ok(late < text.indexOf('node "$ROUTER" status'), `${name}: late usage before status`);
     assert.ok(late < text.indexOf("do the pull request step"), `${name}: late usage before publication`);
   }
   const archive = branch("archive");
@@ -307,7 +312,7 @@ test("Start step 3 consumes the shared setup result and retains run safety", () 
     "nonzero exit", "missing/malformed JSON", "non-null `reason`", "STOP before `init`",
     "returned `root`", "`runRoot` as `<root>` and `<run root>`", "not in the run (uncommitted in the main checkout)",
     "An ordinary resume leaves the worktree inputs as they are", "retry from the original project root",
-    'case: "reused"', "copied: true", 'cd "<run root>" && node $ROUTER', "<run root>/<resultFile>",
+    'case: "reused"', "copied: true", 'cd "<run root>" && node "$ROUTER"', "<run root>/<resultFile>",
     "Never commit, stash, reset or clean", "refs/agent-smith/", "name their side refs",
     "List the files, check the list", "retained original paths", "before removing the worktree"]) {
     assert.ok(setup.includes(text), text);
@@ -320,6 +325,65 @@ for (const [chain, source, id, selector] of [
   ["10x", skill, "change-id", ""],
   ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.resolve(path.dirname(DEFAULT_PATH), "../openspec-pipeline/SKILL.md"), "utf8"), "change-name", " --chain openspec"],
 ]) {
+  test(`${chain}: script invocations quote each script path`, () => {
+    for (const name of ["ROUTER", "PR_COMMENT", "OPEN_PR"]) {
+      assert.doesNotMatch(source, new RegExp(`\\bnode\\s+\\$(?:${name}\\b|\\{${name}\\})`), name);
+      const calls = source.split("`").filter(span => span.includes(`node "$${name}"`));
+      assert.ok(calls.length > 0, `missing quoted ${name} call`);
+      if (name !== "ROUTER") assert.equal(calls.length, 1, `single ${name} call`);
+      for (const call of calls) {
+        if (call === `cd "<root>" && node "$ROUTER" verify-archive <${id}>${selector}`) continue;
+        assert.ok(call.startsWith(`cd "<run root>" && node "$${name}" `), call);
+      }
+    }
+  });
+
+  test(`${chain}: documented commands run through spaced plugin and run-root paths`, t => {
+    const scratch = fs.mkdtempSync(path.join(fs.realpathSync(os.tmpdir()), "skill commands-"));
+    t.after(() => removeTree(scratch));
+    const skillsDir = path.join(scratch, "plugin cache", "skills");
+    const scripts = path.join(skillsDir, "10x-pipeline", "scripts");
+    const runRoot = path.join(scratch, "run root");
+    fs.mkdirSync(scripts, { recursive: true });
+    fs.mkdirSync(path.join(skillsDir, `${chain}-pipeline`), { recursive: true });
+    fs.mkdirSync(runRoot);
+    const chainArgs = chain === "openspec" ? ["--chain", "openspec"] : [];
+    const report = `openspec/changes/<${id}>/agent-smith/report.md`;
+    const goal = "quote script paths";
+    const commands = [
+      ["ROUTER", "route.mjs", `init <${id}>${selector} --goal "<goal text>" --host <host> --pr-comment <true|false>`,
+        ["init", "demo", ...chainArgs, "--goal", goal, "--host", "claude", "--pr-comment", "false"]],
+      ["PR_COMMENT", "pr-comment.mjs", chain === "openspec" ? `<${id}> --report "${report}"` : `<${id}>`,
+        chain === "openspec" ? ["demo", "--report", "openspec/changes/demo/agent-smith/report.md"] : ["demo"]],
+      ["OPEN_PR", "open-pr.mjs", `<${id}>${selector}`, ["demo", ...chainArgs]],
+    ];
+    const snippets = source.split("`");
+    for (const [name, file, args, expected] of commands) {
+      const script = path.join(scripts, file);
+      fs.writeFileSync(script, "console.log(JSON.stringify([process.cwd(), ...process.argv.slice(1)]));\n");
+      const relative = chain === "openspec" ? "../10x-pipeline/scripts" : "scripts";
+      const assignment = snippets.find(span => span === `${name}="\${CLAUDE_SKILL_DIR}/${relative}/${file}"`);
+      const snippet = snippets.find(span => span === `cd "<run root>" && node "$${name}" ${args}`);
+      assert.ok(assignment && snippet, `missing documented ${name} assignment or command`);
+      let command = snippet.replace("<run root>", "$RUN_ROOT").replaceAll(`<${id}>`, "demo")
+        .replace("<goal text>", goal).replace("<host>", "claude").replace("<true|false>", "false");
+      if (name === "OPEN_PR") {
+        const line = source.split("\n").find(line => line.includes(snippet));
+        const reportOption = line.split("`").find(span => span === '--report "<archivePath>/agent-smith/report.md"');
+        assert.ok(reportOption, "archived pull requests forward the report path");
+        command += " " + reportOption.replace("<archivePath>", "archived demo");
+        expected.push("--report", "archived demo/agent-smith/report.md");
+      }
+      const result = spawnSync("/bin/sh", ["-c", `${assignment}\n${command}`], {
+        cwd: scratch, timeout: 5000, encoding: "utf8",
+        env: { PATH: path.dirname(process.execPath), RUN_ROOT: runRoot, CLAUDE_SKILL_DIR: path.join(skillsDir, `${chain}-pipeline`) },
+      });
+      assert.ifError(result.error);
+      assert.equal(result.status, 0, result.stderr);
+      assert.deepEqual(JSON.parse(result.stdout), [runRoot, script, ...expected]);
+    }
+  });
+
   const start = source.slice(source.indexOf("## Start"), source.indexOf("## Loop"));
   const setup = start.slice(start.indexOf("\n3. "), start.indexOf("\n4. "));
   test(`${chain}: shared project gate failures report diagnostics and stop before init`, () => {
@@ -329,7 +393,7 @@ for (const [chain, source, id, selector] of [
     const fields = setup.match(/Parse exactly one JSON object and validate ([^.]+)\./)?.[1];
     assert.match(fields, /`runRoot`.*`reason`$/);
     assert.doesNotMatch(fields, /`base`/);
-    assert.match(start.slice(start.indexOf("\n4. ")), /node \$ROUTER init /);
+    assert.match(start.slice(start.indexOf("\n4. ")), /node "\$ROUTER" init /);
   });
   test(`${chain}: Claude Write preflight gates startup and owns its scratch cleanup`, () => {
     const probeAt = setup.indexOf("\n   - Claude Write preflight:");
@@ -355,7 +419,7 @@ for (const [chain, source, id, selector] of [
   test(`${chain}: every numbered result goes through the result-write gate before next`, () => {
     const run = branch("run", source.split("\n"));
     const gateAt = run.indexOf("\n  5. Result-write gate.");
-    const nextAt = run.indexOf("node $ROUTER next");
+    const nextAt = run.indexOf('node "$ROUTER" next');
     assert.ok(gateAt > 0 && nextAt > gateAt, "one intake gate precedes the next command");
     const produce = run.slice(0, gateAt);
     assert.match(produce, /confirmed evidence that no step child launched[^\n]*"orchestrator-error"[^\n]*result-write gate in step 5/);
@@ -376,7 +440,7 @@ for (const [chain, source, id, selector] of [
     assert.match(gate, /Attribute bytes to the originating record.*exact retained bytes through the host's writer only on confirmed absence.*matching regular file unchanged/);
     assert.match(gate, /Changed dispatch, lost payload, uncertain ownership, symlink, zero-byte or other conflict needs owner reconciliation/);
     assert.match(gate, /Resume at `next` without `init` or relaunching a completed child\. Verified prelaunch `orchestrator-error` reroutes neutrally/);
-    assert.ok(gate.includes('Only then run `cd "<run root>" && node $ROUTER next <' + id + '>' + selector + '`'));
+    assert.ok(gate.includes('Only then run `cd "<run root>" && node "$ROUTER" next <' + id + '>' + selector + '`'));
     const rule = source.slice(source.indexOf(HEADING)).split("\n").find(line => line.includes("no usage figure has arrived"));
     assert.match(rule, /run `next` in the same turn after step 5 confirms the write/);
   });
@@ -418,8 +482,8 @@ for (const [chain, source, id, selector] of [
       "Validate fresh sources before exclude/branch/worktree creation",
       "Setup resolves resumes before this check, even after complete source cleanup",
     ]) assert.ok(setup.includes(text), text);
-    assert.ok(setup.includes(`cd "<root>" && node $ROUTER verify-archive <${id}>${selector}`));
-    assert.ok(setup.includes(`cd "<run root>" && node $ROUTER verify-archive <${id}>${selector}`));
+    assert.ok(setup.includes(`cd "<root>" && node "$ROUTER" verify-archive <${id}>${selector}`));
+    assert.ok(setup.includes(`cd "<run root>" && node "$ROUTER" verify-archive <${id}>${selector}`));
     const early = start.slice(0, start.indexOf("\n3. "));
     assert.doesNotMatch(early, /verify-archive|changes\/.* is missing/);
     if (chain === "10x") {
@@ -486,7 +550,7 @@ for (const [chain, source, ceiling] of [
   test(`${chain}: skill byte budget and single procedure owners`, () => {
     assert.ok(Buffer.byteLength(source, "utf8") <= ceiling, `${chain}: skill exceeds ${ceiling} bytes`);
     assert.equal(source.split("## Late usage (before every end)").length - 1, 1);
-    assert.equal(source.split("node $ROUTER usage ").length - 1, 1);
+    assert.equal(source.split('node "$ROUTER" usage ').length - 1, 1);
     assert.equal(source.split("`prComment: true`").length - 1, 1);
     assert.equal(source.split("## PR comment (opt-in)").length - 1, 1);
   });
@@ -587,7 +651,7 @@ for (const chain of ["10x", "openspec"]) {
     for (const name of ["done", "halt", "archive"]) {
       const terminal = branch(name, source.split("\n"));
       const latePass = terminal.indexOf('follow "Late usage (before every end)"');
-      assert.ok(latePass >= 0 && latePass < terminal.indexOf("node $ROUTER status"), name);
+      assert.ok(latePass >= 0 && latePass < terminal.indexOf('node "$ROUTER" status'), name);
       assert.ok(latePass < terminal.indexOf("do the pull request step"), name);
       if (name === "archive") {
         assert.ok(latePass < terminal.indexOf("\n  3. Call the Agent tool"));
@@ -607,7 +671,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.match(late, /Unlink the owned payload in a finally step before terminal handoff, including on refusal/);
     assert.match(late, /Never wait or poll/);
     assert.match(late, /Archive-agent usage belongs only in the final message, including its coverage limitation/);
-    assert.doesNotMatch(late, /node \$ROUTER next|--tokens N/);
+    assert.doesNotMatch(late, /node "\$ROUTER" next|--tokens N/);
     assert.match(branch("archive", source.split("\n")), /Only for native Agent, apply Loop step 4.s collector/);
   });
 }

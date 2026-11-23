@@ -64,3 +64,13 @@ Tests that pin the bare spelling at f81bdb52:
 Lines 135–147 of skill-loop.test.mjs and line 91 of openspec-skill.test.mjs check the quoted variable assignments, not the calls, and stay as they are.
 
 The single `usage` call per skill changes Phase 2's ordering checks: pin the one quoted late-usage command and each terminal branch's reference to it, not three copies (plan, "Rewrite integration").
+
+## Phase 2 verification, 2026-11-24
+
+Both skills quote all 14 inventoried script calls. Their anti-stall sections match the pre-change bytes. Each chain's init, PR-comment and open-PR snippets ran through a shell with spaced plugin and run-root paths. The recorder received the expected script path, working directory and arguments on all six calls.
+
+For each chain, removing one pair of quotes around ROUTER, PR_COMMENT or OPEN_PR in a fresh scratch copy failed the corresponding “script invocations quote each script path” test. Both unmodified skills passed.
+
+On Node 24.19.0 with OpenSpec 2.0.0, the nine focused suites passed 264 tests and skipped the two opt-in GitHub checks. The complete suite passed 2,321 tests with zero failures. It skipped the same two checks and the optional CLAUDE.md import check because the file was absent. Git whitespace checks passed.
+
+Scratch projects ran under this worktree. Two focused compatibility checks initially discovered its Git history. A Git discovery boundary at the scratch parent isolated the fixtures, and both passed on rerun. Live installed-plugin acceptance for rows 2.6 and 2.7 remains pending as recorded in unproven.md.

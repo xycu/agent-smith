@@ -739,17 +739,17 @@ function branch(skill, name) {
 
 const countOf = (text, needle) => text.split(needle).length - 1;
 
-test("SKILL.md: flag, script variable and the single node $PR_COMMENT call", () => {
+test('SKILL.md: flag, script variable and the single node "$PR_COMMENT" call', () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   assert.match(skill, /^argument-hint:.*--pr-comment/m);
   assert.ok(skill.includes("PR_COMMENT="));
   assert.ok(!skill.includes("gh pr") && !skill.includes("gh api"));
-  assert.equal(countOf(skill, "node $PR_COMMENT"), 1);
+  assert.equal(countOf(skill, 'node "$PR_COMMENT"'), 1);
   const section = skill.indexOf("## PR comment (opt-in)");
   const rules = skill.indexOf("## Rules");
-  const call = skill.indexOf("node $PR_COMMENT");
+  const call = skill.indexOf('node "$PR_COMMENT"');
   assert.ok(section >= 0 && section < rules, "section must precede ## Rules");
-  assert.ok(call > section && call < rules, "node $PR_COMMENT must lie inside the section");
+  assert.ok(call > section && call < rules, 'node "$PR_COMMENT" must lie inside the section');
 });
 
 test("SKILL.md: explicit invocation forwards durable opt-in or reset to the router", () => {
@@ -775,7 +775,9 @@ test("SKILL.md: every terminal branch reaches the strict durable PR-comment owne
     assert.match(owner, /missing field or any other value authorizes no comment/);
     assert.match(owner, /Keep that action's intent across status and archive verification calls/);
     const publication = skill.split("## Pull request (always)")[1].split("\n## ")[0];
-    assert.ok(publication.indexOf("node $OPEN_PR") < publication.indexOf("do the PR comment step"));
+    const open = publication.indexOf('node "$OPEN_PR"');
+    const comment = publication.indexOf("do the PR comment step");
+    assert.ok(open >= 0 && comment >= 0 && open < comment);
     assert.match(publication, /saved terminal intent applies even when publication skips or fails/);
     assert.match(branch(skill, "halt"), /Before you STOP/);
   }
@@ -790,7 +792,7 @@ test("SKILL.md: PR comment section retains strict authorization and script-error
     assert.match(section, /If the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error`/);
     assert.doesNotMatch(section, /100 characters|router does not/);
     const comment = section.split("\n## ")[0];
-    assert.match(comment, /Quote the script path(?: and the change id for the shell, and the url and the report path too|, the change name, the url and the report path for the shell)/);
+    assert.match(comment, /Shell-quote script path, change (?:id|name), url and report path/);
     assert.ok(section.includes("PR comment: skipped, no report"));
   }
 });
