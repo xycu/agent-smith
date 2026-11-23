@@ -1,6 +1,6 @@
 {
   "id": "quote-router-in-skill-loops",
-  "goal": "Quote every router, PR-comment and open-PR script invocation in both pipeline skills so installed plugin paths containing spaces work. Preserve run-root prefixes, OpenSpec chain flags, usage ordering and identical anti-stall rules. Update pinned content tests and add regression coverage. Investigate the recorded skill-dir-variable live-check prerequisite and keep unavailable installed-plugin acceptance explicit. Follow this change.md against current layered architecture and reconcile overlap with the concurrent Wave 7 skill rewrite during planning. Leave WAVES.md and context/archive untouched.",
+  "goal": "Resume Phase 2 rows 2.1 to 2.5 only; Phase 1 is done and its evidence is in evidence/command-installed-plugin-substitution.md. Quote $ROUTER, $PR_COMMENT and $OPEN_PR as node \"$VAR\" in every call of both SKILL.md loops, re-pin skill-loop.test.mjs, openspec-skill.test.mjs, archive-gate.test.mjs and init-permissions tests to the quoted form, add the mutation regression and the spaced-path fixture test, keep the two Anti-stall sections equal. If SKILL.md grows, raise the byte ceiling in skill-loop.test.mjs and say so in the PR. Leave rows 2.6 and 2.7 as Manual.",
   "host": "codex",
   "prComment": true,
   "isolated": true,
@@ -41,15 +41,22 @@
       "agents.restricted": false,
       "advisor.enabled": false,
       "host": "codex"
-    }
+    },
+    "drift": [
+      "agentFiles",
+      "escalation",
+      "hookFiles",
+      "isolation",
+      "ladder",
+      "limits",
+      "prompts",
+      "ruleFiles",
+      "splitProviders"
+    ]
   },
   "startCommit": "afeeccb77b7afe7dd5d552337668fceba58c8a21",
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/test/pr-comment.test.mjs, skills/10x-pipeline/test/skill-loop.test.mjs, skills/openspec-pipeline/test/openspec-skill.test.mjs"
-  },
-  "outcome": {
-    "action": "halt",
-    "reason": "Step 4 (implement) needs a human: Provide both live substitution transcripts and the completed rewrite on main before resuming."
   }
 }

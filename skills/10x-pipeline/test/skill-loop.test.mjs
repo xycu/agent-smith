@@ -545,7 +545,7 @@ test("AGENTS assigns routing documentation to the reference for both skills", ()
 
 for (const [chain, source, ceiling] of [
   ["10x", skill, 32375],
-  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36868],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36870],
 ]) {
   test(`${chain}: skill byte budget and single procedure owners`, () => {
     assert.ok(Buffer.byteLength(source, "utf8") <= ceiling, `${chain}: skill exceeds ${ceiling} bytes`);
