@@ -19,10 +19,10 @@ The live comparison and its limitations are recorded in ADR-010. The shipped pol
 | Decision | Choice | Why | Source |
 | --- | --- | --- | --- |
 | Measure the feature | Five comparable A/B pairs and a 0/0 A/A control with a designated baseline arm | ADR-010 uses the control to screen out savings within run-to-run spread. The comparator uses the baseline as its denominator. | Frame and ADR-010 |
-| Default during measurement | Propose shipping `0`, pending owner confirmation | ADR-010 covers insufficient evidence. The frame reserves the interim decision for the owner. | [Frame](frame.md#open-for-the-owner) and ADR-010 |
+| Default during measurement | Ship `0` (owner confirmed 2026-11-23) | ADR-010 covers insufficient evidence. | [Frame](frame.md#open-for-the-owner) and ADR-010 |
 | Arm setup | Use the same 10x change, starting inputs, host, mode and policy with only drop `0` versus `1` | The pinned general baseline also changes the ladder and scorer. | Plan, following ADR-010 |
 | Usage source | Require verified step-tree accounting on one qualified native host and provider mode | Missing or differently scoped attempts would skew the token comparison. | Frame and Plan |
-| Decision | Enable `1` only if savings exceed A/A spread and the failure, rigor and halt guards pass | The ADR protects completion and retry behavior alongside token savings. | ADR-010 |
+| Decision | Enable `1` only if savings exceed A/A spread, the failure, rigor and halt guards pass, and routed noncompletion against a done baseline has been resolved | The ADR protects completion and retry behavior alongside token savings. | ADR-010 |
 
 ## Scope
 
@@ -32,7 +32,7 @@ The live comparison and its limitations are recorded in ADR-010. The shipped pol
 
 ## Architecture / Approach
 
-The operator precreates both run worktrees at the same base in a disposable repository, uses an ignored local override in each arm and verifies identical readiness before native launch. This preserves the intended drop setting through rollback. The operator reads both arms with `compare --unpinned` and checks host, inputs and effective policy independently, including scorer settings and any drift. ADR-010 holds verified coverage, token splits, excluded pairs, implement failures and terminal outcomes. Failed or redone work contributes to total tokens.
+The operator precreates both isolated run worktrees at the same base in a disposable repository without a publication remote. Each arm gets identical starting inputs, including a trackable `change.md`, and an ignored local override. The operator verifies identical readiness before native launch. This preserves the intended drop setting through rollback. The operator reads both arms with `compare --unpinned` and checks host, inputs and effective policy independently, including scorer settings and any drift. The operator checks native invocation records for execution missing from the ledger, preserves terminal outcomes before recovery and records exclusions. ADR-010 holds verified coverage, token splits, excluded pairs, implement failures and terminal outcomes. Failed or redone work contributes to total tokens.
 
 ## Phases at a Glance
 
@@ -41,7 +41,7 @@ The operator precreates both run worktrees at the same base in a disposable repo
 | 1. Set the evidence-backed default and document the protocol | Interim drop `0`, documented pending result and local regression coverage for both settings | Some existing tests rely on the shipped `1`. |
 | 2. Measure live and record the default decision | Operator-run qualification, paired results and synchronized policy and docs | The chosen host, model quota, or usage coverage may leave a cohort incomplete. |
 
-**Prerequisites** Owner confirmation of the interim policy before Phase 1. Phase 2 requires Wave 5 ordering, Node 24+, a qualified native capture path and an authorized operator with a paid run limit. Native interactive Claude has prior coverage with the opt-in launcher and records `claude-native` evidence. Native Codex is an earlier option after checking CLI 0.169.0 and verifying actual complete figures.
+**Prerequisites** Owner confirmed the interim policy (`0`) on 2026-11-23. Phase 2 requires Wave 5 ordering, Node 24+, a complete capture qualification run on the exact experiment setup and an authorized operator with a paid run limit. Native interactive Claude has prior coverage with the opt-in launcher and records `claude-native` evidence. Native Codex is an earlier option after checking CLI 0.169.0 and verifying actual complete figures.
 
 **Estimated effort** One local change and review, followed by at least 12 full runs plus any host qualification and approved replacements.
 

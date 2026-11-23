@@ -50,9 +50,5 @@
   "rigor": {
     "level": "standard",
     "by": "failed steps 1"
-  },
-  "outcome": {
-    "action": "halt",
-    "reason": "Step 2 (plan-review) needs a human: Confirm shipping drop 0 before measurement or approve retaining drop 1 through a dated ADR-010 measurement window."
   }
 }
