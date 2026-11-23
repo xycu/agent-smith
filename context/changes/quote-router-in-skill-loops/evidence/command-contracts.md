@@ -1,6 +1,6 @@
 # Integration baseline
 
-Recorded 2026-11-23 at merge commit f81bdb52, which merged `origin/main` at 2a328e8a into this run branch. The first baseline of 2026-11-15 (HEAD 4c54a4a2, main at 45a7a50) predated the rewrite and is replaced here.
+Recorded 2026-11-23 at merge commit f81bdb52, which merged `origin/main` at bf8a105a into this run branch. That `main` also holds `claude-token-figures-default` (72c957cb, PR #270), the skill-text change `WAVES.md` orders before this one. The first baseline of 2026-11-15 (HEAD 4c54a4a2, main at 45a7a50) predated the rewrite and is replaced here.
 
 ## Rewrite integration
 
