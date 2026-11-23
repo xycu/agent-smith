@@ -193,7 +193,7 @@ function preload(project, source) {
 }
 
 test("native probe opens both sources safely and permits live append growth", () => {
-  for (const mode of ["unreadable hooks", "unreadable OTLP", "growth", "replaced"]) {
+  for (const mode of ["unreadable hooks", "unreadable OTLP", "growth", "replaced", "failure during probe"]) {
     const project = makeProject();
     const fake = fakeCodex(project);
     const { root, native, telemetry } = capture(project);
@@ -219,6 +219,9 @@ fs.openSync = (file, flags, ...args) => {
       fs.renameSync(file, file + ".old");
       fs.closeSync(open(file, "wx", 0o600));
       return fd;
+    }
+    if (mode === "failure during probe" && file === telemetry) {
+      fs.closeSync(open(${JSON.stringify(captureFile(root, "failure"))}, "wx", 0o600));
     }
   }
   return open(file, flags, ...args);

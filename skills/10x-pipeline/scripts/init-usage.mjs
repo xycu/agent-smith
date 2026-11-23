@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
 import { ROOT, hostOf, providerOf, providersByStep } from "./state.mjs";
-import { claudeCaptureReadiness } from "./claude-capture-data.mjs";
 import { codexChildEnv } from "./codex-startup.mjs";
 import { CODEX_USAGE_VERSION } from "./codex-usage.mjs";
 
@@ -33,13 +32,20 @@ function codexWarning() {
     CODEX_USAGE_VERSION + " on the run's PATH.";
 }
 
-function claudeWarning(host) {
+async function claudeWarning(host) {
   if (host === "codex") {
     return "Headless Claude on Codex records duration only. For verified token totals, use the capture launcher " +
       "in a fresh Claude session and start a new Claude-hosted run or resume an existing Claude-hosted run " +
       "with its saved provider mode.";
   }
-  const readiness = claudeCaptureReadiness();
+  let readiness;
+  try {
+    // The capture files are optional to the router, including when the provenance hash cannot be computed.
+    const { claudeCaptureReadiness } = await import("./claude-capture-data.mjs");
+    readiness = claudeCaptureReadiness();
+  } catch {
+    return "Could not check native Claude token capture. Verify the installed agent-smith plugin and use the documented launcher.";
+  }
   if (readiness === "disabled") {
     return "Native Claude token capture is off in this session. Start a fresh Claude session with the capture launcher.";
   }
@@ -49,11 +55,11 @@ function claudeWarning(host) {
   return null;
 }
 
-export function initUsageWarning(policy, selection, neutralReplay) {
+export async function initUsageWarning(policy, selection, neutralReplay) {
   const providers = neutralReplay ? new Set([providerOf(neutralReplay)])
     : new Set(Object.values(providersByStep(policy, selection)).flat());
   const warnings = [];
-  if (providers.has("claude")) warnings.push(claudeWarning(hostOf(selection)));
+  if (providers.has("claude")) warnings.push(await claudeWarning(hostOf(selection)));
   if (providers.has("openai")) warnings.push(codexWarning());
   const message = warnings.filter(Boolean).join(" ");
   if (message) {

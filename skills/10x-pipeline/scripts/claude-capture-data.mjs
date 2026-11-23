@@ -103,9 +103,10 @@ export function claudeCaptureReadiness(env = process.env) {
   const root = env[CAPTURE_ENV];
   if (!root || env.AGENT_SMITH_CLAUDE_SESSION) return "disabled";
   try {
-    readCaptureBinding(root);
+    const binding = readCaptureBinding(root);
     probeCaptureFile(root, "native");
     probeCaptureFile(root, "telemetry");
+    assertCaptureAvailable(root, binding);
     return "ready";
   } catch {
     return "unusable";
