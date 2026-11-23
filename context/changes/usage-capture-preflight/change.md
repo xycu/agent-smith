@@ -1,7 +1,7 @@
 ---
 change_id: usage-capture-preflight
 title: Warn before the first step when token usage cannot be captured
-status: implementing
+status: implemented
 created: 2026-11-21
 updated: 2026-11-23
 archived_at: null

@@ -161,9 +161,9 @@ Rollback uses the previous router revision after the active invocation settles. 
 
 #### Automated
 
-- [x] 2.1 Reports for both chains explain missing capture near the header, retain step reasons and keep mixed, legacy and late-verified figures accurate.
-- [x] 2.2 A local fake GitHub client receives the same summary in the report comment payload.
-- [x] 2.3 Active operator docs agree on the shared warning and supported setup.
+- [x] 2.1 Reports for both chains explain missing capture near the header, retain step reasons and keep mixed, legacy and late-verified figures accurate. — 80bf6f92
+- [x] 2.2 A local fake GitHub client receives the same summary in the report comment payload. — 80bf6f92
+- [x] 2.3 Active operator docs agree on the shared warning and supported setup. — 80bf6f92
 
 #### Manual
 
