@@ -202,11 +202,11 @@ No data migration. Skills are installed text, so final acceptance must load the 
 
 #### Automated
 
-- [x] 2.1 Every target invocation is quoted; root prefixes, OpenSpec selectors, usage ordering, PR-report behavior and unchanged equal anti-stall sections pass the updated content assertions.
-- [x] 2.2 The both-chain regression fails for each isolated unquoted ROUTER, PR_COMMENT and OPEN_PR mutation and passes on the fixed skills.
-- [x] 2.3 Representative init, PR-comment and open-PR snippets in both chains reach the harmless Node fixture through spaced plugin and run-root paths with the expected argv and cwd.
-- [x] 2.4 The focused content and compatibility tests listed in Testing Strategy pass, with live GitHub checks left disabled and any expected skips reported explicitly.
-- [x] 2.5 The complete current repository test suite passes on Node 24+ and `git diff --check` passes; failures and unavailable prerequisites are reported rather than hidden by new skips.
+- [x] 2.1 Every target invocation is quoted; root prefixes, OpenSpec selectors, usage ordering, PR-report behavior and unchanged equal anti-stall sections pass the updated content assertions. — 034f2b85
+- [x] 2.2 The both-chain regression fails for each isolated unquoted ROUTER, PR_COMMENT and OPEN_PR mutation and passes on the fixed skills. — 034f2b85
+- [x] 2.3 Representative init, PR-comment and open-PR snippets in both chains reach the harmless Node fixture through spaced plugin and run-root paths with the expected argv and cwd. — 034f2b85
+- [x] 2.4 The focused content and compatibility tests listed in Testing Strategy pass, with live GitHub checks left disabled and any expected skips reported explicitly. — 034f2b85
+- [x] 2.5 The complete current repository test suite passes on Node 24+ and `git diff --check` passes; failures and unavailable prerequisites are reported rather than hidden by new skips. — 034f2b85
 
 #### Manual
 
