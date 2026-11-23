@@ -159,7 +159,8 @@ for (const value of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, "1.5", "-1", "9007199
 for (const [name, mutate] of [
   ["broken", records => { records.find(record => record.type === "attachment").parentUuid = "missing"; }],
   ["cyclic", records => { records.find(record => record.type === "attachment").parentUuid = records[1].uuid; }],
-  ["disconnected", records => { records.push({ ...records.at(-1), uuid: "disconnected" }); }],
+  // A branch that reaches the chain is tolerated (async launch tests); an entry with no path to it is not.
+  ["disconnected", records => { records.push({ ...records.at(-1), uuid: "disconnected", parentUuid: null }); }],
   ["wrong launch prompt", records => { records[0].message.content = "different prompt"; }],
 ]) {
   test(`${name} attachment history cannot establish invocation coverage`, () => {
@@ -170,7 +171,7 @@ for (const [name, mutate] of [
   });
 }
 
-test("tool-only requests still require complete membership and a terminal assistant response", () => {
+test("tool-only requests still require complete membership and settle the final request by sequence", () => {
   const fixture = claudeUsageFixture();
   const first = named(fixture, "api_request").find(event => key(event, "agent_id") === "leaf-agent");
   fixture.events.splice(fixture.events.indexOf(first), 1);
@@ -182,7 +183,9 @@ test("tool-only requests still require complete membership and a terminal assist
   complete.events.splice(complete.events.indexOf(terminal), 1);
   complete.events.forEach((event, sequence) => setEvent(event, "event.sequence", sequence));
   complete.write();
-  unavailable(collectClaudeUsage(complete.descriptor), "incomplete-capture");
+  const measured = collectClaudeUsage(complete.descriptor);
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usage.totalTokens, 151);
 });
 
 test("request and message identity are a bijection, not just equal counters", () => {
@@ -409,4 +412,166 @@ test("default-off, a failed opt-in and unsupported host are distinct and explici
   fs.writeFileSync(captureFile(f.root, "binding"), JSON.stringify({ ...f.binding, hostVersion: "2.1.310" }));
   unavailable(collectClaudeUsage(f.descriptor, f.env), "unsupported-host");
   assert.equal(collectClaudeUsage(claudeUsageFixture().descriptor, f.env).usage.totalTokens, 151);
+});
+
+const resequence = fixture => fixture.events.forEach((event, sequence) => setEvent(event, "event.sequence", sequence));
+const stepEvent = (fixture, name) => named(fixture, name).find(event => key(event, "agent_id") === "step-agent");
+const stepRecords = fixture => [...fixture.transcripts.values()][0];
+
+test("async launch: verifies the root from stop, completion and transcript, counting a telemetry-only request", () => {
+  const fixture = claudeUsageFixture({ async: true, telemetryOnly: "response" });
+  assert.equal(fixture.native[2].tool_response.status, "async_launched");
+  assert.equal(fixture.native[2].tool_response.totalTokens, undefined);
+  const measured = collectClaudeUsage(fixture.descriptor);
+  assert.deepEqual(measured.usage, { toolUses: 4, durationMs: 50, totalTokens: 155 });
+  assert.deepEqual(measured.usageEvidence, { schemaVersion: 1, status: "verified", scope: "step-tree", source: "claude-native",
+    hostVersion: "2.1.311", invocation: fixture.descriptor.invocation, sessionCount: 2, requestCount: 5, reconciliation: "request-records" });
+});
+
+test("async launch: verifies a telemetry-only request on a synchronous root and on a child run", () => {
+  const sync = collectClaudeUsage(claudeUsageFixture({ telemetryOnly: "response" }).descriptor);
+  assert.equal(sync.usageEvidence.status, "verified");
+  assert.equal(sync.usage.totalTokens, 155);
+  const fixture = claudeUsageFixture({ async: true });
+  const leaf = named(fixture, "api_request").find(event => key(event, "agent_id") === "leaf-agent");
+  const answer = named(fixture, "assistant_response").find(event => key(event, "agent_id") === "leaf-agent");
+  const side = structuredClone(leaf);
+  setEvent(side, "request_id", "leaf-agent-side-query");
+  const sideAnswer = structuredClone(answer);
+  setEvent(sideAnswer, "request_id", "leaf-agent-side-query");
+  setEvent(sideAnswer, "message.uuid", "leaf-agent-side-answer");
+  fixture.events.splice(fixture.events.indexOf(named(fixture, "subagent_completed")[0]), 0, side, sideAnswer);
+  resequence(fixture);
+  fixture.write();
+  const measured = collectClaudeUsage(fixture.descriptor);
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usage.totalTokens, 166);
+});
+
+test("async launch: unavailable when a telemetry-only request has no response event", () => {
+  unavailable(collectClaudeUsage(claudeUsageFixture({ async: true, telemetryOnly: true }).descriptor), "ambiguous-history");
+});
+
+test("async launch: unavailable when telemetry-only counts overflow", () => {
+  const fixture = claudeUsageFixture({ async: true, telemetryOnly: "response" });
+  const side = named(fixture, "api_request").find(event => key(event, "request_id") === "step-agent-side-query");
+  setEvent(side, "input_tokens", Number.MAX_SAFE_INTEGER);
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "resource-limit");
+});
+
+test("async launch: verifies a flat root without children", () => {
+  const measured = collectClaudeUsage(claudeUsageFixture({ async: true, children: false }).descriptor);
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usage.totalTokens, 117);
+});
+
+test("async launch: verifies a null stop hash when the final response has empty text", () => {
+  const fixture = claudeUsageFixture({ async: true, nullStop: true });
+  assert.equal(fixture.native[1].last_assistant_message, undefined);
+  const measured = collectClaudeUsage(fixture.descriptor);
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usage.totalTokens, 151);
+});
+
+test("async launch: unavailable when a null stop hash meets a non-empty final response", () => {
+  const fixture = claudeUsageFixture({ async: true, nullStop: true });
+  stepRecords(fixture).find(record => record.uuid === "step-agent-answer-1").message.content[0].text = "private-prompt text the stop never carried";
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
+});
+
+test("async launch: unavailable when a synchronous root or a child run has a null stop hash", () => {
+  unavailable(collectClaudeUsage(claudeUsageFixture({ nullStop: true }).descriptor), "incomplete-capture");
+  const fixture = claudeUsageFixture({ async: true });
+  const stop = fixture.native.find(record => record.hook_event_name === "SubagentStop" && record.agent_id === "leaf-agent");
+  delete stop.last_assistant_message;
+  [...fixture.transcripts.values()][1].find(record => record.uuid === "leaf-agent-answer-1").message.content[0].text = "";
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
+});
+
+test("async launch: verifies a launched root with any status other than completed", () => {
+  const fixture = claudeUsageFixture({ async: true });
+  fixture.native[2].tool_response = { status: "failed", agentId: "step-agent" };
+  fixture.write();
+  const measured = collectClaudeUsage(fixture.descriptor);
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usage.totalTokens, 151);
+});
+
+test("async launch: verifies a tool-only final request settled by sequence", () => {
+  const fixture = claudeUsageFixture({ async: true, nullStop: true });
+  fixture.events.splice(fixture.events.indexOf(named(fixture, "assistant_response").at(-1)), 1);
+  resequence(fixture);
+  fixture.write();
+  const measured = collectClaudeUsage(fixture.descriptor);
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usage.totalTokens, 151);
+});
+
+test("async launch: verifies a branch attachment off the chain", () => {
+  const fixture = claudeUsageFixture({ async: true, branch: true });
+  assert.ok(stepRecords(fixture).some(record => record.uuid === "step-agent-branch"));
+  const measured = collectClaudeUsage(fixture.descriptor);
+  assert.equal(measured.usageEvidence.status, "verified");
+  assert.equal(measured.usage.totalTokens, 151);
+});
+
+test("async launch: unavailable when an assistant entry hangs off the chain", () => {
+  const fixture = claudeUsageFixture({ async: true, branch: true });
+  const records = stepRecords(fixture);
+  records.push({ ...structuredClone(records.find(record => record.uuid === "step-agent-answer-0")), uuid: "step-agent-offchain", parentUuid: "step-agent-user" });
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "ambiguous-history");
+});
+
+test("async launch: unavailable when a transcript request has no telemetry", () => {
+  const fixture = claudeUsageFixture({ async: true });
+  fixture.events.splice(fixture.events.indexOf(stepEvent(fixture, "api_request")), 1);
+  resequence(fixture);
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "snapshot-mismatch");
+});
+
+test("async launch: unavailable when a telemetry-only request follows subagent_completed", () => {
+  const fixture = claudeUsageFixture({ async: true, telemetryOnly: "response" });
+  const side = named(fixture, "api_request").find(event => key(event, "request_id") === "step-agent-side-query");
+  fixture.events.splice(fixture.events.indexOf(side), 1);
+  fixture.events.splice(fixture.events.indexOf(stepEvent(fixture, "subagent_completed")) + 1, 0, side);
+  resequence(fixture);
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "ambiguous-history");
+});
+
+test("async launch: unavailable for a launch-only status on a nested child run", () => {
+  const fixture = claudeUsageFixture({ async: true });
+  fixture.native[5].tool_response = { status: "async_launched", agentId: "leaf-agent" };
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
+});
+
+test("async launch: unavailable without subagent_completed", () => {
+  const fixture = claudeUsageFixture({ async: true });
+  fixture.events.splice(fixture.events.indexOf(stepEvent(fixture, "subagent_completed")), 1);
+  resequence(fixture);
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
+});
+
+test("async launch: unavailable without SubagentStop", () => {
+  const fixture = claudeUsageFixture({ async: true });
+  fixture.native.splice(fixture.native.findIndex(record => record.hook_event_name === "SubagentStop" && record.agent_id === "step-agent"), 1);
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
+});
+
+test("async launch: unavailable when the launch result follows completion", () => {
+  const fixture = claudeUsageFixture({ async: true });
+  const result = named(fixture, "tool_result").at(-1);
+  fixture.events.splice(fixture.events.indexOf(result), 1);
+  fixture.events.splice(fixture.events.indexOf(stepEvent(fixture, "subagent_completed")) + 1, 0, result);
+  resequence(fixture);
+  fixture.write();
+  unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
 });

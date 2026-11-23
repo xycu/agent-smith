@@ -174,13 +174,15 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
     const agents = new Map();
     const addAgent = (runId, launch) => {
       const { pre, post } = launch;
+      // Interactive hosts launch the step in the background: only the invocation's own root may settle from a non-completed status (the projection folds async_launched and others together).
+      const rootRun = runId === invocation.runId && pre?.parent === null;
       if (!pre || !post || pre.parent !== post.parent
-          || post.response?.status !== "completed" || !identifier(post.response.agentId)) fail("incomplete-capture");
+          || (post.response?.status !== "completed" && !rootRun) || !identifier(post.response.agentId)) fail("incomplete-capture");
       if (pre.resumed || !pre.promptHash) fail("ambiguous-history");
       const id = post.response.agentId;
       if (agents.has(id)) fail("ambiguous-history");
       const stop = stops.get(id);
-      if (!stop?.textHash || typeof stop.file !== "string" || !path.isAbsolute(stop.file)) fail("incomplete-capture");
+      if (!stop || typeof stop.file !== "string" || !path.isAbsolute(stop.file)) fail("incomplete-capture");
       agents.set(id, { id, runId, parent: pre.parent, promptHash: pre.promptHash, stop, response: post.response });
       if (agents.size > CLAUDE_USAGE_LIMITS.agents) fail("resource-limit");
     };
@@ -283,8 +285,13 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
       }
     }
     if (terminalSequence === undefined) fail("incomplete-capture");
+    const rootLaunched = root.post.response.status !== "completed";
+    const rootEnded = terminal.get(invocation.agentId);
+    if (rootLaunched && !rootEnded) fail("incomplete-capture");
+    // A launched root returns before it ends, so its events run on to subagent_completed.
+    const bound = rootLaunched ? rootEnded.sequence : terminalSequence;
     // event.sequence restarts across processes, so its prefix only corroborates the independently matched process.
-    for (let sequence = 0; sequence <= terminalSequence; sequence++) if (!events.has(sequence)) fail("incomplete-capture");
+    for (let sequence = 0; sequence <= bound; sequence++) if (!events.has(sequence)) fail("incomplete-capture");
     if ([...responses.keys()].some(requestId => !requests.has(requestId))) fail("snapshot-mismatch");
     let totalTokens = 0;
     let requestCount = 0;
@@ -292,7 +299,9 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
     for (const agent of agents.values()) {
       const ended = terminal.get(agent.id);
       const returned = agent.id === invocation.agentId ? { sequence: terminalSequence } : toolResults.get(agent.runId);
-      if (!ended || !returned || ended.sequence >= returned.sequence || returned.sequence > terminalSequence) fail("incomplete-capture");
+      const launched = rootLaunched && agent.id === invocation.agentId;
+      if (!ended || !returned || (launched ? returned.sequence >= ended.sequence
+          : ended.sequence >= returned.sequence || returned.sequence > bound)) fail("incomplete-capture");
       if (agent.parent !== null && agent.id !== invocation.agentId && returned.agent !== agent.parent) fail("missing-identity");
       if (agent.id !== invocation.agentId && returned.sequence >= (terminal.get(agent.parent)?.sequence ?? -1)) fail("incomplete-capture");
       if (transcriptFiles.has(agent.stop.file)) fail("missing-identity");
@@ -329,22 +338,28 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
         if (native.size > CLAUDE_USAGE_LIMITS.requests) fail("resource-limit");
       }, transcriptRoot);
       const exported = [...requests].filter(([, request]) => request.agent === agent.id);
-      if (exported.length !== native.size) fail("snapshot-mismatch");
+      if ([...native.keys()].some(requestId => requests.get(requestId)?.agent !== agent.id)) fail("snapshot-mismatch");
       let finalSequence = -1;
       let finalRequest;
       for (const [requestId, observed] of exported) {
         const record = native.get(requestId);
         const response = responses.get(requestId);
-        if (!record || (response && (response.agent !== agent.id || response.uuid !== record.uuid))
-            || !isDeepStrictEqual(record.counts, observed.counts)) fail("snapshot-mismatch");
-        if (observed.sequence >= ended.sequence || (response && response.sequence >= ended.sequence)) fail("ambiguous-history");
-        if (response && response.sequence > finalSequence) { finalSequence = response.sequence; finalRequest = { record, observed }; }
+        if (!record) {
+          // Side queries reach telemetry without a transcript entry; each needs its own response event and counts only while the run is still open.
+          if (!response || response.agent !== agent.id || observed.sequence >= ended.sequence
+              || response.sequence >= ended.sequence) fail("ambiguous-history");
+        } else {
+          if ((response && (response.agent !== agent.id || response.uuid !== record.uuid))
+              || !isDeepStrictEqual(record.counts, observed.counts)) fail("snapshot-mismatch");
+          if (observed.sequence >= ended.sequence || (response && response.sequence >= ended.sequence)) fail("ambiguous-history");
+          if (observed.sequence > finalSequence) { finalSequence = observed.sequence; finalRequest = { record, observed }; }
+        }
         totalTokens += observed.counts.total;
         if (!Number.isSafeInteger(totalTokens)) fail("resource-limit");
         requestCount++;
       }
       const last = entries.get(finalRequest?.record.uuid);
-      if (last?.type !== "assistant" || last.textHash !== agent.stop.textHash || !native.size) fail("incomplete-capture");
+      if (last?.type !== "assistant" || last.textHash !== (agent.stop.textHash ?? (rootLaunched && agent.id === invocation.agentId ? hash("") : null)) || !native.size) fail("incomplete-capture");
       // Attachments can be serialized late; membership follows UUID links, never file order.
       const visited = new Set();
       let uuid = finalRequest.record.uuid;
@@ -355,7 +370,18 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
         if (entry.parent === null && (entry.type !== "user" || entry.textHash !== agent.promptHash)) fail("ambiguous-history");
         uuid = entry.parent;
       }
-      if (visited.size !== entries.size) fail("ambiguous-history");
+      // Branches (attachments, side entries) may hang off the chain; an assistant response off it is unaccounted.
+      for (const [id, entry] of entries) {
+        if (visited.has(id)) continue;
+        if (entry.type === "assistant") fail("ambiguous-history");
+        const seen = new Set([id]);
+        let up = entry.parent;
+        while (!visited.has(up)) {
+          if (up === null || seen.has(up) || !entries.has(up)) fail("ambiguous-history");
+          seen.add(up);
+          up = entries.get(up).parent;
+        }
+      }
       if (ended.total !== finalRequest.observed.counts.total
           || (agent.response.totalTokens !== undefined && agent.response.totalTokens !== ended.total)) fail("snapshot-mismatch");
     }
