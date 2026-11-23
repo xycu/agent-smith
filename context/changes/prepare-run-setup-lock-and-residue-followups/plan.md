@@ -198,7 +198,7 @@ Finish any `copyComplete` recovery on a version that understands it, as required
 
 #### Automated
 
-- [x] 2.1 The setup tests, including the new ones, pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs`
+- [x] 2.1 The setup tests, including the new ones, pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/prepare-run.test.mjs` — aeff5382
 
 #### Manual
 
