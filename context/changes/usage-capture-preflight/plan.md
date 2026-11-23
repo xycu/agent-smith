@@ -43,7 +43,7 @@ Add a shared init advisory alongside the existing permission advisory. For ordin
 
 ### Overview
 
-Surface a single advisory using the router's existing stdout/stderr contract.
+Surface a single advisory using the router's existing stdout/stderr contract. The remaining Phase 1 work is the test follow-up for rows 1.3 and 1.4. The checked criteria retain their existing implementation and regression commands.
 
 ### Changes Required
 
@@ -73,7 +73,9 @@ Surface a single advisory using the router's existing stdout/stderr contract.
 
 #### 4. Verify the two startup regressions from implementation review
 
-**F1 — Optional capture module.** Only the native Claude advisory loads `claude-capture-data.mjs`. It catches a failed dynamic import, and the router awaits the advisory before dispatch. Use the existing provenance fixture's scratch plugin copy with the module missing and with a directory in its place. For those cases, assert the CLI exits zero, stdout parses as one `run` action, stderr carries the native capture-check warning and setup guidance, and `provenance.sections.hookFiles` is null. The fixture already checks the hash. Extend its assertions to cover the action and warning. [Advisory](../../../skills/10x-pipeline/scripts/init-usage.mjs#L35) · [Init call](../../../skills/10x-pipeline/scripts/route.mjs#L1134) · [Provenance fixture](../../../skills/10x-pipeline/test/provenance.test.mjs#L539)
+**Files** `skills/10x-pipeline/test/provenance.test.mjs` for the added assertions and `skills/10x-pipeline/test/init-usage.test.mjs` for the existing failure-marker regression.
+
+**F1 — Optional capture module at router startup.** The native Claude init advisory dynamically imports `claude-capture-data.mjs`, catches load failures and returns a warning before dispatch. The launcher, capture hook and collector depend on the module during capture. Use the existing provenance fixture and a fresh scratch project for each variant. Explicitly select the Claude host and Claude provider mode. For the missing module and a directory in its place, assert zero exit, exactly one JSON `run` action on stdout, one usage warning on stderr with the native capture-check failure and setup guidance, and a null `provenance.sections.hookFiles`. The hash is null because those two inputs cannot be read as regular files. Keep the generic null-hash checks for the other hook inputs. [Advisory](../../../skills/10x-pipeline/scripts/init-usage.mjs#L35) · [Init call](../../../skills/10x-pipeline/scripts/route.mjs#L1134) · [Hook hash](../../../skills/10x-pipeline/scripts/isolation.mjs#L84) · [Provenance fixture](../../../skills/10x-pipeline/test/provenance.test.mjs#L539)
 
 **F2 — Launcher failure during the probe.** After opening both sources, `claudeCaptureReadiness` calls `assertCaptureAvailable(root, binding)` with the binding it initially validated. Run the existing preload fixture that creates the failure marker when the telemetry file opens. Both sources remain readable. Init must still dispatch and warn that launcher capture is unavailable. The same fixture verifies that ordinary append growth within the size cap produces quiet init. [Readiness check](../../../skills/10x-pipeline/scripts/claude-capture-data.mjs#L102) · [Collector recheck](../../../skills/10x-pipeline/scripts/claude-usage.mjs#L388) · [Probe fixture](../../../skills/10x-pipeline/test/init-usage.test.mjs#L195)
 
@@ -148,9 +150,9 @@ Read only the bounded launcher binding and metadata and open/close the two sourc
 
 ## Migration Notes
 
-The router owns init and report writes. The launcher creates capture files, hooks and the loopback receiver append records, and the collector reads them for the invocation. This change adds a read-only startup check and a rendering change. Existing `meta.json`, `run.jsonl`, accounting schema, capture files and late-usage intake remain compatible in both directions. Enable the new revision for future init calls and regenerate reports from existing ledgers through the supported command. A resumed run can gain capture for later steps without changing why earlier steps lack figures.
+The router owns init and report writes. The launcher creates capture files, hooks and the loopback receiver append records, and the collector reads them for the invocation. This change adds a read-only startup check and a rendering change. Both revisions read the existing `meta.json`, `run.jsonl` and capture files and use the same accounting schema and late-usage intake. Regenerate reports for eligible live change folders with `status <id> --report`, adding `--chain openspec` for OpenSpec. Reports in archived folders stay frozen. A Claude-hosted run can gain capture for later steps when resumed from the launcher with its saved host and mode.
 
-Rollback uses the previous router revision after the active invocation settles. It can read the same persisted evidence and regenerate its prior report format. Keep existing capture and ledger data. The existing launcher shutdown owns any capture cleanup. Published comments reflect a report snapshot and follow the current authorized refresh flow.
+The change to `claude-capture-data.mjs` changes the hook provenance hash computed by the plugin. A run with remaining guarded headless Claude dispatches must finish on its enabling plugin revision, including any headless archive dispatch. Settling the current invocation leaves that requirement in place for later dispatches. Apply the upgrade or rollback revision to new runs. Keep the original provenance, capture and ledger data and let launcher shutdown own capture cleanup. The previous revision can regenerate its report format from the same eligible ledgers. Published comments reflect a report snapshot and follow the current authorized refresh flow. [Hook provenance](../../../skills/10x-pipeline/scripts/isolation.mjs#L83) · [Headless dispatch guard](../../../skills/10x-pipeline/scripts/runner-dispatch.mjs#L33) · [Existing local guard fixture](../../../skills/10x-pipeline/test/claude-runner.test.mjs#L143) · [Revision guidance](../../../docs/REFERENCE.md#codex-and-provider-dispatch)
 
 ## References
 

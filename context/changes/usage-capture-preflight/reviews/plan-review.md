@@ -1,88 +1,60 @@
 <!-- PLAN-REVIEW-REPORT -->
-# Plan Review: Usage Capture Preflight Implementation Plan
+# Plan Review — Usage Capture Preflight Implementation Plan
 
 - **Plan**: [Usage Capture Preflight Implementation Plan](../plan.md)
 - **Mode**: Deep
 - **Date**: 2026-11-23
 - **Verdict**: REVISE
-- **Findings**: 0 critical, 5 warnings, 1 observation
+- **Findings**: 0 critical, 2 warnings, 1 observation
 
 ## Verdicts
 
 | Dimension | Verdict |
 | --- | --- |
-| End-State Alignment | WARNING |
-| Lean Execution | PASS |
+| End-State Alignment | PASS |
+| Lean Execution | WARNING |
 | Architectural Fitness | PASS |
 | Blind Spots | WARNING |
 | Plan Completeness | WARNING |
 
 ## Grounding
 
-Grounding: 15/15 existing implementation, test and documentation paths verified, with the proposed init module and init test treated as additions. Verified the selection, replay, launcher and reporting symbols against their callers. The brief and plan disagreed on whether operators could relaunch with capture and resume. Both phases matched their Progress headings and every criterion matched its row. All five Automated checks can be proved locally. The live PR comment check already belongs to Manual, and the local fake-client check remains Automated.
+Verified 15/15 implementation, test and documentation paths, including both regression fixtures. Traced provider selection, the native launcher probe, the guarded headless dispatch and the shared report renderer to their callers. Both regression test selectors match the named tests. Both phases and all nine criteria match the canonical Progress rows. All seven Automated criteria can be verified locally. The fake GitHub client covers the generated comment payload, and Manual row 2.5 covers the published comment.
+
+This review covers the plan revision in `770cc993`, which added rows 1.3 and 1.4 after implementation review. The initial plan review and its six applied findings are recorded in `658b1808`.
 
 ## Findings
 
-### F1 — Neutral replay can warn about an unassigned transport
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: End-State Alignment
-- **Location**: Implementation Approach and Phase 1
-- **Detail**: The original input rule could reuse the permissions advisory's union of all configured providers and the saved provider. That union includes transports this init cannot dispatch on neutral replay. The replay branch uses the stored step directly or halts. [Provider map](../../../../skills/10x-pipeline/scripts/state.mjs#L111) · [Permission advisory](../../../../skills/10x-pipeline/scripts/init-permissions.mjs#L143) · [Neutral replay](../../../../skills/10x-pipeline/scripts/flow.mjs#L418)
-- **Fix**: Check the saved provider alone on a pending neutral replay. Use the chain role map for ordinary init. Cover a replay whose provider differs from the current policy.
-- **Decision**: APPLIED — Implementation Approach, Phase 1 changes 1 and 3, and brief Scope.
-
-### F2 — Launcher guidance would discourage a supported resume
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Plan Completeness
-- **Location**: Phase 1, Planning Assumptions and Migration Notes
-- **Detail**: The Phase 1 restriction to a fresh run contradicted the brief, the resume assumption and the migration promise. The launcher needs a fresh Claude session. The router accepts a resume from that session with the saved host and provider mode. [Resume guards](../../../../skills/10x-pipeline/scripts/route.mjs#L1105) · [Launcher setup](../../../../docs/REFERENCE.md#accounting-activation-and-rollback)
-- **Fix**: Specify a new launcher session and allow starting or resuming a Claude-hosted run from it.
-- **Decision**: APPLIED — Phase 1 change 2 and the brief Warning policy decision.
-
-### F3 — The Codex probe changes existing CLI fixture expectations
-
-- **Severity**: ⚠️ WARNING
-- **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Plan Completeness
-- **Location**: Phase 1 and Testing Strategy
-- **Detail**: The plan covered shared stderr assertions, but permission fixtures also assert exact CLI calls. A new version invocation would change those assertions and could fall into the existing fake sandbox response. The exact pin belongs to the usage collector, and the skills already have a separate per-action CLI check. [Permission fixtures](../../../../skills/10x-pipeline/test/init-permissions.test.mjs#L107) · [Adapter pin](../../../../skills/10x-pipeline/scripts/codex-usage.mjs#L8) · [Dispatch check](../../../../skills/10x-pipeline/SKILL.md#L53)
-- **Fix**: Define the successful version response, model the version and sandbox calls separately in the fake CLI, retain exact sandbox assertions, and exercise bounded failure outcomes.
-- **Decision**: APPLIED — Phase 1 changes 1 and 3 and Testing Strategy.
-
-### F4 — The report contract needs an explicit settlement and transport predicate
+### F1 — Rollback can strand an unfinished headless Claude run
 
 - **Severity**: ⚠️ WARNING
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
 - **Dimension**: Blind Spots
-- **Location**: Phase 2 and Testing Strategy
-- **Detail**: The report starts with `executed(log)`, which filters skips and still includes a pending dispatch. The headless runner records `claude-native` with `incomplete-capture`, a reason also used by the native collector. Checking just that source or reason could label an interactive failure as duration-only, or count an unsettled row in a rebuilt report. Late intake already checks for a result object. [Executed rows](../../../../skills/10x-pipeline/scripts/state.mjs#L719) · [Late intake](../../../../skills/10x-pipeline/scripts/route.mjs#L881) · [Headless evidence](../../../../skills/10x-pipeline/scripts/run-claude.mjs#L362) · [Native fixture](../../../../skills/10x-pipeline/test/claude-usage.test.mjs#L80)
-- **Fix**: Require a result object and normalized unavailable evidence for the summary. Match inherited host, dispatched provider and recorded duration for the headless clause. Exercise pending rows, the shared reason in both transports and a late verified refresh.
-- **Decision**: APPLIED — Phase 2 change 1, Testing Strategy and the brief Architecture / Approach.
+- **Location**: Migration Notes and the brief Architecture / Approach
+- **Detail**: The original rollback instructions allowed a revision switch after the active invocation settled. The capture data module is a hashed hook input. The headless runner compares the installed hook and agent hashes to the stored provenance before it accepts a routed Claude dispatch, including archive. A later dispatch from the same run can therefore be refused after upgrade or rollback despite compatible persisted data. Report regeneration also has a live-folder eligibility guard. [Hook hash](../../../../skills/10x-pipeline/scripts/isolation.mjs#L83) · [Headless dispatch guard](../../../../skills/10x-pipeline/scripts/runner-dispatch.mjs#L33) · [Revision-mismatch fixture](../../../../skills/10x-pipeline/test/claude-runner.test.mjs#L143) · [Report eligibility](../../../../skills/10x-pipeline/scripts/route.mjs#L742)
+- **Fix**: Keep runs with remaining guarded headless Claude work on the enabling revision through completion. Apply the upgrade or rollback to new runs, preserve persisted evidence and specify how to regenerate eligible live reports.
+- **Decision**: APPLIED — Migration Notes and the brief Architecture / Approach.
 
-### F5 — A long goal can crowd the summary out of the PR comment
+### F2 — The optional-module fixture needs a narrower contract
 
 - **Severity**: ⚠️ WARNING
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: End-State Alignment
-- **Location**: Phase 2 and Testing Strategy
-- **Detail**: The renderer prints variable text before the first table. The existing publication scripts preserve the start of the body under a fixed length cap. A summary placed anywhere before the table can still be lost after a long goal. A handcrafted fake-client report could also pass while the renderer places the real line too late. [Report header](../../../../skills/10x-pipeline/scripts/flow.mjs#L136) · [Comment cap](../../../../skills/10x-pipeline/scripts/pr-common.mjs#L63) · [Fake-client harness](../../../../skills/10x-pipeline/test/pr-comment.test.mjs#L331) · [OpenSpec report argument](../../../../skills/openspec-pipeline/SKILL.md#L159)
-- **Fix**: Place the line immediately after the title. Capture the comment body from a generated report with a long goal and use the explicit report path for OpenSpec.
-- **Decision**: APPLIED — Phase 2 change 1, Testing Strategy, and the brief Architecture / Approach and Success Criteria.
+- **Dimension**: Plan Completeness
+- **Location**: Phase 1 change 4 and the brief Success Criteria
+- **Detail**: The advisory catches import errors during native Claude init. The launcher, hook and collector still depend on this module. The existing provenance test exercises several hook inputs and only the capture data module affects the advisory import. A null hook hash comes from an unreadable hash input, while the loader can also reject a readable module. Leaving the distinction implicit could broaden the startup checks to unrelated hook files or make them depend on implicit host selection. [Advisory](../../../../skills/10x-pipeline/scripts/init-usage.mjs#L35) · [Capture hook](../../../../skills/10x-pipeline/scripts/claude-capture-hook.mjs#L3) · [Collector](../../../../skills/10x-pipeline/scripts/claude-usage.mjs#L7) · [Hook hash](../../../../skills/10x-pipeline/scripts/isolation.mjs#L84) · [Fixture](../../../../skills/10x-pipeline/test/provenance.test.mjs#L539)
+- **Fix**: Name both fixture files. Select the native Claude path explicitly, and add action and warning assertions only when the capture data module is missing or replaced by a directory. Keep the generic hash checks for the other hook inputs.
+- **Decision**: APPLIED — Phase 1 change 4 and the brief Success Criteria.
 
-### F6 — Recheck source limits and privacy on the opened file
+### F3 — The brief still describes two phases of implementation effort
 
 - **Severity**: ℹ️ OBSERVATION
 - **Impact**: 🏃 LOW — quick decision with a narrowly scoped fix
-- **Dimension**: Blind Spots
-- **Location**: Phase 1, Native Claude launcher prerequisites
-- **Detail**: A device and inode match alone cannot catch same-file changes to size, mode or link count after the initial stat. The shared stable read scans payloads and expects unchanged content, while a launcher source can legitimately grow within the cap during init. The capture data module already owns the private binding and file checks used by the collector and writer. [Capture file checks](../../../../skills/10x-pipeline/scripts/claude-capture-data.mjs#L41) · [Stable reader](../../../../skills/10x-pipeline/scripts/usage.mjs#L121)
-- **Fix**: Keep a metadata-only probe in the capture data module. Reuse the binding and file checks, validate opened metadata and canonical identity, and allow growth within the cap.
-- **Decision**: APPLIED — Phase 1 change 2.
+- **Dimension**: Lean Execution
+- **Location**: Phase 1 Overview and the brief Phases at a Glance
+- **Detail**: The brief estimates two implementation phases despite the existing phase commits and the already-landed advisory fixes. Row 1.3 needs stronger fixture assertions. The existing row 1.4 fixture already checks the warning and, through its helper, successful init with a single JSON action. The old effort description can send the implementation step back through completed feature work. [Progress](../plan.md#progress) · [Implementation review](impl-review.md) · [Init helper](../../../../skills/10x-pipeline/test/init-usage.test.mjs#L73) · [Failure-marker fixture](../../../../skills/10x-pipeline/test/init-usage.test.mjs#L195)
+- **Fix**: Identify the two pending startup checks as the remaining Automated work and retain the existing regression commands and Manual acceptance.
+- **Decision**: APPLIED — Phase 1 Overview and the brief Phases at a Glance and Remaining work.
 
 ## Verification after triage
 
-The verdict and counts describe the original plan. All six findings were applied, and the canonical Progress block stayed byte-for-byte identical. The existing Automated local comment check and Manual published-comment check retain their original classifications.
+The verdict and counts describe the plan before edits. All three findings were applied. The canonical Progress block stayed byte-for-byte identical. No Automated criterion depends on publication, and the live comment check remains Manual.

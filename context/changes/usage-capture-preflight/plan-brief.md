@@ -31,18 +31,18 @@ Startup guidance covers the distinct assigned transports in both chains. On neut
 
 ## Architecture / Approach
 
-The router evaluates the current selection after init guards and sends one bounded advisory to stderr. The shared report renderer uses normalized, settled evidence and places the corresponding reason immediately after the title so it survives the comment cap. Existing PR scripts reuse that output. The same ledger and capture files work across upgrades and rollback.
+The router evaluates the current selection after init guards and sends one bounded advisory to stderr. The shared report renderer uses normalized, settled evidence and places the corresponding reason immediately after the title so it survives the comment cap. Existing PR scripts reuse that output. The same ledger and capture files work across upgrades and rollback. Unfinished runs with remaining guarded headless Claude dispatches stay on their enabling plugin revision. [Migration Notes](plan.md#migration-notes)
 
 ## Phases at a Glance
 
 | Phase | What it delivers | Key risk |
 | --- | --- | --- |
-| 1. Warn before step dispatch | Shared init warning and capture prerequisite checks | A source can appear set up while invocation records fail to reconcile. |
+| 1. Warn before step dispatch | Shared init warning and prerequisite checks. The remaining work adds the optional-module assertions and verifies the existing failure-marker regression. | A source can appear set up while invocation records fail to reconcile. |
 | 2. Explain missing figures in reports | Evidence-based report summary, local fake-client verification and setup docs | Generic missing-source evidence could be mistaken for an opt-out. |
 
 **Prerequisites** Node.js 24+, Git, and the shipped Claude capture launcher and Codex collector. Only the Manual checks require an authenticated Claude session and authorized orchestrator publication.
 
-**Estimated effort** Two focused implementation phases, followed by owner acceptance.
+**Remaining work** Verify the two Phase 1 regressions, then complete owner acceptance.
 
 ## Open Risks & Assumptions
 
@@ -53,7 +53,7 @@ The router evaluates the current selection after init guards and sends one bound
 ## Success Criteria (Summary)
 
 - Automated checks run locally for both chains, include safe and missing capture fixtures and use a fake Codex CLI for the version probe.
-- Phase 1 also checks the two review regressions. Native Claude init must dispatch with a warning and a null hook hash if the optional capture module cannot load. A launcher failure reported while init probes telemetry must produce a warning even when both source files are readable. [Implementation review](reviews/impl-review.md)
+- Phase 1 also checks the two review regressions. Native Claude init must dispatch with a warning and a null hook hash if the optional capture module is missing or replaced by a directory. A launcher failure reported while init probes telemetry must produce a warning even when both source files are readable. [Implementation review](reviews/impl-review.md)
 - Shared reports explain missing figures and update when late verified evidence arrives. A local fake GitHub client receives the same explanation from the generated report in the comment payload.
 - Manual acceptance observes ordinary and launcher startup on a supported Claude host and confirms the report explanation in an authorized published PR comment.
 
