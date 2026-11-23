@@ -240,18 +240,30 @@ async function withSetupLock(common, branch, operation) {
   try { return await operation(file); } finally { release(); }
 }
 
+function readPendingPayload(file) {
+  const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+  try {
+    if (!fs.fstatSync(fd).isFile()) throw new Error("expected a regular file");
+    return fs.readFileSync(fd, "utf8");
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
 function readPending(file, { lockFree = false } = {}) {
   try {
     const stat = lstat(file);
     if (!stat) return null;
     if (!stat.isFile()) throw new Error("expected a regular file");
-    let pending;
-    try { pending = readPolicyObject(file); } catch (error) {
+    let payload;
+    try { payload = readPendingPayload(file); } catch (error) {
       if (lockFree && error.code === "ENOENT") {
         try { if (!lstat(file)) return null; } catch { /* Preserve the original read error. */ }
       }
       throw error;
     }
+    const pending = JSON.parse(payload);
+    if (!isObject(pending)) throw new Error(file + " must hold a JSON object");
     if (typeof pending.root !== "string" || !path.isAbsolute(pending.root)
       || typeof pending.worktree !== "string" || !path.isAbsolute(pending.worktree)
       || typeof pending.prefix !== "string" || !["10x", "openspec"].includes(pending.chain)

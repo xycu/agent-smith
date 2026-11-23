@@ -33,8 +33,12 @@ const lookupTests = [
   "linked opt-out refuses a directory pending record with a stale lock",
   "an incomplete worktree with a committed opt-out points back to the original project",
 ];
-const vanished = "linked opt-out handles ENOENT while reading a disappearing pending record";
-const ioError = "linked opt-out handles EIO while reading a disappearing pending record";
+const vanished = "linked opt-out handles ENOENT while reading pending setup (disappearing)";
+const ioError = "linked opt-out handles EIO while reading pending setup (disappearing)";
+const retained = "linked opt-out handles ENOENT while reading pending setup (retained)";
+const unverifiable = "linked opt-out handles ENOENT while reading pending setup (unverifiable)";
+const swappedSymlink = "linked opt-out refuses a pending record swapped for a symlink before opening";
+const swappedDirectory = "linked opt-out refuses a pending record swapped for a directory before opening";
 const stagingTests = [
   "interrupted pending publication 1 leaves one staging file and retries cleanly",
   "interrupted pending publication 2 leaves one staging file and retries cleanly",
@@ -61,10 +65,27 @@ function check(label, source, failures, controls) {
   assert.deepEqual(cases.filter(([, status]) => status === "ok").map(([, , name]) => name).sort(), controls.slice().sort());
 }
 
-check("Unmodified code", fixed, [], [...lookupTests, vanished, ioError, ...stagingTests, lockControl]);
+function mutate(from, to) {
+  assert.ok(fixed.includes(from));
+  return fixed.replace(from, to);
+}
+
+check("Unmodified code", fixed, [],
+  [...lookupTests, vanished, ioError, retained, unverifiable, swappedSymlink, swappedDirectory, ...stagingTests, lockControl]);
 check("Restore the pre-selection lock", revert("  const checkCurrentPending", "  if (!isolationEnabled"), lookupTests, [ioError, lockControl]);
-check("Restore strict payload reads for a disappearing record", revert("function readPending(", "function writePending("), [vanished], [ioError, lockControl]);
 const guarded = 'lockFree && error.code === "ENOENT"';
-assert.ok(fixed.includes(guarded));
-check("Allow disappearance fallback after every payload error", fixed.replace(guarded, "lockFree"), [ioError], [vanished, lockControl]);
+check("Restore strict payload reads for a disappearing record", mutate(guarded, "false"), [vanished], [ioError, lockControl]);
+check("Allow disappearance fallback after every payload error", mutate(guarded, "lockFree"), [ioError], [vanished, lockControl]);
+check("Skip the absence confirmation", mutate(
+  "try { if (!lstat(file)) return null; } catch { /* Preserve the original read error. */ }",
+  "return null;",
+), [retained, unverifiable], [vanished, ioError, lockControl]);
+check("Follow a replacement symlink", mutate(
+  "fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK",
+  "fs.constants.O_RDONLY | fs.constants.O_NONBLOCK",
+), [swappedSymlink], [swappedDirectory, lockControl]);
+check("Skip the descriptor type check", mutate(
+  'if (!fs.fstatSync(fd).isFile()) throw new Error("expected a regular file");',
+  "",
+), [swappedDirectory], [swappedSymlink, lockControl]);
 check("Restore UUID staging", 'import { randomUUID } from "node:crypto";\n' + revert("function writePending(", "function routerState("), stagingTests, [lockControl]);

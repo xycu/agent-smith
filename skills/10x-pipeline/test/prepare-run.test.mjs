@@ -389,27 +389,78 @@ for (const kind of ["malformed", "directory"]) {
   });
 }
 
-for (const code of ["ENOENT", "EIO"]) {
-  test(`linked opt-out handles ${code} while reading a disappearing pending record`, () => {
+function linkedPendingRecord(wt) {
+  const file = setupRecord(wt);
+  fs.writeFileSync(file, JSON.stringify({
+    root: wt.base, worktree: wt.top, prefix: "", chain: wt.chain, startCommit: git(wt, ["rev-parse", "HEAD"]),
+  }));
+  return file;
+}
+
+for (const [code, scenario] of [
+  ["ENOENT", "disappearing"], ["EIO", "disappearing"], ["ENOENT", "retained"], ["ENOENT", "unverifiable"],
+]) {
+  test(`linked opt-out handles ${code} while reading pending setup (${scenario})`, () => {
     const wt = linkedOptOut();
-    const file = setupRecord(wt);
-    fs.writeFileSync(file, JSON.stringify({
-      root: wt.base, worktree: wt.top, prefix: "", chain: wt.chain, startCommit: git(wt, ["rev-parse", "HEAD"]),
-    }));
+    const file = linkedPendingRecord(wt);
+    const before = snapshot(file);
     const preload = setupPreload(wt, `
-      const read = fs.readFileSync;
-      fs.readFileSync = (name, ...args) => {
-        if (name === ${JSON.stringify(file)}) {
-          fs.unlinkSync(name);
-          ${code === "EIO" ? 'throw Object.assign(new Error("injected I/O error"), { code: "EIO" });' : ""}
+      const file = ${JSON.stringify(file)};
+      const code = ${JSON.stringify(code)};
+      const scenario = ${JSON.stringify(scenario)};
+      const open = fs.openSync;
+      const lstat = fs.lstatSync;
+      let attemptedOpen = false;
+      fs.openSync = (name, ...args) => {
+        if (name !== file) return open(name, ...args);
+        attemptedOpen = true;
+        if (scenario !== "retained") fs.unlinkSync(name);
+        if (code === "ENOENT" && scenario !== "retained") return open(name, ...args);
+        throw Object.assign(new Error("injected payload open error (" + code + ")"), { code });
+      };
+      fs.lstatSync = (name, ...args) => {
+        if (name === file && attemptedOpen && scenario === "unverifiable") {
+          throw Object.assign(new Error("injected confirmation error"), { code: "EIO" });
         }
-        return read(name, ...args);
+        return lstat(name, ...args);
       };
     `);
     const options = { env: { NODE_OPTIONS: `--import=${preload}` } };
-    if (code === "ENOENT") success(wt, "opt-out", options);
-    else assert.match(setup(wt, options).reason, /Cannot read pending setup.*injected I\/O error.*Inspect the record/);
-    assert.equal(fs.existsSync(file), false);
+    if (code === "ENOENT" && scenario === "disappearing") {
+      success(wt, "opt-out", options);
+    } else {
+      const out = setup(wt, options);
+      assert.equal(out.runRoot, null);
+      assert.match(out.reason, new RegExp(`Cannot read pending setup.*${code}.*Inspect the record`));
+      assert.doesNotMatch(out.reason, /injected confirmation error/);
+    }
+    if (scenario === "retained") assert.deepEqual(snapshot(file), before);
+    else assert.equal(fs.existsSync(file), false);
+  });
+}
+
+for (const kind of ["symlink", "directory"]) {
+  test(`linked opt-out refuses a pending record swapped for a ${kind} before opening`, () => {
+    const wt = linkedOptOut();
+    const file = linkedPendingRecord(wt);
+    const saved = path.join(wt.root, "saved-pending.json");
+    const contents = fs.readFileSync(file, "utf8");
+    const preload = setupPreload(wt, `
+      const open = fs.openSync;
+      fs.openSync = (name, ...args) => {
+        if (name === ${JSON.stringify(file)}) {
+          fs.renameSync(name, ${JSON.stringify(saved)});
+          if (${JSON.stringify(kind)} === "symlink") fs.symlinkSync(${JSON.stringify(saved)}, name);
+          else fs.mkdirSync(name);
+        }
+        return open(name, ...args);
+      };
+    `);
+    const out = setup(wt, { env: { NODE_OPTIONS: `--import=${preload}` } });
+    assert.equal(out.runRoot, null);
+    const detail = kind === "symlink" ? "ELOOP" : "expected a regular file";
+    assert.match(out.reason, new RegExp(`Cannot read pending setup.*${detail}.*Inspect the record`));
+    assert.equal(fs.readFileSync(saved, "utf8"), contents);
   });
 }
 
