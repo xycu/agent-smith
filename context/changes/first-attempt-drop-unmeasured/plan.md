@@ -141,9 +141,9 @@ Deploy the interim policy and its docs together. Existing project overrides keep
 
 #### Automated
 
-- [x] 1.1 First-attempt routing tests pass on Node 24+, covering shipped drop 0 and explicit drop 1: `node --test skills/10x-pipeline/test/firstattempt.test.mjs`
-- [x] 1.2 Comparison and usage-accounting checks pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/{compare,codex-usage}.test.mjs`
-- [x] 1.3 Local policy and documentation audit confirms interim drop 0, pending evidence, and separate scorer and first-attempt experiments
+- [x] 1.1 First-attempt routing tests pass on Node 24+, covering shipped drop 0 and explicit drop 1: `node --test skills/10x-pipeline/test/firstattempt.test.mjs` — 7eb8d841
+- [x] 1.2 Comparison and usage-accounting checks pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/{compare,codex-usage}.test.mjs` — 7eb8d841
+- [x] 1.3 Local policy and documentation audit confirms interim drop 0, pending evidence, and separate scorer and first-attempt experiments — 7eb8d841
 
 ### Phase 2: Measure live and record the default decision
 
