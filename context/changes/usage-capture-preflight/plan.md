@@ -154,8 +154,8 @@ Rollback uses the previous router revision after the active invocation settles. 
 
 #### Automated
 
-- [ ] 1.1 Both chains route normally and issue one actionable, transport-specific init warning when capture prerequisites fail.
-- [ ] 1.2 Existing Claude launcher and collector fixtures still verify the same evidence and reject unsafe or incomplete capture.
+- [x] 1.1 Both chains route normally and issue one actionable, transport-specific init warning when capture prerequisites fail.
+- [x] 1.2 Existing Claude launcher and collector fixtures still verify the same evidence and reject unsafe or incomplete capture.
 
 ### Phase 2: Explain missing figures in reports
 
