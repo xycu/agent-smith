@@ -1,2 +1,0 @@
-- 2.4 — Claude Code 2.1.323 meets the launcher floor and the focused startup and capture fixtures passed. The archived Claude capture acceptance predates this change. Observing the new warning before dispatch, quiet launcher init and verified figures together requires interactive sessions that wait for input.
-- 2.5 — GitHub returned no open PR for this run branch, and the run has no terminal report. The fake-client comment check passed. Live comparison requires authorized orchestrator publication.
