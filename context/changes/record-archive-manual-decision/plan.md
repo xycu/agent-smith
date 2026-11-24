@@ -120,9 +120,9 @@ The convention applies to future 10x decisions. Existing archive records, checkb
 
 #### Automated
 
-- [x] 1.1 Run `git diff --check`, resolve the new local document links and headings, and confirm the product diff is limited to ADR-014 and the 10x reference.
-- [x] 1.2 Check the documented record against deterministic fixtures for overlapping and truncated input, then verify a scratch Git move preserves the tracked record and source evidence.
-- [x] 1.3 Run `node --test --test-concurrency=2 skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/archive.test.mjs`.
+- [x] 1.1 Run `git diff --check`, resolve the new local document links and headings, and confirm the product diff is limited to ADR-014 and the 10x reference. — 2bb9f5ea
+- [x] 1.2 Check the documented record against deterministic fixtures for overlapping and truncated input, then verify a scratch Git move preserves the tracked record and source evidence. — 2bb9f5ea
+- [x] 1.3 Run `node --test --test-concurrency=2 skills/10x-pipeline/test/archive-gate.test.mjs skills/10x-pipeline/test/archive.test.mjs`. — 2bb9f5ea
 
 #### Manual
 
