@@ -6,6 +6,7 @@ Goal: Document the durable record an archive leaves when the owner approves arch
 Rigor: standard (goal plain)
 Provider mode: split
 Outcome: done - impl review APPROVED
+Archive: requested - runs after this report was written; see the commit "chore(archive): close record-archive-manual-decision"
 
 | # | Step | Provider | Model | Effort | Tier | Simple | Result | Tokens |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |

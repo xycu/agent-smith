@@ -3,7 +3,7 @@
   "goal": "Document the durable record an archive leaves when the owner approves archiving with unresolved Manual rows: the approval, each distinct row ID across manualPending, manualUnproven and uncommittedTicks, the reason and the follow-up destination, with each row's checkbox, evidence and commit references kept. With no open rows the normal path writes no record; a refusal or a missing answer keeps the change unarchived. Docs only: no runtime gate change and no backfill of archived changes. Follow the acceptance in change.md and the S-13 and S-14 closeouts.",
   "host": "claude",
   "providerMode": "split",
-  "prComment": true,
+  "prComment": false,
   "isolated": true,
   "branch": "agent-smith/record-archive-manual-decision",
   "baseSha": "4f508aff8172dbd8af50d0e0dbe3ab89eb6e9357",
@@ -56,5 +56,6 @@
     "action": "done",
     "reason": "impl review APPROVED",
     "manualPending": []
-  }
+  },
+  "archive": true
 }
