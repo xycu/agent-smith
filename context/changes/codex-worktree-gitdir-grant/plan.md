@@ -215,9 +215,9 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Automated
 
-- [x] 2.1 Init tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/init-permissions.test.mjs`
-- [x] 2.2 A stale agent-smith gitdir line is listed and a live one is not; the scan writes no file
-- [x] 2.3 A FIFO or symlink at the config path leaves `init` unchanged and fast
+- [x] 2.1 Init tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/init-permissions.test.mjs` — c404803d
+- [x] 2.2 A stale agent-smith gitdir line is listed and a live one is not; the scan writes no file — c404803d
+- [x] 2.3 A FIFO or symlink at the config path leaves `init` unchanged and fast — c404803d
 
 #### Manual
 
@@ -227,8 +227,8 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Automated
 
-- [ ] 3.1 Docs name the four-path set and no doc still says the runner grants only the gitdir or advises a whole-`.git` grant: `grep -rn "grants write access to one path\|\"<common>\" = \"write\"" docs README.md skills`
-- [ ] 3.2 Version check still passes: `node tools/version-check.mjs`
+- [x] 3.1 Docs name the four-path set and no doc still says the runner grants only the gitdir or advises a whole-`.git` grant: `grep -rn "grants write access to one path\|\"<common>\" = \"write\"" docs README.md skills`
+- [x] 3.2 Version check still passes: `node tools/version-check.mjs`
 
 #### Manual
 
