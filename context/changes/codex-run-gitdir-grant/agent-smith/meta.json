@@ -45,5 +45,10 @@
       "agents.restricted": false,
       "advisor.enabled": false
     }
+  },
+  "startCommit": "42c0b40fcb560aab75fff2cab556594b049dd729",
+  "rigor": {
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/route.mjs +3"
   }
 }

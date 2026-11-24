@@ -9,7 +9,7 @@ Fix [#281](https://github.com/xycu/agent-smith/issues/281). On Codex 0.171.0 the
 - `run-codex.mjs:27-30` `configArgs` builds the shared argv for the sandbox preflight (`:227`, with `-C` sliced off) and `exec` (`:287`): `-C`, optional `-p`, effort, agents. It passes no permission override.
 - `run-codex.mjs:198` drains the child's stderr with `child.stderr.resume()` and keeps none of it. The refusal at `:236` is a generic list of possible causes.
 - `permission-probe.mjs:12-19` already writes a probe file into the resolved gitdir, common dir, `objects`, `refs` and `refs/heads`, so the preflight detects the denial correctly. Only the grant and the message are missing.
-- The profile name flows as `codex.profile` (policy) → `dispatchTarget` (`state.mjs:157-161`) → the pending dispatch entry → exact-match check in `runner-dispatch.mjs:44,54` → neutral replay (`flow.mjs:500`, `route.mjs:777`). Policy validation is at `state.mjs:247-251` and is covered by `providers.test.mjs`.
+- The profile name flows as `codex.profile` (policy) → `dispatchTarget` (`state.mjs:157-161`) → the pending dispatch entry (`...target` at `route.mjs:269`, `:322` and `isolation.mjs:841` carries every target field, so a new field flows by itself) → exact-match check in `runner-dispatch.mjs:44,54` (run) and `:76-77` (archive key list) → neutral replay (`flow.mjs:500`). `route.mjs:777` only prints the status step list. Policy validation is at `state.mjs:247-251` and is covered by `providers.test.mjs`.
 - `init-permissions.mjs` warns at `init` about the profile and the common dir. It does not cover the per-worktree gitdir and is not changed here.
 - Today's workaround is a manual `"<repo>/.git/worktrees/agent-smith-<id>" = "write"` line in `~/.codex/config.toml` for each run. The owner's config already holds about six stale ones.
 
@@ -35,14 +35,14 @@ An isolated OpenAI step on Codex 0.171.0 passes the permission preflight and com
 - `-c` inline tables merge into the existing `[permissions.<name>.filesystem]` table. They do not replace it (reproduction above).
 - A dotted `-c` key cannot carry a path, because Codex splits the key on every `.`. Only the inline-table form works, so the profile name itself must be free of dots and quotes.
 - A grant on the wrong profile name is silently ignored. The existing preflight then fails, so a wrong name fails loudly. It never grants silently.
-- `runner-dispatch.mjs:44-56` compares `profile` against the pending entry. A new action field needs the same check and must accept legacy entries that lack it.
+- `runner-dispatch.mjs:44-56` compares `profile` against the pending entry, and the archive branch (`:76-77`) compares a fixed key list against `archiveDescriptor`. A new action field needs both checks and must accept legacy entries and actions that lack it.
 
 ## What We're NOT Doing
 
 - No writes to `~/.codex/config.toml` or the project's `.codex/config.toml`, and no cleanup of the owner's stale manual entries.
 - No following of `-p` overlays (`[profiles.<x>] default_permissions`) or managed config when resolving the name. Set `codex.permissions` for those layouts.
 - No grant when the resolved permissions name is a builtin (starting with `:`) or contains characters other than `[A-Za-z0-9_-]`. The preflight then refuses as today, now with stderr.
-- No change to the `init` warnings in `init-permissions.mjs` or to `SKILL.md`.
+- No change to the `init` warnings in `init-permissions.mjs` or to `SKILL.md`. The `SKILL.md` sentence that existing controls own Git permissions "without creating profiles or granting trust" stays true: the runner creates no profile and grants no trust, only one path of an existing profile.
 - No grant of the common dir, `objects` or `refs`. Those stay with the user's profile (#257).
 
 ## Implementation Approach
@@ -73,9 +73,9 @@ Add the policy key, carry it through dispatch, resolve the name and gitdir in th
 
 **File**: `skills/10x-pipeline/scripts/runner-dispatch.mjs`, `skills/10x-pipeline/scripts/flow.mjs`, `skills/10x-pipeline/scripts/route.mjs`
 
-**Intent**: Validate `action.permissions` and require it to equal the pending entry's value. Replay the stored value on a neutral retry. Runs saved before this change still match.
+**Intent**: Validate `action.permissions` and require it to equal the pending entry's value, in the run branch and in the archive branch. Replay the stored value on a neutral retry. Runs saved before this change still match.
 
-**Contract**: An absent `permissions` on the entry or action counts as `null`. The replay at `flow.mjs:500` and `route.mjs:777` copies `permissions: e.permissions ?? null` for OpenAI entries.
+**Contract**: An absent `permissions` on the entry, the expected archive descriptor or the action counts as `null` (compare `?? null` on both sides). Add `"permissions"` to the archive key list at `runner-dispatch.mjs:76`. The replay at `flow.mjs:500` copies `permissions: last.permissions ?? null` for OpenAI entries. `route.mjs:777` (status step list) may print `permissions: e.permissions ?? null` next to `profile`; it takes no part in dispatch. Tests cover a legacy run entry, a neutral retry and an archive action with and without the field.
 
 #### 3. Runner grant
 
@@ -83,7 +83,7 @@ Add the policy key, carry it through dispatch, resolve the name and gitdir in th
 
 **Intent**: Resolve the gitdir and the profile name once, before the preflight, and append the grant to `configArgs`. Then the preflight proves exactly what `exec` will get.
 
-**Contract**: The name comes from `action.permissions`, else the first top-level `default_permissions = "<name>"` line, before any `[table]` header, in `<ROOT>/.codex/config.toml`, else in `${CODEX_HOME || ~/.codex}/config.toml`. Read with a size bound. An unreadable or missing file means no name from that source. No grant when: there is no name, the name fails the policy pattern, the name starts with `:`, the gitdir cannot be resolved, or the path has control characters. `envelope.preflight` additionally records `grant: { profile, gitDir }` or `grant: null`, so evidence shows what was passed.
+**Contract**: The name comes from `action.permissions`, else the first top-level `default_permissions` line, before any `[table]` header, in `<ROOT>/.codex/config.toml`, else in `${CODEX_HOME || ~/.codex}/config.toml`. A line matches only `^\s*default_permissions\s*=\s*"([^"\\]*)"\s*(#.*)?$` (a basic double-quoted string, optional trailing comment). Single-quoted, escaped, dotted-key and inline-table forms give no name from that source. Reading is bounded to 64 KiB and never blocks: open with `O_RDONLY | O_NONBLOCK`, `fstat` the descriptor and require a regular file (lesson: open a lock-free read target by descriptor). The project file, which the repository controls, is also opened with `O_NOFOLLOW`; the `CODEX_HOME` file is resolved with `realpath` first, so a dotfile-manager symlink works. Reuse `readGuarded` (`state.mjs:1103`) where its guard fits. A missing, unreadable, oversized, non-regular or non-matching file means no name from that source. No grant when: there is no name, the name fails the policy pattern, the name starts with `:`, the gitdir cannot be resolved, or the gitdir path matches `[\x00-\x1f\x7f]`. On success `envelope.preflight` is `{ ...proof, grant: { profile, gitDir } }` (the current `envelope.preflight = proof` assignment must not drop it), and `grant: null` when none was passed.
 
 #### 4. Tests
 
@@ -91,7 +91,7 @@ Add the policy key, carry it through dispatch, resolve the name and gitdir in th
 
 **Intent**: Prove validation, name resolution order and identical argv for the sandbox and `exec`, using the existing fake Codex that records argv.
 
-**Contract**: Cases: policy rejects `codex.permissions` values `"a.b"`, `":workspace"`, `""` and `42`, and accepts `null` and `"agent-smith"`. The runner reads the name from the project config, and from `CODEX_HOME` when the project has none. The policy value beats both config files. No name means no `-c permissions…` argument in either argv. The sandbox and `exec` argv carry the same grant string, with the fixture worktree's realpath gitdir. A legacy pending entry without `permissions` still matches. Update the `codex-runner.test.mjs` row in the test README.
+**Contract**: Cases: policy rejects `codex.permissions` values `"a.b"`, `":workspace"`, `""` and `42`, and accepts `null` and `"agent-smith"`. The runner reads the name from the project config, and from `CODEX_HOME` when the project has none. The policy value beats both config files. A `config.toml` that is a FIFO, a directory or (project file) a symlink gives no name and does not hang. Single-quoted, commented-out and `[table]`-scoped `default_permissions` lines give no name; a double-quoted line with a trailing comment does. A symlinked `CODEX_HOME/config.toml` is read. No name means no `-c permissions…` argument in either argv. The sandbox and `exec` argv carry the same grant string, with the fixture worktree's realpath gitdir. A legacy pending entry without `permissions` still matches. Update the `codex-runner.test.mjs` row in the test README.
 
 ### Success Criteria:
 
@@ -123,7 +123,7 @@ Keep a bounded, sanitized tail of the preflight's stderr and add it to the refus
 
 **Intent**: Let `launch` take an optional stderr sink, used only by the preflight, that keeps the last 512 bytes. `exec` keeps draining stderr as now.
 
-**Contract**: The tail replaces characters matching `[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}�]` with a space, collapses whitespace and trims. The Git-capability refusal (`:236`) and the timeout refusal (`:230`) keep their text and, when the tail is non-empty, append ` Codex output: <tail>` after "No model launched.". The final `envelope.reason` stays within the existing 2048-character `failureReason` cap.
+**Contract**: The sink keeps the last 512 bytes of the raw stderr stream (`Buffer`, not string characters) and decodes them as UTF-8, so a cut multibyte character becomes U+FFFD. The tail replaces characters matching `[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}�]` with a space, collapses whitespace and trims, so its length is at most 512 bytes. The Git-capability refusal (`:236`) and the timeout refusal (`:230`) keep their text and append, after "No model launched.", first a grant status and then, when the tail is non-empty, ` Codex output: <tail>`. The grant status is ` Gitdir grant: <profile> on <gitDir>.` when a grant was passed, else ` No gitdir grant (<reason: no permissions profile name, builtin name, invalid name or no gitdir>); set codex.permissions to a custom profile name.` The final `envelope.reason` stays within the existing 2048-character `failureReason` cap, which today's refusal text plus the 512-byte tail leaves room for.
 
 #### 2. Tests
 
@@ -131,7 +131,7 @@ Keep a bounded, sanitized tail of the preflight's stderr and add it to the refus
 
 **Intent**: Prove that the denied path reaches the reason, and that the tail is bounded and sanitized.
 
-**Contract**: The fake sandbox exits 1 after writing `EPERM: operation not permitted, open '<gitdir>/x'` to stderr. The reason contains that path and `launched` is `false`. A 10 KiB stderr with control characters yields at most 512 bytes of tail, with no control characters.
+**Contract**: The fake sandbox exits 1 after writing `EPERM: operation not permitted, open '<gitdir>/x'` to stderr. The reason contains that path and `launched` is `false`. A 10 KiB stderr with control characters and multibyte characters yields at most 512 bytes of tail, with no control characters. A refusal with no resolvable name states the no-grant reason and names `codex.permissions`; a refusal with a grant names the profile and gitdir.
 
 ### Success Criteria:
 
@@ -169,7 +169,7 @@ Record that the runner now grants one bounded permission, and document the polic
 
 **Intent**: Replace "The runner grants no trust or permissions" (Codex dispatch section, line ~42) with the bounded exception. Describe the preflight grant and stderr tail in the preflight paragraph (~44), and document `codex.permissions` next to `codex.profile` (~30). Link the amendment.
 
-**Contract**: Text only. Name `codex-cli 0.171.0` as the observed version.
+**Contract**: Text only. Name `codex-cli 0.171.0` as the observed version. Before finishing, grep `README.md`, `docs/` and both `SKILL.md` files for "grants no trust or permissions" and for the old preflight wording, and update any other hit.
 
 ### Success Criteria:
 
@@ -220,7 +220,7 @@ Pending dispatch entries and neutral replays saved before this change lack `perm
 - Prior change: `context/archive/2026-11-21-codex-profile-and-gitdir-access/plan.md`
 - Runner: `skills/10x-pipeline/scripts/run-codex.mjs:27`, `:198`, `:227`, `:236`, `:287`
 - Probe: `skills/10x-pipeline/scripts/permission-probe.mjs:12`
-- Dispatch: `skills/10x-pipeline/scripts/state.mjs:157`, `:247`; `runner-dispatch.mjs:44`; `flow.mjs:500`; `route.mjs:777`
+- Dispatch: `skills/10x-pipeline/scripts/state.mjs:157`, `:247`; `runner-dispatch.mjs:44`, `:76`; `flow.mjs:500`; `route.mjs:269`, `:322`, `:777`; `isolation.mjs:841`
 
 ## Progress
 

@@ -21,7 +21,7 @@ An isolated OpenAI step passes the preflight and commits with no manual Codex co
 | How the grant reaches Codex | Per-run `-c` inline table on both sandbox and `exec` | Proven to merge with existing grants, and it writes no user config |
 | Profile name source | Policy `codex.permissions`, else `default_permissions` from the project `.codex/config.toml`, else `$CODEX_HOME/config.toml` | No setup for the usual layout; the preflight turns a wrong name into a loud refusal |
 | Recording the rule change | ADR-024 amendment plus REFERENCE.md | The runner previously granted no permissions; the exception and its bound belong with the decisions |
-| Refusal detail | Last 512 bytes of the preflight's stderr, sanitized, appended | Shows the exact denied path with no parser to maintain |
+| Refusal detail | Grant status plus the last 512 bytes of the preflight's stderr, sanitized, appended | Shows whether a grant was passed and the exact denied path, with no parser to maintain |
 | Provisioning writes to config | Rejected | Leaves stale entries that build up in user config |
 
 ## Scope
@@ -29,7 +29,7 @@ An isolated OpenAI step passes the preflight and commits with no manual Codex co
 **In scope:**
 - `codex.permissions` policy key, carried in the dispatch like `codex.profile`
 - Name and gitdir resolution and the `-c` grant in `run-codex.mjs`
-- Bounded stderr tail in the preflight and timeout refusals
+- Grant status and a bounded stderr tail in the preflight and timeout refusals
 - Tests, ADR-024 amendment, REFERENCE.md
 
 **Out of scope:**
