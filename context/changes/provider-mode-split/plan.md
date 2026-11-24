@@ -315,7 +315,7 @@ Existing router-owned `meta.json` and `run.jsonl` require no rewrite. Resume run
 #### Manual
 
 - [ ] 3.2 Qualify both skills on fresh Claude Code and Codex sessions in both split directions and exercise each full mode, including headless Claude's exact guard allow/deny behavior, toolkit discovery, implementation child collection, safe cancellation and archive.
-- [ ] 3.3 After orchestrator publication, verify the run branch, open PR and PR CI on its head, and verify report comment behavior only if the owner elected it.
+- [x] 3.3 After orchestrator publication, verify the run branch, open PR and PR CI on its head, and verify report comment behavior only if the owner elected it. — evidence: evidence/pr-231-publication.md
 
 ### Phase 4: Verify the implementation review fixes
 

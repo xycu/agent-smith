@@ -1,1 +1,0 @@
-- 2.2 — The plan calls for full-suite CI after publication. The GitHub Actions API returned zero runs for both the run head (4ee113b7) and the Phase 2 verification commit (aeff5382). Publication is prohibited in this step.

@@ -182,5 +182,5 @@ The change to `claude-capture-data.mjs` changes the hook provenance hash compute
 
 #### Manual
 
-- [ ] 2.4 On a supported interactive Claude host, observe the warning before step one in an ordinary session, then use the documented launcher in a fresh session and verify quiet init and captured figures.
-- [ ] 2.5 After authorized orchestrator publication of a run with capture disabled and comment intent, confirm the open PR comment displays the same missing-capture explanation as its report.
+- [x] 2.4 On a supported interactive Claude host, observe the warning before step one in an ordinary session, then use the documented launcher in a fresh session and verify quiet init and captured figures. Evidence: `evidence/manual-live-acceptance.md` (2026-11-24).
+- [x] 2.5 After authorized orchestrator publication of a run with capture disabled and comment intent, confirm the open PR comment displays the same missing-capture explanation as its report. Evidence: `evidence/manual-live-acceptance.md` (2026-11-24; comment posted by hand, see caveats).
