@@ -16,7 +16,7 @@ A native Claude-hosted run whose token capture is not ready today starts anyway,
 
 ## Desired End State
 
-- `init` on a native Claude host (host `claude`, at least one Claude-assigned step or a Claude neutral replay, no `AGENT_SMITH_CLAUDE_SESSION`) with readiness `disabled` or `unusable` and `claudeCapture.require` true returns `{ action: "halt", reason }` with exit status 1 and writes nothing. The reason names the cause (off or unavailable), the exact launcher command with the plugin's absolute `claude-capture.mjs` path, how to resume (start the launcher session outside Claude Code, then run the same pipeline command with the same change id; host and provider mode are saved), and the opt-out snippet.
+- `init` on a native Claude host (host `claude`, at least one Claude-assigned step or a Claude neutral replay, no `AGENT_SMITH_CLAUDE_SESSION`) with readiness `disabled` or `unusable` and `claudeCapture.require` true returns `{ action: "halt", reason }` with exit status 1 and writes nothing. The reason names the cause (off or unavailable), the exact launcher command with the plugin's absolute `claude-capture.mjs` path, how to resume (start the launcher session outside Claude Code, then run the same pipeline command again with the same change id and the same flags: a first `init` halts before anything is stored, so nothing is saved yet; a run that already has a `meta.json` resumes with its saved host and provider mode), and the opt-out snippet.
 - Readiness `ready` passes with no warning. With the opt-out, behaviour is exactly today's: the stderr advisory and a run.
 - Never halts for: Claude steps on a Codex host, a set `AGENT_SMITH_CLAUDE_SESSION`, or a neutral replay of a non-Claude step. The OpenAI/Codex floor check stays a warning in every case.
 - A malformed `claudeCapture` block halts at `init`, `next` and `usage` with a message naming the key and the override file.
@@ -24,7 +24,7 @@ A native Claude-hosted run whose token capture is not ready today starts anyway,
 
 ### Key Discoveries:
 
-- A halt before any write leaves state untouched, and `init` is resumable with the stored `host` and `providerMode` (`route.mjs:1105`), so relaunch plus a repeated `init` is the resume path; no new resume mechanism is needed.
+- A halt before any write leaves state untouched. A run that already has a `meta.json` is resumable with its stored `host` and `providerMode` (`route.mjs:1105`); a first `init` stores nothing before the halt, so the repeated command must carry the same flags (`--goal`, `--provider-mode`, `--host`). Relaunch plus a repeated `init` is the resume path in both cases; no new resume mechanism is needed.
 - The launcher refuses to start inside Claude Code (`claude-capture.mjs` settings preflight rejects `CLAUDECODE`), so the halt text must say to start it from a terminal, not from the current session.
 - `init-usage.mjs` may import only from `state.mjs` and `codex-startup.mjs` (AGENTS.md module order); `route.mjs` keeps `init`. The gate function lives in `init-usage.mjs` and returns a message; `route.mjs` halts.
 - `policyProblems` returns the first fault and never halts; `main()` halts for `init`, `next` and `usage` (`route.mjs:1038-1042`).
@@ -89,7 +89,7 @@ Ship the default-on gate end to end in code, with the test suite opted out by de
 - `null` when `process.env.AGENT_SMITH_CLAUDE_SESSION` is set (headless child).
 - `null` when Claude is not an assigned provider: use the same set as `initUsageWarning` (`neutralReplay ? providerOf(neutralReplay) : providersByStep(policy, selection)`), so a neutral replay of a non-Claude step never halts.
 - `null` when readiness is `ready`, or cannot be determined (import failure): the existing warning path reports that.
-- Otherwise the reason, in this order: cause sentence (off in this session, or launcher capture unavailable, reusing the existing wording), the launcher command ``node "<SKILL_DIR>/scripts/claude-capture.mjs"`` with the absolute path from `SKILL_DIR` (`state.mjs`), "run it from a terminal outside Claude Code in the project root", the resume sentence ("then run `/agent-smith:<10x|openspec>-pipeline <id>` again in that session; the run resumes with its saved host and provider mode"), the opt-out `{ "claudeCapture": { "require": false } } in context/foundation/agent-smith-policy.json`, and the closing "Nothing was written." Keep it one paragraph without the tilde or relative paths.
+- Otherwise the reason, in this order: cause sentence (off in this session, or launcher capture unavailable, reusing the existing wording), the launcher command ``node "<SKILL_DIR>/scripts/claude-capture.mjs"`` with the absolute path from `SKILL_DIR` (`state.mjs`), "run it from a terminal outside Claude Code in the project root", the resume sentence ("then run `/agent-smith:<10x|openspec>-pipeline <id>` again in that session with the same flags; a run that already has steps resumes with its saved host and provider mode"), the opt-out `{ "claudeCapture": { "require": false } } in context/foundation/agent-smith-policy.json`, and the closing "Nothing was written." Keep it one paragraph without the tilde or relative paths.
 
 Refactor `claudeWarning` to call a small shared `claudeReadiness()` that returns `"ready" | "disabled" | "unusable" | "unknown"`; messages and tests of the warning stay as they are.
 
@@ -107,11 +107,11 @@ Refactor `claudeWarning` to call a small shared `claudeReadiness()` that returns
 
 **Intent**: Every scratch project opts out of the gate unless it states its own block, as with `isolation` and `manualVerify`.
 
-**Contract**: in `writeOverride`, `if (!Object.hasOwn(value, "claudeCapture")) value = { ...value, claudeCapture: { require: false } };`, and extend the comment above the function.
+**Contract**: in `writeOverride`, `if (!Object.hasOwn(value, "claudeCapture")) value = { ...value, claudeCapture: { require: false } };`, and extend the comment above the function. The helper's output is asserted exactly in `skills/10x-pipeline/test/score.test.mjs:131-152` (`readOverride` `deepEqual`, five expectations that list `score`, `isolation`, `manualVerify`); add `claudeCapture: { require: false }` to each. Update the `helpers.mjs` sentence in `skills/10x-pipeline/test/README.md:119` that lists the injected keys.
 
 #### 6. Direct override writers
 
-**Files**: tests that overwrite or create the override file without `writeOverride`: `skills/10x-pipeline/test/compare.test.mjs` (`copiedOverride`), `prepare-run.test.mjs` (`override` helper and the writes at the lines that set only `isolation`), `score.test.mjs` (the `ISOLATION_OFF` writes), `prompt-handoff.test.mjs` (`fixtureDefaults`), and any other file the full-suite run shows halting at `init` with the capture reason.
+**Files**: tests that overwrite or create the override file without `writeOverride`: `skills/10x-pipeline/test/compare.test.mjs` (`copiedOverride`), `prepare-run.test.mjs` (`override` helper and the writes at the lines that set only `isolation`), `score.test.mjs` (the `ISOLATION_OFF` writes), `prompt-handoff.test.mjs` (`fixtureDefaults`), `isolation.test.mjs` (the full override rewrite at `:311`, followed by an `initIn` that expects `run`; the rewrites at `:285-296` expect halts before the capture gate and stay as they are), and any other file the full-suite run shows halting at `init` with the capture reason.
 
 **Intent**: Keep their `init` calls on the old path by adding `claudeCapture: { require: false }` beside the isolation opt-out. Find the rest with `grep -rn "isolation: { require: false }\|ISOLATION_OFF" skills tools` and a full-suite run.
 
@@ -171,7 +171,7 @@ Make the documents say what the router now does, and record the decision that ov
 
 **Intent**: Replace "advisory, the run can continue" and "off by default" with the default-on gate, and document the policy block.
 
-**Contract**: update (a) the sentence near line 26 about the independent usage capture preflight, (b) the accounting paragraph near line 68 ("Native Agent token capture is off by default"), (c) "Accounting activation and rollback": the opening paragraph (advisory for Codex and for the opt-out; halt for a native Claude host), the native Claude bullet, the launcher paragraph (halt text, resume), and the "To turn capture off" paragraph (now the `claudeCapture.require: false` opt-out plus ordinary `claude`), (d) add a short bullet list or sentence naming `claudeCapture.require` (ships `true`, strict boolean validated at load, hashed by provenance like `isolation`), the exempt cases (Codex host, `AGENT_SMITH_CLAUDE_SESSION`, neutral replay of a non-Claude step, undeterminable readiness), and the release note (a Claude-hosted run started in an ordinary session now halts at `init`; ships as a breaking change decision for the owner). Then grep every doc for the old wording per lessons.md: `grep -rn "off by default\|capture off\|run can continue\|opt in\|opt-in" README.md docs skills --include=*.md`, and fix each hit that describes the Claude default.
+**Contract**: update (a) the sentence near line 26 about the independent usage capture preflight, (b) the accounting paragraph near line 68 ("Native Agent token capture is off by default"), (c) "Accounting activation and rollback": the opening paragraph (advisory for Codex and for the opt-out; halt for a native Claude host), the native Claude bullet, the launcher paragraph (halt text, resume), and the "To turn capture off" paragraph (now the `claudeCapture.require: false` opt-out plus ordinary `claude`), (d) add a short bullet list or sentence naming `claudeCapture.require` (ships `true`, strict boolean validated at load, hashed by provenance like `isolation`), the exempt cases (Codex host, `AGENT_SMITH_CLAUDE_SESSION`, neutral replay of a non-Claude step, undeterminable readiness), and the release note (a Claude-hosted run started in an ordinary session now halts at `init`; ships as a breaking change decision for the owner). Then grep every doc for the old wording per lessons.md: `grep -rn "off by default\|capture off\|run can continue\|opt in\|opt-in" README.md docs skills --include='*.md'` (quote the glob: an unquoted `*.md` aborts the command in zsh), and fix each hit that describes the Claude default.
 
 #### 2. README
 
@@ -179,13 +179,13 @@ Make the documents say what the router now does, and record the decision that ov
 
 **Intent**: The coverage paragraph (`README.md:154-165`) says the default is now the launcher.
 
-**Contract**: replace "The run can continue" and "Ordinary `claude` starts with capture off. To opt in..." with: init halts on a native Claude host when capture is not ready, the launcher command stays, resume with the saved host and provider mode, and the one-line opt-out. Keep the Codex advisory sentence and the `--versions` note.
+**Contract**: replace "The run can continue" and "Ordinary `claude` starts with capture off. To opt in..." with: init halts on a native Claude host when capture is not ready, the launcher command stays, resume by repeating the same command with the same flags in the launcher session (a run with steps keeps its saved host and provider mode), and the one-line opt-out. Keep the Codex advisory sentence and the `--versions` note.
 
 #### 3. ADR amendments
 
 **Files**: `docs/ADR/ADR-018-no-nested-subagents.md`, `docs/ADR/ADR-019-late-usage-figure.md`, `docs/ADR/README.md`
 
-**Intent**: Record that Amendment 5 (opt-in native capture) and ADR-019 Amendment 2 (late intake from opt-in capture) are superseded on the default, not on the mechanism.
+**Intent**: Update the `Status` line of ADR-018 ("as amended through opt-in native capture", line 3, with its `#amendment-5--opt-in-claude-native-capture` link) to name the default-on amendment too, and the ADR-019 status line if it names opt-in capture. Record that Amendment 5 (opt-in native capture) and ADR-019 Amendment 2 (late intake from opt-in capture) are superseded on the default, not on the mechanism.
 
 **Contract**: ADR-018 `## Amendment 8 — Claude capture expected by default` (date 2026-11-24, change `claude-capture-default-on`): launcher-based capture is unchanged; the default moves from opt-in to expected; `init` halts on a native Claude host when readiness is not `ready` unless `claudeCapture.require` is false; exempt cases; Codex remains a warning; the version floor of Amendment 6 is unchanged; the opt-in decision of `context/archive/2026-11-19-claude-token-figures-default/frame.md` (2026-11-21) is overturned by the owner's decision of 2026-11-24. ADR-019 `## Amendment 3 — Default-on capture and late intake`: late intake still needs a bound launcher capture or authorized sources; default-off entries now arise only from the opt-out, a headless child or a replay of a non-Claude step. Append "Amendment 8 (2026-11-24)" and "Amendment 3 (2026-11-24)" mentions to the ADR-018 and ADR-019 index rows in `docs/ADR/README.md` in the same style as the ADR-024 row. Do not edit `context/archive/`.
 
@@ -201,7 +201,7 @@ Make the documents say what the router now does, and record the decision that ov
 
 #### Automated Verification:
 
-- No doc still calls Claude capture off by default: `grep -rn "off by default\|The run can continue\|starts with capture off" README.md docs skills --include=*.md` returns nothing that describes the Claude default
+- No doc still calls Claude capture off by default: `grep -rn "off by default\|The run can continue\|starts with capture off" README.md docs skills --include='*.md'` returns nothing that describes the Claude default
 - Both skills' anti-stall sections are unchanged and equal: `node --test --test-concurrency=2 skills/10x-pipeline/test/skill-loop.test.mjs`
 - Docs-referencing tests and the version check still pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/init-usage.test.mjs skills/10x-pipeline/test/policy-validate.test.mjs && node tools/version-check.mjs`
 - Commit subjects lint: `node tools/commit-lint.mjs main..HEAD`
@@ -239,7 +239,7 @@ The gate adds one readiness probe (file stats) at `init`, and a second one in th
 
 ## Migration Notes
 
-A Claude-hosted run started or resumed from an ordinary `claude` session now halts at `init` until the launcher session or the opt-out is used. A halt writes nothing, and the run resumes with its saved host and provider mode. The worktree created by `prepare-run.mjs` stays; the resume reattaches to it. Runs already executing in a launcher session are unaffected.
+A Claude-hosted run started or resumed from an ordinary `claude` session now halts at `init` until the launcher session or the opt-out is used. A halt writes nothing: a first `init` is repeated with the same flags, and a run that already has steps resumes with its saved host and provider mode. The worktree created by `prepare-run.mjs` stays; the resume reattaches to it. Runs already executing in a launcher session are unaffected. The new hashed `claudeCapture` section adds `claudeCapture` to `provenance.drift` of a run started before the upgrade at its first resume (`recordDrift`, `isolation.mjs:157`); that only feeds `compare` warnings, as when `isolation` was added.
 
 ## References
 

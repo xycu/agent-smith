@@ -40,7 +40,7 @@ An ordinary `claude` session that starts or resumes a Claude-hosted run stops at
 
 ## Architecture / Approach
 
-`init-usage.mjs` gains `claudeCaptureStop(...)`, built on a shared readiness helper that `claudeWarning` also uses. It returns the halt reason or `null`. `route.mjs` calls it right after `isolationCheck` and halts. `state.mjs` validates the new block at load. The halt writes nothing, so relaunch plus a repeated `init` resumes with the saved host and provider mode.
+`init-usage.mjs` gains `claudeCaptureStop(...)`, built on a shared readiness helper that `claudeWarning` also uses. It returns the halt reason or `null`. `route.mjs` calls it right after `isolationCheck` and halts. `state.mjs` validates the new block at load. The halt writes nothing, so relaunch plus a repeated `init` with the same flags is the resume path (a run that already has steps keeps its saved host and provider mode).
 
 ## Phases at a Glance
 
