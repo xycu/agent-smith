@@ -257,12 +257,12 @@ A Claude-hosted run started or resumed from an ordinary `claude` session now hal
 
 #### Automated
 
-- [ ] 1.1 Gate and warning tests pass on both chains: `node --test --test-concurrency=2 skills/10x-pipeline/test/init-usage.test.mjs`
-- [ ] 1.2 Policy validation and provenance tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/policy-validate.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
-- [ ] 1.3 Tests that write the override directly still reach run at init: compare, score, prepare-run, prompt-handoff and isolation test files
-- [ ] 1.4 No scratch override sets isolation off without a claudeCapture key where the test then runs init
-- [ ] 1.5 Full suite has no new failure: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
-- [ ] 1.6 Smoke check in a scratch project halts without a capture binding and runs with the opt-out
+- [x] 1.1 Gate and warning tests pass on both chains: `node --test --test-concurrency=2 skills/10x-pipeline/test/init-usage.test.mjs`
+- [x] 1.2 Policy validation and provenance tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/policy-validate.test.mjs skills/10x-pipeline/test/provenance.test.mjs`
+- [x] 1.3 Tests that write the override directly still reach run at init: compare, score, prepare-run, prompt-handoff and isolation test files
+- [x] 1.4 No scratch override sets isolation off without a claudeCapture key where the test then runs init
+- [x] 1.5 Full suite has no new failure: `node --test --test-concurrency=2 skills/10x-pipeline/test/*.test.mjs skills/openspec-pipeline/test/*.test.mjs tools/test/*.test.mjs`
+- [x] 1.6 Smoke check in a scratch project halts without a capture binding and runs with the opt-out
 
 #### Manual
 

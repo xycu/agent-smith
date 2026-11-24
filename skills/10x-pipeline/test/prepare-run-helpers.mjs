@@ -64,7 +64,7 @@ export function launchSetup(p, env) {
 }
 
 export function fixture(chain = "10x", nest = null, committed = false) {
-  const p = makeProject({ policy: { isolation: { require: true } }, nest, change: false });
+  const p = makeProject({ policy: { isolation: { require: true }, claudeCapture: { require: false } }, nest, change: false });
   p.chain = chain;
   if (chain === "openspec") fs.rmdirSync(p.changeDir);
   p.changeDir = path.join(p.root, relChange(chain));

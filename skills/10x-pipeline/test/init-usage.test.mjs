@@ -328,3 +328,76 @@ fs.writeSync = (fd, ...args) => {
   const { warning } = init(project, { ...fake.env, ...hooks });
   assert.equal(warning, "");
 });
+
+// ---- claudeCapture.require: the default-on halt ------------------------------------
+
+const GATE = { claudeCapture: { require: true } };
+
+function haltInit(project, env, flags = []) {
+  const result = run(project, ["init", project.id, "--chain", project.chain ?? "10x", "--goal", "fix typo", ...flags], { env });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.equal(result.json.action, "halt", result.stdout);
+  return result.json.reason;
+}
+
+function nothingStored(project) {
+  for (const name of ["run.jsonl", "meta.json"]) assert.ok(!fs.existsSync(path.join(project.agentDir, name)), name);
+}
+
+for (const [chain, make, skill] of [["10x", makeProject, "10x-pipeline"], ["openspec", makeOpenspecProject, "openspec-pipeline"]]) {
+  test(chain + " init halts on a native Claude host without ready capture and resumes from a launcher session", () => {
+    for (const [label, damage, wording] of [
+      ["off", null, OFF], ["unusable", ({ binding }) => fs.writeFileSync(binding, PRIVATE), UNAVAILABLE],
+    ]) {
+      const project = { ...make({ policy: GATE }), chain };
+      const fake = fakeCodex(project);
+      const sources = capture(project);
+      damage?.(sources);
+      const reason = haltInit(project, { ...fake.env, [CAPTURE_ENV]: damage ? sources.root : "" });
+      assert.match(reason, wording, label);
+      assert.match(reason, /node "\/[^"]+\/scripts\/claude-capture\.mjs"/, label);
+      assert.match(reason, /outside Claude Code/, label);
+      assert.ok(reason.includes(`/agent-smith:${skill} ${project.id} again in that session with the same flags`), label);
+      assert.ok(reason.includes('{ "claudeCapture": { "require": false } } in context/foundation/agent-smith-policy.json'), label);
+      assert.match(reason, /Nothing was written\.$/, label);
+      nothingStored(project);
+    }
+  });
+
+  test(chain + " init runs without a warning once capture is ready, and keeps the advisory with the opt-out", () => {
+    const project = { ...make({ policy: GATE }), chain };
+    const fake = fakeCodex(project);
+    assert.match(haltInit(project, fake.env), OFF);
+    const { root } = capture(project);
+    const resumed = init(project, { ...fake.env, [CAPTURE_ENV]: root });
+    assert.equal(resumed.warning, "");
+    const optOut = { ...make({ policy: { claudeCapture: { require: false } } }), chain };
+    assert.match(init(optOut, fakeCodex(optOut).env).warning, OFF);
+  });
+}
+
+test("the capture gate never halts for a Codex host, a headless Claude child or a Codex-only provider mode", () => {
+  const project = makeProject({ policy: GATE });
+  const fake = fakeCodex(project);
+  assert.match(init(project, fake.env, ["--host", "codex", "--provider-mode", "split"]).warning, HEADLESS);
+  const headless = makeProject({ policy: GATE });
+  assert.match(init(headless, { ...fakeCodex(headless).env, AGENT_SMITH_CLAUDE_SESSION: "headless" }).warning, OFF);
+  const codexOnly = makeProject({ policy: GATE });
+  const old = fakeCodex(codexOnly, { stdout: "codex-cli 0.168.9" });
+  const { warning } = init(codexOnly, old.env, ["--provider-mode", "codex"]);
+  assert.match(warning, WRONG_VERSION);
+  assert.doesNotMatch(warning, /Native Claude/);
+});
+
+test("the capture gate follows the saved dispatch of a neutral replay", () => {
+  for (const provider of ["claude", "openai"]) {
+    const project = makeProject({ policy: GATE });
+    const fake = fakeCodex(project, { stdout: "codex-cli 0.168.9" });
+    seedRun(project, [entry(1, "plan", {
+      provider, model: "saved-model", effort: "high", profile: null, result: undefined, pendingPrompt: "saved prompt",
+    })], { host: "claude", providerMode: "claude" });
+    writeResult(project, { status: "orchestrator-error", note: "no child started" });
+    if (provider === "claude") assert.match(haltInit(project, fake.env), OFF);
+    else assert.match(init(project, fake.env).warning, WRONG_VERSION);
+  }
+});

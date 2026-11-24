@@ -751,7 +751,7 @@ const PLAIN = "Add a retry counter to the status output so the report shows how 
 // Run isolation is turned off on top of it, so the scratch project needs no linked worktree.
 function copiedOverride(text) {
   const project = makeProject();
-  const value = { ...JSON.parse(text), isolation: { require: false } };
+  const value = { ...JSON.parse(text), isolation: { require: false }, claudeCapture: { require: false } };
   fs.writeFileSync(path.join(project.root, "context/foundation/agent-smith-policy.json"), JSON.stringify(value));
   return project;
 }

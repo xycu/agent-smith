@@ -214,7 +214,7 @@ export function coAuthorProblem(policy) {
 }
 
 // The first fault in the keys that cap the spend of a run, as text that names the key and the override file, or null.
-// Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder (model, effort in rigor.effortOrder), steps. Never throws and never halts;
+// Checked in a fixed order: blocks, limits, escalation, rigor.budgetDelta, ladder (model, effort in rigor.effortOrder), steps, claudeCapture. Never throws and never halts;
 // main() halts for init, next and usage and status reports it. A baseTier outside [minTier, maxTier] is allowed (tierFor clamps it).
 export function policyProblems(policy, checkBounds = true) {
   const bad = (key, rule, v) => `policy.${key} must be ${rule} (got ${v === undefined ? "undefined" : JSON.stringify(v)}). Fix it in context/foundation/agent-smith-policy.json. Nothing was written.`;
@@ -264,6 +264,12 @@ export function policyProblems(policy, checkBounds = true) {
       if (!int(step[field], 0) || (checkBounds && step[field] > top)) return bad(`steps.${name}.${field}`, `an integer from 0 to ${top}`, step[field]);
     }
     if (step.minTier > step.maxTier) return bad(`steps.${name}.minTier`, `at most maxTier ${step.maxTier}`, step.minTier);
+  }
+  if (p.claudeCapture !== undefined) {
+    if (!isObject(p.claudeCapture)) return bad("claudeCapture", "an object", p.claudeCapture);
+    if (Object.hasOwn(p.claudeCapture, "require") && typeof p.claudeCapture.require !== "boolean") {
+      return bad("claudeCapture.require", "a boolean", p.claudeCapture.require);
+    }
   }
   return null;
 }

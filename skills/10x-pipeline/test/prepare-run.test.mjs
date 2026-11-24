@@ -83,7 +83,7 @@ for (const chain of ["10x", "openspec"]) {
     }
     const base = linked(fixture(chain), "agent-smith/demo-baseline", "baseline run");
     assert.equal(success(base, "in-run-worktree").branch, "agent-smith/demo-baseline");
-    override(current, { isolation: { require: false } });
+    override(current, { isolation: { require: false }, claudeCapture: { require: false } });
     assert.equal(success(current, "opt-out").runRoot, current.root);
 
     const flight = fixture(chain);
@@ -169,7 +169,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(snapshot(meta), before);
     assert.equal(fs.existsSync(path.join(p.changeDir, "agent-smith/meta.json")), false);
     const q = fixture(chain);
-    override(q, { isolation: { require: false }, score: { minRigor: null } });
+    override(q, { isolation: { require: false }, claudeCapture: { require: false }, score: { minRigor: null } });
     const off = success(q, "opt-out");
     assert.equal(run({ ...q, root: off.runRoot }, ["init", "demo", "--goal", GOAL, "--chain", chain], { env: gitEnv(q) }).json?.action, "run");
     const r = fixture(chain);
@@ -349,7 +349,7 @@ function setupPreload(p, code) {
 
 function linkedOptOut() {
   const wt = linked(fixture());
-  override(wt, { isolation: { require: false } });
+  override(wt, { isolation: { require: false }, claudeCapture: { require: false } });
   return wt;
 }
 
@@ -990,7 +990,7 @@ test("freshness runs only before a new registration, including an unregistered p
   assert.equal(success(p, "reused", { env: w.env }).base, undefined);
   assert.equal(success({ ...p, root: saved.runRoot }, "in-run-worktree", { env: w.env }).base, undefined);
   assert.deepEqual(cleanSuccess(p, saved, { env: w.env }).base, saved.base);
-  override(p, { isolation: { require: false } });
+  override(p, { isolation: { require: false }, claudeCapture: { require: false } });
   assert.equal(success(p, "opt-out", { env: w.env }).base, undefined);
   assert.ok(!fs.readFileSync(w.log, "utf8").trim().split("\n").map(JSON.parse)
     .some(([cmd]) => ["remote", "ls-remote", "fetch"].includes(cmd)));
@@ -1187,7 +1187,7 @@ test("pending setup without registration requires a fresh branch and readable in
 
 test("an incomplete worktree with a committed opt-out points back to the original project", () => {
   const p = fixture("10x", null, true);
-  override(p, { isolation: { require: false } });
+  override(p, { isolation: { require: false }, claudeCapture: { require: false } });
   git(p, ["add", "context/foundation/agent-smith-policy.json"]);
   git(p, ["commit", "-qm", "opt-out policy"]);
   override(p, { isolation: { require: true } });
@@ -1462,7 +1462,7 @@ for (const chain of ["10x", "openspec"]) {
     fs.mkdirSync(path.join(flight.changeDir, "agent-smith"));
     fs.writeFileSync(path.join(flight.changeDir, "agent-smith/meta.json"), "{}");
     cleanSuccess(flight, success(flight, "in-flight-main"));
-    override(flight, { isolation: { require: false } });
+    override(flight, { isolation: { require: false }, claudeCapture: { require: false } });
     cleanSuccess(flight, success(flight, "opt-out"));
     assert.ok(fs.existsSync(path.join(flight.changeDir, "change.md")));
     const absent = fixture(chain, null, true);
@@ -1836,7 +1836,7 @@ test("active prefixes reject invalid values and default collisions before mutati
 for (const chain of ["10x", "openspec"]) {
   test(`${chain}: a real nonisolated main run retains the in-flight setup case after isolation is enabled`, () => {
     const p = fixture(chain);
-    override(p, { isolation: { require: false }, score: { minRigor: null } });
+    override(p, { isolation: { require: false }, claudeCapture: { require: false }, score: { minRigor: null } });
     const started = run(p, ["init", "demo", "--goal", GOAL, "--chain", chain], { env: gitEnv(p) });
     assert.equal(started.json?.action, "run", started.stdout + started.stderr);
     const metaFile = path.join(p.changeDir, "agent-smith/meta.json");

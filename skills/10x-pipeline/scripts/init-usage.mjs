@@ -1,6 +1,7 @@
 import fs from "node:fs";
+import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { ROOT, hostOf, providerOf, providersByStep } from "./state.mjs";
+import { ROOT, SKILL_DIR, hostOf, providerOf, providersByStep } from "./state.mjs";
 import { codexChildEnv } from "./codex-startup.mjs";
 
 // SemVer 2.0.0 version fields, as used by the release version check.
@@ -36,32 +37,60 @@ async function codexWarning() {
     CODEX_USAGE_FLOOR + " or later on the run's PATH.";
 }
 
+// "ready", "disabled", "unusable", or "unknown" when the capture module cannot be loaded.
+async function claudeReadiness() {
+  try {
+    // The capture files are optional to the router, including when the provenance hash cannot be computed.
+    const { claudeCaptureReadiness } = await import("./claude-capture-data.mjs");
+    return claudeCaptureReadiness();
+  } catch {
+    return "unknown";
+  }
+}
+
+const OFF = "Native Claude token capture is off in this session.";
+const UNAVAILABLE = "Native Claude launcher capture is unavailable.";
+
 async function claudeWarning(host) {
   if (host === "codex") {
     return "Headless Claude on Codex records duration only. Start a fresh Claude session with the capture launcher. " +
       "From that session, start a new Claude-hosted run or resume an existing Claude-hosted run " +
       "with its saved provider mode.";
   }
-  let readiness;
-  try {
-    // The capture files are optional to the router, including when the provenance hash cannot be computed.
-    const { claudeCaptureReadiness } = await import("./claude-capture-data.mjs");
-    readiness = claudeCaptureReadiness();
-  } catch {
+  const readiness = await claudeReadiness();
+  if (readiness === "unknown") {
     return "Could not check native Claude token capture. Verify the installed agent-smith plugin and use the documented launcher.";
   }
-  if (readiness === "disabled") {
-    return "Native Claude token capture is off in this session. Start a fresh Claude session with the capture launcher.";
-  }
-  if (readiness === "unusable") {
-    return "Native Claude launcher capture is unavailable. Exit this session and relaunch Claude using the documented capture setup.";
-  }
+  if (readiness === "disabled") return OFF + " Start a fresh Claude session with the capture launcher.";
+  if (readiness === "unusable") return UNAVAILABLE + " Exit this session and relaunch Claude using the documented capture setup.";
   return null;
 }
 
-export async function initUsageWarning(policy, selection, neutralReplay) {
-  const providers = neutralReplay ? new Set([providerOf(neutralReplay)])
+function assignedProviders(policy, selection, neutralReplay) {
+  return neutralReplay ? new Set([providerOf(neutralReplay)])
     : new Set(Object.values(providersByStep(policy, selection)).flat());
+}
+
+// The halt reason for a native Claude host whose capture is definitely not ready (claudeCapture.require), or null.
+export async function claudeCaptureStop(policy, selection, neutralReplay, id, chain) {
+  if (policy?.claudeCapture?.require !== true || hostOf(selection) !== "claude") return null;
+  if (process.env.AGENT_SMITH_CLAUDE_SESSION) return null;
+  if (!assignedProviders(policy, selection, neutralReplay).has("claude")) return null;
+  const readiness = await claudeReadiness();
+  if (readiness !== "disabled" && readiness !== "unusable") return null;
+  const skill = chain === "openspec" ? "openspec-pipeline" : "10x-pipeline";
+  return (readiness === "disabled" ? OFF + " Start a fresh Claude session with the capture launcher: "
+    : UNAVAILABLE + " Exit this session and relaunch Claude with the capture launcher: ") +
+    `node "${path.join(SKILL_DIR, "scripts", "claude-capture.mjs")}" ` +
+    "(run it from a terminal outside Claude Code, in the project root), then run " +
+    `/agent-smith:${skill} ${id} again in that session with the same flags; ` +
+    "a run that already has steps resumes with its saved host and provider mode. " +
+    'To skip this check, set { "claudeCapture": { "require": false } } in context/foundation/agent-smith-policy.json. ' +
+    "Nothing was written.";
+}
+
+export async function initUsageWarning(policy, selection, neutralReplay) {
+  const providers = assignedProviders(policy, selection, neutralReplay);
   const warnings = [];
   if (providers.has("claude")) warnings.push(await claudeWarning(hostOf(selection)));
   if (providers.has("openai")) warnings.push(await codexWarning());

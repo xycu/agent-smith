@@ -42,7 +42,7 @@ import {
   archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
 import { initPermissionWarnings } from "./init-permissions.mjs";
-import { initUsageWarning } from "./init-usage.mjs";
+import { initUsageWarning, claudeCaptureStop } from "./init-usage.mjs";
 
 // Only the call that made a rollback can undo it on halt. Recovery in a new process restores timestamps only.
 let undoOnError = null;
@@ -1128,8 +1128,11 @@ async function main() {
     }
     // Run isolation (isolation.require true) is checked before anything is written. meta.isolated and meta.branch are
     // set only at an init whose log has no executed entry, so a run is isolated from its first step or not at all.
+    // The Claude capture gate (claudeCapture.require) follows it, before any write.
     const fresh = executed(log).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
+    const captureStop = await claudeCaptureStop(policy, selection, neutralReplay, id, chain);
+    if (captureStop) halt(captureStop);
     initPermissionWarnings(policy, selection, neutralReplay);
     await initUsageWarning(policy, selection, neutralReplay);
     cleanupStateTemps(p.dir);
