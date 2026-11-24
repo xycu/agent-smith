@@ -24,7 +24,7 @@ During development and before handoff, each step runs only test files that cover
 
 ## Scope
 
-The implementation touches `top.md`, `rules.test.mjs`, and the rules index. It builds on the existing router, OpenSpec chain rules, contributor guidance, and CI workflow. Pipeline `SKILL.md` edits are outside the scope.
+The implementation touches `top.md`, `rules.test.mjs`, the rules index and the `top.md` list in `docs/REFERENCE.md`. It builds on the existing router, OpenSpec chain rules, contributor guidance, and CI workflow. Pipeline `SKILL.md` edits are outside the scope.
 
 ## Architecture / Approach
 

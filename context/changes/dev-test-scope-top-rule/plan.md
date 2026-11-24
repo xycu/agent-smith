@@ -20,7 +20,7 @@ Fresh prompts in either chain require test files that cover what the step change
 
 ## Scope
 
-Implementation is limited to the shared rule, its regression in `rules.test.mjs`, and the `top.md` row in the rules index. PR #265 supplies the existing contributor and prompt guidance. The existing router, OpenSpec chain rule file, pipeline `SKILL.md` files, and CI workflow are outside this change.
+Implementation is limited to the shared rule, its regression in `rules.test.mjs`, the `top.md` row in the rules index, and the list of `top.md` contents in `docs/REFERENCE.md`. PR #265 supplies the existing contributor and prompt guidance. The existing router, OpenSpec chain rule file, pipeline `SKILL.md` files, and CI workflow are outside this change.
 
 ## Implementation Approach
 
@@ -40,7 +40,7 @@ Ship the instruction once in the shared prompt, document it in the rules index, 
 
 **Intent** Apply the test scope from PR #265 to every step, including when a skill or plan row asks for the full suite.
 
-**Contract** Add one `GIVEN/WHEN/THEN` rule with one bold `MUST` before the precedence and `RESULT:` lines. Require only test files that cover files changed by the step, including before handoff. State that CI runs the full suite and allow a local full-suite run once only at the user's request or to reproduce a CI failure. Name `tools/test/agents-md-size.test.mjs` and `skills/10x-pipeline/test/skill-loop.test.mjs` as examples of guards that still run when a file they cover is touched.
+**Contract** Add one `GIVEN/WHEN/THEN` rule with one bold `MUST` before the precedence and `RESULT:` lines. Require only test files that cover files changed by the step, including before handoff. State that CI runs the full suite and allow a local full-suite run once per step, only at the user's own request (the user's message or the run goal, never a skill gate or plan row) or to reproduce a CI failure. State that a skill gate or plan criterion that names the full suite counts as met by the covering test files and that CI owns the full-suite result, so the step neither skips nor ticks that row on the strength of a full run. Keep the line free of the phrase `calls for delegation` and of `rm -rf`, which `nested-subagents.test.mjs` and `no-recursive-delete.test.mjs` use to find their own rules in `top.md`. Name `tools/test/agents-md-size.test.mjs` and `skills/10x-pipeline/test/skill-loop.test.mjs` as examples of guards that still run when a file they cover is touched.
 
 #### 2. Rule regression
 
@@ -48,7 +48,7 @@ Ship the instruction once in the shared prompt, document it in the rules index, 
 
 **Intent** Catch removal or weakening of the always-true instruction.
 
-**Contract** Assert that the shipped `top.md` contains the new rule once and carries the changed-file limit, both full-suite exceptions, the one-run limit, CI ownership, and both guard examples. The existing rule-form scan covers the new line. Reuse the existing cross-chain assembly checks in `rule-levels.test.mjs`.
+**Contract** Assert that the shipped `top.md` contains the new rule once and carries the changed-file limit, both full-suite exceptions, the once-per-step limit, the user-request source, the covering-tests-meet-the-criterion clause, CI ownership, and both guard examples. The existing rule-form scan covers the new line. Reuse the existing cross-chain assembly checks in `rule-levels.test.mjs`.
 
 #### 3. Rules index
 
@@ -57,6 +57,14 @@ Ship the instruction once in the shared prompt, document it in the rules index, 
 **Intent** Make the development test policy discoverable alongside the other rules for every step.
 
 **Contract** Update the Files table entry for `top.md` to summarize focused development tests, applicable guards, full-suite CI, and the two exceptions to the local full-suite limit.
+
+#### 4. Reference list
+
+**File**: `docs/REFERENCE.md`
+
+**Intent** Keep the documented contents of the always-true `top.md` true.
+
+**Contract** In the always-true bullet of the rule-levels section (the one that lists what `top.md` holds), add the focused development tests rule to the list. Change no routing behavior text.
 
 ### Success Criteria
 
@@ -71,7 +79,7 @@ Ship the instruction once in the shared prompt, document it in the rules index, 
 ## Testing Strategy
 
 - Use the existing rule-form assertion and the new policy regression for the textual contract. The existing scratch-project tests cover prompt assembly, precedence, and both chains.
-- Choose local tests by the files they cover. For example, changing `AGENTS.md` requires its size guard, and changing a pipeline `SKILL.md` requires the skill-loop guard. The rule and cross-chain prompt tests cover this phase's changes.
+- Choose local tests by the files they cover. For example, changing `AGENTS.md` requires its size guard, and changing a pipeline `SKILL.md` requires the skill-loop guard. The rule and cross-chain prompt tests cover this phase's changes. `nested-subagents.test.mjs` and `no-recursive-delete.test.mjs` also read `top.md` by line, so run them too if the new line could match their filters (see the `top.md` contract).
 - A skill or plan row that asks for the full suite without either exception still calls for only the covering local tests. Review the full-suite result in CI after publication.
 
 ## Performance Considerations
