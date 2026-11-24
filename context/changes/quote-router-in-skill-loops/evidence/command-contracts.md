@@ -32,7 +32,7 @@ Every bare call left at f81bdb52. Each becomes `node "$VAR" ...` in Phase 2.
 - Line 165 — `cd "<run root>" && node $PR_COMMENT <change-id>`
 - Line 177 — `cd "<run root>" && node $OPEN_PR <change-id>`
 
-12 router calls on 11 lines, 1 PR-comment call, 1 open-PR call.
+11 router calls on 10 lines, 1 PR-comment call, 1 open-PR call.
 
 ### skills/openspec-pipeline/SKILL.md
 
@@ -49,7 +49,7 @@ Every bare call left at f81bdb52. Each becomes `node "$VAR" ...` in Phase 2.
 - Line 170 — `cd "<run root>" && node $PR_COMMENT <change-name> --report "openspec/changes/<change-name>/agent-smith/report.md"`
 - Line 182 — `cd "<run root>" && node $OPEN_PR <change-name> --chain openspec`
 
-12 router calls on 11 lines, 1 PR-comment call, 1 open-PR call.
+11 router calls on 10 lines, 1 PR-comment call, 1 open-PR call.
 
 ## Affected assertions
 
@@ -67,7 +67,7 @@ The single `usage` call per skill changes Phase 2's ordering checks: pin the one
 
 ## Phase 2 verification, 2026-11-24
 
-Both skills quote all 14 inventoried script calls. Their anti-stall sections match the pre-change bytes. Each chain's init, PR-comment and open-PR snippets ran through a shell with spaced plugin and run-root paths. The recorder received the expected script path, working directory and arguments on all six calls.
+Each skill quotes all 13 inventoried script calls. Their anti-stall sections match the pre-change bytes. Each chain's init, PR-comment and open-PR snippets ran through a shell with spaced plugin and run-root paths. The recorder received the expected script path, working directory and arguments on all six calls.
 
 For each chain, removing one pair of quotes around ROUTER, PR_COMMENT or OPEN_PR in a fresh scratch copy failed the corresponding “script invocations quote each script path” test. Both unmodified skills passed.
 

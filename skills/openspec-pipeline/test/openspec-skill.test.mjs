@@ -109,7 +109,7 @@ test("every router command line carries --chain openspec", () => {
   assert.ok(calls.length >= 8, `expected the router calls, found ${calls.length}`);
   for (const line of calls) {
     // Each `node "$ROUTER"` occurrence on the line is followed by --chain openspec before the closing backtick.
-    for (const m of line.matchAll(/node "\$ROUTER"[^`]*/g)) assert.match(m[0], /--chain openspec/, line);
+    for (const m of line.matchAll(/node "\$ROUTER"[^`]*/g)) assert.match(m[0], / --chain openspec(?: |$)/, m[0]);
   }
   for (const cmd of ["init", "next", "status", "usage", "verify-archive"]) {
     assert.ok(calls.some((l) => l.includes(`node "$ROUTER" ${cmd} `)), `no ${cmd} call`);

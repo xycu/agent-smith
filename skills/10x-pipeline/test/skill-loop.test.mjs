@@ -326,14 +326,17 @@ for (const [chain, source, id, selector] of [
   ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.resolve(path.dirname(DEFAULT_PATH), "../openspec-pipeline/SKILL.md"), "utf8"), "change-name", " --chain openspec"],
 ]) {
   test(`${chain}: script invocations quote each script path`, () => {
+    const commands = source.split("`").filter(span => /\bnode\b/.test(span));
     for (const name of ["ROUTER", "PR_COMMENT", "OPEN_PR"]) {
-      assert.doesNotMatch(source, new RegExp(`\\bnode\\s+\\$(?:${name}\\b|\\{${name}\\})`), name);
-      const calls = source.split("`").filter(span => span.includes(`node "$${name}"`));
+      const reference = new RegExp(`\\$\\{?${name}\\b`);
+      const calls = commands.filter(span => reference.test(span));
       assert.ok(calls.length > 0, `missing quoted ${name} call`);
       if (name !== "ROUTER") assert.equal(calls.length, 1, `single ${name} call`);
       for (const call of calls) {
         if (call === `cd "<root>" && node "$ROUTER" verify-archive <${id}>${selector}`) continue;
-        assert.ok(call.startsWith(`cd "<run root>" && node "$${name}" `), call);
+        const prefix = `cd "<run root>" && node "$${name}" `;
+        assert.ok(call.startsWith(prefix), call);
+        assert.doesNotMatch(call.slice(prefix.length), reference, call);
       }
     }
   });
@@ -482,8 +485,11 @@ for (const [chain, source, id, selector] of [
       "Validate fresh sources before exclude/branch/worktree creation",
       "Setup resolves resumes before this check, even after complete source cleanup",
     ]) assert.ok(setup.includes(text), text);
-    assert.ok(setup.includes(`cd "<root>" && node "$ROUTER" verify-archive <${id}>${selector}`));
-    assert.ok(setup.includes(`cd "<run root>" && node "$ROUTER" verify-archive <${id}>${selector}`));
+    const fallback = `cd "<root>" && node "$ROUTER" verify-archive <${id}>${selector}`;
+    assert.equal(source.split(fallback).length - 1, 1, "only the pre-selection diagnostic uses the original root");
+    assert.ok(setup.slice(0, selection).includes(fallback));
+    const diagnostic = setup.slice(check).split("\n", 1)[0];
+    assert.ok(diagnostic.includes(`cd "<run root>" && node "$ROUTER" verify-archive <${id}>${selector}`));
     const early = start.slice(0, start.indexOf("\n3. "));
     assert.doesNotMatch(early, /verify-archive|changes\/.* is missing/);
     if (chain === "10x") {
@@ -544,8 +550,8 @@ test("AGENTS assigns routing documentation to the reference for both skills", ()
 });
 
 for (const [chain, source, ceiling] of [
-  ["10x", skill, 32375],
-  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36870],
+  ["10x", skill, 32401],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36896],
 ]) {
   test(`${chain}: skill byte budget and single procedure owners`, () => {
     assert.ok(Buffer.byteLength(source, "utf8") <= ceiling, `${chain}: skill exceeds ${ceiling} bytes`);

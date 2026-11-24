@@ -162,7 +162,7 @@ A refusal exits 1 with `attached: false`; it is no fault of yours, so write no `
 
 Run only when the terminal router action has `prComment: true`. Keep that action's intent across status and archive verification calls. Legacy or missing intent reads false. A missing field or any other value authorizes no comment. Execute once, in order.
 
-1. Run `cd "<run root>" && node "$PR_COMMENT" <change-id>` from the run root, after the pull request step. Forward the pull request step's `pr.url` with `--pr <url>` when present. In `archive` on `archived: true`, append `--report "<archivePath>/agent-smith/report.md"`. Shell-quote script path, change id, url and report path. Check the suspension STOP before handling its JSON. It posts `report.md` on the selected PR (current branch by default), or edits its earlier comment.
+1. Run `cd "<run root>" && node "$PR_COMMENT" <change-id>` from the run root, after the pull request step. Forward the pull request step's `pr.url` with `--pr <url>` when present. In `archive` on `archived: true`, append `--report "<archivePath>/agent-smith/report.md"`. Quote the script path and the change id for the shell, and the url and the report path too. Check the suspension STOP before handling its JSON. It posts `report.md` on the selected PR (current branch by default), or edits its earlier comment.
 2. Print one line: `PR comment: <action>, <url or reason> (PR <pr url or none>)`, from the `action`, `url`, `reason` and `pr` of that object.
 
 - In `archive` the step runs in step 5, after the pull request step, so after the move.

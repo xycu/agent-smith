@@ -739,17 +739,13 @@ function branch(skill, name) {
 
 const countOf = (text, needle) => text.split(needle).length - 1;
 
-test('SKILL.md: flag, script variable and the single node "$PR_COMMENT" call', () => {
+test("SKILL.md: PR comment flag and script variable", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   assert.match(skill, /^argument-hint:.*--pr-comment/m);
   assert.ok(skill.includes("PR_COMMENT="));
   assert.ok(!skill.includes("gh pr") && !skill.includes("gh api"));
-  assert.equal(countOf(skill, 'node "$PR_COMMENT"'), 1);
   const section = skill.indexOf("## PR comment (opt-in)");
-  const rules = skill.indexOf("## Rules");
-  const call = skill.indexOf('node "$PR_COMMENT"');
-  assert.ok(section >= 0 && section < rules, "section must precede ## Rules");
-  assert.ok(call > section && call < rules, 'node "$PR_COMMENT" must lie inside the section');
+  assert.ok(section >= 0 && section < skill.indexOf("## Rules"), "section must precede ## Rules");
 });
 
 test("SKILL.md: explicit invocation forwards durable opt-in or reset to the router", () => {
@@ -770,6 +766,8 @@ test("SKILL.md: every terminal branch reaches the strict durable PR-comment owne
       assert.equal(countOf(text, "prComment: true"), 0, name);
     }
     const owner = skill.split("## PR comment (opt-in)")[1].split("\n## ")[0];
+    assert.equal(countOf(skill, 'node "$PR_COMMENT"'), 1);
+    assert.ok(owner.includes('node "$PR_COMMENT"'));
     assert.equal(countOf(skill, "`prComment: true`"), 1);
     assert.match(owner, /terminal router action has `prComment: true`/);
     assert.match(owner, /missing field or any other value authorizes no comment/);
@@ -792,7 +790,7 @@ test("SKILL.md: PR comment section retains strict authorization and script-error
     assert.match(section, /If the script exits non-zero or prints no JSON object, print `PR comment: skipped, script error`/);
     assert.doesNotMatch(section, /100 characters|router does not/);
     const comment = section.split("\n## ")[0];
-    assert.match(comment, /Shell-quote script path, change (?:id|name), url and report path/);
+    assert.match(comment, /Quote the script path(?: and the change id for the shell, and the url and the report path too|, the change name, the url and the report path for the shell)/);
     assert.ok(section.includes("PR comment: skipped, no report"));
   }
 });
