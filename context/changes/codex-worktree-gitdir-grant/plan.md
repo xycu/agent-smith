@@ -202,9 +202,9 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Automated
 
-- [ ] 1.1 Runner tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/providers.test.mjs`
-- [ ] 1.2 Grant argv holds exactly gitdir, objects, refs and logs for a linked worktree and nothing for a main checkout
-- [ ] 1.3 No test or script uses a recursive delete: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 1.1 Runner tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/providers.test.mjs`
+- [x] 1.2 Grant argv holds exactly gitdir, objects, refs and logs for a linked worktree and nothing for a main checkout
+- [x] 1.3 No test or script uses a recursive delete: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
 
 #### Manual
 
