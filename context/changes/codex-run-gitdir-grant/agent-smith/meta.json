@@ -50,5 +50,19 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/route.mjs +3"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "1.4 On codex-cli 0.171.0, in an isolated run worktree with no `.git/worktrees/agent-smith-<id>` entry in `~/.codex/config.toml`, `run-codex.mjs` passes the preflight (`envelope.preflight.grant` names the profile and gitdir)",
+      "2.2 With the grant removed (`codex.permissions` set to a profile name that does not exist), a live preflight refusal names the denied `.git/worktrees/agent-smith-<id>` path",
+      "3.3 A live `--provider-mode split` run in an isolated worktree on codex-cli 0.171.0 completes its first OpenAI step with no manual `~/.codex/config.toml` grant for that worktree"
+    ],
+    "manualNotProved": [
+      "1.4 On codex-cli 0.171.0, in an isolated run worktree with no `.git/worktrees/agent-smith-<id>` entry in `~/.codex/config.toml`, `run-codex.mjs` passes the preflight (`envelope.preflight.grant` names the profile and gitdir) — not proved: the row names codex-cli 0.171.0; the installed CLI is 0.172.0 ('codex --version'), so a live preflight there would prove a different version. Fake-Codex runner tests do not meet the \"live\" claim. Left",
+      "2.2 With the grant removed (`codex.permissions` set to a profile name that does not exist), a live preflight refusal names the denied `.git/worktrees/agent-smith-<id>` path — not proved: same: a live preflight refusal on 0.171.0 is required; only 0.172.0 is installed, and the covering tests use a fake Codex. Left at [ ].",
+      "3.3 A live `--provider-mode split` run in an isolated worktree on codex-cli 0.171.0 completes its first OpenAI step with no manual `~/.codex/config.toml` grant for that worktree — not proved: needs a live '--provider-mode split' pipeline run with a real OpenAI step on 0.171.0 in an isolated worktree; a manual-verify step cannot run it (it would call a model and write router state)."
+    ]
   }
 }
