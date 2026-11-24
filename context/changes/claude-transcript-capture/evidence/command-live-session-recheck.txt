@@ -1,0 +1,13 @@
+Live Claude Code readiness recheck for Manual rows 3.4 and 3.5
+claude --version: 2.1.325 (Claude Code)
+Launcher version floor: 2.1.311 or later
+Configured CLI authentication: logged in (exit 0)
+Fresh scratch Claude profile with configured home: not logged in (exit 1)
+Provider credential or provider-selection override present: no
+Native Claude host session present: yes
+Inherited host transcript readiness: ready
+Inherited host launcher readiness: disabled
+Matching native Agent calls in current session: 0
+Matching completed Agent returns in current session: 0
+Native transcript measurements in run ledger: 0
+Native telemetry measurements in run ledger: 0

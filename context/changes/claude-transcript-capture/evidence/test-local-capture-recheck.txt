@@ -1,0 +1,23 @@
+accounting-readers.test.mjs — transcript totals retain routing costs and report their scope without a savings verdict
+accounting-readers.test.mjs — 10x: native capture on appears in the terminal report and status rebuild
+claude-usage.test.mjs — bound capture proves flat step using the checkpoint CLI
+claude-usage.test.mjs — transcript counts each attributed message once for numbered with children=false
+init-usage.test.mjs — 10x defaults to the readable session transcript and replays its saved source after policy edits
+init-usage.test.mjs — 10x init halts on a native Claude host without ready capture and resumes from a launcher session
+init-usage.test.mjs — 10x init runs without a warning once capture is ready, and keeps the advisory with the opt-out
+Scope: local fixtures for Manual rows 3.4 and 3.5. Live native Agent steps were unavailable.
+✔ transcript totals retain routing costs and report their scope without a savings verdict (1418.234042ms)
+✔ 10x: native capture on appears in the terminal report and status rebuild (377.016209ms)
+✔ bound capture proves flat step using the checkpoint CLI (122.77175ms)
+✔ transcript counts each attributed message once for numbered with children=false (12.880666ms)
+✔ 10x defaults to the readable session transcript and replays its saved source after policy edits (702.771542ms)
+✔ 10x init halts on a native Claude host without ready capture and resumes from a launcher session (174.155334ms)
+✔ 10x init runs without a warning once capture is ready, and keeps the advisory with the opt-out (645.420375ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1900.844708
