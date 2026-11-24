@@ -58,5 +58,17 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/test/pr-comment.test.mjs, skills/10x-pipeline/test/skill-loop.test.mjs, skills/openspec-pipeline/test/openspec-skill.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "2.6 The fixed installed plugin under an actual cache path containing spaces starts the router through `/agent-smith:10x-pipeline`, with source revision, expanded command and `action: \"run\"` evidence recorded in this change.",
+      "2.7 The fixed installed plugin under an actual cache path containing spaces starts the shared router through `/agent-smith:openspec-pipeline`, preserving `--chain openspec`, with source revision, expanded command and `action: \"run\"` evidence recorded in this change."
+    ],
+    "manualNotProved": [
+      "2.6 The fixed installed plugin under an actual cache path containing spaces starts the router through `/agent-smith:10x-pipeline`, with source revision, expanded command and `action: \"run\"` evidence recorded in this change. — not proved: The Claude Code installed-plugin registry had one agent-smith entry and zero entries resolving to an existing cache path containing spaces. The recorded '/agent-smith:10x-pipeline' transcript used a d",
+      "2.7 The fixed installed plugin under an actual cache path containing spaces starts the shared router through `/agent-smith:openspec-pipeline`, preserving `--chain openspec`, with source revision, expanded command and `action: \"run\"` evidence recorded in this change. — not proved: The Claude Code installed-plugin registry had no agent-smith entry resolving to an existing cache path containing spaces. The recorded '/agent-smith:openspec-pipeline' transcript used a directory mark"
+    ]
   }
 }
