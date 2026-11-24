@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md fixes the outcome (default on, halt on native Claude when not ready, opt-out in agent-smith-policy.json); only the opt-out surface shape is open, with one obvious answer modelled on isolation.require (frame.md 'What Changes for /10x-plan')" },
+    "novelty": { "score": 1, "evidence": "isolation.require halting gate with policy opt-out is an existing pattern (research.md 'Precedent for a halting gate'); the capture gate adapts it" },
+    "coupling": { "score": 2, "evidence": "research.md touches route.mjs (isolationCheck neighbour, policyProblems validation), init-usage.mjs, policy.json, skills/10x-pipeline/test/helpers.mjs injection, and a module-order rule on init-usage.mjs imports" },
+    "discovery": { "score": 1, "evidence": "change.md and frame.md name route.mjs:1134, isolationCheck, claude-capture-data.mjs and the docs; research.md located the remaining sites with one pass" },
+    "volume": { "score": 2, "evidence": "about 8 to 10 files: policy.json, route.mjs, init-usage.mjs, helpers.mjs, init-usage.test.mjs plus init tests, docs/REFERENCE.md, README.md, ADR-018 and ADR-019 amendments; moderate new gate code" },
+    "verification": { "score": 1, "evidence": "existing init and init-usage tests cover the warning path and can be extended for both states (research.md 'Detailed Findings'); a few tests to add, no new harness" }
+  },
+  "unknowns": [
+    "Whether the new policy key changes the provenance hash (policy.json provenance.ignore, research.md open question 3)",
+    "Whether test files beyond init-usage.test.mjs spawn init without the helpers.mjs injection and would halt once the default is on",
+    "Whether a per-run flag is wanted in addition to the policy opt-out (research.md open question 1)"
+  ],
+  "confidence": "medium"
+}
