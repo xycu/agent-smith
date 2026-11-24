@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/xycu/agent-smith/compare/v1.17.0...v1.18.0) (2026-11-24)
+
+
+### Features
+
+* **claude-transcript-capture:** Default Claude token capture to session transcripts instead of the launcher ([#290](https://github.com/xycu/agent-smith/issues/290)) ([2b4d011](https://github.com/xycu/agent-smith/commit/2b4d0117f6e6e0797c98193bd57a769682b5c506))
+
 ## [1.17.0](https://github.com/xycu/agent-smith/compare/v1.16.2...v1.17.0) (2026-11-24)
 
 
