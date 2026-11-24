@@ -1,9 +1,9 @@
 ---
 change_id: record-archive-manual-decision
 title: Record explicit approval to archive with unresolved Manual checks
-status: new
+status: planned
 created: 2026-11-19
-updated: 2026-11-19
+updated: 2026-11-24
 archived_at: null
 ---
 
