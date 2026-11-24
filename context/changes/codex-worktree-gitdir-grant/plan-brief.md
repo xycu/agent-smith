@@ -5,11 +5,11 @@
 
 ## What & Why
 
-Issue #284 wants Codex worktree runs to stop prompting and stop appending a line to `~/.codex/config.toml` per worktree. Open PR #285 already passes a per-run grant for the worktree's own gitdir. This change finishes the job: the shared Git paths a commit needs, advice that no longer hands out a whole-`.git` grant, a read-only list of the dead lines, and the macOS acceptance proof.
+Issue #284 wants Codex worktree runs to stop prompting and stop appending a line to `~/.codex/config.toml` per worktree. PR #285 (merged as `79b6cc36`) already passes a per-run grant for the worktree's own gitdir. This change finishes the job: the shared Git paths a commit needs, advice that no longer hands out a whole-`.git` grant, a read-only list of the dead lines, and the macOS acceptance proof.
 
 ## Starting Point
 
-`main` has no per-run grant. #285 (green, unmerged) adds one gitdir path through an inline-table `-c`. `init` still advises a write grant on the whole common dir, which also opens `hooks` and `config`. The owner's `~/.codex/config.toml` holds 42 `worktrees` lines.
+`main` has #285's per-run grant: one gitdir path through an inline-table `-c`. `init` still advises a write grant on the whole common dir, which also opens `hooks` and `config`. The owner's `~/.codex/config.toml` holds 42 `worktrees` lines.
 
 ## Desired End State
 
@@ -19,7 +19,7 @@ A fresh isolated macOS run commits with no approval prompt and no new config lin
 
 | Decision | Choice | Why | Source |
 | --- | --- | --- | --- |
-| Base | Wait for #285 to merge, then implement | Same `run-codex.mjs`; avoids duplicate grant code and conflicts | Plan |
+| Base | Build on `main` after #285 (merged) | Same `run-codex.mjs`; extend the one grant, no duplicate code | Plan |
 | Grant set | gitdir + `<common>/objects`, `refs`, `logs` | Observed on macOS 0.172.0: commit passes, hooks/config denied | Research |
 | `packed-refs` | Add only if the Phase 1 manual check needs it | One run printed a lock error but the commit passed | Plan |
 | Stale lines | `init` lists them read-only | The router never edits user config | Plan |
@@ -43,14 +43,15 @@ One grant list built in `gitdirGrant()` and emitted as one inline-table `-c` for
 | 2. `init` | Narrow advice and stale-line listing | Parsing `config.toml` keys without a TOML parser |
 | 3. Docs and live row | REFERENCE, ADR amendment, macOS acceptance | Needs a real OpenAI step run by the owner |
 
-**Prerequisites:** #285 merged to `main`.
+**Prerequisites:** none open; #285 is merged.
 **Estimated effort:** ~2 sessions across 3 phases.
 
 ## Open Risks & Assumptions
 
 - Codex versions after 0.172.0 may change how filesystem rules merge or how `.git` is protected.
 - Only macOS was checked here; the issue's earlier Linux evidence is from another project.
-- #285 may change in review; re-check its function names before Phase 1.
+- Re-check #285's function names on `main` before Phase 1.
+- The grant is automatic, so write access to shared `refs`, `logs` and `objects` is new default exposure; documented in the ADR amendment.
 
 ## Success Criteria (Summary)
 

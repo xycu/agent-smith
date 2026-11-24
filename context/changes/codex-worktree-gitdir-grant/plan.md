@@ -2,15 +2,15 @@
 
 ## Overview
 
-Issue [#284](https://github.com/xycu/agent-smith/issues/284) asks for a per-run Codex gitdir write grant instead of one persisted `~/.codex/config.toml` line per worktree. Open PR [#285](https://github.com/xycu/agent-smith/pull/285) (change `codex-run-gitdir-grant`, origin issue #281) already delivers that grant for the worktree's own gitdir. This change covers what #285 leaves: the shared common-dir paths a commit needs (so a whole-`.git` grant is no longer advised and hooks and config stay denied), a read-only listing of the stale per-worktree lines, and the live macOS acceptance row.
+Issue [#284](https://github.com/xycu/agent-smith/issues/284) asks for a per-run Codex gitdir write grant instead of one persisted `~/.codex/config.toml` line per worktree. PR [#285](https://github.com/xycu/agent-smith/pull/285) (change `codex-run-gitdir-grant`, origin issue #281), merged to `main` as `79b6cc36`, already delivers that grant for the worktree's own gitdir. This change covers what #285 leaves: the shared common-dir paths a commit needs (so a whole-`.git` grant is no longer advised and hooks and config stay denied), a read-only listing of the stale per-worktree lines, and the live macOS acceptance row.
 
-**Sequencing:** implementation starts only after #285 is merged to `main`. This plan names #285's function and file names as they stand on its head `875e98ba`; re-check them before Phase 1.
+**Sequencing:** #285 is merged, so Phase 1 builds directly on `main` (`79b6cc36` or later). The function and file names below are those of `main` after #285; re-check them before Phase 1.
 
 ## Current State Analysis
 
-- `main` (`4eaed188`): `configArgs` in `skills/10x-pipeline/scripts/run-codex.mjs:27-30` carries no filesystem grant; sandbox preflight and `exec` both use it.
-- #285 head: `configArgs(action, grant)` appends `-c permissions.<profile>.filesystem={"<gitdir>"="write"}` last; `gitdirGrant()` resolves the profile name (`codex.permissions`, project `.codex/config.toml`, then `CODEX_HOME/config.toml`), realpaths `--absolute-git-dir` and `--git-common-dir`, and returns no grant when they are equal.
-- `init-permissions.mjs:46-63` (`codexWarning`) prints a remedy with `"<common>" = "write"` for the whole common dir. A whole-`.git` write grant also makes `<common>/hooks` and `<common>/config` writable.
+- `main` before #285 (`4eaed188`): `configArgs` carried no filesystem grant.
+- `main` after #285 (`79b6cc36`): `configArgs(action, grant)` (`run-codex.mjs:27-33`) appends `-c permissions.<profile>.filesystem={"<gitdir>"="write"}` last; `gitdirGrant()` resolves the profile name (`codex.permissions`, project `.codex/config.toml`, then `CODEX_HOME/config.toml`), realpaths `--absolute-git-dir` and `--git-common-dir`, and returns no grant when they are equal (`gitdirGrant` at `run-codex.mjs:58-77`, grant shape `{ profile, gitDir }`). Existing assertions on that shape to update: `codex-runner.test.mjs:797-799` and `:883-886`, `init-permissions.test.mjs:204`.
+- `init-permissions.mjs:46-63` (`codexWarning`, called only when an OpenAI provider is selected) prints a remedy with `"<common>" = "write"` for the whole common dir. A whole-`.git` write grant also makes `<common>/hooks` and `<common>/config` writable.
 - `~/.codex/config.toml` holds 42 lines containing `worktrees` (2026-11-24). #285's plan declines any cleanup.
 - Research: [research.md](research.md).
 
@@ -51,13 +51,13 @@ For a linked worktree, the runner grants write to the run root's gitdir plus the
 
 **Intent**: Replace #285's single `gitDir` with a list: the gitdir, then `<common>/objects`, `<common>/refs`, `<common>/logs`. Build the list in `gitdirGrant()` from the already realpathed common dir and emit all entries in the same inline table in `configArgs`.
 
-**Contract**: `grant` becomes `{ profile, paths: [..] }` (or `null` with `why`). `configArgs` emits `permissions.<profile>.filesystem={"<p1>"="write",…}` with `JSON.stringify` per path, last in argv, identical for sandbox and `exec`. A path containing a control character, or a missing common subdirectory, drops the whole grant with `why` ("no gitdir"), as the control-character check does today. `envelope.preflight.grant` and the refusal text (`Gitdir grant: <profile> on <paths>.`) list every path.
+**Contract**: `grant` becomes `{ profile, paths: [..] }` (or `null` with `why`). `configArgs` emits `permissions.<profile>.filesystem={"<p1>"="write",…}` with `JSON.stringify` per path, last in argv, identical for sandbox and `exec`. A path containing a control character, or a missing `objects` or `refs`, drops the whole grant with `why` ("no gitdir", or a distinct "no common subdirectory" for a missing one). `logs` is optional: it is added only when the directory exists (a repository with `core.logAllRefUpdates=false` or no reflog yet has none), and its absence never drops the grant. Each subdirectory is realpathed with the common dir. `envelope.preflight.grant` and the refusal text (`Gitdir grant: <profile> on <paths>.`) list every path.
 
 #### 2. Tests
 
 **File**: `skills/10x-pipeline/test/codex-runner.test.mjs`
 
-**Intent**: Extend #285's grant cases to the set: identical argv for sandbox and `exec`, exactly the four paths for a linked worktree, none for a main checkout, none when a subdirectory is missing, path with a control character refused.
+**Intent**: Extend #285's grant cases to the set: identical argv for sandbox and `exec`, exactly the four paths for a linked worktree, none for a main checkout, none when `objects` or `refs` is missing, three paths (no `logs`) when `logs` is missing, path with a control character refused.
 
 **Contract**: Fake-Codex assertions on argv only; no real Codex.
 
@@ -92,13 +92,13 @@ For a linked worktree, the runner grants write to the run root's gitdir plus the
 
 **Intent**: In `codexWarning`, print the objects, refs and logs entries under `[permissions.<profile>.filesystem]` instead of the single `"<common>" = "write"` line, keeping the same path-safety guards.
 
-**Contract**: Each entry is `JSON.stringify(path.join(common, name)) = "write"` for `objects`, `refs`, `logs`; the existing `safeText` and glob-character check on `common` still gates all three.
+**Contract**: The remedy keeps the filesystem entries because it also serves runs without a per-run grant (a main checkout, or a non-isolated run), where Phase 1 passes nothing. Each entry is `JSON.stringify(path.join(common, name)) = "write"` for `objects`, `refs`, `logs`; the existing `safeText` and glob-character check on `common` still gates all three.
 
 #### 2. Read-only stale-line scan
 
 **File**: `skills/10x-pipeline/scripts/init-permissions.mjs`
 
-**Intent**: Read `CODEX_HOME/config.toml` (bounded, by descriptor, `O_NOFOLLOW | O_NONBLOCK`, regular file only, per the repo lesson) and collect filesystem keys of the form `<common>/worktrees/agent-smith-*` whose directory no longer exists. Print up to a bounded number of them with one sentence: per-run grants make these lines unnecessary and they can be deleted by hand. Print nothing when none are found or the file is unreadable.
+**Intent**: Inside the existing `providers.has("openai")` branch of `initPermissionWarnings` (no scan when no OpenAI step is selected), read `CODEX_HOME/config.toml` (default `~/.codex/config.toml`) with the existing `readBoundedFile` from `usage.mjs` if it opens by descriptor with `O_NOFOLLOW | O_NONBLOCK` and requires a regular file, otherwise the same pattern as `configPermissions` in `run-codex.mjs` (repo lesson). Collect the keys of lines of the form `"<path>" = "write"` under a `[permissions.<name>.filesystem]` table header, where `<path>` is `<common>/worktrees/agent-smith-<name>` (compared against the common dir as Git prints it and as realpathed, since macOS `/var` and `/private/var` differ) and the directory no longer exists. Print up to a bounded number of them with one sentence: per-run grants make these lines unnecessary and they can be deleted by hand. Print nothing when none are found or the file is unreadable.
 
 **Contract**: Output is a warning on stderr like the existing ones; no file is written; the scan never changes `init`'s result or exit code. Only keys under the repo's own `<common>` are listed.
 
@@ -138,7 +138,7 @@ Record the decision and the macOS proof the suite cannot make.
 
 **Intent**: Update the "Per-run gitdir grant" paragraph (added by #285) to the four-path set and its reason (hooks and config stay denied), mention the `init` listing, and add an amendment next to #285's. Grep every doc for the old single-path and whole-`.git` wording before finishing (lesson: grep every doc for the old behavior).
 
-**Contract**: Text only; name codex-cli 0.172.0 and macOS as the observed platform.
+**Contract**: Text only; name codex-cli 0.172.0 and macOS as the observed platform. State the residual risk: the grant is passed automatically on every isolated OpenAI step, and write access to the shared `refs`, `logs` and `objects` lets a sandboxed step rewrite or delete other branches and the router's `refs/agent-smith/` rollback snapshots (previously this needed the user's own opt-in grant); `hooks` and `config` stay denied. The #285 amendment text stays as history and gets a line marking it superseded; reword the "one path" and "never the common dir, `objects`, `refs`" sentences in `docs/REFERENCE.md` and change the documented `preflight.grant` shape from `{ profile, gitDir }` to `{ profile, paths }`. The old amendment line in `docs/ADR/ADR-024-openai-codex-support.md` is the one expected hit of the grep in row 3.1; any other hit is a defect.
 
 #### 2. Acceptance row
 
@@ -175,7 +175,7 @@ Record the decision and the macOS proof the suite cannot make.
 
 ### Manual Testing Steps:
 
-1. `codex sandbox` with the generated inline table in a linked worktree: commit passes, hooks/config denied.
+1. `codex sandbox` with the generated inline table in a linked worktree (copy the table from a run's `preflight.grant`, or from the refusal text): `git commit` passes; `touch <common>/hooks/x` and a write to the existing `<common>/config` are denied.
 2. Branch delete and `gc --auto` in the same sandbox: record any denied path.
 3. One real isolated run with `--provider-mode split` or `codex`.
 
@@ -190,8 +190,8 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 ## References
 
 - Related research: `context/changes/codex-worktree-gitdir-grant/research.md`
-- Prerequisite: PR [#285](https://github.com/xycu/agent-smith/pull/285), `context/changes/codex-run-gitdir-grant/plan.md`
-- Grant code today: `skills/10x-pipeline/scripts/run-codex.mjs:27-30`; remedy text: `skills/10x-pipeline/scripts/init-permissions.mjs:46-63`
+- Prerequisite (merged, `79b6cc36`): PR [#285](https://github.com/xycu/agent-smith/pull/285), `context/changes/codex-run-gitdir-grant/plan.md`
+- Grant code today: `skills/10x-pipeline/scripts/run-codex.mjs:27-33` and `:58-77`; remedy text: `skills/10x-pipeline/scripts/init-permissions.mjs:46-63`
 - Issue: [#284](https://github.com/xycu/agent-smith/issues/284)
 
 ## Progress

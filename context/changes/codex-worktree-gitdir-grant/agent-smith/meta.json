@@ -45,5 +45,10 @@
       "agents.restricted": false,
       "advisor.enabled": false
     }
+  },
+  "startCommit": "d7d2c298034b6ebe57ee21ecec84f6ac4b66e64c",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain, phases 3, hot paths skills/10x-pipeline/scripts/run-codex.mjs, skills/10x-pipeline/test/codex-runner.test.mjs"
   }
 }
