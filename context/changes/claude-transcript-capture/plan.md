@@ -200,9 +200,9 @@ Existing policy overrides without `mode` inherit transcript mode for new dispatc
 
 #### Automated
 
-- [ ] 1.1 Evidence normalization distinguishes transcript, verified, unavailable and legacy records and rejects inconsistent tuples.
-- [ ] 1.2 Status, report, compare and cost tests cover a transcript-only run and mixed evidence with zero and missing figures without rewriting historical entries.
-- [ ] 1.3 Structured late usage attaches a missing transcript total for the same invocation, refuses mismatched and conflicting evidence without mutation, and preserves existing retry and report behavior.
+- [x] 1.1 Evidence normalization distinguishes transcript, verified, unavailable and legacy records and rejects inconsistent tuples.
+- [x] 1.2 Status, report, compare and cost tests cover a transcript-only run and mixed evidence with zero and missing figures without rewriting historical entries.
+- [x] 1.3 Structured late usage attaches a missing transcript total for the same invocation, refuses mismatched and conflicting evidence without mutation, and preserves existing retry and report behavior.
 
 ### Phase 2: Collect a bounded transcript tree
 

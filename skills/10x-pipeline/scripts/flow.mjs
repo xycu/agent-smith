@@ -12,7 +12,7 @@ import {
   verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS, render,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "../../openspec-pipeline/scripts/openspec.mjs";
-import { normalizeAccounting, accountingFor, usageCoverage, usageFigure } from "./usage.mjs";
+import { normalizeAccounting, accountingFor, usageCoverage, usageFigure, TRANSCRIPT_LIMITATION } from "./usage.mjs";
 export { cleanUsage } from "./usage.mjs";
 
 // ---- report ---------------------------------------------------------------
@@ -98,15 +98,15 @@ function complexityLines(fullLog) {
 }
 
 // The Cost (estimate) line under the totals line: a blended rate over the steps that have a token figure and a price.
-function costLine(cost, verified) {
-  const scope = verified ? " · routing-rate approximation: child usage can be priced at the enclosing dispatch rate" : "";
+function costLine(cost, hasTreeUsage) {
+  const scope = hasTreeUsage ? " · routing-rate approximation: child usage can be priced at the enclosing dispatch rate" : "";
   const missing = cost.unpriced.length ? ` · no price for: ${cost.unpriced.join(", ")}` : "";
   if (cost.priced > 0 && !Number.isFinite(cost.usd)) return `Cost (estimate): - (aggregate unavailable)${scope}${missing}`;
   if (cost.priced === 0) return `Cost (estimate): - (no step with a token figure has a price) at a blended rate${missing}${scope}`;
   return `Cost (estimate): $${cost.usd.toFixed(2)} at a blended rate (USD per million tokens, no input/output split) · priced ${cost.priced} of ${cost.withFigures} steps with a token figure${missing}${scope}`;
 }
 
-const USAGE_SOURCE_NAMES = { "claude-native": "Claude", "codex-rollout": "Codex", unknown: "Host" };
+const USAGE_SOURCE_NAMES = { "claude-native": "Claude", "claude-transcript": "Claude transcript", "codex-rollout": "Codex", unknown: "Host" };
 
 // Use normalized evidence and fixed labels so this line stays short even on mixed runs.
 function usageLimitations(log, host) {
@@ -163,6 +163,7 @@ function buildReport(id, meta, fullLog) {
   return [
     `# Run report: ${id}`,
     "",
+    ...(coverage.transcript ? [TRANSCRIPT_LIMITATION, ""] : []),
     ...(limitations ? [limitations, ""] : []),
     `Goal: ${oneLine(meta.goal) || "-"}`,
     ...(isObject(meta.rigor) && meta.rigor.level ? [`Rigor: ${meta.rigor.level}${meta.rigor.by ? ` (${oneLine(meta.rigor.by)})` : ""}`] : []),
@@ -176,11 +177,11 @@ function buildReport(id, meta, fullLog) {
     ...rows,
     "",
     `Steps: ${log.length} · Tokens: ${total === null ? "unavailable (overflow)" : withTokens.length ? total : "-"} (figures for ${withTokens.length} of ${log.length} steps)${subtotal}${skips.length ? ` · Skipped: ${skips.length}` : ""}`,
-    ...(cost ? [costLine(cost, coverage.verified > 0)] : []),
+    ...(cost ? [costLine(cost, coverage.verified || coverage.transcript)] : []),
     "",
     "## Token coverage",
     "",
-    `Verified observed host usage: ${coverage.verified} · Unavailable: ${coverage.unavailable} · Legacy/unverified scope: ${coverage.legacy} · Missing figures: ${coverage.missing}`,
+    `Verified observed host usage: ${coverage.verified} · Unavailable: ${coverage.unavailable} · Legacy/unverified scope: ${coverage.legacy} · Missing figures: ${coverage.missing} · Transcript: ${coverage.transcript}`,
     "Provider, model and tier groups describe the enclosing dispatch.",
     ...(coverage.legacy ? ["Legacy figures retain their original unverified scope."] : []),
     ...log.filter((entry) => entry.usageEvidence?.status === "unavailable").map((entry) => `- Step ${entry.n} ${entry.step}: ${entry.usageEvidence.reason} — ${entry.usageEvidence.explanation}`),

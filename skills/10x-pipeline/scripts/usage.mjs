@@ -1,11 +1,23 @@
 import fs from "node:fs";
 import path from "node:path";
 
+// The floor is the oldest release whose headless wire format has a reviewed capture and sanitized
+// reconciliation fixtures. Later releases pass; a changed record shape fails closed in the collector.
+export const CLAUDE_CAPTURE_MIN_VERSION = "2.1.311";
+export function claudeCaptureSupported(version) {
+  if (typeof version !== "string" || !/^\d+\.\d+\.\d+$/.test(version)) return false;
+  const have = version.split(".").map(Number);
+  const floor = CLAUDE_CAPTURE_MIN_VERSION.split(".").map(Number);
+  for (let i = 0; i < 3; i++) if (have[i] !== floor[i]) return have[i] > floor[i];
+  return true;
+}
+
+export const TRANSCRIPT_LIMITATION = "Transcript figures can undercount Claude usage because some requests appear only in telemetry.";
 export const USAGE_LIMITS = { evidenceBytes: 4096, fileBytes: 65536, readMs: 2000, sessions: 512, requests: 100000 };
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const integer = (value) => Number.isSafeInteger(value) && value >= 0;
 const identifier = (value) => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
-const SOURCES = new Set(["codex-rollout", "claude-native", "unknown"]);
+const SOURCES = new Set(["codex-rollout", "claude-native", "claude-transcript", "unknown"]);
 const REASONS = {
   "capture-disabled": "Claude token capture is off. Run `node <absolute-plugin-scripts>/claude-capture.mjs` to enable it for a fresh session.",
   "invalid-evidence": "Accounting evidence is invalid or inconsistent.",
@@ -49,7 +61,8 @@ export function unavailableEvidence(reason, { source, hostVersion, invocation } 
     source: SOURCES.has(source) ? source : "unknown",
     hostVersion: version(hostVersion) ? hostVersion : "unknown",
     ...(identity ? { invocation: identity } : {}),
-    reason: code, explanation: REASONS[code],
+    reason: code, explanation: source === "claude-transcript" && code === "capture-disabled"
+      ? "Claude transcript capture is unavailable in this session." : REASONS[code],
   };
 }
 
@@ -62,16 +75,20 @@ export function normalizeAccounting(rawUsage, rawEvidence) {
   const invocation = bounded && object(rawEvidence) ? cleanInvocation(rawEvidence.invocation) : null;
   const base = bounded && object(rawEvidence) && rawEvidence.schemaVersion === 1 && rawEvidence.scope === "step-tree"
     && SOURCES.has(rawEvidence.source) && version(rawEvidence.hostVersion);
+  const counted = base && integer(usage.totalTokens) && integer(rawEvidence.sessionCount)
+    && rawEvidence.sessionCount > 0 && rawEvidence.sessionCount <= USAGE_LIMITS.sessions
+    && integer(rawEvidence.requestCount) && rawEvidence.requestCount <= USAGE_LIMITS.requests;
+  const verified = counted && rawEvidence.status === "verified" && rawEvidence.hostVersion !== "unknown"
+    && (rawEvidence.requestCount > 0 || usage.totalTokens === 0)
+    && ((invocation?.host === "codex" && rawEvidence.source === "codex-rollout" && rawEvidence.reconciliation === "response-snapshot")
+      || (invocation?.host === "claude" && rawEvidence.source === "claude-native" && rawEvidence.reconciliation === "request-records"));
+  const transcript = counted && rawEvidence.status === "transcript" && invocation?.host === "claude"
+    && rawEvidence.source === "claude-transcript" && rawEvidence.reconciliation === "transcript-messages"
+    && claudeCaptureSupported(rawEvidence.hostVersion) && rawEvidence.requestCount > 0;
   let usageEvidence;
-  if (base && rawEvidence.status === "verified" && invocation && integer(usage.totalTokens)
-      && integer(rawEvidence.sessionCount) && rawEvidence.sessionCount > 0 && rawEvidence.sessionCount <= USAGE_LIMITS.sessions
-      && integer(rawEvidence.requestCount) && rawEvidence.requestCount <= USAGE_LIMITS.requests
-      && (rawEvidence.requestCount > 0 || usage.totalTokens === 0)
-      && rawEvidence.hostVersion !== "unknown"
-      && (invocation.host === "codex" ? rawEvidence.source === "codex-rollout" && rawEvidence.reconciliation === "response-snapshot"
-        : rawEvidence.source === "claude-native" && rawEvidence.reconciliation === "request-records")) {
+  if (verified || transcript) {
     usageEvidence = {
-      schemaVersion: 1, status: "verified", scope: "step-tree", source: rawEvidence.source,
+      schemaVersion: 1, status: rawEvidence.status, scope: "step-tree", source: rawEvidence.source,
       hostVersion: rawEvidence.hostVersion, invocation,
       sessionCount: rawEvidence.sessionCount, requestCount: rawEvidence.requestCount,
       reconciliation: rawEvidence.reconciliation,
@@ -92,7 +109,7 @@ export function accountingFor(entry) {
 }
 
 export function usageCoverage(entries) {
-  const coverage = { verified: 0, unavailable: 0, legacy: 0, missing: 0 };
+  const coverage = { verified: 0, transcript: 0, unavailable: 0, legacy: 0, missing: 0 };
   for (const entry of entries) {
     const accounting = accountingFor(entry);
     if (accounting.tokenScope !== "legacy" || accounting.usage?.totalTokens !== undefined) coverage[accounting.tokenScope]++;

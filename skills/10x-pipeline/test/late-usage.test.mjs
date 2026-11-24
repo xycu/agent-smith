@@ -655,6 +655,32 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual(snapshot(project.changeDir), bytes);
   });
 
+  test(`${chain}: late transcript totals preserve attribution, counters and identical replay`, () => {
+    const p = treeProject(chain);
+    const log = readLogEntries(p);
+    const measured = { ...TREE_EVIDENCE, status: "transcript", source: "claude-transcript", hostVersion: "2.1.323",
+      invocation: { host: "claude", sessionId: "session", agentId: "agent", runId: "tool" }, reconciliation: "transcript-messages" };
+    log[0].usageEvidence = unavailableEvidence("incomplete-capture", measured);
+    writeLog(p, log);
+    const attach = (usageEvidence, totalTokens = 0) => usage(p, 1, ["--usage-file",
+      treeFile(p, treePayload(p, chain, { usage: { totalTokens }, usageEvidence })), "--chain", chain]);
+    const before = snapshot(p.changeDir);
+    for (const over of [{ invocation: { ...measured.invocation, runId: "other" } }, { hostVersion: "2.1.324" },
+      { source: "claude-native", status: "verified", reconciliation: "request-records" }]) {
+      assert.equal(attach({ ...measured, ...over }).status, 1);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+    const attached = attach(measured);
+    assert.equal(attached.status, 0, attached.stdout);
+    assert.deepEqual(attached.json.usage, { durationMs: 45, toolUses: 7, totalTokens: 0 });
+    assert.deepEqual(attached.json.usageEvidence, measured);
+    const after = snapshot(p.changeDir);
+    assert.equal(attach(measured).json.unchanged, true);
+    assert.equal(attach(measured, 1).status, 1);
+    assert.equal(attach({ ...measured, requestCount: 3 }).status, 1);
+    assert.deepEqual(snapshot(p.changeDir), after);
+  });
+
   test(`${chain}: structured late tokens fill duration-only usage once for the exact invocation`, () => {
     const p = treeProject(chain);
     const pending = readLogEntries(p)[1];
