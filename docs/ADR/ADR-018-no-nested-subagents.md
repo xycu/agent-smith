@@ -1,6 +1,6 @@
 # ADR-018: A step subagent starts no subagent; the orchestrator ignores a foreign hand-back
 
-- **Status:** Accepted (implemented by unattended runs), as amended through opt-in native capture and its default-on gate (Amendment 8, 2026-11-24). The S-14 closeout carries final host qualification into S-20. [Owner closeout](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout) · [Opt-in capture](#amendment-5--opt-in-claude-native-capture) · [Default-on gate](#amendment-8--claude-capture-expected-by-default)
+- **Status:** Accepted (implemented by unattended runs), as amended through default session transcript capture (Amendment 9, 2026-11-24). The S-14 closeout carries final host qualification into S-20. [Owner closeout](../../context/archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout) · [Opt-in capture](#amendment-5--opt-in-claude-native-capture) · [Default transcript capture](#amendment-9--default-native-claude-capture-to-transcripts)
 - **Date:** 2026-11-10
 - **Deciders:** the repository owner (the request in `change.md`, 2026-11-09); unattended implementation run of change `no-nested-subagents` for the readings marked A1 to A6 below
 - **Origin:** change `no-nested-subagents` (`context/changes/no-nested-subagents/change.md` and `plan.md`); lesson "Never let a subagent spawn its own subagent" in `context/foundation/lessons.md`

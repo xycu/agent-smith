@@ -70,7 +70,12 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
       return normalizeAccounting({ ...independent, totalTokens }, { schemaVersion: 1, status: "transcript", scope: "step-tree",
         ...evidence, sessionCount, requestCount, reconciliation: "transcript-messages" });
     } catch (error) {
-      return normalizeAccounting(independent, unavailableEvidence(error.reason ?? (error.code === "ENOENT" ? "missing-source" : "unsafe-path"), evidence));
+      const reason = error.reason ?? (error.code === "ENOENT" ? "missing-source" : "unsafe-path");
+      if (!evidence.invocation && evidence.hostVersion && ["missing-source", "incomplete-capture"].includes(reason)) {
+        evidence.invocation = cleanInvocation({ host: "claude", sessionId: env.CLAUDE_CODE_SESSION_ID,
+          agentId: descriptor.invocation.agentId, runId: descriptor.invocation.runId });
+      }
+      return normalizeAccounting(independent, unavailableEvidence(reason, evidence));
     }
   }
   const unavailable = reason => normalizeAccounting(independent,

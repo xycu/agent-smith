@@ -655,6 +655,69 @@ test("transcript binds launch, return, tool IDs, membership and fresh message li
   }
 });
 
+test("transcript binds the launch prompt time to the parent call and its first response", () => {
+  for (const [agent, seconds] of [["step-agent", -1], ["step-agent", 11], ["leaf-agent", 2], ["leaf-agent", 6]]) {
+    const f = transcriptFixture();
+    f.records.get(agent)[0].timestamp = f.ts(seconds);
+    f.write();
+    unavailable(transcript(f), "ambiguous-history");
+  }
+});
+
+test("transcript cross-checks returned agent ownership even when the matched return omits the ID", () => {
+  for (const agentId of ["step-agent", "leaf-agent"]) {
+    const f = transcriptFixture();
+    const ownReturn = agentId === "step-agent" ? f.main[1] : f.records.get("step-agent")[2];
+    delete ownReturn.toolUseResult.agentId;
+    f.write();
+    assert.equal(transcript(f).usage.totalTokens, 151);
+    f.main.push({ ...f.main[1], message: { content: [{ type: "tool_result", tool_use_id: "other" }] },
+      toolUseResult: { agentId } });
+    f.write();
+    unavailable(transcript(f), "ambiguous-history");
+  }
+});
+
+test("transcript rejects metadata for a deeper descendant even before its launch is visible", () => {
+  const f = transcriptFixture();
+  const meta = { spawnDepth: 3, parentAgentId: "other-agent", toolUseId: "tool-grandchild" };
+  f.metadata.set("grandchild", meta);
+  f.write();
+  assert.equal(transcript(f).usage.totalTokens, 151);
+  meta.parentAgentId = "leaf-agent";
+  f.write();
+  unavailable(transcript(f), "ambiguous-history");
+});
+
+test("transcript rejects membership changes after scanning the metadata directory", t => {
+  const f = transcriptFixture();
+  const open = fs.openSync;
+  t.mock.method(fs, "openSync", (file, ...args) => {
+    if (file === path.join(f.directory, "agent-step-agent.jsonl")) {
+      fs.writeFileSync(path.join(f.directory, "agent-another.meta.json"), JSON.stringify(f.metadata.get("step-agent")));
+    }
+    return open(file, ...args);
+  });
+  unavailable(transcript(f), "unsafe-path");
+});
+
+test("transcript refuses repeated launch IDs with conflicting execution parameters", () => {
+  const f = transcriptFixture();
+  const copy = structuredClone(f.main[0]);
+  copy.message.content[0].input.subagent_type = "different-agent";
+  f.main.push(copy);
+  f.write();
+  unavailable(transcript(f), "conflicting-duplicate");
+});
+
+test("transcript refuses a combined result for multiple nested tool calls", () => {
+  const f = transcriptFixture();
+  const result = f.records.get("step-agent")[2];
+  result.message.content.push({ type: "tool_result", tool_use_id: "other" });
+  f.write();
+  unavailable(transcript(f), "incomplete-capture");
+});
+
 test("transcript discovery probes an active main file before any agents exist and rejects ambiguity or redirects", () => {
   const f = transcriptFixture();
   fs.renameSync(f.directory, f.directory + "-away");
@@ -739,4 +802,30 @@ test("fully observed Claude identity and qualified version survive delayed root 
   const conflicting = transcript(f);
   unavailable(conflicting, "missing-identity");
   assert.equal(conflicting.usageEvidence.invocation, undefined);
+});
+
+test("observed invocation survives delayed main source, launch and final counters", () => {
+  const f = transcriptFixture();
+  f.descriptor.hostVersion = "2.1.311";
+  f.descriptor.invocation = { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" };
+  const check = () => {
+    const early = transcript(f);
+    unavailable(early);
+    assert.deepEqual(early.usageEvidence.invocation, f.descriptor.invocation);
+    assert.equal(early.usageEvidence.hostVersion, f.descriptor.hostVersion);
+  };
+  fs.unlinkSync(f.mainFile);
+  check();
+  fs.writeFileSync(f.mainFile, "");
+  check();
+  const usage = f.main[1].toolUseResult.usage;
+  delete f.main[1].toolUseResult.usage;
+  f.write();
+  delete f.descriptor.invocation.runId;
+  const early = transcript(f);
+  unavailable(early, "incomplete-capture");
+  assert.equal(early.usageEvidence.invocation.runId, "tool-root");
+  f.main[1].toolUseResult.usage = usage;
+  f.write();
+  assert.equal(transcript(f).usage.totalTokens, 151);
 });

@@ -28,6 +28,7 @@ function scan(directory, budget, visit) {
   } finally {
     dir.closeSync();
   }
+  return before;
 }
 
 function locateSession(env, budget) {
@@ -112,30 +113,27 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
     checkTime(budget.deadline);
     if (--budget.records < 0) fail("resource-limit");
   };
+  const trackFile = file => {
+    const stat = fs.lstatSync(file, { throwIfNoEntry: false });
+    if (!stat) fail(fs.lstatSync(file, { throwIfNoEntry: false }) ? "unsafe-path" : "missing-source");
+    seenFiles.set(file, stat);
+  };
   const readMeta = id => {
     const file = metaFile(id);
-    seenFiles.set(file, fs.lstatSync(file));
+    trackFile(file);
     chargeRecord();
     const text = readBoundedFile(file, { root, maxBytes: Math.min(limits.recordBytes, budget.bytes), deadline: budget.deadline });
     budget.bytes -= Buffer.byteLength(text);
     return json(text);
   };
   const lines = (file, visit) => {
-    seenFiles.set(file, fs.lstatSync(file));
+    trackFile(file);
     budget.bytes -= readBoundedLines(file, { root, maxBytes: budget.bytes, recordBytes: limits.recordBytes, deadline: budget.deadline }, line => {
       chargeRecord();
       visit(json(line));
     });
   };
-  const observedIdentity = cleanInvocation({ host: "claude", sessionId, agentId: rootId, runId: observed.runId });
-  let rootMeta;
-  try {
-    rootMeta = readMeta(rootId);
-  } catch (error) {
-    if (error.code === "ENOENT" && observedIdentity && evidence.hostVersion
-        && !fs.lstatSync(metaFile(rootId), { throwIfNoEntry: false })) evidence.invocation = observedIdentity;
-    throw error;
-  }
+  const rootMeta = readMeta(rootId);
   if (!identifier(rootMeta.toolUseId) || rootMeta.spawnDepth !== 1 || rootMeta.parentAgentId != null
       || rootMeta.description !== description || (observed.runId !== undefined && rootMeta.toolUseId !== observed.runId)) fail("missing-identity");
   const version = value => {
@@ -148,9 +146,16 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
   const messages = new Map();
   const attributed = new Set();
   const reused = new Set();
-  const returnedIds = new Map();
+  const agentClaims = new Map();
   const mainCalls = { launches: new Map(), returns: new Map() };
   const children = new Map();
+  const metadataParents = new Set();
+
+  function claimAgent(id, owner, runId) {
+    const key = JSON.stringify([owner, runId]);
+    if (agentClaims.has(id) && agentClaims.get(id) !== key) reused.add(id);
+    agentClaims.set(id, key);
+  }
 
   // A tool_result is keyed by its own tool_use_id. Multi-result rows cannot attribute a single toolUseResult.
   function inspectCalls(record, calls, owner, target) {
@@ -160,6 +165,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       if (record.sessionId !== sessionId || (record.agentId ?? null) !== owner) fail("missing-identity");
       version(record.version);
     };
+    const singleResult = record.type === "user" && content.filter(item => item?.type === "tool_result").length === 1;
     for (const block of content) {
       if (record.type === "assistant" && block?.type === "tool_use") {
         if (block.name === "SendMessage") reused.add(block.input?.to ?? block.input?.recipient);
@@ -173,20 +179,19 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
         const time = instant(record.timestamp);
         const previous = calls.launches.get(block.id);
         if (previous) previous.time = Math.min(previous.time, time);
-        recordOnce(calls.launches, block.id, { message: record.message.id, prompt: hash(block.input.prompt),
+        // Hash all launch parameters, including the agent type, without retaining the prompt.
+        const inputHash = hash(JSON.stringify(block.input, (_, value) => object(value)
+          ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value));
+        recordOnce(calls.launches, block.id, { inputHash, message: record.message.id, prompt: hash(block.input.prompt),
           description: block.input.description, time: previous?.time ?? time });
       }
       if (record.type !== "user" || block?.type !== "tool_result") continue;
       const result = record.toolUseResult;
-      if (result?.agentId) {
-        const ownerKey = JSON.stringify([owner, block.tool_use_id]);
-        if (returnedIds.has(result.agentId) && returnedIds.get(result.agentId) !== ownerKey) reused.add(result.agentId);
-        returnedIds.set(result.agentId, ownerKey);
-      }
+      if (result?.agentId) claimAgent(result.agentId, owner, block.tool_use_id);
       if (target !== undefined && block.tool_use_id !== target) continue;
       if (target === undefined && !children.has(block.tool_use_id) && !calls.launches.has(block.tool_use_id)) continue;
       identity();
-      if (content.filter(item => item?.type === "tool_result").length !== 1 || !object(result)
+      if (!singleResult || !object(result)
           || block.is_error || result.status !== "completed") {
         recordOnce(calls.returns, block.tool_use_id, null);
         continue;
@@ -194,40 +199,45 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       if (result.agentId !== undefined && !pathId(result.agentId)) fail("missing-identity");
       const values = result.usage !== undefined ? counters(result.usage, transcriptBuckets) : null;
       if (result.totalTokens !== undefined && (!integer(result.totalTokens) || (values && result.totalTokens !== values.total))) fail("snapshot-mismatch");
-      if (!values && result.totalTokens === undefined) fail("incomplete-capture");
       const time = instant(record.timestamp);
       const previous = calls.returns.get(block.tool_use_id);
       if (previous) previous.time = Math.min(previous.time, time);
       recordOnce(calls.returns, block.tool_use_id, { agentId: result.agentId, counts: values,
-        total: result.totalTokens ?? values.total, time: previous?.time ?? time,
+        total: result.totalTokens ?? values?.total, time: previous?.time ?? time,
         text: Array.isArray(result.content) ? hash(textContent(result)) : undefined });
     }
   }
   lines(main, record => inspectCalls(record, mainCalls, null, rootMeta.toolUseId));
   const rootLaunch = mainCalls.launches.get(rootMeta.toolUseId);
   const rootReturn = mainCalls.returns.get(rootMeta.toolUseId);
-  if (rootLaunch?.description !== description || (rootReturn?.agentId !== undefined && rootReturn.agentId !== rootId)) fail("missing-identity");
+  if ((rootLaunch && rootLaunch.description !== description) || (rootReturn?.agentId !== undefined && rootReturn.agentId !== rootId)) fail("missing-identity");
+  if (!rootLaunch) fail("incomplete-capture");
   evidence.invocation = cleanInvocation({ host: "claude", sessionId, agentId: rootId, runId: rootMeta.toolUseId });
   if (!rootReturn || rootMeta.finished !== true) fail("incomplete-capture");
 
-  scan(agents, budget, entry => {
+  const agentDirectoryStat = scan(agents, budget, entry => {
     const match = /^agent-(.+)\.meta\.json$/.exec(entry.name);
     if (!match || match[1] === rootId) return;
     if (!pathId(match[1])) fail("unsafe-path");
     const meta = readMeta(match[1]);
     if (meta.toolUseId === rootMeta.toolUseId) fail("ambiguous-history");
+    if (identifier(meta.parentAgentId)) metadataParents.add(meta.parentAgentId);
     if (meta.parentAgentId !== rootId) return;
     if (meta.spawnDepth !== 2 || !identifier(meta.toolUseId) || children.has(meta.toolUseId)) fail("ambiguous-history");
-    children.set(meta.toolUseId, { id: match[1], meta });
+    children.set(meta.toolUseId, { id: match[1], finished: meta.finished, description: meta.description });
   });
 
-  function measureAgent(id, launch, returned, parent) {
+  function measureAgent(id, runId, launch, returned, parent) {
+    if (parent && metadataParents.has(id)) fail("ambiguous-history");
+    if (returned.total === undefined) fail("incomplete-capture");
+    claimAgent(id, parent, runId);
     if (attributed.has(id)) fail("ambiguous-history");
     attributed.add(id);
     if (attributed.size > limits.agents) fail("resource-limit");
     if (returned.time < launch.time || (returned.agentId !== undefined && returned.agentId !== id)) fail("missing-identity");
     const calls = { launches: new Map(), returns: new Map() };
     const nodes = new Map();
+    let firstResponse = Infinity;
     lines(path.join(agents, `agent-${id}.jsonl`), record => {
       if (record.type !== "assistant" && record.message?.usage !== undefined) fail("unsupported-schema");
       if (!["assistant", "user", "attachment", "system", "progress"].includes(record.type)) return;
@@ -236,12 +246,15 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
           || (record.parentUuid !== null && !identifier(record.parentUuid))) fail("missing-identity");
       version(record.version);
       const node = { parent: record.parentUuid, type: record.type };
+      if (record.type === "assistant" || (record.type === "user" && record.parentUuid === null)) {
+        node.time = instant(record.timestamp);
+        if (node.time < launch.time || node.time > returned.time) fail("ambiguous-history");
+      }
       if (record.type === "assistant") {
         const msg = record.message;
         if (msg?.role !== "assistant" || !identifier(msg.id) || (record.requestId !== undefined && !identifier(record.requestId))) fail("missing-identity");
         const count = counters(msg.usage, transcriptBuckets);
-        node.time = instant(record.timestamp);
-        if (node.time < launch.time || node.time > returned.time) fail("ambiguous-history");
+        firstResponse = Math.min(firstResponse, node.time);
         node.text = hash(textContent(msg));
         if (msg.model === "<synthetic>") {
           if (count.total !== 0) fail("unsupported-schema");
@@ -287,7 +300,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       const node = nodes.get(up);
       if (!node || lineage.has(up)) fail("ambiguous-history");
       lineage.add(up);
-      if (node.parent === null && node.prompt !== launch.prompt) fail("ambiguous-history");
+      if (node.parent === null && (node.prompt !== launch.prompt || node.time > firstResponse)) fail("ambiguous-history");
       up = node.parent;
     }
     for (const [uuid, node] of nodes) {
@@ -298,13 +311,14 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
     for (const [runId, childLaunch] of calls.launches) {
       const child = children.get(runId);
       const result = calls.returns.get(runId);
-      if (!child || child.meta.finished !== true || !result) fail("incomplete-capture");
-      if (child.meta.description !== childLaunch.description || childLaunch.time < launch.time || result.time > returned.time) fail("missing-identity");
-      measureAgent(child.id, childLaunch, result, id);
+      if (!child || child.finished !== true || !result) fail("incomplete-capture");
+      if (child.description !== childLaunch.description || childLaunch.time < launch.time || result.time > returned.time) fail("missing-identity");
+      measureAgent(child.id, runId, childLaunch, result, id);
     }
   }
-  measureAgent(rootId, rootLaunch, rootReturn, null);
+  measureAgent(rootId, rootMeta.toolUseId, rootLaunch, rootReturn, null);
   for (const id of attributed) if (reused.has(id)) fail("ambiguous-history");
+  seenFiles.set(agents, agentDirectoryStat);
   for (const [file, before] of seenFiles) {
     checkTime(budget.deadline);
     if (fs.realpathSync(file) !== file || !stable(before, fs.lstatSync(file))) fail("unsafe-path");
