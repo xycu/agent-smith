@@ -24,6 +24,11 @@ Expanded command (the shared router, reached through the 10x skill directory):
 cd <scratch project> && node "/Users/blazej/WebstormProjects/agent-smith/skills/10x-pipeline/scripts/route.mjs" init qcheck --chain openspec --goal "" --host claude --pr-comment false
 ```
 
-Result: `action: "run"`, `providerMode: "claude"`, `providersByStep` keyed by the `os-` steps (`os-propose`, `os-apply`, `os-verify`, `os-archive`). Same preflight warning. Cost $0.0166.
+Result: `action: "run"`, `providerMode: "claude"`, `providersByStep` keyed by the `os-` steps (`os-propose`, `os-apply`, `os-verify`, `os-archive`). Same preflight warning. Cost $0.0166. The action's first step was `os-propose`, read from the saved transcript.
+
+## Source revision and step detail (added 2026-11-24, review finding F7)
+
+- Loaded source: the main checkout `/Users/blazej/WebstormProjects/agent-smith` on `main` at `bf8a105ae59cd265c340d121f6183eca9040aed8` (PR #278). That checkout was fast-forwarded to this commit before the runs, and its head was not re-read when they ran, so the revision is the last one confirmed before the runs. The plugin reports version 1.16.1 because the directory source carries the version of its manifest, not of the checkout.
+- First steps returned by `init`: 10x chain `score` (step 1), OpenSpec chain `os-propose`.
 
 Full transcripts were kept outside the repository (session scratchpad) and are not committed.
