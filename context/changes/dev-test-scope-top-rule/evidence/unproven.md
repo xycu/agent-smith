@@ -1,1 +1,1 @@
-- 1.2 — needs CI shards of the published pull request; the orchestrator publishes after this step, so no CI result exists yet and pushing/gh is forbidden here
+- 1.2 — needs CI shards of the published pull request; this step cannot push or call gh, the orchestrator publishes after it, and no local command or test proves CI shard results
