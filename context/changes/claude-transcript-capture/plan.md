@@ -216,9 +216,9 @@ Existing policy overrides without `mode` inherit transcript mode for new dispatc
 
 #### Automated
 
-- [x] 3.1 Local CLI fixtures show both chains start in an ordinary ready session, halt without writes for an unusable required source, honor opt-out and telemetry mode, and preserve validation and preflight exemptions.
-- [x] 3.2 Native dispatch, neutral retry, archive and skill-loop checks preserve source selection, identity and output ownership across both chains.
-- [x] 3.3 Targeted accounting and policy regressions pass on Node 24 and live docs agree with the shipped default and evidence contract.
+- [x] 3.1 Local CLI fixtures show both chains start in an ordinary ready session, halt without writes for an unusable required source, honor opt-out and telemetry mode, and preserve validation and preflight exemptions. — 55904d3f
+- [x] 3.2 Native dispatch, neutral retry, archive and skill-loop checks preserve source selection, identity and output ownership across both chains. — 55904d3f
+- [x] 3.3 Targeted accounting and policy regressions pass on Node 24 and live docs agree with the shipped default and evidence contract. — 55904d3f
 
 #### Manual
 
