@@ -43,6 +43,7 @@ Use a short Markdown note with the explicit approval and row-level entries. Writ
 ## Open Risks and Assumptions
 
 - One phase and a dedicated evidence note follow the established closeout pattern and the narrow docs scope.
+- The pipeline orchestrator writes no note today: its `Yes` path launches the archive subagent at once and the skill forbids writes into the moving folder. The procedure covers a hand-run `/10x-archive` closeout, and S-19 owns wiring it into the orchestrator. ADR-014 gets an `Amendment 1` section, as ADR-017 does.
 - The procedure depends on an owner or authorized operator recording the decision before the move. The existing verifier checks the folder move and status stamp.
 
 ## Success Criteria Summary

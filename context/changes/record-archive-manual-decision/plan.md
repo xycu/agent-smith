@@ -14,6 +14,7 @@ S-13's closeout records the owner decision on row 3.4, why six live cells remain
 
 - `manualPending` contains row text that starts with its Progress ID, and `manualUnproven` contains IDs for checked Manual rows with unproved evidence. `uncommittedTicks` contains checked Automated row IDs without verified commit evidence. `manualNotProved` and `manualUnprovenWhy` can supply reasons. The prompt's ten-row display limit applies only to the pending preview. [Progress reader](../../../skills/10x-pipeline/scripts/state.mjs) [Proof checks](../../../skills/10x-pipeline/scripts/steps.mjs) [Summary construction](../../../skills/10x-pipeline/scripts/flow.mjs) [10x archive loop](../../../skills/10x-pipeline/SKILL.md#loop)
 - The standalone archive skill's Git preflight expects a clean live change folder and an empty index. The durable note must be tracked before using that mover. The existing pipeline archive prompt chooses archive without SHA repointing. [Archive reference](../../../docs/REFERENCE.md)
+- No pipeline path writes the note today. After `Yes, archive anyway` the orchestrator launches the archive subagent at once, its step 4 says "Write nothing into the moving folder", and the archive prompt forbids writes under `context/changes/{id}/` once `/10x-archive` has finished. The convention can therefore only describe a hand-run closeout until S-19 wires it into the orchestrator. [10x archive loop](../../../skills/10x-pipeline/SKILL.md#loop) [S-19](../../foundation/roadmap.md#s-19-truthful-verification-and-owner-decision-halts)
 
 ## Desired End State
 
@@ -37,7 +38,7 @@ Use ADR-014 for the canonical procedure and a compact worked example. Add a link
 
 ## Critical Implementation Details
 
-Write the note after explicit approval and while the folder is live. On a Git-backed closeout, make a scoped commit of the note in the run worktree before handing off to the mover, so archive's clean-folder and empty-index checks can still pass. Confirm the tracked note traveled in the archive commit or its history alongside the preserved plan and evidence. The reference should describe this as an operator procedure and make the scope of `verify-archive` clear.
+Write the note after explicit approval and while the folder is live. On a Git-backed closeout, make a scoped commit of the note in the run worktree before handing off to the mover, so archive's clean-folder and empty-index checks can still pass. Confirm the tracked note traveled in the archive commit or its history alongside the preserved plan and evidence. The reference should describe this as an operator procedure and make the scope of `verify-archive` clear. State plainly that the pipeline orchestrator does not write the note and cannot do so between the answer and the subagent launch. The procedure applies when the owner or an authorized operator closes the change by hand with `/10x-archive <change-id>` (for example after the pipeline answer `No, keep it unarchived`). The approval is the owner's explicit approval in chat or the standalone skill's warnings answer. Automation is left to S-19.
 
 ## Phase 1: Document the archive exception record
 
@@ -53,7 +54,7 @@ Give maintainers a repeatable procedure that records every unresolved ID and pre
 
 **Intent** Document the positive exception alongside the existing decision and link the two historical precedents.
 
-**Contract** Add a clearly labeled 10x documentation section with the three outcomes above. Define the note as an approval header plus one entry per distinct Progress ID. Record the exact approval, date and owner identity or role, and a stable decision reference when available. In the entries, retain all applicable unresolved categories, the concrete reason for deferral and a traceable destination that identifies who owns the follow-up, such as a roadmap slice, change ID or issue. Include relevant reported proof or commit gaps. Where the summary lacks a reason, obtain the reason from the closeout evidence or owner decision and identify any unavailable proof or commit information accurately. A missing evidence or SHA reference stays missing. Associate each entry with its original Progress row and preserve existing references.
+**Contract** Add a section headed `## Amendment 1: archive exception record (<date>)`, the form ADR-017 uses, and extend the Status line to say the ADR is amended. Give it the three outcomes above. Take the order of question, move and PR comment from the 10x reference, where ADR-017 moved the PR comment after the move, and say the original Decision text keeps its older order as history. Define the note as an approval header plus one entry per distinct Progress ID. Record the exact approval, date and owner identity or role, and a stable decision reference when available. In the entries, retain all applicable unresolved categories, the concrete reason for deferral and a traceable destination that identifies who owns the follow-up, such as a roadmap slice, change ID or issue. Include relevant reported proof or commit gaps. Where the summary lacks a reason, obtain the reason from the closeout evidence or owner decision and identify any unavailable proof or commit information accurately. A missing evidence or SHA reference stays missing. Associate each entry with its original Progress row and preserve existing references.
 
 Use the full saved archive summary, including pending rows omitted from the native prompt preview. Resolve overlap by ID and retain relevant context from each source list. Include a worked example with distinct IDs `1.1` (Automated, uncommitted), `1.2` (Manual, pending) and `1.3` (Manual, unproven), complete with reasons and destinations. Show unchecked and checked source rows remaining as recorded. Illustrate duplicate handling as a separate synthetic input, since the normal summary draws these categories from different Progress states.
 
@@ -63,7 +64,7 @@ Use the full saved archive summary, including pending rows omitted from the nati
 
 **Intent** Put the closeout instructions where readers already look for archive behavior.
 
-**Contract** Link the ADR section directly from the 10x archive guidance. Explain the live-folder location, affirmative-only timing and existing clean handoff. Preserve the documented refusal and normal paths and the distinction between an owner-written note and file-only move verification.
+**Contract** Link the ADR section directly from the 10x archive guidance. Explain the live-folder location, affirmative-only timing and existing clean handoff. Preserve the documented refusal and normal paths and the distinction between an owner-written note and file-only move verification. Say that the pipeline orchestrator does not create the note today and name S-19 as the owner of wiring it in.
 
 ### Success Criteria
 
@@ -82,7 +83,7 @@ Use the full saved archive summary, including pending rows omitted from the nati
 ### Local Checks
 
 - Use a local Node assertion to compare the worked example's IDs to the expected set `1.1`, `1.2`, `1.3` and check each entry has a reason and destination. Exercise a separate synthetic summary with 11 pending entries and the eleventh ID repeated in an unproved list. Compare the written example of the duplicate rule to the expected full union of 11 entries, with the eleventh ID recorded once and both reasons retained. Check the two non-approval outcomes in the documentation, including missing/error answers and reporting the unresolved checks.
-- In a disposable local Git fixture, commit a source plan with an unchecked row, a checked row with an evidence reference and a checked row with a SHA suffix, plus the referenced evidence and the approval note. Simulate the tracked folder move with `git mv` and an archive commit. Compare the note, plan and evidence bytes before and after and confirm the move commit contains the archived note. This proves file retention in the documented procedure.
+- In a disposable local Git fixture, commit a source plan with an unchecked row, a checked row with an evidence reference and a checked row with a SHA suffix, plus the referenced evidence and the approval note. Simulate the tracked folder move with `git mv` and an archive commit. Compare the note, plan and evidence bytes before and after and confirm the move commit contains the archived note. This proves file retention in the documented procedure. Keep the scripts and the fixture repository in the scratchpad, add no test file to the repository, and report the commands and results in the evidence of Progress row 1.2.
 - Run the two existing focused test files to check the gate instructions and router archive behavior. Git remains local. The fixtures demonstrate record coverage and preservation, and the tests cover the current gate and move verification.
 
 ### Manual Testing Steps
@@ -102,6 +103,7 @@ The convention applies to future 10x decisions. Existing archive records, checkb
 
 - The unattended plan uses one phase because the acceptance concerns one documentation procedure and its reference link. ADR-014 owns the gate decision and the reference already points readers to it. [ADR-014](../../../docs/ADR/ADR-014-archive-manual-gate.md) [Reference](../../../docs/REFERENCE.md)
 - Use a dedicated evidence note and a follow-up reference that identifies its owner. S-13 and S-14 establish the evidence location and the example of a concrete roadmap destination. [S-13 decision](../../archive/2026-11-16-openspec-2-upgrade/evidence/acceptance.md#owner-archive-decision) [S-14 closeout](../../archive/2026-11-16-nested-step-delegation/evidence/acceptance.md#publication-verification-and-archive-closeout)
+- The acceptance's "record before moving" is met only for a hand-run closeout. The pipeline's `Yes` path has no step for it, and a skill change is out of scope, so S-19 inherits that wiring.
 - This convention relies on an owner or authorized closeout operator to record the decision before the move. The archive verifier's success concerns the folder and stamp. [Archive reference](../../../docs/REFERENCE.md)
 
 ## References
