@@ -1,10 +1,10 @@
 ---
 change_id: dev-test-scope-top-rule
 title: Add a top-level rule that testing scope during development stays minimal
-status: impl_reviewed
+status: archived
 created: 2026-11-22
 updated: 2026-11-24
-archived_at: null
+archived_at: 2026-11-24T22:50:38Z
 ---
 
 ## Notes
