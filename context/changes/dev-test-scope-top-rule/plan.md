@@ -108,7 +108,7 @@ The new rule takes effect when the router assembles a fresh prompt. A historical
 
 #### Automated
 
-- [x] 1.1 Pass the scoped rule and cross-chain prompt tests with `node --test --test-concurrency=2 skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs`.
+- [x] 1.1 Pass the scoped rule and cross-chain prompt tests with `node --test --test-concurrency=2 skills/10x-pipeline/test/rules.test.mjs skills/10x-pipeline/test/rule-levels.test.mjs`. — 80eaef0b
 
 #### Manual
 
