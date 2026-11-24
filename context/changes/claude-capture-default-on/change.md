@@ -1,7 +1,7 @@
 ---
 change_id: claude-capture-default-on
 title: Make token capture expected by default on Claude-hosted runs
-status: implemented
+status: impl_reviewed
 created: 2026-11-24
 updated: 2026-11-24
 archived_at: null
