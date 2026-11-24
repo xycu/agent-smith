@@ -1,7 +1,7 @@
 ---
 change_id: claude-transcript-capture
 title: Default Claude token capture to session transcripts instead of the launcher
-status: preparing
+status: planned
 created: 2026-11-24
 updated: 2026-11-24
 archived_at: null
