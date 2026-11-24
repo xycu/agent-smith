@@ -252,8 +252,8 @@ Pending dispatch entries and neutral replays saved before this change lack `perm
 
 #### Automated
 
-- [x] 3.1 Version fields still agree: `node tools/version-check.mjs`
-- [x] 3.2 The changed text is present: `grep -n "codex.permissions" docs/REFERENCE.md docs/ADR/ADR-024-openai-codex-support.md`
+- [x] 3.1 Version fields still agree: `node tools/version-check.mjs` — 3a157c21
+- [x] 3.2 The changed text is present: `grep -n "codex.permissions" docs/REFERENCE.md docs/ADR/ADR-024-openai-codex-support.md` — 3a157c21
 
 #### Manual
 

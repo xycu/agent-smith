@@ -1,7 +1,7 @@
 ---
 change_id: codex-run-gitdir-grant
 title: Grant the run worktree gitdir to Codex per run and show why the preflight refused
-status: implementing
+status: implemented
 created: 2026-11-24
 updated: 2026-11-24
 archived_at: null
