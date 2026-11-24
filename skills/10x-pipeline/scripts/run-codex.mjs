@@ -65,11 +65,14 @@ function gitdirGrant(permissions) {
   if (typeof profile !== "string") return none("no permissions profile name");
   if (profile.startsWith(":")) return none("builtin name");
   if (!PERMISSIONS_NAME_RE.test(profile)) return none("invalid name");
-  const git = runGit(["rev-parse", "--absolute-git-dir"], { timeout: 10000 });
-  if (git.status !== 0) return none("no gitdir");
-  let gitDir;
-  try { gitDir = fs.realpathSync(git.stdout.replace(/\r?\n$/, "")); } catch { return none("no gitdir"); }
+  const git = runGit(["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-common-dir"], { timeout: 10000 });
+  const lines = git.stdout.replace(/\r?\n$/, "").split(/\r?\n/);
+  if (git.status !== 0 || lines.length !== 2) return none("no gitdir");
+  let gitDir, commonDir;
+  try { [gitDir, commonDir] = lines.map((line) => fs.realpathSync(line)); } catch { return none("no gitdir"); }
   if (!path.isAbsolute(gitDir) || /[\x00-\x1f\x7f]/.test(gitDir)) return none("no gitdir");
+  // Outside a linked worktree the gitdir is the common dir, which stays with the user's profile.
+  if (gitDir === commonDir) return none("gitdir is the common dir");
   return { grant: { profile, gitDir }, why: null };
 }
 
