@@ -105,14 +105,14 @@ test("the old base-directory placeholder is gone and Tuning names policy.json th
 });
 
 test("every router command line carries --chain openspec", () => {
-  const calls = lines.filter((l) => l.includes("node $ROUTER"));
+  const calls = lines.filter((l) => l.includes('node "$ROUTER"'));
   assert.ok(calls.length >= 8, `expected the router calls, found ${calls.length}`);
   for (const line of calls) {
-    // Each `node $ROUTER` occurrence on the line is followed by --chain openspec before the closing backtick.
-    for (const m of line.matchAll(/node \$ROUTER[^`]*/g)) assert.match(m[0], /--chain openspec/, line);
+    // Each `node "$ROUTER"` occurrence on the line is followed by --chain openspec before the closing backtick.
+    for (const m of line.matchAll(/node "\$ROUTER"[^`]*/g)) assert.match(m[0], / --chain openspec(?: |$)/, m[0]);
   }
   for (const cmd of ["init", "next", "status", "usage", "verify-archive"]) {
-    assert.ok(calls.some((l) => l.includes(`node $ROUTER ${cmd} `)), `no ${cmd} call`);
+    assert.ok(calls.some((l) => l.includes(`node "$ROUTER" ${cmd} `)), `no ${cmd} call`);
   }
   assert.ok(calls.some((l) => /verify-archive <change-name> --chain openspec --path <archivePath>/.test(l)), "verify-archive with --path");
 });
@@ -219,8 +219,8 @@ test("the pull request section follows ## PR comment (opt-in) and calls the scri
   const p = lines.indexOf(PR_HEADING);
   assert.ok(c >= 0 && p > c, "pull request section is not after the PR comment section");
   const text = section(lines, PR_HEADING).join("\n");
-  assert.match(text, /`cd "<run root>" && node \$OPEN_PR <change-name> --chain openspec`/);
-  for (const m of skill.matchAll(/node \$OPEN_PR[^`]*/g)) assert.match(m[0], /--chain openspec/, m[0]);
+  assert.match(text, /`cd "<run root>" && node "\$OPEN_PR" <change-name> --chain openspec`/);
+  for (const m of skill.matchAll(/node "\$OPEN_PR"[^`]*/g)) assert.match(m[0], /--chain openspec/, m[0]);
   assert.match(text, /Pull request: NOT pushed, <reason>\. Branch <branch> is local only: <manual>/);
   assert.match(text, /never merges/);
   assert.ok(!text.includes("**GIVEN**"));
@@ -239,18 +239,20 @@ test("terminal branches reach publication and archive verifies before publishing
   assert.ok(publish < archive.indexOf("On `archived: false`"));
   assert.match(branch("halt"), /Before you STOP, do the pull request step/);
   const owner = section(lines, PR_HEADING).join("\n");
-  assert.ok(owner.indexOf("node $OPEN_PR") < owner.indexOf("do the PR comment step"));
+  const open = owner.indexOf('node "$OPEN_PR"');
+  const comment = owner.indexOf("do the PR comment step");
+  assert.ok(open >= 0 && comment >= 0 && open < comment);
 });
 
 test("one chain-selected usage procedure is called before status and publication on every terminal path", () => {
-  const call = "node $ROUTER usage <change-name> <n> --usage-file <usage-file> --chain openspec";
+  const call = 'node "$ROUTER" usage <change-name> <n> --usage-file <usage-file> --chain openspec';
   assert.equal(skill.split(call).length - 1, 1);
   assert.ok(section(lines, "## Late usage (before every end)").join("\n").includes(call));
   for (const name of ["done", "halt", "archive"]) {
     const text = branch(name);
     const late = text.indexOf('follow "Late usage (before every end)"');
     assert.ok(late >= 0, `${name}: missing late-usage call site`);
-    assert.ok(late < text.indexOf("node $ROUTER status"), `${name}: before status`);
+    assert.ok(late < text.indexOf('node "$ROUTER" status'), `${name}: before status`);
     assert.ok(late < text.indexOf("do the pull request step"), `${name}: before publication`);
   }
   const archive = branch("archive");
@@ -306,7 +308,7 @@ test("native accounting shares the immediate, late and archive reader without fi
   assert.match(late, /No verified total or no recorded invocation: omit the call/);
   assert.match(late, /Include no raw source paths or records/);
   assert.match(late, /Unlink the owned payload in a finally step/);
-  assert.doesNotMatch(late, /node \$ROUTER next|--tokens N/);
+  assert.doesNotMatch(late, /node "\$ROUTER" next|--tokens N/);
 });
 
 // OpenSpec consumes the same setup owner with its chain selector.
@@ -323,7 +325,7 @@ test("Start step 3 consumes shared OpenSpec setup and retains run safety", () =>
     "nonzero exit", "missing/malformed JSON", "non-null `reason`", "STOP before `init`",
     "returned `root`", "`runRoot` as `<root>` and `<run root>`", "not in the run (uncommitted in the main checkout)",
     "An ordinary resume leaves the worktree inputs as they are", "retry from the original project root",
-    'case: "reused"', "copied: true", 'cd "<run root>" && node $ROUTER ... --chain openspec',
+    'case: "reused"', "copied: true", 'cd "<run root>" && node "$ROUTER" ... --chain openspec',
     "<run root>/<resultFile>", "Never commit, stash, reset or clean", "refs/agent-smith/",
     "name their side refs", "List the files, check the list", "retained original paths", "before removing the worktree",
     "(isolation off)", "`os-apply` commits its code itself", "the files of the change folder stay uncommitted"]) {

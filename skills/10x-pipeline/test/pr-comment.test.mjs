@@ -739,17 +739,13 @@ function branch(skill, name) {
 
 const countOf = (text, needle) => text.split(needle).length - 1;
 
-test("SKILL.md: flag, script variable and the single node $PR_COMMENT call", () => {
+test("SKILL.md: PR comment flag and script variable", () => {
   const skill = readRepo("skills/10x-pipeline/SKILL.md");
   assert.match(skill, /^argument-hint:.*--pr-comment/m);
   assert.ok(skill.includes("PR_COMMENT="));
   assert.ok(!skill.includes("gh pr") && !skill.includes("gh api"));
-  assert.equal(countOf(skill, "node $PR_COMMENT"), 1);
   const section = skill.indexOf("## PR comment (opt-in)");
-  const rules = skill.indexOf("## Rules");
-  const call = skill.indexOf("node $PR_COMMENT");
-  assert.ok(section >= 0 && section < rules, "section must precede ## Rules");
-  assert.ok(call > section && call < rules, "node $PR_COMMENT must lie inside the section");
+  assert.ok(section >= 0 && section < skill.indexOf("## Rules"), "section must precede ## Rules");
 });
 
 test("SKILL.md: explicit invocation forwards durable opt-in or reset to the router", () => {
@@ -770,12 +766,16 @@ test("SKILL.md: every terminal branch reaches the strict durable PR-comment owne
       assert.equal(countOf(text, "prComment: true"), 0, name);
     }
     const owner = skill.split("## PR comment (opt-in)")[1].split("\n## ")[0];
+    assert.equal(countOf(skill, 'node "$PR_COMMENT"'), 1);
+    assert.ok(owner.includes('node "$PR_COMMENT"'));
     assert.equal(countOf(skill, "`prComment: true`"), 1);
     assert.match(owner, /terminal router action has `prComment: true`/);
     assert.match(owner, /missing field or any other value authorizes no comment/);
     assert.match(owner, /Keep that action's intent across status and archive verification calls/);
     const publication = skill.split("## Pull request (always)")[1].split("\n## ")[0];
-    assert.ok(publication.indexOf("node $OPEN_PR") < publication.indexOf("do the PR comment step"));
+    const open = publication.indexOf('node "$OPEN_PR"');
+    const comment = publication.indexOf("do the PR comment step");
+    assert.ok(open >= 0 && comment >= 0 && open < comment);
     assert.match(publication, /saved terminal intent applies even when publication skips or fails/);
     assert.match(branch(skill, "halt"), /Before you STOP/);
   }

@@ -347,7 +347,7 @@ test("neutral init uses the exact OpenAI overlay even if its legacy provider is 
 test("both skill entry points display init stderr before dispatch and parse stdout independently", () => {
   for (const skill of ["../SKILL.md", "../../openspec-pipeline/SKILL.md"]) {
     const markdown = fs.readFileSync(new URL(skill, import.meta.url), "utf8");
-    const init = markdown.split("\n").find(line => line.includes("node $ROUTER init"));
+    const init = markdown.split("\n").find(line => line.includes('node "$ROUTER" init'));
     assert.match(init, /Parse one JSON action from stdout/);
     assert.match(init, /Show init .* before dispatch, alongside any warnings from stderr/);
   }
