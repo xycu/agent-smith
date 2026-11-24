@@ -51,5 +51,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "1.2 Confirm the full-suite CI shards pass after the orchestrator publishes the pull request."
+    ],
+    "manualNotProved": [
+      "1.2 Confirm the full-suite CI shards pass after the orchestrator publishes the pull request. — not proved: needs CI shards of the published pull request; this step cannot push or call gh, the orchestrator publishes after it, and no local command or test proves CI shard results"
+    ]
   }
 }
