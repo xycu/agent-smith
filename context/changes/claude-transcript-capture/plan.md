@@ -200,17 +200,17 @@ Existing policy overrides without `mode` inherit transcript mode for new dispatc
 
 #### Automated
 
-- [x] 1.1 Evidence normalization distinguishes transcript, verified, unavailable and legacy records and rejects inconsistent tuples.
-- [x] 1.2 Status, report, compare and cost tests cover a transcript-only run and mixed evidence with zero and missing figures without rewriting historical entries.
-- [x] 1.3 Structured late usage attaches a missing transcript total for the same invocation, refuses mismatched and conflicting evidence without mutation, and preserves existing retry and report behavior.
+- [x] 1.1 Evidence normalization distinguishes transcript, verified, unavailable and legacy records and rejects inconsistent tuples. — 7f4a3d24
+- [x] 1.2 Status, report, compare and cost tests cover a transcript-only run and mixed evidence with zero and missing figures without rewriting historical entries. — 7f4a3d24
+- [x] 1.3 Structured late usage attaches a missing transcript total for the same invocation, refuses mismatched and conflicting evidence without mutation, and preserves existing retry and report behavior. — 7f4a3d24
 
 ### Phase 2: Collect a bounded transcript tree
 
 #### Automated
 
-- [ ] 2.1 Deterministic Claude fixtures produce exact totals for fresh flat, nested and archive invocations, including repeated messages, synthetic placeholders and unrelated sibling agents.
-- [ ] 2.2 Deterministic Claude fixtures refuse ambiguous sessions and invocations, wrong or missing children, unfinished or resumed agents, conflicting counters, unsafe or changing files and exhausted budgets without attaching an incomplete tree total.
-- [ ] 2.3 Existing launcher-bound and explicit-source telemetry fixtures still exercise exact request reconciliation.
+- [x] 2.1 Deterministic Claude fixtures produce exact totals for fresh flat, nested and archive invocations, including repeated messages, synthetic placeholders and unrelated sibling agents.
+- [x] 2.2 Deterministic Claude fixtures refuse ambiguous sessions and invocations, wrong or missing children, unfinished or resumed agents, conflicting counters, unsafe or changing files and exhausted budgets without attaching an incomplete tree total.
+- [x] 2.3 Existing launcher-bound and explicit-source telemetry fixtures still exercise exact request reconciliation.
 
 ### Phase 3: Make transcript mode the default in both chains
 

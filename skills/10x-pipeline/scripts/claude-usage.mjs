@@ -3,29 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
-import { cleanInvocation, cleanUsage, normalizeAccounting, readBoundedLines, unavailableEvidence, USAGE_LIMITS } from "./usage.mjs";
-import { CAPTURE_ENV, CAPTURE_LIMITS, assertCaptureAvailable, attributes, captureFile, captureStat, claudeCaptureSupported,
+import { cleanInvocation, cleanUsage, normalizeAccounting, readBoundedLines, unavailableEvidence } from "./usage.mjs";
+import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_USAGE_LIMITS, counters, textContent, transcriptBuckets, assertCaptureAvailable, attributes, captureFile, captureStat, claudeCaptureSupported,
   fail, hash, identifier, integer, numeric, object, projectNative, readCaptureBinding, scalar, tokenBuckets, validProcess } from "./claude-capture-data.mjs";
 
-export const CLAUDE_USAGE_LIMITS = { descriptorBytes: USAGE_LIMITS.fileBytes, recordBytes: CAPTURE_LIMITS.recordBytes,
-  bytes: 32 * 1024 * 1024, agents: USAGE_LIMITS.sessions, requests: USAGE_LIMITS.requests,
-  events: CAPTURE_LIMITS.events, readMs: USAGE_LIMITS.readMs };
-const transcriptBuckets = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"];
+import { measureClaudeTranscript } from "./claude-transcript.mjs";
 
-function counters(raw, keys = tokenBuckets) {
-  if (!object(raw)) fail("unsupported-schema");
-  const values = keys.map(key => raw[key]);
-  if (values.some(value => !integer(value))) fail("unsupported-schema");
-  const total = values.reduce((sum, value) => sum + value, 0);
-  if (!Number.isSafeInteger(total)) fail("resource-limit");
-  return { values, total };
-}
-
-function textContent(message) {
-  if (typeof message?.content === "string") return message.content;
-  if (!Array.isArray(message?.content)) fail("unsupported-schema");
-  return message.content.filter(item => item?.type === "text").map(item => item.text).join("");
-}
+export { CLAUDE_USAGE_LIMITS } from "./claude-capture-data.mjs";
 
 function routerDescription(router) {
   if (!object(router) || !/^[a-z0-9][a-z0-9-]*$/.test(router.change ?? "")
@@ -79,9 +63,20 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
   let hostVersion = descriptor.hostVersion;
   const independent = cleanUsage(descriptor.usage) ?? {};
   delete independent.totalTokens;
+  if (descriptor.mode === "transcript") {
+    const evidence = { source: "claude-transcript" };
+    try {
+      const { totalTokens, sessionCount, requestCount } = measureClaudeTranscript(descriptor, env, routerDescription(descriptor.router), evidence);
+      return normalizeAccounting({ ...independent, totalTokens }, { schemaVersion: 1, status: "transcript", scope: "step-tree",
+        ...evidence, sessionCount, requestCount, reconciliation: "transcript-messages" });
+    } catch (error) {
+      return normalizeAccounting(independent, unavailableEvidence(error.reason ?? (error.code === "ENOENT" ? "missing-source" : "unsafe-path"), evidence));
+    }
+  }
   const unavailable = reason => normalizeAccounting(independent,
     unavailableEvidence(reason, { source: "claude-native", hostVersion, invocation }));
   try {
+    if (descriptor.mode !== undefined && descriptor.mode !== "telemetry") fail("unsupported-schema");
     let sources = descriptor.sources;
     let hostProcess = descriptor.process;
     let binding, checkpoint;

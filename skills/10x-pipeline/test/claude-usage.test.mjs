@@ -6,9 +6,10 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { claudeCaptureCheckpoint, collectClaudeUsage, CLAUDE_USAGE_LIMITS } from "../scripts/claude-usage.mjs";
+import { claudeTranscriptReadiness } from "../scripts/claude-transcript.mjs";
 import { captureFile } from "../scripts/claude-capture-data.mjs";
 import { cleanupAll, cleanEnv } from "./helpers.mjs";
-import { boundClaudeFixture, claudeUsageFixture, eventValue, otelAttribute, setEvent } from "./claude-helpers.mjs";
+import { boundClaudeFixture, claudeUsageFixture, transcriptFixture, eventValue, otelAttribute, setEvent } from "./claude-helpers.mjs";
 
 after(cleanupAll);
 const CLI = fileURLToPath(new URL("../scripts/claude-usage.mjs", import.meta.url));
@@ -574,4 +575,168 @@ test("async launch: unavailable when the launch result follows completion", () =
   resequence(fixture);
   fixture.write();
   unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
+});
+
+const transcript = f => collectClaudeUsage(f.descriptor, f.env);
+for (const options of [{ children: false }, { children: true }, { chain: "openspec", n: null, step: "os-archive", children: false }]) {
+  test(`transcript counts each attributed message once for ${options.step ?? "numbered"} with children=${options.children}`, () => {
+    const f = transcriptFixture(options);
+    const rows = f.records.get("step-agent");
+    const repeated = structuredClone(rows[1]);
+    repeated.uuid += "-repeated";
+    rows[1].parentUuid = repeated.uuid;
+    rows.push(repeated);
+    const placeholder = structuredClone(repeated);
+    placeholder.uuid = "placeholder";
+    placeholder.parentUuid = rows[0].uuid;
+    placeholder.message = { ...placeholder.message, id: "placeholder", model: "<synthetic>", content: [],
+      usage: Object.fromEntries(Object.keys(placeholder.message.usage).map(key => [key, 0])) };
+    delete placeholder.requestId;
+    rows[4].parentUuid = placeholder.uuid;
+    rows.push(placeholder);
+    f.main.push({ ...f.main[1], timestamp: f.ts(12) });
+    f.metadata.set("sibling", { spawnDepth: 1, toolUseId: "tool-other", description: f.metadata.get("step-agent").description, finished: true });
+    f.records.set("sibling", [{ malformedUnrelatedUsage: true }]);
+    f.write();
+    const measured = transcript(f);
+    assert.deepEqual(measured.usage, { totalTokens: options.children ? 151 : 117, durationMs: 50, toolUses: 4 });
+    assert.deepEqual(measured.usageEvidence, { schemaVersion: 1, status: "transcript", scope: "step-tree", source: "claude-transcript",
+      hostVersion: "2.1.311", invocation: { host: "claude", agentId: "step-agent", sessionId: "native-session", runId: "tool-root" },
+      sessionCount: options.children ? 2 : 1, requestCount: options.children ? 4 : 2, reconciliation: "transcript-messages" });
+  });
+}
+
+test("transcript binds launch, return, tool IDs, membership and fresh message lineage", () => {
+  for (const [reason, modify] of [
+    ["missing-identity", f => { delete f.descriptor.invocation.agentId; }],
+    ["missing-identity", f => { f.descriptor.invocation.sessionId = "another-session"; }],
+    ["missing-identity", f => { f.descriptor.invocation.runId = "another-tool"; }],
+    ["unsupported-host", f => { f.descriptor.hostVersion = "2.2.0"; }],
+    ["missing-identity", f => { f.main[0].message.content[0].input.description = "other"; }],
+    ["ambiguous-history", f => { f.main[0].message.content[0].input.resume = "step-agent"; }],
+    ["ambiguous-history", f => { f.records.get("leaf-agent")[0].message.content = "different prompt"; }],
+    ["ambiguous-history", f => { f.main[0].message.content.push({ name: "SendMessage", type: "tool_use", input: { to: "leaf-agent" } }); }],
+    ["ambiguous-history", f => { f.main.push({ ...f.main[1], message: { content: [{ type: "tool_result", tool_use_id: "second-run" }] } }); }],
+    ["incomplete-capture", f => { f.metadata.get("leaf-agent").parentAgentId = "unrelated"; }],
+    ["incomplete-capture", f => { f.metadata.get("step-agent").finished = false; }],
+    ["missing-identity", f => { f.records.get("step-agent")[2].toolUseResult.agentId = "wrong-child"; }],
+    ["ambiguous-history", f => { f.records.get("leaf-agent")[1].message.content = f.main[0].message.content; }],
+    ["ambiguous-history", f => { f.records.get("step-agent")[3].parentUuid = "missing-ancestor"; }],
+    ["snapshot-mismatch", f => { f.main[1].toolUseResult.usage = f.records.get("step-agent")[1].message.usage; }],
+    ["ambiguous-history", f => {
+      const rows = f.records.get("step-agent");
+      rows.push({ ...rows[3], uuid: "competing-tip", message: { ...rows[3].message, id: "same-counts" } });
+    }],
+    ["ambiguous-history", f => {
+      const rows = f.records.get("step-agent");
+      rows.push({ ...rows[3], uuid: "resume", parentUuid: rows[3].uuid, timestamp: f.ts(11), message: { ...rows[3].message, id: "later" } });
+    }],
+    ["conflicting-duplicate", f => {
+      const rows = f.records.get("step-agent");
+      rows.push({ ...rows[1], uuid: "stream", message: { ...rows[1].message, usage: rows[3].message.usage } });
+    }],
+    ["conflicting-duplicate", f => {
+      f.main.push({ ...f.main[0], message: { ...f.main[0].message, content: [{ ...f.main[0].message.content[0],
+        input: { ...f.main[0].message.content[0].input, prompt: "other" } }] } });
+    }],
+    ["conflicting-duplicate", f => { f.main.push({ ...f.main[1], toolUseResult: { ...f.main[1].toolUseResult, agentId: "other" } }); }],
+    ["unsupported-host", f => { f.records.get("leaf-agent")[1].version = "2.2.0"; }],
+    ["unsupported-schema", f => { f.records.get("step-agent")[0].message.usage = {}; }],
+    ["resource-limit", f => { f.records.get("step-agent")[1].message.usage.input_tokens = Number.MAX_SAFE_INTEGER; }],
+    ["invalid-evidence", f => { f.descriptor.sources = {}; }],
+  ]) {
+    const f = transcriptFixture();
+    modify(f);
+    f.write();
+    const measurement = transcript(f);
+    unavailable(measurement, reason);
+    assert.deepEqual(measurement.usage, { durationMs: 50, toolUses: 4 });
+    assert.equal(measurement.usageEvidence.source, "claude-transcript");
+  }
+});
+
+test("transcript discovery probes an active main file before any agents exist and rejects ambiguity or redirects", () => {
+  const f = transcriptFixture();
+  fs.renameSync(f.directory, f.directory + "-away");
+  assert.equal(claudeTranscriptReadiness(f.env), "ready");
+  assert.equal(claudeTranscriptReadiness({ ...f.env, CLAUDE_CODE_SESSION_ID: "../foreign" }), "unusable");
+  const second = path.join(path.dirname(f.projectDir), "other");
+  fs.mkdirSync(second);
+  fs.writeFileSync(path.join(second, path.basename(f.mainFile)), "");
+  assert.equal(claudeTranscriptReadiness(f.env), "unusable");
+  unavailable(transcript(f), "ambiguous-history");
+  fs.unlinkSync(path.join(second, path.basename(f.mainFile)));
+  fs.renameSync(f.mainFile, f.mainFile + "-actual");
+  fs.symlinkSync(f.mainFile + "-actual", f.mainFile);
+  assert.equal(claudeTranscriptReadiness(f.env), "unusable");
+  unavailable(transcript(f), "unsafe-path");
+});
+
+test("transcript readiness tolerates concurrent appends but evidence reads reject a changing main file", t => {
+  const f = transcriptFixture();
+  const fstat = fs.fstatSync;
+  t.mock.method(fs, "fstatSync", (...args) => {
+    fs.appendFileSync(f.mainFile, JSON.stringify({ type: "summary" }) + "\n");
+    return fstat(...args);
+  });
+  assert.equal(claudeTranscriptReadiness(f.env), "ready");
+  unavailable(transcript(f), "unsafe-path");
+});
+
+test("transcript refuses redirected metadata, oversized aggregate input and a shared deadline during metadata reads", t => {
+  const f = transcriptFixture();
+  const leaf = path.join(f.directory, "agent-leaf-agent.meta.json");
+  fs.renameSync(leaf, leaf + "-other");
+  fs.symlinkSync(leaf + "-other", leaf);
+  unavailable(transcript(f), "unsafe-path");
+  fs.unlinkSync(leaf);
+  fs.renameSync(leaf + "-other", leaf);
+  const cap = CLAUDE_USAGE_LIMITS.bytes;
+  try {
+    CLAUDE_USAGE_LIMITS.bytes = fs.statSync(leaf).size + fs.statSync(f.mainFile).size;
+    unavailable(transcript(f), "resource-limit");
+  } finally { CLAUDE_USAGE_LIMITS.bytes = cap; }
+  let now = 0;
+  const open = fs.openSync;
+  t.mock.method(Date, "now", () => now);
+  t.mock.method(fs, "openSync", (file, ...args) => {
+    if (file === leaf) now += CLAUDE_USAGE_LIMITS.readMs + 1;
+    return open(file, ...args);
+  });
+  unavailable(transcript(f), "resource-limit");
+});
+
+test("delayed transcript completion keeps only established late-attachment identity and version", () => {
+  const f = transcriptFixture();
+  f.metadata.get("leaf-agent").finished = false;
+  f.write();
+  const early = transcript(f);
+  unavailable(early, "incomplete-capture");
+  assert.equal(early.usageEvidence.hostVersion, "2.1.311");
+  assert.equal(early.usageEvidence.invocation.runId, "tool-root");
+  f.metadata.get("leaf-agent").finished = true;
+  f.write();
+  assert.equal(transcript(f).usage.totalTokens, 151);
+  f.main.splice(0, 2);
+  f.write();
+  const unidentified = transcript(f);
+  unavailable(unidentified);
+  assert.equal(unidentified.usageEvidence.invocation, undefined);
+  assert.equal(unidentified.usageEvidence.hostVersion, "unknown");
+});
+
+test("fully observed Claude identity and qualified version survive delayed root metadata", () => {
+  const f = transcriptFixture();
+  f.descriptor.hostVersion = "2.1.311";
+  f.descriptor.invocation = { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" };
+  fs.unlinkSync(path.join(f.directory, "agent-step-agent.meta.json"));
+  const delayed = transcript(f);
+  unavailable(delayed, "missing-source");
+  assert.deepEqual(delayed.usageEvidence.invocation, f.descriptor.invocation);
+  assert.equal(delayed.usageEvidence.hostVersion, f.descriptor.hostVersion);
+  f.metadata.get("step-agent").toolUseId = "contradictory-tool";
+  f.write();
+  const conflicting = transcript(f);
+  unavailable(conflicting, "missing-identity");
+  assert.equal(conflicting.usageEvidence.invocation, undefined);
 });

@@ -178,9 +178,9 @@ function readStableFile(file, { root, maxBytes, deadline = Date.now() + USAGE_LI
   }
 }
 
-export function readBoundedFile(file, { root, maxBytes = USAGE_LIMITS.fileBytes } = {}) {
+export function readBoundedFile(file, { root, maxBytes = USAGE_LIMITS.fileBytes, deadline } = {}) {
   const chunks = [];
-  readStableFile(file, { root, maxBytes }, chunk => chunks.push(Buffer.from(chunk)));
+  readStableFile(file, { root, maxBytes, deadline }, chunk => chunks.push(Buffer.from(chunk)));
   return Buffer.concat(chunks).toString("utf8");
 }
 
