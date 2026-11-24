@@ -202,9 +202,9 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Automated
 
-- [x] 1.1 Runner tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/providers.test.mjs`
-- [x] 1.2 Grant argv holds exactly gitdir, objects, refs and logs for a linked worktree and nothing for a main checkout
-- [x] 1.3 No test or script uses a recursive delete: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 1.1 Runner tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/codex-runner.test.mjs skills/10x-pipeline/test/providers.test.mjs` — 78d88f64
+- [x] 1.2 Grant argv holds exactly gitdir, objects, refs and logs for a linked worktree and nothing for a main checkout — 78d88f64
+- [x] 1.3 No test or script uses a recursive delete: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs` — 78d88f64
 
 #### Manual
 
@@ -215,9 +215,9 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Automated
 
-- [ ] 2.1 Init tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/init-permissions.test.mjs`
-- [ ] 2.2 A stale agent-smith gitdir line is listed and a live one is not; the scan writes no file
-- [ ] 2.3 A FIFO or symlink at the config path leaves `init` unchanged and fast
+- [x] 2.1 Init tests pass: `node --test --test-concurrency=2 skills/10x-pipeline/test/init-permissions.test.mjs`
+- [x] 2.2 A stale agent-smith gitdir line is listed and a live one is not; the scan writes no file
+- [x] 2.3 A FIFO or symlink at the config path leaves `init` unchanged and fast
 
 #### Manual
 
