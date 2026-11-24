@@ -45,6 +45,8 @@ const CASES = {
   "escalation is null": [{ escalation: null }, "escalation"],
   "rigor.budgetDelta is an array": [{ rigor: { budgetDelta: [] } }, "rigor.budgetDelta"],
   "steps is a string": [{ steps: "x" }, "steps"],
+  "claudeCapture is a string": [{ claudeCapture: "x" }, "claudeCapture"],
+  "claudeCapture.require is a string": [{ claudeCapture: { require: "false" } }, "claudeCapture.require"],
   "maxTotalSteps is a string": [{ limits: { maxTotalSteps: "14" } }, "limits.maxTotalSteps"],
   "maxTotalSteps is 0": [{ limits: { maxTotalSteps: 0 } }, "limits.maxTotalSteps"],
   "maxTotalSteps is a float": [{ limits: { maxTotalSteps: 1.5 } }, "limits.maxTotalSteps"],
@@ -239,4 +241,9 @@ test("a narrow template halts init before anything is written", () => {
 test("the shipped prompts all pass the placeholder check", () => {
   assert.equal(flow.promptProblem(SHIPPED), null);
   assert.equal(flow.promptProblem(BASELINE), null);
+});
+
+test("the shipped policy gates Claude capture on and passes validation", () => {
+  assert.equal(SHIPPED.claudeCapture.require, true);
+  assert.equal(policyProblems(SHIPPED), null);
 });

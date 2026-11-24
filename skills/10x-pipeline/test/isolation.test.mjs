@@ -309,7 +309,7 @@ test("configured isolation rejects invalid prefixes before state writes and reta
     const wt = worktree(main, "codex/demo");
     assertHalt(initIn(wt), /branchPrefix|Invalid run branch/, wt);
     const policy = path.join(wt.root, "context/foundation/agent-smith-policy.json");
-    fs.writeFileSync(policy, JSON.stringify({ isolation: { require: false, branchPrefix: prefix }, score: { minRigor: null } }));
+    fs.writeFileSync(policy, JSON.stringify({ isolation: { require: false, branchPrefix: prefix }, claudeCapture: { require: false }, score: { minRigor: null } }));
     assert.equal(initIn(wt).json.action, "run");
   }
 });

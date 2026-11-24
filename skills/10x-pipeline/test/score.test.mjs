@@ -22,7 +22,7 @@ const policy = JSON.parse(fs.readFileSync(path.join(SKILL_DIR, "policy.json"), "
 const SUFFIX = policy.prompts.suffix;
 const GOAL = "Add a retry counter to the status output so the report shows how often each step ran again";
 
-const ISOLATION_OFF = { isolation: { require: false } };
+const ISOLATION_OFF = { isolation: { require: false }, claudeCapture: { require: false } };
 const parts = (value) => (Array.isArray(value) ? value : [value]);
 const readOverride = (project) =>
   JSON.parse(fs.readFileSync(path.join(project.root, "context/foundation/agent-smith-policy.json"), "utf8"));
@@ -128,7 +128,7 @@ test("score data: scorer prompt carries the rules and a four-level rubric per fa
 
 test("score data: makeProject keeps plan as the first step at standard", () => {
   const project = makeProject();
-  assert.deepEqual(readOverride(project), { score: { minRigor: null }, isolation: { require: false }, manualVerify: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { score: { minRigor: null }, isolation: { require: false }, claudeCapture: { require: false }, manualVerify: { minRigor: null } });
   const res = init(project, GOAL, ["--rigor", "standard"]);
   assert.equal(res.status, 0, res.stdout);
   assert.equal(res.json.step, "plan");
@@ -137,9 +137,9 @@ test("score data: makeProject keeps plan as the first step at standard", () => {
 
 test("score data: an override replaced through writeOverride keeps plan first", () => {
   const project = makeProject({ policy: { lessons: { maxCandidates: 2 } } });
-  assert.deepEqual(readOverride(project), { lessons: { maxCandidates: 2 }, score: { minRigor: null }, isolation: { require: false }, manualVerify: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { lessons: { maxCandidates: 2 }, score: { minRigor: null }, isolation: { require: false }, claudeCapture: { require: false }, manualVerify: { minRigor: null } });
   writeOverride(project, { limits: { maxPlanRevisions: 1 } });
-  assert.deepEqual(readOverride(project), { limits: { maxPlanRevisions: 1 }, score: { minRigor: null }, isolation: { require: false }, manualVerify: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { limits: { maxPlanRevisions: 1 }, score: { minRigor: null }, isolation: { require: false }, claudeCapture: { require: false }, manualVerify: { minRigor: null } });
   const res = init(project, GOAL, ["--rigor", "standard"]);
   assert.equal(res.status, 0, res.stdout);
   assert.equal(res.json.step, "plan");
@@ -147,9 +147,9 @@ test("score data: an override replaced through writeOverride keeps plan first", 
 
 test("score data: a test-provided score block wins whole", () => {
   const project = makeProject({ policy: { score: { minRigor: "standard" } } });
-  assert.deepEqual(readOverride(project), { score: { minRigor: "standard" }, isolation: { require: false }, manualVerify: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { score: { minRigor: "standard" }, isolation: { require: false }, claudeCapture: { require: false }, manualVerify: { minRigor: null } });
   writeOverride(project, { score: { maxAttempts: 2 } });
-  assert.deepEqual(readOverride(project), { score: { maxAttempts: 2 }, isolation: { require: false }, manualVerify: { minRigor: null } });
+  assert.deepEqual(readOverride(project), { score: { maxAttempts: 2 }, isolation: { require: false }, claudeCapture: { require: false }, manualVerify: { minRigor: null } });
 });
 
 // ---- Phase 2 helpers: the score step through the CLI ------------------------------

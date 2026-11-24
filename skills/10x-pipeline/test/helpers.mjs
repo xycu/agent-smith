@@ -85,6 +85,8 @@ export function makeProject({ id = "demo", plan = null, policy = null, change = 
 // wants the scorer opts in with `policy: { score: { minRigor: "standard" } }`.
 // It also merges in `isolation.require: false` unless the policy has its own `isolation` key, so scratch projects
 // outside a linked worktree run as before; a test that wants the gate gives its own `isolation` block.
+// It also merges in `claudeCapture.require: false` unless the policy has its own `claudeCapture` key, so `init` on a
+// Claude host without the capture launcher still runs; a test that wants the gate gives its own `claudeCapture` block.
 // It also merges in `manualVerify.minRigor: null` unless the policy has its own `manualVerify` key, so the
 // manual-verify step stays off and existing tests keep their paths; a test that wants the step opts in with
 // `policy: { manualVerify: { minRigor: "lean" } }`.
@@ -93,6 +95,7 @@ export function writeOverride(project, policy = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   let value = Object.hasOwn(policy, "score") ? policy : { ...policy, score: { minRigor: null } };
   if (!Object.hasOwn(value, "isolation")) value = { ...value, isolation: { require: false } };
+  if (!Object.hasOwn(value, "claudeCapture")) value = { ...value, claudeCapture: { require: false } };
   if (!Object.hasOwn(value, "manualVerify")) value = { ...value, manualVerify: { minRigor: null } };
   fs.writeFileSync(file, JSON.stringify(value));
 }

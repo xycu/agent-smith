@@ -469,7 +469,7 @@ test("actual emitted sizes fit normal roots and quantify long path/reason overhe
     command: 'TMPDIR="$PWD/.agent-smith-test-tmp" HANDOFF_MEASUREMENTS=context/changes/step-prompt-by-file/evidence/size-measurements.json node --test --test-name-pattern="actual emitted sizes" skills/10x-pipeline/test/prompt-handoff.test.mjs',
     goal: "fix typo", id: "demo", normalCeilingBytes, normalRootLimitBytes: bytes(normalRoot),
     archive: "excluded; inline by contract", livePairs: 0,
-    fixtureDefaults: { score: { minRigor: null }, isolation: { require: false }, manualVerify: { minRigor: null } },
+    fixtureDefaults: { score: { minRigor: null }, isolation: { require: false }, claudeCapture: { require: false }, manualVerify: { minRigor: null } },
     rows,
   };
   if (process.env.HANDOFF_MEASUREMENTS) {

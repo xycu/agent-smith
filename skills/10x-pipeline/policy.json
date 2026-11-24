@@ -115,6 +115,7 @@
     "gitTimeoutMs": 120000,
     "haltOnManualPending": false
   },
+  "claudeCapture": { "require": true },
   "isolation": {
     "require": true,
     "defaultBranches": ["main", "master"],

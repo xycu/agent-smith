@@ -1,0 +1,64 @@
+{
+  "id": "claude-capture-default-on",
+  "goal": "Make missing Claude token capture a halt at init, not a stderr warning. Follow context/changes/claude-capture-default-on/frame.md and research.md: add a policy block modelled on isolation.require (default on, opt-out in context/foundation/agent-smith-policy.json, validated at load), check it next to isolationCheck in route.mjs before anything is written, and halt only on a native Claude host whose claudeCaptureReadiness is not ready, naming the launcher command and how to resume. Never halt for Claude steps on a Codex host, a headless child, or a neutral replay of a non-Claude step. Leave Codex as a warning. Inject the opt-out in the test helpers, add init tests for both states, and update docs/REFERENCE.md, the README coverage paragraph and ADR-018/019 amendments. Drop version-range work: claudeCaptureSupported is already a floor.",
+  "host": "claude",
+  "providerMode": "claude",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/claude-capture-default-on",
+  "baseSha": "79b6cc36bd9a8bbf70c0bc32e782c6d5fc1ab65f",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.16.2",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "2c10243b953d64dd",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "bf7fb87c06a249bf",
+      "complexity": "997fa59224abe417",
+      "escalation": "b7425a0a9da972e9",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "hookFiles": "8b089927112ef1f4",
+      "isolation": "a0a594659b853084",
+      "ladder": "00bd04bb00a5db6a",
+      "lessons": "92d849fccafd0527",
+      "limits": "ad6be642613c2b99",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "9c76036954770e5b",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "f43edb2ca10e3007",
+      "score": "dc16b78fdf08a0df",
+      "splitProviders": "e23dcbd325996cb7",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "providerMode": "claude",
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  },
+  "startCommit": "f10b2f7f081d7acac3b2595f2229a501741fcdee",
+  "rigor": {
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/scripts/state.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.7 From plain claude, init halts with a pasteable launcher command, and the launcher session resumes the run with figures"
+    ],
+    "manualNotProved": [
+      "1.7 From plain claude, init halts with a pasteable launcher command, and the launcher session resumes the run with figures — not proved: needs a live plain claude session, then a launcher session in a real terminal that resumes the run and records figures; not reachable unattended (halt text is covered by test and evidence for row 1.8)"
+    ]
+  }
+}

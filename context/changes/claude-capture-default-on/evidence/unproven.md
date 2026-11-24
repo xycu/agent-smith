@@ -1,0 +1,1 @@
+- 1.7 — needs a live plain claude session, then a launcher session in a real terminal that resumes the run and records figures; not reachable unattended (halt text is covered by test and evidence for row 1.8)
