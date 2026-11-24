@@ -50,5 +50,15 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/route.mjs, skills/10x-pipeline/scripts/state.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "1.7 From plain claude, init halts with a pasteable launcher command, and the launcher session resumes the run with figures"
+    ],
+    "manualNotProved": [
+      "1.7 From plain claude, init halts with a pasteable launcher command, and the launcher session resumes the run with figures — not proved: needs a live plain claude session, then a launcher session in a real terminal that resumes the run and records figures; not reachable unattended (halt text is covered by test and evidence for row 1.8)"
+    ]
   }
 }
