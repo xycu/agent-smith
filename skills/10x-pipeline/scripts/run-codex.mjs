@@ -77,9 +77,12 @@ function gitdirGrant(permissions) {
   const paths = [gitDir];
   for (const name of ["objects", "refs", "logs"]) {
     let dir;
-    try { dir = fs.realpathSync(path.join(commonDir, name)); } catch { dir = null; }
+    try {
+      dir = fs.realpathSync(path.join(commonDir, name));
+      if (!fs.statSync(dir).isDirectory()) dir = null;
+    } catch { dir = null; }
     // logs is optional: a repository without reflogs has none, and its absence never drops the grant.
-    if (dir === null || !fs.statSync(dir).isDirectory()) {
+    if (dir === null) {
       if (name === "logs") continue;
       return none("no common subdirectory");
     }
