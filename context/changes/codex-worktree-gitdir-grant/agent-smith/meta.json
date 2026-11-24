@@ -50,5 +50,17 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain, phases 3, hot paths skills/10x-pipeline/scripts/run-codex.mjs, skills/10x-pipeline/test/codex-runner.test.mjs"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "3.3 Fresh isolated run on macOS (Codex 0.172.0 or newer): a step commits with no approval prompt and no new `~/.codex/config.toml` line",
+      "3.4 From inside that run's sandbox, a write to `<common>/hooks` and to `<common>/config` is denied"
+    ],
+    "manualNotProved": [
+      "3.3 Fresh isolated run on macOS (Codex 0.172.0 or newer): a step commits with no approval prompt and no new `~/.codex/config.toml` line — not proved: needs a fresh live isolated pipeline run whose Codex step commits with no approval prompt; an unattended manual-verify step cannot start one, and no test or command covers it (scratch analogue is row",
+      "3.4 From inside that run's sandbox, a write to `<common>/hooks` and to `<common>/config` is denied — not proved: needs the sandbox of that live run; probing '<common>/hooks' and '<common>/config' from here would write outside the run root, which the rules forbid (scratch-repo analogue in row 1.4 is proven but is"
+    ]
   }
 }
