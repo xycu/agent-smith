@@ -227,8 +227,8 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Automated
 
-- [x] 3.1 Docs name the four-path set and no doc still says the runner grants only the gitdir or advises a whole-`.git` grant: `grep -rn "grants write access to one path\|\"<common>\" = \"write\"" docs README.md skills`
-- [x] 3.2 Version check still passes: `node tools/version-check.mjs`
+- [x] 3.1 Docs name the four-path set and no doc still says the runner grants only the gitdir or advises a whole-`.git` grant: `grep -rn "grants write access to one path\|\"<common>\" = \"write\"" docs README.md skills` — b81ab2b0
+- [x] 3.2 Version check still passes: `node tools/version-check.mjs` — b81ab2b0
 
 #### Manual
 
