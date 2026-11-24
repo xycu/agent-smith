@@ -147,7 +147,7 @@ test("top.md carries the focused development test rule once", () => {
   const [rule] = rules;
   assert.match(rule, /including before handoff \*\*THEN\*\* you \*\*MUST\*\* run only the test files that cover files changed by the step, including applicable guards/);
   assert.match(rule, /Run the full suite locally at most once per step, only at the user's request in their own message or the run goal, or to reproduce a CI failure\./);
-  assert.match(rule, /On its own, a skill gate or plan criterion that names the full suite calls for only the covering test files, and their passing results satisfy it locally\./);
+  assert.match(rule, /On its own, a skill gate or plan criterion that names the full suite calls for only the covering test files, and their passing results satisfy it locally, so you neither skip that gate or row nor tick it on the strength of a full run\./);
   assert.match(rule, /CI runs the full suite and owns the full-suite result/);
   for (const guard of ["tools/test/agents-md-size.test.mjs", "skills/10x-pipeline/test/skill-loop.test.mjs"]) {
     assert.ok(rule.includes(`\`${guard}\``), `missing guard example ${guard}`);
