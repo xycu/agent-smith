@@ -1,10 +1,10 @@
 ---
 change_id: record-archive-manual-decision
 title: Record explicit approval to archive with unresolved Manual checks
-status: impl_reviewed
+status: archived
 created: 2026-11-19
 updated: 2026-11-24
-archived_at: null
+archived_at: 2026-11-24T22:50:32Z
 ---
 
 Document a durable record for an affirmative exception at the existing 10x Manual archive gate. The decision travels with the change so a later reader can identify the open checks and who owns follow-up. S-19 (`truthful-owner-decision-halts`) owns the wider decision flow. [Archive decision](../docs-status-truth-up/change.md#archive-decision-2026-11-19) · [S-19](../../foundation/roadmap.md#s-19-truthful-verification-and-owner-decision-halts)
