@@ -1,0 +1,3 @@
+- 1.4 — needs a live preflight on codex-cli 0.171.0 in an isolated worktree with no gitdir entry in ~/.codex/config.toml; installed CLI is 0.172.0 and the host config already holds agent-smith worktree entries, so the row's precondition cannot be met unattended
+- 2.2 — same live-CLI precondition (0.171.0, clean config) for a real preflight refusal; automated runner tests cover the logic but the row asks for a live check
+- 3.3 — needs a live `--provider-mode split` pipeline run with a real OpenAI step; not runnable in a manual-verify step
