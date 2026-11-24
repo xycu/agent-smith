@@ -273,10 +273,10 @@ A Claude-hosted run started or resumed from an ordinary `claude` session now hal
 
 #### Automated
 
-- [ ] 2.1 No doc still calls Claude capture off by default
-- [ ] 2.2 Anti-stall sections of both skills stay equal: `node --test --test-concurrency=2 skills/10x-pipeline/test/skill-loop.test.mjs`
-- [ ] 2.3 Init-usage and policy-validate tests and the version check still pass
-- [ ] 2.4 Commit subjects lint: `node tools/commit-lint.mjs main..HEAD`
+- [x] 2.1 No doc still calls Claude capture off by default
+- [x] 2.2 Anti-stall sections of both skills stay equal: `node --test --test-concurrency=2 skills/10x-pipeline/test/skill-loop.test.mjs`
+- [x] 2.3 Init-usage and policy-validate tests and the version check still pass
+- [x] 2.4 Commit subjects lint: `node tools/commit-lint.mjs main..HEAD`
 
 #### Manual
 

@@ -153,15 +153,15 @@ The cap affects every Claude session in that project, including workflows outsid
 
 ## Observed token coverage
 
-Both pipelines show an advisory beginning `Warning: Usage capture preflight.` before dispatch when a selected execution path has missing or unconfirmed capture prerequisites. The run can continue. Reports and their PR comments summarize recorded capture limitations near the title. Status and reports distinguish verified `step-tree` tokens, unavailable measurements and legacy figures. Missing is `-`, measured zero is `0`, and partial totals appear as subtotals.
+Both pipelines show an advisory beginning `Warning: Usage capture preflight.` before dispatch when a selected execution path has missing or unconfirmed capture prerequisites. On a native Claude host whose capture is not ready, `init` halts instead, before anything is written. Reports and their PR comments summarize recorded capture limitations near the title. Status and reports distinguish verified `step-tree` tokens, unavailable measurements and legacy figures. Missing is `-`, measured zero is `0`, and partial totals appear as subtotals.
 
-Ordinary `claude` starts with capture off. To opt in for one fresh interactive session on macOS or Linux with Node.js 24+, start the launcher from your project root. Replace the example plugin path with the absolute path to your installed agent-smith plugin.
+Ordinary `claude` records no token figures, so a Claude-hosted run needs the launcher. On macOS or Linux with Node.js 24+, start it from a terminal outside Claude Code in your project root. Replace the example plugin path with the absolute path to your installed agent-smith plugin.
 
 ```bash
 node "/absolute/path/to/agent-smith/skills/10x-pipeline/scripts/claude-capture.mjs"
 ```
 
-Run the same command with `--versions` to print the minimum supported Claude Code release. The launcher creates a private binding, hook file and OTLP file in local temporary storage and refuses conflicting export settings or managed policy. From the launcher session, start a new Claude-hosted run or resume one with its saved host and provider mode. Exit the session and start `claude` to turn capture off. With capture off, reports and `compare` show `capture-disabled` and the launcher command.
+Run the same command with `--versions` to print the minimum supported Claude Code release. The launcher creates a private binding, hook file and OTLP file in local temporary storage and refuses conflicting export settings or managed policy. After a halt, run the same pipeline command again in the launcher session with the same change id and flags; a run that already has steps resumes with its saved host and provider mode. To run without capture, set `{ "claudeCapture": { "require": false } }` in `context/foundation/agent-smith-policy.json`. With capture off, reports and `compare` show `capture-disabled` and the launcher command.
 
 Headless Claude on a Codex host records duration only. For OpenAI steps on either host, init checks the Codex CLI version and the collector verifies the invocation's rollout records after execution. [Capture setup, retention, late attachment and rollback](docs/REFERENCE.md#accounting-activation-and-rollback)
 
