@@ -850,6 +850,50 @@ test("a legacy pending entry and action without permissions still match and reso
   assertGrant(w, execute(w, { ...w.action, permissions: null }), "home-profile");
 });
 
+// The refusal detail (#281): the grant status and a bounded, sanitized tail of the preflight's stderr.
+function refusal(w, preflightStderr) {
+  setMode(w, { preflightFailure: true, ...(preflightStderr === undefined ? {} : { preflightStderr }) });
+  const result = execute(w);
+  assert.equal(result.json.launched, false);
+  assert.equal(result.json.completed, false);
+  assert.deepEqual(calls(w.fixture).map(c => c.args[0]), ["sandbox"]);
+  assert.match(result.json.reason, /^Codex permission preflight cannot verify required Git capability\. .* No model launched\. /);
+  assert.ok(result.json.reason.length <= 2048);
+  return result.json.reason;
+}
+
+test("a preflight refusal names the grant and the denied gitdir path from Codex's stderr", () => {
+  const w = grantFixture("policy-profile");
+  const gitDir = fs.realpathSync(path.join(w.project.root, ".git"));
+  const denied = `EPERM: operation not permitted, open '${gitDir}/x'`;
+  const reason = refusal(w, `${denied}\n`);
+  assert.ok(reason.endsWith(`No model launched. Gitdir grant: policy-profile on ${gitDir}. Codex output: ${denied}`), reason);
+});
+
+test("a refusal without a grant states why and names codex.permissions, with no empty output label", () => {
+  const cases = [
+    ["no permissions profile name", () => grantFixture()],
+    ["builtin name", () => { const w = grantFixture(); writeConfig(homeConfig(w), 'default_permissions = ":workspace"\n'); return w; }],
+    ["invalid name", () => { const w = grantFixture(); writeConfig(homeConfig(w), 'default_permissions = "dotted.name"\n'); return w; }],
+    ["no gitdir", () => grantFixture("policy-profile", { git: false })],
+  ];
+  for (const [why, make] of cases) {
+    const reason = refusal(make());
+    assert.ok(reason.endsWith(`No model launched. No gitdir grant (${why}); set codex.permissions to a custom profile name.`), reason);
+  }
+});
+
+test("the stderr tail keeps the last 512 bytes, without control characters", () => {
+  const w = grantFixture();
+  const noise = "zażółć\x00\x07\x1b[31m​ \t".repeat(600);
+  const reason = refusal(w, `${noise}\r\nlast line ends here\n`);
+  const tail = reason.slice(reason.indexOf(" Codex output: ") + " Codex output: ".length);
+  assert.ok(tail.length > 0 && Buffer.byteLength(tail) <= 512, `${Buffer.byteLength(tail)} bytes`);
+  assert.doesNotMatch(tail, /[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}�]|\s{2}/u);
+  assert.ok(tail.endsWith("last line ends here"), tail);
+  assert.match(tail, /zażółć/);
+});
+
 test("an archive action matches its descriptor with or without permissions and refuses a changed name", () => {
   for (const explicit of [true, false]) {
     const w = archiveFixture("10x");

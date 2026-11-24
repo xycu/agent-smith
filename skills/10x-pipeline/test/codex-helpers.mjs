@@ -116,6 +116,7 @@ process.stdin.on("data", chunk => input += chunk);
 process.stdin.on("end", async () => {
   fs.appendFileSync(path.join(fixture, "calls.jsonl"), JSON.stringify({ args, input, cwd: process.cwd(), pid: process.pid, env: seenEnv }) + "\\n");
   if (args[0] === "sandbox") {
+    if (mode.preflightStderr) process.stderr.write(mode.preflightStderr);
     if (mode.preflightFailure || args.includes("missing-profile")) { process.exitCode = 1; return; }
     if (mode.checkToolkit) {
       const index = args.indexOf("--");

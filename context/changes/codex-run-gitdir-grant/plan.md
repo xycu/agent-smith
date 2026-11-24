@@ -242,7 +242,7 @@ Pending dispatch entries and neutral replays saved before this change lack `perm
 
 #### Automated
 
-- [ ] 2.1 Runner tests pass: `node --test skills/10x-pipeline/test/codex-runner.test.mjs`
+- [x] 2.1 Runner tests pass: `node --test skills/10x-pipeline/test/codex-runner.test.mjs`
 
 #### Manual
 
