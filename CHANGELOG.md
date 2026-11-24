@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.18.1](https://github.com/xycu/agent-smith/compare/v1.18.0...v1.18.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **dev-test-scope-top-rule:** Add a top-level rule that testing scope during development stays minimal ([#294](https://github.com/xycu/agent-smith/issues/294)) ([e993466](https://github.com/xycu/agent-smith/commit/e9934666b16b516534dc6f82e5d5ae11c966c0fc))
+* **record-archive-manual-decision:** Record explicit approval to archive with unresolved Manual checks ([#295](https://github.com/xycu/agent-smith/issues/295)) ([f48add0](https://github.com/xycu/agent-smith/commit/f48add050fa8ebad4a9286f4a87cbdc94b22ac37))
+
 ## [1.18.0](https://github.com/xycu/agent-smith/compare/v1.17.0...v1.18.0) (2026-11-24)
 
 
