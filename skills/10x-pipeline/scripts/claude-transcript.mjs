@@ -1,4 +1,5 @@
-// Fresh foreground Agent calls in the current Claude session. Retain projections, never raw transcript records.
+// Fresh Agent calls in the current Claude session: a foreground root, or a background root settled by its finished metadata.
+// Retain projections, never raw transcript records.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -113,10 +114,10 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
     checkTime(budget.deadline);
     if (--budget.records < 0) fail("resource-limit");
   };
-  const trackFile = file => {
+  const trackFile = (file, append = false) => {
     const stat = fs.lstatSync(file, { throwIfNoEntry: false });
     if (!stat) fail(fs.lstatSync(file, { throwIfNoEntry: false }) ? "unsafe-path" : "missing-source");
-    seenFiles.set(file, stat);
+    seenFiles.set(file, { stat, append });
   };
   const readMeta = id => {
     const file = metaFile(id);
@@ -126,9 +127,10 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
     budget.bytes -= Buffer.byteLength(text);
     return json(text);
   };
-  const lines = (file, visit) => {
-    trackFile(file);
-    budget.bytes -= readBoundedLines(file, { root, maxBytes: budget.bytes, recordBytes: limits.recordBytes, deadline: budget.deadline }, line => {
+  // The live session appends to the main transcript while it is read; agent transcripts must be settled.
+  const lines = (file, visit, append = false) => {
+    trackFile(file, append);
+    budget.bytes -= readBoundedLines(file, { root, maxBytes: budget.bytes, recordBytes: limits.recordBytes, deadline: budget.deadline, append }, line => {
       chargeRecord();
       visit(json(line));
     });
@@ -191,6 +193,12 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       if (target !== undefined && block.tool_use_id !== target) continue;
       if (target === undefined && !children.has(block.tool_use_id) && !calls.launches.has(block.tool_use_id)) continue;
       identity();
+      // Only the invocation's own root may return a background launch; its finished metadata proves settlement.
+      if (owner === null && singleResult && object(result) && !block.is_error && result.status === "async_launched"
+          && result.isAsync === true && pathId(result.agentId)) {
+        recordOnce(calls.returns, block.tool_use_id, { agentId: result.agentId, background: true, time: instant(record.timestamp) });
+        continue;
+      }
       if (!singleResult || !object(result)
           || block.is_error || result.status !== "completed") {
         recordOnce(calls.returns, block.tool_use_id, null);
@@ -207,7 +215,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
         text: Array.isArray(result.content) ? hash(textContent(result)) : undefined });
     }
   }
-  lines(main, record => inspectCalls(record, mainCalls, null, rootMeta.toolUseId));
+  lines(main, record => inspectCalls(record, mainCalls, null, rootMeta.toolUseId), true);
   const rootLaunch = mainCalls.launches.get(rootMeta.toolUseId);
   const rootReturn = mainCalls.returns.get(rootMeta.toolUseId);
   if ((rootLaunch && rootLaunch.description !== description) || (rootReturn?.agentId !== undefined && rootReturn.agentId !== rootId)) fail("missing-identity");
@@ -229,7 +237,9 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
 
   function measureAgent(id, runId, launch, returned, parent) {
     if (parent && metadataParents.has(id)) fail("ambiguous-history");
-    if (returned.total === undefined) fail("incomplete-capture");
+    if (returned.total === undefined && !returned.background) fail("incomplete-capture");
+    // A background launch returns before the agent works; its records have no return-time ceiling.
+    const until = returned.background ? Infinity : returned.time;
     claimAgent(id, parent, runId);
     if (attributed.has(id)) fail("ambiguous-history");
     attributed.add(id);
@@ -245,10 +255,12 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       if (record.sessionId !== sessionId || record.agentId !== id || !identifier(record.uuid)
           || (record.parentUuid !== null && !identifier(record.parentUuid))) fail("missing-identity");
       version(record.version);
-      const node = { parent: record.parentUuid, type: record.type };
+      // Host-injected context (system reminders, loaded skill bodies) is a meta user record, not a new prompt.
+      const meta = record.type === "user" && record.parentUuid !== null && record.isMeta === true;
+      const node = { parent: record.parentUuid, type: meta ? "meta" : record.type };
       if (record.type === "assistant" || (record.type === "user" && record.parentUuid === null)) {
         node.time = instant(record.timestamp);
-        if (node.time < launch.time || node.time > returned.time) fail("ambiguous-history");
+        if (node.time < launch.time || node.time > until) fail("ambiguous-history");
       }
       if (record.type === "assistant") {
         const msg = record.message;
@@ -269,7 +281,8 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       } else if (record.type === "user") {
         if (record.message?.role !== "user") fail("unsupported-schema");
         if (record.parentUuid === null) node.prompt = hash(textContent(record.message));
-        else if (!Array.isArray(record.message.content) || !record.message.content.some(block => block?.type === "tool_result")) fail("ambiguous-history");
+        else if (!meta && (!Array.isArray(record.message.content) || !record.message.content.some(block => block?.type === "tool_result"))) fail("ambiguous-history");
+        else if (!meta) node.type = "result";
       }
       recordOnce(nodes, record.uuid, node);
       inspectCalls(record, calls, id);
@@ -292,8 +305,8 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
     if (tips.length !== 1) fail("ambiguous-history");
     const [end, last] = tips[0];
     const count = messages.get(last.message).count;
-    if (returned.total !== count.total || (returned.counts && !isDeepStrictEqual(count, returned.counts))
-        || (returned.text !== undefined && returned.text !== last.text)) fail("snapshot-mismatch");
+    if (!returned.background && (returned.total !== count.total || (returned.counts && !isDeepStrictEqual(count, returned.counts))
+        || (returned.text !== undefined && returned.text !== last.text))) fail("snapshot-mismatch");
     const lineage = new Set();
     let up = end;
     while (up !== null) {
@@ -303,8 +316,10 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       if (node.parent === null && (node.prompt !== launch.prompt || node.time > firstResponse)) fail("ambiguous-history");
       up = node.parent;
     }
+    // Parallel tool calls leave a tool_result branch on an earlier tool_use record of the final chain.
     for (const [uuid, node] of nodes) {
-      if (!lineage.has(uuid) && ["assistant", "user"].includes(node.type)) fail("ambiguous-history");
+      if (lineage.has(uuid)) continue;
+      if (["assistant", "user"].includes(node.type) || (node.type === "result" && !lineage.has(node.parent))) fail("ambiguous-history");
     }
     if (parent && calls.launches.size) fail("ambiguous-history");
     if (!parent && children.size !== calls.launches.size) fail("incomplete-capture");
@@ -312,16 +327,17 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       const child = children.get(runId);
       const result = calls.returns.get(runId);
       if (!child || child.finished !== true || !result) fail("incomplete-capture");
-      if (child.description !== childLaunch.description || childLaunch.time < launch.time || result.time > returned.time) fail("missing-identity");
+      if (child.description !== childLaunch.description || childLaunch.time < launch.time || result.time > until) fail("missing-identity");
       measureAgent(child.id, runId, childLaunch, result, id);
     }
   }
   measureAgent(rootId, rootMeta.toolUseId, rootLaunch, rootReturn, null);
   for (const id of attributed) if (reused.has(id)) fail("ambiguous-history");
-  seenFiles.set(agents, agentDirectoryStat);
-  for (const [file, before] of seenFiles) {
+  seenFiles.set(agents, { stat: agentDirectoryStat, append: false });
+  for (const [file, { stat: before, append }] of seenFiles) {
     checkTime(budget.deadline);
-    if (fs.realpathSync(file) !== file || !stable(before, fs.lstatSync(file))) fail("unsafe-path");
+    const after = fs.lstatSync(file);
+    if (fs.realpathSync(file) !== file || !(append ? sameFile(before, after) && after.size >= before.size : stable(before, after))) fail("unsafe-path");
   }
   let totalTokens = 0;
   for (const { count } of messages.values()) {

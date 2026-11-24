@@ -222,5 +222,5 @@ Existing policy overrides without `mode` inherit transcript mode for new dispatc
 
 #### Manual
 
-- [ ] 3.4 In an ordinary qualified Claude Code session without the launcher, complete a native Agent step and confirm transcript evidence in status and the rendered report.
+- [x] 3.4 In an ordinary qualified Claude Code session without the launcher, complete a native Agent step and confirm transcript evidence in status and the rendered report.
 - [ ] 3.5 In a fresh launcher session with telemetry mode selected, complete a native Agent step and confirm verified request-record evidence in status and the rendered report.

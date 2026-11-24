@@ -136,8 +136,9 @@ export function usageFigure(entries, key) {
 }
 
 // Explicit local inputs only: bound reads and reject redirects and replacement during a read.
+// `append` reads the prefix present at open and tolerates growth of the same file (a live, append-only log).
 // shortcut: elapsed budgets cannot interrupt a filesystem syscall; isolate reads before supporting blocking remote storage.
-function readStableFile(file, { root, maxBytes, deadline = Date.now() + USAGE_LIMITS.readMs }, consume) {
+function readStableFile(file, { root, maxBytes, deadline = Date.now() + USAGE_LIMITS.readMs, append = false }, consume) {
   let fd;
   try {
     const canonicalRoot = fs.realpathSync(root);
@@ -152,13 +153,19 @@ function readStableFile(file, { root, maxBytes, deadline = Date.now() + USAGE_LI
     }
     fd = fs.openSync(absolute, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
     const opened = fs.fstatSync(fd);
-    const same = (a, b) => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
-    if (!opened.isFile() || !same(before, opened)) throw new Error();
+    const same = append ? (a, b) => a.dev === b.dev && a.ino === b.ino && b.size >= a.size
+      : (a, b) => a.dev === b.dev && a.ino === b.ino && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
+    if (!opened.isFile() || !same(before, opened) || opened.size > maxBytes) {
+      if (opened.isFile() && opened.size > maxBytes) throw Object.assign(new Error(), { reason: "resource-limit" });
+      throw new Error();
+    }
     const bytes = Buffer.alloc(Math.min(opened.size + 1, 65536));
     let length = 0;
     for (;;) {
       if (Date.now() > deadline) throw Object.assign(new Error(), { reason: "resource-limit" });
-      const count = fs.readSync(fd, bytes, 0, bytes.length, null);
+      const want = append ? Math.min(bytes.length, opened.size - length) : bytes.length;
+      if (want === 0) break;
+      const count = fs.readSync(fd, bytes, 0, want, null);
       if (count === 0) break;
       length += count;
       if (length > maxBytes) throw Object.assign(new Error(), { reason: "resource-limit" });
@@ -185,9 +192,9 @@ export function readBoundedFile(file, { root, maxBytes = USAGE_LIMITS.fileBytes,
 }
 
 // Visitors retain derived counters only; no whole transcript is held in memory.
-export function readBoundedLines(file, { root, maxBytes, recordBytes, deadline }, visit) {
+export function readBoundedLines(file, { root, maxBytes, recordBytes, deadline, append = false }, visit) {
   let pending = Buffer.alloc(0);
-  const size = readStableFile(file, { root, maxBytes, deadline }, chunk => {
+  const size = readStableFile(file, { root, maxBytes, deadline, append }, chunk => {
     pending = Buffer.concat([pending, chunk]);
     let end;
     while ((end = pending.indexOf(10)) >= 0) {
@@ -199,6 +206,7 @@ export function readBoundedLines(file, { root, maxBytes, recordBytes, deadline }
     }
     if (pending.length > recordBytes) throw Object.assign(new Error(), { reason: "resource-limit", accounting: true });
   });
-  if (pending.length) throw Object.assign(new Error(), { reason: "incomplete-capture", accounting: true });
+  // A live log may end in a record still being written; its complete prefix is the read.
+  if (pending.length && !append) throw Object.assign(new Error(), { reason: "incomplete-capture", accounting: true });
   return size;
 }

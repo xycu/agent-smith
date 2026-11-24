@@ -735,15 +735,99 @@ test("transcript discovery probes an active main file before any agents exist an
   unavailable(transcript(f), "unsafe-path");
 });
 
-test("transcript readiness tolerates concurrent appends but evidence reads reject a changing main file", t => {
+test("transcript readiness and evidence reads accept a growing main file but refuse its replacement or truncation", t => {
   const f = transcriptFixture();
+  const measuredStatus = () => transcript(f).usageEvidence.status;
+  // The live session appends while the collector reads; a record still being written ends the prefix.
+  fs.appendFileSync(f.mainFile, '{"type":"summ');
+  assert.equal(measuredStatus(), "transcript");
+  f.write();
   const fstat = fs.fstatSync;
-  t.mock.method(fs, "fstatSync", (...args) => {
+  const growing = t.mock.method(fs, "fstatSync", (...args) => {
     fs.appendFileSync(f.mainFile, JSON.stringify({ type: "summary" }) + "\n");
     return fstat(...args);
   });
   assert.equal(claudeTranscriptReadiness(f.env), "ready");
-  unavailable(transcript(f), "unsafe-path");
+  assert.equal(measuredStatus(), "transcript");
+  growing.mock.restore();
+  for (const change of [
+    () => { fs.writeFileSync(f.mainFile + "-new", fs.readFileSync(f.mainFile)); fs.renameSync(f.mainFile + "-new", f.mainFile); },
+    () => fs.truncateSync(f.mainFile, 10),
+  ]) {
+    f.write();
+    // Change the main file between its path check and the open descriptor's check.
+    let mainFd;
+    const open = fs.openSync;
+    const opening = t.mock.method(fs, "openSync", (file, ...args) => {
+      const fd = open(file, ...args);
+      if (file === f.mainFile && mainFd === undefined) mainFd = fd;
+      return fd;
+    });
+    let changed = false;
+    const once = t.mock.method(fs, "fstatSync", (fd, ...args) => {
+      if (fd === mainFd && !changed) { changed = true; change(); }
+      return fstat(fd, ...args);
+    });
+    unavailable(transcript(f), "unsafe-path");
+    assert.equal(changed, true);
+    once.mock.restore();
+    opening.mock.restore();
+  }
+});
+
+for (const children of [false, true]) {
+  test(`transcript settles a background root launch from its finished metadata with children=${children}`, () => {
+    const f = transcriptFixture({ children });
+    const result = f.main[1].toolUseResult;
+    f.main[1].toolUseResult = { isAsync: true, status: "async_launched", agentId: "step-agent", description: "launch", prompt: "launch" };
+    f.main[1].timestamp = f.ts(0);
+    f.write();
+    const measured = transcript(f);
+    assert.equal(measured.usageEvidence.status, "transcript");
+    assert.equal(measured.usage.totalTokens, children ? 151 : 117);
+    assert.equal(measured.usageEvidence.sessionCount, children ? 2 : 1);
+    for (const [reason, modify] of [
+      ["incomplete-capture", () => { f.metadata.get("step-agent").finished = false; }],
+      ["incomplete-capture", () => { delete f.main[1].toolUseResult.isAsync; }],
+      ["incomplete-capture", () => { f.main[1].message.content[0].is_error = true; }],
+      ["missing-identity", () => { f.main[1].toolUseResult.agentId = "other-agent"; }],
+    ]) {
+      const saved = structuredClone({ main: f.main, meta: f.metadata.get("step-agent") });
+      modify();
+      f.write();
+      unavailable(transcript(f), reason);
+      f.main.splice(0, f.main.length, ...saved.main);
+      f.metadata.set("step-agent", saved.meta);
+    }
+    if (children) {
+      // Only the invocation's own root may return before it settles.
+      f.records.get("step-agent")[2].toolUseResult = { isAsync: true, status: "async_launched", agentId: "leaf-agent" };
+      f.write();
+      unavailable(transcript(f), "incomplete-capture");
+    }
+    f.main[1].toolUseResult = result;
+  });
+}
+
+test("transcript accepts host meta records and parallel tool results on the final chain, never as a fork", () => {
+  const f = transcriptFixture({ children: false });
+  const rows = f.records.get("step-agent");
+  const meta = { ...structuredClone(rows[2]), uuid: "skill-body", parentUuid: rows[1].parentUuid, isMeta: true,
+    message: { role: "user", content: [{ type: "text", text: "loaded skill body" }] } };
+  rows[1].parentUuid = meta.uuid;
+  const parallel = { ...structuredClone(rows[2]), uuid: "parallel-result", parentUuid: rows[1].uuid,
+    message: { role: "user", content: [{ type: "tool_result", tool_use_id: "other-local-tool" }] } };
+  rows.push(meta, parallel);
+  f.write();
+  assert.equal(transcript(f).usageEvidence.status, "transcript");
+  assert.equal(transcript(f).usage.totalTokens, 117);
+  delete meta.isMeta;
+  f.write();
+  unavailable(transcript(f), "ambiguous-history");
+  meta.isMeta = true;
+  rows.push({ ...structuredClone(parallel), uuid: "forked-result", parentUuid: parallel.uuid });
+  f.write();
+  unavailable(transcript(f), "ambiguous-history");
 });
 
 test("transcript refuses redirected metadata, oversized aggregate input and a shared deadline during metadata reads", t => {
