@@ -112,4 +112,4 @@ The new rule takes effect when the router assembles a fresh prompt. A historical
 
 #### Manual
 
-- [ ] 1.2 Confirm the full-suite CI shards pass after the orchestrator publishes the pull request.
+- [x] 1.2 Confirm the full-suite CI shards pass after the orchestrator publishes the pull request. — efa33a0b (CI run 45502036568, shards 1–6 pass)
