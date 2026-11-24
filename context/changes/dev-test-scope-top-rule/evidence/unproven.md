@@ -1,0 +1,1 @@
+- 1.2 — needs CI shards of the published pull request; the orchestrator publishes after this step, so no CI result exists yet and pushing/gh is forbidden here
