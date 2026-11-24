@@ -1,2 +1,2 @@
-- 3.3 — needs a fresh live isolated run through the pipeline on macOS; not reproducible from this unattended step
-- 3.4 — needs the sandbox of that same live run; the scratch-repo analogue (row 1.4) is proven but is not that run
+- 3.3 — needs a fresh live isolated pipeline run whose Codex step commits with no approval prompt; an unattended manual-verify step cannot start one, and no test or command covers it (scratch analogue is row 1.4)
+- 3.4 — needs the sandbox of that live run; probing `<common>/hooks` and `<common>/config` from here would write outside the run root, which the rules forbid (scratch-repo analogue in row 1.4 is proven but is not that run)
