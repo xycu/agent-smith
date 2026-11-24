@@ -18,11 +18,12 @@ A native Claude run starts in an ordinary session when the current transcript so
 
 | Decision | Choice | Why | Source |
 | --- | --- | --- | --- |
-| Source selection | `claudeCapture.mode` defaults to `transcript`, with `telemetry` as the opt-in | The setting selects the evidence standard for both startup and collection. | [Change notes](change.md), plan |
+| Source selection | `claudeCapture.mode` defaults to `transcript`, with `telemetry` as the opt-in | The native action and numbered dispatch record retain the selected mode. `init` uses the saved source for neutral replay, with telemetry for actions predating the field. | [Change notes](change.md), plan |
 | Startup gate | `require:true` checks the selected source, and a unique readable main transcript is sufficient in transcript mode | A fresh session can pass before its first agent directory exists. | [Research](research.md#open-questions), plan |
 | Evidence | Status `transcript`, source `claude-transcript`, reconciliation `transcript-messages` | The figure represents observed transcript usage, which can omit side queries. | [Owner decision](research.md#follow-up-2026-11-24-evidence-status-decision), plan |
-| Attribution | Match the Agent call and completed metadata, qualify the host from 2.1.311 and count each assistant message once | The observed records support fresh invocations and one nested child layer. | [Research](research.md#transcript-evidence-bounded-sample), plan |
-| Late figures | One recheck for a missing total with recorded source, version and invocation | Existing late attachment can fill delayed usage while preserving recorded measurements. | [ADR-019](../../../docs/ADR/ADR-019-late-usage-figure.md), plan |
+| Attribution | Match fresh launch and settled return boundaries with completed metadata, qualify the host from 2.1.311 and count each assistant message once | The observed records support fresh invocations and one nested child layer. | [Research](research.md#transcript-evidence-bounded-sample), plan |
+| Late figures | One same-source recheck for a missing total with exact recorded version and invocation | Existing late attachment can fill delayed usage when the first pass establishes identity and version. | [ADR-019](../../../docs/ADR/ADR-019-late-usage-figure.md), plan |
+| Comparison verdict | Display transcript totals and costs and withhold the existing token-savings verdict whenever either side uses transcript figures | Usage outside the transcripts can differ across the two sides. | [Comparison contract](../../../docs/REFERENCE.md#observed-token-accounting), plan |
 
 ## Scope
 
@@ -32,7 +33,7 @@ A native Claude run starts in an ordinary session when the current transcript so
 
 ## Architecture / Approach
 
-The router selects the source. After the awaited Agent settles, the host passes the observed invocation to the collector. The transcript reader resolves the current Claude session, cross-checks Agent calls and metadata, and streams bounded usage records. The existing result gate accepts the sanitized figure and evidence. Reports expose the new scope and the possibility of undercounting.
+The router selects the source. After the awaited Agent settles, the host passes the observed invocation to the collector. The transcript reader resolves the current Claude session, cross-checks Agent calls and metadata, and streams records under a shared read budget. The existing result gate accepts the sanitized figure and evidence. Reports disclose the scope and possible undercount near the title, including in capped excerpts.
 
 ## Phases at a Glance
 
@@ -50,12 +51,12 @@ The router selects the source. After the awaited Agent settles, the host passes 
 
 - Claude's transcript format is version-dependent. Unsupported records yield an unavailable figure.
 - A transcript figure may omit side queries. Reporting and cost estimates disclose this scope.
-- Live ordinary and launcher sessions require separate manual verification. Deterministic local fixtures supply the automated evidence.
+- Live ordinary and launcher sessions require separate manual verification. Check ordinary readiness with the pipeline as the first submitted command in a fresh session. Deterministic local fixtures supply the automated evidence.
 
 ## Success Criteria (Summary)
 
 - Local fixtures prove readiness in both chains, selected-source failures, correct totals and fail-closed attribution.
-- Status, reports, compare and late usage retain distinct transcript and verified evidence semantics.
+- Status, reports, compare and late usage retain distinct transcript and verified evidence semantics. `compare` keeps observed figures visible without issuing a savings verdict for transcript coverage.
 - Manual smoke checks confirm transcript evidence from ordinary Claude and verified evidence from an opt-in launcher session.
 
 ## References
