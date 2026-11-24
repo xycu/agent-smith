@@ -37,7 +37,8 @@ Use a short Markdown note with the explicit approval and row-level entries. Writ
 | --- | --- | --- |
 | 1. Document the archive exception record | One canonical procedure, a worked example covering all three lists and a reference link | The note could be mistaken for proof or for an automatic router output. |
 
-**Prerequisites** Local Git, Node 24+ and the existing 10x archive fixtures.  
+**Prerequisites** Local Git, Node 24+ and the existing 10x archive fixtures.
+
 **Estimated effort** One short documentation and verification pass.
 
 ## Open Risks and Assumptions
