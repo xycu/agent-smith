@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   SKILL_DIR, OPENSPEC_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
   executed, writeLog, writeFileAtomic, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
-  halt, providerOf, hostOf, prCommentField,
+  halt, providerOf, hostOf, claudeCaptureMode, prCommentField,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
@@ -400,7 +400,7 @@ export function prepareHandoff(p, entry) {
   if (!contract.startsWith("RESULT: ")) throw new Error("Task has no final RESULT contract");
   entry.pendingHandoff = {
     promptFile: path.relative(ROOT, file),
-    prompt: `Read the entire task file at ${JSON.stringify(file)} and follow it exactly. Do not stage this transient file. If unreadable, report status "failed" with the reason. Finish with exactly one line (signals optional):\n${contract}`,
+    prompt: `Read and follow the entire task file exactly: ${JSON.stringify(file)}. Never stage it. If unreadable, report "failed" and why. End with one line (signals optional):\n${contract}`,
   };
 }
 
@@ -498,6 +498,7 @@ export function neutralRetry(p, id, meta, log, policy, visibility = {}) {
     ...(typeof last.agent === "string" ? { agent: last.agent } : {}),
     host: hostOf(meta),
     provider: providerOf(last),
+    ...(hostOf(meta) === "claude" && providerOf(last) === "claude" ? { claudeCaptureMode: claudeCaptureMode(policy, last) } : {}),
     ...(providerOf(last) === "openai" ? { profile: last.profile } : {}),
     ...(providerOf(last) === "openai" && last.permissions != null ? { permissions: last.permissions } : {}),
     model: last.model,

@@ -291,7 +291,7 @@ for (const [chain, text, id] of [
         "printed `Step <n>` line is corroborating context",
         "never a guess from the latest step or a repeated step name",
         "Leave unmatched or ambiguous figures unattached", "Archive-agent usage belongs only in the final message",
-        "once, as a call of its own", "--usage-file <usage-file>", "No verified total or no recorded invocation: omit the call",
+        "once, as a call of its own", "--usage-file <usage-file>", "Skip absent totals, identities or qualified versions",
         "Include no raw source paths or records", "Unlink the owned payload in a finally step", "A refusal exits 1",
       ]) assert.ok(paragraph.includes(needle), needle);
     });
@@ -646,14 +646,14 @@ for (const chain of ["10x", "openspec"]) {
     const dispatch = branch("run", source.split("\n"));
     const native = dispatch.split("\n").find(line => line.includes("use native Agent"));
     assert.match(native, /For `provider: "claude"` on host `claude`, use native Agent/);
-    assert.match(native, /If `AGENT_SMITH_CLAUDE_CAPTURE` is present \(do not print its value\)/);
+    assert.match(native, /For telemetry \(including actions without `claudeCaptureMode`\) with `AGENT_SMITH_CLAUDE_CAPTURE` present/);
     const checkpoint = native.indexOf('node "$CLAUDE_USAGE" checkpoint');
     assert.ok(checkpoint >= 0 && checkpoint < native.indexOf("Call the Agent tool"));
     assert.match(native, /immediately before dispatch\. Retain its JSON for this invocation and proceed even if it is null/);
-    assert.match(onTime, /observed host version and invocation IDs, the saved `checkpoint` for bound capture/);
-    assert.match(late, /recheck under Loop step 4 once per settled native Agent step with missing tokens, a recorded invocation and either its original launcher binding or authorized explicit sources/);
-    assert.match(late, /For bound capture use the same router identity, recorded host version and `usageEvidence.invocation` with no checkpoint/);
-    assert.match(late, /Only for a newly verified total for the same recorded native invocation/);
+    assert.match(onTime, /Pass `claudeCaptureMode` as `mode`.*returned agent ID and other observed IDs\/version.*Only telemetry takes the saved checkpoint/);
+    assert.match(late, /recheck under Loop step 4 once per settled native Agent step missing tokens with a qualified recorded host version and exact Claude invocation/);
+    assert.match(late, /Use the original router identity, version and invocation.*Select transcript for `claude-transcript`, telemetry for `claude-native`.*original binding or authorized sources, no checkpoint/);
+    assert.match(late, /For a matching measured total/);
     for (const name of ["done", "halt", "archive"]) {
       const terminal = branch(name, source.split("\n"));
       const latePass = terminal.indexOf('follow "Late usage (before every end)"');
@@ -661,7 +661,7 @@ for (const chain of ["10x", "openspec"]) {
       assert.ok(latePass < terminal.indexOf("do the pull request step"), name);
       if (name === "archive") {
         assert.ok(latePass < terminal.indexOf("\n  3. Call the Agent tool"));
-        assert.match(terminal, /taking the checkpoint as in run step 2 immediately before dispatch/);
+        assert.match(terminal, /using its capture mode as in run step 2/);
         assert.match(terminal, /collector once after settlement with router `n: null` and the archive step/);
       }
     }
@@ -669,7 +669,7 @@ for (const chain of ["10x", "openspec"]) {
   test(`${chain}: late and archive accounting share collection without a second next or raw payload`, () => {
     assert.match(late, /under Loop step 4 once/);
     assert.match(late, /usage:\{totalTokens\},usageEvidence/);
-    assert.match(late, /No verified total or no recorded invocation: omit the call/);
+    assert.match(late, /Skip absent totals, identities or qualified versions/);
     assert.match(late, /Recorded numbers remain immutable/);
     assert.match(late, /identical source\/version\/invocation evidence/);
     assert.match(late, /Include no raw source paths or records/);

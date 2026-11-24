@@ -42,7 +42,7 @@ import {
   archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
 import { initPermissionWarnings } from "./init-permissions.mjs";
-import { initUsageWarning, claudeCaptureStop } from "./init-usage.mjs";
+import { initUsageWarning, claudeUsagePreflight } from "./init-usage.mjs";
 
 // Only the call that made a rollback can undo it on halt. Recovery in a new process restores timestamps only.
 let undoOnError = null;
@@ -236,7 +236,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
     writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
 
-  const target = dispatchTarget(selected, tier);
+  const target = dispatchTarget(selected, tier, hostOf(meta));
   let template = d.template ?? d.step;
   if (d.step === "manual-verify" && meta.chrome !== false) {
     if (target.provider === "openai") template = "manual-verify-openai";
@@ -1134,10 +1134,10 @@ async function main() {
     // The Claude capture gate (claudeCapture.require) follows it, before any write.
     const fresh = executed(log).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
-    const captureStop = await claudeCaptureStop(policy, selection, neutralReplay, id, chain);
-    if (captureStop) halt(captureStop);
+    const capture = await claudeUsagePreflight(policy, selection, neutralReplay, id, chain);
+    if (capture.stop) halt(capture.stop);
     initPermissionWarnings(policy, selection, neutralReplay);
-    await initUsageWarning(policy, selection, neutralReplay);
+    await initUsageWarning(policy, selection, neutralReplay, capture.warning);
     cleanupStateTemps(p.dir);
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.

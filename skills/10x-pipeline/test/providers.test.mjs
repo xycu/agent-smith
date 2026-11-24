@@ -390,6 +390,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(result.json.profile, GPT.codex.profile);
     assert.equal(result.json.permissions, GPT.codex.permissions);
     assert.equal(result.json.host, "codex");
+    assert.equal(Object.hasOwn(result.json, "claudeCaptureMode"), false);
     assert.equal(Object.hasOwn(result.json, "resultFile"), false);
     assert.equal(readLogEntries(p).filter((e) => !e.skipped).length, 2);
   });
@@ -397,11 +398,18 @@ for (const chain of ["10x", "openspec"]) {
   test(`${chain}: archive resolves the stored mode on the original host`, { skip: noGit }, () => {
     for (const [host, mode, provider] of [["codex", "claude", "claude"], ["claude", "split", "claude"], ["codex", "split", "openai"]]) {
       const { result } = archivedAction(chain, {}, { host, providerMode: mode });
+      assert.equal(result.json.claudeCaptureMode, host === "claude" && provider === "claude" ? "transcript" : undefined);
       assert.equal(result.json.action, "archive", result.stdout);
       assert.equal(result.json.provider, provider);
       assert.equal(result.json.agent, provider === "claude" ? "agent-smith:step" : undefined);
       assert.match(result.json.prompt, /Archive|archive/);
     }
+  });
+
+  test(`${chain}: native archive uses the current telemetry opt-in`, { skip: noGit }, () => {
+    const { result } = archivedAction(chain, { claudeCapture: { mode: "telemetry" } }, { host: "claude", providerMode: "claude" });
+    assert.equal(result.json.action, "archive", result.stdout);
+    assert.equal(result.json.claudeCaptureMode, "telemetry");
   });
 
   test(`${chain}: unsupported archive capability refuses before committing`, { skip: noGit }, () => {

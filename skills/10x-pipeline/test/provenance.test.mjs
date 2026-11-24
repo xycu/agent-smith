@@ -552,7 +552,7 @@ test("missing or unreadable hook inputs yield a null hook hash", () => {
         assert.equal(res.json?.action, "run", res.stdout);
         const warnings = res.stderr.split("\n").filter(line => line.startsWith("Warning: Usage capture preflight."));
         assert.equal(warnings.length, 1, res.stderr);
-        assert.match(warnings[0], /Could not check native Claude token capture.*documented launcher/);
+        assert.match(warnings[0], /Could not check native Claude token capture.*Verify the installed agent-smith plugin/);
         assert.match(warnings[0], /docs\/REFERENCE\.md#accounting-activation-and-rollback/);
       }
     }

@@ -155,10 +155,16 @@ export function selectionProblem(policy, meta, checkBounds = true) {
   return null;
 }
 
-export function dispatchTarget(policy, tier) {
+// A pending dispatch created before capture modes used telemetry.
+export function claudeCaptureMode(policy, replay) {
+  return replay ? replay.claudeCaptureMode ?? "telemetry" : policy.claudeCapture.mode;
+}
+
+export function dispatchTarget(policy, tier, host) {
   const rung = policy.ladder[tier];
   const provider = providerOf(rung);
   return { provider, model: rung.model, effort: rung.effort,
+    ...(host === "claude" && provider === "claude" ? { claudeCaptureMode: claudeCaptureMode(policy) } : {}),
     ...(provider === "openai" ? { profile: policy.codex?.profile ?? null } : {}),
     // Absent reads as null (legacy entries too); omitting the default keeps ordinary actions within their size budget.
     ...(provider === "openai" && policy.codex?.permissions != null ? { permissions: policy.codex.permissions } : {}) };
@@ -267,6 +273,9 @@ export function policyProblems(policy, checkBounds = true) {
   }
   if (p.claudeCapture !== undefined) {
     if (!isObject(p.claudeCapture)) return bad("claudeCapture", "an object", p.claudeCapture);
+    if (Object.hasOwn(p.claudeCapture, "mode") && !["transcript", "telemetry"].includes(p.claudeCapture.mode)) {
+      return bad("claudeCapture.mode", "transcript or telemetry", p.claudeCapture.mode);
+    }
     if (Object.hasOwn(p.claudeCapture, "require") && typeof p.claudeCapture.require !== "boolean") {
       return bad("claudeCapture.require", "a boolean", p.claudeCapture.require);
     }

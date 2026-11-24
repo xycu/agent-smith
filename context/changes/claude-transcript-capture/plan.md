@@ -208,17 +208,17 @@ Existing policy overrides without `mode` inherit transcript mode for new dispatc
 
 #### Automated
 
-- [x] 2.1 Deterministic Claude fixtures produce exact totals for fresh flat, nested and archive invocations, including repeated messages, synthetic placeholders and unrelated sibling agents.
-- [x] 2.2 Deterministic Claude fixtures refuse ambiguous sessions and invocations, wrong or missing children, unfinished or resumed agents, conflicting counters, unsafe or changing files and exhausted budgets without attaching an incomplete tree total.
-- [x] 2.3 Existing launcher-bound and explicit-source telemetry fixtures still exercise exact request reconciliation.
+- [x] 2.1 Deterministic Claude fixtures produce exact totals for fresh flat, nested and archive invocations, including repeated messages, synthetic placeholders and unrelated sibling agents. — 00730a23
+- [x] 2.2 Deterministic Claude fixtures refuse ambiguous sessions and invocations, wrong or missing children, unfinished or resumed agents, conflicting counters, unsafe or changing files and exhausted budgets without attaching an incomplete tree total. — 00730a23
+- [x] 2.3 Existing launcher-bound and explicit-source telemetry fixtures still exercise exact request reconciliation. — 00730a23
 
 ### Phase 3: Make transcript mode the default in both chains
 
 #### Automated
 
-- [ ] 3.1 Local CLI fixtures show both chains start in an ordinary ready session, halt without writes for an unusable required source, honor opt-out and telemetry mode, and preserve validation and preflight exemptions.
-- [ ] 3.2 Native dispatch, neutral retry, archive and skill-loop checks preserve source selection, identity and output ownership across both chains.
-- [ ] 3.3 Targeted accounting and policy regressions pass on Node 24 and live docs agree with the shipped default and evidence contract.
+- [x] 3.1 Local CLI fixtures show both chains start in an ordinary ready session, halt without writes for an unusable required source, honor opt-out and telemetry mode, and preserve validation and preflight exemptions.
+- [x] 3.2 Native dispatch, neutral retry, archive and skill-loop checks preserve source selection, identity and output ownership across both chains.
+- [x] 3.3 Targeted accounting and policy regressions pass on Node 24 and live docs agree with the shipped default and evidence contract.
 
 #### Manual
 

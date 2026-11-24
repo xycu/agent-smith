@@ -5,7 +5,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_CAPTURE_MIN_VERSION, captureFile } from "../scripts/claude-capture-data.mjs";
 import { CODEX_USAGE_FLOOR } from "../scripts/codex-usage.mjs";
-import { cleanupAll, entry, gitEnv, makeProject, run, seedRun, writeMetaFile, writeResult } from "./helpers.mjs";
+import { cleanupAll, entry, gitEnv, makeProject, readLogEntries, run, seedRun, writeLog, writeMetaFile, writeOverride, writeResult } from "./helpers.mjs";
 import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 
 after(cleanupAll);
@@ -14,7 +14,9 @@ const WARNING = /^Warning: Usage capture preflight\./;
 const SETUP = /docs\/REFERENCE\.md#accounting-activation-and-rollback/;
 const OFF = /Native Claude token capture is off.*fresh Claude session.*launcher/;
 const UNAVAILABLE = /Native Claude launcher capture is unavailable.*relaunch/;
-const HEADLESS = /Headless Claude on Codex records duration only.*Start a fresh Claude session with the capture launcher\. From that session, start a new Claude-hosted run.*saved provider mode/;
+const HEADLESS = /Headless Claude on Codex records duration only.*Claude-hosted run.*saved provider mode/;
+const TRANSCRIPT = /Native Claude transcript capture is unavailable.*readable current session transcript/;
+const TELEMETRY = { claudeCapture: { mode: "telemetry", require: false } };
 const UNKNOWN_VERSION = /Could not check Codex token capture readiness/;
 const WRONG_VERSION = /Codex CLI version is unsupported for verified token capture/;
 const PRIVATE = "private-fixture-details";
@@ -56,6 +58,7 @@ if (version) {
     ...gitEnv(project),
     PATH: bin + path.delimiter + process.env.PATH,
     CODEX_HOME: home,
+    CLAUDE_CODE_SESSION_ID: "",
     CLAUDE_CONFIG_DIR: path.join(project.base, "claude-home"),
     [CAPTURE_ENV]: "",
     AGENT_SMITH_CLAUDE_SESSION: "",
@@ -114,8 +117,8 @@ function capture(project, over = {}) {
 }
 
 for (const [chain, make] of [["10x", makeProject], ["openspec", makeOpenspecProject]]) {
-  test(chain + " native init warns without capture and rechecks empty launcher files on resume", () => {
-    const project = { ...make(), chain };
+  test(chain + " telemetry init warns without capture and rechecks empty launcher files on resume", () => {
+    const project = { ...make({ policy: TELEMETRY }), chain };
     const fake = fakeCodex(project);
     const first = init(project, fake.env);
     assert.match(first.warning, OFF);
@@ -136,7 +139,7 @@ for (const [chain, make] of [["10x", makeProject], ["openspec", makeOpenspecProj
       const launcher = host === "codex" ? capture(project).root : "";
       const { stderr, warning } = init(project, { ...fake.env, [CAPTURE_ENV]: launcher }, ["--host", host, "--provider-mode", "split"]);
       assert.match(stderr, /^Warning: Codex could not resolve its default_permissions profile/m);
-      assert.match(warning, host === "codex" ? HEADLESS : OFF);
+      assert.match(warning, host === "codex" ? HEADLESS : TRANSCRIPT);
       assert.match(warning, WRONG_VERSION);
       assert.ok(warning.includes(PIN));
       assert.doesNotMatch(warning, /12\.34\.56/);
@@ -169,7 +172,7 @@ test("native launcher probe rejects bad prerequisites without reading the captur
     ["over the limit", ({ telemetry }) => fs.truncateSync(telemetry, CAPTURE_LIMITS.telemetryBytes + 1)],
   ];
   for (const [label, damage] of cases) {
-    const project = makeProject();
+    const project = makeProject({ policy: TELEMETRY });
     const fake = fakeCodex(project);
     const sources = capture(project);
     damage(sources);
@@ -177,7 +180,7 @@ test("native launcher probe rejects bad prerequisites without reading the captur
     assert.match(warning, UNAVAILABLE, label);
     expectCalls(project, fake);
   }
-  const project = makeProject();
+  const project = makeProject({ policy: TELEMETRY });
   const fake = fakeCodex(project);
   const { root, native, telemetry } = capture(project);
   for (const file of [native, telemetry]) fs.writeFileSync(file, PRIVATE);
@@ -194,7 +197,7 @@ function preload(project, source) {
 
 test("native probe opens both sources safely and permits live append growth", () => {
   for (const mode of ["unreadable hooks", "unreadable OTLP", "growth", "replaced", "failure during probe"]) {
-    const project = makeProject();
+    const project = makeProject({ policy: TELEMETRY });
     const fake = fakeCodex(project);
     const { root, native, telemetry } = capture(project);
     const target = mode === "unreadable hooks" ? native : telemetry;
@@ -285,7 +288,7 @@ test("legacy provider arrays check each assigned transport once", () => {
   const fake = fakeCodex(project, { stdout: "codex-cli 0.168.9" });
   const { action, warning } = init(project, fake.env);
   assert.deepEqual(action.providersByStep.plan, ["claude", "openai"]);
-  assert.match(warning, OFF);
+  assert.match(warning, TRANSCRIPT);
   assert.match(warning, WRONG_VERSION);
   expectCalls(project, fake, "sandbox", "--version");
 });
@@ -331,7 +334,7 @@ fs.writeSync = (fd, ...args) => {
 
 // ---- claudeCapture.require: the default-on halt ------------------------------------
 
-const GATE = { claudeCapture: { require: true } };
+const GATE = { claudeCapture: { mode: "telemetry", require: true } };
 
 function haltInit(project, env, flags = []) {
   const result = run(project, ["init", project.id, "--chain", project.chain ?? "10x", "--goal", "fix typo", ...flags], { env });
@@ -345,6 +348,42 @@ function nothingStored(project) {
 }
 
 for (const [chain, make, skill] of [["10x", makeProject, "10x-pipeline"], ["openspec", makeOpenspecProject, "openspec-pipeline"]]) {
+  test(chain + " defaults to the readable session transcript and replays its saved source after policy edits", () => {
+    const project = { ...make({ policy: { claudeCapture: { require: true } } }), chain };
+    const fake = fakeCodex(project);
+    const env = { ...fake.env, CLAUDE_CODE_SESSION_ID: "session" };
+    assert.match(haltInit(project, env), TRANSCRIPT);
+    nothingStored(project);
+    const dir = path.join(env.CLAUDE_CONFIG_DIR, "projects", "original-checkout");
+    fs.mkdirSync(dir, { recursive: true });
+    const main = path.join(dir, "session.jsonl");
+    fs.writeFileSync(main, "");
+    const first = init(project, env);
+    assert.equal(first.warning, "");
+    assert.equal(first.action.claudeCaptureMode, "transcript");
+    const log = readLogEntries(project);
+    assert.equal(log.at(-1).claudeCaptureMode, "transcript");
+    writeOverride(project, GATE);
+    writeResult(project, { status: "orchestrator-error", note: "no child started" });
+    assert.equal(init(project, env).action.claudeCaptureMode, "transcript");
+
+    // A native step from before the mode field was introduced keeps its launcher requirement.
+    const old = readLogEntries(project);
+    delete old.at(-1).claudeCaptureMode;
+    writeLog(project, old);
+    writeOverride(project, { claudeCapture: { require: true } });
+    writeResult(project, { status: "orchestrator-error", note: "no child started" });
+    assert.match(haltInit(project, env), OFF);
+    const replay = init(project, { ...env, [CAPTURE_ENV]: capture(project).root });
+    assert.equal(replay.action.claudeCaptureMode, "telemetry");
+    assert.equal(replay.warning, "");
+
+    const optOut = { ...make(), chain };
+    const advisory = init(optOut, fakeCodex(optOut).env);
+    assert.match(advisory.warning, TRANSCRIPT);
+    assert.equal(advisory.action.claudeCaptureMode, "transcript");
+  });
+
   test(chain + " init halts on a native Claude host without ready capture and resumes from a launcher session", () => {
     for (const [label, damage, wording] of [
       ["off", null, OFF], ["unusable", ({ binding }) => fs.writeFileSync(binding, PRIVATE), UNAVAILABLE],
@@ -371,7 +410,7 @@ for (const [chain, make, skill] of [["10x", makeProject, "10x-pipeline"], ["open
     const { root } = capture(project);
     const resumed = init(project, { ...fake.env, [CAPTURE_ENV]: root });
     assert.equal(resumed.warning, "");
-    const optOut = { ...make({ policy: { claudeCapture: { require: false } } }), chain };
+    const optOut = { ...make({ policy: TELEMETRY }), chain };
     assert.match(init(optOut, fakeCodex(optOut).env).warning, OFF);
   });
 }

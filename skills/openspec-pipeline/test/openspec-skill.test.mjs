@@ -305,7 +305,7 @@ test("native accounting shares the immediate, late and archive reader without fi
   assert.match(branch("archive"), /Only for native Agent, apply Loop step 4.s collector/);
   const late = section(lines, "## Late usage (before every end)").join("\n");
   assert.match(late, /--usage-file <usage-file> --chain openspec/);
-  assert.match(late, /No verified total or no recorded invocation: omit the call/);
+  assert.match(late, /Skip absent totals, identities or qualified versions/);
   assert.match(late, /Include no raw source paths or records/);
   assert.match(late, /Unlink the owned payload in a finally step/);
   assert.doesNotMatch(late, /node "\$ROUTER" next|--tokens N/);

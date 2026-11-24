@@ -86,7 +86,7 @@ export function makeProject({ id = "demo", plan = null, policy = null, change = 
 // It also merges in `isolation.require: false` unless the policy has its own `isolation` key, so scratch projects
 // outside a linked worktree run as before; a test that wants the gate gives its own `isolation` block.
 // It also merges in `claudeCapture.require: false` unless the policy has its own `claudeCapture` key, so `init` on a
-// Claude host without the capture launcher still runs; a test that wants the gate gives its own `claudeCapture` block.
+// Claude host without a usable capture source still runs; a test that wants the gate gives its own `claudeCapture` block.
 // It also merges in `manualVerify.minRigor: null` unless the policy has its own `manualVerify` key, so the
 // manual-verify step stays off and existing tests keep their paths; a test that wants the step opts in with
 // `policy: { manualVerify: { minRigor: "lean" } }`.
