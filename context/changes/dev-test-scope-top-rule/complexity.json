@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md Notes fix the outcome (dev runs only covering test files, CI runs full suite); open detail is whether openspec-pipeline/rules/chain.md needs its own copy, with one obvious answer in change.md (only if the chain needs it)" },
+    "novelty": { "score": 1, "evidence": "skills/10x-pipeline/rules/README.md and top.md already hold always-true GIVEN/WHEN/THEN MUST rules; the new rule follows that existing form" },
+    "coupling": { "score": 2, "evidence": "skills/10x-pipeline/rules/top.md is read by the shared router for both chains; change.md also names chain.md, rules.test.mjs and the README, and must stay consistent with the PR #265 wording in AGENTS.md and policy.json" },
+    "discovery": { "score": 0, "evidence": "change.md names the locations: skills/10x-pipeline/rules/top.md, skills/openspec-pipeline/rules/chain.md, rules.test.mjs, skills/10x-pipeline/rules/README.md" },
+    "volume": { "score": 2, "evidence": "change.md lists about 4 files: top.md, README, rules.test.mjs, and chain.md only if needed; small text edits in each" },
+    "verification": { "score": 1, "evidence": "skills/10x-pipeline/test/rules.test.mjs and rule-levels.test.mjs already test the rule files; a new rule needs a test row, and touched-file guard tests (agents-md-size, skill-loop) stay as existing checks" }
+  },
+  "unknowns": [
+    "Whether skills/openspec-pipeline/rules/chain.md needs its own copy of the rule (change.md leaves it conditional)",
+    "Whether the rule text pushes the skill-loop.test.mjs or agents-md-size ceiling if the wording grows; not measured",
+    "Exact content of PR #265, which the change builds on; not read, since the score needed only change.md and the rule files"
+  ],
+  "confidence": "medium"
+}
