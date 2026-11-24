@@ -1,0 +1,21 @@
+init-usage.test.mjs — 10x defaults to the readable session transcript and replays its saved source after policy edits
+init-usage.test.mjs — 10x init runs without a warning once capture is ready, and keeps the advisory with the opt-out
+claude-usage.test.mjs — transcript counts each attributed message once for numbered with children=false
+claude-usage.test.mjs — bound capture proves flat step using the checkpoint CLI
+accounting-readers.test.mjs — transcript totals retain routing costs and report their scope without a savings verdict
+accounting-readers.test.mjs — 10x: native capture on appears in the terminal report and status rebuild
+Scope: local fixtures only. Neither live session was authenticated.
+✔ transcript totals retain routing costs and report their scope without a savings verdict (1085.137083ms)
+✔ 10x: native capture on appears in the terminal report and status rebuild (360.626166ms)
+✔ bound capture proves flat step using the checkpoint CLI (109.968ms)
+✔ transcript counts each attributed message once for numbered with children=false (9.440833ms)
+✔ 10x defaults to the readable session transcript and replays its saved source after policy edits (653.172042ms)
+✔ 10x init runs without a warning once capture is ready, and keeps the advisory with the opt-out (332.111958ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1541.414208

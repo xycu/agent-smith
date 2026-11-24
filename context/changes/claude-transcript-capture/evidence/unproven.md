@@ -1,0 +1,2 @@
+- 3.4 — Claude Code 2.1.325 meets the version floor, but the fresh isolated profile reported that it was not logged in. The transcript startup, collector and report fixtures passed, and no live ordinary Agent step was available to prove transcript evidence in status and the rendered report.
+- 3.5 — The fresh isolated profile reported that it was not logged in, so a launcher session could not complete a live Agent step. The telemetry readiness, checkpoint collector and report fixtures passed without proving live request-record evidence in status and the rendered report.
