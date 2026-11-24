@@ -1,0 +1,1 @@
+- 1.7 — needs a live plain claude session and a launcher session in a real terminal; not reachable unattended (gate itself covered by tests, halt shown in row 1.8 evidence)

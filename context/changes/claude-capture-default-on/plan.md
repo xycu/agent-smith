@@ -267,7 +267,7 @@ A Claude-hosted run started or resumed from an ordinary `claude` session now hal
 #### Manual
 
 - [ ] 1.7 From plain claude, init halts with a pasteable launcher command, and the launcher session resumes the run with figures
-- [ ] 1.8 The halt text reads clearly in the orchestrator output
+- [x] 1.8 The halt text reads clearly in the orchestrator output — evidence: evidence/judgment-halt-text-and-docs.md
 
 ### Phase 2: Docs and ADR amendments
 
@@ -280,5 +280,5 @@ A Claude-hosted run started or resumed from an ordinary `claude` session now hal
 
 #### Manual
 
-- [ ] 2.5 The owner confirms the README paragraph and ADR-018 and ADR-019 amendments state the 2026-11-24 decision
-- [ ] 2.6 The owner decides the release type when the run PR title is derived
+- [x] 2.5 The owner confirms the README paragraph and ADR-018 and ADR-019 amendments state the 2026-11-24 decision — evidence: evidence/judgment-halt-text-and-docs.md
+- [x] 2.6 The owner decides the release type when the run PR title is derived — evidence: evidence/judgment-halt-text-and-docs.md

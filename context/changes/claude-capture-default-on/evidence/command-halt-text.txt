@@ -1,0 +1,7 @@
+command: init x --goal "x" in scratch project (isolation.require=false, no capture binding, env -u AGENT_SMITH_CLAUDE_SESSION), router: skills/10x-pipeline/scripts/route.mjs
+output (path of this worktree kept; no secrets):
+{
+  "action": "halt",
+  "reason": "Native Claude token capture is off in this session. Start a fresh Claude session with the capture launcher: node \".../skills/10x-pipeline/scripts/claude-capture.mjs\" (run it from a terminal outside Claude Code, in the project root), then run /agent-smith:10x-pipeline x again in that session with the same flags; a run that already has steps resumes with its saved host and provider mode. To skip this check, set { \"claudeCapture\": { \"require\": false } } in context/foundation/agent-smith-policy.json. Nothing was written."
+}
+scratch change folder afterwards: only change.md (nothing written).
