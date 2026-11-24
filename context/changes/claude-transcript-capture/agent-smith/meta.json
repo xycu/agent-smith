@@ -51,5 +51,17 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/isolation.mjs +8"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "3.4 In an ordinary qualified Claude Code session without the launcher, complete a native Agent step and confirm transcript evidence in status and the rendered report.",
+      "3.5 In a fresh launcher session with telemetry mode selected, complete a native Agent step and confirm verified request-record evidence in status and the rendered report."
+    ],
+    "manualNotProved": [
+      "3.4 In an ordinary qualified Claude Code session without the launcher, complete a native Agent step and confirm transcript evidence in status and the rendered report. — not proved: Claude Code 2.1.325 and the inherited ordinary session passed transcript readiness. A bounded read found no matching native Agent call or completed result for this change. The OpenAI runner exposes no",
+      "3.5 In a fresh launcher session with telemetry mode selected, complete a native Agent step and confirm verified request-record evidence in status and the rendered report. — not proved: The inherited session has no launcher binding, and the fresh scratch Claude profile was unauthenticated even with the configured home. The documented launcher starts an interactive session, which cann"
+    ]
   }
 }
