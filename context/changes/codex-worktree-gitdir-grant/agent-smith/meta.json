@@ -1,0 +1,49 @@
+{
+  "id": "codex-worktree-gitdir-grant",
+  "goal": "Implement context/changes/codex-worktree-gitdir-grant/plan.md (3 phases). Prerequisite: PR #285 (codex-run-gitdir-grant) is merged, so re-check its gitdirGrant/configArgs names in run-codex.mjs first. Extend the per-run Codex grant to gitdir + <common>/objects, refs, logs (packed-refs only if the plan's check needs it). Narrow init-permissions.mjs advice and add the read-only stale agent-smith-* line listing for ~/.codex/config.toml. Never write user config. Leave Manual rows 1.4, 1.5, 3.3 and 3.4 (live macOS, real Codex) for me.",
+  "host": "claude",
+  "providerMode": "claude",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/codex-worktree-gitdir-grant",
+  "baseSha": "79b6cc36bd9a8bbf70c0bc32e782c6d5fc1ab65f",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.16.2",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "2c10243b953d64dd",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "bf7fb87c06a249bf",
+      "complexity": "997fa59224abe417",
+      "escalation": "b7425a0a9da972e9",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "hookFiles": "8b089927112ef1f4",
+      "isolation": "a0a594659b853084",
+      "ladder": "00bd04bb00a5db6a",
+      "lessons": "92d849fccafd0527",
+      "limits": "ad6be642613c2b99",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "9c76036954770e5b",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "f43edb2ca10e3007",
+      "score": "dc16b78fdf08a0df",
+      "splitProviders": "e23dcbd325996cb7",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "providerMode": "claude",
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  }
+}
