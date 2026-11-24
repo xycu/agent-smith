@@ -1,0 +1,16 @@
+codex-cli 0.172.0, macOS. Script: evidence/script-codex-sandbox-grant.sh (<S> = scratch dir)
+COMMIT_OK
+sh: <S>/main/.git/hooks/x: Operation not permitted
+HOOKS_DONE
+sh: <S>/main/.git/config: Operation not permitted
+CONFIG_DONE
+BRANCH_OK
+C2_OK
+error: could not delete reference refs/heads/nb: Unable to create '<S>/main/.git/packed-refs.lock': Operation not permitted   (git branch -d FAILS)
+GC_AUTO_OK
+fatal: Unable to create '<S>/main/.git/packed-refs.lock': Operation not permitted   (git pack-refs --all FAILS)
+Afterwards: hooks/x does not exist; .git/config unchanged.
+One 'Unable to create packed-refs.lock' error also printed while a commit still succeeded (matches ADR-024).
+Failing path recorded: branch -d and pack-refs need <common>/packed-refs.lock, a new file in the common dir itself;
+a grant on the packed-refs file would not help, only a whole-common-dir grant, which would reopen hooks/config. Not added.
+A first attempt without the "<S>"="read" line wrote hooks/config only because the scratch lay under TMPDIR (writable by default); not counted as proof.

@@ -56,9 +56,48 @@ function codexWarning(profile, common) {
     `In the target project's trusted .codex/config.toml, merge this profile.${selector}`,
     header,
     'extends = ":workspace"',
+    // Only what a commit needs, never the whole common dir, so hooks and config stay denied.
     ...(safeText(common) && !PATH_PATTERN.test(common) ? [
-      "", `[permissions.${profileKey}.filesystem]`, `${JSON.stringify(common)} = "write"`,
+      "", `[permissions.${profileKey}.filesystem]`,
+      ...["objects", "refs", "logs"].map(name => `${JSON.stringify(path.join(common, name))} = "write"`),
     ] : []),
+  ].join("\n");
+}
+
+const STALE_MAX_BYTES = 1024 * 1024;
+const STALE_SHOWN = 20;
+const FILESYSTEM_TABLE = /^\s*\[\s*permissions\.(?:[A-Za-z0-9_-]+|"[^"\\]*")\.filesystem\s*\]\s*(#.*)?$/;
+const WRITE_ENTRY = /^\s*("(?:[^"\\]|\\.)*")\s*=\s*"write"\s*(#.*)?$/;
+
+// Read-only: lists write grants in the Codex user config on this repository's agent-smith worktree gitdirs that no
+// longer exist. Per-run grants replace them; nothing is written and any read failure prints nothing.
+function staleGrantWarning(common) {
+  const printed = runGit(["rev-parse", "--path-format=absolute", "--git-common-dir"], { timeout: TIMEOUT_MS });
+  // macOS reports /var and /private/var for one directory, so accept both spellings of the common dir.
+  const parents = new Set([common, printed.status === 0 ? printed.stdout.replace(/\r?\n$/, "") : null]
+    .filter(Boolean).map(dir => path.join(dir, "worktrees")));
+  let file, text;
+  try {
+    // The user's own config, often a dotfile symlink, is followed like the runner does; FIFOs and oversized files fail.
+    file = fs.realpathSync(path.join(process.env.CODEX_HOME || path.join(os.homedir(), ".codex"), "config.toml"));
+    text = readBoundedFile(file, { root: path.dirname(file), maxBytes: STALE_MAX_BYTES });
+  } catch { return null; }
+  const stale = [];
+  let inTable = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^\s*\[/.test(line)) { inTable = FILESYSTEM_TABLE.test(line); continue; }
+    const quoted = inTable && WRITE_ENTRY.exec(line)?.[1];
+    if (!quoted) continue;
+    let key;
+    try { key = JSON.parse(quoted); } catch { continue; }
+    if (!safeText(key) || !parents.has(path.dirname(key)) || !path.basename(key).startsWith("agent-smith-")) continue;
+    try { fs.lstatSync(key); } catch (error) { if (error.code === "ENOENT") stale.push(key); }
+  }
+  if (!stale.length || !safeText(file)) return null;
+  return [
+    `Warning: ${JSON.stringify(file)} grants write on ${stale.length} agent-smith worktree gitdir(s) that no longer exist. Per-run grants make these lines unnecessary; they can be deleted by hand.`,
+    ...stale.slice(0, STALE_SHOWN).map(key => `${JSON.stringify(key)} = "write"`),
+    ...(stale.length > STALE_SHOWN ? [`... and ${stale.length - STALE_SHOWN} more`] : []),
   ].join("\n");
 }
 
@@ -149,6 +188,7 @@ export function initPermissionWarnings(policy, selection, neutralReplay) {
   if (providers.has("openai")) {
     const profile = replayProvider === "openai" ? neutralReplay.profile : policy.codex?.profile;
     warnings.push(codexWarning(profile, common));
+    if (common) warnings.push(staleGrantWarning(common));
   }
   if (providers.has("claude") && common) {
     const gitDir = gitMetadata("--git-dir");

@@ -2,6 +2,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { CAPTURE_ENV } from "../scripts/claude-capture-data.mjs";
 import { CODEX_USAGE_FLOOR } from "../scripts/codex-usage.mjs";
 import {
@@ -201,7 +202,9 @@ test("split init on both chains warns about the real shared Git directory withou
     assert.deepEqual(new Set(Object.values(action.providersByStep)), new Set(["claude", "openai"]));
     assert.match(warned.stderr, CODEX_WARNING);
     assert.match(warned.stderr, CLAUDE_WARNING);
-    assert.ok(warned.stderr.includes(`[permissions."custom".filesystem]\n${JSON.stringify(common)} = "write"`));
+    const entries = ["objects", "refs", "logs"].map(name => `${JSON.stringify(path.join(common, name))} = "write"`);
+    assert.ok(warned.stderr.includes(`[permissions."custom".filesystem]\n${entries.join("\n")}\n`), warned.stderr);
+    assert.ok(!warned.stderr.includes(`${JSON.stringify(common)} = "write"`), "never the whole common dir");
     assert.ok(warned.stderr.includes(JSON.stringify({ sandbox: { filesystem: { allowWrite: [common] } } }, null, 2)));
     assert.match(warned.stderr, /access automatically.*sandboxed Git writes fail/);
     assert.deepEqual(paths.map(file => fs.readFileSync(file)), contentsBefore);
@@ -219,6 +222,97 @@ test("split init on both chains warns about the real shared Git directory withou
     assert.deepEqual(fs.readFileSync(codexConfig), contentsBefore[0]);
     assert.equal(git(main, ["show-ref"]), refsBefore);
   }
+});
+
+const STALE_WARNING = /^Warning: .* grants write on (\d+) agent-smith worktree gitdir\(s\) that no longer exist\. Per-run grants make these lines unnecessary; they can be deleted by hand\.$/m;
+
+function staleConfig(common, extra = "") {
+  const worktrees = path.join(common, "worktrees");
+  fs.mkdirSync(path.join(worktrees, "agent-smith-live"), { recursive: true });
+  return [
+    'default_permissions = "agent-smith"',
+    "[permissions.agent-smith.filesystem]",
+    `${JSON.stringify(path.join(worktrees, "agent-smith-gone"))} = "write"`,
+    extra,
+    `${JSON.stringify(path.join(worktrees, "agent-smith-live"))} = "write"`,
+    `${JSON.stringify(path.join(worktrees, "other-gone"))} = "write"`,
+    `${JSON.stringify(path.join(path.dirname(common), "elsewhere/.git/worktrees/agent-smith-foreign"))} = "write"`,
+    '[permissions."quoted".filesystem] # comment',
+    `${JSON.stringify(path.join(worktrees, "agent-smith-quoted"))} = "write"`,
+    `${JSON.stringify(path.join(worktrees, "agent-smith-read"))} = "read"`,
+    "[profiles.other]",
+    `${JSON.stringify(path.join(worktrees, "agent-smith-outside"))} = "write"`,
+  ].join("\n");
+}
+
+test("lists stale agent-smith worktree grants of this repository read-only and only for an OpenAI step", { skip: !gitAvailable() }, () => {
+  const { worktree, common } = linkedProject();
+  const fixture = codex(worktree);
+  const config = write(path.join(fixture.env.CODEX_HOME, "config.toml"), staleConfig(common));
+  const before = fs.readFileSync(config);
+  // The fake Codex logs its own calls there; anything else new would be a write by the scan.
+  const files = () => fs.readdirSync(fixture.env.CODEX_HOME).filter(name => !name.endsWith("calls.jsonl")).sort();
+  const listing = files();
+  const result = launch(worktree, fixture.env, ["--host", "codex"]);
+  assertRun(result);
+  const stderr = permissionStderr(result.stderr);
+  assert.equal(STALE_WARNING.exec(stderr)?.[1], "2", stderr);
+  const listed = path.join(common, "worktrees");
+  assert.ok(stderr.includes(`${JSON.stringify(path.join(listed, "agent-smith-gone"))} = "write"`));
+  assert.ok(stderr.includes(`${JSON.stringify(path.join(listed, "agent-smith-quoted"))} = "write"`));
+  for (const name of ["agent-smith-live", "other-gone", "agent-smith-foreign", "agent-smith-read", "agent-smith-outside"]) {
+    assert.ok(!stderr.includes(name), name);
+  }
+  assert.deepEqual(fs.readFileSync(config), before, "the scan writes nothing");
+  assert.deepEqual(files(), listing);
+
+  // A Claude-only run never scans.
+  const other = linkedProject();
+  const claudeFixture = codex(other.worktree);
+  write(path.join(claudeFixture.env.CODEX_HOME, "config.toml"), staleConfig(other.common));
+  const claude = launch(other.worktree, claudeFixture.env, ["--host", "claude"]);
+  assert.equal(assertRun(claude).provider, "claude");
+  assert.doesNotMatch(claude.stderr, STALE_WARNING);
+});
+
+test("the stale listing is bounded and silent for an oversized, unreadable, FIFO or directory config", { skip: (!gitAvailable() || process.platform === "win32") && "no FIFOs" }, () => {
+  // One fresh linked project per case: a repeated init replays neutrally only up to its cap.
+  const scan = (setup) => {
+    const { worktree, common } = linkedProject();
+    const fixture = codex(worktree);
+    const config = path.join(fixture.env.CODEX_HOME, "config.toml");
+    setup({ worktree, common, config });
+    const begin = Date.now();
+    const result = launch(worktree, fixture.env, ["--host", "codex"]);
+    assertRun(result);
+    assert.ok(Date.now() - begin < 10000, "never hangs");
+    return permissionStderr(result.stderr);
+  };
+  const bounded = scan(({ common, config }) => {
+    const many = Array.from({ length: 25 }, (_, i) => `${JSON.stringify(path.join(common, "worktrees", `agent-smith-old-${i}`))} = "write"`);
+    write(config, staleConfig(common, many.join("\n")));
+  });
+  assert.equal(STALE_WARNING.exec(bounded)?.[1], "27");
+  assert.equal(bounded.split("\n").filter(line => line.endsWith('= "write"')).length, 20);
+  assert.match(bounded, /^\.\.\. and 7 more$/m);
+
+  // A symlinked user config is followed, as the runner follows it.
+  assert.match(scan(({ worktree, common, config }) => {
+    fs.symlinkSync(write(path.join(worktree.base, "dotfiles/codex.toml"), staleConfig(common)), config);
+  }), STALE_WARNING);
+
+  const cases = [
+    ({ common, config }) => write(config, staleConfig(common, "#".repeat(1024 * 1024))),
+    ({ common, config }) => { write(config, staleConfig(common)); fs.chmodSync(config, 0); },
+    ({ config }) => assert.equal(spawnSync("mkfifo", [config]).status, 0),
+    ({ worktree, config }) => {
+      const fifo = path.join(worktree.base, "codex.fifo");
+      assert.equal(spawnSync("mkfifo", [fifo]).status, 0);
+      fs.symlinkSync(fifo, config);
+    },
+    ({ config }) => fs.mkdirSync(config),
+  ];
+  for (const setup of cases) assert.equal(scan(setup), "", setup.toString());
 });
 
 test("checks Claude's explicit user, project and local write entries with each scope's path anchor", { skip: !gitAvailable() }, () => {

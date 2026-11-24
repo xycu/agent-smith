@@ -11,6 +11,7 @@ import {
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { codexChildEnv } from "../scripts/run-codex.mjs";
+import { removeTree } from "../scripts/remove-tree.mjs";
 import { writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { codexFixture, execute, calls, metadataCalls, setMode, startRunner, waitForFile, runnerLeftovers } from "./codex-helpers.mjs";
 
@@ -759,11 +760,11 @@ for (const chain of ["10x", "openspec"]) {
 
 // The per-run gitdir grant (#281): name resolution, the no-grant cases and identical sandbox and exec argv.
 // git: "linked" makes the run root a linked worktree of a sibling repository, as an isolated run is; "plain" a main checkout.
-function grantFixture(permissions = null, { git: repo = "linked" } = {}) {
+function grantFixture(permissions = null, { git: repo = "linked", mainName = "main-repo" } = {}) {
   const w = codexFixture("10x", { policy: { ...PRESET, codex: { profile: null, permissions } } });
   if (repo === "plain") gitInit(w.project);
   if (repo === "linked") {
-    const main = { base: path.join(w.project.base, "main-repo") };
+    const main = { base: path.join(w.project.base, mainName) };
     const linked = path.join(main.base, "linked");
     fs.mkdirSync(main.base);
     gitInit(main);
@@ -777,6 +778,9 @@ function grantFixture(permissions = null, { git: repo = "linked" } = {}) {
   return w;
 }
 const runGitDir = w => fs.realpathSync(git(w.project, ["rev-parse", "--absolute-git-dir"]).trim());
+const commonDir = w => fs.realpathSync(git(w.project, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
+// The gitdir, then the shared objects, refs and logs (when present); never the whole common dir.
+const grantPaths = (w, names = ["objects", "refs", "logs"]) => [runGitDir(w), ...names.map(name => path.join(commonDir(w), name))];
 const projectConfig = w => path.join(w.project.root, ".codex/config.toml");
 const homeConfig = w => path.join(w.env.CODEX_HOME, "config.toml");
 function writeConfig(file, text) {
@@ -792,11 +796,11 @@ function grantArgs(w) {
   assert.deepEqual(records.map(call => call.args[0]), ["sandbox", "exec"]);
   return records.map(call => call.args.flatMap((arg, i) => arg.startsWith("permissions.") ? [[call.args[i - 1], arg]] : []));
 }
-function assertGrant(w, result, profile) {
+function assertGrant(w, result, profile, paths = grantPaths(w)) {
   assert.equal(result.json.completed, true, result.stdout + result.stderr);
-  const gitDir = runGitDir(w);
-  assert.deepEqual(result.json.preflight.grant, { profile, gitDir });
-  const expected = [["-c", `permissions.${profile}.filesystem={${JSON.stringify(gitDir)}="write"}`]];
+  assert.deepEqual(result.json.preflight.grant, { profile, paths });
+  const table = paths.map(p => `${JSON.stringify(p)}="write"`).join(",");
+  const expected = [["-c", `permissions.${profile}.filesystem={${table}}`]];
   assert.deepEqual(grantArgs(w), [expected, expected], "sandbox and exec carry the same grant");
 }
 function assertNoGrant(w, result) {
@@ -855,6 +859,38 @@ test("no permissions name, a builtin name, an unsafe config file or no gitdir pa
   assertNoGrant(mainCheckout, execute(mainCheckout));
 });
 
+// Git accepts an executable file in place of objects or refs, so rev-parse still resolves while the directory is gone.
+function replaceWithFile(dir) {
+  removeTree(dir);
+  fs.writeFileSync(dir, "", { mode: 0o755 });
+}
+
+test("the grant holds exactly gitdir, objects, refs and logs, drops logs when absent and refuses a missing objects or refs", () => {
+  const w = grantFixture("policy-profile");
+  const result = execute(w);
+  assertGrant(w, result, "policy-profile");
+  assert.equal(result.json.preflight.grant.paths.length, 4);
+  for (const name of ["hooks", "config", "info"]) {
+    assert.ok(!result.json.preflight.grant.paths.includes(path.join(commonDir(w), name)), name);
+  }
+  assert.ok(!result.json.preflight.grant.paths.includes(commonDir(w)), "never the whole common dir");
+
+  const noLogs = grantFixture("policy-profile");
+  removeTree(path.join(commonDir(noLogs), "logs"));
+  assertGrant(noLogs, execute(noLogs), "policy-profile", grantPaths(noLogs, ["objects", "refs"]));
+
+  for (const name of ["objects", "refs"]) {
+    const missing = grantFixture("policy-profile");
+    replaceWithFile(path.join(commonDir(missing), name));
+    assertNoGrant(missing, execute(missing));
+    setMode(missing, { preflightFailure: true });
+    assert.ok(execute(missing).json.reason.endsWith("No model launched. No gitdir grant (no common subdirectory); set codex.permissions to a custom profile name."), name);
+  }
+
+  const control = grantFixture("policy-profile", { mainName: "main\x01repo" });
+  assertNoGrant(control, execute(control));
+});
+
 test("a legacy pending entry and action without permissions still match and resolve the name from config", () => {
   const w = grantFixture();
   writeConfig(homeConfig(w), 'default_permissions = "home-profile"\n');
@@ -880,10 +916,9 @@ function refusal(w, preflightStderr) {
 
 test("a preflight refusal names the grant and the denied gitdir path from Codex's stderr", () => {
   const w = grantFixture("policy-profile");
-  const gitDir = runGitDir(w);
-  const denied = `EPERM: operation not permitted, open '${gitDir}/x'`;
+  const denied = `EPERM: operation not permitted, open '${runGitDir(w)}/x'`;
   const reason = refusal(w, `${denied}\n`);
-  assert.ok(reason.endsWith(`No model launched. Gitdir grant: policy-profile on ${gitDir}. Codex output: ${denied}`), reason);
+  assert.ok(reason.endsWith(`No model launched. Gitdir grant: policy-profile on ${grantPaths(w).join(", ")}. Codex output: ${denied}`), reason);
 });
 
 test("a refusal without a grant states why and names codex.permissions, with no empty output label", () => {

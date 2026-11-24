@@ -29,7 +29,7 @@ function configArgs(action, grant) {
   return ["-C", ROOT, ...codexProfileArgs(action.profile),
     "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2",
     // An inline table merges into the profile's filesystem table; a dotted -c key would split the path on every dot.
-    ...(grant ? ["-c", `permissions.${grant.profile}.filesystem={${JSON.stringify(grant.gitDir)}="write"}`] : [])];
+    ...(grant ? ["-c", `permissions.${grant.profile}.filesystem={${grant.paths.map((p) => `${JSON.stringify(p)}="write"`).join(",")}}`] : [])];
 }
 
 const CONFIG_MAX = 64 * 1024;
@@ -55,7 +55,8 @@ function configPermissions(file, { follow }) {
   } catch { return null; } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
 
-// The per-run write grant on the run root's own gitdir (#281), or grant null and the reason none resolves.
+// The per-run write grant on the run root's own gitdir (#281) plus the shared objects, refs and logs a commit needs
+// (#284), never the whole common dir, so hooks and config stay denied; or grant null and the reason none resolves.
 // Name order: codex.permissions, the project config (repository-controlled, never followed), then CODEX_HOME's config.
 function gitdirGrant(permissions) {
   const none = (why) => ({ grant: null, why });
@@ -73,7 +74,22 @@ function gitdirGrant(permissions) {
   if (!path.isAbsolute(gitDir) || /[\x00-\x1f\x7f]/.test(gitDir)) return none("no gitdir");
   // Outside a linked worktree the gitdir is the common dir, which stays with the user's profile.
   if (gitDir === commonDir) return none("gitdir is the common dir");
-  return { grant: { profile, gitDir }, why: null };
+  const paths = [gitDir];
+  for (const name of ["objects", "refs", "logs"]) {
+    let dir;
+    try {
+      dir = fs.realpathSync(path.join(commonDir, name));
+      if (!fs.statSync(dir).isDirectory()) dir = null;
+    } catch { dir = null; }
+    // logs is optional: a repository without reflogs has none, and its absence never drops the grant.
+    if (dir === null) {
+      if (name === "logs") continue;
+      return none("no common subdirectory");
+    }
+    paths.push(dir);
+  }
+  if (paths.some((p) => !path.isAbsolute(p) || /[\x00-\x1f\x7f]/.test(p))) return none("no gitdir");
+  return { grant: { profile, paths }, why: null };
 }
 
 const STDERR_TAIL = 512;
@@ -282,7 +298,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     // Appended after "No model launched.": what was granted, then what Codex said about the failure.
     const detail = () => {
       const tail = sanitizedTail(stderrTail);
-      return (grant ? ` Gitdir grant: ${grant.profile} on ${grant.gitDir}.`
+      return (grant ? ` Gitdir grant: ${grant.profile} on ${grant.paths.join(", ")}.`
         : ` No gitdir grant (${why}); set codex.permissions to a custom profile name.`) + (tail ? ` Codex output: ${tail}` : "");
     };
     let preflightExpired = false;

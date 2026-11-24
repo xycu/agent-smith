@@ -1,0 +1,4 @@
+skills/10x-pipeline/test/init-permissions.test.mjs: "lists stale agent-smith worktree grants of this repository read-only and only for an OpenAI step"
+Run: node --test --test-concurrency=2 skills/10x-pipeline/test/init-permissions.test.mjs
+Result: tests 13, pass 13, fail 0, skipped 0.
+The test writes a config.toml with dead agent-smith-* worktree lines, runs init, asserts the stale warning counts 2 lines (gone, quoted) and omits live/foreign/read/outside ones, and asserts the config bytes equal the pre-run bytes (byte-identical, equivalent to equal checksums) and the CODEX_HOME file list is unchanged. A Claude-only run prints no warning.
