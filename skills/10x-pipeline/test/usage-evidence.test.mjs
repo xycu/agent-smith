@@ -67,6 +67,21 @@ test("Claude identities require an exact run boundary, not just an agent or repe
   assert.equal(normalizeAccounting({ totalTokens: 42 }, evidence).usageEvidence.status, "unavailable");
 });
 
+test("transcript evidence requires a qualified Claude invocation and at least one counted message", () => {
+  const evidence = { ...verified, status: "transcript", source: "claude-transcript", hostVersion: "2.1.311",
+    reconciliation: "transcript-messages", invocation: { host: "claude", sessionId: "session", agentId: "agent", runId: "run" } };
+  const usage = { totalTokens: 0, toolUses: 1 };
+  assert.deepEqual(normalizeAccounting(usage, evidence), { usage, usageEvidence: evidence });
+  for (const over of [{ status: "verified" }, { source: "claude-native" }, { reconciliation: "request-records" },
+    { invocation }, { invocation: { ...evidence.invocation, agentId: "" } }, { hostVersion: "2.1.310" },
+    { hostVersion: "unknown" }, { requestCount: 0 }, { requestCount: USAGE_LIMITS.requests + 1 },
+    { sessionCount: 0 }, { sessionCount: USAGE_LIMITS.sessions + 1 }]) {
+    const rejected = normalizeAccounting(usage, { ...evidence, ...over });
+    assert.deepEqual(rejected.usage, { toolUses: 1 });
+    assert.equal(rejected.usageEvidence.reason, "invalid-evidence");
+  }
+});
+
 test("bounded regular inputs accept the limit and reject redirects, outside roots, and excess bytes", () => {
   const p = makeProject();
   const file = path.join(p.root, "usage.json");

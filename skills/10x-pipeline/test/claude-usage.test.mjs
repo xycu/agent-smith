@@ -6,9 +6,10 @@ import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { claudeCaptureCheckpoint, collectClaudeUsage, CLAUDE_USAGE_LIMITS } from "../scripts/claude-usage.mjs";
+import { claudeTranscriptReadiness } from "../scripts/claude-transcript.mjs";
 import { captureFile } from "../scripts/claude-capture-data.mjs";
 import { cleanupAll, cleanEnv } from "./helpers.mjs";
-import { boundClaudeFixture, claudeUsageFixture, eventValue, otelAttribute, setEvent } from "./claude-helpers.mjs";
+import { boundClaudeFixture, claudeUsageFixture, transcriptFixture, eventValue, otelAttribute, setEvent } from "./claude-helpers.mjs";
 
 after(cleanupAll);
 const CLI = fileURLToPath(new URL("../scripts/claude-usage.mjs", import.meta.url));
@@ -574,4 +575,341 @@ test("async launch: unavailable when the launch result follows completion", () =
   resequence(fixture);
   fixture.write();
   unavailable(collectClaudeUsage(fixture.descriptor), "incomplete-capture");
+});
+
+const transcript = f => collectClaudeUsage(f.descriptor, f.env);
+for (const options of [{ children: false }, { children: true }, { chain: "openspec", n: null, step: "os-archive", children: false }]) {
+  test(`transcript counts each attributed message once for ${options.step ?? "numbered"} with children=${options.children}`, () => {
+    const f = transcriptFixture(options);
+    const rows = f.records.get("step-agent");
+    const repeated = structuredClone(rows[1]);
+    repeated.uuid += "-repeated";
+    rows[1].parentUuid = repeated.uuid;
+    rows.push(repeated);
+    const placeholder = structuredClone(repeated);
+    placeholder.uuid = "placeholder";
+    placeholder.parentUuid = rows[0].uuid;
+    placeholder.message = { ...placeholder.message, id: "placeholder", model: "<synthetic>", content: [],
+      usage: Object.fromEntries(Object.keys(placeholder.message.usage).map(key => [key, 0])) };
+    delete placeholder.requestId;
+    rows[4].parentUuid = placeholder.uuid;
+    rows.push(placeholder);
+    f.main.push({ ...f.main[1], timestamp: f.ts(12) });
+    f.metadata.set("sibling", { spawnDepth: 1, toolUseId: "tool-other", description: f.metadata.get("step-agent").description, finished: true });
+    f.records.set("sibling", [{ malformedUnrelatedUsage: true }]);
+    f.write();
+    const measured = transcript(f);
+    assert.deepEqual(measured.usage, { totalTokens: options.children ? 151 : 117, durationMs: 50, toolUses: 4 });
+    assert.deepEqual(measured.usageEvidence, { schemaVersion: 1, status: "transcript", scope: "step-tree", source: "claude-transcript",
+      hostVersion: "2.1.311", invocation: { host: "claude", agentId: "step-agent", sessionId: "native-session", runId: "tool-root" },
+      sessionCount: options.children ? 2 : 1, requestCount: options.children ? 4 : 2, reconciliation: "transcript-messages" });
+  });
+}
+
+test("transcript binds launch, return, tool IDs, membership and fresh message lineage", () => {
+  for (const [reason, modify] of [
+    ["missing-identity", f => { delete f.descriptor.invocation.agentId; }],
+    ["missing-identity", f => { f.descriptor.invocation.sessionId = "another-session"; }],
+    ["missing-identity", f => { f.descriptor.invocation.runId = "another-tool"; }],
+    ["unsupported-host", f => { f.descriptor.hostVersion = "2.2.0"; }],
+    ["missing-identity", f => { f.main[0].message.content[0].input.description = "other"; }],
+    ["ambiguous-history", f => { f.main[0].message.content[0].input.resume = "step-agent"; }],
+    ["ambiguous-history", f => { f.records.get("leaf-agent")[0].message.content = "different prompt"; }],
+    ["ambiguous-history", f => { f.main[0].message.content.push({ name: "SendMessage", type: "tool_use", input: { to: "leaf-agent" } }); }],
+    ["ambiguous-history", f => { f.main.push({ ...f.main[1], message: { content: [{ type: "tool_result", tool_use_id: "second-run" }] } }); }],
+    ["incomplete-capture", f => { f.metadata.get("leaf-agent").parentAgentId = "unrelated"; }],
+    ["incomplete-capture", f => { f.metadata.get("step-agent").finished = false; }],
+    ["missing-identity", f => { f.records.get("step-agent")[2].toolUseResult.agentId = "wrong-child"; }],
+    ["ambiguous-history", f => { f.records.get("leaf-agent")[1].message.content = f.main[0].message.content; }],
+    ["ambiguous-history", f => { f.records.get("step-agent")[3].parentUuid = "missing-ancestor"; }],
+    ["snapshot-mismatch", f => { f.main[1].toolUseResult.usage = f.records.get("step-agent")[1].message.usage; }],
+    ["ambiguous-history", f => {
+      const rows = f.records.get("step-agent");
+      rows.push({ ...rows[3], uuid: "competing-tip", message: { ...rows[3].message, id: "same-counts" } });
+    }],
+    ["ambiguous-history", f => {
+      const rows = f.records.get("step-agent");
+      rows.push({ ...rows[3], uuid: "resume", parentUuid: rows[3].uuid, timestamp: f.ts(11), message: { ...rows[3].message, id: "later" } });
+    }],
+    ["conflicting-duplicate", f => {
+      const rows = f.records.get("step-agent");
+      rows.push({ ...rows[1], uuid: "stream", message: { ...rows[1].message, usage: rows[3].message.usage } });
+    }],
+    ["conflicting-duplicate", f => {
+      f.main.push({ ...f.main[0], message: { ...f.main[0].message, content: [{ ...f.main[0].message.content[0],
+        input: { ...f.main[0].message.content[0].input, prompt: "other" } }] } });
+    }],
+    ["conflicting-duplicate", f => { f.main.push({ ...f.main[1], toolUseResult: { ...f.main[1].toolUseResult, agentId: "other" } }); }],
+    ["unsupported-host", f => { f.records.get("leaf-agent")[1].version = "2.2.0"; }],
+    ["unsupported-schema", f => { f.records.get("step-agent")[0].message.usage = {}; }],
+    ["resource-limit", f => { f.records.get("step-agent")[1].message.usage.input_tokens = Number.MAX_SAFE_INTEGER; }],
+    ["invalid-evidence", f => { f.descriptor.sources = {}; }],
+  ]) {
+    const f = transcriptFixture();
+    modify(f);
+    f.write();
+    const measurement = transcript(f);
+    unavailable(measurement, reason);
+    assert.deepEqual(measurement.usage, { durationMs: 50, toolUses: 4 });
+    assert.equal(measurement.usageEvidence.source, "claude-transcript");
+  }
+});
+
+test("transcript binds the launch prompt time to the parent call and its first response", () => {
+  for (const [agent, seconds] of [["step-agent", -1], ["step-agent", 11], ["leaf-agent", 2], ["leaf-agent", 6]]) {
+    const f = transcriptFixture();
+    f.records.get(agent)[0].timestamp = f.ts(seconds);
+    f.write();
+    unavailable(transcript(f), "ambiguous-history");
+  }
+});
+
+test("transcript cross-checks returned agent ownership even when the matched return omits the ID", () => {
+  for (const agentId of ["step-agent", "leaf-agent"]) {
+    const f = transcriptFixture();
+    const ownReturn = agentId === "step-agent" ? f.main[1] : f.records.get("step-agent")[2];
+    delete ownReturn.toolUseResult.agentId;
+    f.write();
+    assert.equal(transcript(f).usage.totalTokens, 151);
+    f.main.push({ ...f.main[1], message: { content: [{ type: "tool_result", tool_use_id: "other" }] },
+      toolUseResult: { agentId } });
+    f.write();
+    unavailable(transcript(f), "ambiguous-history");
+  }
+});
+
+test("transcript rejects metadata for a deeper descendant even before its launch is visible", () => {
+  const f = transcriptFixture();
+  const meta = { spawnDepth: 3, parentAgentId: "other-agent", toolUseId: "tool-grandchild" };
+  f.metadata.set("grandchild", meta);
+  f.write();
+  assert.equal(transcript(f).usage.totalTokens, 151);
+  meta.parentAgentId = "leaf-agent";
+  f.write();
+  unavailable(transcript(f), "ambiguous-history");
+});
+
+test("transcript rejects membership changes after scanning the metadata directory", t => {
+  const f = transcriptFixture();
+  const open = fs.openSync;
+  t.mock.method(fs, "openSync", (file, ...args) => {
+    if (file === path.join(f.directory, "agent-step-agent.jsonl")) {
+      fs.writeFileSync(path.join(f.directory, "agent-another.meta.json"), JSON.stringify(f.metadata.get("step-agent")));
+    }
+    return open(file, ...args);
+  });
+  unavailable(transcript(f), "unsafe-path");
+});
+
+test("transcript refuses repeated launch IDs with conflicting execution parameters", () => {
+  const f = transcriptFixture();
+  const copy = structuredClone(f.main[0]);
+  copy.message.content[0].input.subagent_type = "different-agent";
+  f.main.push(copy);
+  f.write();
+  unavailable(transcript(f), "conflicting-duplicate");
+});
+
+test("transcript refuses a combined result for multiple nested tool calls", () => {
+  const f = transcriptFixture();
+  const result = f.records.get("step-agent")[2];
+  result.message.content.push({ type: "tool_result", tool_use_id: "other" });
+  f.write();
+  unavailable(transcript(f), "incomplete-capture");
+});
+
+test("transcript discovery probes an active main file before any agents exist and rejects ambiguity or redirects", () => {
+  const f = transcriptFixture();
+  fs.renameSync(f.directory, f.directory + "-away");
+  assert.equal(claudeTranscriptReadiness(f.env), "ready");
+  assert.equal(claudeTranscriptReadiness({ ...f.env, CLAUDE_CODE_SESSION_ID: "../foreign" }), "unusable");
+  const second = path.join(path.dirname(f.projectDir), "other");
+  fs.mkdirSync(second);
+  fs.writeFileSync(path.join(second, path.basename(f.mainFile)), "");
+  assert.equal(claudeTranscriptReadiness(f.env), "unusable");
+  unavailable(transcript(f), "ambiguous-history");
+  fs.unlinkSync(path.join(second, path.basename(f.mainFile)));
+  fs.renameSync(f.mainFile, f.mainFile + "-actual");
+  fs.symlinkSync(f.mainFile + "-actual", f.mainFile);
+  assert.equal(claudeTranscriptReadiness(f.env), "unusable");
+  unavailable(transcript(f), "unsafe-path");
+});
+
+test("transcript readiness and evidence reads accept a growing main file but refuse its replacement or truncation", t => {
+  const f = transcriptFixture();
+  const measuredStatus = () => transcript(f).usageEvidence.status;
+  // The live session appends while the collector reads; a record still being written ends the prefix.
+  fs.appendFileSync(f.mainFile, '{"type":"summ');
+  assert.equal(measuredStatus(), "transcript");
+  f.write();
+  const fstat = fs.fstatSync;
+  const growing = t.mock.method(fs, "fstatSync", (...args) => {
+    fs.appendFileSync(f.mainFile, JSON.stringify({ type: "summary" }) + "\n");
+    return fstat(...args);
+  });
+  assert.equal(claudeTranscriptReadiness(f.env), "ready");
+  assert.equal(measuredStatus(), "transcript");
+  growing.mock.restore();
+  for (const change of [
+    () => { fs.writeFileSync(f.mainFile + "-new", fs.readFileSync(f.mainFile)); fs.renameSync(f.mainFile + "-new", f.mainFile); },
+    () => fs.truncateSync(f.mainFile, 10),
+  ]) {
+    f.write();
+    // Change the main file between its path check and the open descriptor's check.
+    let mainFd;
+    const open = fs.openSync;
+    const opening = t.mock.method(fs, "openSync", (file, ...args) => {
+      const fd = open(file, ...args);
+      if (file === f.mainFile && mainFd === undefined) mainFd = fd;
+      return fd;
+    });
+    let changed = false;
+    const once = t.mock.method(fs, "fstatSync", (fd, ...args) => {
+      if (fd === mainFd && !changed) { changed = true; change(); }
+      return fstat(fd, ...args);
+    });
+    unavailable(transcript(f), "unsafe-path");
+    assert.equal(changed, true);
+    once.mock.restore();
+    opening.mock.restore();
+  }
+});
+
+for (const children of [false, true]) {
+  test(`transcript settles a background root launch from its finished metadata with children=${children}`, () => {
+    const f = transcriptFixture({ children });
+    const result = f.main[1].toolUseResult;
+    f.main[1].toolUseResult = { isAsync: true, status: "async_launched", agentId: "step-agent", description: "launch", prompt: "launch" };
+    f.main[1].timestamp = f.ts(0);
+    f.write();
+    const measured = transcript(f);
+    assert.equal(measured.usageEvidence.status, "transcript");
+    assert.equal(measured.usage.totalTokens, children ? 151 : 117);
+    assert.equal(measured.usageEvidence.sessionCount, children ? 2 : 1);
+    for (const [reason, modify] of [
+      ["incomplete-capture", () => { f.metadata.get("step-agent").finished = false; }],
+      ["incomplete-capture", () => { delete f.main[1].toolUseResult.isAsync; }],
+      ["incomplete-capture", () => { f.main[1].message.content[0].is_error = true; }],
+      ["missing-identity", () => { f.main[1].toolUseResult.agentId = "other-agent"; }],
+    ]) {
+      const saved = structuredClone({ main: f.main, meta: f.metadata.get("step-agent") });
+      modify();
+      f.write();
+      unavailable(transcript(f), reason);
+      f.main.splice(0, f.main.length, ...saved.main);
+      f.metadata.set("step-agent", saved.meta);
+    }
+    if (children) {
+      // Only the invocation's own root may return before it settles.
+      f.records.get("step-agent")[2].toolUseResult = { isAsync: true, status: "async_launched", agentId: "leaf-agent" };
+      f.write();
+      unavailable(transcript(f), "incomplete-capture");
+    }
+    f.main[1].toolUseResult = result;
+  });
+}
+
+test("transcript accepts host meta records and parallel tool results on the final chain, never as a fork", () => {
+  const f = transcriptFixture({ children: false });
+  const rows = f.records.get("step-agent");
+  const meta = { ...structuredClone(rows[2]), uuid: "skill-body", parentUuid: rows[1].parentUuid, isMeta: true,
+    message: { role: "user", content: [{ type: "text", text: "loaded skill body" }] } };
+  rows[1].parentUuid = meta.uuid;
+  const parallel = { ...structuredClone(rows[2]), uuid: "parallel-result", parentUuid: rows[1].uuid,
+    message: { role: "user", content: [{ type: "tool_result", tool_use_id: "other-local-tool" }] } };
+  rows.push(meta, parallel);
+  f.write();
+  assert.equal(transcript(f).usageEvidence.status, "transcript");
+  assert.equal(transcript(f).usage.totalTokens, 117);
+  delete meta.isMeta;
+  f.write();
+  unavailable(transcript(f), "ambiguous-history");
+  meta.isMeta = true;
+  rows.push({ ...structuredClone(parallel), uuid: "forked-result", parentUuid: parallel.uuid });
+  f.write();
+  unavailable(transcript(f), "ambiguous-history");
+});
+
+test("transcript refuses redirected metadata, oversized aggregate input and a shared deadline during metadata reads", t => {
+  const f = transcriptFixture();
+  const leaf = path.join(f.directory, "agent-leaf-agent.meta.json");
+  fs.renameSync(leaf, leaf + "-other");
+  fs.symlinkSync(leaf + "-other", leaf);
+  unavailable(transcript(f), "unsafe-path");
+  fs.unlinkSync(leaf);
+  fs.renameSync(leaf + "-other", leaf);
+  const cap = CLAUDE_USAGE_LIMITS.bytes;
+  try {
+    CLAUDE_USAGE_LIMITS.bytes = fs.statSync(leaf).size + fs.statSync(f.mainFile).size;
+    unavailable(transcript(f), "resource-limit");
+  } finally { CLAUDE_USAGE_LIMITS.bytes = cap; }
+  let now = 0;
+  const open = fs.openSync;
+  t.mock.method(Date, "now", () => now);
+  t.mock.method(fs, "openSync", (file, ...args) => {
+    if (file === leaf) now += CLAUDE_USAGE_LIMITS.readMs + 1;
+    return open(file, ...args);
+  });
+  unavailable(transcript(f), "resource-limit");
+});
+
+test("delayed transcript completion keeps only established late-attachment identity and version", () => {
+  const f = transcriptFixture();
+  f.metadata.get("leaf-agent").finished = false;
+  f.write();
+  const early = transcript(f);
+  unavailable(early, "incomplete-capture");
+  assert.equal(early.usageEvidence.hostVersion, "2.1.311");
+  assert.equal(early.usageEvidence.invocation.runId, "tool-root");
+  f.metadata.get("leaf-agent").finished = true;
+  f.write();
+  assert.equal(transcript(f).usage.totalTokens, 151);
+  f.main.splice(0, 2);
+  f.write();
+  const unidentified = transcript(f);
+  unavailable(unidentified);
+  assert.equal(unidentified.usageEvidence.invocation, undefined);
+  assert.equal(unidentified.usageEvidence.hostVersion, "unknown");
+});
+
+test("fully observed Claude identity and qualified version survive delayed root metadata", () => {
+  const f = transcriptFixture();
+  f.descriptor.hostVersion = "2.1.311";
+  f.descriptor.invocation = { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" };
+  fs.unlinkSync(path.join(f.directory, "agent-step-agent.meta.json"));
+  const delayed = transcript(f);
+  unavailable(delayed, "missing-source");
+  assert.deepEqual(delayed.usageEvidence.invocation, f.descriptor.invocation);
+  assert.equal(delayed.usageEvidence.hostVersion, f.descriptor.hostVersion);
+  f.metadata.get("step-agent").toolUseId = "contradictory-tool";
+  f.write();
+  const conflicting = transcript(f);
+  unavailable(conflicting, "missing-identity");
+  assert.equal(conflicting.usageEvidence.invocation, undefined);
+});
+
+test("observed invocation survives delayed main source, launch and final counters", () => {
+  const f = transcriptFixture();
+  f.descriptor.hostVersion = "2.1.311";
+  f.descriptor.invocation = { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" };
+  const check = () => {
+    const early = transcript(f);
+    unavailable(early);
+    assert.deepEqual(early.usageEvidence.invocation, f.descriptor.invocation);
+    assert.equal(early.usageEvidence.hostVersion, f.descriptor.hostVersion);
+  };
+  fs.unlinkSync(f.mainFile);
+  check();
+  fs.writeFileSync(f.mainFile, "");
+  check();
+  const usage = f.main[1].toolUseResult.usage;
+  delete f.main[1].toolUseResult.usage;
+  f.write();
+  delete f.descriptor.invocation.runId;
+  const early = transcript(f);
+  unavailable(early, "incomplete-capture");
+  assert.equal(early.usageEvidence.invocation.runId, "tool-root");
+  f.main[1].toolUseResult.usage = usage;
+  f.write();
+  assert.equal(transcript(f).usage.totalTokens, 151);
 });

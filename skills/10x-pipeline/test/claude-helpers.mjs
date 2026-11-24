@@ -142,3 +142,52 @@ export function boundClaudeFixture(options) {
   return { ...fixture, root, binding, transcripts: boundTranscripts, write, env: { [CAPTURE_ENV]: root },
     descriptor: { router: fixture.descriptor.router, usage: fixture.descriptor.usage } };
 }
+
+// Ordinary session files use the same four-bucket assistant records as the telemetry fixtures.
+export function transcriptFixture(options = {}) {
+  const f = claudeUsageFixture(options);
+  const { sessionId, agentId } = f.descriptor.invocation;
+  const config = path.join(f.project.root, "claude-config");
+  const projectDir = path.join(config, "projects", "project-where-claude-started");
+  const directory = path.join(projectDir, sessionId, "subagents");
+  fs.mkdirSync(directory, { recursive: true });
+  const mainFile = path.join(projectDir, sessionId + ".jsonl");
+  const env = { CLAUDE_CODE_SESSION_ID: sessionId, CLAUDE_CONFIG_DIR: config };
+  const descriptor = { mode: "transcript", router: f.descriptor.router, invocation: { agentId }, usage: f.descriptor.usage };
+  const metadata = new Map();
+  const records = new Map();
+  const ts = n => new Date(Date.UTC(2026, 10, 24, 12, 0, n)).toISOString();
+  const main = [];
+  for (const [file, rows] of f.transcripts) {
+    const id = path.basename(file, ".jsonl");
+    const root = id === agentId;
+    const runId = root ? "tool-root" : "tool-leaf";
+    const { tool_input: input } = f.native.find(row => row.tool_use_id === runId);
+    metadata.set(id, { toolUseId: runId, description: input.description, spawnDepth: root ? 1 : 2, finished: true,
+      ...(root ? {} : { parentAgentId: agentId }) });
+    const launch = { type: "tool_use", id: runId, name: "Agent", input };
+    const end = rows[3];
+    const result = { status: "completed", agentId: id, content: end.message.content, usage: end.message.usage };
+    for (const [index, row] of rows.entries()) row.timestamp = ts(root ? [1, 3, 8, 9, 2][index] : [4, 5, 6, 7, 4][index]);
+    if (root) {
+      main.push({ type: "assistant", sessionId, version: end.version, timestamp: ts(0), uuid: "launch", parentUuid: null,
+        message: { role: "assistant", id: "enclosing", content: [launch] } },
+      { type: "user", sessionId, version: end.version, timestamp: ts(10), uuid: "return", parentUuid: "launch",
+        message: { role: "user", content: [{ type: "tool_result", tool_use_id: runId }] }, toolUseResult: result });
+    } else {
+      const parent = records.get(agentId);
+      parent[1].message.content = [launch];
+      parent[2].message.content = [{ type: "tool_result", tool_use_id: runId }];
+      parent[2].toolUseResult = result;
+    }
+    records.set(id, rows);
+  }
+  const write = () => {
+    const lines = (file, rows) => fs.writeFileSync(file, rows.map(row => JSON.stringify(row) + "\n").join(""));
+    lines(mainFile, main);
+    for (const [id, meta] of metadata) fs.writeFileSync(path.join(directory, `agent-${id}.meta.json`), JSON.stringify(meta));
+    for (const [id, rows] of records) lines(path.join(directory, `agent-${id}.jsonl`), rows);
+  };
+  write();
+  return { descriptor, env, projectDir, directory, mainFile, main, metadata, records, write, ts };
+}

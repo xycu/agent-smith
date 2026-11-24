@@ -831,7 +831,7 @@ export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.
   const step = openspec ? "os-archive" : "archive";
   const selected = stepPolicy(policy, meta, step);
   const settled = tierFor({ step }, executed(log), selected, readPlan(p.plan), meta, level);
-  const target = dispatchTarget(selected, settled.tier);
+  const target = dispatchTarget(selected, settled.tier, hostOf(meta));
   const created = openspec ? null : createdValue(path.join(p.change, "change.md"));
   if (!openspec && (created === null || !CREATED_RE.test(created))) throw new Error(`change.md needs a line "created: YYYY-MM-DD" (found ${created === null ? "none" : JSON.stringify(created)}); /10x-archive builds the archive folder name from it.`);
   const archivePath = openspec ? openspecArchivePath(id) : `context/archive/${created}-${id}`;

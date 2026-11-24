@@ -20,7 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { normalizeAccounting, cleanInvocation, readBoundedFile, accountingFor, usageCoverage, usageFigure, addFigures } from "./usage.mjs";
+import { normalizeAccounting, cleanInvocation, readBoundedFile, accountingFor, usageCoverage, usageFigure, addFigures, TRANSCRIPT_LIMITATION } from "./usage.mjs";
 import {
   ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   inspectMeta, readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
@@ -42,7 +42,7 @@ import {
   archiveDone, lateUsagePrecheck, lateUsageCommit,
 } from "./isolation.mjs";
 import { initPermissionWarnings } from "./init-permissions.mjs";
-import { initUsageWarning, claudeCaptureStop } from "./init-usage.mjs";
+import { initUsageWarning, claudeUsagePreflight } from "./init-usage.mjs";
 
 // Only the call that made a rollback can undo it on halt. Recovery in a new process restores timestamps only.
 let undoOnError = null;
@@ -236,7 +236,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
     writeFileAtomic(p.meta, JSON.stringify(meta, null, 2) + "\n");
   }
 
-  const target = dispatchTarget(selected, tier);
+  const target = dispatchTarget(selected, tier, hostOf(meta));
   let template = d.template ?? d.step;
   if (d.step === "manual-verify" && meta.chrome !== false) {
     if (target.provider === "openai") template = "manual-verify-openai";
@@ -514,7 +514,7 @@ function readSide(dirArg, id, side, producedFile, chain = "10x", prices = null) 
       usd: est.priced ? roundUsd(est.usd) : null, priced: est.priced, withFigures: est.withFigures, unpriced: est.unpriced,
       byModel: Object.fromEntries(Object.entries(usdByModel).map(([m, v]) => [m, roundUsd(v)])),
       byProviderModel: Object.fromEntries(Object.entries(usdByProviderModel).map(([m, v]) => [m, roundUsd(v)])),
-      ...(coverage.verified ? { scope: "enclosing-dispatch-routing-rate" } : {}),
+      ...(coverage.verified || coverage.transcript ? { scope: "enclosing-dispatch-routing-rate" } : {}),
     };
   }
   const changeDir = path.basename(found.dir) === "agent-smith" ? path.dirname(found.dir) : null;
@@ -638,7 +638,9 @@ function comparePair(id, flags, policy, chain = "10x") {
 
   const verified = sides.some(([, side]) => side.usageCoverage.verified > 0);
   const legacy = sides.some(([, side]) => side.usageCoverage.legacy > 0);
-  if (verified && legacy) reasons.push("usage-scope-mismatch");
+  const transcript = sides.some(([, side]) => side.usageCoverage.transcript > 0);
+  if ((verified && legacy) || (transcript && (legacy || verified))) reasons.push("usage-scope-mismatch");
+  else if (transcript) reasons.push("transcript-usage-scope");
   else if (legacy) warnings.push("legacy-usage-scope");
   const comparable = reasons.length === 0;
   let dropPercent = null;
@@ -702,12 +704,13 @@ function compareMarkdown(pair) {
     row("Duration (ms)", withSteps("durationMs")),
     row("Plan phases and rows", (s) => (s.plan ? `${s.plan.phases} and ${s.plan.rows}` : "none")),
     row("Source", (s) => s.source),
-    row("Token coverage (verified / unavailable / legacy / missing)", (s) => { const c = s.usageCoverage; return `${c.verified} / ${c.unavailable} / ${c.legacy} / ${c.missing}`; }),
+    row("Token coverage (verified / transcript / unavailable / legacy / missing)", (s) => { const c = s.usageCoverage; return `${c.verified} / ${c.transcript} / ${c.unavailable} / ${c.legacy} / ${c.missing}`; }),
     "",
     "Provider/model/tier groups describe the enclosing dispatch.",
     ...[["baseline", b], ["routed", r]].filter(([, s]) => s.tokens.stepsWithFigures > 0 && s.tokens.stepsWithFigures < s.steps).map(([name]) => `Token total for ${name} is a subtotal (incomplete coverage).`),
     ...[["baseline", b], ["routed", r]].flatMap(([name, s]) => s.usageSteps.filter((entry) => entry.usageEvidence?.status === "unavailable").map((entry) => `Unavailable ${name} step ${entry.n}: ${entry.usageEvidence.reason} — ${entry.usageEvidence.explanation}`)),
-    ...(priced && (b.usageCoverage.verified || r.usageCoverage.verified) ? ["Cost is a routing-rate approximation: child usage can be priced at the enclosing dispatch rate."] : []),
+    ...(b.usageCoverage.transcript || r.usageCoverage.transcript ? [TRANSCRIPT_LIMITATION] : []),
+    ...(priced && (b.cost.scope || r.cost.scope) ? ["Cost is a routing-rate approximation: child usage can be priced at the enclosing dispatch rate."] : []),
     ...(pair.warnings.includes("legacy-usage-scope") ? ["Legacy token figures have unverified scope."] : []),
     `Tokens by model, baseline: ${models(b)}`,
     `Tokens by model, routed: ${models(r)}`,
@@ -811,7 +814,7 @@ function status(id, flags, chain = "10x", policy = null) {
     res.cost = {
       usd: cost.priced ? roundUsd(cost.usd) : null, currency: "USD", rate: "blended",
       priced: cost.priced, withFigures: cost.withFigures, unpriced: cost.unpriced,
-      ...(coverage.verified ? { scope: "enclosing-dispatch-routing-rate" } : {}),
+      ...(coverage.verified || coverage.transcript ? { scope: "enclosing-dispatch-routing-rate" } : {}),
     };
   }
   // The OpenSpec state the router reads from files, as the contract test compares it with `openspec instructions apply`.
@@ -857,8 +860,8 @@ function usageCommand(id, rest, flags, policy, chain, meta) {
       refuse("--usage-file change, chain, n and step must identify this completed invocation.", n);
     }
     accounting = normalizeAccounting(payload.usage, payload.usageEvidence);
-    if (!isDeepStrictEqual(cleanUsage(payload.usage), payload.usage) || accounting.usageEvidence?.status !== "verified") {
-      refuse("--usage-file requires valid numeric usage and verified accounting evidence.", n);
+    if (!isDeepStrictEqual(cleanUsage(payload.usage), payload.usage) || !["verified", "transcript"].includes(accounting.usageEvidence?.status)) {
+      refuse("--usage-file requires valid numeric usage and verified or transcript accounting evidence.", n);
     }
     usage = accounting.usage;
   } else {
@@ -1131,10 +1134,10 @@ async function main() {
     // The Claude capture gate (claudeCapture.require) follows it, before any write.
     const fresh = executed(log).length === 0;
     const branch = isolationOn(policy) ? isolationCheck(id, policy, prev, fresh, chain) : null;
-    const captureStop = await claudeCaptureStop(policy, selection, neutralReplay, id, chain);
-    if (captureStop) halt(captureStop);
+    const capture = await claudeUsagePreflight(policy, selection, neutralReplay, id, chain);
+    if (capture.stop) halt(capture.stop);
     initPermissionWarnings(policy, selection, neutralReplay);
-    await initUsageWarning(policy, selection, neutralReplay);
+    await initUsageWarning(policy, selection, neutralReplay, capture.warning);
     cleanupStateTemps(p.dir);
     fs.mkdirSync(p.dir, { recursive: true });
     // An empty, blank or valueless --goal keeps the stored goal.

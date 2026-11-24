@@ -46,6 +46,8 @@ const CASES = {
   "rigor.budgetDelta is an array": [{ rigor: { budgetDelta: [] } }, "rigor.budgetDelta"],
   "steps is a string": [{ steps: "x" }, "steps"],
   "claudeCapture is a string": [{ claudeCapture: "x" }, "claudeCapture"],
+  "claudeCapture.mode is unknown": [{ claudeCapture: { mode: "auto" } }, "claudeCapture.mode"],
+  "claudeCapture.mode is null": [{ claudeCapture: { mode: null } }, "claudeCapture.mode"],
   "claudeCapture.require is a string": [{ claudeCapture: { require: "false" } }, "claudeCapture.require"],
   "maxTotalSteps is a string": [{ limits: { maxTotalSteps: "14" } }, "limits.maxTotalSteps"],
   "maxTotalSteps is 0": [{ limits: { maxTotalSteps: 0 } }, "limits.maxTotalSteps"],
@@ -244,6 +246,6 @@ test("the shipped prompts all pass the placeholder check", () => {
 });
 
 test("the shipped policy gates Claude capture on and passes validation", () => {
-  assert.equal(SHIPPED.claudeCapture.require, true);
+  assert.deepEqual(SHIPPED.claudeCapture, { mode: "transcript", require: true });
   assert.equal(policyProblems(SHIPPED), null);
 });

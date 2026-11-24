@@ -1,0 +1,5 @@
+Claude Code version and authentication readiness for a fresh isolated profile
+2.1.325 (Claude Code)
+2.1.311 or later
+Fresh isolated profile: Not logged in.
+Authentication check exit status: 1

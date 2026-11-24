@@ -20,6 +20,8 @@ const PRICES = { prices: { usdPerMillionTokens: { sonnet: 6 } } };
 const TREE = { schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
   invocation: { host: "codex", rootThreadId: "root", rootTurnId: "turn" }, sessionCount: 2,
   requestCount: 4, reconciliation: "response-snapshot" };
+const TRANSCRIPT = { ...TREE, status: "transcript", source: "claude-transcript", hostVersion: "2.1.323",
+  invocation: { host: "claude", sessionId: "session", agentId: "agent", runId: "tool" }, reconciliation: "transcript-messages" };
 const measured = (n, totalTokens, over = {}) => entry(n, "plan", { usage: { totalTokens }, usageEvidence: TREE, ...over });
 const omitted = (n, reason = "incomplete-capture") => entry(n, "plan", { usage: { totalTokens: 999, durationMs: 3 },
   usageEvidence: unavailableEvidence(reason, TREE) });
@@ -66,11 +68,51 @@ test("coverage distinguishes equal figures with verified and legacy scope withou
   assert.match(compare(legacy, legacy, "10x", ["--format", "md"]), /Legacy token figures have unverified scope/);
 });
 
+test("transcript totals retain routing costs and report their scope without a savings verdict", () => {
+  const zero = measured(1, 0, { usageEvidence: TRANSCRIPT });
+  const positive = measured(2, 1000000, { usageEvidence: TRANSCRIPT, ok: false, result: { status: "failed" } });
+  const observed = fixture([zero, positive]);
+  const verified = fixture([measured(1, 10)]);
+  const mixed = fixture([zero, entry(2, "plan", { usage: { totalTokens: 7 } }),
+    entry(3, "plan", { usageEvidence: unavailableEvidence("missing-source", TRANSCRIPT) })]);
+  const json = status(observed);
+  assert.equal(json.steps[0].tokenScope, "transcript");
+  assert.deepEqual(json.tokens, { total: 1000000, stepsWithFigures: 2 });
+  assert.equal(json.cost.usd, 6);
+  assert.equal(json.cost.scope, "enclosing-dispatch-routing-rate");
+  const report = readReportFile(observed);
+  assert.match(report.split("Goal:")[0], /Transcript figures can undercount/);
+  assert.match(report, /Transcript: 2/);
+  assert.match(report, /routing-rate approximation/);
+  assert.deepEqual(status(mixed).usageCoverage, { verified: 0, transcript: 1, legacy: 1, unavailable: 1, missing: 1 });
+  assert.match(readReportFile(mixed), /Claude transcript usage source unavailable/);
+  for (const [baseline, routed, reason, total] of [
+    [observed, observed, "transcript-usage-scope", 1000000],
+    [observed, verified, "usage-scope-mismatch", 10],
+    [mixed, mixed, "usage-scope-mismatch", 7],
+  ]) {
+    const bytes = fs.readFileSync(path.join(routed.agentDir, "run.jsonl"));
+    for (const flags of [[], ["--unpinned"]]) {
+      const pair = compare(routed, baseline, "10x", flags);
+      assert.equal(pair.comparable, false);
+      assert.equal(pair.dropPercent, null);
+      assert.equal(pair.verdict, "not comparable");
+      assert.ok(pair.reasons.includes(reason));
+      assert.equal(pair.routed.tokens.byProviderModel["claude/sonnet"], total);
+      const md = compare(routed, baseline, "10x", [...flags, "--format", "md"]);
+      assert.match(md, /Verdict: not comparable/);
+      assert.match(md, /Transcript figures can undercount/);
+      assert.ok(md.includes(reason));
+    }
+    assert.deepEqual(fs.readFileSync(path.join(routed.agentDir, "run.jsonl")), bytes);
+  }
+});
+
 test("mixed and unavailable coverage keeps measured zero, labels subtotals, and excludes skipped usage", () => {
   const project = fixture([measured(1, 0), omitted(2), entry(3, "plan", { usage: { totalTokens: 5 } }),
     skipEntry("research", 3, { usage: { totalTokens: 888 }, usageEvidence: TREE })]);
   const json = status(project);
-  assert.deepEqual(json.usageCoverage, { verified: 1, unavailable: 1, legacy: 1, missing: 1 });
+  assert.deepEqual(json.usageCoverage, { verified: 1, transcript: 0, unavailable: 1, legacy: 1, missing: 1 });
   assert.deepEqual(json.tokens, { total: 5, stepsWithFigures: 2 });
   assert.equal(json.steps[0].usage.totalTokens, 0);
   assert.equal(json.steps[1].usage.totalTokens, undefined);
@@ -137,14 +179,14 @@ for (const chain of ["10x", "openspec"]) {
   test(`${chain}: missing pending and counter-only steps do not invent legacy token figures`, () => {
     const project = fixture([measured(1, 100), entry(2, "plan", { result: undefined }),
       entry(3, "plan", { usage: { durationMs: 3 } })], { chain });
-    assert.deepEqual(status(project, chain).usageCoverage, { verified: 1, unavailable: 0, legacy: 0, missing: 2 });
+    assert.deepEqual(status(project, chain).usageCoverage, { verified: 1, transcript: 0, unavailable: 0, legacy: 0, missing: 2 });
     assert.doesNotMatch(readReportFile(project), /Legacy figures retain/);
     const pair = compare(project, project, chain);
     assert.ok(pair.reasons.includes("usage-incomplete:routed"));
     assert.ok(!pair.reasons.includes("usage-scope-mismatch"));
     assert.ok(!pair.warnings.includes("legacy-usage-scope"));
     const zero = fixture([entry(1, "plan", { usage: { totalTokens: 0 } })], { chain });
-    assert.deepEqual(status(zero, chain).usageCoverage, { verified: 0, unavailable: 0, legacy: 1, missing: 0 });
+    assert.deepEqual(status(zero, chain).usageCoverage, { verified: 0, transcript: 0, unavailable: 0, legacy: 1, missing: 0 });
   });
 }
 

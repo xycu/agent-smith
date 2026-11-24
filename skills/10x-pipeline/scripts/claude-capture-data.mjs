@@ -2,7 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import { readBoundedFile } from "./usage.mjs";
+import { claudeCaptureSupported, readBoundedFile, USAGE_LIMITS } from "./usage.mjs";
+
+export { CLAUDE_CAPTURE_MIN_VERSION, claudeCaptureSupported } from "./usage.mjs";
 
 export const CAPTURE_ENV = "AGENT_SMITH_CLAUDE_CAPTURE";
 export const CAPTURE_LIMITS = {
@@ -16,22 +18,32 @@ export const CAPTURE_LIMITS = {
 const files = { binding: "binding.json", native: "hooks.jsonl", telemetry: "otel.jsonl", failure: "failed", lock: "hooks.lock" };
 export const captureFile = (root, kind) => path.join(root, files[kind]);
 
-// The floor is the oldest release whose headless wire format has a reviewed capture and sanitized
-// reconciliation fixtures. Later releases pass; a changed record shape fails closed in the collector.
-export const CLAUDE_CAPTURE_MIN_VERSION = "2.1.311";
-export function claudeCaptureSupported(version) {
-  if (typeof version !== "string" || !/^\d+\.\d+\.\d+$/.test(version)) return false;
-  const have = version.split(".").map(Number);
-  const floor = CLAUDE_CAPTURE_MIN_VERSION.split(".").map(Number);
-  for (let i = 0; i < 3; i++) if (have[i] !== floor[i]) return have[i] > floor[i];
-  return true;
-}
 export const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
 export const identifier = value => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 export const integer = value => Number.isSafeInteger(value) && value >= 0;
 export const hash = value => createHash("sha256").update(value).digest("hex");
 export const fail = reason => { throw Object.assign(new Error(), { reason, accounting: true }); };
 export const tokenBuckets = ["input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"];
+export const CLAUDE_USAGE_LIMITS = { descriptorBytes: USAGE_LIMITS.fileBytes, recordBytes: CAPTURE_LIMITS.recordBytes,
+  bytes: 32 * 1024 * 1024, agents: USAGE_LIMITS.sessions, requests: USAGE_LIMITS.requests,
+  events: CAPTURE_LIMITS.events, readMs: USAGE_LIMITS.readMs };
+export const transcriptBuckets = ["input_tokens", "output_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"];
+
+export function counters(raw, keys = tokenBuckets) {
+  if (!object(raw)) fail("unsupported-schema");
+  const values = keys.map(key => raw[key]);
+  if (values.some(value => !integer(value))) fail("unsupported-schema");
+  const total = values.reduce((sum, value) => sum + value, 0);
+  if (!Number.isSafeInteger(total)) fail("resource-limit");
+  return { values, total };
+}
+
+export function textContent(message) {
+  if (typeof message?.content === "string") return message.content;
+  if (!Array.isArray(message?.content)) fail("unsupported-schema");
+  return message.content.filter(item => item?.type === "text").map(item => item.text).join("");
+}
+
 export const sessionIdentifier = value => typeof value === "string" && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(value);
 export const validProcess = (value) => object(value) && integer(value.pid) && value.pid > 0
   && typeof value.createdAt === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value.createdAt)

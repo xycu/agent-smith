@@ -94,3 +94,7 @@ At the existing terminal cutoff, both pipelines recheck eligible settled invocat
 ## Amendment 3 — Default-on capture and late intake
 
 **Date** 2026-11-24. Change `claude-capture-default-on`. Late intake still needs a bound launcher capture or already-authorized sources, as under Amendment 2. Because `init` now halts a native Claude host without ready capture (ADR-018 Amendment 8), default-off native entries arise only from the `claudeCapture.require: false` opt-out, a headless child or a replay of a non-Claude step. Amendment 2 is superseded on the default, not on the mechanism.
+
+## Amendment 4 — Preserve the original source on late attachment
+
+**2026-11-24.** At the terminal cutoff, recheck each settled native step with missing tokens once using its original source, exact invocation and qualified host version. The `claude-transcript` source selects transcript collection. The `claude-native` source selects the original launcher binding or authorized telemetry sources. If identity, version or a matching measurement is unavailable, leave tokens missing. The existing structured attachment path accepts a measured transcript or verified total and preserves independent counters and identical replay. Archive usage stays in the final message with its evidence scope. [Late usage figure](../REFERENCE.md#late-usage-figure)
