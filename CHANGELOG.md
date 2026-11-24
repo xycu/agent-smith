@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.17.0](https://github.com/xycu/agent-smith/compare/v1.16.2...v1.17.0) (2026-11-24)
+
+
+### Features
+
+* **claude-capture-default-on:** Make token capture expected by default on Claude-hosted runs ([#288](https://github.com/xycu/agent-smith/issues/288)) ([cae3bf6](https://github.com/xycu/agent-smith/commit/cae3bf6f36ced6455fa4efdefd1c50c64af31b78))
+* **codex-run-gitdir-grant:** Grant the run worktree gitdir to Codex per run and show why the preflight refused ([#285](https://github.com/xycu/agent-smith/issues/285)) ([79b6cc3](https://github.com/xycu/agent-smith/commit/79b6cc36bd9a8bbf70c0bc32e782c6d5fc1ab65f))
+* **codex-worktree-gitdir-grant:** Pass the worktree gitdir write grant to Codex at launch ([#287](https://github.com/xycu/agent-smith/issues/287)) ([bc49c84](https://github.com/xycu/agent-smith/commit/bc49c844f044abfb1528601a5bba7423f491f28e))
+
 ## [1.16.2](https://github.com/xycu/agent-smith/compare/v1.16.1...v1.16.2) (2026-11-24)
 
 
