@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import {
-  ROOT, acquireRunLock, parseFlags, isObject,
+  ROOT, acquireRunLock, parseFlags, isObject, runGit, PERMISSIONS_NAME_RE,
 } from "./state.mjs";
 import { validateAction, readResult } from "./runner-dispatch.mjs";
 import { PERMISSION_PROBE } from "./permission-probe.mjs";
@@ -24,9 +24,64 @@ function failureReason(error) {
   return message.slice(0, 2048);
 }
 
-function configArgs(action) {
+// The grant sits last: the preflight slices off only the leading -C pair, so sandbox and exec carry the same grant.
+function configArgs(action, grant) {
   return ["-C", ROOT, ...codexProfileArgs(action.profile),
-    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2"];
+    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2",
+    // An inline table merges into the profile's filesystem table; a dotted -c key would split the path on every dot.
+    ...(grant ? ["-c", `permissions.${grant.profile}.filesystem={${JSON.stringify(grant.gitDir)}="write"}`] : [])];
+}
+
+const CONFIG_MAX = 64 * 1024;
+const DEFAULT_PERMISSIONS = /^\s*default_permissions\s*=\s*"([^"\\]*)"\s*(#.*)?$/;
+
+// The top-level default_permissions of one config.toml, or null. Opened by descriptor without blocking (a FIFO or a
+// swapped path never hangs the runner); only a basic double-quoted value before the first [table] header counts.
+function configPermissions(file, { follow }) {
+  let fd;
+  try {
+    fd = fs.openSync(follow ? fs.realpathSync(file) : file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile() || stat.size > CONFIG_MAX) return null;
+    const buffer = Buffer.alloc(CONFIG_MAX + 1);
+    let size = 0;
+    for (let read; size < buffer.length && (read = fs.readSync(fd, buffer, size, buffer.length - size, size)) > 0;) size += read;
+    if (size > CONFIG_MAX) return null;
+    for (const line of buffer.toString("utf8", 0, size).split(/\r?\n/)) {
+      if (/^\s*\[/.test(line)) return null;
+      if (/^\s*default_permissions\s*=/.test(line)) return DEFAULT_PERMISSIONS.exec(line)?.[1] ?? null;
+    }
+    return null;
+  } catch { return null; } finally { if (fd !== undefined) fs.closeSync(fd); }
+}
+
+// The per-run write grant on the run root's own gitdir (#281), or grant null and the reason none resolves.
+// Name order: codex.permissions, the project config (repository-controlled, never followed), then CODEX_HOME's config.
+function gitdirGrant(permissions) {
+  const none = (why) => ({ grant: null, why });
+  const home = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+  const profile = permissions ?? configPermissions(path.join(ROOT, ".codex", "config.toml"), { follow: false })
+    ?? configPermissions(path.join(home, "config.toml"), { follow: true });
+  if (typeof profile !== "string") return none("no permissions profile name");
+  if (profile.startsWith(":")) return none("builtin name");
+  if (!PERMISSIONS_NAME_RE.test(profile)) return none("invalid name");
+  const git = runGit(["rev-parse", "--absolute-git-dir", "--path-format=absolute", "--git-common-dir"], { timeout: 10000 });
+  const lines = git.stdout.replace(/\r?\n$/, "").split(/\r?\n/);
+  if (git.status !== 0 || lines.length !== 2) return none("no gitdir");
+  let gitDir, commonDir;
+  try { [gitDir, commonDir] = lines.map((line) => fs.realpathSync(line)); } catch { return none("no gitdir"); }
+  if (!path.isAbsolute(gitDir) || /[\x00-\x1f\x7f]/.test(gitDir)) return none("no gitdir");
+  // Outside a linked worktree the gitdir is the common dir, which stays with the user's profile.
+  if (gitDir === commonDir) return none("gitdir is the common dir");
+  return { grant: { profile, gitDir }, why: null };
+}
+
+const STDERR_TAIL = 512;
+
+// One line from the last bytes of a stream: a cut multibyte character decodes to U+FFFD and is blanked with every
+// control, format, surrogate and line or paragraph separator, so the result never exceeds its source bytes.
+function sanitizedTail(bytes) {
+  return bytes.toString("utf8").replace(/[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}�]/gu, " ").replace(/\s+/g, " ").trim();
 }
 
 // Model-free, bounded metadata reads: inactive labels and reconstructed interrupted turns prove no closure.
@@ -171,7 +226,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
   process.on("SIGINT", onInt);
   process.on("SIGTERM", onTerm);
   // Every spawned process is awaited through close, including preflight and spawn failures.
-  const launch = (args, input, onStdout, model = false) => new Promise((resolve) => {
+  const launch = (args, input, onStdout, model = false, onStderr = null) => new Promise((resolve) => {
     let error;
     let streamError;
     lock.setChild(null, model);
@@ -195,6 +250,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     });
     child.stdout.on("error", () => { streamError ??= "Codex output could not be captured."; });
     child.stderr.on("error", () => { streamError ??= "Codex error output could not be drained."; });
+    if (onStderr) child.stderr.on("data", onStderr);
     child.stderr.resume();
     child.stdin.on("error", () => { streamError ??= "Codex input could not be sent."; });
     child.on("close", (code, signal) => {
@@ -211,6 +267,8 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     if (!/^[a-z0-9][a-z0-9-]*$/.test(id ?? "") || !["10x", "openspec"].includes(chain)) refuse("Invalid change ID or chain.");
     lock = acquireRunLock(id, chain, refuse);
     const required = validateAction(action, id, chain, "openai");
+    const { grant, why } = gitdirGrant(action.permissions ?? null);
+    const args = configArgs(action, grant);
     const tempRoot = fs.realpathSync(os.tmpdir());
     temp = fs.mkdtempSync(path.join(tempRoot, "agent-smith-codex-"));
     const probe = path.join(temp, "permission-probe.mjs");
@@ -220,25 +278,33 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
 `
       + PERMISSION_PROBE, { mode: 0o600 });
     let proofText = "";
+    let stderrTail = Buffer.alloc(0);
+    // Appended after "No model launched.": what was granted, then what Codex said about the failure.
+    const detail = () => {
+      const tail = sanitizedTail(stderrTail);
+      return (grant ? ` Gitdir grant: ${grant.profile} on ${grant.gitDir}.`
+        : ` No gitdir grant (${why}); set codex.permissions to a custom profile name.`) + (tail ? ` Codex output: ${tail}` : "");
+    };
     let preflightExpired = false;
     const preflightTimer = setTimeout(() => { preflightExpired = true; terminate("SIGTERM"); }, 30000);
     let preflight;
     try {
-      preflight = await launch(["sandbox", ...configArgs(action).slice(2), "--", process.execPath, probe, ROOT, temp], "",
-        (chunk) => { proofText = (proofText + chunk).slice(-8192); });
+      preflight = await launch(["sandbox", ...args.slice(2), "--", process.execPath, probe, ROOT, temp], "",
+        (chunk) => { proofText = (proofText + chunk).slice(-8192); }, false,
+        (chunk) => { stderrTail = Buffer.concat([stderrTail, chunk.subarray(-STDERR_TAIL)]).subarray(-STDERR_TAIL); });
     } finally { clearTimeout(preflightTimer); }
-    if (preflightExpired) refuse("Codex permission preflight timed out. Resolve pending Git hooks, signing or approvals before retrying. No model launched.");
+    if (preflightExpired) refuse("Codex permission preflight timed out. Resolve pending Git hooks, signing or approvals before retrying. No model launched." + detail());
     if (cancelled) refuse(`Execution cancelled by ${cancelled} during permission preflight.`);
     if (preflight.code !== 0 && proofText.trim() === '{"toolkitUnavailable":true}') {
       refuse(`Codex cannot verify ${required.skill ?? "the required toolkit"} for ${required.template}${required.openspec ? " and OpenSpec CLI 2.0.0" : ""} inside its sandbox. No model launched.`);
     }
     if (preflight.error || preflight.streamError || preflight.code !== 0) {
-      refuse("Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox support. The native sandbox can force legacy sandbox_mode configuration to read-only, preventing proof of permission parity with exec. Resolve the unavailable or inconsistent preflight before retrying. No model launched.");
+      refuse("Codex permission preflight cannot verify required Git capability. Check the existing default configuration or selected optional profile, managed requirements, outer host permissions and native sandbox support. The native sandbox can force legacy sandbox_mode configuration to read-only, preventing proof of permission parity with exec. Resolve the unavailable or inconsistent preflight before retrying. No model launched." + detail());
     }
     let proof;
     try { proof = JSON.parse(proofText.trim()); } catch { refuse("Codex sandbox returned no verifiable permission proof. Upgrade to a CLI with supported sandbox preflight."); }
     if (!isObject(proof) || !/^[a-f0-9]{40,64}$/.test(proof.commit ?? "")) refuse("Codex permission proof is incomplete.");
-    envelope.preflight = proof;
+    envelope.preflight = { ...proof, grant };
     // Recheck after preflight without releasing the shared lock.
     validateAction(action, id, chain, "openai", required);
     const finalFile = path.join(temp, "final.txt");
@@ -284,7 +350,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     const start = process.hrtime.bigint();
     let completion;
     try {
-      completion = await launch(["exec", ...configArgs(action), "-m", action.model, "--json", "-o", finalFile, "-"], action.prompt, (chunk) => {
+      completion = await launch(["exec", ...args, "-m", action.model, "--json", "-o", finalFile, "-"], action.prompt, (chunk) => {
         fs.writeSync(transcript, chunk);
         for (let start = 0; start < chunk.length && !protocolError;) {
           const newline = chunk.indexOf(0x0a, start);

@@ -1,0 +1,68 @@
+{
+  "id": "codex-run-gitdir-grant",
+  "goal": "Fix #281: per-run Codex gitdir grant via -c on sandbox and exec, plus a bounded stderr tail in the preflight refusal, following context/changes/codex-run-gitdir-grant/plan.md",
+  "host": "claude",
+  "providerMode": "claude",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/codex-run-gitdir-grant",
+  "baseSha": "4eaed18854ea08b49d93bf69aaf66058a77b5ffd",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.16.2",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "2c10243b953d64dd",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "86b963500aa6f8f6",
+      "complexity": "997fa59224abe417",
+      "escalation": "b7425a0a9da972e9",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "hookFiles": "8b089927112ef1f4",
+      "isolation": "a0a594659b853084",
+      "ladder": "00bd04bb00a5db6a",
+      "lessons": "92d849fccafd0527",
+      "limits": "ad6be642613c2b99",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "9c76036954770e5b",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "f43edb2ca10e3007",
+      "score": "dc16b78fdf08a0df",
+      "splitProviders": "e23dcbd325996cb7",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "providerMode": "claude",
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  },
+  "startCommit": "42c0b40fcb560aab75fff2cab556594b049dd729",
+  "rigor": {
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/policy.json, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/route.mjs +3"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review NEEDS ATTENTION",
+    "manualPending": [
+      "1.4 On codex-cli 0.171.0, in an isolated run worktree with no `.git/worktrees/agent-smith-<id>` entry in `~/.codex/config.toml`, `run-codex.mjs` passes the preflight (`envelope.preflight.grant` names the profile and gitdir)",
+      "2.2 With the grant removed (`codex.permissions` set to a profile name that does not exist), a live preflight refusal names the denied `.git/worktrees/agent-smith-<id>` path",
+      "3.3 A live `--provider-mode split` run in an isolated worktree on codex-cli 0.171.0 completes its first OpenAI step with no manual `~/.codex/config.toml` grant for that worktree"
+    ],
+    "manualNotProved": [
+      "1.4 On codex-cli 0.171.0, in an isolated run worktree with no `.git/worktrees/agent-smith-<id>` entry in `~/.codex/config.toml`, `run-codex.mjs` passes the preflight (`envelope.preflight.grant` names the profile and gitdir) — not proved: the row names codex-cli 0.171.0; the installed CLI is 0.172.0 ('codex --version'), so a live preflight there would prove a different version. Fake-Codex runner tests do not meet the \"live\" claim. Left",
+      "2.2 With the grant removed (`codex.permissions` set to a profile name that does not exist), a live preflight refusal names the denied `.git/worktrees/agent-smith-<id>` path — not proved: same: a live preflight refusal on 0.171.0 is required; only 0.172.0 is installed, and the covering tests use a fake Codex. Left at [ ].",
+      "3.3 A live `--provider-mode split` run in an isolated worktree on codex-cli 0.171.0 completes its first OpenAI step with no manual `~/.codex/config.toml` grant for that worktree — not proved: needs a live '--provider-mode split' pipeline run with a real OpenAI step on 0.171.0 in an isolated worktree; a manual-verify step cannot run it (it would call a model and write router state)."
+    ]
+  }
+}

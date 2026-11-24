@@ -774,7 +774,7 @@ function status(id, flags, chain = "10x", policy = null) {
       ...(e.score ? { score: e.score } : {}),
     } : ({
       n: e.n, step: e.step, template: e.template ?? null, provider: providerOf(e), model: e.model, effort: e.effort, simple: e.simple ?? null,
-      ...(providerOf(e) === "openai" ? { profile: e.profile ?? null } : {}),
+      ...(providerOf(e) === "openai" ? { profile: e.profile ?? null, permissions: e.permissions ?? null } : {}),
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
       ...accountingFor(e),
       usageEvidence: accountingFor(e).usageEvidence ?? null,

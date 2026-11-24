@@ -1,0 +1,3 @@
+- 1.4 — the row names codex-cli 0.171.0; the installed CLI is 0.172.0 (`codex --version`), so a live preflight there would prove a different version. Fake-Codex runner tests do not meet the "live" claim. Left at [ ].
+- 2.2 — same: a live preflight refusal on 0.171.0 is required; only 0.172.0 is installed, and the covering tests use a fake Codex. Left at [ ].
+- 3.3 — needs a live `--provider-mode split` pipeline run with a real OpenAI step on 0.171.0 in an isolated worktree; a manual-verify step cannot run it (it would call a model and write router state).
