@@ -756,3 +756,110 @@ for (const chain of ["10x", "openspec"]) {
     }
   });
 }
+
+// The per-run gitdir grant (#281): name resolution, the no-grant cases and identical sandbox and exec argv.
+function grantFixture(permissions = null, { git = true } = {}) {
+  const w = codexFixture("10x", { policy: { ...PRESET, codex: { profile: null, permissions } } });
+  if (git) gitInit(w.project);
+  fs.mkdirSync(w.env.CODEX_HOME, { recursive: true });
+  return w;
+}
+const projectConfig = w => path.join(w.project.root, ".codex/config.toml");
+const homeConfig = w => path.join(w.env.CODEX_HOME, "config.toml");
+function writeConfig(file, text) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, text);
+}
+function mkfifo(file) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  assert.equal(spawnSync("mkfifo", [file]).status, 0);
+}
+function grantArgs(w) {
+  const records = calls(w.fixture);
+  assert.deepEqual(records.map(call => call.args[0]), ["sandbox", "exec"]);
+  return records.map(call => call.args.flatMap((arg, i) => arg.startsWith("permissions.") ? [[call.args[i - 1], arg]] : []));
+}
+function assertGrant(w, result, profile) {
+  assert.equal(result.json.completed, true, result.stdout + result.stderr);
+  const gitDir = fs.realpathSync(path.join(w.project.root, ".git"));
+  assert.deepEqual(result.json.preflight.grant, { profile, gitDir });
+  const expected = [["-c", `permissions.${profile}.filesystem={${JSON.stringify(gitDir)}="write"}`]];
+  assert.deepEqual(grantArgs(w), [expected, expected], "sandbox and exec carry the same grant");
+}
+function assertNoGrant(w, result) {
+  assert.equal(result.json.completed, true, result.stdout + result.stderr);
+  assert.equal(result.json.preflight.grant, null);
+  assert.deepEqual(grantArgs(w), [[], []]);
+}
+
+test("the gitdir grant names the project config profile, then CODEX_HOME's, and codex.permissions beats both", () => {
+  const project = grantFixture();
+  writeConfig(projectConfig(project), 'model = "x"\ndefault_permissions = "project-profile" # trailing comment\n[permissions.project-profile]\n');
+  writeConfig(homeConfig(project), 'default_permissions = "home-profile"\n');
+  assertGrant(project, execute(project), "project-profile");
+
+  const home = grantFixture();
+  const target = path.join(home.project.base, "dotfiles/codex.toml");
+  writeConfig(target, 'default_permissions = "home-profile"\n');
+  fs.symlinkSync(target, homeConfig(home));
+  assertGrant(home, execute(home), "home-profile");
+
+  const policy = grantFixture("policy-profile");
+  writeConfig(projectConfig(policy), 'default_permissions = "project-profile"\n');
+  writeConfig(homeConfig(policy), 'default_permissions = "home-profile"\n');
+  assertGrant(policy, execute(policy), "policy-profile");
+});
+
+test("no permissions name, a builtin name, an unsafe config file or no gitdir passes no grant and never hangs", { skip: process.platform === "win32" && "no FIFOs" }, () => {
+  const cases = [
+    () => {},
+    w => writeConfig(homeConfig(w), "default_permissions = 'single-quoted'\n"),
+    w => writeConfig(homeConfig(w), '# default_permissions = "commented"\n'),
+    w => writeConfig(homeConfig(w), '[profiles.x]\ndefault_permissions = "table-scoped"\n'),
+    w => writeConfig(homeConfig(w), 'default_permissions = ":workspace"\n'),
+    w => writeConfig(homeConfig(w), 'default_permissions = "dotted.name"\n'),
+    w => writeConfig(homeConfig(w), `default_permissions = "too-large"\n${"#".repeat(64 * 1024)}\n`),
+    w => mkfifo(projectConfig(w)),
+    w => fs.mkdirSync(projectConfig(w), { recursive: true }),
+    w => {
+      const target = path.join(w.project.base, "elsewhere.toml");
+      writeConfig(target, 'default_permissions = "linked"\n');
+      fs.mkdirSync(path.dirname(projectConfig(w)), { recursive: true });
+      fs.symlinkSync(target, projectConfig(w));
+    },
+    w => mkfifo(homeConfig(w)),
+    w => fs.mkdirSync(homeConfig(w)),
+  ];
+  for (const setup of cases) {
+    const w = grantFixture();
+    setup(w);
+    assertNoGrant(w, execute(w));
+  }
+  const noGitDir = grantFixture("policy-profile", { git: false });
+  assertNoGrant(noGitDir, execute(noGitDir));
+});
+
+test("a legacy pending entry and action without permissions still match and resolve the name from config", () => {
+  const w = grantFixture();
+  writeConfig(homeConfig(w), 'default_permissions = "home-profile"\n');
+  // A null codex.permissions is omitted, so new entries and actions have the legacy shape.
+  assert.equal(Object.hasOwn(readLogEntries(w.project).at(-1), "permissions"), false);
+  assert.equal(Object.hasOwn(w.action, "permissions"), false);
+  assert.equal(execute(w, { ...w.action, permissions: "other" }).json.launched, false, "a changed name refuses");
+  assert.deepEqual(calls(w.fixture), []);
+  assertGrant(w, execute(w, { ...w.action, permissions: null }), "home-profile");
+});
+
+test("an archive action matches its descriptor with or without permissions and refuses a changed name", () => {
+  for (const explicit of [true, false]) {
+    const w = archiveFixture("10x");
+    assert.equal(Object.hasOwn(w.action, "permissions"), false);
+    assert.equal(execute(w, { ...w.action, permissions: "other" }).json.launched, false);
+    const action = explicit ? { ...w.action, permissions: null } : w.action;
+    const moved = path.join(w.project.root, action.archivePath);
+    fs.mkdirSync(path.dirname(moved), { recursive: true });
+    setMode(w, { moveFrom: w.project.changeDir, moveTo: moved });
+    const result = execute(w, action);
+    assert.equal(result.json.completed, true, result.stdout);
+  }
+});

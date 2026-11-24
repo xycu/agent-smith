@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
 import {
-  ROOT, acquireRunLock, parseFlags, isObject,
+  ROOT, acquireRunLock, parseFlags, isObject, runGit, PERMISSIONS_NAME_RE,
 } from "./state.mjs";
 import { validateAction, readResult } from "./runner-dispatch.mjs";
 import { PERMISSION_PROBE } from "./permission-probe.mjs";
@@ -24,9 +24,50 @@ function failureReason(error) {
   return message.slice(0, 2048);
 }
 
-function configArgs(action) {
+// The grant sits last: the preflight slices off only the leading -C pair, so sandbox and exec carry the same grant.
+function configArgs(action, grant) {
   return ["-C", ROOT, ...codexProfileArgs(action.profile),
-    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2"];
+    "-c", `model_reasoning_effort=${JSON.stringify(action.effort)}`, "-c", "agents.enabled=true", "--disable", "multi_agent_v2",
+    // An inline table merges into the profile's filesystem table; a dotted -c key would split the path on every dot.
+    ...(grant ? ["-c", `permissions.${grant.profile}.filesystem={${JSON.stringify(grant.gitDir)}="write"}`] : [])];
+}
+
+const CONFIG_MAX = 64 * 1024;
+const DEFAULT_PERMISSIONS = /^\s*default_permissions\s*=\s*"([^"\\]*)"\s*(#.*)?$/;
+
+// The top-level default_permissions of one config.toml, or null. Opened by descriptor without blocking (a FIFO or a
+// swapped path never hangs the runner); only a basic double-quoted value before the first [table] header counts.
+function configPermissions(file, { follow }) {
+  let fd;
+  try {
+    fd = fs.openSync(follow ? fs.realpathSync(file) : file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile() || stat.size > CONFIG_MAX) return null;
+    const buffer = Buffer.alloc(CONFIG_MAX + 1);
+    let size = 0;
+    for (let read; size < buffer.length && (read = fs.readSync(fd, buffer, size, buffer.length - size, size)) > 0;) size += read;
+    if (size > CONFIG_MAX) return null;
+    for (const line of buffer.toString("utf8", 0, size).split(/\r?\n/)) {
+      if (/^\s*\[/.test(line)) return null;
+      if (/^\s*default_permissions\s*=/.test(line)) return DEFAULT_PERMISSIONS.exec(line)?.[1] ?? null;
+    }
+    return null;
+  } catch { return null; } finally { if (fd !== undefined) fs.closeSync(fd); }
+}
+
+// The per-run write grant on the run root's own gitdir (#281), or null when no custom profile name or gitdir resolves.
+// Name order: codex.permissions, the project config (repository-controlled, never followed), then CODEX_HOME's config.
+function gitdirGrant(permissions) {
+  const home = process.env.CODEX_HOME || path.join(os.homedir(), ".codex");
+  const profile = permissions ?? configPermissions(path.join(ROOT, ".codex", "config.toml"), { follow: false })
+    ?? configPermissions(path.join(home, "config.toml"), { follow: true });
+  if (typeof profile !== "string" || !PERMISSIONS_NAME_RE.test(profile)) return null;
+  const git = runGit(["rev-parse", "--absolute-git-dir"], { timeout: 10000 });
+  if (git.status !== 0) return null;
+  let gitDir;
+  try { gitDir = fs.realpathSync(git.stdout.replace(/\r?\n$/, "")); } catch { return null; }
+  if (!path.isAbsolute(gitDir) || /[\x00-\x1f\x7f]/.test(gitDir)) return null;
+  return { profile, gitDir };
 }
 
 // Model-free, bounded metadata reads: inactive labels and reconstructed interrupted turns prove no closure.
@@ -211,6 +252,8 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     if (!/^[a-z0-9][a-z0-9-]*$/.test(id ?? "") || !["10x", "openspec"].includes(chain)) refuse("Invalid change ID or chain.");
     lock = acquireRunLock(id, chain, refuse);
     const required = validateAction(action, id, chain, "openai");
+    const grant = gitdirGrant(action.permissions ?? null);
+    const args = configArgs(action, grant);
     const tempRoot = fs.realpathSync(os.tmpdir());
     temp = fs.mkdtempSync(path.join(tempRoot, "agent-smith-codex-"));
     const probe = path.join(temp, "permission-probe.mjs");
@@ -224,7 +267,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     const preflightTimer = setTimeout(() => { preflightExpired = true; terminate("SIGTERM"); }, 30000);
     let preflight;
     try {
-      preflight = await launch(["sandbox", ...configArgs(action).slice(2), "--", process.execPath, probe, ROOT, temp], "",
+      preflight = await launch(["sandbox", ...args.slice(2), "--", process.execPath, probe, ROOT, temp], "",
         (chunk) => { proofText = (proofText + chunk).slice(-8192); });
     } finally { clearTimeout(preflightTimer); }
     if (preflightExpired) refuse("Codex permission preflight timed out. Resolve pending Git hooks, signing or approvals before retrying. No model launched.");
@@ -238,7 +281,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     let proof;
     try { proof = JSON.parse(proofText.trim()); } catch { refuse("Codex sandbox returned no verifiable permission proof. Upgrade to a CLI with supported sandbox preflight."); }
     if (!isObject(proof) || !/^[a-f0-9]{40,64}$/.test(proof.commit ?? "")) refuse("Codex permission proof is incomplete.");
-    envelope.preflight = proof;
+    envelope.preflight = { ...proof, grant };
     // Recheck after preflight without releasing the shared lock.
     validateAction(action, id, chain, "openai", required);
     const finalFile = path.join(temp, "final.txt");
@@ -284,7 +327,7 @@ export async function runCodex(id, chain, action, { terminationGraceMs = 5000 } 
     const start = process.hrtime.bigint();
     let completion;
     try {
-      completion = await launch(["exec", ...configArgs(action), "-m", action.model, "--json", "-o", finalFile, "-"], action.prompt, (chunk) => {
+      completion = await launch(["exec", ...args, "-m", action.model, "--json", "-o", finalFile, "-"], action.prompt, (chunk) => {
         fs.writeSync(transcript, chunk);
         for (let start = 0; start < chunk.length && !protocolError;) {
           const newline = chunk.indexOf(0x0a, start);

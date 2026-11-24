@@ -230,9 +230,9 @@ Pending dispatch entries and neutral replays saved before this change lack `perm
 
 #### Automated
 
-- [ ] 1.1 Policy and runner tests pass: `node --test skills/10x-pipeline/test/providers.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs`
-- [ ] 1.2 Codex chain and dispatch tests still pass: `node --test skills/10x-pipeline/test/codex-chain.test.mjs`
-- [ ] 1.3 No recursive delete was introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
+- [x] 1.1 Policy and runner tests pass: `node --test skills/10x-pipeline/test/providers.test.mjs skills/10x-pipeline/test/codex-runner.test.mjs`
+- [x] 1.2 Codex chain and dispatch tests still pass: `node --test skills/10x-pipeline/test/codex-chain.test.mjs`
+- [x] 1.3 No recursive delete was introduced: `node --test skills/10x-pipeline/test/no-recursive-delete.test.mjs`
 
 #### Manual
 

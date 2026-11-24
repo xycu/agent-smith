@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   ROOT, archiveDirs, paths, readMeta, readLog, executed, hostOf, providerOf,
-  selectionProblem, isObject, guardedStat, loadPolicy, policyProblems,
+  selectionProblem, isObject, guardedStat, loadPolicy, policyProblems, PERMISSIONS_NAME_RE,
 } from "./state.mjs";
 import { advisorOn, dispatchProblem, promptFilePath } from "./flow.mjs";
 import { archiveDescriptor, matchesHeadlessGuard } from "./isolation.mjs";
@@ -44,6 +44,9 @@ export function validateAction(action, id, chain, provider, preflight) {
   if (!(provider === "claude" && action.profile === undefined) && action.profile !== null && (typeof action.profile !== "string" || !action.profile.trim() || /[\0\r\n]/.test(action.profile))) {
     refuse("Action profile must be null or an existing configuration profile name.");
   }
+  if (action.permissions != null && (typeof action.permissions !== "string" || !PERMISSIONS_NAME_RE.test(action.permissions))) {
+    refuse("Action permissions must be null or a custom permissions profile name.");
+  }
   const { entries: log } = readLog(p.log);
   let dispatch;
   if (action.action === "run") {
@@ -51,7 +54,7 @@ export function validateAction(action, id, chain, provider, preflight) {
     if (meta.outcome || !entry || entry.result !== undefined || fs.existsSync(p.result)
       || !Number.isSafeInteger(action.n) || action.n < 1 || entry.n !== action.n || entry.step !== action.step
       || providerOf(entry) !== provider || entry.model !== action.model || entry.effort !== action.effort
-      || entry.profile !== action.profile
+      || entry.profile !== action.profile || (entry.permissions ?? null) !== (action.permissions ?? null)
       || action.resultFile !== path.relative(ROOT, p.result) || action.agent !== entry.agent) {
       refuse("Run action is stale, already consumed, or differs from the exact pending dispatch.");
     }
@@ -73,8 +76,10 @@ export function validateAction(action, id, chain, provider, preflight) {
       refuse("Archive action requires an ended archive run and no result destination.");
     }
     const expected = archiveDescriptor(p, id, meta, log, policy);
-    for (const key of ["provider", "model", "effort", "profile", "archivePath", "prompt", "agent"]) {
-      if (action[key] !== expected[key]) refuse(`Archive action has a stale ${key}. Resume the router for a current action.`);
+    for (const key of ["provider", "model", "effort", "profile", "permissions", "archivePath", "prompt", "agent"]) {
+      // Actions and descriptors saved before codex.permissions lack the key; absent reads as null.
+      const value = (source) => key === "permissions" ? source[key] ?? null : source[key];
+      if (value(action) !== value(expected)) refuse(`Archive action has a stale ${key}. Resume the router for a current action.`);
     }
     if (fs.existsSync(path.join(ROOT, expected.archivePath))) refuse("The archive destination already exists.");
     const step = chain === "openspec" ? "os-archive" : "archive";

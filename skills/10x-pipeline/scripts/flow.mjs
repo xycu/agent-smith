@@ -498,6 +498,7 @@ export function neutralRetry(p, id, meta, log, policy, visibility = {}) {
     host: hostOf(meta),
     provider: providerOf(last),
     ...(providerOf(last) === "openai" ? { profile: last.profile } : {}),
+    ...(providerOf(last) === "openai" && last.permissions != null ? { permissions: last.permissions } : {}),
     model: last.model,
     effort: last.effort,
     reason: `${last.reason}; tier ${last.tier} (${last.tierWhy})`,

@@ -15,7 +15,7 @@ after(cleanupAll);
 
 const DEFAULT = JSON.parse(fs.readFileSync(new URL("../policy.json", import.meta.url), "utf8"));
 const PRESET = JSON.parse(fs.readFileSync(new URL("../codex-policy.json", import.meta.url), "utf8"));
-const GPT = { ...PRESET, codex: { profile: "fixture-git-profile" } };
+const GPT = { ...PRESET, codex: { profile: "fixture-git-profile", permissions: "fixture-grant" } };
 const PASS = "Verdict: PASS\nCritical: 0\nWarnings: 0\n\n## Critical\n\n## Warnings\n";
 const noGit = !gitAvailable() && "git is unavailable";
 
@@ -42,8 +42,14 @@ test("the GPT overlay preserves all eight tier/effort positions without changing
   assert.equal(PRESET.ladder.every((r) => r.provider === "openai"), true);
   assert.deepEqual(DEFAULT.ladder.map((r) => r.model), ["haiku", "sonnet", "sonnet", "sonnet", "opus", "opus", "opus", "opus"]);
   assert.equal(DEFAULT.ladder.every((r) => providerOf(r) === "claude"), true);
-  assert.deepEqual(DEFAULT.codex, { profile: null });
+  assert.deepEqual(DEFAULT.codex, { profile: null, permissions: null });
   assert.equal(policyProblems({ ...DEFAULT, ...GPT }), null);
+  for (const permissions of [null, "agent-smith"]) {
+    assert.equal(policyProblems({ ...DEFAULT, ...PRESET, codex: { profile: null, permissions } }), null);
+  }
+  for (const permissions of ["a.b", ":workspace", "", 42]) {
+    assert.match(policyProblems({ ...DEFAULT, ...PRESET, codex: { profile: null, permissions } }), /codex\.permissions/);
+  }
   assert.equal(policyProblems({ ...DEFAULT, ...PRESET }), null);
   assert.equal(policyProblems({ ...DEFAULT, ...PRESET, codex: undefined }), null);
 });
@@ -170,10 +176,12 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(first.json.provider, "openai");
     assert.equal(Object.hasOwn(first.json, "agent"), false);
     assert.equal(first.json.profile, GPT.codex.profile);
+    assert.equal(first.json.permissions, GPT.codex.permissions);
     assert.equal(first.json.host, "codex");
     const [e] = readLogEntries(p);
     assert.equal(e.provider, "openai");
     assert.equal(e.profile, GPT.codex.profile);
+    assert.equal(e.permissions, GPT.codex.permissions);
     const meta = readMetaFile(p);
     assert.equal(meta.host, "codex");
     assert.match(meta.provenance.sections.codex, /^[a-f0-9]{16}$/);
@@ -209,6 +217,7 @@ for (const chain of ["10x", "openspec"]) {
       [{ ...GPT, codex: { profile: " " } }, [], /codex\.profile/],
       [{ ...GPT, codex: { profile: 12 } }, [], /codex\.profile/],
       [{ ...GPT, codex: { profile: "bad\nprofile" } }, [], /codex\.profile/],
+      [{ ...GPT, codex: { profile: null, permissions: ":workspace" } }, [], /codex\.permissions/],
       [{}, ["--provider-mode", "openai"], /--provider-mode/],
       [{}, ["--provider-mode="], /--provider-mode/],
       [{ splitProviders: null }, ["--provider-mode=split"], /cannot replace.*splitProviders/],
@@ -260,7 +269,8 @@ for (const chain of ["10x", "openspec"]) {
     writeResult(p, { status: "orchestrator-error", note: "no child started" });
     const again = run(p, ["next", p.id, "--chain", chain]);
     assert.equal(again.json.action, "run", again.stdout);
-    for (const key of ["n", "step", "provider", "profile", "host", "model", "effort", "prompt", "resultFile"]) {
+    assert.equal(again.json.permissions, GPT.codex.permissions, "the replacement policy drops permissions; the retry keeps it");
+    for (const key of ["n", "step", "provider", "profile", "permissions", "host", "model", "effort", "prompt", "resultFile"]) {
       assert.deepEqual(again.json[key], first.json[key], key);
     }
     assert.equal(readLogEntries(p).filter((e) => !e.skipped).length, 1);
@@ -378,6 +388,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(result.json.provider, "openai");
     assert.equal(Object.hasOwn(result.json, "agent"), false);
     assert.equal(result.json.profile, GPT.codex.profile);
+    assert.equal(result.json.permissions, GPT.codex.permissions);
     assert.equal(result.json.host, "codex");
     assert.equal(Object.hasOwn(result.json, "resultFile"), false);
     assert.equal(readLogEntries(p).filter((e) => !e.skipped).length, 2);

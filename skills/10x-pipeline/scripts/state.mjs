@@ -97,6 +97,8 @@ export function loadPolicy(onError = halt) {
 // Missing provider/host fields belong to runs and overrides made before OpenAI support.
 export const providerOf = (target) => target?.provider === undefined ? "claude" : target.provider;
 export const hostOf = (meta) => meta?.host === undefined ? "claude" : meta.host;
+// A custom Codex permissions profile name that a -c inline-table key can carry: no dots, quotes or builtin ":" prefix.
+export const PERMISSIONS_NAME_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
 const providerForHost = (host) => host === "codex" ? "openai" : "claude";
 
@@ -157,7 +159,9 @@ export function dispatchTarget(policy, tier) {
   const rung = policy.ladder[tier];
   const provider = providerOf(rung);
   return { provider, model: rung.model, effort: rung.effort,
-    ...(provider === "openai" ? { profile: policy.codex?.profile ?? null } : {}) };
+    ...(provider === "openai" ? { profile: policy.codex?.profile ?? null } : {}),
+    // Absent reads as null (legacy entries too); omitting the default keeps ordinary actions within their size budget.
+    ...(provider === "openai" && policy.codex?.permissions != null ? { permissions: policy.codex.permissions } : {}) };
 }
 
 export function hostProblem(policy, host) {
@@ -248,6 +252,10 @@ export function policyProblems(policy, checkBounds = true) {
   const profile = p.codex?.profile;
   if (profile !== undefined && profile !== null && (typeof profile !== "string" || !profile.trim() || /[\r\n\0]/.test(profile))) {
     return bad("codex.profile", "null or a non-blank profile name without control characters", profile);
+  }
+  const permissions = p.codex?.permissions;
+  if (permissions !== undefined && permissions !== null && (typeof permissions !== "string" || !PERMISSIONS_NAME_RE.test(permissions))) {
+    return bad("codex.permissions", "null or a custom permissions profile name of 1 to 128 letters, digits, - or _", permissions);
   }
   const top = p.ladder.length - 1;
   for (const [name, step] of Object.entries(p.steps)) {

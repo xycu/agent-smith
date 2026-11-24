@@ -10,7 +10,7 @@
     { "model": "opus",   "effort": "max" }
   ],
   "splitProviders": { "10x": { "otherSteps": ["plan", "implement"], "hostTemplates": {} } },
-  "codex": { "profile": null },
+  "codex": { "profile": null, "permissions": null },
   "steps": {
     "plan":        { "skill": "10x-plan",           "baseTier": 5, "minTier": 2, "maxTier": 7, "interactive": true },
     "plan-review": { "skill": "10x-plan-review",    "baseTier": 2, "minTier": 1, "maxTier": 6, "interactive": true },
