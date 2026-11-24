@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.16.2](https://github.com/xycu/agent-smith/compare/v1.16.1...v1.16.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **codex-usage-version-floor:** Accept Codex releases at or above the reviewed usage floor ([#276](https://github.com/xycu/agent-smith/issues/276)) ([30ead93](https://github.com/xycu/agent-smith/commit/30ead935ec9624b5574fd183bef21a9562d2ddcd))
+* **first-attempt-drop-unmeasured:** ship first-attempt tier drop 0 until the A/B pairs prove a saving ([#275](https://github.com/xycu/agent-smith/issues/275)) ([f1443c7](https://github.com/xycu/agent-smith/commit/f1443c7c6f514e5570dcc405a0c415f9061ebef2))
+* **prepare-run-setup-lock-and-residue-followups:** Close the three prepare-run follow-ups from the PR 252 review ([#280](https://github.com/xycu/agent-smith/issues/280)) ([d8fd459](https://github.com/xycu/agent-smith/commit/d8fd459788cb22ed6c449505fa5b1c09df88e11e))
+* **run-root-cross-worktree-writes:** Stop a write hook from silently blocking step 1 in the run root ([#277](https://github.com/xycu/agent-smith/issues/277)) ([d5781f9](https://github.com/xycu/agent-smith/commit/d5781f93973314abf1ff9842bfbd1b5ccb32aeb2))
+* **usage-capture-preflight:** Warn before the first step when token usage cannot be captured ([#278](https://github.com/xycu/agent-smith/issues/278)) ([bf8a105](https://github.com/xycu/agent-smith/commit/bf8a105ae59cd265c340d121f6183eca9040aed8))
+
 ## [1.16.1](https://github.com/xycu/agent-smith/compare/v1.16.0...v1.16.1) (2026-11-23)
 
 
