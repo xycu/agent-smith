@@ -29,7 +29,8 @@ A native Claude Desktop run records token figures and a version from its transcr
 ## Scope
 
 - Shared transcript collector, reason normalization and tests for both chains.
-- Both SKILL.md files and the relevant accounting and late-usage reference sections.
+- Both SKILL.md files, the relevant accounting and late-usage reference sections (including the reasons list) and an ADR-019 amendment.
+- The top-of-report limitations line keeps its labels; `version-conflict` shows only in the per-step coverage entry.
 - Existing telemetry, historical ledger and ADR-019 contracts form the compatibility boundary.
 
 ## Architecture / Approach

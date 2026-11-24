@@ -29,7 +29,7 @@ Qualified and consistent transcript records supply both the version and the toke
 
 ## Scope Boundaries
 
-The change covers Claude transcript collection and its usage instructions. Retain the telemetry and headless capture contracts, the transcript attribution and file-safety checks, the existing schema and ADR-019's attachment and immutability guarantees. Historical ledgers and archived artifacts remain read-only.
+The change covers Claude transcript collection and its usage instructions. Retain the telemetry and headless capture contracts, the transcript attribution and file-safety checks, the existing schema and ADR-019's attachment and immutability guarantees. Historical ledgers and archived artifacts remain read-only. The top-of-report `Token capture limitations:` line in `flow.mjs` keeps its current labels, so a `version-conflict` appears only in the per-step Token coverage entry.
 
 ## Implementation Approach
 
@@ -57,7 +57,7 @@ Separate version qualification from invocation attribution in the collector, the
 
 **Contract** Validate the router, current native session and supplied IDs. Keep the complete observed root tuple `{ host: "claude", sessionId, agentId, runId }` once established. Use validated root metadata to complete a partial tuple before the main scan. A conflicting root metadata ID or mismatched root launch or return invalidates the tuple. Errors in child attribution or token accounting keep an established root tuple. Replace the wrapper's version-dependent identity fallback with the collector's validated identity. Partial or invalid identity stays absent.
 
-Check versions on the same attributed main and agent records as today. Require a supported plain `x.y.z` release and exact agreement across those records. Preserve a qualified observed version on unrelated failures. Leave the normalized version `"unknown"` when no record has established it or a version error invalidates it. Only counted, fully validated transcripts produce `totalTokens`. Preserve independent counters in the unavailable result.
+Check versions on the same attributed main and agent records as today. Require a supported plain `x.y.z` release and exact agreement across those records. Preserve a qualified observed version on unrelated failures. Leave the normalized version `"unknown"` when no record has established it or a version error invalidates it. Validate each attributed record's version in scan order and let the first failing check decide the reason: malformed or missing is `unsupported-schema`, a well-formed version below the floor is `unsupported-host`, and only a supported version that differs from the one already established is `version-conflict`. Only counted, fully validated transcripts produce `totalTokens`. Preserve independent counters in the unavailable result.
 
 #### 2. Normalized reason and explanation
 
@@ -69,13 +69,13 @@ Check versions on the same attributed main and agent records as today. Require a
 
 #### 3. Collector and CLI regressions
 
-**Files** `skills/10x-pipeline/test/claude-usage.test.mjs`, `skills/10x-pipeline/test/late-usage.test.mjs`
+**Files** `skills/10x-pipeline/test/claude-usage.test.mjs`, `skills/10x-pipeline/test/late-usage.test.mjs`, `skills/10x-pipeline/test/accounting-readers.test.mjs`
 
 **Intent** Reproduce the Desktop mismatch and prove which evidence can attach late.
 
 **Contract** Replace the descriptor mismatch expectation at `claude-usage.test.mjs:614` with successful measurement using the record version. Cover missing, conflicting and malformed descriptor versions, including a supplied version below the floor. Update the record conflict assertion near line 643. Assert distinct reasons, retained root identity and missing tokens for a below-floor, malformed or conflicting record version. Cover version failures in the main scan and an attributed child. Update the delayed metadata and main-source tests near lines 856–909 so complete observed identity survives early failures with version `"unknown"`, metadata can complete a partial identity, and contradictory root evidence keeps identity absent.
 
-Beside `late-usage.test.mjs:663–668`, use `transcriptFixture` and `collectClaudeUsage` as the source of initial and completed evidence for both chains. Use a deterministic failure after identity and qualified version are established, such as a missing agent transcript after the main scan. Restore the fixture, attach using the exact match, and assert that counters, other entries and identical replay behave as before. Verify byte-identical refusals for a target without recorded identity even with the same version, and for a retained identity paired with version `"unknown"`. Preserve the missing-incoming-invocation refusal near line 735 and exact source, version and invocation mismatch coverage.
+Beside `late-usage.test.mjs:663–668`, use `transcriptFixture` and `collectClaudeUsage` as the source of initial and completed evidence for both chains. Use a deterministic failure after identity and qualified version are established, such as a missing agent transcript after the main scan. Restore the fixture, attach using the exact match, and assert that counters, other entries and identical replay behave as before. Verify byte-identical refusals for a target without recorded identity even with the same version, and for a retained identity paired with version `"unknown"`. Preserve the missing-incoming-invocation refusal near line 735 and exact source, version and invocation mismatch coverage. Beside `accounting-readers.test.mjs:147–160`, add a `version-conflict` row that asserts the normalized explanation and the per-step Token coverage line, and assert that the top-of-report limitations line stays absent for it.
 
 ### Success Criteria:
 
@@ -98,9 +98,17 @@ Describe the version source consistently at dispatch and recheck, then verify a 
 
 **Intent** Tell native orchestrators to omit the version from transcript descriptors, including in the late recheck. Explain when an unavailable measurement can attach late.
 
-**Contract** Align the invocation recording bullet, Loop step 4 and late usage in both skills. The original recorded version remains part of matching the late measurement. Keep the telemetry descriptor and checkpoint instructions. In the reference's “Observed token accounting” and “Late usage figure” sections, identify records as the version source, describe the floor and record agreement, and explain that an exact invocation with an unknown version is insufficient for attachment.
+**Contract** Align the invocation recording bullet, Loop step 4 and late usage in both skills. The original recorded version remains part of matching the late measurement. Keep the telemetry descriptor and checkpoint instructions. In the reference's “Observed token accounting” and “Late usage figure” sections, identify records as the version source, describe the floor and record agreement, and explain that an exact invocation with an unknown version is insufficient for attachment. Add `version-conflict` to the reasons list at the end of “Observed token accounting”, and grep every doc for the old “forward the observed version” behavior, not only the files listed.
 
 Preserve the pinned phrases and byte ceilings in `skill-loop.test.mjs` (32,401 bytes for 10x and 36,896 for OpenSpec), plus the Anti-stall section and routing-literal guards. A read-only wording probe fit both existing regexes at 32,378 and 36,874 bytes by removing the unconditional observed-version instruction from invocation recording, adding “omit version for transcript” to Loop step 4, and clarifying that the original version is for matching in the late section.
+
+#### 2. Decision record
+
+**File** `docs/ADR/ADR-019-late-usage-figure.md`
+
+**Intent** Record the contract change where the late-attachment rules live, as earlier capture changes did.
+
+**Contract** Add an amendment stating that transcript records, not the descriptor, supply the host version and that the descriptor version is ignored. State the reason split between `version-conflict`, `unsupported-schema` and `unsupported-host`, and that unavailable evidence keeps a validated root identity while a missing version stays `unknown` and blocks late attachment. Point to ADR-018 Amendment 6 for the floor without changing it. Touch the `docs/ADR/README.md` row only if its one-line summary no longer holds.
 
 ### Success Criteria:
 
