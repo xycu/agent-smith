@@ -126,4 +126,4 @@ The convention applies to future 10x decisions. Existing archive records, checkb
 
 #### Manual
 
-- [ ] 1.4 A reviewer can trace the documented approval, deferred checks and follow-up owners from the example and follow the empty-list and refusal paths without treating an unresolved check as proved.
+- [x] 1.4 A reviewer can trace the documented approval, deferred checks and follow-up owners from the example and follow the empty-list and refusal paths without treating an unresolved check as proved. — evidence: evidence/judgment-archive-record-trace.md
