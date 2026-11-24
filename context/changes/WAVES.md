@@ -1,6 +1,6 @@
 # Waves v3
 
-Updated 2026-11-24. Waves 1 to 5 are merged. Wave 6 (tests) is next and has not started. `main` is at `af3f3df5` (v1.16.2). Open Manual rows are recorded per change (see "Open Manual rows after Wave 5"). [v1.15.1](https://github.com/xycu/agent-smith/releases/tag/v1.15.1) shipped five of the six Wave 2 changes, v1.15.2 added `step-guard-bypass-forms` and v1.15.3 added the run-lock fix [#248](https://github.com/xycu/agent-smith/pull/248). [v1.15.4](https://github.com/xycu/agent-smith/releases/tag/v1.15.4) ([#254](https://github.com/xycu/agent-smith/pull/254)) shipped four of the five Wave 3 changes; `codex-profile-and-gitdir-access` moved to Wave 4. [v1.16.0](https://github.com/xycu/agent-smith/releases/tag/v1.16.0) shipped five Wave 4 changes (see "Wave 4"), and v1.16.1 added two fixes to the Claude token capture (see "Added outside the schedule"). The four GitHub issues open on 2026-11-21 have change folders and slots (see "Added from GitHub issues"). The planning snapshot of 2026-11-19 was `main` at `52e197f3ad5a6722022026aeb1bec81870aa8fc6`, after [PR #221](https://github.com/xycu/agent-smith/pull/221); the line numbers below are still those of that snapshot.
+Updated 2026-11-24. Waves 1 to 5 are merged. Wave 6 (closeout, rules and tests) is next and has not started; it was redesigned on 2026-11-24 to take every open folder that had no slot (see "Wave 6"). `main` is at `f1398f19` (v1.18.0); v1.17.0 and v1.18.0 shipped four changes outside the schedule (see "Added outside the schedule"). Open Manual rows are recorded per change (see "Open Manual rows after Wave 5"). [v1.15.1](https://github.com/xycu/agent-smith/releases/tag/v1.15.1) shipped five of the six Wave 2 changes, v1.15.2 added `step-guard-bypass-forms` and v1.15.3 added the run-lock fix [#248](https://github.com/xycu/agent-smith/pull/248). [v1.15.4](https://github.com/xycu/agent-smith/releases/tag/v1.15.4) ([#254](https://github.com/xycu/agent-smith/pull/254)) shipped four of the five Wave 3 changes; `codex-profile-and-gitdir-access` moved to Wave 4. [v1.16.0](https://github.com/xycu/agent-smith/releases/tag/v1.16.0) shipped five Wave 4 changes (see "Wave 4"), and v1.16.1 added two fixes to the Claude token capture (see "Added outside the schedule"). The four GitHub issues open on 2026-11-21 have change folders and slots (see "Added from GitHub issues"). The planning snapshot of 2026-11-19 was `main` at `52e197f3ad5a6722022026aeb1bec81870aa8fc6`, after [PR #221](https://github.com/xycu/agent-smith/pull/221); the line numbers below are still those of that snapshot.
 
 This version replaces the v2 schedule. Waves 0 to 2 of v2 are merged and archived (S-14, the two audit fixes of 2026-11-15, S-13). Their acceptance records, the Wave 0 contract and the deferrals to S-20 stay in the [version 2 ledger](https://github.com/xycu/agent-smith/blob/52e197f3ad5a6722022026aeb1bec81870aa8fc6/context/changes/WAVES.md). No archived artifact is changed or marked complete by this file.
 
@@ -18,7 +18,7 @@ This version replaces the v2 schedule. Waves 0 to 2 of v2 are merged and archive
 | P0 prerequisite | `step-guard-heredoc-false-positives` (the bypass fix builds on its parser) |
 | P1, should fix, runtime | `next-requires-isolated-init`, `meta-json-damage-halts`, `run-branch-must-match-change-id`, `prepare-run-retry-after-failed-setup`, `open-pr-base-selection`, `run-lock-stale-takeover-race`, `replan-failure-halt-recoverable`, `openspec-critical-none-placeholder`, `codex-step-publication-guard`, `codex-profile-and-gitdir-access`, `run-root-worktree-readiness`, `run-root-cross-worktree-writes` (frame first) |
 | P2, owner decision first | `ci-self-hosted-runner-exposure`, `first-attempt-drop-unmeasured`, `claude-token-figures-default`, and the open [PR #214](https://github.com/xycu/agent-smith/pull/214) for S-12; `usage-capture-preflight` (waits for the token decision) |
-| P3, upkeep | `usage-file-docs-drift`, `docs-status-truth-up`, `open-pr-base-prefix-collision`, `test-suite-trim-and-gaps`, `test-shard-durations-refresh`, `quote-router-in-skill-loops` (parked) |
+| P3, upkeep | `usage-file-docs-drift`, `docs-status-truth-up`, `open-pr-base-prefix-collision`, `test-suite-trim-and-gaps`, `test-shard-durations-refresh`, `quote-router-in-skill-loops` (parked), `dev-test-scope-top-rule`, `record-archive-manual-decision` |
 
 A wave takes the highest priority first. A lower-priority change joins an earlier wave only when its lane is free there.
 
@@ -36,7 +36,8 @@ A lane is a region of code that one change owns at a time. Changes in one lane r
 | Setup | `run-identity.mjs`, `prepare-run.mjs` | `run-branch-must-match-change-id`, then `prepare-run-retry-after-failed-setup`; `open-pr-base-prefix-collision` may validate the prefix in `run-identity.mjs:38`, so it comes after the first; then `prepare-run-setup-lock-and-residue-followups`, then `run-root-worktree-readiness` (both edit `prepare-run.mjs`), and `run-root-cross-worktree-writes` if its frame puts the fix in setup |
 | OpenSpec | `openspec.mjs`, `os-verify.md` | `openspec-critical-none-placeholder` |
 | Skill text | both `SKILL.md` files and the tests that pin them | `codex-failure-native-lock-stuck` (line 88), then `claude-token-figures-default`, then `quote-router-in-skill-loops`; `usage-capture-preflight` follows `claude-token-figures-default` because both touch `claude-usage.mjs` |
-| Docs and tests | `docs/`, `README.md`, `AGENTS.md`, `tools/`, test files | `usage-file-docs-drift` and `docs-status-truth-up` early; `test-suite-trim-and-gaps`, then `test-shard-durations-refresh` last |
+| Docs and tests | `docs/`, `README.md`, `AGENTS.md`, `tools/`, test files | `usage-file-docs-drift` and `docs-status-truth-up` early; `record-archive-manual-decision` (docs only) beside the Wave 6 rules step; `test-suite-trim-and-gaps`, then `test-shard-durations-refresh` last |
+| Rules | `skills/10x-pipeline/rules/`, `skills/openspec-pipeline/rules/chain.md`, `rules.test.mjs` | `dev-test-scope-top-rule`, before `test-suite-trim-and-gaps` edits `rules.test.mjs` |
 
 `replan-failure-halt-recoverable` sits in two lanes (Flow and Router entry), so it waits for both.
 
@@ -50,7 +51,7 @@ A lane is a region of code that one change owns at a time. Changes in one lane r
 | **3, state and setup** (4, plus one live proof), **merged and archived 2026-11-21**; released in v1.15.4 (#254) | `meta-json-damage-halts`; `prepare-run-retry-after-failed-setup`; `open-pr-base-prefix-collision`; `openspec-critical-none-placeholder`; S-12 live rows 3.1 to 3.3 on the Wave 2 release (proved 2026-11-21 to 2026-11-22, see "Decision track") | Wave 2 merged (met) and released as v1.15.2. | Damaged state halts, a failed setup can be retried, a short prefix cannot hide the base. S-12 has its live proof (done). |
 | **4, recovery and decisions** (7), **merged 2026-11-22; `run-root-cross-worktree-writes` merged 2026-11-23 ([#277](https://github.com/xycu/agent-smith/pull/277))**; released in v1.16.0 and v1.16.2 | `codex-profile-and-gitdir-access`; `replan-failure-halt-recoverable`; `open-pr-base-selection`; `run-root-worktree-readiness`; the implementation of `run-root-cross-worktree-writes`; the implementation of `ci-self-hosted-runner-exposure`; the implementation of `claude-token-figures-default` | Wave 3 merged; the three frames decided. | Every runtime should-fix finding is closed except the refused cross-worktree write. `init` warns when the Codex profile or the worktree gitdir write access is missing. A run root is ready for the project's gates before step 1, and a refused write stops `init` with one clear error. CI and the token figures follow the owner's decisions. |
 | **5, policy and skill text** (4), **merged 2026-11-23**; released in v1.16.2 ([#279](https://github.com/xycu/agent-smith/pull/279)) | The implementation of `first-attempt-drop-unmeasured`; `usage-capture-preflight`; `prepare-run-setup-lock-and-residue-followups` (moved from Wave 4 on 2026-11-22); `quote-router-in-skill-loops` if the owner resumes it | Wave 4 merged. | The first-attempt drop matches ADR-010. A run warns before step 1 when token usage cannot be captured. The skill loops quote their paths, or the change stays parked. |
-| **6, tests** (2, one after the other) | `test-suite-trim-and-gaps`, then `test-shard-durations-refresh` | Wave 5 merged, so no other open change edits a test file. | The suite is faster, the untested branches are covered, and the shard timings match the new suite. |
+| **6, closeout, rules and tests** (4 changes and one closeout, in three steps; see "Wave 6") | 6a: the ledger and archive closeout; `dev-test-scope-top-rule`; `record-archive-manual-decision`; the frame and plan of `test-suite-trim-and-gaps`. 6b: `test-suite-trim-and-gaps`. 6c: `test-shard-durations-refresh` | Wave 5 merged (met), so no other open change edits a test file. | Every folder in `context/changes/` is archived, slotted or on a recorded hold. A step runs only the tests that cover its change. Archives with open Manual rows leave a durable approval record. The suite is faster, the untested branches are covered, and the shard timings match the new suite. |
 | **7** (1) | S-15 `actionable-run-prerequisites` | Wave 6 merged; S-12 delivered. | As in v2. |
 | **8** (2) | S-16 `resumable-unattended-runs`; S-18 `verified-step-protection` | Wave 7 merged; the two plans own different regions. | As in v2. |
 | **9** (1) | S-19 `truthful-owner-decision-halts` | Wave 8 merged. | As in v2. |
@@ -117,7 +118,7 @@ Rows 2.4 and 2.5 of `claude-token-figures-default` were closed on 2026-11-23 on 
 
 The minimum fix of `ci-self-hosted-runner-exposure` (`--ignore-scripts` on the install line) owns no runtime code. It may merge in any earlier wave as soon as the owner agrees.
 
-### Waves 5 and 6
+### Wave 5 (merged)
 
 | Change | Priority | Owns | Waits for |
 | --- | --- | --- | --- |
@@ -125,10 +126,30 @@ The minimum fix of `ci-self-hosted-runner-exposure` (`--ignore-scripts` on the i
 | `usage-capture-preflight` | P2 | an `init` preflight of the usage sources; the source checks in `claude-usage.mjs`; the reason line of the report and PR comment | `claude-token-figures-default` |
 | `prepare-run-setup-lock-and-residue-followups` | P3 | `prepare-run.mjs` (`checkCurrentPending`, the marker path helper, `writePending`) and its tests, per its reviewed plan (F2 and F3, verdict SOUND). Moved from Wave 4 on 2026-11-22 because its plan and `run-root-worktree-readiness` both edit `prepare-run.mjs`. Its frame splits F1 into a later change, `prepare-run-deletion-propagation`, with no folder yet. | `run-root-worktree-readiness`; replan after taking in `main` |
 | `quote-router-in-skill-loops` | P3, parked | both `SKILL.md` loops; `skill-loop.test.mjs`, `openspec-skill.test.mjs`, `archive-gate.test.mjs` | the owner's resume instruction; `claude-token-figures-default` |
-| `test-suite-trim-and-gaps` | P3 | test files across the suite; `GIT_TIMEOUT_MS` at `prepare-run.mjs:8` | every change above |
-| `test-shard-durations-refresh` | P3 | `tools/test-durations.json`; a drift test in `tools/test/` | `test-suite-trim-and-gaps` |
+Wave 5 merged on 2026-11-23: [#275](https://github.com/xycu/agent-smith/pull/275) `first-attempt-drop-unmeasured` (ships `drop: 0`; the A/B measurement is still open), [#278](https://github.com/xycu/agent-smith/pull/278) `usage-capture-preflight` (Manual rows 2.4 and 2.5 closed on 2026-11-24, see its `evidence/manual-live-acceptance.md`), [#280](https://github.com/xycu/agent-smith/pull/280) `prepare-run-setup-lock-and-residue-followups` and [#186](https://github.com/xycu/agent-smith/pull/186) `quote-router-in-skill-loops` (resumed by the owner).
 
-Wave 5 merged on 2026-11-23: [#275](https://github.com/xycu/agent-smith/pull/275) `first-attempt-drop-unmeasured` (ships `drop: 0`; the A/B measurement is still open), [#278](https://github.com/xycu/agent-smith/pull/278) `usage-capture-preflight` (Manual rows 2.4 and 2.5 closed on 2026-11-24, see its `evidence/manual-live-acceptance.md`), [#280](https://github.com/xycu/agent-smith/pull/280) `prepare-run-setup-lock-and-residue-followups` and [#186](https://github.com/xycu/agent-smith/pull/186) `quote-router-in-skill-loops` (resumed by the owner). Wave 6 starts from `main` at v1.16.2: `test-suite-trim-and-gaps` has `change.md` only and needs a frame and a plan first, then `test-shard-durations-refresh`.
+### Wave 6
+
+Redesigned on 2026-11-24 so that the wave leaves no open folder without a slot. The original wave held only the two test changes. Two seeds had no slot: `dev-test-scope-top-rule`, which was never in this ledger, and `record-archive-manual-decision`, which waited for the owner (decided 2026-11-24: Wave 6, Docs and tests lane, not absorbed by S-19). Twelve merged folders also stayed unarchived. The wave starts from `main` at `f1398f19` (v1.18.0) and runs in three steps. A step starts after every PR of the step before it is merged.
+
+| Step | Change | Priority | Owns | Waits for |
+| --- | --- | --- | --- | --- |
+| 6a | closeout (no run; one maintenance PR) | P3 | this ledger; `context/archive/` for the folders below with no open Manual row; `evidence/deferred-manual-rows.md` in the folders that keep open rows | Wave 5 merged (met) |
+| 6a | `dev-test-scope-top-rule` | P3 | the new always-true rule in `skills/10x-pipeline/rules/top.md` (and `skills/openspec-pipeline/rules/chain.md` if its plan needs a copy); `rules.test.mjs`; the row in `skills/10x-pipeline/rules/README.md`. No `SKILL.md` text. | nothing; needs a plan first (`change.md` only) |
+| 6a | `record-archive-manual-decision` | P3 | docs only: where and how an archive with unresolved Manual rows records the owner's approval, the row IDs, the reason and the follow-up destination | nothing; needs a plan first (`change.md` only) |
+| 6a | `test-suite-trim-and-gaps`, frame and plan only | P3 | `frame.md`, `research.md`, `plan.md` in its folder; no code | nothing |
+| 6b | `test-suite-trim-and-gaps`, implementation | P3 | test files across the suite; `GIT_TIMEOUT_MS` at `prepare-run.mjs:8`; the `SKILL.md` byte ceiling in `skill-loop.test.mjs` | `dev-test-scope-top-rule` (both edit `rules.test.mjs`); its plan re-measured on v1.18.0 |
+| 6c | `test-shard-durations-refresh` | P3 | `tools/test-durations.json`; a drift test in `tools/test/` | `test-suite-trim-and-gaps` (the durations must match the trimmed suite) |
+
+**Closeout in 6a.** It runs first in the step, so the step's run worktrees start from a ledger that is true.
+
+- Archive the four folders that have no open Manual row: `usage-capture-preflight`, `prepare-run-setup-lock-and-residue-followups`, `codex-usage-version-floor` and `claude-transcript-capture`.
+- Ask the owner about the open rows of the three changes merged after Wave 5 (see "Open Manual rows after Wave 5"): tick, defer to S-20 with `evidence/deferred-manual-rows.md`, or leave open. Archive a folder once it has no undecided row.
+- Folders that keep a recorded hold stay open: `run-root-worktree-readiness` (row 2.4) and `first-attempt-drop-unmeasured` (rows 2.1 to 2.3). The folders whose open rows are all deferred to S-20 (`provider-mode-split`, `quote-router-in-skill-loops`, `run-root-cross-worktree-writes`) may be archived only with the approval record that `record-archive-manual-decision` defines, so they wait for 6a to merge and close in the Wave 6 ledger PR.
+
+**Why the order.** `dev-test-scope-top-rule` comes before the trim because both edit `rules.test.mjs`, and because the rule keeps the trim run's own dev loop to touched tests. `record-archive-manual-decision` owns no code and no test file, so it runs beside it. The trim's frame and plan run in 6a because the audit figures date from 2026-11-19 (1,920 tests) and the suite has grown through v1.18.0; the plan re-measures before it cuts. The shard refresh runs last because its durations are measured on the trimmed suite.
+
+**Done when.** Each step's PRs are merged and the Wave 6 ledger PR records: the archived folders, the holds left open with their reason, the new rule in `top.md`, the approval record format, the suite's new wall time and test count, and a `tools/test-durations.json` with no missing or stale entry.
 
 ### Open Manual rows after Wave 5
 
@@ -141,6 +162,9 @@ Decided by the owner on 2026-11-24. Each change keeps its rows unticked and reco
 | `provider-mode-split` | 3.2 | Deferred to S-20: six host and mode combinations on both chains. Row 3.3 ticked (PR #231 merged, CI green on its head). |
 | `first-attempt-drop-unmeasured` | 2.1, 2.2, 2.3 | Open, not moved: the A/B measurement waits for the owner; the drop stays `0`. |
 | `run-root-worktree-readiness` | 2.4 | Open, archive on hold until the owner checks it on a real project. |
+| `claude-capture-default-on` | 1.7 | Undecided: from plain `claude`, `init` halts with a pasteable launcher command and the launcher session resumes the run with figures. The Wave 6 closeout asks the owner. |
+| `codex-run-gitdir-grant` | 1.4, 2.2, 3.3 | Undecided: live runs on codex-cli 0.171.0 (preflight grant, refusal text, split-mode first OpenAI step). The Wave 6 closeout asks the owner. |
+| `codex-worktree-gitdir-grant` | 3.3, 3.4 | Undecided: a fresh isolated run on macOS with Codex 0.172.0 or newer commits with no prompt, and the sandbox denies writes to `<common>/hooks` and `<common>/config`. The Wave 6 closeout asks the owner. |
 
 Rows closed in this pass: `usage-capture-preflight` 2.4 and 2.5 (live run on Claude Code 2.1.323 and a throwaway PR), `prepare-run-setup-lock-and-residue-followups` 2.2 (full-suite CI on [#280](https://github.com/xycu/agent-smith/pull/280)). `usage-capture-preflight` has no open row and can be archived.
 
@@ -187,12 +211,19 @@ S-16 and S-18 stay in one wave only if their plans own different runner, setting
 ## Added outside the schedule
 
 - **`provider-mode-split`, [PR #231](https://github.com/xycu/agent-smith/pull/231), released in v1.15.0:** a run selects Claude, Codex or a split provider mode, with the host as the default. It has no wave slot because it came from an owner request after Wave 1. The change is not archived: Manual row 3.2 (fresh authenticated sessions for six host and mode combinations on each chain) is deferred to S-20 (2026-11-24); row 3.3 is ticked (PR #231 merged, CI green on its head). The run ended on its fix-loop cap, so its last fix commit has no review of its own. The PR raised `limits.maxFixLoops` to 3 in the project override and the by-file action ceiling to 1,536 bytes in `prompt-handoff.test.mjs`.
-- **`record-archive-manual-decision`:** a seed from the archive decision of `docs-status-truth-up`, status `new`. It documents a durable record for an archive with unresolved Manual rows. S-19 owns the wider decision flow, so the seed has no slot until the owner decides whether S-19 absorbs it or it runs earlier in the Docs and tests lane.
+- **`record-archive-manual-decision`:** a seed from the archive decision of `docs-status-truth-up`, status `new`. It documents a durable record for an archive with unresolved Manual rows. The owner decided on 2026-11-24 that it runs in Wave 6, step 6a, in the Docs and tests lane; S-19 keeps the wider decision flow and builds on the record.
+- **`dev-test-scope-top-rule`:** a seed from the owner decision of 2026-11-22, status `new`: during development a step runs only the test files that cover what it changed, and CI runs the full suite. It was not in this ledger before 2026-11-24; it now runs in Wave 6, step 6a, in the Rules lane.
 
 - **`claude-capture-version-floor`, [PR #272](https://github.com/xycu/agent-smith/pull/272), released in v1.16.1:** the capture accepts every Claude Code release at or above the reviewed floor 2.1.311, not one exact release. It came from the live probe of `claude-token-figures-default` on 2.1.323, which the exact-version rule refused.
 - **`claude-capture-async-agent-launch`, [PR #274](https://github.com/xycu/agent-smith/pull/274), released in v1.16.1:** the live probe then ended every step `incomplete-capture`, because an interactive session launches the step Agent in the background and the collector assumed a synchronous result. The collector now settles the invocation's root run from its stop, completion and transcript records, and the wording that called the 2.1.311 fixtures headless evidence is corrected. A live interactive run on 2.1.323 verified all five steps (1,248,719 tokens); the record is in the archived change. It has no wave slot because it came from a live finding after Wave 4. The change is archived.
 
-- **`codex-usage-version-floor`, [PR #276](https://github.com/xycu/agent-smith/pull/276), released in v1.16.2:** Codex usage accepts releases at or above the reviewed floor, as `claude-capture-version-floor` did for Claude. It has no wave slot.
+- **`codex-usage-version-floor`, [PR #276](https://github.com/xycu/agent-smith/pull/276), released in v1.16.2:** Codex usage accepts releases at or above the reviewed floor, as `claude-capture-version-floor` did for Claude. It has no wave slot. No open Manual row; the Wave 6 closeout archives it.
+
+- **After Wave 5, released in v1.17.0 and v1.18.0:** four changes from live runs, with no wave slot. The Wave 6 closeout archives or holds each one.
+  - `codex-run-gitdir-grant`, [PR #285](https://github.com/xycu/agent-smith/pull/285) (v1.17.0): the run worktree gitdir is granted to Codex per run, and a refused preflight says why. Manual rows 1.4, 2.2 and 3.3 open.
+  - `codex-worktree-gitdir-grant`, [PR #287](https://github.com/xycu/agent-smith/pull/287) (v1.17.0): the grant is passed to Codex at launch. Manual rows 3.3 and 3.4 open.
+  - `claude-capture-default-on`, [PR #288](https://github.com/xycu/agent-smith/pull/288) (v1.17.0): token capture is expected by default on Claude-hosted runs. Manual row 1.7 open.
+  - `claude-transcript-capture`, [PR #290](https://github.com/xycu/agent-smith/pull/290) (v1.18.0): Claude token capture reads session transcripts by default instead of the launcher. No open Manual row.
 
 ## Added from GitHub issues
 
