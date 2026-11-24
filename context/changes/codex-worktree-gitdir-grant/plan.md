@@ -208,8 +208,8 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Manual
 
-- [ ] 1.4 On macOS with Codex, `codex sandbox -c '<generated table>'` in a linked worktree lets `git add` and `git commit` succeed and leaves `<common>/hooks` and `<common>/config` writes denied
-- [ ] 1.5 Branch creation, `git branch -d` and `git gc --auto` inside the same sandbox pass or the failing path is recorded; `packed-refs` added only if needed
+- [x] 1.4 On macOS with Codex, `codex sandbox -c '<generated table>'` in a linked worktree lets `git add` and `git commit` succeed and leaves `<common>/hooks` and `<common>/config` writes denied — evidence: evidence/command-codex-sandbox-grant-output.txt
+- [x] 1.5 Branch creation, `git branch -d` and `git gc --auto` inside the same sandbox pass or the failing path is recorded; `packed-refs` added only if needed — evidence: evidence/command-codex-sandbox-grant-output.txt
 
 ### Phase 2: `init` advice and stale-line listing
 
@@ -221,7 +221,7 @@ Existing manual `~/.codex/config.toml` lines keep working and become redundant; 
 
 #### Manual
 
-- [ ] 2.4 Running `init` in a repo whose `~/.codex/config.toml` has dead `agent-smith-*` lines prints them once and does not change the file (compare checksums)
+- [x] 2.4 Running `init` in a repo whose `~/.codex/config.toml` has dead `agent-smith-*` lines prints them once and does not change the file (compare checksums) — evidence: evidence/test-init-stale-listing.txt
 
 ### Phase 3: Docs and live acceptance
 

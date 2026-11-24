@@ -1,0 +1,2 @@
+- 3.3 — needs a fresh live isolated run through the pipeline on macOS; not reproducible from this unattended step
+- 3.4 — needs the sandbox of that same live run; the scratch-repo analogue (row 1.4) is proven but is not that run
