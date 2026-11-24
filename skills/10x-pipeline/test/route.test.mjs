@@ -635,7 +635,7 @@ test("the plan prompt carries named-skill loading, layered safety rules and the 
   const prompt = res.json.prompt;
   const rules = prompt.split("\n").filter((l) => l.startsWith("- **GIVEN**"));
   // Three defaults, three planning rules, then the shared safety and precedence rules.
-  assert.equal(rules.length, 27);
+  assert.equal(rules.length, 28);
   assert.match(rules[5], /`- \[ \] N\.M title`.*pending row under `#### Automated`/);
   assert.match(rules[0], /\*\*MUST\*\* decide from researched best practice/);
   assert.match(rules[1], /`signals\.needsHuman`/);
@@ -648,8 +648,9 @@ test("the plan prompt carries named-skill loading, layered safety rules and the 
   assert.match(rules[18], /all applicable always-true, chain and step safety rules/);
   assert.match(rules[21], /delegated leaf.*\*\*MUST NOT\*\* do so/);
   assert.match(rules[23], /collect every launched child, reconcile edits and failures/);
-  assert.match(rules[25], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
-  assert.match(rules[26], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
+  assert.match(rules[25], /run development tests, including before handoff/);
+  assert.match(rules[26], /always-true heading .*\*\*MUST\*\* follow the always-true rule/);
+  assert.match(rules[27], /neither stands under an always-true heading .*\*\*MUST\*\* follow the rule written earlier/);
   const result = prompt.split("\n").find((l) => l.startsWith("RESULT: "));
   assert.equal(prompt.split("\n").at(-1), result, "the RESULT line of top.md ends the prompt");
   assert.ok(result.includes('"signals":{"needsHuman":"<reason, only when blocked>","rigor":"standard|thorough"}'));
