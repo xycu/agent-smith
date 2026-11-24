@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md Acceptance fixes the outcome (affirmative approval record with row IDs, reason, follow-up destination; refusal keeps unarchived), but where the record lives and its exact format are open, with more than one reasonable answer." },
+    "novelty": { "score": 1, "evidence": "change.md links S-13 closeout (openspec-2-upgrade evidence/acceptance.md#owner-archive-decision) and S-14 closeout (nested-step-delegation evidence/acceptance.md#publication-verification-and-archive-closeout); the record adapts that existing pattern." },
+    "coupling": { "score": 1, "evidence": "change.md goal: docs only, no runtime gate change; the archive flow lives in the 10x-archive skill at /Users/blazej/.claude/skills/10x-archive/SKILL.md, outside the repo, so the repo edit touches few files." },
+    "discovery": { "score": 1, "evidence": "change.md names the locations (S-13 and S-14 closeouts, roadmap S-19); one search finds the 10x-archive skill and the Manual-gate wording at its lines 105-130." },
+    "volume": { "score": 1, "evidence": "change.md goal: documentation for future 10x approvals, a few edits in 2 or 3 files; no backfill of archived changes." },
+    "verification": { "score": 2, "evidence": "change.md acceptance needs a manual check of the documented record and refusal path; no automated harness covers docs text." }
+  },
+  "unknowns": [
+    "Whether the 10x-archive skill edit belongs in this repo or only in the home-directory skill, which this run may not change.",
+    "Whether the durable record should live in change.md, an evidence file, or the archive folder; the goal does not fix it.",
+    "Which follow-up destination format the owner expects for deferred proof."
+  ],
+  "confidence": "medium"
+}
