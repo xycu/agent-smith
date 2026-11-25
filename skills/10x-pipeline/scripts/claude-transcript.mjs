@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { claudeCaptureSupported, cleanInvocation, readBoundedFile, readBoundedLines } from "./usage.mjs";
+import { claudeCaptureSupported, readBoundedFile, readBoundedLines } from "./usage.mjs";
 import { CLAUDE_USAGE_LIMITS as limits, counters, fail, hash, identifier, integer, object, textContent, transcriptBuckets } from "./claude-capture-data.mjs";
 
 const pathId = value => identifier(value) && !value.includes(":");
@@ -32,9 +32,13 @@ function scan(directory, budget, visit) {
   return before;
 }
 
-function locateSession(env, budget) {
+function nativeSessionId(env) {
   const sessionId = env.CLAUDE_CODE_SESSION_ID;
   if (!pathId(sessionId) || env.AGENT_SMITH_CLAUDE_SESSION) fail("missing-identity");
+  return sessionId;
+}
+
+function locateSession(env, budget, sessionId) {
   const config = env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), ".claude");
   if (!path.isAbsolute(config)) fail("unsafe-path");
   const root = path.join(config, "projects");
@@ -51,7 +55,7 @@ function locateSession(env, budget) {
     main = file;
   });
   if (!main) fail("missing-source");
-  return { root, main, sessionId, agents: path.join(path.dirname(main), sessionId, "subagents") };
+  return { root, main, agents: path.join(path.dirname(main), sessionId, "subagents") };
 }
 
 function budgetForSession() {
@@ -62,7 +66,7 @@ export function claudeTranscriptReadiness(env = process.env) {
   if (!env.CLAUDE_CODE_SESSION_ID || env.AGENT_SMITH_CLAUDE_SESSION) return "disabled";
   try {
     const budget = budgetForSession();
-    const { main } = locateSession(env, budget);
+    const { main } = locateSession(env, budget, nativeSessionId(env));
     const before = fs.lstatSync(main);
     const fd = fs.openSync(main, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
     try {
@@ -101,13 +105,12 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
   if (!object(observed) || !pathId(observed.agentId) || (observed.host !== undefined && observed.host !== "claude")
       || (observed.runId !== undefined && !identifier(observed.runId))
       || (observed.sessionId !== undefined && observed.sessionId !== env.CLAUDE_CODE_SESSION_ID)) fail("missing-identity");
-  if (descriptor.hostVersion !== undefined) {
-    if (!claudeCaptureSupported(descriptor.hostVersion)) fail("unsupported-host");
-    evidence.hostVersion = descriptor.hostVersion;
-  }
-  const budget = budgetForSession();
-  const { root, main, sessionId, agents } = locateSession(env, budget);
+  const sessionId = nativeSessionId(env);
   const rootId = observed.agentId;
+  const invocation = runId => ({ host: "claude", sessionId, agentId: rootId, runId });
+  if (observed.runId !== undefined) evidence.invocation = invocation(observed.runId);
+  const budget = budgetForSession();
+  const { root, main, agents } = locateSession(env, budget, sessionId);
   const seenFiles = new Map();
   const metaFile = id => path.join(agents, `agent-${id}.meta.json`);
   const chargeRecord = () => {
@@ -137,12 +140,18 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
   };
   const rootMeta = readMeta(rootId);
   if (!identifier(rootMeta.toolUseId) || rootMeta.spawnDepth !== 1 || rootMeta.parentAgentId != null
-      || rootMeta.description !== description || (observed.runId !== undefined && rootMeta.toolUseId !== observed.runId)) fail("missing-identity");
+      || rootMeta.description !== description || (observed.runId !== undefined && rootMeta.toolUseId !== observed.runId)) {
+    delete evidence.invocation;
+    fail("missing-identity");
+  }
+  evidence.invocation = invocation(rootMeta.toolUseId);
   const version = value => {
-    if (!claudeCaptureSupported(value) || (evidence.hostVersion !== undefined && value !== evidence.hostVersion)) {
-      delete evidence.hostVersion;
-      fail("unsupported-host");
-    }
+    if (value !== undefined && value === evidence.hostVersion) return;
+    const previous = evidence.hostVersion;
+    delete evidence.hostVersion;
+    if (typeof value !== "string" || value.length > 32 || !/^\d+\.\d+\.\d+$/.test(value)) fail("unsupported-schema");
+    if (!claudeCaptureSupported(value)) fail("unsupported-host");
+    if (previous !== undefined) fail("version-conflict");
     evidence.hostVersion = value;
   };
   const messages = new Map();
@@ -163,9 +172,12 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
   function inspectCalls(record, calls, owner, target) {
     const content = record.message?.content;
     if (!Array.isArray(content)) return;
-    const identity = () => {
-      if (record.sessionId !== sessionId || (record.agentId ?? null) !== owner) fail("missing-identity");
+    const identity = (rootMismatch, prior) => {
+      const wrongOwner = record.sessionId !== sessionId || (record.agentId ?? null) !== owner;
+      if (owner === null && (wrongOwner || rootMismatch)) delete evidence.invocation;
+      if (wrongOwner) fail("missing-identity");
       version(record.version);
+      if (owner === null && rootMismatch) fail(prior ? "conflicting-duplicate" : "missing-identity");
     };
     const singleResult = record.type === "user" && content.filter(item => item?.type === "tool_result").length === 1;
     for (const block of content) {
@@ -174,7 +186,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
         if (block.name !== "Agent") continue;
         if (block.input?.resume != null) reused.add(block.input.resume);
         if (target !== undefined && block.id !== target) continue;
-        identity();
+        identity(block.input?.description !== description, calls.launches.has(block.id));
         if (!identifier(block.id) || !identifier(record.message.id) || typeof block.input?.description !== "string"
             || typeof block.input.prompt !== "string" || !block.input.prompt) fail("missing-identity");
         if (block.input.resume != null) fail("ambiguous-history");
@@ -192,7 +204,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       if (result?.agentId) claimAgent(result.agentId, owner, block.tool_use_id);
       if (target !== undefined && block.tool_use_id !== target) continue;
       if (target === undefined && !children.has(block.tool_use_id) && !calls.launches.has(block.tool_use_id)) continue;
-      identity();
+      identity(result?.agentId !== undefined && result.agentId !== rootId, calls.returns.has(block.tool_use_id));
       // Only the invocation's own root may return a background launch; its finished metadata proves settlement.
       if (owner === null && singleResult && object(result) && !block.is_error && result.status === "async_launched"
           && result.isAsync === true && pathId(result.agentId)) {
@@ -218,9 +230,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
   lines(main, record => inspectCalls(record, mainCalls, null, rootMeta.toolUseId), true);
   const rootLaunch = mainCalls.launches.get(rootMeta.toolUseId);
   const rootReturn = mainCalls.returns.get(rootMeta.toolUseId);
-  if ((rootLaunch && rootLaunch.description !== description) || (rootReturn?.agentId !== undefined && rootReturn.agentId !== rootId)) fail("missing-identity");
   if (!rootLaunch) fail("incomplete-capture");
-  evidence.invocation = cleanInvocation({ host: "claude", sessionId, agentId: rootId, runId: rootMeta.toolUseId });
   if (!rootReturn || rootMeta.finished !== true) fail("incomplete-capture");
 
   const agentDirectoryStat = scan(agents, budget, entry => {

@@ -11,7 +11,7 @@ import {
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, moveToArchive } from "../../openspec-pipeline/test/openspec-helpers.mjs";
-import { boundClaudeFixture } from "./claude-helpers.mjs";
+import { boundClaudeFixture, transcriptFixture } from "./claude-helpers.mjs";
 import { claudeCaptureCheckpoint, collectClaudeUsage } from "../scripts/claude-usage.mjs";
 import { unavailableEvidence } from "../scripts/usage.mjs";
 
@@ -658,12 +658,41 @@ for (const chain of ["10x", "openspec"]) {
   test(`${chain}: late transcript totals preserve attribution, counters and identical replay`, () => {
     const p = treeProject(chain);
     const log = readLogEntries(p);
-    const measured = { ...TREE_EVIDENCE, status: "transcript", source: "claude-transcript", hostVersion: "2.1.323",
-      invocation: { host: "claude", sessionId: "session", agentId: "agent", runId: "tool" }, reconciliation: "transcript-messages" };
-    log[0].usageEvidence = unavailableEvidence("incomplete-capture", measured);
+    const capture = transcriptFixture({ project: p, chain, n: 1, step: log[0].step });
+    const measure = () => collectClaudeUsage(capture.descriptor, capture.env);
+    fs.unlinkSync(path.join(capture.directory, "agent-step-agent.jsonl"));
+    const waiting = measure();
+    assert.equal(waiting.usageEvidence.reason, "missing-source");
+    capture.write();
+    const { usage: { totalTokens }, usageEvidence: measured } = measure();
+    assert.equal(measured.status, "transcript");
+    assert.equal(totalTokens, 151);
+    assert.deepEqual(waiting.usageEvidence.invocation, measured.invocation);
+    assert.equal(waiting.usageEvidence.hostVersion, measured.hostVersion);
+    const attach = (usageEvidence, tokens = totalTokens) => usage(p, 1, ["--usage-file",
+      treeFile(p, treePayload(p, chain, { usage: { totalTokens: tokens }, usageEvidence })), "--chain", chain]);
+
+    const returned = capture.main[1].toolUseResult;
+    returned.agentId = "contradictory";
+    capture.write();
+    const noIdentity = measure();
+    assert.equal(noIdentity.usageEvidence.invocation, undefined);
+    assert.equal(noIdentity.usageEvidence.hostVersion, measured.hostVersion);
+    returned.agentId = measured.invocation.agentId;
+    fs.writeFileSync(capture.mainFile, "");
+    const noVersion = measure();
+    assert.deepEqual(noVersion.usageEvidence.invocation, measured.invocation);
+    assert.equal(noVersion.usageEvidence.hostVersion, "unknown");
+    for (const incomplete of [noIdentity, noVersion]) {
+      Object.assign(log[0], incomplete);
+      writeLog(p, log);
+      const before = snapshot(p.changeDir);
+      assert.equal(attach(measured).status, 1);
+      assert.deepEqual(snapshot(p.changeDir), before);
+    }
+
+    Object.assign(log[0], waiting);
     writeLog(p, log);
-    const attach = (usageEvidence, totalTokens = 0) => usage(p, 1, ["--usage-file",
-      treeFile(p, treePayload(p, chain, { usage: { totalTokens }, usageEvidence })), "--chain", chain]);
     const before = snapshot(p.changeDir);
     for (const over of [{ invocation: { ...measured.invocation, runId: "other" } }, { hostVersion: "2.1.324" },
       { source: "claude-native", status: "verified", reconciliation: "request-records" }]) {
@@ -672,7 +701,8 @@ for (const chain of ["10x", "openspec"]) {
     }
     const attached = attach(measured);
     assert.equal(attached.status, 0, attached.stdout);
-    assert.deepEqual(attached.json.usage, { durationMs: 45, toolUses: 7, totalTokens: 0 });
+    assert.deepEqual(attached.json.usage, { ...waiting.usage, totalTokens });
+    assert.deepEqual(readLogEntries(p).slice(1), log.slice(1));
     assert.deepEqual(attached.json.usageEvidence, measured);
     const after = snapshot(p.changeDir);
     assert.equal(attach(measured).json.unchanged, true);

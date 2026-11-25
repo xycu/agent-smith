@@ -158,8 +158,8 @@ Existing readers keep the same evidence shape. Previous records lacking exact at
 
 #### Automated
 
-- [ ] 1.1 Collector fixtures prove transcript version authority, failure classification and identity retention: `node --test skills/10x-pipeline/test/claude-usage.test.mjs skills/10x-pipeline/test/usage-evidence.test.mjs skills/10x-pipeline/test/accounting-readers.test.mjs`
-- [ ] 1.2 CLI fixtures prove exact late attachment and byte-identical refusals on both chains: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
+- [x] 1.1 Collector fixtures prove transcript version authority, failure classification and identity retention: `node --test skills/10x-pipeline/test/claude-usage.test.mjs skills/10x-pipeline/test/usage-evidence.test.mjs skills/10x-pipeline/test/accounting-readers.test.mjs`
+- [x] 1.2 CLI fixtures prove exact late attachment and byte-identical refusals on both chains: `node --test skills/10x-pipeline/test/late-usage.test.mjs`
 
 ### Phase 2: Align both chains and qualify Claude Desktop
 

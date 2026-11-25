@@ -606,12 +606,56 @@ for (const options of [{ children: false }, { children: true }, { chain: "opensp
   });
 }
 
+const rootInvocation = { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" };
+
+test("transcript versions come from records even when a descriptor supplies another release", () => {
+  const f = transcriptFixture();
+  for (const hostVersion of [undefined, "2.2.0", "2.1.310", "not-a-release"]) {
+    if (hostVersion !== undefined) f.descriptor.hostVersion = hostVersion;
+    const measured = transcript(f);
+    assert.equal(measured.usage.totalTokens, 151);
+    assert.equal(measured.usageEvidence.hostVersion, "2.1.311");
+  }
+});
+
+test("main and child record version failures retain the root identity and independent counters", () => {
+  for (const select of [f => f.main[1], f => f.records.get("leaf-agent")[1]]) {
+    for (const [version, reason] of [[undefined, "unsupported-schema"], ["2.2.0-dev", "unsupported-schema"],
+      ["2.1.310", "unsupported-host"], ["2.2.0", "version-conflict"]]) {
+      const f = transcriptFixture();
+      select(f).version = version;
+      f.write();
+      const measured = transcript(f);
+      unavailable(measured, reason);
+      assert.equal(measured.usageEvidence.hostVersion, "unknown");
+      assert.deepEqual(measured.usageEvidence.invocation, rootInvocation);
+      assert.deepEqual(measured.usage, { durationMs: 50, toolUses: 4 });
+    }
+  }
+});
+
+test("contradictory root launch or return invalidates identity even when accounting also fails", () => {
+  for (const modify of [
+    f => { f.main[0].message.content[0].input.description = "wrong"; },
+    f => { f.main[1].toolUseResult.agentId = "wrong"; },
+    f => { f.main[1].sessionId = "wrong"; },
+    f => { f.main[1].toolUseResult.agentId = "wrong"; f.main[1].toolUseResult.totalTokens = 100; },
+    f => { f.main[0].message.content[0].input.description = "wrong"; delete f.main[0].version; },
+  ]) {
+    const f = transcriptFixture();
+    modify(f);
+    f.write();
+    const measured = transcript(f);
+    unavailable(measured);
+    assert.equal(measured.usageEvidence.invocation, undefined);
+  }
+});
+
 test("transcript binds launch, return, tool IDs, membership and fresh message lineage", () => {
   for (const [reason, modify] of [
     ["missing-identity", f => { delete f.descriptor.invocation.agentId; }],
     ["missing-identity", f => { f.descriptor.invocation.sessionId = "another-session"; }],
     ["missing-identity", f => { f.descriptor.invocation.runId = "another-tool"; }],
-    ["unsupported-host", f => { f.descriptor.hostVersion = "2.2.0"; }],
     ["missing-identity", f => { f.main[0].message.content[0].input.description = "other"; }],
     ["ambiguous-history", f => { f.main[0].message.content[0].input.resume = "step-agent"; }],
     ["ambiguous-history", f => { f.records.get("leaf-agent")[0].message.content = "different prompt"; }],
@@ -640,7 +684,6 @@ test("transcript binds launch, return, tool IDs, membership and fresh message li
         input: { ...f.main[0].message.content[0].input, prompt: "other" } }] } });
     }],
     ["conflicting-duplicate", f => { f.main.push({ ...f.main[1], toolUseResult: { ...f.main[1].toolUseResult, agentId: "other" } }); }],
-    ["unsupported-host", f => { f.records.get("leaf-agent")[1].version = "2.2.0"; }],
     ["unsupported-schema", f => { f.records.get("step-agent")[0].message.usage = {}; }],
     ["resource-limit", f => { f.records.get("step-agent")[1].message.usage.input_tokens = Number.MAX_SAFE_INTEGER; }],
     ["invalid-evidence", f => { f.descriptor.sources = {}; }],
@@ -866,21 +909,24 @@ test("delayed transcript completion keeps only established late-attachment ident
   assert.equal(transcript(f).usage.totalTokens, 151);
   f.main.splice(0, 2);
   f.write();
-  const unidentified = transcript(f);
-  unavailable(unidentified);
-  assert.equal(unidentified.usageEvidence.invocation, undefined);
-  assert.equal(unidentified.usageEvidence.hostVersion, "unknown");
+  const missingLaunch = transcript(f);
+  unavailable(missingLaunch, "incomplete-capture");
+  assert.deepEqual(missingLaunch.usageEvidence.invocation, rootInvocation);
+  assert.equal(missingLaunch.usageEvidence.hostVersion, "unknown");
 });
 
-test("fully observed Claude identity and qualified version survive delayed root metadata", () => {
+test("only fully observed Claude identity survives delayed root metadata", () => {
   const f = transcriptFixture();
   f.descriptor.hostVersion = "2.1.311";
-  f.descriptor.invocation = { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" };
+  f.descriptor.invocation = { ...rootInvocation };
   fs.unlinkSync(path.join(f.directory, "agent-step-agent.meta.json"));
   const delayed = transcript(f);
   unavailable(delayed, "missing-source");
   assert.deepEqual(delayed.usageEvidence.invocation, f.descriptor.invocation);
-  assert.equal(delayed.usageEvidence.hostVersion, f.descriptor.hostVersion);
+  assert.equal(delayed.usageEvidence.hostVersion, "unknown");
+  delete f.descriptor.invocation.runId;
+  assert.equal(transcript(f).usageEvidence.invocation, undefined);
+  f.descriptor.invocation.runId = rootInvocation.runId;
   f.metadata.get("step-agent").toolUseId = "contradictory-tool";
   f.write();
   const conflicting = transcript(f);
@@ -891,12 +937,12 @@ test("fully observed Claude identity and qualified version survive delayed root 
 test("observed invocation survives delayed main source, launch and final counters", () => {
   const f = transcriptFixture();
   f.descriptor.hostVersion = "2.1.311";
-  f.descriptor.invocation = { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" };
+  f.descriptor.invocation = { ...rootInvocation };
   const check = () => {
     const early = transcript(f);
     unavailable(early);
     assert.deepEqual(early.usageEvidence.invocation, f.descriptor.invocation);
-    assert.equal(early.usageEvidence.hostVersion, f.descriptor.hostVersion);
+    assert.equal(early.usageEvidence.hostVersion, "unknown");
   };
   fs.unlinkSync(f.mainFile);
   check();
@@ -908,7 +954,8 @@ test("observed invocation survives delayed main source, launch and final counter
   delete f.descriptor.invocation.runId;
   const early = transcript(f);
   unavailable(early, "incomplete-capture");
-  assert.equal(early.usageEvidence.invocation.runId, "tool-root");
+  assert.deepEqual(early.usageEvidence.invocation, rootInvocation);
+  assert.equal(early.usageEvidence.hostVersion, "2.1.311");
   f.main[1].toolUseResult.usage = usage;
   f.write();
   assert.equal(transcript(f).usage.totalTokens, 151);
