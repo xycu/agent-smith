@@ -51,5 +51,15 @@
   "rigor": {
     "level": "standard",
     "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.2 A live native Claude Desktop pipeline run records Claude token figures and retains its evidence file under `evidence/`."
+    ],
+    "manualNotProved": [
+      "2.2 A live native Claude Desktop pipeline run records Claude token figures and retains its evidence file under `evidence/`. — not proved: The live run in this Claude Desktop session (steps 1, 3, 5 of this change) did record positive transcript token figures with record version 2.1.330 (CLI is 2.1.325), but the session loads the installe"
+    ]
   }
 }
