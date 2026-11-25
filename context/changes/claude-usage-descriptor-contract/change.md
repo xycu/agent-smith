@@ -1,7 +1,7 @@
 ---
 change_id: claude-usage-descriptor-contract
 title: Claude token counts lost because orchestrators send a malformed usage descriptor
-status: implementing
+status: implemented
 created: 2026-11-25
 updated: 2026-11-25
 archived_at: null

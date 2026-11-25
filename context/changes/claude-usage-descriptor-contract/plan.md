@@ -148,7 +148,7 @@ At most one synchronous measurement per consumed native row under the existing r
 
 #### Automated
 
-- [x] 3.1 Both loop contract tests pass, Anti-stall sections match and each skill is smaller than its starting size.
+- [x] 3.1 Both loop contract tests pass, Anti-stall sections match and each skill is smaller than its starting size. — 16c9a593
 
 #### Manual
 
