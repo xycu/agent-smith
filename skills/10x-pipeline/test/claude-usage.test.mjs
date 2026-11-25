@@ -284,13 +284,30 @@ test("immediate, late and archive boundaries use the same read-only collector", 
 
 test("unavailable CLI and malformed import boundaries are successful measurements without step-authored tokens", () => {
   for (const descriptor of [null, [], 42, {}, { usage: { totalTokens: 999, durationMs: 2 } }]) unavailable(collectClaudeUsage(descriptor));
-  const result = spawnSync(process.execPath, [CLI], { input: "private-prompt malformed", encoding: "utf8" });
-  assert.equal(result.status, 0);
-  unavailable(JSON.parse(result.stdout), "unsupported-schema");
-  assert.equal(result.stderr, "");
+  for (const input of ["", " \t\n", "private-prompt malformed"]) {
+    const result = spawnSync(process.execPath, [CLI], { input, encoding: "utf8" });
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    const measured = JSON.parse(result.stdout);
+    unavailable(measured, "invalid-json");
+    assert.equal(measured.usageEvidence.source, "unknown");
+    assert.equal(measured.usageEvidence.invocation, undefined);
+    assert.equal(measured.usage, undefined);
+    assert.equal(result.stdout, JSON.stringify(measured) + "\n");
+  }
   const large = spawnSync(process.execPath, [CLI], { input: "x".repeat(CLAUDE_USAGE_LIMITS.descriptorBytes + 1), encoding: "utf8" });
   assert.equal(large.status, 0);
   unavailable(JSON.parse(large.stdout), "resource-limit");
+});
+
+test("a valid descriptor preserves the source-specific schema failure for malformed host records", () => {
+  const f = claudeUsageFixture();
+  fs.writeFileSync(f.descriptor.sources.nativeFile, "private-prompt malformed\n");
+  const result = spawnSync(process.execPath, [CLI], { input: JSON.stringify(f.descriptor), encoding: "utf8" });
+  assert.equal(result.status, 0);
+  const measured = JSON.parse(result.stdout);
+  unavailable(measured, "unsupported-schema");
+  assert.equal(measured.usageEvidence.source, "claude-native");
 });
 
 test("the CLI decodes a Unicode source path across arbitrary descriptor chunk boundaries", () => {
@@ -352,8 +369,30 @@ test("checkpoint refuses competing top-level launches even with an observed agen
   f.native.push(competitor);
   f.write();
   const descriptor = { ...f.descriptor, invocation: { host: "claude", agentId: "step-agent" } };
-  unavailable(collectClaudeUsage({ ...descriptor, checkpoint }, f.env), "ambiguous-history");
+  const ambiguous = collectClaudeUsage({ ...descriptor, checkpoint }, f.env, "step-agent");
+  unavailable(ambiguous, "ambiguous-history");
+  assert.equal(ambiguous.usageEvidence.invocation, undefined);
   assert.equal(collectClaudeUsage({ ...descriptor, invocation: { ...descriptor.invocation, runId: "tool-root" } }, f.env).usage.totalTokens, 117);
+});
+
+test("a malformed launch observation never opens a source or becomes accounting identity", t => {
+  const f = boundClaudeFixture();
+  const checkpoint = claudeCaptureCheckpoint(f.env);
+  const open = t.mock.method(fs, "openSync", () => { throw new Error("unexpected read"); });
+  for (const mode of ["transcript", "telemetry"]) {
+    for (const id of [true, "", "compound:id", "a/b", "a".repeat(129)]) {
+      const result = collectClaudeUsage({ mode, router: f.descriptor.router, checkpoint }, f.env, id);
+      unavailable(result, "missing-identity");
+      assert.equal(result.usageEvidence.invocation, undefined);
+    }
+    // A valid observation never turns a malformed descriptor invocation into an object.
+    for (const invocation of [null, "session", ["step-agent"]]) {
+      const result = collectClaudeUsage({ mode, router: f.descriptor.router, checkpoint, invocation }, f.env, "step-agent");
+      unavailable(result, "missing-identity");
+      assert.equal(result.usageEvidence.invocation, undefined);
+    }
+  }
+  assert.equal(open.mock.callCount(), 0);
 });
 
 test("checkpoint boundaries cannot attribute an earlier retry or a guessed offset", () => {

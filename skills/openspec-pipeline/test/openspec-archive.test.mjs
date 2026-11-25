@@ -8,8 +8,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, run, git, gitAvailable, gitEnv, gitInit, commitFiles, writeLog, writeMetaFile, readMetaFile, readLogEntries,
-  readReportFile, entry, ruleTail,
+  readReportFile, entry, ruleTail, writeOverride,
 } from "../../10x-pipeline/test/helpers.mjs";
+import { boundClaudeFixture, collectInput } from "../../10x-pipeline/test/claude-helpers.mjs";
 import { makeOpenspecProject, writeArtifacts, writeVerify, moveToArchive } from "./openspec-helpers.mjs";
 import { pluginPolicy } from "../../10x-pipeline/scripts/state.mjs";
 import { removeTree } from "../../10x-pipeline/scripts/remove-tree.mjs";
@@ -159,9 +160,28 @@ test("init --chain openspec --archive halts when git ignores tasks.md", { skip: 
 
 test("the archive action, a simulated move, verify-archive and next after the move", { skip: noGit }, () => {
   const project = finishedRun();
-  const res = nextIn(project);
+  writeOverride(project, { claudeCapture: { mode: "telemetry", require: false } });
+  const capture = boundClaudeFixture({ project, chain: "openspec", n: null, step: "os-archive" });
+  const env = { ...capture.env, AGENT_SMITH_CLAUDE_SESSION: "" };
+  const res = run(project, ["next", project.id], { env: { ...gitEnv(project), ...env } });
   assert.equal(res.json.action, "archive");
+  const input = res.json.collectorInput;
+  assert.deepEqual(input, { mode: "telemetry", router: { change: project.id, chain: "openspec", n: null, step: "os-archive" },
+    checkpoint: { sessionId: capture.binding.sessionId, offset: 0 } });
   git(project, ["mv", rel(project), res.json.archivePath]);
+  capture.write();
+  const observed = ["--agent-id", "step-agent"];
+  const measured = collectInput(project, input, env, observed);
+  assert.equal(measured.usage.totalTokens, 151);
+  assert.equal(measured.usageEvidence.status, "verified");
+  capture.native.push({ ...capture.native[0], tool_use_id: "another-launch" });
+  capture.write();
+  const ambiguous = collectInput(project, input, env, observed);
+  assert.equal(ambiguous.usageEvidence.reason, "ambiguous-history");
+  assert.equal(ambiguous.usageEvidence.invocation, undefined);
+  assert.equal(git(project, ["diff", "--name-only", "--", res.json.archivePath]), "");
+  assert.equal(git(project, ["ls-files", "--others", "--", res.json.archivePath]), "");
+  assert.equal(fs.existsSync(project.changeDir), false);
   const verified = run(project, ["verify-archive", "demo", "--chain", "openspec", "--path", res.json.archivePath]);
   assert.equal(verified.status, 0, verified.stdout);
   assert.deepEqual(verified.json, {

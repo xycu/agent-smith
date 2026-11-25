@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   cleanupAll, makeProject, entry, skipEntry, writeLog, writeMetaFile, run, init,
-  writeResult, readLogEntries, readReportFile, planText,
+  writeResult, readLogEntries, readReportFile, planText, preUpgradeDispatch,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -165,9 +165,29 @@ test("conflicting transcript versions appear in per-step coverage with the norma
   const project = fixture([entry(1, "plan", { usageEvidence: { ...usageEvidence, explanation: "caller text" } })]);
   const [step] = status(project).steps;
   assert.equal(step.usageEvidence.explanation, "The transcript records disagree on the host version.");
+  assert.equal(step.collectorInput, undefined);
   const report = readReportFile(project);
   assert.match(report, /^- Step 1 plan: version-conflict — The transcript records disagree on the host version\.$/m);
   assert.doesNotMatch(report, /^Token capture limitations:/m);
+});
+
+test("plain status forwards only a completed native invocation with a qualified version", () => {
+  const evidence = unavailableEvidence("incomplete-capture", TRANSCRIPT);
+  const project = fixture([
+    entry(1, "plan", { usageEvidence: evidence }),
+    entry(2, "plan", { usageEvidence: { ...evidence, hostVersion: "2.1.310" } }),
+    entry(3, "plan", { usageEvidence: { ...evidence, invocation: undefined } }),
+    entry(4, "plan", { usageEvidence: evidence, result: undefined }),
+    entry(5, "plan", { usageEvidence: evidence, provider: "openai" }),
+    entry(6, "plan", { usageEvidence: { ...evidence, source: "unknown" } }),
+    entry(7, "plan", { usageEvidence: { ...evidence, invocation: { ...evidence.invocation, agentId: "bad:agent" } } }),
+  ]);
+  const inputs = () => run(project, ["status", project.id]).json.steps.filter(row => row.collectorInput);
+  assert.deepEqual(inputs().map(row => row.n), [1]);
+  writeMetaFile(project, { host: "codex" });
+  assert.deepEqual(inputs(), []);
+  writeMetaFile(project, "{broken");
+  assert.deepEqual(inputs(), []);
 });
 
 test("OpenSpec report requires the saved Codex host, Claude dispatch, and duration for headless attribution", () => {
@@ -284,7 +304,7 @@ for (const chain of ["10x", "openspec"]) {
   for (const producer of ["codex", "claude"]) {
     test(`${chain}/${producer}: measured producer output survives real intake and legacy continuation refuses scope verdicts`, () => {
       let project, action, env = {};
-      let w;
+      let w, capture;
       if (producer === "codex") {
         w = codexFixture(chain, { mode: {
           reply: 'RESULT: {"status":"done","note":"accounting fixture"}',
@@ -293,10 +313,14 @@ for (const chain of ["10x", "openspec"]) {
         } });
         ({ project, action, env } = w);
       } else {
-        project = chain === "openspec" ? makeOpenspecProject() : makeProject();
+        const policy = { claudeCapture: { mode: "telemetry", require: false } };
+        project = chain === "openspec" ? makeOpenspecProject({ policy }) : makeProject({ policy });
         const first = init(project, "fix typo", ["--chain", chain]);
         assert.equal(first.json.action, "run", first.stdout);
         action = first.json;
+        preUpgradeDispatch(project);
+        capture = boundClaudeFixture({ project, chain, n: action.n + 1, step: action.step });
+        env = { ...capture.env, AGENT_SMITH_CLAUDE_SESSION: "" };
       }
       // Emulate a retained pre-upgrade failed attempt, then continue on the current reader/producer revision.
       writeResult(project, { status: "failed", note: "retained legacy attempt", usage: { totalTokens: 7 } });
@@ -310,11 +334,15 @@ for (const chain of ["10x", "openspec"]) {
         assert.equal(produced.json.completed, true, produced.stdout + produced.stderr);
         result = produced.json.result;
       } else {
-        const capture = claudeUsageFixture({ project, chain, n: action.n, step: action.step });
-        result = { status: "done", note: "native fixture result", ...collectClaudeUsage(capture.descriptor) };
+        assert.equal(capture.descriptor.router.step, action.step);
+        const checkpoint = claudeCaptureCheckpoint(env);
+        const returned = capture.native.find(r => r.tool_use_id === "tool-root" && r.tool_response);
+        Object.assign(returned.tool_response, { totalToolUseCount: 4, totalDurationMs: 50 });
+        capture.write();
+        result = { status: "done", note: "native fixture result", ...collectClaudeUsage({ ...capture.descriptor, checkpoint }, env) };
       }
       assert.equal(result.usageEvidence.status, "verified");
-      writeResult(project, result);
+      writeResult(project, producer === "claude" ? { status: result.status, note: result.note } : result);
       const next = run(project, ["next", project.id, "--chain", chain], { env });
       assert.equal(next.status, 0, next.stdout + next.stderr);
       const accepted = readLogEntries(project).find(row => row.n === action.n);
@@ -348,11 +376,15 @@ for (const chain of ["10x", "openspec"]) {
 for (const chain of ["10x", "openspec"]) {
   for (const enabled of [false, true]) {
     test(`${chain}: native capture ${enabled ? "on" : "off"} appears in the terminal report and status rebuild`, () => {
+      const policy = { claudeCapture: { mode: "telemetry", require: false } };
       const project = chain === "openspec"
-        ? makeOpenspecProject({ proposal: true, specs: 1, tasks: { done: 1 } })
-        : makeProject({ plan: planText({ done: 1 }) });
+        ? makeOpenspecProject({ proposal: true, specs: 1, tasks: { done: 1 }, policy })
+        : makeProject({ plan: planText({ done: 1 }), policy });
       if (chain === "10x") writeReview(project, "plan-review");
-      const dispatch = init(project, "fix typo", ["--chain", chain]);
+      const step = chain === "openspec" ? "os-verify" : "impl-review";
+      const capture = enabled ? boundClaudeFixture({ project, chain, step }) : null;
+      const env = { AGENT_SMITH_CLAUDE_CAPTURE: "", AGENT_SMITH_CLAUDE_SESSION: "", ...capture?.env };
+      const dispatch = run(project, ["init", project.id, "--goal", "fix typo", "--chain", chain], { env });
       const action = dispatch.json;
       assert.equal(action?.action, "run", dispatch.stdout + dispatch.stderr);
       assert.equal(action.step, chain === "openspec" ? "os-verify" : "impl-review");
@@ -360,7 +392,6 @@ for (const chain of ["10x", "openspec"]) {
       const invocation = { host: "claude" };
       let accounting;
       if (enabled) {
-        const capture = boundClaudeFixture({ project, ...router });
         const checkpoint = claudeCaptureCheckpoint(capture.env);
         capture.write();
         accounting = collectClaudeUsage({ ...capture.descriptor, invocation, checkpoint }, capture.env);
@@ -375,8 +406,8 @@ for (const chain of ["10x", "openspec"]) {
       } else {
         writeReview(project, "impl-review", { verdict: "APPROVED" });
       }
-      writeResult(project, { status: "done", note: "reviewed", ...accounting });
-      const end = run(project, ["next", project.id, "--chain", chain]);
+      writeResult(project, { status: "done", note: "reviewed" });
+      const end = run(project, ["next", project.id, "--chain", chain], { env });
       assert.equal(end.json?.action, "done", end.stdout + end.stderr);
       const initial = readReportFile(project);
       if (enabled) {

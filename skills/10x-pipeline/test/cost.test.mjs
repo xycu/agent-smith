@@ -8,7 +8,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
-  cleanupAll, makeProject, entry, writeLog, writeMetaFile, run, init, next, writePlan, planText, writeResult, readReportFile,
+  cleanupAll, makeProject, entry, writeLog, writeMetaFile, run, init, next, writePlan, planText, writeResult, readReportFile, preUpgradeDispatch,
 } from "./helpers.mjs";
 import { makeOpenspecProject, initOpenspec, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { priceTable, estimateCost } from "../scripts/state.mjs";
@@ -175,6 +175,7 @@ test("2.4 a real step with a usage figure is priced in status and status --repor
   assert.equal(first.status, 0, first.stdout);
   writePlan(project, planText());
   later(project.planFile);
+  preUpgradeDispatch(project);
   writeResult(project, { status: "done", note: "planned", usage: { totalTokens: 500_000, toolUses: 2, durationMs: 5 } });
   assert.equal(next(project).status, 0);
   const price = PRICES.prices.usdPerMillionTokens[first.json.model];
@@ -191,6 +192,7 @@ test("2.5 an OpenSpec run gets the same report line and status object", () => {
   assert.equal(first.json.step, "os-propose");
   writeArtifacts(project, { proposal: true, specs: 1, tasks: { open: 1 } });
   for (const f of ["proposal.md", "tasks.md", "specs/cap-1/spec.md"]) later(path.join(project.changeDir, f));
+  preUpgradeDispatch(project);
   writeResult(project, { status: "done", note: "proposed", usage: { totalTokens: 250_000 } });
   assert.equal(next(project).status, 0);
   const price = PRICES.prices.usdPerMillionTokens[first.json.model];

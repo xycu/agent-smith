@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   cleanupAll, makeProject, init, next, run, writeOverride, writeResult, readLogEntries,
-  readMetaFile, planText, gitInit, git, gitEnv, seedRun, writeLog, entry,
+  readMetaFile, planText, gitInit, git, gitEnv, seedRun, writeLog, entry, preUpgradeDispatch,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, initOpenspec, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -91,6 +91,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.deepEqual({ ...after, neutralRetries: undefined }, { ...before, neutralRetries: undefined });
     if (chain === "10x") writePlan(p, planText());
     else writeArtifacts(p, { proposal: true, specs: 1, tasks: { open: 1 } });
+    preUpgradeDispatch(p);
     writeResult(p, { status: "done", usage: { totalTokens: 77 } });
     const second = next(p).json;
     assert.equal(second.action, "run");

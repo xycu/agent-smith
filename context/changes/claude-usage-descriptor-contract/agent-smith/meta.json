@@ -1,0 +1,65 @@
+{
+  "id": "claude-usage-descriptor-contract",
+  "goal": "Record native Claude step token usage at step time without a hand-built orchestrator descriptor: the router measures the Claude transcript at next (or owns identity and an evidence-present check), the orchestrator supplies at most the host-only agentId, a Claude step with no evidence is flagged instead of silently accepted, claude-usage.mjs stops labeling a JSON parse error unsupported-schema, and both SKILL.md loops shrink to match. Inputs: context/changes/claude-usage-descriptor-contract/frame.md and research.md; settle its six open questions in the plan.",
+  "host": "claude",
+  "providerMode": "split",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/claude-usage-descriptor-contract",
+  "baseSha": "dab94515e0b1cc6554c775a6e536d1d0e009ca34",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.18.2",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "2c10243b953d64dd",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "claudeCapture": "378bea4d4ab463c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "bf7fb87c06a249bf",
+      "complexity": "997fa59224abe417",
+      "escalation": "b7425a0a9da972e9",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "hookFiles": "d9f8b926ae32844e",
+      "isolation": "a0a594659b853084",
+      "ladder": "bae84c4b321c5fcd",
+      "lessons": "92d849fccafd0527",
+      "limits": "ad6be642613c2b99",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "9c76036954770e5b",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "a36a6381bc917264",
+      "score": "dc16b78fdf08a0df",
+      "splitProviders": "e23dcbd325996cb7",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "providerMode": "split",
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  },
+  "startCommit": "4a51847246dfed5bb1bc055e501419934f282d45",
+  "rigor": {
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/scripts/claude-usage.mjs, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/isolation.mjs +10"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.2 Observe one background native step on a qualified Claude host and compare its immediate report with the same invocation’s collector result."
+    ],
+    "manualNotProved": [
+      "3.2 Observe one background native step on a qualified Claude host and compare its immediate report with the same invocation’s collector result. — not proved: needs a live background native step on a qualified Claude host whose intake figure is compared with the standalone collector for the same invocation; this unattended manual-verify step cannot observe"
+    ]
+  }
+}

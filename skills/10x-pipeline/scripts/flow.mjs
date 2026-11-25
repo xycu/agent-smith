@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   SKILL_DIR, OPENSPEC_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
   executed, writeLog, writeFileAtomic, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
-  halt, providerOf, hostOf, claudeCaptureMode, prCommentField,
+  halt, providerOf, hostOf, claudeCaptureMode, claudeDispatchBinding, claudeAttemptInput, prCommentField,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
@@ -12,7 +12,7 @@ import {
   verifyCodeReplan, PROMPT_PLACEHOLDERS, NARROW_PLACEHOLDERS, render,
 } from "./steps.mjs";
 import { verifyOpenspecStep } from "../../openspec-pipeline/scripts/openspec.mjs";
-import { normalizeAccounting, accountingFor, usageCoverage, usageFigure, TRANSCRIPT_LIMITATION } from "./usage.mjs";
+import { normalizeAccounting, unavailableEvidence, accountingFor, usageCoverage, usageFigure, TRANSCRIPT_LIMITATION } from "./usage.mjs";
 export { cleanUsage } from "./usage.mjs";
 
 // ---- report ---------------------------------------------------------------
@@ -450,7 +450,7 @@ export function neutralPending(p, log, policy) {
   return last && !last.result && maxNeutralRetries(policy) > 0 && readJson(p.result, null)?.status === ORCHESTRATOR_ERROR;
 }
 
-export function neutralRetry(p, id, meta, log, policy, visibility = {}) {
+export function neutralRetry(p, id, meta, log, policy, visibility = {}, adapter) {
   if (!neutralPending(p, log, policy)) return;
   const ran = executed(log);
   const last = ran.at(-1);
@@ -483,6 +483,9 @@ export function neutralRetry(p, id, meta, log, policy, visibility = {}) {
   const note = typeof result.note === "string" ? Array.from(result.note.replace(/\s+/g, " ").trim()).slice(0, NEUTRAL_NOTE_MAX).join("") : "";
   fs.rmSync(p.result);
   last.neutralRetries = [...reruns, { at: Date.now(), note }];
+  if (hostOf(meta) === "claude" && providerOf(last) === "claude") {
+    last.pendingCapture = claudeDispatchBinding(claudeCaptureMode(policy, last), adapter);
+  }
   writeLog(p.log, log);
   // A continued run must not keep the outcome of an earlier end (as next() does before a new step).
   if (meta.outcome) {
@@ -613,7 +616,7 @@ function removeResult(p) {
   try { fs.unlinkSync(p.result); } catch (error) { if (error.code !== "ENOENT") throw error; }
 }
 
-export function attachResult(p, log, policy) {
+export function attachResult(p, log, policy, { id, chain, meta, agentId, adapter } = {}) {
   const ran = executed(log);
   const last = ran[ran.length - 1];
   if (!last) return;
@@ -683,7 +686,26 @@ export function attachResult(p, log, policy) {
   }
   // The raw signals object never reaches run.jsonl; only the cleaned one does.
   const { signals: rawSignals, usage: rawUsage, usageEvidence: rawEvidence, ...stored } = result;
-  const accounting = normalizeAccounting(rawUsage, rawEvidence);
+  let accounting;
+  if (meta && hostOf(meta) === "claude" && providerOf(last) === "claude") {
+    const mode = claudeCaptureMode(policy, last);
+    const source = mode === "transcript" ? "claude-transcript" : "claude-native";
+    if (Object.hasOwn(last, "pendingCapture")) {
+      for (const key of ["agentId", "sessionId", "runId", "invocation", "host", "router", "mode", "source", "sources",
+        "process", "checkpoint", "hostVersion", "claudeCaptureMode", "pendingCapture", "totalTokens", "durationMs", "toolUses"]) delete stored[key];
+      const descriptor = claudeAttemptInput(mode, { change: id, chain, n: last.n, step: last.step },
+        last.pendingCapture, last.neutralRetries?.at(-1)?.at ?? last.startedAt);
+      accounting = adapter?.collectClaudeUsage(descriptor, process.env, agentId)
+        ?? { usageEvidence: unavailableEvidence("missing-source", { source }) };
+      delete last.pendingCapture;
+    } else {
+      // A pre-upgrade pending step still carries its orchestrator's on-time evidence or legacy numeric figure.
+      accounting = normalizeAccounting(rawUsage, rawEvidence);
+      if (!accounting.usageEvidence && accounting.usage?.totalTokens === undefined) {
+        accounting.usageEvidence = unavailableEvidence("missing-identity", { source });
+      }
+    }
+  } else accounting = normalizeAccounting(rawUsage, rawEvidence);
   last.result = { ...stored, ...accounting };
   Object.assign(last, accounting);
   const signals = cleanSignals(rawSignals, policy, last.step);

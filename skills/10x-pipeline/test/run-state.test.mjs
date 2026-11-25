@@ -7,7 +7,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import {
   cleanupAll, makeProject, run, git, gitEnv, gitInit, entry, writeLog, writeMetaFile,
-  writeResult, readLogEntries, readMetaFile, planText,
+  writeResult, readLogEntries, readMetaFile, planText, preUpgradeDispatch,
 } from "./helpers.mjs";
 import { writePlan } from "./ahead.mjs";
 import { makeOpenspecProject } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -662,6 +662,7 @@ for (const chain of ["10x", "openspec"]) {
     const p = projectFor(chain);
     const started = runIn(p, ["init", p.id, "--goal", GOAL, "--chain", chain]);
     assert.equal(started.json.action, "run", started.stdout);
+    preUpgradeDispatch(p);
     writeResult(p, { status: "failed", note: "retain this result", usage: { totalTokens: 42 } });
     const before = snapshot(p.changeDir);
     const script = faultScript(p, 'fs.renameSync = () => { throw new Error("result publication failed"); };');

@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { removeTree } from "../scripts/remove-tree.mjs";
+import { collectInput, transcriptEnv, transcriptFixture } from "./claude-helpers.mjs";
 import {
   cleanupAll, makeProject, run, init, next, writeLog, entry, ROUTE, gitEnv, gitInit, writeResult, readMetaFile, writeMetaFile,
   planText, writeReview, readReportFile, readLogEntries, commitFiles, git, gitAvailable,
@@ -648,9 +649,11 @@ test("a string archive or suffix reference that does not resolve halts before th
 
 test("a second next returns archive again with no new commit", { skip: noGit }, () => {
   const project = archiveProject();
-  assert.equal(runNext(project).json.action, "archive");
+  const first = runNext(project);
+  assert.equal(first.json.action, "archive");
   const again = runNext(project);
   assert.equal(again.json.action, "archive");
+  assert.ok(again.json.collectorInput.startedAt > first.json.collectorInput.startedAt);
   assert.equal(again.json.commit, null);
   assert.match(again.json.reason, /folder already committed/);
   assert.equal(commitCount(project), 2);
@@ -1162,8 +1165,15 @@ test("nested root named with non-ASCII and a space: spaces in names stay unquote
 
 test("verify-archive confirms a simulated move after the commit", { skip: noGit }, () => {
   const project = archiveProject();
-  const res = runNext(project);
+  const env = transcriptEnv(project);
+  const res = run(project, ["next", project.id], { env: { ...gitEnv(project), ...env } });
   assert.equal(res.json.action, "archive");
+  const input = res.json.collectorInput;
+  assert.deepEqual(input, { mode: "transcript", router: { change: project.id, chain: "10x", n: null, step: "archive" },
+    invocation: { sessionId: env.CLAUDE_CODE_SESSION_ID }, startedAt: input.startedAt });
+  assert.ok(Number.isSafeInteger(input.startedAt));
+  const capture = transcriptFixture({ project, ...input.router, startedAt: input.startedAt });
+  const log = fs.readFileSync(path.join(project.agentDir, "run.jsonl"));
   fs.mkdirSync(path.join(project.root, "context/archive"), { recursive: true });
   git(project, ["mv", relDir(project), path.relative(project.base, path.join(project.root, res.json.archivePath)).split(path.sep).join("/")]);
   const changeMd = path.join(project.root, res.json.archivePath, "change.md");
@@ -1173,6 +1183,20 @@ test("verify-archive confirms a simulated move after the commit", { skip: noGit 
   assert.equal(verified.json.archived, true);
   assert.equal(verified.json.path, res.json.archivePath);
   assert.ok(verified.json.report);
+  const moved = path.join(project.root, res.json.archivePath);
+  const before = snapshot(moved);
+  const observed = ["--agent-id", "step-agent"];
+  const measured = collectInput(project, input, env, observed);
+  assert.equal(measured.usage.totalTokens, 151);
+  assert.equal(measured.usageEvidence.status, "transcript");
+  assert.equal(collectInput(project, input, env).usageEvidence.reason, "missing-identity");
+  assert.equal(collectInput(project, input, { ...env, CLAUDE_CODE_SESSION_ID: "other" }, observed).usageEvidence.reason, "missing-identity");
+  capture.main[0].timestamp = new Date(input.startedAt - 1).toISOString();
+  capture.write();
+  assert.equal(collectInput(project, input, env, observed).usageEvidence.reason, "missing-identity");
+  assert.deepEqual(snapshot(moved), before);
+  assert.deepEqual(fs.readFileSync(path.join(moved, "agent-smith/run.jsonl")), log);
+  assert.equal(fs.existsSync(project.changeDir), false);
 });
 
 test("git subcommands: init --archive and the full path run only allowed commands on the change folder", { skip: noGit || process.platform === "win32" }, () => {

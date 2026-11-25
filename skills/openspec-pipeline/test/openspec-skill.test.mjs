@@ -245,7 +245,7 @@ test("terminal branches reach publication and archive verifies before publishing
 });
 
 test("one chain-selected usage procedure is called before status and publication on every terminal path", () => {
-  const call = 'node "$ROUTER" usage <change-name> <n> --usage-file <usage-file> --chain openspec';
+  const call = 'node "$ROUTER" usage <change-name> <n> --usage-file "<usage-file>" --chain openspec';
   assert.equal(skill.split(call).length - 1, 1);
   assert.ok(section(lines, "## Late usage (before every end)").join("\n").includes(call));
   for (const name of ["done", "halt", "archive"]) {
@@ -297,15 +297,14 @@ test("archive reuses dispatch with its archive description override", () => {
   assert.ok(branch("run").includes("override the description with `agent-smith <change-name> archive`"));
 });
 
-test("native accounting shares the immediate, late and archive reader without final-request mapping", () => {
+test("native intake passes the observed ID and uses router-supplied inputs for archive and late collection", () => {
   assert.ok(skill.includes('CLAUDE_USAGE="${CLAUDE_SKILL_DIR}/../10x-pipeline/scripts/claude-usage.mjs"'));
-  assert.match(branch("run"), /node "\$CLAUDE_USAGE"/);
-  assert.match(branch("run"), /never map it to `totalTokens`, even for a flat step/);
-  assert.match(branch("run"), /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
-  assert.match(branch("archive"), /Only for native Agent, apply Loop step 4.s collector/);
+  assert.match(branch("run"), /node "\$ROUTER" next <change-name> --chain openspec --agent-id "<observed-id>"/);
+  assert.doesNotMatch(branch("run"), /CLAUDE_USAGE|checkpoint/);
+  assert.match(branch("archive"), /`collectorInput` verbatim on stdin to `cd "<run root>" && node "\$CLAUDE_USAGE" --agent-id "<observed-id>"/);
   const late = section(lines, "## Late usage (before every end)").join("\n");
-  assert.match(late, /--usage-file <usage-file> --chain openspec/);
-  assert.match(late, /Skip absent totals, identities or qualified versions/);
+  assert.match(late, /--usage-file "<usage-file>" --chain openspec/);
+  assert.match(late, /For each numbered row with `collectorInput`, send that value verbatim on stdin/);
   assert.match(late, /Include no raw source paths or records/);
   assert.match(late, /Unlink the owned payload in a finally step/);
   assert.doesNotMatch(late, /node "\$ROUTER" next|--tokens N/);

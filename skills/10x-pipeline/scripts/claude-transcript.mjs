@@ -4,10 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { claudeCaptureSupported, readBoundedFile, readBoundedLines } from "./usage.mjs";
-import { CLAUDE_USAGE_LIMITS as limits, counters, fail, hash, identifier, integer, object, textContent, transcriptBuckets } from "./claude-capture-data.mjs";
+import { claudeCaptureSupported, claudePathId as pathId, nativeClaudeSession, readBoundedFile, readBoundedLines } from "./usage.mjs";
+import { CLAUDE_USAGE_LIMITS as limits, agentCounters, counters, fail, hash, identifier, integer, object, textContent, transcriptBuckets } from "./claude-capture-data.mjs";
 
-const pathId = value => identifier(value) && !value.includes(":");
 const sameFile = (a, b) => a.dev === b.dev && a.ino === b.ino;
 const stable = (a, b) => sameFile(a, b) && a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
 const checkTime = deadline => { if (Date.now() > deadline) fail("resource-limit"); };
@@ -33,8 +32,8 @@ function scan(directory, budget, visit) {
 }
 
 function nativeSessionId(env) {
-  const sessionId = env.CLAUDE_CODE_SESSION_ID;
-  if (!pathId(sessionId) || env.AGENT_SMITH_CLAUDE_SESSION) fail("missing-identity");
+  const sessionId = nativeClaudeSession(env);
+  if (!sessionId) fail("missing-identity");
   return sessionId;
 }
 
@@ -99,7 +98,7 @@ function instant(raw) {
   return value;
 }
 
-export function measureClaudeTranscript(descriptor, env, description, evidence) {
+export function measureClaudeTranscript(descriptor, env, description, evidence, independent) {
   if (["checkpoint", "process", "sources"].some(key => Object.hasOwn(descriptor, key))) fail("invalid-evidence");
   const observed = descriptor.invocation;
   if (!object(observed) || !pathId(observed.agentId) || (observed.host !== undefined && observed.host !== "claude")
@@ -108,7 +107,9 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
   const sessionId = nativeSessionId(env);
   const rootId = observed.agentId;
   const invocation = runId => ({ host: "claude", sessionId, agentId: rootId, runId });
-  if (observed.runId !== undefined) evidence.invocation = invocation(observed.runId);
+  const boundAttempt = Object.hasOwn(descriptor, "startedAt");
+  if (boundAttempt && !integer(descriptor.startedAt)) fail("missing-identity");
+  if (!boundAttempt && observed.runId !== undefined) evidence.invocation = invocation(observed.runId);
   const budget = budgetForSession();
   const { root, main, agents } = locateSession(env, budget, sessionId);
   const seenFiles = new Map();
@@ -144,7 +145,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
     delete evidence.invocation;
     fail("missing-identity");
   }
-  evidence.invocation = invocation(rootMeta.toolUseId);
+  if (!boundAttempt) evidence.invocation = invocation(rootMeta.toolUseId);
   const version = value => {
     if (value !== undefined && value === evidence.hostVersion) return;
     const previous = evidence.hostVersion;
@@ -186,11 +187,15 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
         if (block.name !== "Agent") continue;
         if (block.input?.resume != null) reused.add(block.input.resume);
         if (target !== undefined && block.id !== target) continue;
+        const time = instant(record.timestamp);
+        if (owner === null && boundAttempt && time < descriptor.startedAt) {
+          delete evidence.invocation;
+          fail("missing-identity");
+        }
         identity(block.input?.description !== description, calls.launches.has(block.id));
         if (!identifier(block.id) || !identifier(record.message.id) || typeof block.input?.description !== "string"
             || typeof block.input.prompt !== "string" || !block.input.prompt) fail("missing-identity");
         if (block.input.resume != null) fail("ambiguous-history");
-        const time = instant(record.timestamp);
         const previous = calls.launches.get(block.id);
         if (previous) previous.time = Math.min(previous.time, time);
         // Hash all launch parameters, including the agent type, without retaining the prompt.
@@ -198,6 +203,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
           ? Object.fromEntries(Object.keys(value).sort().map(key => [key, value[key]])) : value));
         recordOnce(calls.launches, block.id, { inputHash, message: record.message.id, prompt: hash(block.input.prompt),
           description: block.input.description, time: previous?.time ?? time });
+        if (owner === null) evidence.invocation = invocation(rootMeta.toolUseId);
       }
       if (record.type !== "user" || block?.type !== "tool_result") continue;
       const result = record.toolUseResult;
@@ -222,7 +228,7 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
       const time = instant(record.timestamp);
       const previous = calls.returns.get(block.tool_use_id);
       if (previous) previous.time = Math.min(previous.time, time);
-      recordOnce(calls.returns, block.tool_use_id, { agentId: result.agentId, counts: values,
+      recordOnce(calls.returns, block.tool_use_id, { agentId: result.agentId, counts: values, ...agentCounters(result),
         total: result.totalTokens ?? values?.total, time: previous?.time ?? time,
         text: Array.isArray(result.content) ? hash(textContent(result)) : undefined });
     }
@@ -231,6 +237,14 @@ export function measureClaudeTranscript(descriptor, env, description, evidence) 
   const rootLaunch = mainCalls.launches.get(rootMeta.toolUseId);
   const rootReturn = mainCalls.returns.get(rootMeta.toolUseId);
   if (!rootLaunch) fail("incomplete-capture");
+  if (reused.has(rootId)) {
+    delete evidence.invocation;
+    fail("ambiguous-history");
+  }
+  if (rootReturn && rootReturn.time >= rootLaunch.time) {
+    if (rootReturn.toolUses !== undefined) independent.toolUses = rootReturn.toolUses;
+    if (rootReturn.durationMs !== undefined) independent.durationMs = rootReturn.durationMs;
+  }
   if (!rootReturn || rootMeta.finished !== true) fail("incomplete-capture");
 
   const agentDirectoryStat = scan(agents, budget, entry => {

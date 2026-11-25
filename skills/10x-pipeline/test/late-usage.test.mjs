@@ -10,8 +10,8 @@ import {
   writeMetaFile, readLogEntries, readMetaFile, readReportFile, entry, planText
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
-import { makeOpenspecProject, moveToArchive } from "../../openspec-pipeline/test/openspec-helpers.mjs";
-import { boundClaudeFixture, transcriptFixture } from "./claude-helpers.mjs";
+import { makeOpenspecProject, moveToArchive, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
+import { boundClaudeFixture, collectInput, transcriptEnv, transcriptFixture } from "./claude-helpers.mjs";
 import { claudeCaptureCheckpoint, collectClaudeUsage } from "../scripts/claude-usage.mjs";
 import { unavailableEvidence } from "../scripts/usage.mjs";
 
@@ -104,7 +104,7 @@ test("1.1 usage help advertises --usage-file", () => {
   const halted = run(project, []);
   assert.equal(halted.status, 1, halted.stdout);
   assert.equal(halted.json.action, "halt");
-  assert.ok(halted.json.reason.startsWith("Usage: route.mjs init|next|status|risk "), halted.stdout);
+  assert.ok(halted.json.reason.startsWith("Usage: route.mjs next <change-id> [--agent-id <id>] | init|status|risk <change-id> "), halted.stdout);
   assert.ok(halted.json.reason.includes(` | ${synopsis} | verify-archive `), halted.stdout);
   assert.ok(halted.json.reason.endsWith("; every command takes [--chain 10x|openspec]"), halted.stdout);
 });
@@ -345,7 +345,7 @@ const nextIn = (wt) => run(wt, ["next", wt.id], { env: gitEnv(wt) });
 function isolatedAtReview() {
   const main = repo();
   const wt = worktree(main);
-  const init = run(wt, ["init", wt.id, "--goal", GOAL], { env: gitEnv(wt) });
+  const init = run(wt, ["init", wt.id, "--goal", GOAL, "--provider-mode", "codex"], { env: gitEnv(wt) });
   assert.equal(init.status, 0, init.stdout + init.stderr);
   writePlan(wt, planText({ phases: 1 }));
   writeResult(wt, { status: "done", note: "planned" });
@@ -616,6 +616,45 @@ function treeFile(p, payload) {
 }
 
 for (const chain of ["10x", "openspec"]) {
+  test(`${chain}: a finished transcript rechecks the recorded dispatch and enriches it exactly once`, () => {
+    const project = chain === "openspec" ? makeOpenspecProject() : makeProject();
+    const env = transcriptEnv(project);
+    const first = run(project, ["init", project.id, "--goal", "fix typo", "--chain", chain], { env });
+    assert.equal(first.json.action, "run", first.stdout);
+    const { step, n } = first.json;
+    const capture = transcriptFixture({ project, chain, step, n, startedAt: readLogEntries(project).find(row => row.n === n).startedAt });
+    const meta = capture.metadata.get("step-agent");
+    meta.finished = false;
+    Object.assign(capture.main[1].toolUseResult, { totalToolUseCount: 4, totalDurationMs: 50 });
+    capture.write();
+    if (chain === "10x") writePlan(project, planText());
+    else writeArtifacts(project, { proposal: true, specs: 1, tasks: { open: 1 } });
+    writeResult(project, { status: "done", note: "finished" });
+    const next = run(project, ["next", project.id, "--chain", chain, "--agent-id", "step-agent"], { env });
+    assert.equal(next.json.action, "run", next.stdout);
+    const statusStep = () => run(project, ["status", project.id, "--chain", chain]).json.steps.find(row => row.n === n);
+    const waiting = statusStep();
+    assert.equal(waiting.usageEvidence.reason, "incomplete-capture");
+    assert.deepEqual(waiting.usage, { toolUses: 4, durationMs: 50 });
+    const { collectorInput } = waiting;
+    assert.deepEqual(collectorInput, { mode: "transcript", router: { change: project.id, chain, n, step },
+      invocation: waiting.usageEvidence.invocation });
+    meta.finished = true;
+    capture.write();
+    const completed = collectInput(project, collectorInput, env);
+    assert.equal(completed.usageEvidence.status, "transcript");
+    assert.equal(completed.usage.totalTokens, 151);
+    const file = treeFile(project, { ...collectorInput.router, usage: { totalTokens: completed.usage.totalTokens },
+      usageEvidence: completed.usageEvidence });
+    const args = ["--chain", chain, "--usage-file", file];
+    assert.equal(usage(project, n, args).json.attached, true);
+    assert.equal(statusStep().collectorInput, undefined);
+    assert.deepEqual(statusStep().usage, { ...waiting.usage, totalTokens: 151 });
+    const bytes = snapshot(project.changeDir);
+    assert.equal(usage(project, n, args).json.unchanged, true);
+    assert.deepEqual(snapshot(project.changeDir), bytes);
+  });
+
   test(`${chain}: a delayed bound Claude export supplies the recorded step total only once`, () => {
     const project = chain === "openspec" ? openspecRun() : running();
     const log = readLogEntries(project);
@@ -633,14 +672,28 @@ for (const chain of ["10x", "openspec"]) {
 
     capture.events.push(terminal);
     capture.write();
-    const { invocation, hostVersion } = awaiting.usageEvidence;
     const { router } = capture.descriptor;
-    const completed = collectClaudeUsage({ router, invocation, hostVersion }, capture.env);
+    const status = run(project, ["status", project.id, "--chain", chain]);
+    const { collectorInput } = status.json.steps[0];
+    assert.deepEqual(collectorInput, { mode: "telemetry", router, invocation: awaiting.usageEvidence.invocation,
+      hostVersion: awaiting.usageEvidence.hostVersion });
+    const completed = collectInput(project, collectorInput, capture.env);
     assert.equal(completed.usage.totalTokens, 151);
     assert.equal(completed.usageEvidence.status, "verified");
     const { totalTokens } = completed.usage;
     const file = treeFile(project, { ...router, usage: { totalTokens }, usageEvidence: completed.usageEvidence });
     const args = ["--usage-file", file, "--chain", chain];
+    // An exact version match alone cannot qualify a pre-floor telemetry capture.
+    const unqualified = { ...completed.usageEvidence, hostVersion: "2.1.310" };
+    first.usageEvidence = { ...awaiting.usageEvidence, hostVersion: unqualified.hostVersion };
+    writeLog(project, log);
+    treeFile(project, { ...router, usage: { totalTokens }, usageEvidence: unqualified });
+    const before = snapshot(project.changeDir);
+    assert.equal(usage(project, first.n, args).status, 1);
+    assert.deepEqual(snapshot(project.changeDir), before);
+    first.usageEvidence = awaiting.usageEvidence;
+    writeLog(project, log);
+    treeFile(project, { ...router, usage: { totalTokens }, usageEvidence: completed.usageEvidence });
     const attached = usage(project, first.n, args);
     assert.equal(attached.status, 0, attached.stdout + attached.stderr);
     assert.equal(attached.json.unchanged, false);

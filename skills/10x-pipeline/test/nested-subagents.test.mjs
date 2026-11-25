@@ -144,9 +144,9 @@ test("the sixth rule is the same line in both skills", () => {
 test("child notifications never certify a whole native step token total", () => {
   for (const file of Object.values(SKILLS)) {
     const source = fs.readFileSync(file, "utf8");
-    assert.match(source, /never map it to `totalTokens`, even for a flat step/);
-    assert.match(source, /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
-    assert.match(source, /Missing sources produce unavailable evidence through the same reader/);
+    assert.match(source, /Notification `subagent_tokens` covers the final request only/);
+    assert.match(source, /strip step-authored `usage`, `usageEvidence` and handoff identity/);
+    assert.match(source, /router measures the settled step tree at `next`/);
     assert.match(source, /child notifications never complete the step/);
   }
 });

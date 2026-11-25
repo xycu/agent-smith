@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 2, "evidence": "change.md and frame.md fix the outcome (Claude step usage recorded at step time, router owns identity and evidence check), but research.md lists six open questions (design a/b/c, how agentId reaches the router, session ID at dispatch, finished timing, no-evidence behaviour, hostVersion unknown) that each have more than one reasonable answer." },
+    "novelty": { "score": 2, "evidence": "research.md: router already imports the transcript measurer (init-usage.mjs:44) and the Codex runner measures its own dispatch, so the pattern exists; but a host-supplied agentId that the router then anchors on, across async hand-back dispatch, is a new integration next to that pattern." },
+    "coupling": { "score": 3, "evidence": "research.md: the change spans flow.mjs attachResult (685-688), route.mjs next and the usage command (840-932), claude-usage.mjs, claude-transcript.mjs, state.mjs, and the shared last-result.json contract consumed by both 10x and openspec chains via both SKILL.md files." },
+    "discovery": { "score": 2, "evidence": "goal names claude-usage.mjs and both SKILL.md loops, but research.md finds further areas not named in the goal (init-usage.mjs, late-usage path route.mjs:889-896, usage.mjs unavailableEvidence, pinned phrases in skill-loop.test.mjs:632-681) that need one or more searches to confirm." },
+    "volume": { "score": 3, "evidence": "research.md touches more than 10 files: two SKILL.md, flow.mjs, route.mjs, claude-usage.mjs, claude-transcript.mjs, usage.mjs, state.mjs, docs/REFERENCE.md, ADR-018/019 amendments, plus several tests (claude-usage, late-usage, result-persist, skill-loop, openspec-skill)." },
+    "verification": { "score": 2, "evidence": "existing tests cover collector, late usage and skill phrases (claude-usage.test.mjs:285-296, late-usage.test.mjs:619-829), but checking the async launch, finished timing and resumed-session behaviour needs a new harness part, since research.md marks finished-before-hand-back as unverified." }
+  },
+  "unknowns": [
+    "Whether finished: true is written to the subagent meta before the orchestrator receives the hand-back message (research.md open question 4).",
+    "Whether Claude Code keeps the same session ID on /resume, so the session recorded at dispatch can be trusted (research.md open question 3).",
+    "Which design the owner picks among (a) router measures with agentId supplied, (b) description-based selection, (c) collector kept with run-state facts (research.md open question 1).",
+    "How a step-forged agentId is contained when the result file is written by the orchestrator (research.md open question 2)."
+  ],
+  "confidence": "medium"
+}

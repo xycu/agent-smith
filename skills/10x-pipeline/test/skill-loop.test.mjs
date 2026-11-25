@@ -190,7 +190,7 @@ test("done, archive and halt reach publication before STOP, with comments owned 
 
 test("late usage has one owner and precedes terminal status, publication and archive launch", () => {
   const owner = sectionOf("## Late usage (before every end)");
-  const call = 'node "$ROUTER" usage <change-id> <n> --usage-file <usage-file>';
+  const call = 'node "$ROUTER" usage <change-id> <n> --usage-file "<usage-file>"';
   assert.equal(skill.split(call).length - 1, 1);
   assert.ok(owner.includes(call));
   assert.match(owner, /Usage: step <n> <attached\|not attached>/);
@@ -211,7 +211,7 @@ test("late usage has one owner and precedes terminal status, publication and arc
 });
 
 test("the run branch points at rule 3 for a figure that arrives after next, and the Rules name usage as the one way in", () => {
-  assert.match(branch("run"), /Rule 3 of the anti-stall rules covers one that arrives after `next`/);
+  assert.match(branch("run"), /Rule 3 covers late usage/);
   assert.match(sectionOf("## Rules"), /`usage` command is the only way to add a usage figure to a logged step/);
 });
 
@@ -242,7 +242,7 @@ for (const [chain, text, id] of [
   test(`${chain}: numbered description and archive override record separate retry invocations`, () => {
     assert.ok(dispatch.includes(`description: "agent-smith <${id}> step <n> <step>"`));
     assert.ok(dispatch.includes(`override the description with \`agent-smith <${id}> archive\``));
-    for (const needle of ["Record each invocation separately", "exact description, router `change`, `n` and `step`", "associate any returned agent id", "actual `n` for retries, including neutral retries", "preserve prior launch records even when descriptions repeat"]) assert.ok(dispatch.includes(needle), needle);
+    for (const needle of ["Record each invocation separately", "exact description, router `change`, `n` and `step`", "Preserve prior launch records even when a neutral retry repeats the description"]) assert.ok(dispatch.includes(needle), needle);
   });
   test(`${chain}: background flag is selected from the exposed schema before calling`, () => {
     assert.match(dispatch, /Inspect the exposed Agent schema before calling: when it declares `run_in_background`, set it to `false`; otherwise omit `run_in_background`/);
@@ -269,15 +269,8 @@ for (const [chain, text, id] of [
     ]) assert.ok(rules[5].includes(needle), needle);
   });
   test(`${chain}: on-time usage excludes earlier and foreign notifications without delaying next`, () => {
-    for (const needle of [
-      "Usage ownership in Loop step 4 follows the identity check in rule 6",
-      "use only the current invocation's matched records",
-      "earlier numbered step follows the late-usage path",
-      "Leave unmatched or ambiguous figures unattached",
-      "Without a matched figure, attach unavailable evidence and proceed under rule 2 through the result-write gate",
-      "native Agent `tool_use_id` as `runId`",
-      "never derive them from a description",
-    ]) assert.ok(dispatch.includes(needle), needle);
+    assert.match(dispatch, /Retain the Agent ID from the direct launch response or a host notification matched by rule 6/);
+    assert.match(dispatch, /Keep it with that attempt through background settlement and write recovery/);
     assert.match(rules[1], /without `usage`.*`next`.*same turn/);
   });
   for (const name of ["done", "archive", "halt"]) {
@@ -286,12 +279,9 @@ for (const [chain, text, id] of [
       assert.ok(callSite.includes('follow "Late usage (before every end)"'), `${name}: missing late-usage call site`);
       const paragraph = text.split("## Late usage (before every end)")[1].split("\n## ")[0];
       for (const needle of [
-        "Recover `<n>` from the earlier launch matched by rule 6",
-        "full router `change`, `n` and `step` identity against the recorded description",
-        "printed `Step <n>` line is corroborating context",
-        "never a guess from the latest step or a repeated step name",
-        "Leave unmatched or ambiguous figures unattached", "Archive-agent usage belongs only in the final message",
-        "once, as a call of its own", "--usage-file <usage-file>", "Skip absent totals, identities or qualified versions",
+        "For each numbered row with `collectorInput`", "Use `n` from that input",
+        "Earlier or repeated step names cannot identify a measurement", "Archive-agent usage belongs only in the final message",
+        "once, as a call of its own", '--usage-file "<usage-file>"', "Skip an absent total or a row without `collectorInput`",
         "Include no raw source paths or records", "Unlink the owned payload in a finally step", "A refusal exits 1",
       ]) assert.ok(paragraph.includes(needle), needle);
     });
@@ -431,7 +421,7 @@ for (const [chain, source, id, selector] of [
     assert.match(produce, /`completed: true`[^\n]*step 5 must write only `envelope\.result` unchanged/);
     assert.match(produce, /`completed: false` and `launched: true`[^\n]*`unknown`[^\n]*`usage` and `usageEvidence` when present to step 5/);
     assert.match(produce, /Only an envelope with `launched: false` permits an `orchestrator-error` result\. Pass that eligible prelaunch result to step 5 too/);
-    assert.match(produce, /4\. For every Agent result[^\n]*Pass the normalized result to step 5/);
+    assert.match(produce, /4\. For native Agent, strip step-authored `usage`, `usageEvidence` and handoff identity[^\n]*Continue to step 5 without waiting for a figure/);
     const gate = run.slice(gateAt);
     assert.match(gate, /Result-write gate\. Suspension STOP takes precedence/);
     assert.match(gate, /exact normalized JSON bytes and launch or prelaunch refusal record in the original session.*host, absolute run root, chain, change, step number and name, and `neutralRetry\.count` \(zero initially\)/);
@@ -443,7 +433,8 @@ for (const [chain, source, id, selector] of [
     assert.match(gate, /Attribute bytes to the originating record.*exact retained bytes through the host's writer only on confirmed absence.*matching regular file unchanged/);
     assert.match(gate, /Changed dispatch, lost payload, uncertain ownership, symlink, zero-byte or other conflict needs owner reconciliation/);
     assert.match(gate, /Resume at `next` without `init` or relaunching a completed child\. Verified prelaunch `orchestrator-error` reroutes neutrally/);
-    assert.ok(gate.includes('Only then run `cd "<run root>" && node "$ROUTER" next <' + id + '>' + selector + '`'));
+    assert.ok(gate.includes('Only then run `cd "<run root>" && node "$ROUTER" next <' + id + '>' + selector + ' --agent-id "<observed-id>"`'));
+    assert.match(gate, /Use the saved native launch ID on recovery too.*Omit the flag and its value when the ID is missing or the transport is external/);
     const rule = source.slice(source.indexOf(HEADING)).split("\n").find(line => line.includes("no usage figure has arrived"));
     assert.match(rule, /run `next` in the same turn after step 5 confirms the write/);
   });
@@ -524,12 +515,8 @@ for (const [chain, source] of [
     const start = source.indexOf(HEADING);
     const end = source.indexOf("\n## ", start + HEADING.length);
     assert.ok(start >= 0 && end > start);
-    const digest = createHash("sha256").update(source.slice(start, end + 1)
-      .replace("External execution waits", "OpenAI execution waits")
-      .replace("a running external runner", "a running OpenAI runner")
-      .replace(" after step 5 confirms the write", "")
-      .replace("the suspension STOP for unresolved native ownership or ", "")).digest("hex");
-    assert.equal(digest, "9d262e57b558c87ce54b3a258c9454b3eec2eb35b44cc3539a0d1047077b1d44");
+    const digest = createHash("sha256").update(source.slice(start, end + 1)).digest("hex");
+    assert.equal(digest, "2ee5f496cf6d6cc81ed7b896c0ac86bb0fbfcc3a058b46003bda8b8bfcb59c27");
   });
   test(`${chain}: routing literals stay in policy and reference`, () => {
     const policy = pluginPolicy();
@@ -549,12 +536,14 @@ test("AGENTS assigns routing documentation to the reference for both skills", ()
   assert.doesNotMatch(agents, /update the "How the tier moves"/);
 });
 
-for (const [chain, source, ceiling] of [
-  ["10x", skill, 32401],
-  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36896],
+for (const [chain, source, originalSize, ceiling] of [
+  ["10x", skill, 32377, 32401],
+  ["openspec", fs.readFileSync(process.env.OPENSPEC_SKILL_PATH || path.join(REPO_ROOT, "skills/openspec-pipeline/SKILL.md"), "utf8"), 36873, 36896],
 ]) {
   test(`${chain}: skill byte budget and single procedure owners`, () => {
-    assert.ok(Buffer.byteLength(source, "utf8") <= ceiling, `${chain}: skill exceeds ${ceiling} bytes`);
+    const bytes = Buffer.byteLength(source, "utf8");
+    assert.ok(bytes <= ceiling, `${chain}: skill exceeds ${ceiling} bytes`);
+    assert.ok(bytes < originalSize, `${chain}: skill must be shorter than ${originalSize} bytes`);
     assert.equal(source.split("## Late usage (before every end)").length - 1, 1);
     assert.equal(source.split('node "$ROUTER" usage ').length - 1, 1);
     assert.equal(source.split("`prComment: true`").length - 1, 1);
@@ -567,9 +556,8 @@ for (const [chain, source, ceiling] of [
       "neither reply nor error", "Launch notices follow the anti-stall rules",
       "same step/prompt without a failed attempt", "Cut-off replies are also `unknown`",
       "Replace a child-authored `orchestrator-error` with `unknown`", "preserving other keys",
-      "Preserve all keys, including `signals`", "<subagent_tokens>N</subagent_tokens>",
-      "<tool_uses>N</tool_uses>", "<duration_ms>N</duration_ms>", "using exact figures only",
-      "Omit missing usage without waiting", "foreground timeout never permits relaunch",
+      "Preserve `signals` and unrelated result fields", "Notification `subagent_tokens` covers the final request only",
+      "without waiting for a figure", "foreground timeout never permits relaunch",
       "For absent/uncertain envelopes, inspect and wait", "before result/router mutation",
       "Runner and child must close before `next`, rollback or another launch",
     ]) assert.ok(run.includes(text), text);
@@ -625,52 +613,26 @@ for (const [chain, source] of [
 
 for (const chain of ["10x", "openspec"]) {
   const source = fs.readFileSync(path.join(REPO_ROOT, `skills/${chain}-pipeline/SKILL.md`), "utf8");
-  const onTime = source.split("\n  4. For every Agent result")[1].split("\n  5. ")[0];
+  const run = branch("run", source.split("\n"));
+  const archive = branch("archive", source.split("\n"));
   const late = source.split("## Late usage (before every end)")[1].split("\n## ")[0];
   test(`${chain}: enclosing report follows collection and failure reconciliation`, () => {
     assert.match(source, /Accept only the enclosing step report after it has collected every child and reconciled failures/);
     assert.match(source, /child notifications never complete the step/);
   });
-  test(`${chain}: immediate accounting rejects final-request totals and always uses the shared reader`, () => {
-    assert.match(source, /4\. For every Agent result, run/);
-    assert.match(onTime, /node "\$CLAUDE_USAGE"/);
-    assert.match(onTime, /never map it to `totalTokens`, even for a flat step/);
-    assert.match(onTime, /Delete step-authored `usage` and `usageEvidence` before merging collector output/);
-    assert.match(onTime, /independently measured tool\/duration figures at their documented scope/);
-    assert.match(onTime, /Invocation matching proves attribution, not coverage/);
-    assert.match(onTime, /Missing sources produce unavailable evidence through the same reader/);
-    assert.match(onTime, /Omit missing usage without waiting/);
-    assert.match(onTime, /bounded assumptions and evidence/);
+  test(`${chain}: numbered native intake is owned by next`, () => {
+    assert.doesNotMatch(run, /CLAUDE_USAGE|collectorInput|checkpoint|AGENT_SMITH_CLAUDE_CAPTURE/);
+    assert.match(run, /strip step-authored `usage`, `usageEvidence` and handoff identity/);
+    assert.match(run, /router measures the settled step tree at `next`/);
+    assert.match(run, /Notification `subagent_tokens` covers the final request only/);
+    assert.match(run, /--agent-id "<observed-id>"/);
   });
-  test(`${chain}: bound capture checkpoints both native dispatches and carries the invocation into late collection`, () => {
-    const dispatch = branch("run", source.split("\n"));
-    const native = dispatch.split("\n").find(line => line.includes("use native Agent"));
-    assert.match(native, /For `provider: "claude"` on host `claude`, use native Agent/);
-    assert.match(native, /For telemetry \(including actions without `claudeCaptureMode`\) with `AGENT_SMITH_CLAUDE_CAPTURE` present/);
-    const checkpoint = native.indexOf('node "$CLAUDE_USAGE" checkpoint');
-    assert.ok(checkpoint >= 0 && checkpoint < native.indexOf("Call the Agent tool"));
-    assert.match(native, /immediately before dispatch\. Retain its JSON for this invocation and proceed even if it is null/);
-    assert.match(onTime, /Pass `claudeCaptureMode` as `mode`.*returned agent ID and other observed IDs\/version.*Only telemetry takes the saved checkpoint/);
-    assert.match(late, /recheck under Loop step 4 once per settled native Agent step missing tokens with a qualified recorded host version and exact Claude invocation/);
-    assert.match(late, /Use the original router identity, version and invocation.*Select transcript for `claude-transcript`, telemetry for `claude-native`.*original binding or authorized sources, no checkpoint/);
+  test(`${chain}: each eligible row supplies its exact late collector input`, () => {
+    assert.match(late, /plain status.*node "\$ROUTER" status/);
+    assert.match(late, /For each numbered row with `collectorInput`, send that value verbatim on stdin to `cd "<run root>" && node "\$CLAUDE_USAGE"` once/);
+    assert.match(late, /collectorInput\.router,usage:\{totalTokens\},usageEvidence/);
     assert.match(late, /For a matching measured total/);
-    for (const name of ["done", "halt", "archive"]) {
-      const terminal = branch(name, source.split("\n"));
-      const latePass = terminal.indexOf('follow "Late usage (before every end)"');
-      assert.ok(latePass >= 0 && latePass < terminal.indexOf('node "$ROUTER" status'), name);
-      assert.ok(latePass < terminal.indexOf("do the pull request step"), name);
-      if (name === "archive") {
-        assert.ok(latePass < terminal.indexOf("\n  3. Call the Agent tool"));
-        assert.match(terminal, /using its capture mode as in run step 2/);
-        assert.match(terminal, /collector once after settlement with router `n: null` and the archive step/);
-      }
-    }
-  });
-  test(`${chain}: late and archive accounting share collection without a second next or raw payload`, () => {
-    assert.match(late, /under Loop step 4 once/);
-    assert.match(late, /usage:\{totalTokens\},usageEvidence/);
-    assert.match(late, /Skip absent totals, identities or qualified versions/);
-    assert.match(late, /Recorded numbers remain immutable/);
+    assert.match(late, /keeps recorded numbers immutable/);
     assert.match(late, /identical source\/version\/invocation evidence/);
     assert.match(late, /Include no raw source paths or records/);
     assert.match(late, /create an exclusively owned unique transient run-root file/);
@@ -678,7 +640,11 @@ for (const chain of ["10x", "openspec"]) {
     assert.match(late, /Never wait or poll/);
     assert.match(late, /Archive-agent usage belongs only in the final message, including its coverage limitation/);
     assert.doesNotMatch(late, /node "\$ROUTER" next|--tokens N/);
-    assert.match(branch("archive", source.split("\n")), /Only for native Agent, apply Loop step 4.s collector/);
+  });
+  test(`${chain}: archive collector runs at the background continuation with the archive input and observed launch ID`, () => {
+    const settled = archive.slice(archive.indexOf("\n  4. Write no result file"));
+    assert.match(settled, /After the matched native archive report.*`collectorInput` verbatim on stdin to `cd "<run root>" && node "\$CLAUDE_USAGE" --agent-id "<observed-id>"` once/);
+    assert.match(settled, /Omit the flag and value if the launch ID is missing.*only in the final message/);
   });
 }
 

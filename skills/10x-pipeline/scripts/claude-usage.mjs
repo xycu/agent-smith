@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
-import { cleanInvocation, cleanUsage, normalizeAccounting, readBoundedLines, unavailableEvidence } from "./usage.mjs";
+import { claudePathId, cleanInvocation, cleanUsage, normalizeAccounting, readBoundedLines, unavailableEvidence } from "./usage.mjs";
 import { CAPTURE_ENV, CAPTURE_LIMITS, CLAUDE_USAGE_LIMITS, counters, textContent, transcriptBuckets, assertCaptureAvailable, attributes, captureFile, captureStat, claudeCaptureSupported,
   fail, hash, identifier, integer, numeric, object, projectNative, readCaptureBinding, scalar, tokenBuckets, validProcess } from "./claude-capture-data.mjs";
 
@@ -57,8 +57,17 @@ function scopedTranscript(root, file, sessionId, agentId) {
   return root;
 }
 
-export function collectClaudeUsage(descriptor = {}, env = process.env) {
+export function collectClaudeUsage(descriptor = {}, env = process.env, agentId) {
   if (!object(descriptor)) descriptor = {};
+  if (agentId !== undefined) {
+    if (!claudePathId(agentId) || (descriptor.invocation !== undefined && !object(descriptor.invocation))
+        || (descriptor.invocation?.agentId !== undefined && descriptor.invocation.agentId !== agentId)) {
+      return { usageEvidence: unavailableEvidence("missing-identity", {
+        source: descriptor.mode === "transcript" ? "claude-transcript" : "claude-native",
+      }) };
+    }
+    descriptor = { ...descriptor, invocation: { ...descriptor.invocation, agentId } };
+  }
   let invocation = cleanInvocation(descriptor.invocation);
   let hostVersion = descriptor.hostVersion;
   const independent = cleanUsage(descriptor.usage) ?? {};
@@ -66,11 +75,12 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
   if (descriptor.mode === "transcript") {
     const evidence = { source: "claude-transcript" };
     try {
-      const { totalTokens, sessionCount, requestCount } = measureClaudeTranscript(descriptor, env, routerDescription(descriptor.router), evidence);
+      const { totalTokens, sessionCount, requestCount } = measureClaudeTranscript(descriptor, env, routerDescription(descriptor.router), evidence, independent);
       return normalizeAccounting({ ...independent, totalTokens }, { schemaVersion: 1, status: "transcript", scope: "step-tree",
         ...evidence, sessionCount, requestCount, reconciliation: "transcript-messages" });
     } catch (error) {
       const reason = error.reason ?? (error.code === "ENOENT" ? "missing-source" : "unsafe-path");
+      if (Object.hasOwn(descriptor, "startedAt") && !evidence.invocation) delete evidence.hostVersion;
       return normalizeAccounting(independent, unavailableEvidence(reason, evidence));
     }
   }
@@ -161,12 +171,18 @@ export function collectClaudeUsage(descriptor = {}, env = process.env) {
       if (!launch?.pre || !launch.post || launch.pre.parent !== null || launch.post.parent !== null
           || (checkpoint && launch.preOffset < checkpoint.offset)
           || launch.postOffset < launch.preOffset || (observed.agentId !== undefined && observed.agentId !== launch.post.response.agentId)
-          || launch.pre.descriptionHash !== hash(description)) fail("missing-identity");
+          || !claudePathId(launch.post.response.agentId) || launch.pre.descriptionHash !== hash(description)) fail("missing-identity");
+      if ([...launches].some(([other, value]) => other !== runId && value.post?.response.agentId === launch.post.response.agentId)) fail("ambiguous-history");
       invocation = cleanInvocation({ host: "claude", sessionId, runId, agentId: launch.post.response.agentId });
     }
     const root = launches.get(invocation.runId);
     if (!root?.pre || !root.post || root.post.response.agentId !== invocation.agentId
         || root.pre.descriptionHash !== hash(description)) fail("missing-identity");
+    if (root.post.response.status === "completed") {
+      for (const key of ["toolUses", "durationMs"]) {
+        if (integer(root.post.response[key])) independent[key] = root.post.response[key];
+      }
+    }
     const agents = new Map();
     const addAgent = (runId, launch) => {
       const { pre, post } = launch;
@@ -399,9 +415,18 @@ async function main() {
       if (Buffer.byteLength(input) > CLAUDE_USAGE_LIMITS.descriptorBytes) fail("resource-limit");
     }
     clearTimeout(timer);
-    process.stdout.write(JSON.stringify(collectClaudeUsage(JSON.parse(input))) + "\n");
+    let descriptor;
+    try { descriptor = JSON.parse(input); } catch { fail("invalid-json"); }
+    const args = process.argv.slice(2);
+    let agentId;
+    if (args.length) {
+      if (args.length === 2 && args[0] === "--agent-id") agentId = args[1];
+      else if (args.length === 1 && args[0].startsWith("--agent-id=")) agentId = args[0].slice("--agent-id=".length);
+      else agentId = null; // A malformed observation fails before any source lookup.
+    }
+    process.stdout.write(JSON.stringify(collectClaudeUsage(descriptor, process.env, agentId)) + "\n");
   } catch (error) {
-    process.stdout.write(JSON.stringify({ usageEvidence: unavailableEvidence(error.reason ?? "unsupported-schema", { source: "claude-native" }) }) + "\n");
+    process.stdout.write(JSON.stringify({ usageEvidence: unavailableEvidence(error.reason ?? "unsupported-schema") }) + "\n");
   } finally {
     clearTimeout(timer);
   }

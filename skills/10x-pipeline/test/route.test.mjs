@@ -704,6 +704,7 @@ test("CLI usage lists the host and provider-mode choices", () => {
   const res = run(makeProject(), []);
   assert.equal(res.status, 1);
   assert.match(res.json.reason, /\[--host claude\|codex\]/);
+  assert.match(res.json.reason, /next <change-id> \[--agent-id <id>\]/);
   assert.match(res.json.reason, /\[--provider-mode claude\|codex\|split\]/);
 });
 
