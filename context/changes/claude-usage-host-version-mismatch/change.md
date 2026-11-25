@@ -1,7 +1,7 @@
 ---
 change_id: claude-usage-host-version-mismatch
 title: Claude token counts lost when the orchestrator passes a mismatched host version
-status: implemented
+status: impl_reviewed
 created: 2026-11-24
 updated: 2026-11-25
 archived_at: null
