@@ -49,7 +49,7 @@
   },
   "startCommit": "4a51847246dfed5bb1bc055e501419934f282d45",
   "rigor": {
-    "level": "standard",
-    "by": "goal plain"
+    "level": "thorough",
+    "by": "hot paths skills/10x-pipeline/scripts/claude-usage.mjs, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/isolation.mjs +10"
   }
 }

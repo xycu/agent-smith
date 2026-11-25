@@ -1,0 +1,1 @@
+- 3.2 — needs a live background native step on a qualified Claude host with a collector result; this unattended step cannot launch one, and no existing test or command observes a real host report.
