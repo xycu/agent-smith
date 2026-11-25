@@ -5,7 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   cleanupAll, makeProject, run, git, gitInit, writeOverride, writeResult,
-  readLogEntries, readMetaFile, writeMetaFile, readReportFile, planText,
+  readLogEntries, readMetaFile, writeMetaFile, readReportFile, planText, preUpgradeDispatch,
 } from "./helpers.mjs";
 import { writePlan, writeReview } from "./ahead.mjs";
 import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
@@ -52,6 +52,13 @@ function artifacts(w) {
   return commitPaths;
 }
 
+// A Claude-host native step now measures its own usage at intake; these fixtures keep the
+// pre-upgrade bare figure so the mixed-scope comparison still has a native total to compare.
+function legacyNativeFigure(project) {
+  const pending = readLogEntries(project).filter((row) => !row.skipped).at(-1);
+  if (pending && Object.hasOwn(pending, "pendingCapture")) preUpgradeDispatch(project);
+}
+
 function finishStep(w) {
   const commitPaths = artifacts(w);
   if (w.action.provider === "openai") {
@@ -68,6 +75,7 @@ function finishStep(w) {
       gw(w.project, ["add", "--", ...commitPaths]);
       gw(w.project, ["commit", "-m", "feat(demo): complete native fixture", "-m", "Co-Authored-By: Codex <noreply@openai.com>"]);
     }
+    legacyNativeFigure(w.project);
     writeResult(w.project, { status: "done", note: "native result fixture", usage: { totalTokens: 13 } });
   }
   const next = run(w.project, ["next", "demo", "--chain", w.chain], { env: w.env });
@@ -161,6 +169,7 @@ for (const chain of ["10x", "openspec"]) {
     assert.equal(readMetaFile(project).isolated, true);
     const failedN = w.action.n;
     fs.writeFileSync(path.join(project.root, "broken.mjs"), "partial native fixture\n");
+    legacyNativeFigure(project);
     writeResult(project, { status: "failed", note: "native failure fixture", usage: { totalTokens: 13 } });
     const escalated = run(project, ["next", "demo", "--chain", chain], { env: w.env });
     assert.equal(escalated.json.step, implementation, escalated.stdout);

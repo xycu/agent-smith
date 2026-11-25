@@ -9,7 +9,7 @@ import { removeTree } from "../scripts/remove-tree.mjs";
 import { collectClaudeUsage } from "../scripts/claude-usage.mjs";
 import {
   cleanupAll, makeProject, planText, writePlan, run, init, next, writeResult, readLogEntries, readMetaFile,
-  gitAvailable, gitEnv, gitInit, commitFiles, git, entry, skipEntry, writeLog, writeMetaFile,
+  gitAvailable, gitEnv, gitInit, commitFiles, git, entry, skipEntry, writeLog, writeMetaFile, preUpgradeDispatch,
 } from "./helpers.mjs";
 
 after(cleanupAll);
@@ -115,6 +115,7 @@ function planStepWithResult(extra) {
   writePlan(project, planText());
   const later = new Date(Date.now() + 5000);
   fs.utimesSync(project.planFile, later, later);
+  preUpgradeDispatch(project);
   writeResult(project, { status: "done", note: "planned", ...extra });
   const res = next(project);
   assert.equal(res.status, 0, res.stderr);
@@ -504,6 +505,7 @@ test("2.11 a log written by the real router under the baseline file is read with
   writePlan(baseline, planText());
   const later = new Date(Date.now() + 5000);
   fs.utimesSync(baseline.planFile, later, later);
+  preUpgradeDispatch(baseline);
   writeResult(baseline, { status: "done", note: "planned", usage: { totalTokens: 1234, toolUses: 2, durationMs: 50 } });
   assert.equal(next(baseline).status, 0);
   const res = run(side({ totals: [600] }), ["compare", "demo", "--baseline", baseline.root]);
