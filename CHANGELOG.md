@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.2](https://github.com/xycu/agent-smith/compare/v1.18.1...v1.18.2) (2026-11-25)
+
+
+### Bug Fixes
+
+* **claude-usage-host-version-mismatch:** Claude token counts lost when the orchestrator passes a mismatched host version ([#298](https://github.com/xycu/agent-smith/issues/298)) ([ed8087c](https://github.com/xycu/agent-smith/commit/ed8087c86326f4c831b391dbb1ad638d9858af5c))
+
 ## [1.18.1](https://github.com/xycu/agent-smith/compare/v1.18.0...v1.18.1) (2026-11-24)
 
 
