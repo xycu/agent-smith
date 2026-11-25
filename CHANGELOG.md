@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.3](https://github.com/xycu/agent-smith/compare/v1.18.2...v1.18.3) (2026-11-25)
+
+
+### Bug Fixes
+
+* **claude-usage-descriptor-contract:** Claude token counts lost because orchestrators send a malformed usage descriptor ([#300](https://github.com/xycu/agent-smith/issues/300)) ([9e8dcc0](https://github.com/xycu/agent-smith/commit/9e8dcc0d33098a96e9a121f707de66ef00bb19c2))
+
 ## [1.18.2](https://github.com/xycu/agent-smith/compare/v1.18.1...v1.18.2) (2026-11-25)
 
 
