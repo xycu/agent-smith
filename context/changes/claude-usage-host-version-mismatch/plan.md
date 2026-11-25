@@ -165,7 +165,7 @@ Existing readers keep the same evidence shape. Previous records lacking exact at
 
 #### Automated
 
-- [x] 2.1 Both chain instructions pass the byte ceilings, pinned loop wording and shared guard checks: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs`
+- [x] 2.1 Both chain instructions pass the byte ceilings, pinned loop wording and shared guard checks: `node --test skills/10x-pipeline/test/skill-loop.test.mjs skills/openspec-pipeline/test/openspec-skill.test.mjs` — 1f4dea6f
 
 #### Manual
 
