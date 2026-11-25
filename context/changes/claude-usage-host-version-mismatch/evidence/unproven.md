@@ -1,0 +1,1 @@
+Manual row 2.2 remains pending. This implementation ran under Codex. The collector and CLI gates used transcript fixtures. Live verification requires a fresh Claude Desktop session running the changed plugin and a numbered native Agent step with a recorded token figure.
