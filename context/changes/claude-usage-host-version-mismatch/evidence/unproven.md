@@ -1,1 +1,1 @@
-Manual row 2.2 remains pending. This implementation ran under Codex. The collector and CLI gates used transcript fixtures. Live verification requires a fresh Claude Desktop session running the changed plugin and a numbered native Agent step with a recorded token figure.
+- 2.2 — Needs a live native Claude Desktop pipeline run (fresh session, changed plugin, numbered native Agent step with a recorded token figure). Fixture tests cover the collector and CLI but cannot prove a live run, and this unattended step cannot start one.
