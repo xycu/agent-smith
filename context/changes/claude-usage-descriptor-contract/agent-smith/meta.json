@@ -51,5 +51,15 @@
   "rigor": {
     "level": "thorough",
     "by": "hot paths skills/10x-pipeline/scripts/claude-usage.mjs, skills/10x-pipeline/scripts/flow.mjs, skills/10x-pipeline/scripts/isolation.mjs +10"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "3.2 Observe one background native step on a qualified Claude host and compare its immediate report with the same invocation’s collector result."
+    ],
+    "manualNotProved": [
+      "3.2 Observe one background native step on a qualified Claude host and compare its immediate report with the same invocation’s collector result. — not proved: needs a live background native step on a qualified Claude host whose intake figure is compared with the standalone collector for the same invocation; this unattended manual-verify step cannot observe"
+    ]
   }
 }
