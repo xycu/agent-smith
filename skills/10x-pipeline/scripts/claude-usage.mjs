@@ -60,7 +60,8 @@ function scopedTranscript(root, file, sessionId, agentId) {
 export function collectClaudeUsage(descriptor = {}, env = process.env, agentId) {
   if (!object(descriptor)) descriptor = {};
   if (agentId !== undefined) {
-    if (!claudePathId(agentId) || (descriptor.invocation?.agentId !== undefined && descriptor.invocation.agentId !== agentId)) {
+    if (!claudePathId(agentId) || (descriptor.invocation !== undefined && !object(descriptor.invocation))
+        || (descriptor.invocation?.agentId !== undefined && descriptor.invocation.agentId !== agentId)) {
       return { usageEvidence: unavailableEvidence("missing-identity", {
         source: descriptor.mode === "transcript" ? "claude-transcript" : "claude-native",
       }) };

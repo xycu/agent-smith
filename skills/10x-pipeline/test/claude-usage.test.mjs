@@ -385,6 +385,12 @@ test("a malformed launch observation never opens a source or becomes accounting 
       unavailable(result, "missing-identity");
       assert.equal(result.usageEvidence.invocation, undefined);
     }
+    // A valid observation never turns a malformed descriptor invocation into an object.
+    for (const invocation of [null, "session", ["step-agent"]]) {
+      const result = collectClaudeUsage({ mode, router: f.descriptor.router, checkpoint, invocation }, f.env, "step-agent");
+      unavailable(result, "missing-identity");
+      assert.equal(result.usageEvidence.invocation, undefined);
+    }
   }
   assert.equal(open.mock.callCount(), 0);
 });
