@@ -284,13 +284,30 @@ test("immediate, late and archive boundaries use the same read-only collector", 
 
 test("unavailable CLI and malformed import boundaries are successful measurements without step-authored tokens", () => {
   for (const descriptor of [null, [], 42, {}, { usage: { totalTokens: 999, durationMs: 2 } }]) unavailable(collectClaudeUsage(descriptor));
-  const result = spawnSync(process.execPath, [CLI], { input: "private-prompt malformed", encoding: "utf8" });
-  assert.equal(result.status, 0);
-  unavailable(JSON.parse(result.stdout), "unsupported-schema");
-  assert.equal(result.stderr, "");
+  for (const input of ["", " \t\n", "private-prompt malformed"]) {
+    const result = spawnSync(process.execPath, [CLI], { input, encoding: "utf8" });
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, "");
+    const measured = JSON.parse(result.stdout);
+    unavailable(measured, "invalid-json");
+    assert.equal(measured.usageEvidence.source, "unknown");
+    assert.equal(measured.usageEvidence.invocation, undefined);
+    assert.equal(measured.usage, undefined);
+    assert.equal(result.stdout, JSON.stringify(measured) + "\n");
+  }
   const large = spawnSync(process.execPath, [CLI], { input: "x".repeat(CLAUDE_USAGE_LIMITS.descriptorBytes + 1), encoding: "utf8" });
   assert.equal(large.status, 0);
   unavailable(JSON.parse(large.stdout), "resource-limit");
+});
+
+test("a valid descriptor preserves the source-specific schema failure for malformed host records", () => {
+  const f = claudeUsageFixture();
+  fs.writeFileSync(f.descriptor.sources.nativeFile, "private-prompt malformed\n");
+  const result = spawnSync(process.execPath, [CLI], { input: JSON.stringify(f.descriptor), encoding: "utf8" });
+  assert.equal(result.status, 0);
+  const measured = JSON.parse(result.stdout);
+  unavailable(measured, "unsupported-schema");
+  assert.equal(measured.usageEvidence.source, "claude-native");
 });
 
 test("the CLI decodes a Unicode source path across arbitrary descriptor chunk boundaries", () => {

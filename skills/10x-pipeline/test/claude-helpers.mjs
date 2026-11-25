@@ -6,8 +6,16 @@
 // step run. The records stay synthetic: no real transcript text or capture log is retained.
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { CAPTURE_ENV, captureFile, projectNative, projectTelemetry } from "../scripts/claude-capture-data.mjs";
-import { makeProject } from "./helpers.mjs";
+import { cleanEnv, makeProject, SPAWN_TIMEOUT_MS } from "./helpers.mjs";
+
+export function collectInput(project, descriptor, env, args = []) {
+  const cli = fileURLToPath(new URL("../scripts/claude-usage.mjs", import.meta.url));
+  return JSON.parse(execFileSync(process.execPath, [cli, ...args], { cwd: project.root, env: { ...cleanEnv(), ...env },
+    input: JSON.stringify(descriptor), encoding: "utf8", timeout: SPAWN_TIMEOUT_MS }));
+}
 
 export const claudeBuckets = ["input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"];
 export const otelAttribute = (key, value) => ({ key, value: typeof value === "number" ? { intValue: value } : { stringValue: value } });

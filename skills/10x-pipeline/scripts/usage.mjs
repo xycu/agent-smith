@@ -24,6 +24,7 @@ const SOURCES = new Set(["codex-rollout", "claude-native", "claude-transcript", 
 const REASONS = {
   "capture-disabled": "Claude token capture is off. Run `node <absolute-plugin-scripts>/claude-capture.mjs` to enable it for a fresh session.",
   "invalid-evidence": "Accounting evidence is invalid or inconsistent.",
+  "invalid-json": "The collector input is not valid JSON.",
   "unsupported-host": "The host version is not qualified for accounting.",
   "version-conflict": "The transcript records disagree on the host version.",
   "unsupported-schema": "The host record schema is not qualified for accounting.",

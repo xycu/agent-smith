@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   SKILL_DIR, ROOT, out, readJson, mtime, readPlan, executed, writeLog, writeFileAtomic, isFailure, isObject, SHA_RE, runGit,
   ignoredProbePaths, halt, coAuthorProblem, coAuthorTrailer, prCommentField, hostOf, dispatchTarget, stepPolicy, providersByStep, stateTempFiles,
+  claudeAttemptInput, claudeDispatchBinding,
 } from "./state.mjs";
 import { artifactFile } from "./preplan.mjs";
 import { doneNotes, tierFor, render } from "./steps.mjs";
@@ -846,7 +847,7 @@ export function archiveDescriptor(p, id, meta, log, policy, level = meta.rigor?.
 // written as done, a halt only prints (out): rewriting meta.json or report.md would dirty the committed folder.
 // An OpenSpec run (ADR-013 D5) commits openspec/changes/<id>/, needs no created: line, halts on an open task row,
 // names the folder `openspec archive` will create and returns the os-archive prompt at the tier of steps["os-archive"].
-export function archiveDone(p, id, meta, log, policy, level, d, visibility = {}) {
+export function archiveDone(p, id, meta, log, policy, level, d, visibility = {}, adapter) {
   const openspec = p.chain === "openspec";
   const rel = changeRel(p, id);
   const ran = executed(log);
@@ -937,12 +938,15 @@ export function archiveDone(p, id, meta, log, policy, level, d, visibility = {})
   // "HEAD" stands for a commit this call made whose hash could not be read; null means no commit was made.
   const commit = res.made ? (res.commit ? res.commit.slice(0, 7) : "HEAD") : null;
   const { tier, tierWhy, ...dispatch } = settled;
+  const mode = dispatch.claudeCaptureMode;
+  const router = { change: id, chain: p.chain ?? "10x", n: null, step: archiveStep };
   return out({
     action: "archive",
     ...visibility,
     change: id, root: ROOT, chain: p.chain ?? "10x",
     host: hostOf(meta),
     ...dispatch,
+    ...(mode ? { collectorInput: claudeAttemptInput(mode, router, claudeDispatchBinding(mode, adapter), Date.now()) } : {}),
     reason: `run done; ${commit ? `committed ${commit}` : "folder already committed"}; tier ${tier} (${tierWhy})`,
     summary: { reason: d.reason, manualPending, ...doneNotes(d), steps: ran.length },
     report: done.report,

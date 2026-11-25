@@ -165,6 +165,12 @@ export function claudeDispatchBinding(mode, adapter) {
     : { checkpoint: adapter?.claudeCaptureCheckpoint() ?? null };
 }
 
+export function claudeAttemptInput(mode, router, binding, startedAt) {
+  return mode === "transcript"
+    ? { mode, router, invocation: { sessionId: binding?.sessionId ?? null }, startedAt }
+    : { mode, router, checkpoint: binding?.checkpoint ?? null };
+}
+
 export function dispatchTarget(policy, tier, host) {
   const rung = policy.ladder[tier];
   const provider = providerOf(rung);

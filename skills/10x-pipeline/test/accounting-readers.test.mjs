@@ -165,9 +165,29 @@ test("conflicting transcript versions appear in per-step coverage with the norma
   const project = fixture([entry(1, "plan", { usageEvidence: { ...usageEvidence, explanation: "caller text" } })]);
   const [step] = status(project).steps;
   assert.equal(step.usageEvidence.explanation, "The transcript records disagree on the host version.");
+  assert.equal(step.collectorInput, undefined);
   const report = readReportFile(project);
   assert.match(report, /^- Step 1 plan: version-conflict — The transcript records disagree on the host version\.$/m);
   assert.doesNotMatch(report, /^Token capture limitations:/m);
+});
+
+test("plain status forwards only a completed native invocation with a qualified version", () => {
+  const evidence = unavailableEvidence("incomplete-capture", TRANSCRIPT);
+  const project = fixture([
+    entry(1, "plan", { usageEvidence: evidence }),
+    entry(2, "plan", { usageEvidence: { ...evidence, hostVersion: "2.1.310" } }),
+    entry(3, "plan", { usageEvidence: { ...evidence, invocation: undefined } }),
+    entry(4, "plan", { usageEvidence: evidence, result: undefined }),
+    entry(5, "plan", { usageEvidence: evidence, provider: "openai" }),
+    entry(6, "plan", { usageEvidence: { ...evidence, source: "unknown" } }),
+    entry(7, "plan", { usageEvidence: { ...evidence, invocation: { ...evidence.invocation, agentId: "bad:agent" } } }),
+  ]);
+  const inputs = () => run(project, ["status", project.id]).json.steps.filter(row => row.collectorInput);
+  assert.deepEqual(inputs().map(row => row.n), [1]);
+  writeMetaFile(project, { host: "codex" });
+  assert.deepEqual(inputs(), []);
+  writeMetaFile(project, "{broken");
+  assert.deepEqual(inputs(), []);
 });
 
 test("OpenSpec report requires the saved Codex host, Claude dispatch, and duration for headless attribution", () => {

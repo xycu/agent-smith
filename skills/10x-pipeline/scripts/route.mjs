@@ -20,7 +20,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { normalizeAccounting, cleanInvocation, readBoundedFile, accountingFor, usageCoverage, usageFigure, addFigures, TRANSCRIPT_LIMITATION } from "./usage.mjs";
+import { normalizeAccounting, cleanInvocation, claudePathId, claudeCaptureSupported, readBoundedFile, accountingFor, usageCoverage, usageFigure, addFigures, TRANSCRIPT_LIMITATION } from "./usage.mjs";
 import {
   ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   inspectMeta, readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
@@ -198,7 +198,7 @@ async function next(id, policy, chain, validatedLog = null, agentId) {
     writeLog(p.log, log);
   }
   const ran = executed(log);
-  if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d, visibility);
+  if (d.done && meta.archive === true) return archiveDone(p, id, meta, log, policy, level, d, visibility, adapter);
   if (d.halt || d.done) {
     return end(d.done
       ? {
@@ -744,6 +744,21 @@ function compareCommand(id, flags, policy, chain = "10x") {
   out(pair);
 }
 
+function statusAccounting(entry, change, chain, host) {
+  const accounting = accountingFor(entry);
+  const evidence = accounting.usageEvidence ?? null;
+  const fields = { ...accounting, usageEvidence: evidence };
+  const invocation = evidence?.invocation;
+  if (host !== "claude" || providerOf(entry) !== "claude" || !isObject(entry.result) || entry.usage?.totalTokens !== undefined
+      || evidence?.status !== "unavailable" || invocation?.host !== "claude" || !claudeCaptureSupported(evidence.hostVersion)
+      || !claudePathId(invocation.sessionId) || !claudePathId(invocation.agentId)
+      || !Number.isSafeInteger(entry.n) || entry.n < 1 || typeof entry.step !== "string" || !ID_RE.test(entry.step)) return fields;
+  const router = { change, chain, n: entry.n, step: entry.step };
+  if (evidence.source === "claude-transcript") fields.collectorInput = { mode: "transcript", router, invocation };
+  if (evidence.source === "claude-native") fields.collectorInput = { mode: "telemetry", router, invocation, hostVersion: evidence.hostVersion };
+  return fields;
+}
+
 function status(id, flags, chain = "10x", policy = null) {
   const p = paths(id, null, chain);
   // Plain OpenSpec status also reports a moved run as archived instead of printing an empty log.
@@ -761,10 +776,11 @@ function status(id, flags, chain = "10x", policy = null) {
   const normalized = executed(log).map((entry) => ({ ...entry, ...accountingFor(entry) }));
   const coverage = usageCoverage(normalized);
   const cost = prices ? estimateCost(normalized, prices) : null;
+  const host = recovery ? null : hostOf(stored);
   const res = {
     change: id,
     ...(logProblems.length ? { logProblems } : {}),
-    host: recovery ? null : hostOf(stored),
+    host,
     providerMode: recovery ? null : stored?.providerMode ?? "legacy",
     ...(recovery ? { metadataProblem: recovery } : {}),
     usageCoverage: coverage,
@@ -781,8 +797,7 @@ function status(id, flags, chain = "10x", policy = null) {
       n: e.n, step: e.step, template: e.template ?? null, provider: providerOf(e), model: e.model, effort: e.effort, simple: e.simple ?? null,
       ...(providerOf(e) === "openai" ? { profile: e.profile ?? null, permissions: e.permissions ?? null } : {}),
       ok: e.ok ?? null, verified: e.verified ?? null, note: e.result?.note ?? null, reason: e.reason,
-      ...accountingFor(e),
-      usageEvidence: accountingFor(e).usageEvidence ?? null,
+      ...statusAccounting(e, id, chain, host),
       ...(cost ? { cost: typeof cost.perEntry[e.n] === "number" ? roundUsd(cost.perEntry[e.n]) : null } : {}),
       ...(e.step === "manual-verify" ? {
         ticked: e.ticked?.length ?? 0,
@@ -893,7 +908,8 @@ function usageCommand(id, rest, flags, policy, chain, meta) {
     const recorded = normalizeAccounting(entry.usage, entry.usageEvidence).usageEvidence;
     const identity = cleanInvocation(recorded?.invocation);
     if (payload.step !== entry.step || !identity || !isDeepStrictEqual(identity, accounting.usageEvidence.invocation)
-        || recorded.source !== accounting.usageEvidence.source || recorded.hostVersion !== accounting.usageEvidence.hostVersion) {
+        || recorded.source !== accounting.usageEvidence.source || recorded.hostVersion !== accounting.usageEvidence.hostVersion
+        || (entry.usage?.totalTokens === undefined && identity.host === "claude" && !claudeCaptureSupported(recorded.hostVersion))) {
       refuse("Structured usage must match the recorded host invocation and step exactly.", n);
     }
     for (const key of ["toolUses", "durationMs"]) {

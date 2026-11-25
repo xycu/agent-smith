@@ -132,17 +132,17 @@ At most one synchronous measurement per consumed native row under the existing r
 
 #### Automated
 
-- [x] 1.1 Both chains record the fixture’s child-inclusive subtotal once through real `init` and `next`.
-- [x] 1.2 Missing, forged, stale and unfinished observations produce the expected unavailable reason and preserve the step verdict.
-- [x] 1.3 Replay, recovery, opt-in telemetry, legacy intake and external transports pass their compatibility cases.
+- [x] 1.1 Both chains record the fixture’s child-inclusive subtotal once through real `init` and `next`. — 5bc43a95
+- [x] 1.2 Missing, forged, stale and unfinished observations produce the expected unavailable reason and preserve the step verdict. — 5bc43a95
+- [x] 1.3 Replay, recovery, opt-in telemetry, legacy intake and external transports pass their compatibility cases. — 5bc43a95
 
 ### Phase 2: Keep diagnostics and late recovery attributable
 
 #### Automated
 
-- [ ] 2.1 Malformed descriptor JSON produces a sanitized input error and genuine host-schema failures retain their reason.
-- [ ] 2.2 A settled late figure fills only the matching missing total and exact replay leaves the ledger unchanged.
-- [ ] 2.3 An archive measurement returns final-message evidence on both chains without a numbered entry or archive write.
+- [x] 2.1 Malformed descriptor JSON produces a sanitized input error and genuine host-schema failures retain their reason.
+- [x] 2.2 A settled late figure fills only the matching missing total and exact replay leaves the ledger unchanged.
+- [x] 2.3 An archive measurement returns final-message evidence on both chains without a numbered entry or archive write.
 
 ### Phase 3: Switch both orchestrator loops
 

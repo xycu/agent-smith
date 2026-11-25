@@ -60,9 +60,11 @@ function scopedTranscript(root, file, sessionId, agentId) {
 export function collectClaudeUsage(descriptor = {}, env = process.env, agentId) {
   if (!object(descriptor)) descriptor = {};
   if (agentId !== undefined) {
-    if (!claudePathId(agentId)) return { usageEvidence: unavailableEvidence("missing-identity", {
-      source: descriptor.mode === "transcript" ? "claude-transcript" : "claude-native",
-    }) };
+    if (!claudePathId(agentId) || (descriptor.invocation?.agentId !== undefined && descriptor.invocation.agentId !== agentId)) {
+      return { usageEvidence: unavailableEvidence("missing-identity", {
+        source: descriptor.mode === "transcript" ? "claude-transcript" : "claude-native",
+      }) };
+    }
     descriptor = { ...descriptor, invocation: { ...descriptor.invocation, agentId } };
   }
   let invocation = cleanInvocation(descriptor.invocation);
@@ -412,9 +414,18 @@ async function main() {
       if (Buffer.byteLength(input) > CLAUDE_USAGE_LIMITS.descriptorBytes) fail("resource-limit");
     }
     clearTimeout(timer);
-    process.stdout.write(JSON.stringify(collectClaudeUsage(JSON.parse(input))) + "\n");
+    let descriptor;
+    try { descriptor = JSON.parse(input); } catch { fail("invalid-json"); }
+    const args = process.argv.slice(2);
+    let agentId;
+    if (args.length) {
+      if (args.length === 2 && args[0] === "--agent-id") agentId = args[1];
+      else if (args.length === 1 && args[0].startsWith("--agent-id=")) agentId = args[0].slice("--agent-id=".length);
+      else agentId = null; // A malformed observation fails before any source lookup.
+    }
+    process.stdout.write(JSON.stringify(collectClaudeUsage(descriptor, process.env, agentId)) + "\n");
   } catch (error) {
-    process.stdout.write(JSON.stringify({ usageEvidence: unavailableEvidence(error.reason ?? "unsupported-schema", { source: "claude-native" }) }) + "\n");
+    process.stdout.write(JSON.stringify({ usageEvidence: unavailableEvidence(error.reason ?? "unsupported-schema") }) + "\n");
   } finally {
     clearTimeout(timer);
   }

@@ -3,7 +3,7 @@ import path from "node:path";
 import {
   SKILL_DIR, OPENSPEC_DIR, ROOT, out, readJson, mtime, readPlan, readReview, openFindingsConfig, openCounts, frontmatterField,
   executed, writeLog, writeFileAtomic, lastIdx, trailingFailures, goalClass, isObject, rigorLevels, riskMeasured, loadPrices, estimateCost,
-  halt, providerOf, hostOf, claudeCaptureMode, claudeDispatchBinding, prCommentField,
+  halt, providerOf, hostOf, claudeCaptureMode, claudeDispatchBinding, claudeAttemptInput, prCommentField,
 } from "./state.mjs";
 import { readText, preplanFile, preplanNext, readComplexity, scoreNext, scoreSummary, replanNext } from "./preplan.mjs";
 import {
@@ -693,10 +693,8 @@ export function attachResult(p, log, policy, { id, chain, meta, agentId, adapter
     if (Object.hasOwn(last, "pendingCapture")) {
       for (const key of ["agentId", "sessionId", "runId", "invocation", "host", "router", "mode", "source", "sources",
         "process", "checkpoint", "hostVersion", "claudeCaptureMode", "pendingCapture", "totalTokens", "durationMs", "toolUses"]) delete stored[key];
-      const binding = last.pendingCapture;
-      const descriptor = { mode, router: { change: id, chain, n: last.n, step: last.step },
-        ...(mode === "transcript" ? { invocation: { sessionId: binding?.sessionId ?? null },
-          startedAt: last.neutralRetries?.at(-1)?.at ?? last.startedAt } : { checkpoint: binding?.checkpoint ?? null }) };
+      const descriptor = claudeAttemptInput(mode, { change: id, chain, n: last.n, step: last.step },
+        last.pendingCapture, last.neutralRetries?.at(-1)?.at ?? last.startedAt);
       accounting = adapter?.collectClaudeUsage(descriptor, process.env, agentId)
         ?? { usageEvidence: unavailableEvidence("missing-source", { source }) };
       delete last.pendingCapture;
