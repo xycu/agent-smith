@@ -98,3 +98,9 @@ At the existing terminal cutoff, both pipelines recheck eligible settled invocat
 ## Amendment 4 — Preserve the original source on late attachment
 
 **2026-11-24.** At the terminal cutoff, recheck each settled native step with missing tokens once using its original source, exact invocation and qualified host version. The `claude-transcript` source selects transcript collection. The `claude-native` source selects the original launcher binding or authorized telemetry sources. If identity, version or a matching measurement is unavailable, leave tokens missing. The existing structured attachment path accepts a measured transcript or verified total and preserves independent counters and identical replay. Archive usage stays in the final message with its evidence scope. [Late usage figure](../REFERENCE.md#late-usage-figure)
+
+## Amendment 5 — Transcript records supply the host version
+
+**2026-11-25.** Claude Desktop can write transcripts with a different version from the installed CLI. At initial collection and late recheck, omit `hostVersion` from the transcript descriptor. The collector ignores a supplied value and checks each attributed record in scan order. A missing or malformed version yields `unsupported-schema`, a plain release below the floor yields `unsupported-host`, and disagreement between supported releases yields `version-conflict`. [ADR-018 Amendment 6](ADR-018-no-nested-subagents.md#amendment-6--version-floor-for-claude-capture)
+
+Unavailable evidence retains an established root invocation unless root evidence contradicts it. An unrelated failure preserves a qualified version already read. If no version was established or a record failed a version check, the recorded version is `"unknown"`. Late attachment requires an exact match on source, qualified version and invocation, so an unknown version blocks attachment even when the invocation is known.

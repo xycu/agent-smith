@@ -160,6 +160,16 @@ test("the report header groups settled usage limitations by source and reason", 
   assert.match(report, /^- Step 8 plan: unsupported-host — The host version is not qualified for accounting\.$/m);
 });
 
+test("conflicting transcript versions appear in per-step coverage with the normalized explanation", () => {
+  const usageEvidence = unavailableEvidence("version-conflict", { ...TRANSCRIPT, hostVersion: "unknown" });
+  const project = fixture([entry(1, "plan", { usageEvidence: { ...usageEvidence, explanation: "caller text" } })]);
+  const [step] = status(project).steps;
+  assert.equal(step.usageEvidence.explanation, "The transcript records disagree on the host version.");
+  const report = readReportFile(project);
+  assert.match(report, /^- Step 1 plan: version-conflict — The transcript records disagree on the host version\.$/m);
+  assert.doesNotMatch(report, /^Token capture limitations:/m);
+});
+
 test("OpenSpec report requires the saved Codex host, Claude dispatch, and duration for headless attribution", () => {
   const chain = "openspec";
   const project = fixture([

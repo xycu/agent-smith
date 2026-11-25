@@ -1,0 +1,65 @@
+{
+  "id": "claude-usage-host-version-mismatch",
+  "goal": "Make transcript-mode Claude usage capture work on Claude Desktop. Follow frame.md and research.md. In claude-transcript.mjs, take the host version from the transcript records, not from the descriptor; in transcript mode the descriptor hostVersion is unneeded (ignore it, or reject it as invalid-evidence). Keep the floor check on the records and the check that the records agree with each other. Give the records-disagree case an accurate reason; unsupported-host stays only for a version below the floor. Keep the invocation identity on every failure so the late usage command can attach transcript evidence under ADR-019 as it stands; evidence that never had an identity still refuses (late-usage.test.mjs:735). Do not relax ADR-019. Align SKILL.md of both chains (within the byte ceilings and pinned regexes), docs/REFERENCE.md and usage.mjs reason text. Update the pin at claude-usage.test.mjs:614 and add identity-retention cases next to late-usage.test.mjs:663-668. Add a Manual row: a live native run records Claude token figures, with its evidence file kept.",
+  "host": "claude",
+  "providerMode": "split",
+  "prComment": true,
+  "isolated": true,
+  "branch": "agent-smith/claude-usage-host-version-mismatch",
+  "baseSha": "90501ebcf874cb6c0efca38e412f553ad7dddd08",
+  "provenance": {
+    "schemaVersion": 1,
+    "plugin": "1.18.1",
+    "sections": {
+      "advisor": "bff1aa1fb5e34e3b",
+      "agentFiles": "2c10243b953d64dd",
+      "agents": "374f6dc7eadb4068",
+      "archive": "cea6b29e39cfe6c0",
+      "claudeCapture": "378bea4d4ab463c0",
+      "codeReplan": "2d06e637baae3d3d",
+      "codex": "bf7fb87c06a249bf",
+      "complexity": "997fa59224abe417",
+      "escalation": "b7425a0a9da972e9",
+      "executors": "44feddc34303e2e2",
+      "extraSteps": "655927dfce30050f",
+      "hookFiles": "d9f8b926ae32844e",
+      "isolation": "a0a594659b853084",
+      "ladder": "bae84c4b321c5fcd",
+      "lessons": "92d849fccafd0527",
+      "limits": "ad6be642613c2b99",
+      "manualVerify": "095e9c1b8cc5db5d",
+      "preplan": "a9307608313095d4",
+      "prompts": "9c76036954770e5b",
+      "review": "1999a8dcf43456af",
+      "rigor": "94627084d626c161",
+      "risk": "4ef391c49151f196",
+      "ruleFiles": "a36a6381bc917264",
+      "score": "dc16b78fdf08a0df",
+      "splitProviders": "e23dcbd325996cb7",
+      "steps": "186a94992cdd2ace"
+    },
+    "flags": {
+      "providerMode": "split",
+      "archive": false,
+      "chrome": true,
+      "score.minRigor": "standard",
+      "agents.restricted": false,
+      "advisor.enabled": false
+    }
+  },
+  "startCommit": "ea68358ac016c22de2dc2b1a3a105b9310c50b46",
+  "rigor": {
+    "level": "standard",
+    "by": "goal plain"
+  },
+  "outcome": {
+    "action": "done",
+    "reason": "impl review APPROVED",
+    "manualPending": [
+      "2.2 A live native Claude Desktop pipeline run records Claude token figures and retains its evidence file under `evidence/`."
+    ],
+    "manualNotProved": [
+      "2.2 A live native Claude Desktop pipeline run records Claude token figures and retains its evidence file under `evidence/`. — not proved: The live run in this Claude Desktop session (steps 1, 3, 5 of this change) did record positive transcript token figures with record version 2.1.330 (CLI is 2.1.325), but the session loads the installe"
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "factors": {
+    "ambiguity": { "score": 1, "evidence": "change.md and the goal fix the outcome (records set the host version, identity kept on failure, pins and Manual row); open details are the reason code for records-disagree and the descriptor hostVersion handling (ignore or reject), each with a few obvious options (frame.md, research.md Open Questions)" },
+    "novelty": { "score": 1, "evidence": "adapts existing patterns: telemetry mode already keeps identity on failure (claude-usage.mjs:81-82), and late attach with exact identity already exists (route.mjs:889-896, ADR-019)" },
+    "coupling": { "score": 2, "evidence": "research.md touches claude-transcript.mjs, claude-usage.mjs, usage.mjs, flow.mjs (report reason text), route.mjs (late-attach gate, read only), both SKILL.md files and docs/REFERENCE.md; the usageEvidence reason and identity format is a recorded data shape in run.jsonl consumed by several modules" },
+    "discovery": { "score": 1, "evidence": "research.md already maps every location with file:line references (Code References and Tests tables); the goal names the files and tests" },
+    "volume": { "score": 2, "evidence": "about 8 to 10 files: claude-transcript.mjs, claude-usage.mjs, usage.mjs, flow.mjs, two SKILL.md, docs/REFERENCE.md, claude-usage.test.mjs, late-usage.test.mjs, plus skill-loop test pins and a Manual row; moderate edits, no large new code" },
+    "verification": { "score": 2, "evidence": "existing tests cover the transcript and late-usage paths and need pin updates plus identity-retention cases beside late-usage.test.mjs:663-668; the goal also needs a live native run recording Claude token figures with its evidence file, which is a manual check (research.md Live proof)" }
+  },
+  "unknowns": [
+    "Reason code for records that disagree with each other: reuse invalid-evidence or add a new code, and its effect on flow.mjs report text",
+    "Whether the 35 telemetry-era unsupported-host entries share this root cause (frame.md marks it out of scope)",
+    "Whether a native Agent-driven pipeline run can be executed by a human to produce transcript token figures, given step subagents cannot make native Agent calls (research.md)",
+    "Whether SKILL.md wording can fit the byte ceilings and pinned regexes without updating them"
+  ],
+  "confidence": "medium"
+}
