@@ -140,15 +140,15 @@ At most one synchronous measurement per consumed native row under the existing r
 
 #### Automated
 
-- [x] 2.1 Malformed descriptor JSON produces a sanitized input error and genuine host-schema failures retain their reason.
-- [x] 2.2 A settled late figure fills only the matching missing total and exact replay leaves the ledger unchanged.
-- [x] 2.3 An archive measurement returns final-message evidence on both chains without a numbered entry or archive write.
+- [x] 2.1 Malformed descriptor JSON produces a sanitized input error and genuine host-schema failures retain their reason. — ba4158f8
+- [x] 2.2 A settled late figure fills only the matching missing total and exact replay leaves the ledger unchanged. — ba4158f8
+- [x] 2.3 An archive measurement returns final-message evidence on both chains without a numbered entry or archive write. — ba4158f8
 
 ### Phase 3: Switch both orchestrator loops
 
 #### Automated
 
-- [ ] 3.1 Both loop contract tests pass, Anti-stall sections match and each skill is smaller than its starting size.
+- [x] 3.1 Both loop contract tests pass, Anti-stall sections match and each skill is smaller than its starting size.
 
 #### Manual
 
