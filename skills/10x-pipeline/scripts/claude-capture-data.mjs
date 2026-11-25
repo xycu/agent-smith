@@ -21,6 +21,11 @@ export const captureFile = (root, kind) => path.join(root, files[kind]);
 export const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
 export const identifier = value => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
 export const integer = value => Number.isSafeInteger(value) && value >= 0;
+// The completed Agent tool response reports these counters for the enclosing invocation.
+export const agentCounters = result => result?.status === "completed" ? {
+  ...(integer(result.totalToolUseCount) ? { toolUses: result.totalToolUseCount } : {}),
+  ...(integer(result.totalDurationMs) ? { durationMs: result.totalDurationMs } : {}),
+} : {};
 export const hash = value => createHash("sha256").update(value).digest("hex");
 export const fail = reason => { throw Object.assign(new Error(), { reason, accounting: true }); };
 export const tokenBuckets = ["input_tokens", "output_tokens", "cache_read_tokens", "cache_creation_tokens"];
@@ -188,7 +193,8 @@ export function projectNative(record, sessionId) {
   if (!identifier(record.tool_response?.agentId)
       || (record.tool_response.totalTokens !== undefined && !integer(record.tool_response.totalTokens))) fail("unsupported-schema");
   return { ...base, response: { agentId: record.tool_response.agentId,
-    status: record.tool_response.status === "completed" ? "completed" : "other", totalTokens: record.tool_response.totalTokens } };
+    status: record.tool_response.status === "completed" ? "completed" : "other", totalTokens: record.tool_response.totalTokens,
+    ...agentCounters(record.tool_response) } };
 }
 
 export function attributes(raw) {

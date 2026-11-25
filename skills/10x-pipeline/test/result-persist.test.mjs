@@ -5,11 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   cleanupAll, makeProject, run, git, gitAvailable, gitEnv, gitInit, init, next, writeResult, writeOverride,
-  readLogEntries, planText, entry, skipEntry, writeLog
+  readLogEntries, planText, entry, skipEntry, writeLog, preUpgradeDispatch
 } from "./helpers.mjs";
 import { writePlan } from "./ahead.mjs";
 import { makeOpenspecProject, writeArtifacts } from "../../openspec-pipeline/test/openspec-helpers.mjs";
 import { attachResult } from "../scripts/flow.mjs";
+import { boundClaudeFixture, transcriptEnv, transcriptFixture } from "./claude-helpers.mjs";
 
 after(cleanupAll);
 
@@ -21,6 +22,7 @@ test("a router error after the result is read keeps the result in run.jsonl, and
   const project = makeProject();
   assert.equal(init(project, GOAL).status, 0);
   writePlan(project, planText({ phases: 1, rowsPerPhase: 1 }));
+  preUpgradeDispatch(project);
   writeResult(project, { status: "done", note: "wrote plan", usage: { totalTokens: 1234 } });
   writeOverride(project, BROKEN);
 
@@ -63,6 +65,7 @@ test("the same in an isolated run with a failed advisory score entry", { skip },
   const started = run(wt, ["init", wt.id, "--goal", GOAL, "--rigor", "standard"], { env });
   assert.equal(started.status, 0, started.stdout + started.stderr);
   assert.equal(readLogEntries(wt)[0].step, "score");
+  preUpgradeDispatch(wt);
   writeResult(wt, { status: "done", note: "scored", usage: { totalTokens: 55 } });
   writeOverride(wt, { ...policy, ...BROKEN });
 
@@ -92,8 +95,8 @@ function projectFor(chain, policy = {}) {
   return chain === "10x" ? makeProject({ policy }) : makeOpenspecProject({ policy });
 }
 
-function start(p, chain) {
-  const res = run(p, ["init", p.id, "--goal", GOAL, "--chain", chain], { env: gitEnv(p) });
+function start(p, chain, { env = {}, flags = [] } = {}) {
+  const res = run(p, ["init", p.id, "--goal", GOAL, "--chain", chain, ...flags], { env: { ...gitEnv(p), ...env } });
   assert.equal(res.status, 0, res.stdout + res.stderr);
   assert.equal(res.json.action, "run");
   return res.json;
@@ -105,20 +108,20 @@ function output(p, chain) {
 }
 
 // Patch the child process only, after the real atomic publication has succeeded.
-function fault(p, source) {
+function fault(p, source, env = {}, flags = []) {
   const hook = path.join(p.base, "result-fault.mjs");
   fs.writeFileSync(hook, 'import fs from "node:fs";\n' + source);
-  return run(p, ["next", p.id], { env: { ...gitEnv(p), NODE_OPTIONS: "--import=" + hook } });
+  return run(p, ["next", p.id, ...flags], { env: { ...gitEnv(p), ...env, NODE_OPTIONS: "--import=" + hook } });
 }
 
-function crash(p) {
+function crash(p, env, flags) {
   const res = fault(p, `
 const rename = fs.renameSync;
 fs.renameSync = (from, to) => {
   const value = rename(from, to);
   if (String(to) === ${JSON.stringify(path.join(p.agentDir, "run.jsonl"))}) process.exit(86);
   return value;
-};`);
+};`, env, flags);
   assert.equal(res.status, 86, res.stdout + res.stderr);
   assert.equal(executedEntries(p).length, 1);
   assert.ok(executedEntries(p)[0].result);
@@ -143,7 +146,7 @@ for (const chain of ["10x", "openspec"]) {
   for (const byFile of [false, true]) {
     test(`${chain}: post-publication crash recovers ${byFile ? "file" : "inline"} result ownership`, () => {
       const p = projectFor(chain, { prompts: { byFile } });
-      start(p, chain);
+      start(p, chain, { flags: ["--provider-mode", "codex"] });
       output(p, chain);
       writeResult(p, { status: "done", note: "only step one", signals: { rigor: "standard", ignored: true },
         usage: { totalTokens: 42 } });
@@ -335,7 +338,7 @@ for (const chain of ["10x", "openspec"]) {
   for (const interrupted of [false, true]) {
     test(`${chain}: late usage preserves ${interrupted ? "interrupted completion" : "later pending result"} ownership`, () => {
       const p = projectFor(chain);
-      start(p, chain);
+      start(p, chain, { flags: ["--provider-mode", "codex"] });
       output(p, chain);
       writeResult(p, { status: "done", note: "first without usage" });
       if (interrupted) crash(p);
@@ -379,7 +382,7 @@ function nextIn(p) {
 for (const chain of ["10x", "openspec"]) {
   test(`${chain}: intake sanitizes reserved accounting in both result and entry without changing result acceptance`, () => {
     const p = projectFor(chain);
-    start(p, chain);
+    start(p, chain, { flags: ["--provider-mode", "codex"] });
     output(p, chain);
     const evidence = { schemaVersion: 1, status: "verified", scope: "step-tree", source: "codex-rollout", hostVersion: "0.169.0",
       invocation: { host: "codex", rootThreadId: "root", rootTurnId: "turn" },
@@ -400,7 +403,7 @@ for (const chain of ["10x", "openspec"]) {
 
   test(`${chain}: invalid accounting remains unavailable after post-publication crash and single intake recovery`, () => {
     const p = projectFor(chain);
-    start(p, chain);
+    start(p, chain, { flags: ["--provider-mode", "codex"] });
     output(p, chain);
     writeResult(p, { status: "done", note: "complete with invalid accounting", extra: "preserved",
       usage: { totalTokens: 7, toolUses: 2, durationMs: 3 },
@@ -416,3 +419,137 @@ for (const chain of ["10x", "openspec"]) {
     assert.doesNotMatch(JSON.stringify(completed), /private\/source/);
   });
 }
+
+const forged = {
+  status: "done", note: "settled", extra: "kept", agentId: "step-agent", sessionId: "native-session", runId: "tool-root",
+  invocation: { host: "claude", sessionId: "native-session", agentId: "step-agent", runId: "tool-root" },
+  usage: { totalTokens: 999, durationMs: 888, toolUses: 777 }, source: "forged-source", sources: { root: "/private/forged" },
+  usageEvidence: { status: "verified" }, signals: { ignored: true },
+};
+
+function nativeDispatch(chain) {
+  const project = projectFor(chain);
+  const env = transcriptEnv(project);
+  const action = start(project, chain, { env });
+  const row = executedEntries(project)[0];
+  assert.deepEqual(row.pendingCapture, { sessionId: env.CLAUDE_CODE_SESSION_ID });
+  const capture = transcriptFixture({ project, chain, step: action.step, n: action.n, startedAt: row.startedAt });
+  output(project, chain);
+  return { project, env, capture };
+}
+
+for (const chain of ["10x", "openspec"]) {
+  test(chain + ": the native launch ID measures the settled tree once and survives publication recovery", () => {
+    const { project, env, capture } = nativeDispatch(chain);
+    if (chain === "openspec") {
+      capture.main[1].toolUseResult = { status: "async_launched", isAsync: true, agentId: "step-agent", totalTokens: 70 };
+    } else Object.assign(capture.main[1].toolUseResult, { totalToolUseCount: 4, totalDurationMs: 50 });
+    capture.write();
+    writeResult(project, forged);
+    const flags = chain === "openspec" ? ["--agent-id=step-agent", "--chain", chain] : ["--agent-id", "step-agent"];
+    const accepted = crash(project, env, flags);
+    assert.equal(accepted.ok, true);
+    assert.equal(accepted.pendingCapture, undefined);
+    assert.deepEqual(accepted.usage, { totalTokens: 151, ...(chain === "10x" ? { durationMs: 50, toolUses: 4 } : {}) });
+    const evidence = accepted.usageEvidence;
+    assert.equal(evidence.sessionCount, 2);
+    assert.equal(evidence.requestCount, 4);
+    assert.equal(evidence.status, "transcript");
+    assert.equal(evidence.hostVersion, "2.1.311");
+    assert.deepEqual(evidence.invocation, forged.invocation);
+    assert.deepEqual(accepted.result, { status: "done", note: "settled", extra: "kept", usage: accepted.usage, usageEvidence: evidence });
+    fs.unlinkSync(capture.mainFile);
+    const recovered = run(project, ["next", project.id, ...flags], { env });
+    assert.equal(recovered.json.n, 2, recovered.stdout);
+    assert.deepEqual(executedEntries(project)[0], accepted);
+    const status = run(project, ["status", project.id, "--report"]);
+    assert.equal(status.json.tokens.total, 151);
+    assert.equal(status.json.usageCoverage.transcript, 1);
+    assert.match(fs.readFileSync(path.join(project.agentDir, "report.md"), "utf8"), /can undercount/);
+  });
+}
+
+for (const [name, flags, reason] of [
+  ["missing ID", [], "missing-identity"],
+  ["bare ID", ["--agent-id"], "missing-identity"],
+  ["path-like ID", ["--agent-id=../step-agent"], "missing-identity"],
+  ["child ID", ["--agent-id=leaf-agent"], "missing-identity"],
+  ["other description", ["--agent-id=step-agent"], "missing-identity"],
+  ["missing source", ["--agent-id=unrecorded"], "missing-source"],
+  ["changed session", ["--agent-id=step-agent"], "missing-identity"],
+  ["old launch", ["--agent-id=step-agent"], "missing-identity"],
+  ["missing launch", ["--agent-id=step-agent"], "incomplete-capture"],
+  ["unfinished root", ["--agent-id=step-agent"], "incomplete-capture"],
+  ["conflicting version", ["--agent-id=step-agent"], "version-conflict"],
+]) {
+  test("native intake keeps the verdict with " + name, () => {
+    const { project, env, capture } = nativeDispatch("10x");
+    if (name === "changed session") env.CLAUDE_CODE_SESSION_ID = "session-B";
+    if (name === "other description") capture.metadata.get("step-agent").description += " elsewhere";
+    if (name === "unfinished root") {
+      capture.metadata.get("step-agent").finished = false;
+      Object.assign(capture.main[1].toolUseResult, { totalToolUseCount: 0, totalDurationMs: 5 });
+    }
+    if (name === "conflicting version") capture.records.get("leaf-agent")[0].version = "2.1.312";
+    if (name === "missing launch") capture.main.shift();
+    capture.write();
+    if (name === "old launch") {
+      writeResult(project, { status: "orchestrator-error", note: "retry after settlement" });
+      assert.equal(run(project, ["next", project.id], { env }).json.neutralRetry.count, 1);
+    }
+    writeResult(project, forged);
+    const result = run(project, ["next", project.id, ...flags], { env });
+    assert.equal(result.status, 0, result.stdout);
+    const row = executedEntries(project)[0];
+    assert.equal(row.ok, true);
+    assert.equal(row.usageEvidence.reason, reason);
+    assert.deepEqual(row.result.usageEvidence, row.usageEvidence);
+    assert.equal(row.result.agentId, undefined);
+    assert.equal(row.result.invocation, undefined);
+    assert.equal(row.result.usage?.totalTokens, undefined);
+    assert.equal(row.usageEvidence.source, "claude-transcript");
+    if (name === "unfinished root") {
+      assert.equal(row.usageEvidence.hostVersion, "2.1.311");
+      assert.deepEqual(row.usage, { toolUses: 0, durationMs: 5 });
+    } else {
+      assert.equal(row.usage, undefined);
+      assert.equal(row.usageEvidence.hostVersion, "unknown");
+    }
+    if (name === "unfinished root" || name === "conflicting version") assert.deepEqual(row.usageEvidence.invocation, forged.invocation);
+    else assert.equal(row.usageEvidence.invocation, undefined);
+  });
+}
+
+test("pre-upgrade native intake flags absent evidence and preserves independently observed counters", () => {
+  const p = projectFor("10x");
+  start(p, "10x");
+  preUpgradeDispatch(p);
+  output(p, "10x");
+  writeResult(p, { status: "done", usage: { durationMs: 0 } });
+  const resumed = run(p, ["init", p.id, "--goal", GOAL]);
+  assert.equal(resumed.json.n, 2, resumed.stdout);
+  const row = executedEntries(p)[0];
+  assert.deepEqual(row.usage, { durationMs: 0 });
+  assert.equal(row.usageEvidence.reason, "missing-identity");
+});
+
+test("telemetry intake needs a unique launch after the saved checkpoint and cross-checks the supplied ID", () => {
+  for (const cause of ["competing launch", "wrong ID", "missing checkpoint"]) {
+    const p = makeProject({ policy: { claudeCapture: { mode: "telemetry", require: false } } });
+    const capture = boundClaudeFixture({ project: p });
+    const env = { ...capture.env, AGENT_SMITH_CLAUDE_SESSION: "" };
+    start(p, "10x", { env: cause === "missing checkpoint" ? { ...env, AGENT_SMITH_CLAUDE_CAPTURE: "" } : env });
+    if (cause === "competing launch") capture.native.push({ ...capture.native[0], tool_use_id: "tool-competing" });
+    capture.write();
+    output(p, "10x");
+    writeResult(p, forged);
+    const id = cause === "wrong ID" ? "unrelated" : "step-agent";
+    assert.equal(run(p, ["next", p.id, "--agent-id", id], { env }).json.action, "run");
+    const row = executedEntries(p)[0];
+    assert.equal(row.ok, true);
+    assert.equal(row.usage, undefined);
+    assert.equal(row.usageEvidence.source, "claude-native");
+    assert.equal(row.usageEvidence.invocation, undefined);
+    assert.equal(row.usageEvidence.reason, cause === "competing launch" ? "ambiguous-history" : "missing-identity");
+  }
+});

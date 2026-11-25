@@ -352,8 +352,24 @@ test("checkpoint refuses competing top-level launches even with an observed agen
   f.native.push(competitor);
   f.write();
   const descriptor = { ...f.descriptor, invocation: { host: "claude", agentId: "step-agent" } };
-  unavailable(collectClaudeUsage({ ...descriptor, checkpoint }, f.env), "ambiguous-history");
+  const ambiguous = collectClaudeUsage({ ...descriptor, checkpoint }, f.env, "step-agent");
+  unavailable(ambiguous, "ambiguous-history");
+  assert.equal(ambiguous.usageEvidence.invocation, undefined);
   assert.equal(collectClaudeUsage({ ...descriptor, invocation: { ...descriptor.invocation, runId: "tool-root" } }, f.env).usage.totalTokens, 117);
+});
+
+test("a malformed launch observation never opens a source or becomes accounting identity", t => {
+  const f = boundClaudeFixture();
+  const checkpoint = claudeCaptureCheckpoint(f.env);
+  const open = t.mock.method(fs, "openSync", () => { throw new Error("unexpected read"); });
+  for (const mode of ["transcript", "telemetry"]) {
+    for (const id of [true, "", "compound:id", "a/b", "a".repeat(129)]) {
+      const result = collectClaudeUsage({ mode, router: f.descriptor.router, checkpoint }, f.env, id);
+      unavailable(result, "missing-identity");
+      assert.equal(result.usageEvidence.invocation, undefined);
+    }
+  }
+  assert.equal(open.mock.callCount(), 0);
 });
 
 test("checkpoint boundaries cannot attribute an earlier retry or a guessed offset", () => {

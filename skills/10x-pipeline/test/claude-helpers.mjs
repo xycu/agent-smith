@@ -143,20 +143,23 @@ export function boundClaudeFixture(options) {
     descriptor: { router: fixture.descriptor.router, usage: fixture.descriptor.usage } };
 }
 
+export const transcriptEnv = project => ({ CLAUDE_CODE_SESSION_ID: "native-session",
+  CLAUDE_CONFIG_DIR: path.join(project.root, "claude-config"), AGENT_SMITH_CLAUDE_SESSION: "" });
+
 // Ordinary session files use the same four-bucket assistant records as the telemetry fixtures.
 export function transcriptFixture(options = {}) {
   const f = claudeUsageFixture(options);
   const { sessionId, agentId } = f.descriptor.invocation;
-  const config = path.join(f.project.root, "claude-config");
+  const env = transcriptEnv(f.project);
+  const config = env.CLAUDE_CONFIG_DIR;
   const projectDir = path.join(config, "projects", "project-where-claude-started");
   const directory = path.join(projectDir, sessionId, "subagents");
   fs.mkdirSync(directory, { recursive: true });
   const mainFile = path.join(projectDir, sessionId + ".jsonl");
-  const env = { CLAUDE_CODE_SESSION_ID: sessionId, CLAUDE_CONFIG_DIR: config };
   const descriptor = { mode: "transcript", router: f.descriptor.router, invocation: { agentId }, usage: f.descriptor.usage };
   const metadata = new Map();
   const records = new Map();
-  const ts = n => new Date(Date.UTC(2026, 10, 24, 12, 0, n)).toISOString();
+  const ts = n => new Date((options.startedAt ?? Date.UTC(2026, 10, 24, 12)) + 1000 * n).toISOString();
   const main = [];
   for (const [file, rows] of f.transcripts) {
     const id = path.basename(file, ".jsonl");

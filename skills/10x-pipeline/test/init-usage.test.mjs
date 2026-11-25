@@ -123,12 +123,16 @@ for (const [chain, make] of [["10x", makeProject], ["openspec", makeOpenspecProj
     const first = init(project, fake.env);
     assert.match(first.warning, OFF);
     assert.doesNotMatch(first.warning, /Codex|duration only/);
+    assert.deepEqual(readLogEntries(project).at(-1).pendingCapture, { checkpoint: null });
 
     const { root } = capture(project);
     writeResult(project, { status: "orchestrator-error", note: "no child started" });
     const resumed = init(project, { ...fake.env, [CAPTURE_ENV]: root });
     assert.equal(resumed.warning, "");
     assert.deepEqual(resumed.action, { ...first.action, neutralRetry: { count: 1, cap: 2 } });
+    assert.deepEqual(readLogEntries(project).at(-1).pendingCapture, {
+      checkpoint: { sessionId: "00112233-4455-6677-8899-aabbccddeeff", offset: 0 },
+    });
     expectCalls(project, fake);
   });
 
@@ -363,6 +367,7 @@ for (const [chain, make, skill] of [["10x", makeProject, "10x-pipeline"], ["open
     assert.equal(first.action.claudeCaptureMode, "transcript");
     const log = readLogEntries(project);
     assert.equal(log.at(-1).claudeCaptureMode, "transcript");
+    assert.deepEqual(log.at(-1).pendingCapture, { sessionId: "session" });
     writeOverride(project, GATE);
     writeResult(project, { status: "orchestrator-error", note: "no child started" });
     assert.equal(init(project, env).action.claudeCaptureMode, "transcript");
@@ -370,6 +375,7 @@ for (const [chain, make, skill] of [["10x", makeProject, "10x-pipeline"], ["open
     // A native step from before the mode field was introduced keeps its launcher requirement.
     const old = readLogEntries(project);
     delete old.at(-1).claudeCaptureMode;
+    delete old.at(-1).pendingCapture;
     writeLog(project, old);
     writeOverride(project, { claudeCapture: { require: true } });
     writeResult(project, { status: "orchestrator-error", note: "no child started" });
@@ -377,6 +383,7 @@ for (const [chain, make, skill] of [["10x", makeProject, "10x-pipeline"], ["open
     const replay = init(project, { ...env, [CAPTURE_ENV]: capture(project).root });
     assert.equal(replay.action.claudeCaptureMode, "telemetry");
     assert.equal(replay.warning, "");
+    assert.equal(readLogEntries(project).at(-1).pendingCapture.checkpoint.offset, 0);
 
     const optOut = { ...make(), chain };
     const advisory = init(optOut, fakeCodex(optOut).env);
@@ -438,5 +445,45 @@ test("the capture gate follows the saved dispatch of a neutral replay", () => {
     writeResult(project, { status: "orchestrator-error", note: "no child started" });
     if (provider === "claude") assert.match(haltInit(project, fake.env), OFF);
     else assert.match(init(project, fake.env).warning, WRONG_VERSION);
+  }
+});
+
+test("a missing optional collector leaves native intake routable and records the selected source", () => {
+  const project = makeProject();
+  const fake = fakeCodex(project);
+  const hooks = preload(project, `
+import { registerHooks } from "node:module";
+registerHooks({ resolve(specifier, context, next) {
+  if (specifier === "./claude-usage.mjs") throw new Error("optional adapter unavailable");
+  return next(specifier, context);
+} });
+`);
+  const env = { ...fake.env, ...hooks, CLAUDE_CODE_SESSION_ID: "session" };
+  init(project, env);
+  writeResult(project, { status: "failed", note: "source unavailable", usage: { totalTokens: 777 } });
+  assert.equal(run(project, ["next", project.id, "--agent-id=step-agent"], { env }).json.action, "run");
+  const row = readLogEntries(project).find(row => row.result);
+  assert.equal(row.result.status, "failed");
+  assert.equal(row.usageEvidence.source, "claude-transcript");
+  assert.equal(row.usageEvidence.reason, "missing-source");
+  assert.equal(row.usage, undefined);
+});
+
+test("both headless Claude and OpenAI on a Claude host keep their runner envelope through split intake", () => {
+  for (const host of ["claude", "codex"]) {
+    const project = makeProject();
+    const fake = fakeCodex(project);
+    const { action } = init(project, fake.env, ["--host", host, "--provider-mode", "split"]);
+    assert.equal(action.provider, host === "codex" ? "claude" : "openai");
+    assert.equal(readLogEntries(project).at(-1).pendingCapture, undefined);
+    const source = host === "codex" ? "claude-native" : "codex-rollout";
+    writeResult(project, { status: "failed", usage: { durationMs: 42 },
+      usageEvidence: { schemaVersion: 1, status: "unavailable", scope: "step-tree", hostVersion: "unknown",
+        source, reason: "incomplete-capture" } });
+    assert.equal(run(project, ["next", project.id, "--agent-id=ignored"], { env: fake.env }).json.action, "run");
+    const row = readLogEntries(project).find(row => row.result);
+    assert.deepEqual(row.usage, { durationMs: 42 });
+    assert.equal(row.usageEvidence.source, source);
+    assert.equal(row.usageEvidence.reason, "incomplete-capture");
   }
 });

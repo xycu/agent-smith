@@ -1,6 +1,7 @@
 // Shared test helpers: scratch projects, the router CLI, run.jsonl fixtures and a hermetic git environment.
 // Plain node: built-ins only. Spawns of `run` and `git` time out after SPAWN_TIMEOUT_MS.
 import fs from "node:fs";
+import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
@@ -164,6 +165,15 @@ export function readLogEntries(project) {
   const file = path.join(project.agentDir, "run.jsonl");
   if (!fs.existsSync(file)) return [];
   return fs.readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
+}
+
+// A step dispatched by the previous revision accepts its orchestrator's sanitized result envelope.
+export function preUpgradeDispatch(project) {
+  const rows = readLogEntries(project);
+  const pending = rows.filter(row => !row.skipped).at(-1);
+  assert.ok(pending && !pending.result && Object.hasOwn(pending, "pendingCapture"));
+  delete pending.pendingCapture;
+  writeLog(project, rows);
 }
 
 export function readMetaFile(project) {

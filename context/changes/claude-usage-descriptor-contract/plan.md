@@ -132,9 +132,9 @@ At most one synchronous measurement per consumed native row under the existing r
 
 #### Automated
 
-- [ ] 1.1 Both chains record the fixture’s child-inclusive subtotal once through real `init` and `next`.
-- [ ] 1.2 Missing, forged, stale and unfinished observations produce the expected unavailable reason and preserve the step verdict.
-- [ ] 1.3 Replay, recovery, opt-in telemetry, legacy intake and external transports pass their compatibility cases.
+- [x] 1.1 Both chains record the fixture’s child-inclusive subtotal once through real `init` and `next`.
+- [x] 1.2 Missing, forged, stale and unfinished observations produce the expected unavailable reason and preserve the step verdict.
+- [x] 1.3 Replay, recovery, opt-in telemetry, legacy intake and external transports pass their compatibility cases.
 
 ### Phase 2: Keep diagnostics and late recovery attributable
 

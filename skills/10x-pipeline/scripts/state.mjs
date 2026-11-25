@@ -5,7 +5,7 @@ import { hash } from "node:crypto";
 export { runLockPath } from "./run-lock.mjs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { accountingFor } from "./usage.mjs";
+import { accountingFor, nativeClaudeSession } from "./usage.mjs";
 
 export const SKILL_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // The OpenSpec chain's skill folder: its policy fragment, prompts, rules and module (ADR-013 Amendment 1).
@@ -158,6 +158,11 @@ export function selectionProblem(policy, meta, checkBounds = true) {
 // A pending dispatch created before capture modes used telemetry.
 export function claudeCaptureMode(policy, replay) {
   return replay ? replay.claudeCaptureMode ?? "telemetry" : policy.claudeCapture.mode;
+}
+
+export function claudeDispatchBinding(mode, adapter) {
+  return mode === "transcript" ? { sessionId: nativeClaudeSession(process.env) }
+    : { checkpoint: adapter?.claudeCaptureCheckpoint() ?? null };
 }
 
 export function dispatchTarget(policy, tier, host) {

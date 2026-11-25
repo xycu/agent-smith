@@ -5,7 +5,7 @@
 //
 // Usage (run from the project root):
 //   node route.mjs init   <change-id> [--goal "<text>"] [--rigor lean|standard|thorough] [--archive] [--chrome [false]] [--pr-comment [false]]   # Chrome is on unless --chrome false
-//   node route.mjs next   <change-id>        # consumes context/changes/<id>/agent-smith/last-result.json
+//   node route.mjs next   <change-id> [--agent-id <id>]   # consumes the pending result
 //   node route.mjs risk   <change-id>        # read-only: churn hot paths, plan hits, diff hits
 //   node route.mjs status <change-id> [--report]   # --report (re)writes agent-smith/report.md
 //   node route.mjs verify-archive <change-id> [--path <p>]   # read-only: is the change archived (files only, no git)
@@ -25,7 +25,7 @@ import {
   ROOT, ID_RE, out, parseFlags, loadPolicy, policyProblems, readPlan, archiveDirs, archiveRoot, isArchiveName, frontmatterField, guardArchived, paths, readLog, executed,
   inspectMeta, readMeta, writeLog, writeFileAtomic, cleanupStateTemps, isFailure, budgetSteps, isObject, rigorLevels, maxLevel, resolveRigor, SHA_RE, runGit, gitOut,
   ignoredProbePaths, measureRisk, riskMeasured, scoreConfig, halt, acquireRunLock, priceTable, loadPrices, estimateCost, roundUsd,
-  providerOf, hostOf, selectionProblem, providersByStep, stepPolicy, dispatchTarget,
+  providerOf, hostOf, selectionProblem, providersByStep, stepPolicy, dispatchTarget, claudeDispatchBinding,
   prCommentField,
 } from "./state.mjs";
 import { scoreSummary } from "./preplan.mjs";
@@ -77,7 +77,7 @@ function mutationMeta(p) {
   return meta;
 }
 
-function next(id, policy, chain = "10x", validatedLog = null) {
+async function next(id, policy, chain, validatedLog = null, agentId) {
   const p = paths(id, policy, chain);
   const openspec = chain === "openspec";
   guardArchived(p, id);
@@ -85,6 +85,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   if (openspec && !fs.existsSync(p.change)) halt(`${missingChangeReason(id)} Nothing was written.`);
   if (!openspec) haltNoChangeMd(p, id);
   const meta = mutationMeta(p) ?? { id, goal: "" };
+  const adapter = hostOf(meta) === "claude" ? await import("./claude-usage.mjs").catch(() => null) : null;
   if (isolationOn(policy) && meta.isolated !== true) {
     halt("isolation.require is on and meta.json does not record an isolated run. Run init first, in the run worktree. Nothing was written.");
   }
@@ -98,11 +99,11 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   resumeTimes(p, id, meta, log, policy);
   // An orchestrator-error result reruns the pending entry unchanged (or halts at limits.maxNeutralRetries) and exits;
   // any other case returns here and goes on as before.
-  neutralRetry(p, id, meta, log, policy, visibility);
+  neutralRetry(p, id, meta, log, policy, visibility, adapter);
   const ranNow = executed(log);
   const lastRan = ranNow.at(-1);
   const previousOutcome = lastRan?.result ? meta.outcome : null;
-  const justFailedReview = attachResult(p, log, policy);
+  const justFailedReview = attachResult(p, log, policy, { id, chain, meta, agentId, adapter });
   cleanupHandoff(p, log);
   const failedReplan = !openspec && lastRan?.template === "plan-replan" && isFailure(lastRan);
   const replanPlan = failedReplan ? readPlan(p.plan, { fingerprint: true }) : null;
@@ -309,6 +310,7 @@ function next(id, policy, chain = "10x", validatedLog = null) {
   // The exact prompt, kept only while the step is pending, so a neutral rerun returns it unchanged; attachResult drops it.
   entry.pendingPrompt = prompt;
   if (policy.prompts.byFile === true) prepareHandoff(p, entry);
+  if (target.claudeCaptureMode) entry.pendingCapture = claudeDispatchBinding(target.claudeCaptureMode, adapter);
   log.push(entry);
   writeLog(p.log, log);
   out({
@@ -1017,7 +1019,7 @@ const INIT_FLAGS = ["goal", "rigor", "archive", "chrome", "chain", "host", "prov
 async function main() {
   const [cmd, id, ...rest] = process.argv.slice(2);
   if (!cmd || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) {
-    halt("Usage: route.mjs init|next|status|risk <change-id> [--goal text] [--rigor level] [--host claude|codex] [--provider-mode claude|codex|split] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
+    halt("Usage: route.mjs next <change-id> [--agent-id <id>] | init|status|risk <change-id> [--goal text] [--rigor level] [--host claude|codex] [--provider-mode claude|codex|split] [--archive] [--chrome [false]] [--pr-comment [false]] [--report] | usage <change-id> <n> (--usage-file <path> | --tokens N [--tool-uses N] [--duration-ms N]) | verify-archive <change-id> [--path <p>] | compare <change-id> --baseline <dir> [--routed <dir>] [--format md] [--unpinned]; every command takes [--chain 10x|openspec]");
   }
   const flags = parseFlags(rest, ["goal"]);
   // --chain is checked before anything is read.
@@ -1173,9 +1175,9 @@ async function main() {
     if (meta.isolated === true && !Object.hasOwn(meta, "startCommit") && executed(log).length === 0) {
       startCommit(p, id, meta, policy);
     }
-    next(id, policy, chain, log);
+    await next(id, policy, chain, log);
   } else if (cmd === "next") {
-    next(id, policy, chain);
+    await next(id, policy, chain, null, flags["agent-id"]);
   } else if (cmd === "status") {
     status(id, flags, chain, policy);
   } else if (cmd === "risk") {

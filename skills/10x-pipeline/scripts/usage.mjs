@@ -17,6 +17,9 @@ export const USAGE_LIMITS = { evidenceBytes: 4096, fileBytes: 65536, readMs: 200
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const integer = (value) => Number.isSafeInteger(value) && value >= 0;
 const identifier = (value) => typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value);
+export const claudePathId = value => identifier(value) && !value.includes(":");
+export const nativeClaudeSession = env => !env.AGENT_SMITH_CLAUDE_SESSION && claudePathId(env.CLAUDE_CODE_SESSION_ID)
+  ? env.CLAUDE_CODE_SESSION_ID : null;
 const SOURCES = new Set(["codex-rollout", "claude-native", "claude-transcript", "unknown"]);
 const REASONS = {
   "capture-disabled": "Claude token capture is off. Run `node <absolute-plugin-scripts>/claude-capture.mjs` to enable it for a fresh session.",
